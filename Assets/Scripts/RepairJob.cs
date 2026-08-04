@@ -1,11 +1,25 @@
 using UnityEngine;
 
-public class RepairJob : MonoBehaviour
+public class RepairJob : JobBase
 {
-    [SerializeField] private int payout = 25;
+    public override JobFamily Family => JobFamily.Mechanical;
 
-    public int Payout => payout;
+    public override bool IsComplete
+    {
+        get
+        {
+            if (GetComponentsInChildren<GrimeSpot>().Length > 0) return false;
 
-    // The job is done when every grime spot on this item has been scrubbed away.
-    public bool IsComplete => GetComponentsInChildren<GrimeSpot>().Length == 0;
+            foreach (ReplaceablePart r in GetComponentsInChildren<ReplaceablePart>(true))
+                if (!r.IsReplaced) return false;
+
+            foreach (RemovablePart p in GetComponentsInChildren<RemovablePart>(true))
+                if (p.IsRemoved) return false;
+
+            foreach (Screw s in GetComponentsInChildren<Screw>(true))
+                if (s.IsOut) return false;
+
+            return true;
+        }
+    }
 }

@@ -12,6 +12,20 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float thankDuration = 1.2f;
     [SerializeField] private float turnSpeed = 240f;
     [SerializeField] private float bubbleDuration = 5f;
+
+    [Header("Reassurance")]
+    [SerializeField] private float reassureAmount = 0.3f;      // first use returns this much
+    [SerializeField] private float reassureCooldown = 12f;
+    [SerializeField] private float reassureFalloff = 0.6f;     // each use returns 60% of the last
+    [SerializeField] private float reassureTipCost = 0.15f;    // each use costs 15% of the tip
+    [SerializeField] private int reassureMaxUses = 3;
+
+    private int reassureUses;
+
+    [Header("Presence")]
+    [Tooltip("Patience drain multiplier while the player is present for a call.")]
+    [SerializeField] private float presenceDrainMultiplier = 0.2f;
+
     [SerializeField] private PatienceBar patienceBar;
     [SerializeField] private TMP_Text speechBubble;
     [SerializeField] private GameObject itemPrefab;
@@ -21,11 +35,13 @@ public class CustomerBrain : MonoBehaviour
     private Animator animator;
     private CounterQueue queue;
     private Transform exitPoint;
+    private PlayerInteractor player;
     private float patienceLeft;
     private float thankTimer;
     private float bubbleTimer;
+    private float reassureReadyAt;
     private int slotIndex = -1;
-    private RepairJob activeJob;
+    private JobBase activeJob;
 
     private CustomerArchetype mood;
     private string currentLine = "";
@@ -35,6 +51,52 @@ public class CustomerBrain : MonoBehaviour
     public bool CanAcceptJob => state == State.WaitingInQueue;
     public bool JobReady => state == State.WaitingForService && activeJob != null && activeJob.IsComplete;
 
+    private float CurrentMax => state == State.WaitingForService ? serviceMax : queueMax;
+
+    public bool CanReassure =>
+        (state == State.WaitingInQueue || state == State.WaitingForService)
+        && Time.time >= reassureReadyAt
+        && reassureUses < reassureMaxUses
+        && patienceLeft < CurrentMax * 0.9f;
+
+    // Is this job asking for the player right now? Blocks the reassure prompt
+    // so it can't hijack the button from dialling or answering.
+    public bool JobNeedsAttention
+    {
+        get
+        {
+            HoldCallJob call = activeJob as HoldCallJob;
+            return call != null && (call.CurrentPhase == HoldCallJob.Phase.NeedsDialing ||
+                                    call.CurrentPhase == HoldCallJob.Phase.Ringing);
+        }
+    }
+
+    // Actively working this customer's call slows their patience right down —
+    // you're both standing there listening to the same hold music.
+    // Only the customer you're actually looking at gets soothed —
+    // being vaguely at the counter isn't the same as attending to someone.
+    private float DrainRate
+    {
+        get
+        {
+            HoldCallJob call = activeJob as HoldCallJob;
+            if (call == null || !call.WantsPlayerPresent) return 1f;
+
+            if (player == null) player = FindFirstObjectByType<PlayerInteractor>();
+            if (player == null || !player.IsAtStation) return 1f;
+
+            // Looking at this customer, or at their phone on the counter.
+            Interactable f = player.Focused;
+            if (f == null) return 1f;
+
+            bool lookingAtMe = f.GetComponent<CustomerInteractable>() != null &&
+                               f.GetComponent<CustomerBrain>() == this;
+            bool lookingAtMyPhone = f.GetComponentInParent<HoldCallJob>() == call;
+
+            return (lookingAtMe || lookingAtMyPhone) ? presenceDrainMultiplier : 1f;
+        }
+    }
+
     public void Init(CounterQueue counterQueue, Transform exit, CustomerArchetype archetype)
     {
         queue = counterQueue;
@@ -43,7 +105,6 @@ public class CustomerBrain : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
 
-        // Personality scales both meters.
         float mult = mood != null ? mood.patienceMultiplier : 1f;
         queueMax = queuePatience * mult;
         serviceMax = servicePatience * mult;
@@ -74,7 +135,6 @@ public class CustomerBrain : MonoBehaviour
 
         animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f);
 
-        // Bubble auto-hides after a few seconds, but the line stays retrievable.
         if (bubbleTimer > 0f)
         {
             bubbleTimer -= Time.deltaTime;
@@ -88,20 +148,20 @@ public class CustomerBrain : MonoBehaviour
                 {
                     state = State.WaitingInQueue;
                     patienceLeft = queueMax;
-                    PickLine();               // they greet you on arrival
+                    PickLine();
                 }
                 break;
 
             case State.WaitingInQueue:
                 FaceSlot();
-                patienceLeft -= Time.deltaTime;
+                patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(queueMax, Color.green);
                 if (patienceLeft <= 0f) Leave(false);
                 break;
 
             case State.WaitingForService:
                 FaceSlot();
-                patienceLeft -= Time.deltaTime;
+                patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) Leave(false);
                 break;
@@ -125,12 +185,16 @@ public class CustomerBrain : MonoBehaviour
         state = State.WaitingForService;
         patienceLeft = serviceMax;
 
+        // Small random offset so two items can't land in exactly the same place.
         Transform spot = queue.ItemSpot(slotIndex);
-        GameObject spawned = Instantiate(itemPrefab, spot.position, spot.rotation);
-        activeJob = spawned.GetComponent<RepairJob>();
+        Vector3 offset = new Vector3(Random.Range(-0.06f, 0.06f), 0f, Random.Range(-0.04f, 0.04f));
+        GameObject spawned = Instantiate(itemPrefab, spot.position + offset, spot.rotation);
+
+        activeJob = spawned.GetComponent<JobBase>();
+        if (activeJob != null) activeJob.SetOwner(this);
 
         animator.SetTrigger("Interact");
-        ShowBubble(false);      // tuck it away, but keep the line retrievable
+        ShowBubble(false);
     }
 
     public void CompleteJob()
@@ -141,9 +205,14 @@ public class CustomerBrain : MonoBehaviour
         float tipMult = mood != null ? mood.tipMultiplier : 1f;
 
         int basePay = activeJob.Payout;
-        int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult);
+
+        // Every reassurance eats into what they'll tip you.
+        float reassurePenalty = Mathf.Clamp01(1f - reassureUses * reassureTipCost);
+        int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult * reassurePenalty);
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
+        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip);
+
         Debug.Log($"[{(mood != null ? mood.archetypeName : "?")}] base ${basePay} + tip ${tip}");
 
         Destroy(activeJob.gameObject);
@@ -152,6 +221,21 @@ public class CustomerBrain : MonoBehaviour
         animator.SetTrigger("Interact");
         state = State.Thanking;
         thankTimer = thankDuration;
+    }
+
+    public void Reassure()
+    {
+        if (!CanReassure) return;
+
+        // Diminishing returns: each use gives back less than the last.
+        float gain = CurrentMax * reassureAmount * Mathf.Pow(reassureFalloff, reassureUses);
+        patienceLeft = Mathf.Min(patienceLeft + gain, CurrentMax);
+
+        reassureUses++;
+        reassureReadyAt = Time.time + reassureCooldown;
+
+        animator.SetTrigger("Interact");
+        PickLine();
     }
 
     private void Leave(bool happy)
@@ -173,6 +257,8 @@ public class CustomerBrain : MonoBehaviour
         if (patienceBar != null) patienceBar.gameObject.SetActive(false);
         HideBubble();
 
+        if (!happy && DayClock.Instance != null) DayClock.Instance.RecordLost();
+
         agent.SetDestination(exitPoint.position);
     }
 
@@ -187,7 +273,6 @@ public class CustomerBrain : MonoBehaviour
         bubbleTimer = bubbleDuration;
     }
 
-    // Public so the crosshair can re-show what someone said.
     public void ShowBubble(bool on)
     {
         if (speechBubble == null) return;

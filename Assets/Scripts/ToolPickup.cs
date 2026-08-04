@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum ToolType { Hand, Brush }
+public enum ToolType { Hand, Brush, Screwdriver, Pry, Tweezers }
 
 public class ToolPickup : MonoBehaviour
 {
@@ -13,7 +13,6 @@ public class ToolPickup : MonoBehaviour
         baseScale = transform.localScale;
     }
 
-    // Swell a bit while selected so the player always knows what's in hand.
     public void SetSelected(bool on)
     {
         transform.localScale = on ? baseScale * 1.25f : baseScale;

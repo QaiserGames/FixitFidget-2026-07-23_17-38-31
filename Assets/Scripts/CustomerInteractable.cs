@@ -9,7 +9,11 @@ public class CustomerInteractable : Interactable
         brain = GetComponent<CustomerBrain>();
     }
 
-    public override bool IsAvailable => brain != null && (brain.CanAcceptJob || brain.JobReady);
+    // Reassure is deliberately NOT offered while their job needs attention —
+    // otherwise it hijacks the button from the real action.
+    public override bool IsAvailable =>
+        brain != null && (brain.CanAcceptJob || brain.JobReady ||
+                         (brain.CanReassure && !brain.JobNeedsAttention));
 
     public override string Prompt
     {
@@ -18,6 +22,7 @@ public class CustomerInteractable : Interactable
             if (brain == null) return "";
             if (brain.CanAcceptJob) return "Accept job";
             if (brain.JobReady) return "Hand it back";
+            if (brain.CanReassure && !brain.JobNeedsAttention) return "Reassure";
             return "";
         }
     }
@@ -26,9 +31,9 @@ public class CustomerInteractable : Interactable
     {
         if (brain.CanAcceptJob) brain.AcceptJob();
         else if (brain.JobReady) brain.CompleteJob();
+        else if (brain.CanReassure) brain.Reassure();
     }
 
-    // Looking at someone re-shows what they said.
     public override void SetFocused(bool focused)
     {
         if (brain != null) brain.ShowBubble(focused);

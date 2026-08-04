@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 public class PlayerInteractor : MonoBehaviour
 {
     [SerializeField] private float reach = 2.2f;
-    [SerializeField] private float stationReach = 4f;
+    [SerializeField] private float stationReach = 10f;
 
     private Interactable focused;
     private StationInteractable currentStation;
@@ -14,6 +14,7 @@ public class PlayerInteractor : MonoBehaviour
 
     public bool IsAtStation => currentStation != null;
     public string CurrentPrompt { get; private set; }
+    public Interactable Focused => focused;
     public string DebugInfo { get; private set; }
 
     private void Awake()
@@ -36,15 +37,31 @@ public class PlayerInteractor : MonoBehaviour
         }
 
         CurrentPrompt = focused != null ? focused.Prompt : "";
-        BuildDebugInfo();
+        DebugInfo = $"station:{(currentStation != null ? currentStation.name : "none")}  focus:{(focused != null ? focused.name : "NULL")}";
 
-        // FALLBACK: direct device read. Delete this block once "OnBack"
-        // shows up in the Player Input message list.
+        HandlePhoneTreeInput();
+
+        // FALLBACK: direct device read. Delete once "OnBack" appears
+        // in the Player Input message list.
         bool backPressed =
             (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) ||
             (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame);
 
         if (backPressed) ExitStation();
+    }
+
+    // Number keys drive the phone tree while a call is navigating menus.
+    private void HandlePhoneTreeInput()
+    {
+        if (currentStation == null || Keyboard.current == null) return;
+
+        HoldCallJob call = FindFirstObjectByType<HoldCallJob>();
+        if (call == null || call.CurrentPhase != HoldCallJob.Phase.InTree) return;
+
+        if (Keyboard.current.digit1Key.wasPressedThisFrame) call.PressNumber(1);
+        if (Keyboard.current.digit2Key.wasPressedThisFrame) call.PressNumber(2);
+        if (Keyboard.current.digit3Key.wasPressedThisFrame) call.PressNumber(3);
+        if (Keyboard.current.digit4Key.wasPressedThisFrame) call.PressNumber(4);
     }
 
     private Interactable FindBest()
@@ -132,11 +149,6 @@ public class PlayerInteractor : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-    }
-
-    private void BuildDebugInfo()
-    {
-        DebugInfo = $"station:{(currentStation != null ? currentStation.name : "none")}  focus:{(focused != null ? focused.name : "NULL")}";
     }
 
     private void OnDrawGizmosSelected()

@@ -15,6 +15,7 @@ public class CustomerSpawner : MonoBehaviour
 
     private void Update()
     {
+        if (DayClock.Instance != null && !DayClock.Instance.IsOpen) return;
         timer += Time.deltaTime;
         if (timer >= spawnEvery && CountCustomers() < maxCustomers)
         {
