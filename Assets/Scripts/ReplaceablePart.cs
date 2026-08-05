@@ -5,6 +5,7 @@ public class ReplaceablePart : BenchInteractable
     [SerializeField] private GameObject brokenVisual;
     [SerializeField] private GameObject freshVisual;
     [SerializeField] private RemovablePart coveredBy;
+    [SerializeField] private string partName = "Cracked screen";
 
     public bool IsReplaced { get; private set; }
 
@@ -19,6 +20,9 @@ public class ReplaceablePart : BenchInteractable
     public override bool CanInteract =>
         !IsReplaced && (coveredBy == null || coveredBy.IsRemoved);
 
+    
+    public override string DisplayName => partName;
+    public override string Prompt => "Replace";
     public override ToolType RequiredTool => ToolType.Tweezers;
 
     public override void Activate()

@@ -13,6 +13,8 @@ public class RemovablePart : BenchInteractable
     [Tooltip("Parts beneath that must be replaced before this can close.")]
     [SerializeField] private ReplaceablePart[] replacementsBeneath;
 
+    [SerializeField] private string partName = "Back cover";
+
     public bool IsRemoved { get; private set; }
     private bool busy;
 
@@ -77,6 +79,8 @@ public class RemovablePart : BenchInteractable
         }
     }
 
+    public override string DisplayName => partName;
+    public override string Prompt => IsRemoved ? "Put back on" : "Lift off";
     public override ToolType RequiredTool => ToolType.Pry;
 
     public override void Activate()

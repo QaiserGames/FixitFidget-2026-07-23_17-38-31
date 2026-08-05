@@ -9,7 +9,7 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private GameObject crosshair;
     [SerializeField] private PlayerInteractor interactor;
     [SerializeField] private ItemInspector inspector;
-    [SerializeField] private bool showDebug = true;
+    [SerializeField] private bool showDebug = false;
 
     private void Update()
     {
@@ -36,7 +36,7 @@ public class ShopUI : MonoBehaviour
             line += (line.Length > 0 ? "        " : "") + "[Esc]  Step back";
 
         // An active hold call takes over the top of the prompt area.
-        HoldCallJob activeCall = FindFirstObjectByType<HoldCallJob>();
+        HoldCallJob activeCall = FindAnyObjectByType<HoldCallJob>();
         if (activeCall != null && activeCall.CurrentPhase != HoldCallJob.Phase.Done)
             line = activeCall.StatusLine + "\n" + line;
 

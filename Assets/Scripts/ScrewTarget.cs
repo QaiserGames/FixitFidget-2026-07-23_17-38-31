@@ -33,6 +33,8 @@ public class ScrewTarget : BenchInteractable
         }
     }
 
+    public override string DisplayName => "Screw";
+    public override string Prompt => screw.IsOut ? "Screw in" : "Unscrew";
     public override ToolType RequiredTool => ToolType.Screwdriver;
 
     public override void Activate()

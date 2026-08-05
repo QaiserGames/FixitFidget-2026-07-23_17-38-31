@@ -4,6 +4,8 @@ public class GrimeSpot : MonoBehaviour
 {
     [SerializeField] private float scrubHealth = 100f;
 
+    public string DisplayName => "Grime";
+
     private float maxHealth;
     private Vector3 startScale;
 

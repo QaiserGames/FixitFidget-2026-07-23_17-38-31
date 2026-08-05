@@ -50,6 +50,11 @@ public class CustomerBrain : MonoBehaviour
 
     public bool CanAcceptJob => state == State.WaitingInQueue;
     public bool JobReady => state == State.WaitingForService && activeJob != null && activeJob.IsComplete;
+    public bool HasJob => activeJob != null;
+    public bool InService => state == State.WaitingForService;
+    public string JobCardText => activeJob != null ? activeJob.JobCard : "";
+    public float PatienceFraction => Mathf.Clamp01(patienceLeft / CurrentMax);
+    public int SlotIndex => slotIndex;
 
     private float CurrentMax => state == State.WaitingForService ? serviceMax : queueMax;
 

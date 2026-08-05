@@ -14,6 +14,11 @@ public abstract class BenchInteractable : MonoBehaviour
         if (rend != null) baseColor = rend.material.color;
     }
 
+    // What this part is called, for the hover tooltip.
+    public virtual string DisplayName => "Part";
+
+    // What pressing it would do.
+    public virtual string Prompt => "Interact";
     // Can the player act on this right now?
     public abstract bool CanInteract { get; }
 

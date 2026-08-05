@@ -21,6 +21,9 @@ public class ItemInspector : MonoBehaviour
     private PlayerInteractor interaction;
 
     public bool IsHoldingItem => heldItem != null;
+    public string CurrentJobCard { get; private set; }
+    public string HoverName { get; private set; }
+    public string HoverAction { get; private set; }
 
     private void Awake()
     {
@@ -94,19 +97,42 @@ public class ItemInspector : MonoBehaviour
     {
         Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
 
+        // The job card comes from the item itself.
+        JobBase job = heldItem.GetComponent<JobBase>();
+        CurrentJobCard = job != null ? job.JobCard : "";
+
         // What's under the cursor?
-        BenchInteractable target = null;
+        BenchInteractable hovered = null;
         GrimeSpot grime = null;
 
         if (Physics.Raycast(ray, out RaycastHit hit, benchReach))
         {
-            target = hit.collider.GetComponent<BenchInteractable>();
+            hovered = hit.collider.GetComponent<BenchInteractable>();
             grime = hit.collider.GetComponent<GrimeSpot>();
+        }
 
-            // Only highlight things we could actually act on with this tool.
-            if (target != null && !(target.CanInteract &&
-                (currentTool == target.RequiredTool || target.RequiredTool == ToolType.Hand)))
-                target = null;
+        BenchInteractable target = null;
+        HoverName = "";
+        HoverAction = "";
+
+        if (grime != null)
+        {
+            HoverName = grime.DisplayName;
+            HoverAction = currentTool == ToolType.Brush ? "Hold to scrub" : "Needs the brush";
+        }
+        else if (hovered != null)
+        {
+            HoverName = hovered.DisplayName;
+
+            if (!hovered.CanInteract)
+                HoverAction = "Not yet";
+            else if (currentTool == hovered.RequiredTool || hovered.RequiredTool == ToolType.Hand)
+            {
+                target = hovered;
+                HoverAction = hovered.Prompt;
+            }
+            else
+                HoverAction = $"Needs the {hovered.RequiredTool.ToString().ToLower()}";
         }
 
         SetBenchHover(target);
@@ -161,6 +187,9 @@ public class ItemInspector : MonoBehaviour
         SetBenchHover(null);
         ClearTool();
         RelockCursor();
+        CurrentJobCard = "";
+        HoverName = "";
+        HoverAction = "";
     }
 
     private void ClearTool()

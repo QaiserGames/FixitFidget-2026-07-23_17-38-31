@@ -464,7 +464,7 @@ MonoBehaviour:
   presenceDrainMultiplier: 0.2
   patienceBar: {fileID: 3382181744524018593}
   speechBubble: {fileID: 6256992342730178411}
-  itemPrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+  itemPrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
 --- !u!136 &3547829432509808127
 CapsuleCollider:
   m_ObjectHideFlags: 0
