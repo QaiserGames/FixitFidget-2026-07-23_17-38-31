@@ -4009,6 +4009,7 @@ GameObject:
   - component: {fileID: 1976578419}
   - component: {fileID: 1976578418}
   - component: {fileID: 1976578420}
+  - component: {fileID: 1976578421}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -4057,6 +4058,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DayClock
   dayLengthSeconds: 180
   startingDay: 1
+--- !u!114 &1976578421
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1976578417}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c021afad4814ce04d9d67e2d03c50bcd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::JobIdentityManager
+  palette:
+  - {r: 0.95, g: 0.55, b: 0.15, a: 1}
+  - {r: 0.25, g: 0.65, b: 0.95, a: 1}
+  - {r: 0.55, g: 0.85, b: 0.35, a: 1}
+  - {r: 0.9, g: 0.35, b: 0.75, a: 1}
+  - {r: 0.95, g: 0.85, b: 0.25, a: 1}
+  - {r: 0.6, g: 0.45, b: 0.95, a: 1}
 --- !u!1 &2034898167
 GameObject:
   m_ObjectHideFlags: 0

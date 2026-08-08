@@ -14,20 +14,18 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float bubbleDuration = 5f;
 
     [Header("Reassurance")]
-    [SerializeField] private float reassureAmount = 0.3f;      // first use returns this much
+    [SerializeField] private float reassureAmount = 0.3f;
     [SerializeField] private float reassureCooldown = 12f;
-    [SerializeField] private float reassureFalloff = 0.6f;     // each use returns 60% of the last
-    [SerializeField] private float reassureTipCost = 0.15f;    // each use costs 15% of the tip
+    [SerializeField] private float reassureFalloff = 0.6f;
+    [SerializeField] private float reassureTipCost = 0.15f;
     [SerializeField] private int reassureMaxUses = 3;
 
-    private int reassureUses;
-
     [Header("Presence")]
-    [Tooltip("Patience drain multiplier while the player is present for a call.")]
     [SerializeField] private float presenceDrainMultiplier = 0.2f;
 
     [SerializeField] private PatienceBar patienceBar;
     [SerializeField] private TMP_Text speechBubble;
+    [SerializeField] private JobMarker jobMarker;
     [SerializeField] private GameObject itemPrefab;
 
     private State state;
@@ -40,6 +38,7 @@ public class CustomerBrain : MonoBehaviour
     private float thankTimer;
     private float bubbleTimer;
     private float reassureReadyAt;
+    private int reassureUses;
     private int slotIndex = -1;
     private JobBase activeJob;
 
@@ -48,8 +47,13 @@ public class CustomerBrain : MonoBehaviour
     private float queueMax;
     private float serviceMax;
 
+    // ---------- job identity ----------
+    public int JobNumber { get; private set; }
+    public Color JobColor { get; private set; } = Color.white;
+
     public bool CanAcceptJob => state == State.WaitingInQueue;
     public bool JobReady => state == State.WaitingForService && activeJob != null && activeJob.IsComplete;
+
     public bool HasJob => activeJob != null;
     public bool InService => state == State.WaitingForService;
     public string JobCardText => activeJob != null ? activeJob.JobCard : "";
@@ -64,8 +68,6 @@ public class CustomerBrain : MonoBehaviour
         && reassureUses < reassureMaxUses
         && patienceLeft < CurrentMax * 0.9f;
 
-    // Is this job asking for the player right now? Blocks the reassure prompt
-    // so it can't hijack the button from dialling or answering.
     public bool JobNeedsAttention
     {
         get
@@ -76,10 +78,6 @@ public class CustomerBrain : MonoBehaviour
         }
     }
 
-    // Actively working this customer's call slows their patience right down —
-    // you're both standing there listening to the same hold music.
-    // Only the customer you're actually looking at gets soothed —
-    // being vaguely at the counter isn't the same as attending to someone.
     private float DrainRate
     {
         get
@@ -87,10 +85,9 @@ public class CustomerBrain : MonoBehaviour
             HoldCallJob call = activeJob as HoldCallJob;
             if (call == null || !call.WantsPlayerPresent) return 1f;
 
-            if (player == null) player = FindFirstObjectByType<PlayerInteractor>();
+            if (player == null) player = FindAnyObjectByType<PlayerInteractor>();
             if (player == null || !player.IsAtStation) return 1f;
 
-            // Looking at this customer, or at their phone on the counter.
             Interactable f = player.Focused;
             if (f == null) return 1f;
 
@@ -115,6 +112,7 @@ public class CustomerBrain : MonoBehaviour
         serviceMax = servicePatience * mult;
 
         HideBubble();
+        if (jobMarker != null) jobMarker.Hide();
 
         slotIndex = queue.ClaimSlot(this);
         if (slotIndex < 0)
@@ -132,6 +130,12 @@ public class CustomerBrain : MonoBehaviour
     {
         slotIndex = newIndex;
         agent.SetDestination(queue.SlotPoint(slotIndex).position);
+
+        if (activeJob != null)
+        {
+            Transform spot = queue.ItemSpot(slotIndex);
+            activeJob.transform.position = spot.position;
+        }
     }
 
     private void Update()
@@ -190,16 +194,27 @@ public class CustomerBrain : MonoBehaviour
         state = State.WaitingForService;
         patienceLeft = serviceMax;
 
-        // Small random offset so two items can't land in exactly the same place.
+        // Claim an identity: a number and colour shared by ticket, item, and customer.
+        if (JobIdentityManager.Instance != null)
+        {
+            JobIdentityManager.Instance.Next(out int num, out Color col);
+            JobNumber = num;
+            JobColor = col;
+        }
+
         Transform spot = queue.ItemSpot(slotIndex);
-        Vector3 offset = new Vector3(Random.Range(-0.06f, 0.06f), 0f, Random.Range(-0.04f, 0.04f));
-        GameObject spawned = Instantiate(itemPrefab, spot.position + offset, spot.rotation);
+        GameObject spawned = Instantiate(itemPrefab, spot.position, spot.rotation);
 
         activeJob = spawned.GetComponent<JobBase>();
         if (activeJob != null) activeJob.SetOwner(this);
 
+        // Stamp the identity on the item and on ourselves.
+        JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
+        if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
+        if (jobMarker != null) jobMarker.Show(JobNumber, JobColor);
+
         animator.SetTrigger("Interact");
-        ShowBubble(false);
+        PickLine();
     }
 
     public void CompleteJob()
@@ -211,17 +226,15 @@ public class CustomerBrain : MonoBehaviour
 
         int basePay = activeJob.Payout;
 
-        // Every reassurance eats into what they'll tip you.
         float reassurePenalty = Mathf.Clamp01(1f - reassureUses * reassureTipCost);
         int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult * reassurePenalty);
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip);
 
-        Debug.Log($"[{(mood != null ? mood.archetypeName : "?")}] base ${basePay} + tip ${tip}");
-
         Destroy(activeJob.gameObject);
         activeJob = null;
+        if (jobMarker != null) jobMarker.Hide();
 
         animator.SetTrigger("Interact");
         state = State.Thanking;
@@ -232,7 +245,6 @@ public class CustomerBrain : MonoBehaviour
     {
         if (!CanReassure) return;
 
-        // Diminishing returns: each use gives back less than the last.
         float gain = CurrentMax * reassureAmount * Mathf.Pow(reassureFalloff, reassureUses);
         patienceLeft = Mathf.Min(patienceLeft + gain, CurrentMax);
 
@@ -260,6 +272,7 @@ public class CustomerBrain : MonoBehaviour
         }
 
         if (patienceBar != null) patienceBar.gameObject.SetActive(false);
+        if (jobMarker != null) jobMarker.Hide();
         HideBubble();
 
         if (!happy && DayClock.Instance != null) DayClock.Instance.RecordLost();
