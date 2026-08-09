@@ -7,6 +7,11 @@ public abstract class JobBase : MonoBehaviour
     [SerializeField] protected int payout = 25;
     [SerializeField] protected string jobCardText = "Fix it.";
 
+    [Header("Dialogue")]
+    [TextArea(2, 3)] public string complaintLine = "It's broken.";
+    [TextArea(2, 3)] public string acceptedLine = "Thank you!";
+    [TextArea(2, 3)] public string completedLine = "You're a lifesaver.";
+
     public int Payout => payout;
     public string JobCard => jobCardText;
     public abstract JobFamily Family { get; }

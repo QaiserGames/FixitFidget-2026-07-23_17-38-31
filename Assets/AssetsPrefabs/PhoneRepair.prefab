@@ -446,6 +446,7 @@ MonoBehaviour:
   brokenVisual: {fileID: 3978784907803598545}
   freshVisual: {fileID: 7433282545182374299}
   coveredBy: {fileID: 4891800866225450368}
+  partName: Cracked screen
 --- !u!1 &4773336884618724216
 GameObject:
   m_ObjectHideFlags: 0
@@ -569,6 +570,7 @@ GameObject:
   - component: {fileID: 2761802281801356239}
   - component: {fileID: 7824066840584290523}
   - component: {fileID: 1947334370888822449}
+  - component: {fileID: 1381998752705015140}
   m_Layer: 0
   m_Name: PhoneRepair
   m_TagString: Untagged
@@ -623,6 +625,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InspectableItem
   hoverScale: 1.06
+--- !u!114 &1381998752705015140
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6096278884181677530}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a570f39f5c48a74db34f07482d5fbfe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemInteractable
+  priority: 3
 --- !u!1 &7433282545182374299
 GameObject:
   m_ObjectHideFlags: 0
@@ -847,3 +862,4 @@ MonoBehaviour:
   faultsBeneath: []
   replacementsBeneath:
   - {fileID: 0}
+  partName: Back cover

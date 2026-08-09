@@ -11,6 +11,14 @@ public class CustomerSpawner : MonoBehaviour
     [Header("Personalities")]
     [SerializeField] private CustomerArchetype[] archetypes;
 
+    [Header("Customer names")]
+    [SerializeField] private string[] firstNames =
+    {
+        "Valerie", "Deshawn", "Priya", "Tomas", "Ingrid", "Mansoor",
+        "Ali", "Alishba", "Nina", "Walter", "Yuki", "Saamin",
+        "Grace", "Omar", "Beatriz", "Malcom"
+    };
+
     private float timer;
 
     private void Update()
@@ -22,6 +30,7 @@ public class CustomerSpawner : MonoBehaviour
             timer = 0f;
             var customer = Instantiate(customerPrefab, transform.position, transform.rotation);
             customer.Init(counterQueue, exitPoint, PickArchetype());
+            customer.SetName(firstNames[Random.Range(0, firstNames.Length)]);
         }
     }
 

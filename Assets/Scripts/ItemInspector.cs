@@ -104,18 +104,25 @@ public class ItemInspector : MonoBehaviour
         // What's under the cursor?
         BenchInteractable hovered = null;
         GrimeSpot grime = null;
+        ToolPickup hoveredTool = null;
 
         if (Physics.Raycast(ray, out RaycastHit hit, benchReach))
         {
             hovered = hit.collider.GetComponent<BenchInteractable>();
             grime = hit.collider.GetComponent<GrimeSpot>();
+            hoveredTool = hit.collider.GetComponent<ToolPickup>();
         }
 
         BenchInteractable target = null;
         HoverName = "";
         HoverAction = "";
 
-        if (grime != null)
+        if (hoveredTool != null)
+        {
+            HoverName = hoveredTool.displayName;
+            HoverAction = currentTool == hoveredTool.tool ? "In hand" : "Pick up tool";
+        }
+        else if (grime != null)
         {
             HoverName = grime.DisplayName;
             HoverAction = currentTool == ToolType.Brush ? "Hold to scrub" : "Needs the brush";

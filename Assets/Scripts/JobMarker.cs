@@ -10,10 +10,17 @@ public class JobMarker : MonoBehaviour
         Hide();
     }
 
+    // Numbered version — used on items.
     public void Show(int number, Color color)
     {
+        ShowText($"#{number}", color);
+    }
+
+    // Named version — used on people.
+    public void ShowText(string text, Color color)
+    {
         if (label == null) return;
-        label.text = $"#{number}";
+        label.text = text;
         label.color = color;
         gameObject.SetActive(true);
     }

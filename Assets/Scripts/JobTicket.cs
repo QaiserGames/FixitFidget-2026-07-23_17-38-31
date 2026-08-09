@@ -18,7 +18,7 @@ public class JobTicket : MonoBehaviour
         // Stamp the identity once — it never changes for a job's lifetime.
         if (slotText != null)
         {
-            slotText.text = $"#{brain.JobNumber}";
+            slotText.text = brain.CustomerName;
             slotText.color = brain.JobColor;
         }
 
