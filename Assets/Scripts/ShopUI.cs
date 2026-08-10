@@ -13,7 +13,6 @@ public class ShopUI : MonoBehaviour
 
     private void Update()
     {
-        // Day and time remaining.
         if (clockText != null && DayClock.Instance != null)
         {
             var c = DayClock.Instance;
@@ -22,20 +21,22 @@ public class ShopUI : MonoBehaviour
             clockText.text = c.IsOpen ? $"Day {c.Day}   {mins}:{secs:00}" : $"Day {c.Day}   CLOSING";
         }
 
-        // Crosshair only at a station, and only when not inspecting an item.
+        // Crosshair shows whenever we're CHOOSING — hidden while manipulating an item.
         bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem);
         if (crosshair != null) crosshair.SetActive(showCrosshair);
 
         if (ShopEconomy.Instance != null)
             moneyText.text = $"${ShopEconomy.Instance.Money}";
 
-        string prompt = interactor.CurrentPrompt;
-        string line = string.IsNullOrEmpty(prompt) ? "" : $"[E]  {prompt}";
+        // E does things to objects; F enters and leaves stations.
+        string line = "";
+        string interact = interactor.CurrentPrompt;
+        string action = interactor.StationPrompt;
 
-        if (interactor.IsAtStation)
-            line += (line.Length > 0 ? "        " : "") + "[Esc]  Step back";
+        if (!string.IsNullOrEmpty(interact)) line += $"[E]  {interact}";
+        if (!string.IsNullOrEmpty(action))
+            line += (line.Length > 0 ? "        " : "") + $"[F]  {action}";
 
-        // An active hold call takes over the top of the prompt area.
         HoldCallJob activeCall = FindAnyObjectByType<HoldCallJob>();
         if (activeCall != null && activeCall.CurrentPhase != HoldCallJob.Phase.Done)
             line = activeCall.StatusLine + "\n" + line;

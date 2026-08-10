@@ -31,6 +31,13 @@ public class CustomerInteractable : Interactable
         if (brain.CanAcceptJob) brain.AcceptJob();
         else if (brain.JobReady) brain.CompleteJob();
         else if (brain.CanReassure) brain.Reassure();
-        // JobFixedButAway deliberately does nothing — the prompt is the instruction.
+    }
+
+    // Skyrim-style: their name and last line appear only when you look at them.
+    public override void SetFocused(bool focused)
+    {
+        if (brain == null) return;
+        brain.ShowBubble(focused);
+        brain.ShowNameTag(focused);
     }
 }

@@ -8,14 +8,21 @@ public class PlayerInteractor : MonoBehaviour
 
     private Interactable focused;
     private StationInteractable currentStation;
+    private StationInteractable nearbyStation;
     private PlayerMovement movement;
     private Renderer bodyRenderer;
     private Camera cam;
 
     public bool IsAtStation => currentStation != null;
-    public string CurrentPrompt { get; private set; }
     public Interactable Focused => focused;
+    public string CurrentPrompt { get; private set; }
     public string DebugInfo { get; private set; }
+    public StationInteractable CurrentStation => currentStation;
+
+    // What the Action button would do right now.
+    public string StationPrompt =>
+        currentStation != null ? "Step back" :
+        nearbyStation != null ? nearbyStation.StationLabel : "";
 
     private void Awake()
     {
@@ -28,7 +35,6 @@ public class PlayerInteractor : MonoBehaviour
     {
         Interactable next = FindBest();
 
-        // Tell things when the crosshair arrives and leaves.
         if (next != focused)
         {
             if (focused != null) focused.SetFocused(false);
@@ -37,31 +43,44 @@ public class PlayerInteractor : MonoBehaviour
         }
 
         CurrentPrompt = focused != null ? focused.Prompt : "";
+        nearbyStation = FindNearestStation();
+
         DebugInfo = $"station:{(currentStation != null ? currentStation.name : "none")}  focus:{(focused != null ? focused.name : "NULL")}";
 
         HandlePhoneTreeInput();
-
-        // FALLBACK: direct device read. Delete once "OnBack" appears
-        // in the Player Input message list.
-        bool backPressed =
-            (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame);
-
-        if (backPressed) ExitStation();
     }
 
-    // Number keys drive the phone tree while a call is navigating menus.
     private void HandlePhoneTreeInput()
     {
         if (currentStation == null || Keyboard.current == null) return;
 
-        HoldCallJob call = FindFirstObjectByType<HoldCallJob>();
+        HoldCallJob call = FindAnyObjectByType<HoldCallJob>();
         if (call == null || call.CurrentPhase != HoldCallJob.Phase.InTree) return;
 
         if (Keyboard.current.digit1Key.wasPressedThisFrame) call.PressNumber(1);
         if (Keyboard.current.digit2Key.wasPressedThisFrame) call.PressNumber(2);
         if (Keyboard.current.digit3Key.wasPressedThisFrame) call.PressNumber(3);
         if (Keyboard.current.digit4Key.wasPressedThisFrame) call.PressNumber(4);
+    }
+
+    // Stations are found separately — Action uses them, Interact never does.
+    private StationInteractable FindNearestStation()
+    {
+        if (currentStation != null) return null;
+
+        Collider[] near = Physics.OverlapSphere(transform.position, reach);
+        StationInteractable best = null;
+        float bestDist = float.MaxValue;
+
+        foreach (Collider h in near)
+        {
+            StationInteractable s = h.GetComponentInParent<StationInteractable>();
+            if (s == null) continue;
+
+            float d = Vector3.Distance(transform.position, s.transform.position);
+            if (d < bestDist) { bestDist = d; best = s; }
+        }
+        return best;
     }
 
     private Interactable FindBest()
@@ -79,7 +98,7 @@ public class PlayerInteractor : MonoBehaviour
             {
                 Interactable it = h.collider.GetComponentInParent<Interactable>();
                 if (it == null) continue;
-                if (it is StationInteractable) continue;   // includes the counter we're stood at
+                if (it is StationInteractable) continue;
                 if (!it.IsAvailable) continue;
                 return it;
             }
@@ -87,7 +106,7 @@ public class PlayerInteractor : MonoBehaviour
             return null;
         }
 
-        // ---- On the shop floor: nearest station wins ----
+        // ---- On the shop floor: nearest available wins ----
         Collider[] near = Physics.OverlapSphere(transform.position, reach);
 
         Interactable best = null;
@@ -97,7 +116,7 @@ public class PlayerInteractor : MonoBehaviour
         {
             Interactable it = h.GetComponentInParent<Interactable>();
             if (it == null || !it.IsAvailable) continue;
-            if (it is CustomerInteractable) continue;      // customers are served from the counter
+            if (it is CustomerInteractable) continue;   // customers are served from the counter
 
             float score = it.Priority * 100f - Vector3.Distance(transform.position, it.transform.position);
 
@@ -111,9 +130,17 @@ public class PlayerInteractor : MonoBehaviour
         return best;
     }
 
+    // E — pick up, set down, accept, hand back.
     private void OnInteract()
     {
         if (focused != null) focused.Interact(this);
+    }
+
+    // F — enter and leave stations.
+    private void OnAction()
+    {
+        if (currentStation != null) { ExitStation(); return; }
+        if (nearbyStation != null) EnterStation(nearbyStation);
     }
 
     private void OnBack()
@@ -125,6 +152,7 @@ public class PlayerInteractor : MonoBehaviour
     {
         currentStation = station;
         station.ActivateCamera(true);
+        station.ResetView();                 // always arrive facing forward
         movement.enabled = false;
         if (bodyRenderer != null) bodyRenderer.enabled = false;
 

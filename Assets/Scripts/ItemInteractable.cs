@@ -10,15 +10,11 @@ public class ItemInteractable : Interactable
         if (job == null) job = GetComponent<JobBase>();
     }
 
-    // Only when someone owns this job and our hands are free.
     public override bool IsAvailable
     {
         get
         {
             if (job == null || job.Owner == null) return false;
-
-            PlayerInteractor p = FindAnyObjectByType<PlayerInteractor>();
-            if (p == null || p.IsAtStation) return false;   // floor only
 
             PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
             return carry != null && !carry.IsCarrying;
@@ -30,6 +26,12 @@ public class ItemInteractable : Interactable
     public override void Interact(PlayerInteractor player)
     {
         PlayerCarry carry = player.GetComponent<PlayerCarry>();
-        if (carry != null) carry.PickUp(job);
+        if (carry == null) return;
+
+        carry.PickUp(job);
+
+        // Taking something always means you're about to walk somewhere —
+        // so step out of the station in the same press.
+        if (player.IsAtStation) player.ExitStation();
     }
 }

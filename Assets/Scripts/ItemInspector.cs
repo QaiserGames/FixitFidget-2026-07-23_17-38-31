@@ -7,20 +7,20 @@ public class ItemInspector : MonoBehaviour
     [SerializeField] private Transform inspectPoint;
     [SerializeField] private CinemachineCamera inspectCam;
     [SerializeField] private float rotateSpeed = 0.4f;
-    [SerializeField] private float pickupRange = 4f;
-    [SerializeField] private LayerMask pickupMask = ~0;
     [SerializeField] private float scrubPower = 1.5f;
-    [SerializeField] private float benchReach = 3f;
+    [SerializeField] private float benchReach = 6f;
 
-    private InspectableItem heldItem;
-    private InspectableItem currentHover;
+    private JobBase focusedItem;
+    private Vector3 restPosition;
+    private Quaternion restRotation;
+
     private BenchInteractable currentBenchHover;
     private ToolType currentTool = ToolType.Hand;
     private ToolPickup currentToolPickup;
     private Camera cam;
     private PlayerInteractor interaction;
 
-    public bool IsHoldingItem => heldItem != null;
+    public bool IsHoldingItem => focusedItem != null;
     public string CurrentJobCard { get; private set; }
     public string HoverName { get; private set; }
     public string HoverAction { get; private set; }
@@ -36,72 +36,85 @@ public class ItemInspector : MonoBehaviour
         var mouse = Mouse.current;
         if (mouse == null) return;
 
-        if (heldItem == null && inspectCam.Priority > 0)
+        // Leaving the station, or the item dying, always releases focus.
+        if (focusedItem == null || !interaction.IsAtStation)
         {
-            inspectCam.Priority = 0;
-            ClearTool();
-            RelockCursor();
-        }
-
-        if (heldItem != null && !interaction.IsAtStation)
-        {
-            PutItemBack();
+            if (focusedItem != null || inspectCam.Priority > 0) Release();
+            HandleSelect(mouse);
             return;
         }
 
-        if (heldItem == null)
-        {
-            HandlePickup(mouse);
-        }
-        else
-        {
-            HandleBench(mouse);
-        }
+        HandleBench(mouse);
     }
 
-    // ---------- picking an item up off the counter ----------
+    // ---------- CHOOSING: crosshair-aimed, work surfaces only ----------
 
-    private void HandlePickup(Mouse mouse)
+    private void HandleSelect(Mouse mouse)
     {
-        if (!interaction.IsAtStation)
-        {
-            SetHover(null);
-            return;
-        }
+        HoverName = "";
+        HoverAction = "";
+        CurrentJobCard = "";
+
+        if (!interaction.IsAtStation) return;
+
+        // Repairs happen at the bench, not the counter.
+        if (interaction.CurrentStation == null || !interaction.CurrentStation.IsWorkSurface) return;
 
         Vector2 centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
         Ray ray = cam.ScreenPointToRay(centre);
+        if (!Physics.Raycast(ray, out RaycastHit hit, benchReach)) return;
 
-        InspectableItem found = null;
-        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, pickupMask))
-            found = hit.collider.GetComponentInParent<InspectableItem>();
+        JobBase item = hit.collider.GetComponentInParent<JobBase>();
+        if (item == null) return;
 
-        SetHover(found);
+        HoverName = item.JobCard;
+        HoverAction = "Work on this";
 
-        if (found != null && mouse.leftButton.wasPressedThisFrame)
+        if (mouse.leftButton.wasPressedThisFrame)
         {
-            SetHover(null);
-            found.RememberPose();
-            heldItem = found;
-            heldItem.transform.position = inspectPoint.position;
+            focusedItem = item;
+            restPosition = item.transform.position;
+            restRotation = item.transform.rotation;
+
+            item.transform.position = inspectPoint.position;
             inspectCam.Priority = 30;
 
+            // Now we're manipulating, not choosing — give the cursor back.
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
     }
 
-    // ---------- working on it ----------
+    private void Release()
+    {
+        if (focusedItem != null)
+        {
+            focusedItem.transform.position = restPosition;
+            focusedItem.transform.rotation = restRotation;
+        }
+        focusedItem = null;
+        inspectCam.Priority = 0;
+        ClearTool();
+        CurrentJobCard = "";
+        HoverName = "";
+        HoverAction = "";
+
+        // Back to choosing — crosshair returns.
+        if (interaction.IsAtStation)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+
+    // ---------- MANIPULATING: cursor-aimed ----------
 
     private void HandleBench(Mouse mouse)
     {
         Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
 
-        // The job card comes from the item itself.
-        JobBase job = heldItem.GetComponent<JobBase>();
-        CurrentJobCard = job != null ? job.JobCard : "";
+        CurrentJobCard = focusedItem.JobCard;
 
-        // What's under the cursor?
         BenchInteractable hovered = null;
         GrimeSpot grime = null;
         ToolPickup hoveredTool = null;
@@ -144,16 +157,14 @@ public class ItemInspector : MonoBehaviour
 
         SetBenchHover(target);
 
-        // Left click: tool pickup takes priority, then bench actions.
         if (mouse.leftButton.wasPressedThisFrame)
         {
-            if (Physics.Raycast(ray, out RaycastHit toolHit, 2f) &&
-                toolHit.collider.TryGetComponent(out ToolPickup pickup))
+            if (hoveredTool != null)
             {
                 if (currentToolPickup != null) currentToolPickup.SetSelected(false);
-                currentToolPickup = pickup;
-                currentTool = pickup.tool;
-                pickup.SetSelected(true);
+                currentToolPickup = hoveredTool;
+                currentTool = hoveredTool.tool;
+                hoveredTool.SetSelected(true);
             }
             else if (target != null)
             {
@@ -161,7 +172,6 @@ public class ItemInspector : MonoBehaviour
             }
         }
 
-        // Hold to scrub or rotate.
         if (mouse.leftButton.isPressed)
         {
             Vector2 delta = mouse.delta.ReadValue();
@@ -172,31 +182,17 @@ public class ItemInspector : MonoBehaviour
             }
             else if (currentTool == ToolType.Hand)
             {
-                heldItem.transform.Rotate(cam.transform.up, -delta.x * rotateSpeed, Space.World);
-                heldItem.transform.Rotate(cam.transform.right, delta.y * rotateSpeed, Space.World);
+                focusedItem.transform.Rotate(cam.transform.up, -delta.x * rotateSpeed, Space.World);
+                focusedItem.transform.Rotate(cam.transform.right, delta.y * rotateSpeed, Space.World);
             }
         }
 
+        // Right-click backs out one level: tool first, then the item.
         if (mouse.rightButton.wasPressedThisFrame)
         {
             if (currentTool != ToolType.Hand) ClearTool();
-            else PutItemBack();
+            else Release();
         }
-    }
-
-    // ---------- helpers ----------
-
-    private void PutItemBack()
-    {
-        if (heldItem != null) heldItem.ReturnToPose();
-        heldItem = null;
-        inspectCam.Priority = 0;
-        SetBenchHover(null);
-        ClearTool();
-        RelockCursor();
-        CurrentJobCard = "";
-        HoverName = "";
-        HoverAction = "";
     }
 
     private void ClearTool()
@@ -204,21 +200,6 @@ public class ItemInspector : MonoBehaviour
         currentTool = ToolType.Hand;
         if (currentToolPickup != null) currentToolPickup.SetSelected(false);
         currentToolPickup = null;
-    }
-
-    private void RelockCursor()
-    {
-        if (!interaction.IsAtStation) return;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-    }
-
-    private void SetHover(InspectableItem item)
-    {
-        if (currentHover == item) return;
-        if (currentHover != null) currentHover.SetHovered(false);
-        currentHover = item;
-        if (currentHover != null) currentHover.SetHovered(true);
     }
 
     private void SetBenchHover(BenchInteractable item)

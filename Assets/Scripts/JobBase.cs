@@ -11,6 +11,8 @@ public abstract class JobBase : MonoBehaviour
     [TextArea(2, 3)] public string complaintLine = "It's broken.";
     [TextArea(2, 3)] public string acceptedLine = "Thank you!";
     [TextArea(2, 3)] public string completedLine = "You're a lifesaver.";
+    [Tooltip("How far above a surface this item's anchor should sit.")]
+    public float restHeight = 0.01f;
 
     public int Payout => payout;
     public string JobCard => jobCardText;

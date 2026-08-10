@@ -21,12 +21,18 @@ public class ItemSlotArea : MonoBehaviour
         }
     }
 
+    public bool Holds(JobBase item)
+    {
+        foreach (JobBase o in occupants)
+            if (o == item) return true;
+        return false;
+    }
+
     // Take the first free slot. Returns null if the surface is full.
     public Transform ClaimSlot(JobBase item)
     {
-        // Already on this surface? Keep the same spot.
         for (int i = 0; i < occupants.Length; i++)
-            if (occupants[i] == item) return slots[i];
+            if (occupants[i] == item) return slots[i];   // already here, keep the spot
 
         for (int i = 0; i < occupants.Length; i++)
         {
@@ -43,12 +49,5 @@ public class ItemSlotArea : MonoBehaviour
     {
         for (int i = 0; i < occupants.Length; i++)
             if (occupants[i] == item) occupants[i] = null;
-    }
-
-    // Housekeeping: clear slots whose item was destroyed.
-    private void Update()
-    {
-        for (int i = 0; i < occupants.Length; i++)
-            if (occupants[i] == null) occupants[i] = null;
     }
 }

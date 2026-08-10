@@ -12,6 +12,7 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float thankDuration = 1.2f;
     [SerializeField] private float turnSpeed = 240f;
     [SerializeField] private float wordsPerSecond = 6f;
+    [SerializeField] private Nameplate nameplate;
 
     [Header("Reassurance")]
     [SerializeField] private float reassureAmount = 0.3f;
@@ -52,7 +53,11 @@ public class CustomerBrain : MonoBehaviour
     private float serviceMax;
 
     public string CustomerName { get; private set; } = "Customer";
-    public void SetName(string n) => CustomerName = n;
+    public void SetName(string n)
+    {
+        CustomerName = n;
+        if (nameplate != null) nameplate.SetName(n);
+    }
 
     public int JobNumber { get; private set; }
     public Color JobColor { get; private set; } = Color.white;
@@ -73,8 +78,13 @@ public class CustomerBrain : MonoBehaviour
         get
         {
             if (activeJob == null || queue == null || slotIndex < 0) return false;
+
+            // Being carried by the player counts — you're standing right there.
+            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            if (carry != null && carry.Carried == activeJob) return true;
+
             float dist = Vector3.Distance(activeJob.transform.position, queue.ItemSpot(slotIndex).position);
-            return dist < 0.6f;
+            return dist < 1.2f;
         }
     }
 
@@ -158,11 +168,23 @@ public class CustomerBrain : MonoBehaviour
         slotIndex = newIndex;
         agent.SetDestination(queue.SlotPoint(slotIndex).position);
 
-        if (activeJob != null)
+        // Only move their item if it's still ON the counter. Items on the bench
+        // or in the player's hands stay exactly where they are.
+        if (activeJob == null || queue == null) return;
+
+        float distToOldSpot = Vector3.Distance(activeJob.transform.position, queue.ItemSpot(newIndex).position);
+        bool onCounter = false;
+
+        for (int i = 0; i < 3; i++)
         {
-            Transform spot = queue.ItemSpot(slotIndex);
-            activeJob.transform.position = spot.position;
+            if (Vector3.Distance(activeJob.transform.position, queue.ItemSpot(i).position) < 0.6f)
+            {
+                onCounter = true;
+                break;
+            }
         }
+
+        if (onCounter) activeJob.transform.position = queue.ItemSpot(slotIndex).position;
     }
 
     private void Update()
@@ -238,7 +260,7 @@ public class CustomerBrain : MonoBehaviour
         // Items get the number; people get their name.
         JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
         if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
-        if (jobMarker != null) jobMarker.ShowText(CustomerName, JobColor);
+        
 
         animator.SetTrigger("Interact");
 
@@ -284,8 +306,17 @@ public class CustomerBrain : MonoBehaviour
         reassureReadyAt = Time.time + reassureCooldown;
 
         animator.SetTrigger("Interact");
-        PickLine();
+        if (mood != null && mood.reassuredLines != null && mood.reassuredLines.Length > 0)
+            Say(mood.reassuredLines[Random.Range(0, mood.reassuredLines.Length)]);
     }
+
+    public void ShowNameTag(bool on)
+    {
+        if (jobMarker == null) return;
+        if (on && HasJob) jobMarker.ShowText(CustomerName, JobColor);
+        else jobMarker.Hide();
+    }
+
 
     private void Leave(bool happy)
     {

@@ -29,7 +29,7 @@ Transform:
   m_GameObject: {fileID: 666683904894790565}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2.2, z: 0}
+  m_LocalPosition: {x: 0, y: 2.126, z: 0}
   m_LocalScale: {x: 0.6, y: 0.08, z: 0.08}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -322,10 +322,9 @@ GameObject:
   - component: {fileID: 426458806422210226}
   - component: {fileID: 852659748473590435}
   - component: {fileID: 5984349604021216519}
-  - component: {fileID: 474999044940291238}
-  - component: {fileID: 7500771087534342281}
+  - component: {fileID: 657464587690672877}
   m_Layer: 0
-  m_Name: JobMarker
+  m_Name: Nameplate
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -347,7 +346,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.45, y: 2}
+  m_AnchoredPosition: {x: 0, y: 2.343}
   m_SizeDelta: {x: 20, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &852659748473590435
@@ -428,8 +427,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4176539892
+  m_fontColor: {r: 0.9559748, g: 0.9409437, b: 0.9409437, a: 0.972549}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -446,13 +445,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 10
-  m_fontSizeBase: 10
+  m_fontSize: 6
+  m_fontSizeBase: 6
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -494,7 +493,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 852659748473590435}
   m_maskType: 0
---- !u!114 &474999044940291238
+--- !u!114 &657464587690672877
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -503,22 +502,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 6144963656818811015}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 33293172cd9dcf546bd58efca4481ce4, type: 3}
+  m_Script: {fileID: 11500000, guid: 1fec0e38f34af5243984f4f0fce38d5a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Billboard
---- !u!114 &7500771087534342281
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6144963656818811015}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9147c7983bf720442bb7631cb8a9e24c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::JobMarker
+  m_EditorClassIdentifier: Assembly-CSharp::Nameplate
   label: {fileID: 5984349604021216519}
+  fadeSpeed: 6
+  viewThreshold: 0.9
 --- !u!1001 &478345459349139916
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -541,15 +530,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 960
+      value: -7.61454
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1040
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 6.51952
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -666,7 +655,8 @@ MonoBehaviour:
   maxTipFraction: 0.6
   thankDuration: 1.2
   turnSpeed: 240
-  bubbleDuration: 5
+  wordsPerSecond: 6
+  nameplate: {fileID: 657464587690672877}
   reassureAmount: 0.3
   reassureCooldown: 20
   reassureFalloff: 0.6
@@ -675,9 +665,8 @@ MonoBehaviour:
   presenceDrainMultiplier: 0.2
   patienceBar: {fileID: 3382181744524018593}
   speechBubble: {fileID: 6256992342730178411}
-  jobMarker: {fileID: 7500771087534342281}
+  jobMarker: {fileID: 0}
   itemPrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
-  wordsPerSecond: 6
 --- !u!136 &3547829432509808127
 CapsuleCollider:
   m_ObjectHideFlags: 0

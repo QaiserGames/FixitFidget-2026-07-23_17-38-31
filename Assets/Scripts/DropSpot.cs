@@ -9,15 +9,17 @@ public class DropSpot : MonoBehaviour
 
     public SpotKind Kind => kind;
 
+    // Pure question — never changes state.
     public bool CanAccept(JobBase item)
     {
-        if (kind == SpotKind.Counter) return true;   // the owner's spot is always theirs
-        return slotArea != null && (slotArea.HasFreeSlot || slotArea.ClaimSlot(item) != null);
+        if (kind == SpotKind.Counter) return true;
+        if (slotArea == null) return false;
+        return slotArea.HasFreeSlot || slotArea.Holds(item);
     }
 
     public Transform ResolvePoint(JobBase item)
     {
-        // Counter: goes back to its owner's spot, in front of the right customer.
+        // Counter: back to its owner's spot, in front of the right customer.
         if (kind == SpotKind.Counter && item != null && item.Owner != null)
         {
             CounterQueue queue = FindAnyObjectByType<CounterQueue>();
@@ -25,10 +27,10 @@ public class DropSpot : MonoBehaviour
                 return queue.ItemSpot(item.Owner.SlotIndex);
         }
 
-        // Bench: first free slot.
+        // Bench: first free slot. Null means full.
         if (slotArea != null) return slotArea.ClaimSlot(item);
 
-        return transform;
+        return null;
     }
 
     public void Release(JobBase item)

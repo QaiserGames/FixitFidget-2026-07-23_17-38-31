@@ -312,7 +312,7 @@ Transform:
   m_GameObject: {fileID: 175454713}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.6, y: 0.55, z: 0}
+  m_LocalPosition: {x: -0.362, y: 0.55, z: -0.176}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -343,7 +343,7 @@ Transform:
   m_GameObject: {fileID: 182564887}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.08, z: 0.6}
+  m_LocalPosition: {x: 0.4, y: 0.55, z: 0.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -374,20 +374,20 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 189216752}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 20, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.85, z: 0}
+  m_LocalScale: {x: 0.5, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2059295483}
-  - {fileID: 857479323}
   - {fileID: 352038343}
   - {fileID: 1783914054}
   - {fileID: 1302675834}
   - {fileID: 536595954}
   - {fileID: 1932965352}
   - {fileID: 1872208757}
-  m_Father: {fileID: 0}
+  - {fileID: 1504941042}
+  m_Father: {fileID: 1715672927}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &189216754
 MonoBehaviour:
@@ -892,6 +892,12 @@ MonoBehaviour:
     - Oh my God! I love what you've done with this place.
     - 'This spot was on TikTok, so I had to come! '
     - You're the BEST!
+    reassuredLines:
+    - Oh, you're totally fine!
+    - No rush, honestly.
+    - Take your time, I'm not going anywhere.
+    - "You look busy \u2014 I get it."
+    - All good. Nice place, by the way.
     patienceMultiplier: 1.2
     tipMultiplier: 1.2
     moodColor: {r: 0.9019608, g: 0.65882355, b: 0.09019608, a: 1}
@@ -900,6 +906,12 @@ MonoBehaviour:
     - My cat died last night. I just needed to get out the house.
     - My dad died and this was all i had to remember him by.
     - I'm scared, it's my moms, and she'll kill me if she knows i messed it up!
+    reassuredLines:
+    - "No, no \u2014 take your time."
+    - It's okay. I'm not in a hurry.
+    - Thanks. Really.
+    - I don't mind waiting.
+    - You're kind. Thank you.
     patienceMultiplier: 1.4
     tipMultiplier: 1.5
     moodColor: {r: 0.37254903, g: 0.49411765, b: 0.61960787, a: 1}
@@ -907,6 +919,11 @@ MonoBehaviour:
     lines:
     - Please tell me you sell food here too? I am starving!
     - Something inside here smells freaking amazing!
+    reassuredLines:
+    - Any chance of a coffee while I wait?
+    - It's fine. I'm just starving.
+    - Do you sell food here or...?
+    - Okay, but I might go get a sandwich.
     patienceMultiplier: 0.9
     tipMultiplier: 1
     moodColor: {r: 0.8235294, g: 0.4392157, b: 0.22745098, a: 1}
@@ -916,6 +933,12 @@ MonoBehaviour:
     - What in God's name is taking so long?
     - Look, are you going to fix this? Or not?
     - I'm just going to go somewhere else.
+    reassuredLines:
+    - Yeah, yeah. Just hurry.
+    - That's what you said last time.
+    - I've got somewhere to be.
+    - Sure. Clock's ticking though.
+    - Mm-hmm.
     patienceMultiplier: 0.6
     tipMultiplier: 0.8
     moodColor: {r: 0.81960785, g: 0.2627451, b: 0.2627451, a: 1}
@@ -928,6 +951,12 @@ MonoBehaviour:
     - 'What the hell is going on? I think I got hacked, something''s not right with
       my computer. I know the Government is watching and they are DEFINITELY the
       ones who are hacking into my stuff. '
+    reassuredLines:
+    - Oh don't worry, I'll keep myself entertained.
+    - "That's alright! So anyway, my sister\u2014"
+    - No problem. Busy day, huh?
+    - "Take your time! Have I told you about my\u2014"
+    - All good. You seem like a nice guy.
     patienceMultiplier: 1.4
     tipMultiplier: 1
     moodColor: {r: 0.54509807, g: 0.41960785, b: 0.69411767, a: 1}
@@ -1547,6 +1576,7 @@ MonoBehaviour:
   stationCamera: {fileID: 1394247192}
   label: Serve at counter
   dropSpot: {fileID: 0}
+  isWorkSurface: 0
 --- !u!114 &498254719
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2051,81 +2081,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &857479322
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 857479323}
-  - component: {fileID: 857479324}
-  m_Layer: 0
-  m_Name: CM_InspectCam
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &857479323
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 857479322}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0.030538544, y: 0, z: 0, w: 0.99953365}
-  m_LocalPosition: {x: -0.002, y: 0.035, z: -0.387}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 189216753}
-  m_LocalEulerAnglesHint: {x: 3.5, y: 0, z: 0}
---- !u!114 &857479324
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 857479322}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
-  Priority:
-    Enabled: 1
-    m_Value: 0
-  OutputChannel: 1
-  StandbyUpdate: 2
-  m_StreamingVersion: 20241001
-  m_LegacyPriority: 0
-  Target:
-    TrackingTarget: {fileID: 0}
-    LookAtTarget: {fileID: 0}
-    CustomLookAtTarget: 0
-  Lens:
-    FieldOfView: 45
-    OrthographicSize: 5
-    NearClipPlane: 0.05
-    FarClipPlane: 1000
-    Dutch: 0
-    ModeOverride: 0
-    PhysicalProperties:
-      GateFit: 2
-      SensorSize: {x: 21.946, y: 16.002}
-      LensShift: {x: 0, y: 0}
-      FocusDistance: 10
-      Iso: 200
-      ShutterSpeed: 0.005
-      Aperture: 16
-      BladeCount: 5
-      Curvature: {x: 2, y: 11}
-      BarrelClipping: 0.25
-      Anamorphism: 0
-  BlendHint: 0
 --- !u!1 &858029900
 GameObject:
   m_ObjectHideFlags: 0
@@ -2915,14 +2870,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemInspector
   inspectPoint: {fileID: 2059295483}
-  inspectCam: {fileID: 857479324}
+  inspectCam: {fileID: 1504941043}
   rotateSpeed: 0.4
-  pickupRange: 4
-  pickupMask:
-    serializedVersion: 2
-    m_Bits: 55
   scrubPower: 0.5
-  benchReach: 3
+  benchReach: 6
 --- !u!114 &1039162928
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2950,6 +2901,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCarry
   carryPoint: {fileID: 182564888}
+  carryScale: 0.6
 --- !u!1 &1224696171
 GameObject:
   m_ObjectHideFlags: 0
@@ -3671,6 +3623,81 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1504941041
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1504941042}
+  - component: {fileID: 1504941043}
+  m_Layer: 0
+  m_Name: CM_InspectCam
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1504941042
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1504941041}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.17364816, y: 0, z: 0, w: 0.9848078}
+  m_LocalPosition: {x: 0, y: 0.25, z: -0.55}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 189216753}
+  m_LocalEulerAnglesHint: {x: 20, y: 0, z: 0}
+--- !u!114 &1504941043
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1504941041}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
+  Priority:
+    Enabled: 1
+    m_Value: 0
+  OutputChannel: 1
+  StandbyUpdate: 2
+  m_StreamingVersion: 20241001
+  m_LegacyPriority: 0
+  Target:
+    TrackingTarget: {fileID: 0}
+    LookAtTarget: {fileID: 0}
+    CustomLookAtTarget: 0
+  Lens:
+    FieldOfView: 40
+    OrthographicSize: 5
+    NearClipPlane: 0.05
+    FarClipPlane: 1000
+    Dutch: 0
+    ModeOverride: 0
+    PhysicalProperties:
+      GateFit: 2
+      SensorSize: {x: 21.946, y: 16.002}
+      LensShift: {x: 0, y: 0}
+      FocusDistance: 10
+      Iso: 200
+      ShutterSpeed: 0.005
+      Aperture: 16
+      BladeCount: 5
+      Curvature: {x: 2, y: 11}
+      BarrelClipping: 0.25
+      Anamorphism: 0
+  BlendHint: 0
 --- !u!1 &1715672919
 GameObject:
   m_ObjectHideFlags: 0
@@ -3706,7 +3733,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DropSpot
   kind: 0
-  slotArea: {fileID: 0}
+  slotArea: {fileID: 299573972}
 --- !u!114 &1715672922
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3723,6 +3750,7 @@ MonoBehaviour:
   stationCamera: {fileID: 1874088618}
   label: Use Bench
   dropSpot: {fileID: 1715672921}
+  isWorkSurface: 1
 --- !u!65 &1715672923
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3836,6 +3864,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 299573971}
+  - {fileID: 189216753}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1745003161
@@ -4048,7 +4077,7 @@ Transform:
   m_GameObject: {fileID: 1769777600}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.4, y: 0.55, z: 0}
+  m_LocalPosition: {x: 0.337, y: 0.55, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4463,7 +4492,7 @@ MonoBehaviour:
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
-        Gain: 1
+        Gain: 0.4
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -4474,7 +4503,7 @@ MonoBehaviour:
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
-        Gain: -1
+        Gain: -0.4
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -4508,7 +4537,7 @@ MonoBehaviour:
     Restrictions: 0
   TiltAxis:
     Value: 35
-    Center: 35
+    Center: 20
     Range: {x: 10, y: 55}
     Wrap: 0
     Recentering:
@@ -4927,7 +4956,6 @@ SceneRoots:
   - {fileID: 671985850}
   - {fileID: 498254716}
   - {fileID: 1394247193}
-  - {fileID: 189216753}
   - {fileID: 387075154}
   - {fileID: 1286346343}
   - {fileID: 2048013197}
