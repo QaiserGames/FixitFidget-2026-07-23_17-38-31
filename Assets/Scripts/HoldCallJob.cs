@@ -39,7 +39,7 @@ public class HoldCallJob : JobBase
     private void Awake()
     {
         Goal = departments[Random.Range(0, departments.Length)];
-        jobCardText = $"Call support — {Goal}";
+        
     }
 
     private void Update()

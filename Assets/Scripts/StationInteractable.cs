@@ -6,6 +6,10 @@ public class StationInteractable : Interactable
     [SerializeField] private CinemachineCamera stationCamera;
     [SerializeField] private string label = "Work here";
     [SerializeField] private DropSpot dropSpot;
+    [Tooltip("Where the player stands while using this station. Keeps the view consistent.")]
+    [SerializeField] private Transform standPoint;
+
+    public Transform StandPoint => standPoint;
 
     [Tooltip("Can items be picked up and repaired at this station? Bench yes, counter no.")]
     [SerializeField] private bool isWorkSurface = false;

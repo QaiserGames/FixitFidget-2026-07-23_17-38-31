@@ -571,6 +571,7 @@ GameObject:
   - component: {fileID: 7824066840584290523}
   - component: {fileID: 1947334370888822449}
   - component: {fileID: 1381998752705015140}
+  - component: {fileID: 4597527318765157866}
   m_Layer: 0
   m_Name: PhoneRepair
   m_TagString: Untagged
@@ -611,7 +612,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RepairJob
   payout: 35
-  jobCardText: Cracked Screen - Replace
+  restHeight: 0.01
 --- !u!114 &1947334370888822449
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -638,6 +639,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemInteractable
   priority: 3
+--- !u!114 &4597527318765157866
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6096278884181677530}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afaaff07acba16c44aa7c775f6e55482, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DeviceDefinition
+  displayName: Phone
+  faults:
+  - type: 0
+    description: Cracked Screen
+    enableObjects:
+    - {fileID: 3306742564285067578}
+    payout: 35
 --- !u!1 &7433282545182374299
 GameObject:
   m_ObjectHideFlags: 0

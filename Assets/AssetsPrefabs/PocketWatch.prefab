@@ -1277,6 +1277,7 @@ GameObject:
   - component: {fileID: 356358465019810081}
   - component: {fileID: 1088320904696505692}
   - component: {fileID: 8900163142322665516}
+  - component: {fileID: 6034183701857250909}
   m_Layer: 0
   m_Name: PocketWatch
   m_TagString: Untagged
@@ -1334,10 +1335,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RepairJob
   payout: 25
-  jobCardText: Physical Repair
-  complaintLine: It stopped ticking. Was my dad's..
-  acceptedLine: Can you please be careful with it?
-  completedLine: 'Holy shit, it''s working! Thank you, I thought i was dead! '
+  restHeight: 0.01
 --- !u!114 &8900163142322665516
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1351,3 +1349,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemInteractable
   priority: 3
+--- !u!114 &6034183701857250909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8950338144923805853}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afaaff07acba16c44aa7c775f6e55482, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DeviceDefinition
+  displayName: Pocket Watch
+  faults:
+  - type: 1
+    description: Gunked Up Inside
+    enableObjects:
+    - {fileID: 5784299916493189864}
+    payout: 25

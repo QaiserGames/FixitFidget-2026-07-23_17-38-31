@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public enum JobFamily { Mechanical, Cleaning, Software, Human, Bureaucratic }
@@ -5,27 +6,45 @@ public enum JobFamily { Mechanical, Cleaning, Software, Human, Bureaucratic }
 public abstract class JobBase : MonoBehaviour
 {
     [SerializeField] protected int payout = 25;
-    [SerializeField] protected string jobCardText = "Fix it.";
 
-    [Header("Dialogue")]
-    [TextArea(2, 3)] public string complaintLine = "It's broken.";
-    [TextArea(2, 3)] public string acceptedLine = "Thank you!";
-    [TextArea(2, 3)] public string completedLine = "You're a lifesaver.";
     [Tooltip("How far above a surface this item's anchor should sit.")]
     public float restHeight = 0.01f;
 
     public int Payout => payout;
-    public string JobCard => jobCardText;
     public abstract JobFamily Family { get; }
-
-    // The only question the customer's brain ever asks.
     public abstract bool IsComplete { get; }
 
-    // Who owns this job — set at spawn so jobs can talk back if needed.
     public CustomerBrain Owner { get; private set; }
     public void SetOwner(CustomerBrain owner) => Owner = owner;
 
-private readonly System.Collections.Generic.List<GameObject> detached = new();
+    // The record this physical item was spawned from.
+    public Job Record { get; private set; }
+
+    public void Configure(Job record)
+    {
+        Record = record;
+        if (record != null) payout = record.payout;
+    }
+
+    // Card text now comes from the record, not a field on the prefab.
+    public string JobCard => Record != null ? Record.faultDescription : "";
+
+    // ---------- detached parts ----------
+    // Removed screws and plates are unparented so rotating the item doesn't
+    // drag them around. They stay OWNED here, which is also how we know
+    // whether the thing has been put back together.
+
+    private readonly List<GameObject> detached = new();
+
+    public bool HasDetachedParts
+    {
+        get
+        {
+            for (int i = detached.Count - 1; i >= 0; i--)
+                if (detached[i] == null) detached.RemoveAt(i);
+            return detached.Count > 0;
+        }
+    }
 
     public void RegisterDetached(GameObject part)
     {
@@ -34,11 +53,9 @@ private readonly System.Collections.Generic.List<GameObject> detached = new();
 
     public void UnregisterDetached(GameObject part) => detached.Remove(part);
 
-    // Destroy anything of ours that's sitting loose on the bench.
     private void OnDestroy()
     {
         foreach (GameObject g in detached)
             if (g != null) Destroy(g);
     }
-
 }

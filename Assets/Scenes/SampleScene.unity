@@ -119,6 +119,174 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &50522300
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 50522301}
+  - component: {fileID: 50522305}
+  - component: {fileID: 50522304}
+  - component: {fileID: 50522303}
+  - component: {fileID: 50522302}
+  m_Layer: 5
+  m_Name: FocusName
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &50522301
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 50522300}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 908985955}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: -60}
+  m_SizeDelta: {x: 500, y: 50}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &50522302
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 50522300}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c4aeb996c5948243baef2095e23ce41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FocusNameUI
+  label: {fileID: 50522304}
+  group: {fileID: 50522303}
+  interactor: {fileID: 1039162928}
+  inspector: {fileID: 1039162927}
+  fadeSpeed: 8
+--- !u!225 &50522303
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 50522300}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &50522304
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 50522300}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: New Text
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 28
+  m_fontSizeBase: 28
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 256
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_characterHorizontalScale: 1
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &50522305
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 50522300}
+  m_CullTransparentMesh: 1
 --- !u!1 &80505251
 GameObject:
   m_ObjectHideFlags: 0
@@ -851,6 +1019,37 @@ MonoBehaviour:
   tool: 1
   displayName: Cleaning Brush
   tint: {r: 0.7882353, g: 0.63529414, b: 0.15294118, a: 1}
+--- !u!1 &353907807
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 353907808}
+  m_Layer: 0
+  m_Name: StandPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &353907808
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 353907807}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.5, z: -1.2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1715672927}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &387075152
 GameObject:
   m_ObjectHideFlags: 0
@@ -880,86 +1079,40 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 573f2d3315aca1244816ff1c1a65a43d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CustomerSpawner
-  customerPrefab: {fileID: 5216331132947492705, guid: 6bf9f6df65489e244bb35fca19f3f2f1, type: 3}
-  counterQueue: {fileID: 2048013196}
+  customerPrefab: {fileID: 748166504614202525, guid: 6bf9f6df65489e244bb35fca19f3f2f1, type: 3}
+  spawnPoint: {fileID: 387075154}
   exitPoint: {fileID: 387075154}
-  spawnEvery: 10
+  counterQueue: {fileID: 2048013196}
+  spawnInterval: 8
   maxCustomers: 3
+  devicePrefabs:
+  - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+  - {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
   archetypes:
-  - archetypeName: Cheerful
-    lines:
-    - Hiiiiii! Goooooood morning, the weather outside is so nice!
-    - Oh my God! I love what you've done with this place.
-    - 'This spot was on TikTok, so I had to come! '
-    - You're the BEST!
-    reassuredLines:
-    - Oh, you're totally fine!
-    - No rush, honestly.
-    - Take your time, I'm not going anywhere.
-    - "You look busy \u2014 I get it."
-    - All good. Nice place, by the way.
+  - archetypeName: Impatient
     patienceMultiplier: 1.2
     tipMultiplier: 1.2
-    moodColor: {r: 0.9019608, g: 0.65882355, b: 0.09019608, a: 1}
-  - archetypeName: Sad
+    moodColor: {r: 0.98742133, g: 0.98742133, b: 0.98742133, a: 1}
     lines:
-    - My cat died last night. I just needed to get out the house.
-    - My dad died and this was all i had to remember him by.
-    - I'm scared, it's my moms, and she'll kill me if she knows i messed it up!
-    reassuredLines:
-    - "No, no \u2014 take your time."
-    - It's okay. I'm not in a hurry.
-    - Thanks. Really.
-    - I don't mind waiting.
-    - You're kind. Thank you.
-    patienceMultiplier: 1.4
-    tipMultiplier: 1.5
-    moodColor: {r: 0.37254903, g: 0.49411765, b: 0.61960787, a: 1}
-  - archetypeName: Hungry
-    lines:
-    - Please tell me you sell food here too? I am starving!
-    - Something inside here smells freaking amazing!
-    reassuredLines:
-    - Any chance of a coffee while I wait?
-    - It's fine. I'm just starving.
-    - Do you sell food here or...?
-    - Okay, but I might go get a sandwich.
-    patienceMultiplier: 0.9
-    tipMultiplier: 1
-    moodColor: {r: 0.8235294, g: 0.4392157, b: 0.22745098, a: 1}
-  - archetypeName: Impatient
-    lines:
-    - I'm on my lunch break here, and it's taking forever.
-    - What in God's name is taking so long?
-    - Look, are you going to fix this? Or not?
-    - I'm just going to go somewhere else.
-    reassuredLines:
-    - Yeah, yeah. Just hurry.
-    - That's what you said last time.
-    - I've got somewhere to be.
-    - Sure. Clock's ticking though.
-    - Mm-hmm.
-    patienceMultiplier: 0.6
-    tipMultiplier: 0.8
-    moodColor: {r: 0.81960785, g: 0.2627451, b: 0.2627451, a: 1}
-  - archetypeName: Chatty
-    lines:
-    - 'My neighbor''s been parking on my side of the driveway for the past week,
-      and it''s been driving me insane! Either he moves it or I will get him towed! '
-    - Have you been living in the city for long? I just moved a week ago, and I'm
-      trying to meet new people from the city, they all tell me to come here!
-    - 'What the hell is going on? I think I got hacked, something''s not right with
-      my computer. I know the Government is watching and they are DEFINITELY the
-      ones who are hacking into my stuff. '
-    reassuredLines:
-    - Oh don't worry, I'll keep myself entertained.
-    - "That's alright! So anyway, my sister\u2014"
-    - No problem. Busy day, huh?
-    - "Take your time! Have I told you about my\u2014"
-    - All good. You seem like a nice guy.
-    patienceMultiplier: 1.4
-    tipMultiplier: 1
-    moodColor: {r: 0.54509807, g: 0.41960785, b: 0.69411767, a: 1}
+      intake:
+      - My {device} died. How long is this going to take?
+      - This {device} stopped working. I'm in a rush.
+      - '{device}''s broken. Can you do it now or not?'
+      accepted:
+      - Fine. Make it quick.
+      - Good. I'll be right here.
+      completed:
+      - About time. Thanks.
+      - Finally. Appreciate it.
+      declined:
+      - Seriously? Unbelievable.
+      - Great. Waste of my time.
+      reassured:
+      - Yeah, yeah. Just hurry.
+      - Mm-hmm.
+      stormedOut:
+      - Forget it. I'm going somewhere else.
+      - Done waiting. Bye.
   firstNames:
   - Valerie
   - Deshawn
@@ -977,6 +1130,8 @@ MonoBehaviour:
   - Omar
   - Beatriz
   - Malcom
+  regulars: []
+  regularChance: 0
 --- !u!4 &387075154
 Transform:
   m_ObjectHideFlags: 0
@@ -1557,7 +1712,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0.5, z: 5}
   m_LocalScale: {x: 4, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1651427488}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &498254717
@@ -1576,6 +1732,7 @@ MonoBehaviour:
   stationCamera: {fileID: 1394247192}
   label: Serve at counter
   dropSpot: {fileID: 0}
+  standPoint: {fileID: 1651427488}
   isWorkSurface: 0
 --- !u!114 &498254719
 MonoBehaviour:
@@ -2463,6 +2620,7 @@ RectTransform:
   - {fileID: 736731052}
   - {fileID: 1745003162}
   - {fileID: 1479642242}
+  - {fileID: 50522301}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -3698,6 +3856,37 @@ MonoBehaviour:
       BarrelClipping: 0.25
       Anamorphism: 0
   BlendHint: 0
+--- !u!1 &1651427487
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1651427488}
+  m_Layer: 0
+  m_Name: CounterStandPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1651427488
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1651427487}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.065, y: -0.5, z: -0.94}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 498254716}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1715672919
 GameObject:
   m_ObjectHideFlags: 0
@@ -3750,6 +3939,7 @@ MonoBehaviour:
   stationCamera: {fileID: 1874088618}
   label: Use Bench
   dropSpot: {fileID: 1715672921}
+  standPoint: {fileID: 353907808}
   isWorkSurface: 1
 --- !u!65 &1715672923
 BoxCollider:
@@ -3865,6 +4055,7 @@ Transform:
   m_Children:
   - {fileID: 299573971}
   - {fileID: 189216753}
+  - {fileID: 353907808}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1745003161
@@ -4492,7 +4683,7 @@ MonoBehaviour:
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
-        Gain: 0.4
+        Gain: 0.3
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -4503,7 +4694,7 @@ MonoBehaviour:
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
-        Gain: -0.4
+        Gain: -0.3
         CancelDeltaTime: 0
       InputValue: 0
       Driver:

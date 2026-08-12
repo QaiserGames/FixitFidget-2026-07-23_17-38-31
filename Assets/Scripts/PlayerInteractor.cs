@@ -44,6 +44,12 @@ public class PlayerInteractor : MonoBehaviour
 
         CurrentPrompt = focused != null ? focused.Prompt : "";
         nearbyStation = FindNearestStation();
+        // Q declines whatever we're looking at, once they've had their say.
+        if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame && focused != null)
+        {
+            CustomerBrain b = focused.GetComponent<CustomerBrain>();
+            if (b != null && b.CanRefuse) b.RefuseJob();
+        }
 
         DebugInfo = $"station:{(currentStation != null ? currentStation.name : "none")}  focus:{(focused != null ? focused.name : "NULL")}";
 
@@ -143,6 +149,17 @@ public class PlayerInteractor : MonoBehaviour
         if (nearbyStation != null) EnterStation(nearbyStation);
     }
 
+
+    public string FocusName
+    {
+        get
+        {
+            if (focused == null) return "";
+            CustomerBrain b = focused.GetComponent<CustomerBrain>();
+            return b != null ? b.CustomerName : "";
+        }
+    }
+
     private void OnBack()
     {
         ExitStation();
@@ -151,8 +168,17 @@ public class PlayerInteractor : MonoBehaviour
     public void EnterStation(StationInteractable station)
     {
         currentStation = station;
+
+        // Stand in the same place every time, so the view is always composed
+        // the same way and the crosshair can always reach the work surface.
+        if (station.StandPoint != null)
+        {
+            transform.position = station.StandPoint.position;
+            transform.rotation = station.StandPoint.rotation;
+        }
+
         station.ActivateCamera(true);
-        station.ResetView();                 // always arrive facing forward
+        station.ResetView();
         movement.enabled = false;
         if (bodyRenderer != null) bodyRenderer.enabled = false;
 
