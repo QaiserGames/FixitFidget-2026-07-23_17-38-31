@@ -12,6 +12,7 @@ public class PlayerInteractor : MonoBehaviour
     private PlayerMovement movement;
     private Renderer bodyRenderer;
     private Camera cam;
+    private ConversationController conversation;
 
     public bool IsAtStation => currentStation != null;
     public Interactable Focused => focused;
@@ -26,6 +27,7 @@ public class PlayerInteractor : MonoBehaviour
 
     private void Awake()
     {
+        conversation = GetComponent<ConversationController>();
         movement = GetComponent<PlayerMovement>();
         bodyRenderer = GetComponentInChildren<Renderer>();
         cam = Camera.main;
@@ -33,6 +35,13 @@ public class PlayerInteractor : MonoBehaviour
 
     private void Update()
     {
+        // The conversation owns input while it's open.
+        if (conversation != null && conversation.InConversation)
+        {
+            CurrentPrompt = "";
+            return;
+        }
+
         Interactable next = FindBest();
 
         if (next != focused)
@@ -139,12 +148,14 @@ public class PlayerInteractor : MonoBehaviour
     // E — pick up, set down, accept, hand back.
     private void OnInteract()
     {
+        if (conversation != null && conversation.InConversation) return;
         if (focused != null) focused.Interact(this);
     }
 
     // F — enter and leave stations.
     private void OnAction()
     {
+        if (conversation != null && conversation.InConversation) return;
         if (currentStation != null) { ExitStation(); return; }
         if (nearbyStation != null) EnterStation(nearbyStation);
     }

@@ -1363,8 +1363,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DeviceDefinition
   displayName: Pocket Watch
   faults:
-  - type: 1
-    description: Gunked Up Inside
+  - type: 0
+    description: Debris Inside, Won't Tell Time
     enableObjects:
     - {fileID: 5784299916493189864}
-    payout: 25
+    payout: 30

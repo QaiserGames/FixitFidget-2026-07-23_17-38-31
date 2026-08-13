@@ -29,6 +29,10 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float conversationDrainMultiplier = 0.1f;
     [Tooltip("Drain multiplier while present for their hold call.")]
     [SerializeField] private float presenceDrainMultiplier = 0.2f;
+    [Tooltip("Where the conversation camera aims — roughly head height.")]
+    [SerializeField] private Transform lookTarget;
+
+    public Transform LookTarget => lookTarget;
 
     [SerializeField] private PatienceBar patienceBar;
     [SerializeField] private TMP_Text speechBubble;
@@ -70,6 +74,7 @@ public class CustomerBrain : MonoBehaviour
     public string JobCardText => record != null ? record.faultDescription : "";
     public float PatienceFraction => Mathf.Clamp01(patienceLeft / CurrentMax);
     public int SlotIndex => slotIndex;
+    public CustomerIdentity Identity => identity;
 
     private float CurrentMax => state == State.WaitingForService ? serviceMax : queueMax;
 
@@ -77,8 +82,7 @@ public class CustomerBrain : MonoBehaviour
 
     public bool CanHearIntake => state == State.WaitingInQueue && !intakeGiven;
 
-    public bool CanDecide =>
-        state == State.WaitingInQueue && intakeGiven && Time.time >= decisionReadyAt;
+    public bool CanDecide => state == State.WaitingInQueue && intakeGiven;
 
     public bool CanAcceptJob => CanDecide;
     public bool CanRefuse => CanDecide;
@@ -257,22 +261,19 @@ public class CustomerBrain : MonoBehaviour
 
     // ---------- the four player actions ----------
 
-    public void HearIntake()
+    // Returns the line for the panel to display, rather than showing a bubble.
+    public string HearIntake()
     {
-        if (!CanHearIntake) return;
+        if (!CanHearIntake) return "";
 
         intakeGiven = true;
-        string line = identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
-        Say(line);
-
-        // Can't decide until they've actually finished the sentence.
-        decisionReadyAt = Time.time + RevealTime(line);
         animator.SetTrigger("Interact");
+        return identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
     }
 
-    public void AcceptJob()
+    public string AcceptJob()
     {
-        if (!CanAcceptJob || record == null) return;
+        if (!CanAcceptJob || record == null) return "";
 
         state = State.WaitingForService;
         patienceLeft = serviceMax;
@@ -304,18 +305,21 @@ public class CustomerBrain : MonoBehaviour
         if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
 
         animator.SetTrigger("Interact");
-        Say(identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "");
+        return identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
     }
 
-    public void RefuseJob()
+    public string RefuseJob()
     {
-        if (!CanRefuse) return;
-        SpeakThenLeave(identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "", false);
+        if (!CanRefuse) return "";
+
+        string line = identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "";
+        LeaveAfterSpeaking(line, false);
+        return line;
     }
 
-    public void CompleteJob()
+    public string CompleteJob()
     {
-        if (!JobReady) return;
+        if (!JobReady) return "";
 
         float speedFraction = Mathf.Clamp01(patienceLeft / serviceMax);
         float tipMult = identity != null ? identity.TipMultiplier : 1f;
@@ -331,7 +335,19 @@ public class CustomerBrain : MonoBehaviour
         activeJob = null;
 
         animator.SetTrigger("Interact");
-        SpeakThenLeave(identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "", true);
+
+        string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
+        LeaveAfterSpeaking(line, true);
+        return line;
+    }
+
+    // Stand still long enough to have said it, then walk. The PANEL shows the
+    // text — this only controls how long they linger before leaving.
+    private void LeaveAfterSpeaking(string line, bool happy)
+    {
+        departHappy = happy;
+        speakTimer = Mathf.Max(RevealTime(line) + 0.8f, 1.5f);
+        state = State.Speaking;
     }
 
     public void Reassure()
@@ -352,7 +368,11 @@ public class CustomerBrain : MonoBehaviour
 
     private void StormOut()
     {
-        SpeakThenLeave(identity != null ? identity.Say(CustomerIdentity.Beat.StormedOut) : "", false);
+        string line = identity != null ? identity.Say(CustomerIdentity.Beat.StormedOut) : "";
+        Say(line);      // bubble — they're shouting at the room, not talking to you
+        departHappy = false;
+        speakTimer = Mathf.Max(RevealTime(line) + 0.6f, 1.2f);
+        state = State.Speaking;
     }
 
     // Stand still, finish the sentence, THEN walk away.

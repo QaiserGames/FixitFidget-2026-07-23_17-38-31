@@ -9,6 +9,7 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private GameObject crosshair;
     [SerializeField] private PlayerInteractor interactor;
     [SerializeField] private ItemInspector inspector;
+    [SerializeField] private ConversationController conversation;
     [SerializeField] private bool showDebug = false;
 
     private void Update()
@@ -21,14 +22,20 @@ public class ShopUI : MonoBehaviour
             clockText.text = c.IsOpen ? $"Day {c.Day}   {mins}:{secs:00}" : $"Day {c.Day}   CLOSING";
         }
 
-        // Crosshair shows whenever we're CHOOSING — hidden while manipulating an item.
-        bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem);
-        if (crosshair != null) crosshair.SetActive(showCrosshair);
-
         if (ShopEconomy.Instance != null)
             moneyText.text = $"${ShopEconomy.Instance.Money}";
 
-        // E does things to objects; F enters and leaves stations.
+        // The conversation panel owns the screen while it's open.
+        if (conversation != null && conversation.InConversation)
+        {
+            promptText.text = "";
+            if (crosshair != null) crosshair.SetActive(false);
+            return;
+        }
+
+        bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem);
+        if (crosshair != null) crosshair.SetActive(showCrosshair);
+
         string line = "";
         string interact = interactor.CurrentPrompt;
         string action = interactor.StationPrompt;

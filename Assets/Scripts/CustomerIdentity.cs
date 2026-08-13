@@ -9,6 +9,8 @@ public class CustomerIdentity : MonoBehaviour
     public bool IsRegular => profile != null;
     public CustomerProfile Profile => profile;
     public int Relationship { get; private set; }      // stub until memory lands
+    // Regulars have faces. Walk-ins fall back to a silhouette in the UI.
+    public Sprite Portrait => profile != null ? profile.portraitNeutral : null;
 
     private CustomerProfile profile;
     private CustomerArchetype archetype;
