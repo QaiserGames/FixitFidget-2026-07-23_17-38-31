@@ -28,6 +28,12 @@ public class CustomerSpawner : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float regularChance = 0.35f;
 
+    [Header("Café")]
+    [SerializeField] private DrinkDefinition[] drinks;
+    [Range(0f, 1f)]
+    [Tooltip("Chance a customer wants a drink rather than a repair.")]
+    [SerializeField] private float drinkChance = 0.4f;
+
     private float timer;
 
     private void Update()
@@ -78,9 +84,23 @@ public class CustomerSpawner : MonoBehaviour
 
     private Job RollJob(CustomerProfile profile)
     {
+        // Café or repair?
+        bool wantsDrink = drinks != null && drinks.Length > 0 && Random.value < drinkChance;
+
+        if (wantsDrink)
+        {
+            DrinkDefinition d = drinks[Random.Range(0, drinks.Length)];
+            return new Job
+            {
+                kind = JobKind.Drink,
+                drink = d,
+                deviceName = d.drinkName,
+                payout = d.price
+            };
+        }
+
         GameObject device = null;
 
-        // Regulars have a TENDENCY, not a rule — the surprise is characterful.
         if (profile != null && profile.preferredDevice != null
             && Random.value < profile.preferredDeviceChance)
         {
@@ -91,7 +111,7 @@ public class CustomerSpawner : MonoBehaviour
             device = devicePrefabs[Random.Range(0, devicePrefabs.Length)];
         }
 
-        Job job = new Job { devicePrefab = device };
+        Job job = new Job { kind = JobKind.Repair, devicePrefab = device };
 
         DeviceDefinition def = device.GetComponent<DeviceDefinition>();
         if (def != null)

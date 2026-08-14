@@ -12,9 +12,7 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float turnSpeed = 240f;
 
     [Header("Dialogue pacing")]
-    [Tooltip("Words revealed per second. Lower = slower, easier to read.")]
     [SerializeField] private float wordsPerSecond = 3f;
-    [Tooltip("How long the finished line stays on screen after the last word.")]
     [SerializeField] private float lineHoldTime = 2.5f;
 
     [Header("Reassurance")]
@@ -25,18 +23,13 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private int reassureMaxUses = 3;
 
     [Header("Presence")]
-    [Tooltip("Drain multiplier while you're actively listening to them or deciding.")]
     [SerializeField] private float conversationDrainMultiplier = 0.1f;
-    [Tooltip("Drain multiplier while present for their hold call.")]
     [SerializeField] private float presenceDrainMultiplier = 0.2f;
-    [Tooltip("Where the conversation camera aims — roughly head height.")]
-    [SerializeField] private Transform lookTarget;
-
-    public Transform LookTarget => lookTarget;
 
     [SerializeField] private PatienceBar patienceBar;
     [SerializeField] private TMP_Text speechBubble;
     [SerializeField] private CustomerIdentity identity;
+    [SerializeField] private Transform lookTarget;
 
     private State state;
     private NavMeshAgent agent;
@@ -56,39 +49,78 @@ public class CustomerBrain : MonoBehaviour
     private JobBase activeJob;
 
     private bool intakeGiven;
-    private float decisionReadyAt;
     private bool departHappy = true;
+
+    // Drink orders: accepted, but nothing has been made yet.
+    private bool drinkOrdered;
+    private bool drinkStarted;
 
     private string currentLine = "";
     private Coroutine revealRoutine;
     private float queueMax;
     private float serviceMax;
 
+    public CustomerIdentity Identity => identity;
+    public Transform LookTarget => lookTarget;
     public string CustomerName => identity != null ? identity.DisplayName : "Customer";
     public Job Record => record;
     public int JobNumber { get; private set; }
     public Color JobColor { get; private set; } = Color.white;
 
-    public bool HasJob => activeJob != null;
+    public bool HasJob => activeJob != null || drinkOrdered;
     public bool InService => state == State.WaitingForService;
-    public string JobCardText => record != null ? record.faultDescription : "";
+    public string JobCardText => record != null ? record.Detail : "";
     public float PatienceFraction => Mathf.Clamp01(patienceLeft / CurrentMax);
     public int SlotIndex => slotIndex;
-    public CustomerIdentity Identity => identity;
 
     private float CurrentMax => state == State.WaitingForService ? serviceMax : queueMax;
 
     // ---------- the intake beat ----------
 
     public bool CanHearIntake => state == State.WaitingInQueue && !intakeGiven;
-
     public bool CanDecide => state == State.WaitingInQueue && intakeGiven;
-
-    public bool CanAcceptJob => CanDecide;
     public bool CanRefuse => CanDecide;
 
-    // Listening to them, or weighing the decision, both count as being served.
+    // A drink order can only be accepted if we can actually make it.
+    public bool CanAcceptJob
+    {
+        get
+        {
+            if (!CanDecide) return false;
+            if (record != null && record.kind == JobKind.Drink)
+                return ShopInventory.Instance != null && ShopInventory.Instance.CanMake(record.drink);
+            return true;
+        }
+    }
+
+    // Told them we're out of stock — a different decline, and not our fault.
+    public bool OutOfStock =>
+        CanDecide && record != null && record.kind == JobKind.Drink &&
+        (ShopInventory.Instance == null || !ShopInventory.Instance.CanMake(record.drink));
+
     private bool InConversation => state == State.WaitingInQueue && intakeGiven;
+
+    // ---------- café ----------
+
+    // Waiting on a drink that hasn't been started yet.
+    public bool AwaitingDrink => drinkOrdered && !drinkStarted;
+
+    public void MarkDrinkStarted() => drinkStarted = true;
+
+    // Is the player holding this customer's drink?
+    public bool CanReceiveDrink
+    {
+        get
+        {
+            if (!drinkOrdered || state != State.WaitingForService) return false;
+
+            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            if (carry == null || !carry.IsCarrying) return false;
+
+            DrinkJob drink = carry.Carried as DrinkJob;
+            return drink != null && drink.Owner == this;
+        }
+    }
 
     // ---------- handback ----------
 
@@ -115,7 +147,6 @@ public class CustomerBrain : MonoBehaviour
         state == State.WaitingForService && activeJob != null &&
         activeJob.IsComplete && !ItemAtCounter;
 
-    // Reassurance is only for people whose job we've already taken.
     public bool CanReassure =>
         state == State.WaitingForService
         && Time.time >= reassureReadyAt
@@ -136,7 +167,6 @@ public class CustomerBrain : MonoBehaviour
     {
         get
         {
-            // Being listened to IS being served.
             if (InConversation) return conversationDrainMultiplier;
 
             HoldCallJob call = activeJob as HoldCallJob;
@@ -170,7 +200,8 @@ public class CustomerBrain : MonoBehaviour
         queueMax = queuePatience * mult;
         serviceMax = servicePatience * mult;
 
-        if (identity != null && record != null) identity.SetDevice(record.deviceName);
+        // They know what they came in for, so dialogue can name it.
+        if (identity != null && record != null) identity.SetDevice(record.Subject);
 
         HideBubble();
 
@@ -217,7 +248,7 @@ public class CustomerBrain : MonoBehaviour
             bubbleTimer -= Time.deltaTime;
             if (bubbleTimer <= 0f)
             {
-                currentLine = "";      // spent — nothing left to re-show
+                currentLine = "";
                 HideNow();
             }
         }
@@ -246,7 +277,6 @@ public class CustomerBrain : MonoBehaviour
                 if (patienceLeft <= 0f) StormOut();
                 break;
 
-            // Standing still to finish saying something before walking off.
             case State.Speaking:
                 FaceSlot();
                 speakTimer -= Time.deltaTime;
@@ -259,9 +289,8 @@ public class CustomerBrain : MonoBehaviour
         }
     }
 
-    // ---------- the four player actions ----------
+    // ---------- player actions ----------
 
-    // Returns the line for the panel to display, rather than showing a bubble.
     public string HearIntake()
     {
         if (!CanHearIntake) return "";
@@ -287,22 +316,31 @@ public class CustomerBrain : MonoBehaviour
         record.number = JobNumber;
         record.color = JobColor;
 
-        Transform spot = queue.ItemSpot(slotIndex);
-        GameObject spawned = Instantiate(record.devicePrefab, spot.position, spot.rotation);
-
-        DeviceDefinition dev = spawned.GetComponent<DeviceDefinition>();
-        if (dev != null) dev.ApplyFault(record.faultIndex);
-
-        activeJob = spawned.GetComponent<JobBase>();
-        if (activeJob != null)
+        if (record.kind == JobKind.Drink)
         {
-            activeJob.SetOwner(this);
-            activeJob.Configure(record);
-            spawned.transform.position = spot.position + Vector3.up * activeJob.restHeight;
+            // Nothing spawns. They wait at an empty counter while you go make it.
+            drinkOrdered = true;
+            drinkStarted = false;
         }
+        else
+        {
+            Transform spot = queue.ItemSpot(slotIndex);
+            GameObject spawned = Instantiate(record.devicePrefab, spot.position, spot.rotation);
 
-        JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
-        if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
+            DeviceDefinition dev = spawned.GetComponent<DeviceDefinition>();
+            if (dev != null) dev.ApplyFault(record.faultIndex);
+
+            activeJob = spawned.GetComponent<JobBase>();
+            if (activeJob != null)
+            {
+                activeJob.SetOwner(this);
+                activeJob.Configure(record);
+                spawned.transform.position = spot.position + Vector3.up * activeJob.restHeight;
+            }
+
+            JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
+            if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
+        }
 
         animator.SetTrigger("Interact");
         return identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
@@ -314,6 +352,34 @@ public class CustomerBrain : MonoBehaviour
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "";
         LeaveAfterSpeaking(line, false);
+        return line;
+    }
+
+    // Hand over a finished drink.
+    public string ServeDrink(PlayerCarry carry)
+    {
+        if (!CanReceiveDrink || carry == null) return "";
+
+        DrinkJob drink = carry.Carried as DrinkJob;
+        if (drink == null) return "";
+
+        float speedFraction = Mathf.Clamp01(patienceLeft / serviceMax);
+        float tipMult = identity != null ? identity.TipMultiplier : 1f;
+
+        int basePay = drink.Drink != null ? drink.Drink.price : 4;
+        float reassurePenalty = Mathf.Clamp01(1f - reassureUses * reassureTipCost);
+        int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult * reassurePenalty);
+
+        ShopEconomy.Instance.AddMoney(basePay + tip);
+        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip);
+
+        carry.Consume();
+        drinkOrdered = false;
+
+        animator.SetTrigger("Interact");
+
+        string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
+        LeaveAfterSpeaking(line, true);
         return line;
     }
 
@@ -341,15 +407,6 @@ public class CustomerBrain : MonoBehaviour
         return line;
     }
 
-    // Stand still long enough to have said it, then walk. The PANEL shows the
-    // text — this only controls how long they linger before leaving.
-    private void LeaveAfterSpeaking(string line, bool happy)
-    {
-        departHappy = happy;
-        speakTimer = Mathf.Max(RevealTime(line) + 0.8f, 1.5f);
-        state = State.Speaking;
-    }
-
     public void Reassure()
     {
         if (!CanReassure) return;
@@ -370,17 +427,13 @@ public class CustomerBrain : MonoBehaviour
     {
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.StormedOut) : "";
         Say(line);      // bubble — they're shouting at the room, not talking to you
-        departHappy = false;
-        speakTimer = Mathf.Max(RevealTime(line) + 0.6f, 1.2f);
-        state = State.Speaking;
+        LeaveAfterSpeaking(line, false);
     }
 
-    // Stand still, finish the sentence, THEN walk away.
-    private void SpeakThenLeave(string line, bool happy)
+    private void LeaveAfterSpeaking(string line, bool happy)
     {
-        Say(line);
         departHappy = happy;
-        speakTimer = Mathf.Max(RevealTime(line) + 0.6f, 1.2f);
+        speakTimer = Mathf.Max(RevealTime(line) + 0.8f, 1.5f);
         state = State.Speaking;
     }
 
@@ -393,6 +446,8 @@ public class CustomerBrain : MonoBehaviour
             Destroy(activeJob.gameObject);
             activeJob = null;
         }
+
+        drinkOrdered = false;
 
         if (slotIndex >= 0)
         {
@@ -409,14 +464,12 @@ public class CustomerBrain : MonoBehaviour
 
     // ---------- dialogue ----------
 
-    // How long the word-by-word reveal takes.
     private float RevealTime(string line)
     {
         if (string.IsNullOrEmpty(line)) return 0f;
         return line.Split(' ').Length / Mathf.Max(wordsPerSecond, 0.5f);
     }
 
-    // A deliberate new utterance ALWAYS interrupts whatever came before.
     private void Say(string line)
     {
         if (string.IsNullOrEmpty(line)) return;
@@ -426,13 +479,12 @@ public class CustomerBrain : MonoBehaviour
         ForceShow();
     }
 
-    // Focus-driven. Can't restart a line in progress, can't hide one either.
     public void ShowBubble(bool on)
     {
         if (speechBubble == null) return;
 
-        if (!on && bubbleTimer > 0f) return;                    // looking away never cuts a line
-        if (on && bubbleTimer > 0f && revealRoutine != null) return;   // nor restarts one
+        if (!on && bubbleTimer > 0f) return;
+        if (on && bubbleTimer > 0f && revealRoutine != null) return;
 
         if (on) ForceShow();
         else HideNow();
@@ -442,7 +494,6 @@ public class CustomerBrain : MonoBehaviour
     {
         if (speechBubble == null || string.IsNullOrEmpty(currentLine)) return;
 
-        // Only the customer the player is dealing with speaks aloud.
         if (player == null) player = FindAnyObjectByType<PlayerInteractor>();
         bool isFocused = player != null && player.Focused != null &&
                          player.Focused.GetComponent<CustomerBrain>() == this;
@@ -473,6 +524,8 @@ public class CustomerBrain : MonoBehaviour
             speechBubble.maxVisibleWords = i;
             yield return new WaitForSeconds(1f / Mathf.Max(wordsPerSecond, 0.5f));
         }
+
+        revealRoutine = null;
     }
 
     private void HideBubble()

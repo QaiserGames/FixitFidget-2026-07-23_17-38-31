@@ -21,9 +21,9 @@ public class JobTicket : MonoBehaviour
             slotText.color = brain.JobColor;
         }
 
-        // Show the FAULT, not the device — that's what you actually have to do.
+        // Subject is the device OR the drink; Detail is the fault OR "to make".
         if (jobText != null && brain.Record != null)
-            jobText.text = $"{brain.Record.deviceName}\n{brain.Record.faultDescription}";
+            jobText.text = $"{brain.Record.Subject}\n{brain.Record.Detail}";
 
         if (background != null)
         {

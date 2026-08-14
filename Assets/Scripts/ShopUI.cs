@@ -11,6 +11,7 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private ItemInspector inspector;
     [SerializeField] private ConversationController conversation;
     [SerializeField] private bool showDebug = false;
+    [SerializeField] private TMP_Text stockText;
 
     private void Update()
     {
@@ -24,6 +25,9 @@ public class ShopUI : MonoBehaviour
 
         if (ShopEconomy.Instance != null)
             moneyText.text = $"${ShopEconomy.Instance.Money}";
+        
+        if (stockText != null && ShopInventory.Instance != null)
+            stockText.text = $"Cups {ShopInventory.Instance.Cups}    Beans {ShopInventory.Instance.Beans}";
 
         // The conversation panel owns the screen while it's open.
         if (conversation != null && conversation.InConversation)

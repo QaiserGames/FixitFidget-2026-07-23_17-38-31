@@ -70,6 +70,16 @@ public class PlayerCarry : MonoBehaviour
         carriedRenderers = null;
     }
 
+    // Hand over and destroy — used when a drink is served.
+    public void Consume()
+    {
+        if (!IsCarrying) return;
+
+        Destroy(Carried.gameObject);
+        Carried = null;
+        carriedRenderers = null;
+    }
+
     private void SetRenderers(bool on)
     {
         renderersVisible = on;

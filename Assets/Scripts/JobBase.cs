@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum JobFamily { Mechanical, Cleaning, Software, Human, Bureaucratic }
+public enum JobFamily { Mechanical, Cleaning, Software, Human, Bureaucratic, Cafe }
 
 public abstract class JobBase : MonoBehaviour
 {

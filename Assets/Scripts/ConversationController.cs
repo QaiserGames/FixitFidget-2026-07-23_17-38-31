@@ -102,6 +102,7 @@ public class ConversationController : MonoBehaviour
 
     private string BuildOptions()
     {
+        if (partner.OutOfStock)  return "We're out of stock          [Q]  Apologise";
         if (partner.CanAcceptJob) return "[E]  Take the job          [Q]  Turn them away";
         if (partner.JobReady)     return "[E]  Hand it back";
         if (partner.JobFixedButAway) return "Their item isn't here          [F]  Step away";

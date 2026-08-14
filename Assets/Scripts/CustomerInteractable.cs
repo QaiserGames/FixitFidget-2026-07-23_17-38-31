@@ -11,7 +11,7 @@ public class CustomerInteractable : Interactable
 
     public override bool IsAvailable =>
         brain != null && (brain.CanHearIntake || brain.CanDecide || brain.JobReady ||
-                          brain.JobFixedButAway ||
+                          brain.JobFixedButAway || brain.CanReceiveDrink ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
     public override string Prompt
@@ -19,8 +19,8 @@ public class CustomerInteractable : Interactable
         get
         {
             if (brain == null) return "";
-            if (brain.CanHearIntake) return "Talk to them";
-            if (brain.CanDecide) return "Talk to them";
+            if (brain.CanReceiveDrink) return $"Serve the {brain.Record.Subject}";
+            if (brain.CanHearIntake || brain.CanDecide) return "Talk to them";
             if (brain.JobReady) return "Hand it back";
             if (brain.JobFixedButAway) return "Bring their item back";
             if (brain.CanReassure && !brain.JobNeedsAttention) return "Reassure";
@@ -30,7 +30,14 @@ public class CustomerInteractable : Interactable
 
     public override void Interact(PlayerInteractor player)
     {
-        // Reassurance stays a quick gesture — no panel, no camera move.
+        // Serving a drink is a quick handover, not a conversation.
+        if (brain.CanReceiveDrink)
+        {
+            PlayerCarry carry = player.GetComponent<PlayerCarry>();
+            brain.ServeDrink(carry);
+            return;
+        }
+
         if (!brain.CanHearIntake && !brain.CanDecide && !brain.JobReady && brain.CanReassure)
         {
             brain.Reassure();
