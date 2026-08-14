@@ -3,17 +3,16 @@ using UnityEngine;
 
 public class EspressoMachine : Interactable
 {
-    [SerializeField] private Transform outputSpot;
+    [SerializeField] private Transform cupSlot;
 
     public bool IsBrewing => brewTimer > 0f;
-    public float BrewProgress => brewDuration <= 0f ? 0f : 1f - (brewTimer / brewDuration);
+    public bool HasCup => loadedCup != null;
 
     private float brewTimer;
-    private float brewDuration;
-    private DrinkDefinition brewing;
+    private DrinkJob loadedCup;
     private CustomerBrain brewingFor;
 
-    // Everyone waiting on a drink that hasn't been started yet, oldest first.
+    // Everyone waiting on a drink that hasn't been started, oldest first.
     public List<CustomerBrain> PendingOrders
     {
         get
@@ -28,7 +27,6 @@ public class EspressoMachine : Interactable
         }
     }
 
-    // Always visible. The prompt explains why it can't be used right now.
     public override bool IsAvailable => true;
 
     public override string Prompt
@@ -37,76 +35,97 @@ public class EspressoMachine : Interactable
         {
             if (IsBrewing) return $"Brewing...  {Mathf.CeilToInt(brewTimer)}s";
 
+            // Finished drink sitting in the machine.
+            if (loadedCup != null && !loadedCup.IsEmpty)
+            {
+                PlayerCarry c = FindAnyObjectByType<PlayerCarry>();
+                if (c != null && c.IsCarrying) return "Hands full";
+                return $"Take the {loadedCup.Drink.drinkName}";
+            }
+
             PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
-            if (carry != null && carry.IsCarrying) return "Hands full";
+            DrinkJob held = carry != null ? carry.Carried as DrinkJob : null;
+
+            if (held == null || !held.IsEmpty) return "Needs an empty cup";
 
             List<CustomerBrain> orders = PendingOrders;
             if (orders.Count == 0) return "No orders waiting";
 
-            return $"Make {orders[0].Record.Subject} for {orders[0].CustomerName}";
+            DrinkDefinition want = orders[0].Record.drink;
+            if (ShopInventory.Instance != null && !ShopInventory.Instance.CanBrew(want))
+                return "Out of beans";
+
+            return $"Make {want.drinkName} for {orders[0].CustomerName}";
         }
     }
 
-    // One button, longest-waiting order first — no hidden number keys.
     public override void Interact(PlayerInteractor player)
     {
+        PlayerCarry carry = player.GetComponent<PlayerCarry>();
+        if (carry == null || IsBrewing) return;
+
+        // Collecting a finished drink.
+        if (loadedCup != null && !loadedCup.IsEmpty)
+        {
+            if (carry.IsCarrying) return;
+            carry.PickUp(loadedCup);
+            loadedCup = null;
+            brewingFor = null;
+            return;
+        }
+
+        // Loading an empty cup.
+        DrinkJob held = carry.Carried as DrinkJob;
+        if (held == null || !held.IsEmpty) return;
+
         List<CustomerBrain> orders = PendingOrders;
-        if (orders.Count > 0) StartBrew(orders[0]);
+        if (orders.Count == 0) return;
+
+        CustomerBrain customer = orders[0];
+        DrinkDefinition drink = customer.Record.drink;
+
+        if (ShopInventory.Instance == null || !ShopInventory.Instance.ConsumeBeans(drink)) return;
+
+        // The cup leaves your hands and sits in the machine — go do something else.
+        carry.PlaceAt(cupSlot);
+
+        loadedCup = held;
+        brewingFor = customer;
+        float speed = UpgradeManager.Instance != null
+            ? UpgradeManager.Instance.BrewTimeMultiplier : 1f;
+        brewTimer = drink.brewSeconds * speed;
+        pendingDrink = drink;
+
+        customer.MarkDrinkStarted();
     }
+
+    private DrinkDefinition pendingDrink;
 
     private void Update()
     {
         if (!IsBrewing) return;
 
-        // The customer can storm out mid-brew. Keep going — the stock is spent,
-        // and the finished cup can be handed to anyone who wants that drink.
         brewTimer -= Time.deltaTime;
-        if (brewTimer <= 0f) FinishBrew();
-    }
+        if (brewTimer > 0f) return;
 
-    private void StartBrew(CustomerBrain customer)
-    {
-        if (IsBrewing || customer == null || customer.Record == null) return;
-
-        DrinkDefinition drink = customer.Record.drink;
-        if (drink == null) return;
-
-        // Stock is consumed at the START — a wasted drink is a real loss.
-        if (ShopInventory.Instance == null || !ShopInventory.Instance.Consume(drink)) return;
-
-        brewing = drink;
-        brewingFor = customer;
-        brewDuration = drink.brewSeconds;
-        brewTimer = brewDuration;
-
-        customer.MarkDrinkStarted();
+        brewTimer = 0f;
+        FinishBrew();
     }
 
     private void FinishBrew()
     {
-        brewTimer = 0f;
+        if (loadedCup == null) return;
 
-        if (brewing != null && brewing.cupPrefab != null && outputSpot != null)
+        loadedCup.SetDrink(pendingDrink);
+
+        // Bind it to whoever ordered it, so the cup carries their colour.
+        if (brewingFor != null)
         {
-            GameObject cup = Instantiate(brewing.cupPrefab, outputSpot.position, outputSpot.rotation);
+            loadedCup.SetOwner(brewingFor);
+            loadedCup.Configure(brewingFor.Record);
 
-            DrinkJob job = cup.GetComponent<DrinkJob>();
-            if (job != null)
-            {
-                job.SetDrink(brewing);
-
-                if (brewingFor != null)
-                {
-                    job.SetOwner(brewingFor);
-                    job.Configure(brewingFor.Record);
-
-                    JobMarker marker = cup.GetComponentInChildren<JobMarker>(true);
-                    if (marker != null) marker.Show(brewingFor.JobNumber, brewingFor.JobColor);
-                }
-            }
+            JobMarker marker = loadedCup.GetComponentInChildren<JobMarker>(true);
+            if (marker != null) marker.Show(brewingFor.JobNumber, brewingFor.JobColor);
         }
-
-        brewing = null;
-        brewingFor = null;
     }
 }

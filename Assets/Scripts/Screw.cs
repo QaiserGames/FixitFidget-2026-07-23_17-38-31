@@ -21,6 +21,17 @@ public class Screw : MonoBehaviour
         homeLocalRot = transform.localRotation;
     }
 
+    // Upgrades make the driver faster.
+    private float TurnTime
+    {
+        get
+        {
+            float mult = UpgradeManager.Instance != null
+                ? UpgradeManager.Instance.ScrewTimeMultiplier : 1f;
+            return turnDuration * mult;
+        }
+    }
+
     public void Unscrew(Transform bin)
     {
         if (IsOut || IsBusy) return;
@@ -37,6 +48,8 @@ public class Screw : MonoBehaviour
     {
         IsBusy = true;
 
+        float turn = TurnTime;
+
         // Spin three turns while rising, easing out as it loosens.
         Vector3 start = transform.localPosition;
         Vector3 lifted = start + Vector3.up * liftHeight;
@@ -44,11 +57,11 @@ public class Screw : MonoBehaviour
 
         while (t < 1f)
         {
-            t += Time.deltaTime / turnDuration;
+            t += Time.deltaTime / turn;
             float eased = 1f - Mathf.Pow(1f - Mathf.Clamp01(t), 2f);
 
             transform.localPosition = Vector3.Lerp(start, lifted, eased);
-            transform.Rotate(Vector3.up, 1080f * Time.deltaTime / turnDuration, Space.Self);
+            transform.Rotate(Vector3.up, 1080f * Time.deltaTime / turn, Space.Self);
             yield return null;
         }
 
@@ -89,6 +102,8 @@ public class Screw : MonoBehaviour
     {
         IsBusy = true;
 
+        float turn = TurnTime;
+
         // Rejoin the item.
         transform.SetParent(homeParent);
         JobBase job = homeParent.GetComponentInParent<JobBase>();
@@ -111,10 +126,10 @@ public class Screw : MonoBehaviour
         t = 0f;
         while (t < 1f)
         {
-            t += Time.deltaTime / turnDuration;
+            t += Time.deltaTime / turn;
             transform.localPosition = Vector3.Lerp(
                 homeLocalPos + Vector3.up * liftHeight, homeLocalPos, Mathf.Clamp01(t));
-            transform.Rotate(Vector3.up, -1080f * Time.deltaTime / turnDuration, Space.Self);
+            transform.Rotate(Vector3.up, -1080f * Time.deltaTime / turn, Space.Self);
             yield return null;
         }
 

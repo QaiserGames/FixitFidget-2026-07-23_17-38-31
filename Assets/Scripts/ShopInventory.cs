@@ -20,31 +20,44 @@ public class ShopInventory : MonoBehaviour
         Instance = this;
     }
 
-    // Can we make this drink right now?
+   // Cups are spent at the stack, beans at the machine.
+    public bool TakeCup()
+    {
+        if (cups <= 0) return false;
+        cups--;
+        return true;
+    }
+
+    public bool CanBrew(DrinkDefinition drink)
+    {
+        if (drink == null) return false;
+        return beans >= drink.beansCost;
+    }
+
+    public bool ConsumeBeans(DrinkDefinition drink)
+    {
+        if (!CanBrew(drink)) return false;
+        beans -= drink.beansCost;
+        return true;
+    }
+
+    // Can we serve this drink at all right now? Used when accepting an order.
     public bool CanMake(DrinkDefinition drink)
     {
         if (drink == null) return false;
         return cups >= drink.cupsCost && beans >= drink.beansCost;
     }
 
-    public bool Consume(DrinkDefinition drink)
-    {
-        if (!CanMake(drink)) return false;
-
-        cups -= drink.cupsCost;
-        beans -= drink.beansCost;
-        return true;
-    }
-
-    // Bought at end of day. Returns false if they can't afford it.
     public bool BuyRestock()
     {
         if (ShopEconomy.Instance == null) return false;
         if (ShopEconomy.Instance.Money < restockCost) return false;
 
         ShopEconomy.Instance.AddMoney(-restockCost);
-        cups += restockAmount;
-        beans += restockAmount;
+
+        int bonus = UpgradeManager.Instance != null ? UpgradeManager.Instance.ExtraRestock : 0;
+        cups += restockAmount + bonus;
+        beans += restockAmount + bonus;
         return true;
     }
 }

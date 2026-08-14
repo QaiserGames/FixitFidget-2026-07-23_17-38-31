@@ -3,6 +3,8 @@ using UnityEngine;
 public class ItemSlotArea : MonoBehaviour
 {
     [SerializeField] private Transform[] slots;
+    [Tooltip("Slots available before upgrades. Extra slots unlock with bench capacity.")]
+    [SerializeField] private int baseSlots = 2;
 
     private JobBase[] occupants;
 
@@ -11,11 +13,21 @@ public class ItemSlotArea : MonoBehaviour
         occupants = new JobBase[slots.Length];
     }
 
+    // Upgrades unlock slots beyond the base count.
+    private int UsableSlots
+    {
+        get
+        {
+            int extra = UpgradeManager.Instance != null ? UpgradeManager.Instance.ExtraBenchSlots : 0;
+            return Mathf.Min(baseSlots + extra, slots.Length);
+        }
+    }
+
     public bool HasFreeSlot
     {
         get
         {
-            for (int i = 0; i < occupants.Length; i++)
+            for (int i = 0; i < UsableSlots; i++)
                 if (occupants[i] == null) return true;
             return false;
         }
@@ -28,13 +40,12 @@ public class ItemSlotArea : MonoBehaviour
         return false;
     }
 
-    // Take the first free slot. Returns null if the surface is full.
     public Transform ClaimSlot(JobBase item)
     {
-        for (int i = 0; i < occupants.Length; i++)
-            if (occupants[i] == item) return slots[i];   // already here, keep the spot
+        for (int i = 0; i < UsableSlots; i++)
+            if (occupants[i] == item) return slots[i];
 
-        for (int i = 0; i < occupants.Length; i++)
+        for (int i = 0; i < UsableSlots; i++)
         {
             if (occupants[i] == null)
             {

@@ -8,6 +8,7 @@ public class RecapUI : MonoBehaviour
     [SerializeField] private TMP_Text text;
     [SerializeField] private Button nextDayButton;
     [SerializeField] private PlayerInteractor player;
+    [SerializeField] private UpgradeShopUI upgradeShop;
 
     private void Start()
     {
@@ -41,6 +42,7 @@ public class RecapUI : MonoBehaviour
             $"Tips                  ${c.Tips}\n" +
             $"Earned today          ${c.Earned}\n\n" +
             $"Till                  ${(ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0)}";
+            if (upgradeShop != null) upgradeShop.Build();
 
         panel.SetActive(true);
     }
