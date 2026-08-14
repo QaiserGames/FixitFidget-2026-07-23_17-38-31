@@ -10,6 +10,8 @@ public class ConversationController : MonoBehaviour
 
     [Tooltip("Ignore input briefly after opening, so the key that started it doesn't also answer it.")]
     [SerializeField] private float inputDelay = 0.2f;
+    [Tooltip("Pause after a closing line has been read, before the panel closes.")]
+    [SerializeField] private float closingPause = 1.0f;
 
     public bool InConversation => partner != null;
 
@@ -92,20 +94,21 @@ public class ConversationController : MonoBehaviour
             End();
     }
 
-    private void CloseWith(string line, float hold)
+    private void CloseWith(string line, float extraHold)
     {
         ui.SetLine(line);
         ui.SetOptions("");
         closing = true;
-        closeAt = Time.time + hold;
+
+        // Scale with length so long closing lines aren't cut off.
+        float readTime = string.IsNullOrEmpty(line) ? 0f : line.Length / 30f;
+        closeAt = Time.time + readTime + extraHold;
     }
 
     private string BuildOptions()
     {
         if (partner.OutOfStock)  return "We're out of stock          [Q]  Apologise";
         if (partner.CanAcceptJob) return "[E]  Take the job          [Q]  Turn them away";
-        if (partner.JobReady)     return "[E]  Hand it back";
-        if (partner.JobFixedButAway) return "Their item isn't here          [F]  Step away";
         return "[F]  Step away";
     }
 }

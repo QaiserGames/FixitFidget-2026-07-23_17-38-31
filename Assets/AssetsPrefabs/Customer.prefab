@@ -19,7 +19,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &5329631905986938144
 Transform:
   m_ObjectHideFlags: 0
@@ -492,7 +492,8 @@ MonoBehaviour:
   maxTipFraction: 0.6
   turnSpeed: 240
   wordsPerSecond: 6
-  lineHoldTime: 2.5
+  charactersPerSecond: 45
+  lineHoldTime: 1.5
   reassureAmount: 0.3
   reassureCooldown: 20
   reassureFalloff: 0.6
@@ -500,10 +501,10 @@ MonoBehaviour:
   reassureMaxUses: 3
   conversationDrainMultiplier: 0.1
   presenceDrainMultiplier: 0.2
-  lookTarget: {fileID: 4959249724747449679}
   patienceBar: {fileID: 3382181744524018593}
   speechBubble: {fileID: 6256992342730178411}
   identity: {fileID: 5221819417326784668}
+  lookTarget: {fileID: 4959249724747449679}
 --- !u!136 &3547829432509808127
 CapsuleCollider:
   m_ObjectHideFlags: 0

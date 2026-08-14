@@ -12,7 +12,8 @@ public class ConversationUI : MonoBehaviour
     [SerializeField] private TMP_Text dialogueText;
     [SerializeField] private TMP_Text optionsText;
     [SerializeField] private float fadeSpeed = 8f;
-    [SerializeField] private float wordsPerSecond = 3f;
+    [Tooltip("Characters per second. ~45 reads as a quick sweep, not a stutter.")]
+    [SerializeField] private float charactersPerSecond = 45f;
 
     private bool visible;
     private Coroutine revealRoutine;
@@ -83,22 +84,34 @@ public class ConversationUI : MonoBehaviour
         if (revealRoutine != null) { StopCoroutine(revealRoutine); revealRoutine = null; }
 
         dialogueText.ForceMeshUpdate();
-        dialogueText.maxVisibleWords = dialogueText.textInfo.wordCount;
+        dialogueText.maxVisibleCharacters = dialogueText.textInfo.characterCount;
         LineFinished = true;
     }
 
+    // Character-by-character, fast — left-to-right sweep rather than a stutter.
     private IEnumerator Reveal()
     {
         dialogueText.ForceMeshUpdate();
-        int total = dialogueText.textInfo.wordCount;
-        dialogueText.maxVisibleWords = 0;
+        int total = dialogueText.textInfo.characterCount;
+        dialogueText.maxVisibleCharacters = 0;
+
+        float perChar = 1f / Mathf.Max(charactersPerSecond, 1f);
+        float carry = 0f;
 
         for (int i = 1; i <= total; i++)
         {
-            dialogueText.maxVisibleWords = i;
-            yield return new WaitForSeconds(1f / Mathf.Max(wordsPerSecond, 0.5f));
+            dialogueText.maxVisibleCharacters = i;
+
+            // Batch characters when they're faster than one frame.
+            carry += perChar;
+            if (carry >= Time.deltaTime)
+            {
+                yield return new WaitForSeconds(carry);
+                carry = 0f;
+            }
         }
 
+        dialogueText.maxVisibleCharacters = total;
         LineFinished = true;
         revealRoutine = null;
     }

@@ -30,7 +30,7 @@ public class CustomerInteractable : Interactable
 
     public override void Interact(PlayerInteractor player)
     {
-        // Serving a drink is a quick handover, not a conversation.
+        // Quick handovers — no camera move, no panel.
         if (brain.CanReceiveDrink)
         {
             PlayerCarry carry = player.GetComponent<PlayerCarry>();
@@ -38,12 +38,16 @@ public class CustomerInteractable : Interactable
             return;
         }
 
-        if (!brain.CanHearIntake && !brain.CanDecide && !brain.JobReady && brain.CanReassure)
+        if (brain.JobReady) { brain.CompleteJob(); return; }
+
+        if (!brain.CanHearIntake && !brain.CanDecide && brain.CanReassure)
         {
             brain.Reassure();
             return;
         }
 
+        // The conversation is only for the intake beat — meeting someone
+        // and deciding whether to help them.
         ConversationController conv = player.GetComponent<ConversationController>();
         if (conv != null) conv.Begin(brain);
     }

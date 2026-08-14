@@ -13,6 +13,7 @@ public class CustomerBrain : MonoBehaviour
 
     [Header("Dialogue pacing")]
     [SerializeField] private float wordsPerSecond = 3f;
+    [SerializeField] private float charactersPerSecond = 45f;
     [SerializeField] private float lineHoldTime = 2.5f;
 
     [Header("Reassurance")]
@@ -287,7 +288,8 @@ public class CustomerBrain : MonoBehaviour
                 break;
 
             case State.Leaving:
-                if (Arrived()) Destroy(gameObject);
+                // Don't vanish while still mid-sentence — let the line finish first.
+                if (Arrived() && bubbleTimer <= 0f) Destroy(gameObject);
                 break;
         }
     }
@@ -406,6 +408,7 @@ public class CustomerBrain : MonoBehaviour
         animator.SetTrigger("Interact");
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
+        Say(line);
         LeaveAfterSpeaking(line, true);
         return line;
     }
@@ -436,7 +439,9 @@ public class CustomerBrain : MonoBehaviour
     private void LeaveAfterSpeaking(string line, bool happy)
     {
         departHappy = happy;
-        speakTimer = Mathf.Max(RevealTime(line) + 0.8f, 1.5f);
+
+        // Match the bubble's own lifetime, so they never walk off mid-sentence.
+        speakTimer = Mathf.Max(RevealTime(line) + lineHoldTime, 1.8f);
         state = State.Speaking;
     }
 
@@ -470,7 +475,7 @@ public class CustomerBrain : MonoBehaviour
     private float RevealTime(string line)
     {
         if (string.IsNullOrEmpty(line)) return 0f;
-        return line.Split(' ').Length / Mathf.Max(wordsPerSecond, 0.5f);
+        return line.Length / Mathf.Max(charactersPerSecond, 1f);
     }
 
     private void Say(string line)
@@ -519,15 +524,26 @@ public class CustomerBrain : MonoBehaviour
     private System.Collections.IEnumerator RevealWords()
     {
         speechBubble.ForceMeshUpdate();
-        int total = speechBubble.textInfo.wordCount;
-        speechBubble.maxVisibleWords = 0;
+        int total = speechBubble.textInfo.characterCount;
+        speechBubble.maxVisibleCharacters = 0;
+
+        float perChar = 1f / Mathf.Max(charactersPerSecond, 1f);
+        float carry = 0f;
 
         for (int i = 1; i <= total; i++)
         {
-            speechBubble.maxVisibleWords = i;
-            yield return new WaitForSeconds(1f / Mathf.Max(wordsPerSecond, 0.5f));
+            speechBubble.maxVisibleCharacters = i;
+
+            // Batch characters when they're faster than a frame.
+            carry += perChar;
+            if (carry >= Time.deltaTime)
+            {
+                yield return new WaitForSeconds(carry);
+                carry = 0f;
+            }
         }
 
+        speechBubble.maxVisibleCharacters = total;
         revealRoutine = null;
     }
 
@@ -547,9 +563,10 @@ public class CustomerBrain : MonoBehaviour
         transform.rotation = Quaternion.RotateTowards(transform.rotation, target, turnSpeed * Time.deltaTime);
     }
 
-   // Above their head only until you've spoken to them. After that the
-    // ticket carries it — no clutter over the counter.
-    private bool ShowFloatingBar => state == State.WaitingInQueue && !intakeGiven;
+   // Visible whenever they're actively waiting on you — queue or service.
+    // Hidden only while walking in, and once they've been dealt with.
+    private bool ShowFloatingBar =>
+        state == State.WaitingInQueue || state == State.WaitingForService;
 
     private void UpdateBar(float max, Color fullColor)
     {

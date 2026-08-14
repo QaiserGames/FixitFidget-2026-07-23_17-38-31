@@ -699,7 +699,7 @@ MonoBehaviour:
   dialogueText: {fileID: 1310840630}
   optionsText: {fileID: 2078145351}
   fadeSpeed: 8
-  wordsPerSecond: 3
+  charactersPerSecond: 45
 --- !u!225 &226741272
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -3469,6 +3469,7 @@ MonoBehaviour:
   ui: {fileID: 226741271}
   interactor: {fileID: 1039162928}
   inputDelay: 0.2
+  closingPause: 1
 --- !u!1 &1224696171
 GameObject:
   m_ObjectHideFlags: 0
