@@ -2926,7 +2926,7 @@ MonoBehaviour:
   inspector: {fileID: 1039162927}
   conversation: {fileID: 1039162930}
   showDebug: 1
-  stockText: {fileID: 0}
+  stockText: {fileID: 808102544}
 --- !u!114 &908985952
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4772,7 +4772,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EspressoMachine
   priority: 2
   outputSpot: {fileID: 393895825}
-  reach: 3
 --- !u!1 &1651427487
 GameObject:
   m_ObjectHideFlags: 0

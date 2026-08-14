@@ -118,7 +118,10 @@ public class CustomerBrain : MonoBehaviour
             if (carry == null || !carry.IsCarrying) return false;
 
             DrinkJob drink = carry.Carried as DrinkJob;
-            return drink != null && drink.Owner == this;
+            if (drink == null || record == null) return false;
+
+            // Any latte will do — including one abandoned by someone who left.
+            return drink.Drink == record.drink;
         }
     }
 
@@ -544,9 +547,19 @@ public class CustomerBrain : MonoBehaviour
         transform.rotation = Quaternion.RotateTowards(transform.rotation, target, turnSpeed * Time.deltaTime);
     }
 
+   // Above their head only until you've spoken to them. After that the
+    // ticket carries it — no clutter over the counter.
+    private bool ShowFloatingBar => state == State.WaitingInQueue && !intakeGiven;
+
     private void UpdateBar(float max, Color fullColor)
     {
-        if (patienceBar != null) patienceBar.SetFraction(patienceLeft / max, fullColor);
+        if (patienceBar == null) return;
+
+        bool show = ShowFloatingBar;
+        if (patienceBar.gameObject.activeSelf != show)
+            patienceBar.gameObject.SetActive(show);
+
+        if (show) patienceBar.SetFraction(patienceLeft / max, fullColor);
     }
 
     private bool Arrived()
