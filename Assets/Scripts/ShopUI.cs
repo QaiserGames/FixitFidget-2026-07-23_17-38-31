@@ -12,9 +12,21 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private ConversationController conversation;
     [SerializeField] private bool showDebug = false;
     [SerializeField] private TMP_Text stockText;
+    [SerializeField] private GameObject recapPanel;
 
     private void Update()
     {
+        // The recap owns the screen — hide the in-game HUD behind it.
+        bool recapOpen = recapPanel != null && recapPanel.activeSelf;
+        if (moneyText != null) moneyText.gameObject.SetActive(!recapOpen);
+        if (clockText != null) clockText.gameObject.SetActive(!recapOpen);
+        if (stockText != null) stockText.gameObject.SetActive(!recapOpen);
+        if (promptText != null) promptText.gameObject.SetActive(!recapOpen);
+        if (recapOpen)
+        {
+            if (crosshair != null) crosshair.SetActive(false);
+            return;
+        }
         if (clockText != null && DayClock.Instance != null)
         {
             var c = DayClock.Instance;

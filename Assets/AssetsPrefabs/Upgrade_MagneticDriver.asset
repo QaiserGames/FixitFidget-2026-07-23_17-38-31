@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Upgrade_MagneticDriver
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
   upgradeName: Magnetic Driver
-  description: Pulls shots in half the time.
+  description: Screws come out faster.
   type: 1
   valuePerLevel: 0.3
   costPerLevel: 50000000c8000000

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Upgrade_BiggerBench
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
   upgradeName: Bigger Bench
-  description: Pulls shots in half the time.
+  description: Hold one more item on the bench.
   type: 2
   valuePerLevel: 1
   costPerLevel: 2c010000
