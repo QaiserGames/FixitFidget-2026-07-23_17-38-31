@@ -16,4 +16,14 @@ public class ShopEconomy : MonoBehaviour
         Money += amount;
         Debug.Log($"+${amount}  |  Till: ${Money}");
     }
+
+    // Used by the save system on load. Not for gameplay — money changes
+    // in play should always go through AddMoney so future effects hook in.
+    public void SetMoney(int amount)
+    {
+        Money = Mathf.Max(0, amount);
+    }
+
+
+
 }

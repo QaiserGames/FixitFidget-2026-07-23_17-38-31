@@ -8,6 +8,8 @@ public class DrinkJob : JobBase
 
     // An empty cup isn't servable. Only a brewed one is.
     public override bool IsComplete => Drink != null;
+    // True while sitting in the machine. Stops the player snatching it mid-brew.
+    public bool Locked { get; set; }
 
     public DrinkDefinition Drink { get; private set; }
     public bool IsEmpty => Drink == null;

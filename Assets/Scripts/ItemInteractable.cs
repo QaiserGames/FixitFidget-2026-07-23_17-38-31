@@ -16,10 +16,11 @@ public class ItemInteractable : Interactable
         {
             if (job == null) return false;
 
-            // Drinks are always pick-up-able — empty cups have no owner yet,
-            // and orphaned drinks have lost theirs. Repair items still need
-            // a living owner (ownerless means mid-destruction).
-            if (!(job is DrinkJob) && job.Owner == null) return false;
+            // A cup locked in the machine isn't yours to take yet.
+            DrinkJob drink = job as DrinkJob;
+            if (drink != null && drink.Locked) return false;
+
+            if (drink == null && job.Owner == null) return false;
 
             PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
             return carry != null && !carry.IsCarrying;

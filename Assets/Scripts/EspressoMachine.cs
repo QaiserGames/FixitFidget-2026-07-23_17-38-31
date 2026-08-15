@@ -90,6 +90,7 @@ public class EspressoMachine : Interactable
         carry.PlaceAt(cupSlot);
 
         loadedCup = held;
+        loadedCup.Locked = true;
         brewingFor = customer;
         float speed = UpgradeManager.Instance != null
             ? UpgradeManager.Instance.BrewTimeMultiplier : 1f;
@@ -127,5 +128,6 @@ public class EspressoMachine : Interactable
             JobMarker marker = loadedCup.GetComponentInChildren<JobMarker>(true);
             if (marker != null) marker.Show(brewingFor.JobNumber, brewingFor.JobColor);
         }
+        loadedCup.Locked = false;
     }
 }

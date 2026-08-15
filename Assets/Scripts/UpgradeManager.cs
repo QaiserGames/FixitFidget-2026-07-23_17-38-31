@@ -9,7 +9,6 @@ public class UpgradeManager : MonoBehaviour
 
     public UpgradeDefinition[] Catalogue => catalogue;
 
-    // How many levels of each upgrade we own.
     private readonly Dictionary<UpgradeDefinition, int> owned = new();
 
     private void Awake()
@@ -42,9 +41,27 @@ public class UpgradeManager : MonoBehaviour
         return true;
     }
 
+    // ---------- save / load ----------
+
+    // Restore one upgrade to a saved level. Clamped to the definition's max,
+    // in case a later patch reduced the level cap.
+    public void SetLevel(UpgradeDefinition def, int level)
+    {
+        if (def == null) return;
+        owned[def] = Mathf.Clamp(level, 0, def.MaxLevel);
+    }
+
+    // Find a definition by its asset name — the identity used in save files.
+    public UpgradeDefinition FindByName(string assetName)
+    {
+        if (catalogue == null) return null;
+        foreach (UpgradeDefinition def in catalogue)
+            if (def != null && def.name == assetName) return def;
+        return null;
+    }
+
     // ---------- what the rest of the game asks ----------
 
-    // Total levels bought of a given type, across all upgrades of that type.
     private float TotalValue(UpgradeType type)
     {
         float total = 0f;
@@ -58,12 +75,10 @@ public class UpgradeManager : MonoBehaviour
         return total;
     }
 
-    // Multipliers below 1 mean "faster". Floored so nothing hits zero.
     public float BrewTimeMultiplier  => Mathf.Max(0.25f, 1f - TotalValue(UpgradeType.BrewSpeed));
     public float ScrewTimeMultiplier => Mathf.Max(0.25f, 1f - TotalValue(UpgradeType.ScrewSpeed));
     public float ScrubSpeedMultiplier => 1f + TotalValue(UpgradeType.ScrubSpeed);
 
-    // Extra whole units.
     public int ExtraBenchSlots => Mathf.RoundToInt(TotalValue(UpgradeType.BenchCapacity));
     public int ExtraRestock    => Mathf.RoundToInt(TotalValue(UpgradeType.RestockSize));
 }

@@ -85,4 +85,11 @@ public class DayClock : MonoBehaviour
     }
 
     public void RecordLost() => Lost++;
+
+    // Used by the save system on load, before the first day starts.
+    public void SetDay(int day)
+    {
+        Day = Mathf.Max(1, day);
+    }
+
 }

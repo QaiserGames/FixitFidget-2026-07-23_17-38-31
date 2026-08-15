@@ -43,13 +43,16 @@ public class RecapUI : MonoBehaviour
             $"Earned today          ${c.Earned}\n\n" +
             $"Till                  ${(ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0)}";
             if (upgradeShop != null) upgradeShop.Build();
+           
 
         panel.SetActive(true);
     }
 
     private void OnNextDay()
     {
+        
         panel.SetActive(false);
         if (DayClock.Instance != null) DayClock.Instance.NextDay();
+        if (SaveManager.Instance != null) SaveManager.Instance.Save();
     }
 }

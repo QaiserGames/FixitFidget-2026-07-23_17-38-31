@@ -20,7 +20,13 @@ public class ShopInventory : MonoBehaviour
         Instance = this;
     }
 
-   // Cups are spent at the stack, beans at the machine.
+    // Save system pushes restored stock in here on load.
+    public void SetStock(int newCups, int newBeans)
+    {
+        cups = Mathf.Max(0, newCups);
+        beans = Mathf.Max(0, newBeans);
+    }
+
     public bool TakeCup()
     {
         if (cups <= 0) return false;
@@ -41,7 +47,6 @@ public class ShopInventory : MonoBehaviour
         return true;
     }
 
-    // Can we serve this drink at all right now? Used when accepting an order.
     public bool CanMake(DrinkDefinition drink)
     {
         if (drink == null) return false;
