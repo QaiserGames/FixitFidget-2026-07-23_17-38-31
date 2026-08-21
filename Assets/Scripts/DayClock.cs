@@ -17,6 +17,7 @@ public class DayClock : MonoBehaviour
     public int Served { get; private set; }
     public int Lost { get; private set; }
     public int Repairs { get; private set; }
+    public int Drinks { get; private set; }
     public int Tips { get; private set; }
     public int Earned { get; private set; }
 
@@ -37,6 +38,7 @@ public class DayClock : MonoBehaviour
         Served = 0;
         Lost = 0;
         Repairs = 0;
+        Drinks = 0;
         Tips = 0;
         Earned = 0;
         Time.timeScale = 1f;
@@ -75,11 +77,13 @@ public class DayClock : MonoBehaviour
         StartDay();
     }
 
-    // Called by CustomerBrain.
-    public void RecordServed(int basePay, int tip)
+    // Called by CustomerBrain. A drink is not a repair — counting them
+    // together made the recap claim you'd fixed things you hadn't.
+    public void RecordServed(int basePay, int tip, bool wasRepair)
     {
         Served++;
-        Repairs++;
+        if (wasRepair) Repairs++;
+        else Drinks++;
         Tips += tip;
         Earned += basePay + tip;
     }

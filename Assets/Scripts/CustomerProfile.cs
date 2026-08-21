@@ -18,6 +18,9 @@ public class CustomerProfile : ScriptableObject
     public float patienceMultiplier = 1f;
     public float tipMultiplier = 1f;
 
+    [Tooltip("Where they wait once you've taken their job.")]
+    public WaitingSpot.SpotKind preferredWaitKind = WaitingSpot.SpotKind.Seat;
+
     [Header("What they usually bring")]
     [Tooltip("Their signature device. Left empty = fully random.")]
     public GameObject preferredDevice;

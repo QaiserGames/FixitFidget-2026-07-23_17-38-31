@@ -80,5 +80,6 @@ public class UpgradeManager : MonoBehaviour
     public float ScrubSpeedMultiplier => 1f + TotalValue(UpgradeType.ScrubSpeed);
 
     public int ExtraBenchSlots => Mathf.RoundToInt(TotalValue(UpgradeType.BenchCapacity));
+    public int ExtraShelfSlots => Mathf.RoundToInt(TotalValue(UpgradeType.ShelfCapacity));
     public int ExtraRestock    => Mathf.RoundToInt(TotalValue(UpgradeType.RestockSize));
 }

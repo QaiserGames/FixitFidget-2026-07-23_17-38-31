@@ -4,7 +4,11 @@ using TMPro;
 
 public class CustomerBrain : MonoBehaviour
 {
-    public enum State { WalkingToCounter, WaitingInQueue, WaitingForService, Speaking, Leaving }
+    // Settling and Waiting replace the old WaitingForService. The important
+    // change is that the counter slot is released the instant a job is
+    // accepted — the queue is now only ever the people who haven't been HEARD
+    // yet, not everyone in the building.
+    public enum State { WalkingToCounter, WaitingInQueue, Settling, Waiting, Speaking, Leaving }
 
     [SerializeField] private float queuePatience = 15f;
     [SerializeField] private float servicePatience = 45f;
@@ -23,6 +27,11 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float reassureTipCost = 0.15f;
     [SerializeField] private int reassureMaxUses = 3;
 
+    [Header("Movement")]
+    [Tooltip("A beat of acknowledgement before they turn and walk off, so the " +
+             "'Interact' animation isn't cut short the instant you accept.")]
+    [SerializeField] private float reactionTime = 0.6f;
+
     [Header("Presence")]
     [SerializeField] private float conversationDrainMultiplier = 0.1f;
     [SerializeField] private float presenceDrainMultiplier = 0.2f;
@@ -31,6 +40,10 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private TMP_Text speechBubble;
     [SerializeField] private CustomerIdentity identity;
     [SerializeField] private Transform lookTarget;
+
+    [Tooltip("Optional. Floats their job number above them while they wait, so " +
+             "you can find whose device you're carrying. Same colour as the ticket.")]
+    [SerializeField] private JobMarker waitingBadge;
 
     private State state;
     private NavMeshAgent agent;
@@ -45,6 +58,14 @@ public class CustomerBrain : MonoBehaviour
     private float reassureReadyAt;
     private int reassureUses;
     private int slotIndex = -1;
+
+    // Where they went once you took their job.
+    private WaitingSpot waitingSpot;
+
+    // Movement is deferred by reactionTime so they react before they turn away.
+    private Vector3 pendingDestination;
+    private bool hasPendingDestination;
+    private float moveAllowedAt;
 
     private Job record;
     private JobBase activeJob;
@@ -69,12 +90,18 @@ public class CustomerBrain : MonoBehaviour
     public Color JobColor { get; private set; } = Color.white;
 
     public bool HasJob => activeJob != null || drinkOrdered;
-    public bool InService => state == State.WaitingForService;
     public string JobCardText => record != null ? record.Detail : "";
     public float PatienceFraction => Mathf.Clamp01(patienceLeft / CurrentMax);
     public int SlotIndex => slotIndex;
 
-    private float CurrentMax => state == State.WaitingForService ? serviceMax : queueMax;
+    // Anywhere between "you took the job" and "you finished it" — walking to
+    // their spot counts, they're already waiting on you.
+    private bool IsWaiting => state == State.Settling || state == State.Waiting;
+
+    // Kept for TicketRailUI, which asks whether there's live work for them.
+    public bool InService => IsWaiting;
+
+    private float CurrentMax => IsWaiting ? serviceMax : queueMax;
 
     // ---------- the intake beat ----------
 
@@ -82,15 +109,23 @@ public class CustomerBrain : MonoBehaviour
     public bool CanDecide => state == State.WaitingInQueue && intakeGiven;
     public bool CanRefuse => CanDecide;
 
+    // Nowhere to put their device. You physically cannot take this job until
+    // you've cleared the shelf.
+    public bool ShelfFull =>
+        CanDecide && record != null && record.kind == JobKind.Repair &&
+        (IntakeShelf.Instance == null || !IntakeShelf.Instance.HasRoom);
+
     // A drink order can only be accepted if we can actually make it.
     public bool CanAcceptJob
     {
         get
         {
             if (!CanDecide) return false;
+
             if (record != null && record.kind == JobKind.Drink)
                 return ShopInventory.Instance != null && ShopInventory.Instance.CanMake(record.drink);
-            return true;
+
+            return !ShelfFull;
         }
     }
 
@@ -113,7 +148,7 @@ public class CustomerBrain : MonoBehaviour
     {
         get
         {
-            if (!drinkOrdered || state != State.WaitingForService) return false;
+            if (!drinkOrdered || !IsWaiting) return false;
 
             PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
             if (carry == null || !carry.IsCarrying) return false;
@@ -128,31 +163,26 @@ public class CustomerBrain : MonoBehaviour
 
     // ---------- handback ----------
 
-    private bool ItemAtCounter
+    // Handing back is now a delivery, not a counter transaction: you have to be
+    // holding their device and standing in front of them. Same shape as
+    // CanReceiveDrink, so repairs and drinks are one verb.
+    public bool JobReady
     {
         get
         {
-            if (activeJob == null || queue == null || slotIndex < 0) return false;
+            if (!IsWaiting || activeJob == null || !activeJob.IsComplete) return false;
 
             PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
-            if (carry != null && carry.Carried == activeJob) return true;
-
-            float dist = Vector3.Distance(activeJob.transform.position,
-                                          queue.ItemSpot(slotIndex).position);
-            return dist < 1.2f;
+            return carry != null && carry.Carried == activeJob;
         }
     }
 
-    public bool JobReady =>
-        state == State.WaitingForService && activeJob != null &&
-        activeJob.IsComplete && ItemAtCounter;
-
+    // Fixed, but you're not carrying it — the prompt nudges you to go get it.
     public bool JobFixedButAway =>
-        state == State.WaitingForService && activeJob != null &&
-        activeJob.IsComplete && !ItemAtCounter;
+        IsWaiting && activeJob != null && activeJob.IsComplete && !JobReady;
 
     public bool CanReassure =>
-        state == State.WaitingForService
+        IsWaiting
         && Time.time >= reassureReadyAt
         && reassureUses < reassureMaxUses
         && patienceLeft < CurrentMax * 0.9f;
@@ -173,19 +203,23 @@ public class CustomerBrain : MonoBehaviour
         {
             if (InConversation) return conversationDrainMultiplier;
 
+            // Where they chose to wait changes how fast they sour. Sitting is
+            // calm, loitering by the counter is not.
+            float spotRate = waitingSpot != null ? waitingSpot.DrainMultiplier : 1f;
+
             HoldCallJob call = activeJob as HoldCallJob;
-            if (call == null || !call.WantsPlayerPresent) return 1f;
+            if (call == null || !call.WantsPlayerPresent) return spotRate;
 
             if (player == null) player = FindAnyObjectByType<PlayerInteractor>();
-            if (player == null || !player.IsAtStation) return 1f;
+            if (player == null || !player.IsAtStation) return spotRate;
 
             Interactable f = player.Focused;
-            if (f == null) return 1f;
+            if (f == null) return spotRate;
 
             bool lookingAtMe = f.GetComponent<CustomerBrain>() == this;
             bool lookingAtMyPhone = f.GetComponentInParent<HoldCallJob>() == call;
 
-            return (lookingAtMe || lookingAtMyPhone) ? presenceDrainMultiplier : 1f;
+            return (lookingAtMe || lookingAtMyPhone) ? spotRate * presenceDrainMultiplier : spotRate;
         }
     }
 
@@ -208,6 +242,7 @@ public class CustomerBrain : MonoBehaviour
         if (identity != null && record != null) identity.SetDevice(record.Subject);
 
         HideBubble();
+        if (waitingBadge != null) waitingBadge.Hide();
 
         slotIndex = queue.ClaimSlot(this);
         if (slotIndex < 0)
@@ -221,24 +256,12 @@ public class CustomerBrain : MonoBehaviour
         agent.SetDestination(queue.SlotPoint(slotIndex).position);
     }
 
+    // Someone ahead of them left — shuffle up the line. Their device isn't
+    // involved any more; it lives on the shelf.
     public void MoveToSlot(int newIndex)
     {
         slotIndex = newIndex;
         agent.SetDestination(queue.SlotPoint(slotIndex).position);
-
-        if (activeJob == null || queue == null) return;
-
-        bool onCounter = false;
-        for (int i = 0; i < 3; i++)
-        {
-            if (Vector3.Distance(activeJob.transform.position, queue.ItemSpot(i).position) < 1.2f)
-            {
-                onCounter = true;
-                break;
-            }
-        }
-
-        if (onCounter) activeJob.transform.position = queue.ItemSpot(slotIndex).position;
     }
 
     private void Update()
@@ -246,6 +269,17 @@ public class CustomerBrain : MonoBehaviour
         if (agent == null) return;
 
         animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f);
+
+        // Held still for a beat after accepting, then released.
+        if (hasPendingDestination && Time.time >= moveAllowedAt)
+        {
+            hasPendingDestination = false;
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+                agent.SetDestination(pendingDestination);
+            }
+        }
 
         if (bubbleTimer > 0f)
         {
@@ -268,21 +302,30 @@ public class CustomerBrain : MonoBehaviour
                 break;
 
             case State.WaitingInQueue:
-                FaceSlot();
+                FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(queueMax, Color.green);
                 if (patienceLeft <= 0f) StormOut();
                 break;
 
-            case State.WaitingForService:
-                FaceSlot();
+            case State.Settling:
+                // Walking to their spot. Still waiting on you, so still draining —
+                // but let the agent steer, don't fight it for the rotation.
+                patienceLeft -= Time.deltaTime * DrainRate;
+                UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
+                if (patienceLeft <= 0f) { StormOut(); break; }
+                if (!hasPendingDestination && Arrived()) state = State.Waiting;
+                break;
+
+            case State.Waiting:
+                FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) StormOut();
                 break;
 
             case State.Speaking:
-                FaceSlot();
+                FaceTarget();
                 speakTimer -= Time.deltaTime;
                 if (speakTimer <= 0f) Depart(departHappy);
                 break;
@@ -309,7 +352,6 @@ public class CustomerBrain : MonoBehaviour
     {
         if (!CanAcceptJob || record == null) return "";
 
-        state = State.WaitingForService;
         patienceLeft = serviceMax;
 
         if (JobIdentityManager.Instance != null)
@@ -323,32 +365,98 @@ public class CustomerBrain : MonoBehaviour
 
         if (record.kind == JobKind.Drink)
         {
-            // Nothing spawns. They wait at an empty counter while you go make it.
+            // Nothing spawns. They go and wait while you make it.
             drinkOrdered = true;
             drinkStarted = false;
         }
         else
         {
-            Transform spot = queue.ItemSpot(slotIndex);
-            GameObject spawned = Instantiate(record.devicePrefab, spot.position, spot.rotation);
-
-            DeviceDefinition dev = spawned.GetComponent<DeviceDefinition>();
-            if (dev != null) dev.ApplyFault(record.faultIndex);
-
-            activeJob = spawned.GetComponent<JobBase>();
-            if (activeJob != null)
-            {
-                activeJob.SetOwner(this);
-                activeJob.Configure(record);
-                spawned.transform.position = spot.position + Vector3.up * activeJob.restHeight;
-            }
-
-            JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
-            if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
+            SpawnDeviceOntoShelf();
         }
+
+        // Their number floats over them so you can find them across the room.
+        if (waitingBadge != null) waitingBadge.Show(JobNumber, JobColor);
+
+        LeaveTheCounter();
 
         animator.SetTrigger("Interact");
         return identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
+    }
+
+    // The device goes on the intake shelf, not in front of the customer —
+    // they're about to walk away from the counter.
+    private void SpawnDeviceOntoShelf()
+    {
+        Transform slotPoint = queue.SlotPoint(slotIndex);
+        GameObject spawned = Instantiate(record.devicePrefab, slotPoint.position, slotPoint.rotation);
+
+        DeviceDefinition dev = spawned.GetComponent<DeviceDefinition>();
+        if (dev != null) dev.ApplyFault(record.faultIndex);
+
+        activeJob = spawned.GetComponent<JobBase>();
+        if (activeJob != null)
+        {
+            activeJob.SetOwner(this);
+            activeJob.Configure(record);
+
+            Transform shelf = IntakeShelf.Instance != null
+                ? IntakeShelf.Instance.Claim(activeJob) : null;
+
+            // CanAcceptJob already checked for room, so null here means the
+            // shelf isn't wired up. Leave it at the counter rather than lose it.
+            if (shelf != null)
+            {
+                spawned.transform.position = shelf.position + Vector3.up * activeJob.restHeight;
+                spawned.transform.rotation = shelf.rotation;
+            }
+            else
+            {
+                spawned.transform.position = slotPoint.position + Vector3.up * activeJob.restHeight;
+            }
+        }
+
+        JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
+        if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
+    }
+
+    // Free the counter slot and go stand somewhere else. This is the whole
+    // point of the pass: the next person can be served immediately.
+    private void LeaveTheCounter()
+    {
+        if (slotIndex >= 0 && queue != null)
+        {
+            queue.ReleaseSlot(this);
+            slotIndex = -1;
+        }
+
+        WaitingSpot.SpotKind preferred = identity != null
+            ? identity.PreferredWaitKind : WaitingSpot.SpotKind.Loiter;
+
+        waitingSpot = WaitingArea.Instance != null
+            ? WaitingArea.Instance.Claim(this, preferred) : null;
+
+        if (waitingSpot != null)
+        {
+            state = State.Settling;
+            MoveAfterReacting(waitingSpot.StandPoint.position);
+        }
+        else
+        {
+            // Nowhere free. They stand their ground rather than teleporting —
+            // agent avoidance will nudge them out of the queue's way.
+            state = State.Waiting;
+        }
+    }
+
+    // Stand still for a moment, then walk. Without the pause they slide off
+    // mid-"Interact" animation, which reads as moonwalking.
+    private void MoveAfterReacting(Vector3 destination)
+    {
+        pendingDestination = destination;
+        hasPendingDestination = true;
+        moveAllowedAt = Time.time + reactionTime;
+
+        if (agent.isOnNavMesh) agent.isStopped = true;
     }
 
     public string RefuseJob()
@@ -376,7 +484,7 @@ public class CustomerBrain : MonoBehaviour
         int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult * reassurePenalty);
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
-        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip);
+        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, false);
 
         carry.Consume();
         drinkOrdered = false;
@@ -400,7 +508,11 @@ public class CustomerBrain : MonoBehaviour
         int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult * reassurePenalty);
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
-        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip);
+        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, true);
+
+        // It was in the player's hands, so make sure the shelf/bench forgets it.
+        foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
+            spot.Release(activeJob);
 
         Destroy(activeJob.gameObject);
         activeJob = null;
@@ -451,6 +563,9 @@ public class CustomerBrain : MonoBehaviour
 
         if (activeJob != null)
         {
+            foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
+                spot.Release(activeJob);
+
             Destroy(activeJob.gameObject);
             activeJob = null;
         }
@@ -463,11 +578,27 @@ public class CustomerBrain : MonoBehaviour
             slotIndex = -1;
         }
 
+        if (WaitingArea.Instance != null) WaitingArea.Instance.Release(this);
+        waitingSpot = null;
+
+        if (waitingBadge != null) waitingBadge.Hide();
         if (patienceBar != null) patienceBar.gameObject.SetActive(false);
 
         if (!happy && DayClock.Instance != null) DayClock.Instance.RecordLost();
 
-        agent.SetDestination(exitPoint.position);
+        hasPendingDestination = false;
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(exitPoint.position);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        // Belt and braces — a customer destroyed any other way must not leave
+        // a spot marked occupied forever.
+        if (WaitingArea.Instance != null) WaitingArea.Instance.Release(this);
     }
 
     // ---------- dialogue ----------
@@ -556,17 +687,29 @@ public class CustomerBrain : MonoBehaviour
 
     // ---------- helpers ----------
 
-    private void FaceSlot()
+    // Face the counter while queueing, face however the waiting spot points
+    // once they've settled.
+    private void FaceTarget()
     {
-        if (slotIndex < 0) return;
-        Quaternion target = queue.SlotPoint(slotIndex).rotation;
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, target, turnSpeed * Time.deltaTime);
+        // Never steer rotation while the agent is moving us. Turning the body
+        // one way while the path drags it another IS the moonwalk.
+        if (agent.velocity.sqrMagnitude > 0.01f) return;
+
+        Transform target = null;
+
+        if (slotIndex >= 0 && queue != null) target = queue.SlotPoint(slotIndex);
+        else if (waitingSpot != null) target = waitingSpot.StandPoint;
+
+        if (target == null) return;
+
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation, target.rotation, turnSpeed * Time.deltaTime);
     }
 
-   // Visible whenever they're actively waiting on you — queue or service.
+    // Visible whenever they're actively waiting on you — queue or service.
     // Hidden only while walking in, and once they've been dealt with.
     private bool ShowFloatingBar =>
-        state == State.WaitingInQueue || state == State.WaitingForService;
+        state == State.WaitingInQueue || IsWaiting;
 
     private void UpdateBar(float max, Color fullColor)
     {
@@ -579,8 +722,14 @@ public class CustomerBrain : MonoBehaviour
         if (show) patienceBar.SetFraction(patienceLeft / max, fullColor);
     }
 
+    // The naive version — !pathPending && remainingDistance <= stoppingDistance —
+    // reports TRUE on the first frame after SetDestination, because the path
+    // hasn't been built yet so remainingDistance is still 0. That made customers
+    // switch to "standing still" logic while they were visibly still walking.
     private bool Arrived()
     {
-        return !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance;
+        if (agent.pathPending) return false;
+        if (agent.remainingDistance > agent.stoppingDistance) return false;
+        return !agent.hasPath || agent.velocity.sqrMagnitude < 0.01f;
     }
 }

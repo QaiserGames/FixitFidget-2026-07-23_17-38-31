@@ -6,7 +6,11 @@ public enum UpgradeType
     ScrewSpeed,       // magnetic driver — screws come out quicker
     BenchCapacity,    // more items on the bench at once
     RestockSize,      // more stock per purchase
-    ScrubSpeed        // wider brush
+    ScrubSpeed,       // wider brush
+    ShelfCapacity     // more room on the intake shelf — take more jobs before you're blocked
+    // NOTE: only ever append to this list. Unity serialises enums by their
+    // number, so inserting in the middle would silently re-point every
+    // Upgrade_ asset you've already made.
 }
 
 [CreateAssetMenu(fileName = "Upgrade_", menuName = "FixitFiasco/Upgrade")]

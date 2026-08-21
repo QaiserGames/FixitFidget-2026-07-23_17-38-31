@@ -1,15 +1,24 @@
 using UnityEngine;
 
+// The line at the counter. This is now ONLY for the intake conversation —
+// people claim a slot to be heard, and release it the moment you accept or
+// decline. Where they wait afterwards is WaitingArea's problem, and where
+// their device goes is IntakeShelf's.
+//
+// The old itemSpots array is gone. Devices used to spawn at "their customer's"
+// counter spot and be returned there by slot index, which stops making sense
+// once the customer walks away.
 public class CounterQueue : MonoBehaviour
 {
     [SerializeField] private Transform[] slots;
-    [SerializeField] private Transform[] itemSpots;
 
     private CustomerBrain[] occupants;
 
+    public int SlotCount => slots != null ? slots.Length : 0;
+
     private void Awake()
     {
-        occupants = new CustomerBrain[slots.Length];
+        occupants = new CustomerBrain[SlotCount];
     }
 
     public int ClaimSlot(CustomerBrain customer)
@@ -26,7 +35,6 @@ public class CounterQueue : MonoBehaviour
     }
 
     public Transform SlotPoint(int index) => slots[index];
-    public Transform ItemSpot(int index) => itemSpots[index];
 
     public void ReleaseSlot(CustomerBrain customer)
     {
@@ -34,6 +42,7 @@ public class CounterQueue : MonoBehaviour
             if (occupants[i] == customer)
                 occupants[i] = null;
 
+        // Shuffle everyone forward so there's never a gap in the line.
         bool moved = true;
         while (moved)
         {

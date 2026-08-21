@@ -47,6 +47,10 @@ public class CustomerIdentity : MonoBehaviour
         profile != null ? profile.tipMultiplier :
         archetype != null ? archetype.tipMultiplier : 1f;
 
+    public WaitingSpot.SpotKind PreferredWaitKind =>
+        profile != null ? profile.preferredWaitKind :
+        archetype != null ? archetype.preferredWaitKind : WaitingSpot.SpotKind.Loiter;
+
     public string Say(Beat beat)
     {
         DialogueSet set = ResolveSet();

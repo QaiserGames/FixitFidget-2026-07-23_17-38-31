@@ -1,5 +1,11 @@
 using UnityEngine;
 
+// A surface you can put a carried item down on. Both kinds now work the same
+// way — claim a free slot from an ItemSlotArea — because devices no longer
+// belong to a counter position.
+//
+// The Kind is kept purely so the prompt can say "Return item" at the counter
+// and "Set down" at the bench.
 public class DropSpot : MonoBehaviour
 {
     public enum SpotKind { Bench, Counter }
@@ -12,25 +18,14 @@ public class DropSpot : MonoBehaviour
     // Pure question — never changes state.
     public bool CanAccept(JobBase item)
     {
-        if (kind == SpotKind.Counter) return true;
         if (slotArea == null) return false;
         return slotArea.HasFreeSlot || slotArea.Holds(item);
     }
 
+    // First free slot. Null means full.
     public Transform ResolvePoint(JobBase item)
     {
-        // Counter: back to its owner's spot, in front of the right customer.
-        if (kind == SpotKind.Counter && item != null && item.Owner != null)
-        {
-            CounterQueue queue = FindAnyObjectByType<CounterQueue>();
-            if (queue != null && item.Owner.SlotIndex >= 0)
-                return queue.ItemSpot(item.Owner.SlotIndex);
-        }
-
-        // Bench: first free slot. Null means full.
-        if (slotArea != null) return slotArea.ClaimSlot(item);
-
-        return null;
+        return slotArea != null ? slotArea.ClaimSlot(item) : null;
     }
 
     public void Release(JobBase item)

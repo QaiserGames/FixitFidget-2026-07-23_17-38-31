@@ -131,7 +131,14 @@ public class PlayerInteractor : MonoBehaviour
         {
             Interactable it = h.GetComponentInParent<Interactable>();
             if (it == null || !it.IsAvailable) continue;
-            if (it is CustomerInteractable) continue;   // customers are served from the counter
+
+            // Customers used to be skipped out here entirely, because intake is
+            // a counter conversation and shouldn't start from across the room.
+            // But once people wait away from the counter, you have to be able to
+            // walk up and hand them things. So: only the non-intake actions
+            // (serve, hand back, reassure) are reachable on the floor.
+            CustomerInteractable ci = it as CustomerInteractable;
+            if (ci != null && !ci.FloorAvailable) continue;
 
             float score = it.Priority * 100f - Vector3.Distance(transform.position, it.transform.position);
 
