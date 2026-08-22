@@ -6407,6 +6407,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInteractor
   reach: 2.2
   stationReach: 10
+  stationEnterRange: 1.5
 --- !u!114 &1039162929
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -6,6 +6,11 @@ public class PlayerInteractor : MonoBehaviour
     [SerializeField] private float reach = 2.2f;
     [SerializeField] private float stationReach = 10f;
 
+    [Tooltip("How close to a station's STAND POINT you must be before F will " +
+             "put you there. Measured to the stand point, not to the collider — " +
+             "see FindNearestStation for why that matters.")]
+    [SerializeField] private float stationEnterRange = 1.5f;
+
     private Interactable focused;
     private StationInteractable currentStation;
     private StationInteractable nearbyStation;
@@ -13,6 +18,7 @@ public class PlayerInteractor : MonoBehaviour
     private Renderer bodyRenderer;
     private Camera cam;
     private ConversationController conversation;
+    private StationInteractable[] allStations;
 
     public bool IsAtStation => currentStation != null;
     public Interactable Focused => focused;
@@ -31,6 +37,10 @@ public class PlayerInteractor : MonoBehaviour
         movement = GetComponent<PlayerMovement>();
         bodyRenderer = GetComponentInChildren<Renderer>();
         cam = Camera.main;
+
+        // Stations don't spawn at runtime, so find them once instead of
+        // sweeping physics every frame.
+        allStations = FindObjectsByType<StationInteractable>(FindObjectsInactive.Exclude);
     }
 
     private void Update()
@@ -79,20 +89,34 @@ public class PlayerInteractor : MonoBehaviour
     }
 
     // Stations are found separately — Action uses them, Interact never does.
+    //
+    // THE BUG THIS FIXES: this used to be an OverlapSphere against colliders.
+    // OverlapSphere returns anything the sphere TOUCHES, and the counter's box
+    // collider is 2.6 m wide — so a 2.2 m sphere clipped it from anywhere
+    // within 2.2 m of any part of it. Effective activation zone: about seven
+    // metres across. You could press F from most of the room and teleport to
+    // the counter.
+    //
+    // It then ranked by distance to the station's ORIGIN, which for a wide
+    // counter is its centre, so the ranking was wrong too.
+    //
+    // Now: measure to the stand point — the place you'd actually walk to, which
+    // already exists in the scene as CounterStandPoint — with a tight radius.
     private StationInteractable FindNearestStation()
     {
         if (currentStation != null) return null;
+        if (allStations == null) return null;
 
-        Collider[] near = Physics.OverlapSphere(transform.position, reach);
         StationInteractable best = null;
-        float bestDist = float.MaxValue;
+        float bestDist = stationEnterRange;
 
-        foreach (Collider h in near)
+        foreach (StationInteractable s in allStations)
         {
-            StationInteractable s = h.GetComponentInParent<StationInteractable>();
             if (s == null) continue;
 
-            float d = Vector3.Distance(transform.position, s.transform.position);
+            Transform point = s.StandPoint != null ? s.StandPoint : s.transform;
+            float d = Vector3.Distance(transform.position, point.position);
+
             if (d < bestDist) { bestDist = d; best = s; }
         }
         return best;
@@ -225,7 +249,18 @@ public class PlayerInteractor : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
+        // Cyan = what you can pick up / hand over. Yellow = how close you must
+        // be to each station's stand point for F to work. If a yellow sphere is
+        // sitting somewhere odd, that station's Stand Point isn't assigned.
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, reach);
+
+        Gizmos.color = Color.yellow;
+        foreach (StationInteractable s in FindObjectsByType<StationInteractable>(FindObjectsInactive.Exclude))
+        {
+            if (s == null) continue;
+            Transform point = s.StandPoint != null ? s.StandPoint : s.transform;
+            Gizmos.DrawWireSphere(point.position, stationEnterRange);
+        }
     }
 }
