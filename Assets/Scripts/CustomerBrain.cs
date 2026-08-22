@@ -32,6 +32,10 @@ public class CustomerBrain : MonoBehaviour
              "'Interact' animation isn't cut short the instant you accept.")]
     [SerializeField] private float reactionTime = 0.6f;
 
+    [Tooltip("Every spot was taken when they were ready to move. How often to " +
+             "look again. They stand near the counter until one frees up.")]
+    [SerializeField] private float spotRetryInterval = 1f;
+
     [Header("Presence")]
     [SerializeField] private float conversationDrainMultiplier = 0.1f;
     [SerializeField] private float presenceDrainMultiplier = 0.2f;
@@ -73,6 +77,28 @@ public class CustomerBrain : MonoBehaviour
     private bool intakeGiven;
     private bool departHappy = true;
 
+    // ---------- conversation ownership ----------
+    //
+    // THE CONTRACT: while a conversation is open, this customer's body belongs
+    // to the ConversationController. Nothing may move them, release their
+    // counter slot, or change their state until the panel closes.
+    //
+    // Before this existed, AcceptJob() sent them walking after `reactionTime`
+    // (0.6s) while CloseWith() held the panel open for `line.Length/30 +
+    // closingPause` (~2.5s). Two timers, never introduced to each other — so
+    // they walked away mid-sentence with the conversation camera chasing them.
+
+    private ConversationController conversation;
+    private System.Action pendingHandoff;
+
+    // Accepted or refused. Guards against a second decision landing during the
+    // closing beat, which would spawn a second device and burn a job number.
+    private bool decided;
+    private bool jobAccepted;
+
+    // Set when they wanted a waiting spot and the floor was full.
+    private float retryClaimAt;
+
     // Drink orders: accepted, but nothing has been made yet.
     private bool drinkOrdered;
     private bool drinkStarted;
@@ -99,14 +125,21 @@ public class CustomerBrain : MonoBehaviour
     private bool IsWaiting => state == State.Settling || state == State.Waiting;
 
     // Kept for TicketRailUI, which asks whether there's live work for them.
-    public bool InService => IsWaiting;
+    //
+    // `jobAccepted` is in here so the ticket appears the moment you press E,
+    // rather than two seconds later when the panel closes and they start
+    // walking. A device sitting on the shelf with no ticket on the rail is the
+    // bookkeeping lying to you. Declines can't leak a ticket — TicketRailUI
+    // also requires HasJob, and a refused customer has neither a device nor a
+    // drink order.
+    public bool InService => IsWaiting || jobAccepted;
 
     private float CurrentMax => IsWaiting ? serviceMax : queueMax;
 
     // ---------- the intake beat ----------
 
-    public bool CanHearIntake => state == State.WaitingInQueue && !intakeGiven;
-    public bool CanDecide => state == State.WaitingInQueue && intakeGiven;
+    public bool CanHearIntake => state == State.WaitingInQueue && !intakeGiven && !decided;
+    public bool CanDecide => state == State.WaitingInQueue && intakeGiven && !decided;
     public bool CanRefuse => CanDecide;
 
     // Nowhere to put their device. You physically cannot take this job until
@@ -134,7 +167,11 @@ public class CustomerBrain : MonoBehaviour
         CanDecide && record != null && record.kind == JobKind.Drink &&
         (ShopInventory.Instance == null || !ShopInventory.Instance.CanMake(record.drink));
 
-    private bool InConversation => state == State.WaitingInQueue && intakeGiven;
+    // Now the literal truth rather than an inference. The old version stayed
+    // true forever once intake had been heard, so pressing F to step away left
+    // them draining at the conversation rate (0.1x) for the rest of the queue
+    // wait — you could park someone indefinitely by talking to them once.
+    private bool InConversation => conversation != null;
 
     // ---------- café ----------
 
@@ -309,8 +346,14 @@ public class CustomerBrain : MonoBehaviour
                 break;
 
             case State.Settling:
-                // Walking to their spot. Still waiting on you, so still draining —
-                // but let the agent steer, don't fight it for the rotation.
+                // Walking to their spot. Still waiting on you, so still draining.
+                //
+                // FaceTarget() is safe to call here: its first line bails out
+                // while the agent has velocity, so we still never fight the
+                // path for the rotation. It only does anything during the
+                // reactionTime pause — which is precisely the beat where
+                // nothing was driving the body and they stood frozen.
+                FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) { StormOut(); break; }
@@ -318,6 +361,13 @@ public class CustomerBrain : MonoBehaviour
                 break;
 
             case State.Waiting:
+                // Landed in Waiting without a spot — the floor was full when
+                // they were ready to move. Keep asking.
+                if (waitingSpot == null && jobAccepted && Time.time >= retryClaimAt)
+                {
+                    if (!TryTakeWaitingSpot()) retryClaimAt = Time.time + spotRetryInterval;
+                }
+
                 FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
@@ -337,6 +387,38 @@ public class CustomerBrain : MonoBehaviour
         }
     }
 
+    // ---------- conversation hand-off ----------
+
+    // Called by ConversationController.Begin(). From here until the panel
+    // closes, they are not allowed to move.
+    public void OnConversationOpened(ConversationController controller)
+    {
+        conversation = controller;
+    }
+
+    // Called by ConversationController.End(), which fires only after the
+    // closing line has finished revealing AND the hold has elapsed. This is
+    // the moment the body comes back to us.
+    public void OnConversationClosed()
+    {
+        conversation = null;
+
+        System.Action change = pendingHandoff;
+        pendingHandoff = null;
+        if (change != null) change();
+    }
+
+    // Every physical change routes through here. Not all of them happen inside
+    // a conversation — floor handback and drink service never do — so this
+    // can't just be "move the code into End()".
+    private void RunOrDefer(System.Action change)
+    {
+        if (change == null) return;
+
+        if (conversation != null) { pendingHandoff = change; return; }
+        change();
+    }
+
     // ---------- player actions ----------
 
     public string HearIntake()
@@ -348,11 +430,16 @@ public class CustomerBrain : MonoBehaviour
         return identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
     }
 
+    // DATA ONLY. Nothing here touches the agent, the counter slot, the waiting
+    // spot, or the state enum — that's BeginWaiting(), and it doesn't run until
+    // the conversation formally closes. The device still lands on the shelf on
+    // the same frame you press E, so the feedback is as instant as it was.
     public string AcceptJob()
     {
         if (!CanAcceptJob || record == null) return "";
 
-        patienceLeft = serviceMax;
+        decided = true;
+        jobAccepted = true;
 
         if (JobIdentityManager.Instance != null)
         {
@@ -377,7 +464,7 @@ public class CustomerBrain : MonoBehaviour
         // Their number floats over them so you can find them across the room.
         if (waitingBadge != null) waitingBadge.Show(JobNumber, JobColor);
 
-        LeaveTheCounter();
+        RunOrDefer(BeginWaiting);
 
         animator.SetTrigger("Interact");
         return identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
@@ -421,31 +508,67 @@ public class CustomerBrain : MonoBehaviour
 
     // Free the counter slot and go stand somewhere else. This is the whole
     // point of the pass: the next person can be served immediately.
-    private void LeaveTheCounter()
+    //
+    // Runs on conversation close, never during it.
+    private void BeginWaiting()
     {
-        if (slotIndex >= 0 && queue != null)
+        patienceLeft = serviceMax;
+
+        ReleaseCounterSlot();
+
+        if (!TryTakeWaitingSpot())
         {
-            queue.ReleaseSlot(this);
-            slotIndex = -1;
+            // Floor was full, or every free spot is unreachable. They hold
+            // position near the counter and keep looking, rather than being
+            // planted there permanently with nowhere to go.
+            state = State.Waiting;
+            retryClaimAt = Time.time + spotRetryInterval;
         }
+    }
+
+    private void ReleaseCounterSlot()
+    {
+        if (slotIndex >= 0 && queue != null) queue.ReleaseSlot(this);
+        slotIndex = -1;
+    }
+
+    // THE GUARD THAT KILLS THE HOVER: Settling cannot be entered without a
+    // claimed spot AND a complete path to it. Previously we entered Settling
+    // with isStopped = true and no destination, which is the definition of
+    // standing there doing nothing.
+    private bool TryTakeWaitingSpot()
+    {
+        if (WaitingArea.Instance == null) return false;
+        if (agent == null || !agent.isOnNavMesh) return false;
 
         WaitingSpot.SpotKind preferred = identity != null
             ? identity.PreferredWaitKind : WaitingSpot.SpotKind.Loiter;
 
-        waitingSpot = WaitingArea.Instance != null
-            ? WaitingArea.Instance.Claim(this, preferred) : null;
+        WaitingSpot spot = WaitingArea.Instance.Claim(this, preferred);
+        if (spot == null) return false;
 
-        if (waitingSpot != null)
+        Vector3 destination = spot.StandPoint.position;
+
+        // A spot sitting off the NavMesh used to freeze that customer forever —
+        // it's the first thing in the step-1 troubleshooting table. Now we hand
+        // it back and try a different one next tick.
+        if (!CanReach(destination))
         {
-            state = State.Settling;
-            MoveAfterReacting(waitingSpot.StandPoint.position);
+            spot.Release(this);
+            return false;
         }
-        else
-        {
-            // Nowhere free. They stand their ground rather than teleporting —
-            // agent avoidance will nudge them out of the queue's way.
-            state = State.Waiting;
-        }
+
+        waitingSpot = spot;
+        state = State.Settling;
+        MoveAfterReacting(destination);
+        return true;
+    }
+
+    private bool CanReach(Vector3 destination)
+    {
+        NavMeshPath path = new NavMeshPath();
+        if (!agent.CalculatePath(destination, path)) return false;
+        return path.status == NavMeshPathStatus.PathComplete;
     }
 
     // Stand still for a moment, then walk. Without the pause they slide off
@@ -463,9 +586,23 @@ public class CustomerBrain : MonoBehaviour
     {
         if (!CanRefuse) return "";
 
+        decided = true;
+
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "";
-        LeaveAfterSpeaking(line, false);
+        FinishAndLeave(line, false);
         return line;
+    }
+
+    // The closing line has already been delivered — in the panel if we're in a
+    // conversation, or as a floating bubble if this happened out on the floor.
+    // Don't make them say it twice.
+    //
+    // This is why the fix is a gate rather than "move the code into End()":
+    // CompleteJob can arrive either way, and ServeDrink never has a panel at all.
+    private void FinishAndLeave(string line, bool happy)
+    {
+        if (conversation != null) RunOrDefer(() => Depart(happy));
+        else LeaveAfterSpeaking(line, happy);
     }
 
     // Hand over a finished drink.
@@ -492,7 +629,7 @@ public class CustomerBrain : MonoBehaviour
         animator.SetTrigger("Interact");
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
-        LeaveAfterSpeaking(line, true);
+        FinishAndLeave(line, true);
         return line;
     }
 
@@ -520,8 +657,10 @@ public class CustomerBrain : MonoBehaviour
         animator.SetTrigger("Interact");
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
-        Say(line);
-        LeaveAfterSpeaking(line, true);
+
+        // Only bubble it if there's no panel showing the same words.
+        if (conversation == null) Say(line);
+        FinishAndLeave(line, true);
         return line;
     }
 
@@ -543,6 +682,15 @@ public class CustomerBrain : MonoBehaviour
 
     private void StormOut()
     {
+        decided = true;
+
+        // If their patience runs out mid-conversation, the panel would
+        // otherwise sit there offering "[E] Take the job" while they're
+        // actually walking out in disgust. Drop the deferred move first so
+        // closing the panel doesn't send them to a waiting spot on the way.
+        pendingHandoff = null;
+        if (conversation != null) conversation.End();
+
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.StormedOut) : "";
         Say(line);      // bubble — they're shouting at the room, not talking to you
         LeaveAfterSpeaking(line, false);
@@ -560,6 +708,10 @@ public class CustomerBrain : MonoBehaviour
     private void Depart(bool happy)
     {
         state = State.Leaving;
+
+        // Whatever was queued up, it's moot now.
+        pendingHandoff = null;
+        jobAccepted = false;
 
         if (activeJob != null)
         {
@@ -599,6 +751,10 @@ public class CustomerBrain : MonoBehaviour
         // Belt and braces — a customer destroyed any other way must not leave
         // a spot marked occupied forever.
         if (WaitingArea.Instance != null) WaitingArea.Instance.Release(this);
+
+        // Nor a conversation panel open with nobody on the other side of it.
+        pendingHandoff = null;
+        if (conversation != null) conversation.End();
     }
 
     // ---------- dialogue ----------

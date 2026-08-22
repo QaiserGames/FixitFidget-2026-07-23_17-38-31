@@ -10,8 +10,10 @@ public class ConversationController : MonoBehaviour
 
     [Tooltip("Ignore input briefly after opening, so the key that started it doesn't also answer it.")]
     [SerializeField] private float inputDelay = 0.2f;
-    [Tooltip("Pause after a closing line has been read, before the panel closes.")]
-    [SerializeField] private float closingPause = 1.0f;
+    [Tooltip("Pause after a closing line has been read, before the panel closes. " +
+             "The customer does not move until this elapses, so raising it holds " +
+             "them at the counter longer.")]
+    [SerializeField] private float closingPause = 1.2f;
 
     public bool InConversation => partner != null;
 
@@ -27,6 +29,9 @@ public class ConversationController : MonoBehaviour
         partner = brain;
         closing = false;
         inputReadyAt = Time.time + inputDelay;
+
+        // Take ownership of their body. Until End(), nothing moves them.
+        brain.OnConversationOpened(this);
 
         // Frame them. Rotation Composer holds the shot, so look input does nothing.
         if (conversationCam != null)
@@ -46,11 +51,25 @@ public class ConversationController : MonoBehaviour
 
     public void End()
     {
+        // Hand the body back BEFORE dropping the reference. This is the single
+        // moment a customer is allowed to release their counter slot, claim a
+        // waiting spot, and start walking.
+        //
+        // Unity's overloaded == is deliberate here: it catches a partner who
+        // has been Destroy()ed, which the null-conditional operator would not.
+        CustomerBrain leaving = partner;
         partner = null;
         closing = false;
 
-        if (conversationCam != null) conversationCam.Priority = 0;
+        if (conversationCam != null)
+        {
+            conversationCam.Priority = 0;
+            conversationCam.Target.TrackingTarget = null;
+        }
+
         ui.Hide();
+
+        if (leaving != null) leaving.OnConversationClosed();
     }
 
     private void Update()
@@ -78,14 +97,14 @@ public class ConversationController : MonoBehaviour
         {
             if (!ui.LineFinished) { ui.SkipReveal(); return; }
 
-            if (partner.CanAcceptJob) { CloseWith(partner.AcceptJob(), 1.2f); return; }
-            if (partner.JobReady)     { CloseWith(partner.CompleteJob(), 1.2f); return; }
+            if (partner.CanAcceptJob) { CloseWith(partner.AcceptJob()); return; }
+            if (partner.JobReady)     { CloseWith(partner.CompleteJob()); return; }
         }
 
         // Q: turn them away.
         if (kb.qKey.wasPressedThisFrame && ui.LineFinished && partner.CanRefuse)
         {
-            CloseWith(partner.RefuseJob(), 1.2f);
+            CloseWith(partner.RefuseJob());
             return;
         }
 
@@ -94,7 +113,10 @@ public class ConversationController : MonoBehaviour
             End();
     }
 
-    private void CloseWith(string line, float extraHold)
+    // `closingPause` was declared and then never referenced — every call site
+    // hardcoded 1.2f, so nudging the field in the Inspector did nothing at all.
+    // It now actually controls the hold.
+    private void CloseWith(string line)
     {
         ui.SetLine(line);
         ui.SetOptions("");
@@ -102,7 +124,7 @@ public class ConversationController : MonoBehaviour
 
         // Scale with length so long closing lines aren't cut off.
         float readTime = string.IsNullOrEmpty(line) ? 0f : line.Length / 30f;
-        closeAt = Time.time + readTime + extraHold;
+        closeAt = Time.time + readTime + closingPause;
     }
 
     private string BuildOptions()
