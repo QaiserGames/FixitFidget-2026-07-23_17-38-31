@@ -29,7 +29,16 @@ public class CustomerInteractable : Interactable
             if (brain == null) return "";
             if (brain.CanReceiveDrink) return $"Serve the {brain.Record.Subject}";
             if (brain.CanHearIntake || brain.CanDecide) return "Talk to them";
-            if (brain.JobReady) return "Hand it back";
+            // The grade is shown BEFORE you commit. This is the whole point:
+            // without it, handing back a half-done repair is a nasty surprise
+            // rather than a choice you made under pressure.
+            if (brain.JobReady)
+            {
+                JobGrade g = brain.PendingGrade;
+                return g == JobGrade.Perfect
+                    ? "Hand it back"
+                    : $"Hand it back ({g})";
+            }
             if (brain.JobFixedButAway) return $"Their {brain.Record.Subject} is ready";
             if (brain.CanReassure && !brain.JobNeedsAttention) return "Reassure";
             return "";

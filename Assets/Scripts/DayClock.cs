@@ -21,6 +21,11 @@ public class DayClock : MonoBehaviour
     public int Tips { get; private set; }
     public int Earned { get; private set; }
 
+    // Grade tally, so the recap can tell you HOW you did, not just how much.
+    public int Perfect { get; private set; }
+    public int Good { get; private set; }
+    public int Passable { get; private set; }
+
     public event Action OnDayEnded;
 
     private void Awake()
@@ -41,6 +46,9 @@ public class DayClock : MonoBehaviour
         Drinks = 0;
         Tips = 0;
         Earned = 0;
+        Perfect = 0;
+        Good = 0;
+        Passable = 0;
         Time.timeScale = 1f;
     }
 
@@ -79,11 +87,22 @@ public class DayClock : MonoBehaviour
 
     // Called by CustomerBrain. A drink is not a repair — counting them
     // together made the recap claim you'd fixed things you hadn't.
-    public void RecordServed(int basePay, int tip, bool wasRepair)
+    public void RecordServed(int basePay, int tip, bool wasRepair,
+                             JobGrade grade = JobGrade.Perfect)
     {
         Served++;
-        if (wasRepair) Repairs++;
+        if (wasRepair)
+        {
+            Repairs++;
+            switch (grade)
+            {
+                case JobGrade.Perfect:  Perfect++;  break;
+                case JobGrade.Good:     Good++;     break;
+                case JobGrade.Passable: Passable++; break;
+            }
+        }
         else Drinks++;
+
         Tips += tip;
         Earned += basePay + tip;
     }

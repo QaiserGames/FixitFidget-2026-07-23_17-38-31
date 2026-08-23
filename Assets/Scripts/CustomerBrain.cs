@@ -36,6 +36,39 @@ public class CustomerBrain : MonoBehaviour
              "look again. They stand near the counter until one frees up.")]
     [SerializeField] private float spotRetryInterval = 1f;
 
+    [Header("Crowding")]
+
+    // THE DEADLOCK. Two agents with the same avoidance priority mirror each
+    // other's dodge exactly — both step left, collide, both step right,
+    // collide — and grind face to face until closing time. Unity's RVO has no
+    // tie-break when priorities match. Randomising means somebody always
+    // yields.
+    //
+    // Unity's convention is backwards from what you'd guess: LOWER number =
+    // HIGHER priority. 0 barges through everyone, 99 gets barged.
+    [Tooltip("Each customer rolls an avoidance priority in this range so two " +
+             "of them never mirror each other into a standoff. Lower = pushier.")]
+    [SerializeField] private int movingPriorityMin = 30;
+    [SerializeField] private int movingPriorityMax = 60;
+
+    [Tooltip("Priority once they've settled. High number = low priority, so " +
+             "people still walking push past them instead of bouncing off.")]
+    [SerializeField] private int settledPriority = 90;
+
+    [Tooltip("How close counts as arrived. The prefab ships at 1 m, which " +
+             "parks people a metre from their own chair.")]
+    [SerializeField] private float arriveDistance = 0.3f;
+
+    [Tooltip("If they get no closer to their spot for this long, they're " +
+             "jammed. Give up on it and take a different one.")]
+    [SerializeField] private float stuckTimeout = 3f;
+
+    [Header("Shelf look")]
+    [Tooltip("Devices land on the shelf at a slight angle rather than in " +
+             "perfect unison. Seeded per device, so it never jumps around.")]
+    [SerializeField] private float shelfYawJitter = 12f;
+    [SerializeField] private float shelfOffsetJitter = 0.02f;
+
     [Header("Presence")]
     [SerializeField] private float conversationDrainMultiplier = 0.1f;
     [SerializeField] private float presenceDrainMultiplier = 0.2f;
@@ -98,6 +131,11 @@ public class CustomerBrain : MonoBehaviour
 
     // Set when they wanted a waiting spot and the floor was full.
     private float retryClaimAt;
+
+    // Jam detection while walking to a spot.
+    private float stuckDeadline;
+    private float bestRemaining = float.MaxValue;
+    private int   settleAttempts;
 
     // Drink orders: accepted, but nothing has been made yet.
     private bool drinkOrdered;
@@ -207,7 +245,10 @@ public class CustomerBrain : MonoBehaviour
     {
         get
         {
-            if (!IsWaiting || activeJob == null || !activeJob.IsComplete) return false;
+            // Gate is REASSEMBLY, not perfection. You may hand back a device
+            // with grime still in it — you'll just be paid Passable for it.
+            // That trade is the decision the clock is supposed to force.
+            if (!IsWaiting || activeJob == null || !activeJob.CanHandBack) return false;
 
             PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
             return carry != null && carry.Carried == activeJob;
@@ -215,8 +256,15 @@ public class CustomerBrain : MonoBehaviour
     }
 
     // Fixed, but you're not carrying it — the prompt nudges you to go get it.
+    // Still uses IsComplete (= Perfect) deliberately: the nudge should only
+    // fire when it's genuinely finished, not when it's merely handable.
     public bool JobFixedButAway =>
         IsWaiting && activeJob != null && activeJob.IsComplete && !JobReady;
+
+    // What they'd be handed right now, for the prompt. The player sees the
+    // grade BEFORE committing — without that it's a punishment, not a choice.
+    public JobGrade PendingGrade =>
+        activeJob != null ? activeJob.Grade : JobGrade.Rejected;
 
     public bool CanReassure =>
         IsWaiting
@@ -269,7 +317,13 @@ public class CustomerBrain : MonoBehaviour
         record = job;
 
         agent = GetComponent<NavMeshAgent>();
-        animator = GetComponent<Animator>();
+
+        // GetComponentInChildren rather than GetComponent, so a model swapped
+        // in as a child later still works without touching this again.
+        animator = GetComponentInChildren<Animator>();
+
+        RollMovingPriority();
+        agent.stoppingDistance = arriveDistance;
 
         float mult = identity != null ? identity.PatienceMultiplier : 1f;
         queueMax = queuePatience * mult;
@@ -298,14 +352,22 @@ public class CustomerBrain : MonoBehaviour
     public void MoveToSlot(int newIndex)
     {
         slotIndex = newIndex;
-        agent.SetDestination(queue.SlotPoint(slotIndex).position);
+
+        // Queued customers park themselves on arrival (see StopSteering), so
+        // shuffling up the line has to wake the agent back up first.
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            RollMovingPriority();
+            agent.SetDestination(queue.SlotPoint(slotIndex).position);
+        }
     }
 
     private void Update()
     {
         if (agent == null) return;
 
-        animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f);
+        if (animator != null) animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f);
 
         // Held still for a beat after accepting, then released.
         if (hasPendingDestination && Time.time >= moveAllowedAt)
@@ -335,6 +397,7 @@ public class CustomerBrain : MonoBehaviour
                 {
                     state = State.WaitingInQueue;
                     patienceLeft = queueMax;
+                    StopSteering();     // stop shoving whoever's in front
                 }
                 break;
 
@@ -357,7 +420,12 @@ public class CustomerBrain : MonoBehaviour
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) { StormOut(); break; }
-                if (!hasPendingDestination && Arrived()) state = State.Waiting;
+
+                if (!hasPendingDestination)
+                {
+                    if (Arrived()) SettleHere();
+                    else CheckJammed();
+                }
                 break;
 
             case State.Waiting:
@@ -426,7 +494,7 @@ public class CustomerBrain : MonoBehaviour
         if (!CanHearIntake) return "";
 
         intakeGiven = true;
-        animator.SetTrigger("Interact");
+        React();
         return identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
     }
 
@@ -466,7 +534,7 @@ public class CustomerBrain : MonoBehaviour
 
         RunOrDefer(BeginWaiting);
 
-        animator.SetTrigger("Interact");
+        React();
         return identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
     }
 
@@ -491,15 +559,8 @@ public class CustomerBrain : MonoBehaviour
 
             // CanAcceptJob already checked for room, so null here means the
             // shelf isn't wired up. Leave it at the counter rather than lose it.
-            if (shelf != null)
-            {
-                spawned.transform.position = shelf.position + Vector3.up * activeJob.restHeight;
-                spawned.transform.rotation = shelf.rotation;
-            }
-            else
-            {
-                spawned.transform.position = slotPoint.position + Vector3.up * activeJob.restHeight;
-            }
+            PlacementJitter.Apply(activeJob, shelf != null ? shelf : slotPoint,
+                                  shelfYawJitter, shelfOffsetJitter);
         }
 
         JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
@@ -513,6 +574,7 @@ public class CustomerBrain : MonoBehaviour
     private void BeginWaiting()
     {
         patienceLeft = serviceMax;
+        settleAttempts = 0;
 
         ReleaseCounterSlot();
 
@@ -560,8 +622,85 @@ public class CustomerBrain : MonoBehaviour
 
         waitingSpot = spot;
         state = State.Settling;
+
+        bestRemaining = float.MaxValue;
+        stuckDeadline = 0f;
+        RollMovingPriority();
+
         MoveAfterReacting(destination);
         return true;
+    }
+
+    // ---------- crowding ----------
+
+    private void RollMovingPriority()
+    {
+        if (agent == null) return;
+        agent.avoidancePriority = Random.Range(movingPriorityMin, movingPriorityMax + 1);
+    }
+
+    // Drop the path and stand still.
+    //
+    // THE OTHER HALF OF THE STANDOFF: an agent that has "arrived" but still
+    // holds a path keeps applying steering toward it every frame. Two of them
+    // a few centimetres short of their spots will lean on each other forever,
+    // because neither is ever quite done. Once you're there, you're scenery.
+    private void StopSteering()
+    {
+        if (agent == null || !agent.isOnNavMesh) return;
+
+        agent.ResetPath();
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+        agent.avoidancePriority = settledPriority;
+    }
+
+    private void SettleHere()
+    {
+        state = State.Waiting;
+        StopSteering();
+    }
+
+    // Are they actually getting anywhere? remainingDistance shrinking means
+    // yes. Flat for stuckTimeout seconds means they're wedged — most likely
+    // two people trying to use a gap only wide enough for one.
+    private void CheckJammed()
+    {
+        if (agent == null || agent.pathPending) return;
+
+        float remaining = agent.remainingDistance;
+
+        // No path at all (or an unreachable one) counts as no progress.
+        if (!float.IsInfinity(remaining) && remaining < bestRemaining - 0.1f)
+        {
+            bestRemaining = remaining;
+            stuckDeadline = Time.time + stuckTimeout;
+            return;
+        }
+
+        if (stuckDeadline <= 0f)
+        {
+            stuckDeadline = Time.time + stuckTimeout;
+            return;
+        }
+
+        if (Time.time < stuckDeadline) return;
+
+        // ---- jammed ----
+
+        settleAttempts++;
+
+        if (WaitingArea.Instance != null) WaitingArea.Instance.Release(this);
+        waitingSpot = null;
+        bestRemaining = float.MaxValue;
+        stuckDeadline = 0f;
+
+        // Try somewhere else, twice. After that stop fighting the room and
+        // wait where you are — someone standing slightly wrong is far better
+        // than two people wrestling until the shop closes.
+        if (settleAttempts <= 2 && TryTakeWaitingSpot()) return;
+
+        SettleHere();
     }
 
     private bool CanReach(Vector3 destination)
@@ -626,7 +765,7 @@ public class CustomerBrain : MonoBehaviour
         carry.Consume();
         drinkOrdered = false;
 
-        animator.SetTrigger("Interact");
+        React();
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
         FinishAndLeave(line, true);
@@ -637,15 +776,27 @@ public class CustomerBrain : MonoBehaviour
     {
         if (!JobReady) return "";
 
+        // TWO INDEPENDENT AXES, deliberately:
+        //   quality -> base pay   (fix it well)
+        //   speed   -> tip        (fix it fast)
+        //
+        // GDD 5.3 folds "under par" into Perfect, which means being slow
+        // penalises you twice and you can't tell which lever did what. Split
+        // apart, the player learns both rules in about three repairs.
+        JobGrade grade = activeJob.Grade;
+        float gradeMult = JobBase.PayMultiplier(grade);
+
         float speedFraction = Mathf.Clamp01(patienceLeft / serviceMax);
         float tipMult = identity != null ? identity.TipMultiplier : 1f;
 
-        int basePay = activeJob.Payout;
+        int basePay = Mathf.RoundToInt(activeJob.Payout * gradeMult);
         float reassurePenalty = Mathf.Clamp01(1f - reassureUses * reassureTipCost);
+
+        // A shoddy job earns a shoddy tip no matter how fast it was.
         int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult * reassurePenalty);
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
-        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, true);
+        if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, true, grade);
 
         // It was in the player's hands, so make sure the shelf/bench forgets it.
         foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
@@ -654,7 +805,7 @@ public class CustomerBrain : MonoBehaviour
         Destroy(activeJob.gameObject);
         activeJob = null;
 
-        animator.SetTrigger("Interact");
+        React();
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
 
@@ -674,7 +825,7 @@ public class CustomerBrain : MonoBehaviour
         reassureUses++;
         reassureReadyAt = Time.time + reassureCooldown;
 
-        animator.SetTrigger("Interact");
+        React();
         Say(identity != null ? identity.Say(CustomerIdentity.Beat.Reassured) : "");
     }
 
@@ -741,6 +892,9 @@ public class CustomerBrain : MonoBehaviour
         hasPendingDestination = false;
         if (agent.isOnNavMesh)
         {
+            // They were parked at settled priority, which would let everyone
+            // else pin them against a table on the way out.
+            RollMovingPriority();
             agent.isStopped = false;
             agent.SetDestination(exitPoint.position);
         }
@@ -843,6 +997,14 @@ public class CustomerBrain : MonoBehaviour
 
     // ---------- helpers ----------
 
+    // Null-safe because a downloaded model might arrive without an Animator,
+    // or with one that has no "Interact" state. A missing animation should
+    // never take the customer's whole brain down with it.
+    private void React()
+    {
+        if (animator != null) animator.SetTrigger("Interact");
+    }
+
     // Face the counter while queueing, face however the waiting spot points
     // once they've settled.
     private void FaceTarget()
@@ -867,15 +1029,22 @@ public class CustomerBrain : MonoBehaviour
     private bool ShowFloatingBar =>
         state == State.WaitingInQueue || IsWaiting;
 
+    // Drives both readouts. Only ever called from the states where they're
+    // actually waiting on you, which is deliberate: Speaking and Leaving don't
+    // call it, so the tint FREEZES at whatever it last was. Someone who storms
+    // out stays furious all the way to the door; someone served happily walks
+    // out their own colour. That's free drama for no extra code.
     private void UpdateBar(float max, Color fullColor)
     {
+        float fraction = Mathf.Clamp01(patienceLeft / Mathf.Max(max, 0.01f));
+
         if (patienceBar == null) return;
 
         bool show = ShowFloatingBar;
         if (patienceBar.gameObject.activeSelf != show)
             patienceBar.gameObject.SetActive(show);
 
-        if (show) patienceBar.SetFraction(patienceLeft / max, fullColor);
+        if (show) patienceBar.SetFraction(fraction, fullColor);
     }
 
     // The naive version — !pathPending && remainingDistance <= stoppingDistance —

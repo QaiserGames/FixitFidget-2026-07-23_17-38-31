@@ -4,33 +4,41 @@ public class RepairJob : JobBase
 {
     public override JobFamily Family => JobFamily.Mechanical;
 
-    private bool hadWorkToDo;
+    private int totalTasks;
 
     private void Start()
     {
-        // Remember whether this device actually spawned with something wrong.
-        hadWorkToDo = GetComponentsInChildren<GrimeSpot>().Length > 0
-                   || GetComponentsInChildren<ReplaceablePart>().Length > 0;
+        // Snapshot how much was wrong with it when it arrived. Grime spots are
+        // destroyed as they're cleaned and parts flip to replaced, so this has
+        // to be captured before the player touches anything.
+        totalTasks = GetComponentsInChildren<GrimeSpot>().Length
+                   + GetComponentsInChildren<ReplaceablePart>().Length;
 
-        if (!hadWorkToDo)
-            Debug.LogWarning($"{name}: spawned with no active fault — check the device's fault Enable Objects.", this);
+        if (totalTasks == 0)
+            Debug.Log($"{name}: no teardown work — treated as a Human-family " +
+                      $"fault (the fix is a conversation). If that's not what " +
+                      $"you meant, check the device's fault Enable Objects.", this);
     }
 
-    public override bool IsComplete
+    private int RemainingTasks()
     {
-        get
-        {
-            // A job with no fault can't be "complete" — it's a data error.
-            if (!hadWorkToDo) return false;
+        int remaining = GetComponentsInChildren<GrimeSpot>().Length;
 
-            if (GetComponentsInChildren<GrimeSpot>().Length > 0) return false;
+        foreach (ReplaceablePart part in GetComponentsInChildren<ReplaceablePart>())
+            if (!part.IsReplaced) remaining++;
 
-            foreach (ReplaceablePart r in GetComponentsInChildren<ReplaceablePart>())
-                if (!r.IsReplaced) return false;
-
-            if (HasDetachedParts) return false;
-
-            return true;
-        }
+        return remaining;
     }
+
+    // Nothing to physically do — "not broken, just muted". The GDD's Human
+    // family. Full marks: you identified it and handed it straight back, which
+    // IS the fix. Never a data error that punishes the player.
+    public override float Quality =>
+        totalTasks <= 0
+            ? 1f
+            : Mathf.Clamp01((totalTasks - RemainingTasks()) / (float)totalTasks);
+
+    // Kept for anything still asking the old question — the ticket rail, the
+    // "is this finished" badge. It now means PERFECT specifically.
+    public override bool IsComplete => CanHandBack && Quality >= 0.999f;
 }
