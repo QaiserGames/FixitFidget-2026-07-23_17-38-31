@@ -21,6 +21,12 @@ public class CustomerProfile : ScriptableObject
     [Tooltip("Where they wait once you've taken their job.")]
     public WaitingSpot.SpotKind preferredWaitKind = WaitingSpot.SpotKind.Seat;
 
+    [Range(0f, 1f)]
+    [Tooltip("Chance they ALSO want a drink while waiting on a repair. " +
+             "A regular who always orders the same coffee is a cheap piece of " +
+             "characterisation — set this to 1 and give them a signature drink.")]
+    public float drinkWishChance = 0.5f;
+
     [Header("What they usually bring")]
     [Tooltip("Their signature device. Left empty = fully random.")]
     public GameObject preferredDevice;

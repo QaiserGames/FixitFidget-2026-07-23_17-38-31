@@ -2437,6 +2437,11 @@ MonoBehaviour:
   counterQueue: {fileID: 2048013196}
   spawnInterval: 6
   maxCustomers: 6
+  blockedRetryInterval: 1.5
+  openingGraceMin: 4
+  openingGraceMax: 9
+  spawnScatter: 1.2
+  spawnJitter: 0.35
   devicePrefabs:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
   - {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
@@ -2446,6 +2451,7 @@ MonoBehaviour:
     tipMultiplier: 1
     moodColor: {r: 1, g: 1, b: 1, a: 1}
     preferredWaitKind: 1
+    drinkWishChance: 0.5
     lines:
       intake:
       - Two days old. Brand new. Already broken.
@@ -2459,11 +2465,13 @@ MonoBehaviour:
       - Do your magic. I trust you.
       stormedOut:
       - Why waste my time. This place sucks.
+      orderedDrink: []
   - archetypeName: WatchOwner
     patienceMultiplier: 1.3
     tipMultiplier: 1.4
     moodColor: {r: 1, g: 1, b: 1, a: 1}
     preferredWaitKind: 1
+    drinkWishChance: 0.5
     lines:
       intake:
       - This {device} was my dad's. I want it working again.
@@ -2477,11 +2485,13 @@ MonoBehaviour:
       - No rush at all. Take your time.
       stormedOut:
       - I'll... come back another time. Maybe.
+      orderedDrink: []
   - archetypeName: PhoneOwner
     patienceMultiplier: 0.9
     tipMultiplier: 1
     moodColor: {r: 1, g: 1, b: 1, a: 1}
     preferredWaitKind: 1
+    drinkWishChance: 0.5
     lines:
       intake:
       - I drove over my {device}. Don't ask.
@@ -2495,6 +2505,7 @@ MonoBehaviour:
       - Just don't break my BananaPhone 20 Pro Max.
       stormedOut:
       - Forget you guys. I'm getting the PineappleUltra 30.
+      orderedDrink: []
   firstNames:
   - Valerie
   - Deshawn
@@ -12618,6 +12629,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DayClock
   dayLengthSeconds: 180
   startingDay: 1
+  closingGrace: 45
 --- !u!114 &1976578421
 MonoBehaviour:
   m_ObjectHideFlags: 0

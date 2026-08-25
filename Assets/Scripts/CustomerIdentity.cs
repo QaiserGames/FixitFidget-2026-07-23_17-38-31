@@ -2,7 +2,9 @@ using UnityEngine;
 
 public class CustomerIdentity : MonoBehaviour
 {
-    public enum Beat { Intake, Accepted, Completed, Declined, Reassured, StormedOut }
+    // Only ever APPEND to this — it's serialized by index in DialogueSet lookups
+    // and headed for save data with the memory pass.
+    public enum Beat { Intake, Accepted, Completed, Declined, Reassured, StormedOut, OrderedDrink }
 
     public string DisplayName { get; private set; } = "Customer";
     public Color ThemeColor { get; private set; } = Color.white;
@@ -51,6 +53,13 @@ public class CustomerIdentity : MonoBehaviour
         profile != null ? profile.preferredWaitKind :
         archetype != null ? archetype.preferredWaitKind : WaitingSpot.SpotKind.Loiter;
 
+    // How likely this person is to want a coffee WHILE waiting on a repair.
+    // Zero when we know nothing about them, so an unconfigured archetype can't
+    // silently flood the machine with orders.
+    public float DrinkWishChance =>
+        profile != null ? profile.drinkWishChance :
+        archetype != null ? archetype.drinkWishChance : 0f;
+
     public string Say(Beat beat)
     {
         DialogueSet set = ResolveSet();
@@ -64,6 +73,7 @@ public class CustomerIdentity : MonoBehaviour
             Beat.Declined   => set.declined,
             Beat.Reassured  => set.reassured,
             Beat.StormedOut => set.stormedOut,
+            Beat.OrderedDrink => set.orderedDrink,
             _ => null
         };
 

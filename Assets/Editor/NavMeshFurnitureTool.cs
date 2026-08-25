@@ -31,8 +31,11 @@ public static class NavMeshFurnitureTool
     private const int NotWalkable = 1;      // Unity's built-in area index
 
     private const string MODIFIER = "Unity.AI.Navigation.NavMeshModifier";
+    private const string VOLUME   = "Unity.AI.Navigation.NavMeshModifierVolume";
     private const string SURFACE  = "Unity.AI.Navigation.NavMeshSurface";
     private const string ASSETMGR = "Unity.AI.Navigation.Editor.NavMeshAssetManager";
+
+    private const string STAFF_BLOCK = "StaffOnly_NoCustomers";
 
     // ==================================================================
 
@@ -99,7 +102,63 @@ public static class NavMeshFurnitureTool
 
     // ==================================================================
 
-    [MenuItem("Fixit Fidget/NavMesh/2 · Re-bake NavMesh")]
+    // ==================================================================
+    // 2 · the staff area
+    // ==================================================================
+
+    [MenuItem("Fixit Fidget/NavMesh/2 · Create staff-area block")]
+    public static void CreateStaffBlock()
+    {
+        System.Type volType = FindType(VOLUME);
+        if (volType == null) { NoPackage(); return; }
+
+        GameObject go = FindInScene(STAFF_BLOCK);
+
+        if (go == null)
+        {
+            go = new GameObject(STAFF_BLOCK);
+            Undo.RegisterCreatedObjectUndo(go, UNDO);
+
+            // A starting guess, not a decision. Counter sits at z = 5 and the
+            // customer queue at z = 6.1, so the back face of the counter — about
+            // z = 4.5 — is the natural line between front and back of house.
+            // Full room width, because the counter is only 4 m wide in a 30 m
+            // room and walking around the end of it is exactly how they got in.
+            go.transform.position = new Vector3(0f, 0f, 0f);
+
+            Component vol = Undo.AddComponent(go, volType);
+            SerializedObject so = new SerializedObject(vol);
+
+            SerializedProperty size = so.FindProperty("m_Size");
+            SerializedProperty centre = so.FindProperty("m_Center");
+            SerializedProperty area = so.FindProperty("m_Area");
+
+            if (size != null)   size.vector3Value   = new Vector3(31f, 4f, 20.5f);
+            if (centre != null) centre.vector3Value = new Vector3(0f, 1.5f, -5.75f);
+            if (area != null)   area.intValue       = NotWalkable;
+
+            so.ApplyModifiedProperties();
+        }
+
+        Selection.activeGameObject = go;
+        EditorGUIUtility.PingObject(go);
+        SceneView.FrameLastActiveSceneView();
+
+        EditorUtility.DisplayDialog("NavMesh",
+            "Created '" + STAFF_BLOCK + "' and selected it.\n\n" +
+            "It's an invisible volume that deletes the back of house from the " +
+            "NavMesh. Customers can't path into it at all — and it can't affect " +
+            "you, because the player is a CharacterController and never touches " +
+            "the NavMesh.\n\n" +
+            "SIZE IT NOW: drag the Center and Size on the Nav Mesh Modifier " +
+            "Volume component, or use the box handles in the Scene view. It " +
+            "should cover your kitchen and workbench and stop just behind the " +
+            "counter — NOT reach the customer queue.\n\n" +
+            "Then run '3 · Re-bake NavMesh', and 'Check' to confirm you haven't " +
+            "stranded any seats.", "OK");
+    }
+
+    [MenuItem("Fixit Fidget/NavMesh/3 · Re-bake NavMesh")]
     public static void Rebake()
     {
         System.Type surfaceType = FindType(SURFACE);
@@ -178,6 +237,32 @@ public static class NavMeshFurnitureTool
                   (mods == 0
                       ? "every mesh in the room is walkable, INCLUDING TABLE TOPS"
                       : "furniture is excluded from the walkable surface"));
+
+        GameObject block = FindInScene(STAFF_BLOCK);
+        Line(lines, block != null, block != null
+            ? "staff area is blocked to customers"
+            : "no staff-area block — customers can walk round the counter");
+
+        // THE CHECK THAT MATTERS AFTER RESIZING THAT VOLUME. Cut too deep and a
+        // seat's stand point lands in dead space; whoever claims it walks
+        // toward somewhere unreachable and the jam detector has to rescue them.
+        // Far better to hear about it here than to watch it at runtime.
+        WaitingSpot[] spots = Object.FindObjectsByType<WaitingSpot>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        List<string> stranded = new List<string>();
+        foreach (WaitingSpot s in spots)
+        {
+            if (s == null) continue;
+            if (!UnityEngine.AI.NavMesh.SamplePosition(
+                    s.StandPoint.position, out _, 0.6f, UnityEngine.AI.NavMesh.AllAreas))
+                stranded.Add(s.name);
+        }
+
+        Line(lines, stranded.Count == 0, stranded.Count == 0
+            ? "all " + spots.Length + " waiting spots and seats are reachable"
+            : stranded.Count + " STRANDED off the NavMesh: " +
+              string.Join(", ", stranded.ToArray()));
 
         string body = string.Join("\n", lines);
         Debug.Log("[NavMesh check]\n" + body);

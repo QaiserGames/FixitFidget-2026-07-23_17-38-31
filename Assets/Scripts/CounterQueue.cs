@@ -21,6 +21,24 @@ public class CounterQueue : MonoBehaviour
         occupants = new CustomerBrain[SlotCount];
     }
 
+    // Asked by CustomerSpawner BEFORE it creates anyone.
+    //
+    // THE BUG THIS FIXES: the spawner only ever checked maxCustomers. Someone
+    // who arrived with the line full got slotIndex -1 from ClaimSlot, turned
+    // straight around and walked back out — and because that path skips
+    // Depart(), they weren't even counted as Lost. Invisible customer loss.
+    // Raising maxCustomers from 3 to 6 made it happen constantly.
+    public bool HasFreeSlot
+    {
+        get
+        {
+            if (occupants == null) return false;
+            foreach (CustomerBrain c in occupants)
+                if (c == null) return true;
+            return false;
+        }
+    }
+
     public int ClaimSlot(CustomerBrain customer)
     {
         for (int i = 0; i < occupants.Length; i++)

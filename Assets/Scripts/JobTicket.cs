@@ -21,10 +21,6 @@ public class JobTicket : MonoBehaviour
             slotText.color = brain.JobColor;
         }
 
-        // Subject is the device OR the drink; Detail is the fault OR "to make".
-        if (jobText != null && brain.Record != null)
-            jobText.text = $"{brain.Record.Subject}\n{brain.Record.Detail}";
-
         if (background != null)
         {
             Color c = brain.JobColor;
@@ -37,7 +33,21 @@ public class JobTicket : MonoBehaviour
 
     private void Update()
     {
-        if (Target == null || patienceFill == null) return;
+        if (Target == null) return;
+
+        // THE TEXT MOVED OUT OF Bind().
+        //
+        // Bind runs once, when the ticket is created. A repair customer who
+        // asks for a coffee five seconds after sitting down would never have
+        // shown it — the card would have been describing a tab that had since
+        // changed. One customer, one card, refreshed live.
+        //
+        // Deliberately plain: no icons, no animation, no fixed width. This is
+        // here so the loop can be seen working end to end. The real rail is a
+        // UI pass of its own — see claude/hud-spec.md.
+        if (jobText != null) jobText.text = Target.TabLines;
+
+        if (patienceFill == null) return;
 
         float f = Target.PatienceFraction;
         patienceFill.fillAmount = f;

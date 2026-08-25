@@ -12,5 +12,11 @@ public class CustomerArchetype
              "Impatient types loiter by the counter; calm ones sit down.")]
     public WaitingSpot.SpotKind preferredWaitKind = WaitingSpot.SpotKind.Seat;
 
+    [Range(0f, 1f)]
+    [Tooltip("Chance this sort of person ALSO wants a drink while waiting on a " +
+             "repair. Nothing to do with customers who came only for coffee — " +
+             "that's CustomerSpawner.drinkChance.")]
+    public float drinkWishChance = 0.5f;
+
     public DialogueSet lines;
 }

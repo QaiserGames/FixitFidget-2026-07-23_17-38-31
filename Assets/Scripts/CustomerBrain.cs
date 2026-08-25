@@ -63,6 +63,66 @@ public class CustomerBrain : MonoBehaviour
              "jammed. Give up on it and take a different one.")]
     [SerializeField] private float stuckTimeout = 3f;
 
+    [Header("Arrival")]
+
+    [Tooltip("How far into the room they wander before joining the queue, and " +
+             "how wide of the direct line. Everyone spawning at one point and " +
+             "walking one straight line to one slot is what makes arrivals look " +
+             "like a school dinner queue.")]
+    [SerializeField] private float driftDistanceMin = 2f;
+    [SerializeField] private float driftDistanceMax = 5f;
+    [Range(0f, 90f)]
+    [SerializeField] private float driftSpreadDegrees = 70f;
+
+    [Tooltip("How long they stand and look around before heading to the counter.")]
+    [SerializeField] private float driftPauseMin = 1f;
+    [SerializeField] private float driftPauseMax = 3f;
+
+    [Tooltip("Per-customer walk speed variation. 0.15 = ±15%. Identical pace " +
+             "reads as a conveyor belt however good the models are.")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float walkSpeedJitter = 0.15f;
+
+    [Header("The drink track")]
+
+    [Tooltip("How long after settling before someone waiting on a repair asks " +
+             "for a coffee. Deliberately AFTER they sit, not at the counter — " +
+             "landing mid-teardown is what makes the café compete for your hands.")]
+    [SerializeField] private float orderDelayMin = 4f;
+    [SerializeField] private float orderDelayMax = 8f;
+
+    [Tooltip("Patience given back the moment they ORDER, as a fraction of max. " +
+             "They've decided to settle in. FIXED rather than proportional: a " +
+             "proportional top-up would rescue the angriest customers hardest " +
+             "and make 'let him order' better than 'serve him fast'.")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float orderTopUp = 0.10f;
+
+    [Tooltip("Patience given back when you actually hand it over. The visible " +
+             "receipt — the real reward is the drain multiplier below.")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float serveBump = 0.08f;
+
+    [Tooltip("How long the drink keeps them happy at the Drinking rate.")]
+    [SerializeField] private float drinkingSeconds = 20f;
+
+    [Tooltip("Drain while drinking, then afterwards. These MULTIPLY with the " +
+             "waiting spot — a seated customer (0.6) with a fresh coffee (0.5) " +
+             "drains at 0.3, which on a 45s meter is 150s of patience. That is " +
+             "very probably too generous; expect to pull it down.")]
+    [SerializeField] private float drinkingDrain = 0.5f;
+    [SerializeField] private float satisfiedDrain = 0.8f;
+
+    [Tooltip("Placeholder used only while DialogueSet.orderedDrink is empty, so " +
+             "grey-box isn't silent. DELETE THE FALLBACK once real lines exist " +
+             "— written content does not belong in code.")]
+    [SerializeField] private string orderFallback = "Could I get a {drink} while I wait?";
+
+    [Tooltip("Hard limit on walking to the exit. A customer who can't reach it " +
+             "is never destroyed, and DayClock waits for the customer count to " +
+             "hit zero — so one stuck body used to hang the day forever.")]
+    [SerializeField] private float leaveTimeout = 20f;
+
     [Header("Shelf look")]
     [Tooltip("Devices land on the shelf at a slight angle rather than in " +
              "perfect unison. Seeded per device, so it never jumps around.")]
@@ -132,14 +192,43 @@ public class CustomerBrain : MonoBehaviour
     // Set when they wanted a waiting spot and the floor was full.
     private float retryClaimAt;
 
+    // False until they've done their look-around on the way in.
+    private bool driftDone;
+
     // Jam detection while walking to a spot.
     private float stuckDeadline;
     private float bestRemaining = float.MaxValue;
     private int   settleAttempts;
 
+    // Backstop for the walk to the door.
+    private float leaveDeadline = float.MaxValue;
+
+    // When they asked out loud for a drink. The espresso machine serves in
+    // this order — see EspressoMachine.PendingOrders.
+    public float DrinkOrderedAt { get; private set; }
+
     // Drink orders: accepted, but nothing has been made yet.
     private bool drinkOrdered;
     private bool drinkStarted;
+
+    // ---------- the drink WISH ----------
+    //
+    // THE POINT OF THE WHOLE PASS. RollJob flips a coin — 40% drink, 60% repair
+    // — so a customer was never both, and "ordering a coffee while they wait
+    // for their repair" (the sentence the project is built on) could not
+    // happen. This is the second, parallel track.
+    //
+    // It lives here rather than on Job because Job.kind is deliberately
+    // exclusive and Record.drink being null for a repair customer is what keeps
+    // the rest of the code honest. WantedDrink is the single place that knows
+    // how to answer "what would they like?" for both kinds of customer.
+
+    private DrinkDefinition drinkWish;   // rolled at spawn; may be null
+    private float drinkAskAt;            // when they'll speak up. 0 = not scheduled
+    private float drinkServedAt;         // when it reached their hands
+
+    public DrinkDefinition WantedDrink =>
+        record != null && record.kind == JobKind.Drink ? record.drink : drinkWish;
 
     private string currentLine = "";
     private Coroutine revealRoutine;
@@ -161,6 +250,10 @@ public class CustomerBrain : MonoBehaviour
     // Anywhere between "you took the job" and "you finished it" — walking to
     // their spot counts, they're already waiting on you.
     private bool IsWaiting => state == State.Settling || state == State.Waiting;
+
+    // Done with you — walking to the door or saying their last line. DayClock
+    // uses this to tell "still serving people" apart from "nobody's leaving".
+    public bool IsLeaving => state == State.Leaving || state == State.Speaking;
 
     // Kept for TicketRailUI, which asks whether there's live work for them.
     //
@@ -229,10 +322,42 @@ public class CustomerBrain : MonoBehaviour
             if (carry == null || !carry.IsCarrying) return false;
 
             DrinkJob drink = carry.Carried as DrinkJob;
-            if (drink == null || record == null) return false;
+            if (drink == null) return false;
 
             // Any latte will do — including one abandoned by someone who left.
-            return drink.Drink == record.drink;
+            return drink.Drink != null && drink.Drink == WantedDrink;
+        }
+    }
+
+    // ---------- what the tab says ----------
+    //
+    // One customer, one card. The rail asks for this every frame rather than
+    // being told once at Bind(), because a drink can be added to an existing
+    // tab long after the ticket was created.
+    public string TabLines
+    {
+        get
+        {
+            if (record == null) return "";
+
+            string s;
+
+            if (record.kind == JobKind.Drink)
+            {
+                s = record.Subject + "\n" + record.Detail;
+            }
+            else
+            {
+                s = record.deviceName + "\n" + record.faultDescription;
+
+                // Only once they've actually asked. A wish nobody has voiced
+                // must not appear on the tab — that would be the readout
+                // telling you something the character hasn't.
+                if (drinkOrdered && WantedDrink != null)
+                    s += "\n+ " + WantedDrink.drinkName;
+            }
+
+            return s;
         }
     }
 
@@ -282,6 +407,16 @@ public class CustomerBrain : MonoBehaviour
         }
     }
 
+    // 1 until they've been handed a drink, then calm, then merely content.
+    private float DrinkRate
+    {
+        get
+        {
+            if (drinkServedAt <= 0f) return 1f;
+            return (Time.time - drinkServedAt) <= drinkingSeconds ? drinkingDrain : satisfiedDrain;
+        }
+    }
+
     private float DrainRate
     {
         get
@@ -289,8 +424,11 @@ public class CustomerBrain : MonoBehaviour
             if (InConversation) return conversationDrainMultiplier;
 
             // Where they chose to wait changes how fast they sour. Sitting is
-            // calm, loitering by the counter is not.
-            float spotRate = waitingSpot != null ? waitingSpot.DrainMultiplier : 1f;
+            // calm, loitering by the counter is not. A coffee in their hands
+            // multiplies on top of that — THIS is the answer to "why bother
+            // with the café": the radio needs 90 seconds you don't have, so you
+            // buy some of them back.
+            float spotRate = (waitingSpot != null ? waitingSpot.DrainMultiplier : 1f) * DrinkRate;
 
             HoldCallJob call = activeJob as HoldCallJob;
             if (call == null || !call.WantsPlayerPresent) return spotRate;
@@ -310,11 +448,17 @@ public class CustomerBrain : MonoBehaviour
 
     // ---------- setup ----------
 
-    public void Init(CounterQueue counterQueue, Transform exit, Job job)
+    public void Init(CounterQueue counterQueue, Transform exit, Job job,
+                     DrinkDefinition wish = null)
     {
         queue = counterQueue;
         exitPoint = exit;
         record = job;
+
+        // Rolled at spawn and kept quiet until they've settled. Deterministic
+        // and simpler than deciding mid-wait — and indistinguishable from the
+        // player's side, since they only ever find out when it's said out loud.
+        drinkWish = job != null && job.kind == JobKind.Repair ? wish : null;
 
         agent = GetComponent<NavMeshAgent>();
 
@@ -338,13 +482,63 @@ public class CustomerBrain : MonoBehaviour
         slotIndex = queue.ClaimSlot(this);
         if (slotIndex < 0)
         {
+            // CustomerSpawner now checks CounterQueue.HasFreeSlot before it
+            // creates anyone, so this should be unreachable. Keeping it honest
+            // rather than silent: if we ever do turn someone away at the door,
+            // it counts against the day and says so in the Console.
+            Debug.LogWarning($"[{CustomerName}] arrived with no free counter slot " +
+                             $"and left immediately. The spawner should have held " +
+                             $"them back — check CustomerSpawner.counterQueue is wired.", this);
+
             state = State.Leaving;
+            leaveDeadline = Time.time + leaveTimeout;
             agent.SetDestination(exitPoint.position);
             return;
         }
 
+        // Nobody walks the same speed. Identical pace is most of why arrivals
+        // read as a school dinner queue rather than people coming into a shop.
+        agent.speed *= Random.Range(1f - walkSpeedJitter, 1f + walkSpeedJitter);
+
         state = State.WalkingToCounter;
-        agent.SetDestination(queue.SlotPoint(slotIndex).position);
+
+        // Veer into the room before heading for the counter. Not the full
+        // Drifting state from GDD §4.5 — just enough that six arrivals don't
+        // trace the same line to the same spot.
+        Vector3 drift;
+        if (PickDriftPoint(out drift))
+        {
+            agent.SetDestination(drift);
+        }
+        else
+        {
+            driftDone = true;
+            agent.SetDestination(queue.SlotPoint(slotIndex).position);
+        }
+    }
+
+    // Somewhere INTO the shop, but off the direct line. Takes the bearing to
+    // the counter and swings it wide, so they always make progress inward —
+    // wandering back out of the door would look broken, not lifelike.
+    private bool PickDriftPoint(out Vector3 point)
+    {
+        point = Vector3.zero;
+        if (agent == null || !agent.isOnNavMesh) return false;
+
+        Vector3 toCounter = queue.SlotPoint(slotIndex).position - transform.position;
+        toCounter.y = 0f;
+        if (toCounter.sqrMagnitude < 0.01f) return false;
+
+        Vector3 dir = Quaternion.Euler(0f, Random.Range(-driftSpreadDegrees, driftSpreadDegrees), 0f)
+                    * toCounter.normalized;
+
+        Vector3 probe = transform.position + dir * Random.Range(driftDistanceMin, driftDistanceMax);
+
+        if (!NavMesh.SamplePosition(probe, out NavMeshHit hit, 2f, NavMesh.AllAreas)) return false;
+        if (!CanReach(hit.position)) return false;
+
+        point = hit.position;
+        return true;
     }
 
     // Someone ahead of them left — shuffle up the line. Their device isn't
@@ -352,6 +546,7 @@ public class CustomerBrain : MonoBehaviour
     public void MoveToSlot(int newIndex)
     {
         slotIndex = newIndex;
+        driftDone = true;   // the line moved — stop sightseeing and get in it
 
         // Queued customers park themselves on arrival (see StopSteering), so
         // shuffling up the line has to wake the agent back up first.
@@ -393,8 +588,20 @@ public class CustomerBrain : MonoBehaviour
         switch (state)
         {
             case State.WalkingToCounter:
-                if (Arrived())
+                if (!hasPendingDestination && Arrived())
                 {
+                    if (!driftDone)
+                    {
+                        // Reached their look-around spot. Stand a moment, then
+                        // go and queue. The pause is what sells it — walking
+                        // through a curve at constant speed still reads as a
+                        // conveyor belt.
+                        driftDone = true;
+                        MoveAfter(queue.SlotPoint(slotIndex).position,
+                                  Random.Range(driftPauseMin, driftPauseMax));
+                        break;
+                    }
+
                     state = State.WaitingInQueue;
                     patienceLeft = queueMax;
                     StopSteering();     // stop shoving whoever's in front
@@ -436,6 +643,8 @@ public class CustomerBrain : MonoBehaviour
                     if (!TryTakeWaitingSpot()) retryClaimAt = Time.time + spotRetryInterval;
                 }
 
+                TickDrinkWish();
+
                 FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
@@ -449,6 +658,17 @@ public class CustomerBrain : MonoBehaviour
                 break;
 
             case State.Leaving:
+                // Backstop first: if the door is unreachable this is the only
+                // thing that ever ends this state, and DayClock is waiting on it.
+                if (Time.time >= leaveDeadline)
+                {
+                    Debug.LogWarning($"[{CustomerName}] couldn't reach the exit in " +
+                                     $"{leaveTimeout}s — removing them. Check the " +
+                                     $"NavMesh between the shop floor and the door.", this);
+                    Destroy(gameObject);
+                    break;
+                }
+
                 // Don't vanish while still mid-sentence — let the line finish first.
                 if (Arrived() && bubbleTimer <= 0f) Destroy(gameObject);
                 break;
@@ -523,6 +743,7 @@ public class CustomerBrain : MonoBehaviour
             // Nothing spawns. They go and wait while you make it.
             drinkOrdered = true;
             drinkStarted = false;
+            DrinkOrderedAt = Time.time;
         }
         else
         {
@@ -585,6 +806,7 @@ public class CustomerBrain : MonoBehaviour
             // planted there permanently with nowhere to go.
             state = State.Waiting;
             retryClaimAt = Time.time + spotRetryInterval;
+            ScheduleDrinkWish();   // stuck by the counter still counts as settled
         }
     }
 
@@ -659,6 +881,49 @@ public class CustomerBrain : MonoBehaviour
     {
         state = State.Waiting;
         StopSteering();
+        ScheduleDrinkWish();
+    }
+
+    // ---------- the drink wish ----------
+
+    // Starts the clock the moment they're actually settled, so the order lands
+    // while you're heads-down at the bench rather than while they're still
+    // walking. Guarded because SettleHere can run more than once — the jam
+    // detector gives up and settles them where they stand.
+    private void ScheduleDrinkWish()
+    {
+        if (drinkWish == null || drinkOrdered || drinkAskAt > 0f) return;
+        drinkAskAt = Time.time + Random.Range(orderDelayMin, orderDelayMax);
+    }
+
+    private void TickDrinkWish()
+    {
+        if (drinkAskAt <= 0f || drinkOrdered) return;
+        if (Time.time < drinkAskAt) return;
+
+        drinkOrdered = true;
+        drinkStarted = false;
+        DrinkOrderedAt = Time.time;      // EspressoMachine serves oldest-first
+
+        // They've decided to settle in, so they're in less of a hurry. Small,
+        // fixed, and applied on ORDERING rather than on serving — without it,
+        // asking for a coffee would hand you a second job and no extra time,
+        // which is punishment dressed up as a feature.
+        patienceLeft = Mathf.Min(patienceLeft + serviceMax * orderTopUp, serviceMax);
+
+        React();
+        Say(OrderLine());
+    }
+
+    private string OrderLine()
+    {
+        string line = identity != null ? identity.Say(CustomerIdentity.Beat.OrderedDrink) : "";
+
+        // Placeholder only. Delete this branch once orderedDrink has real lines.
+        if (string.IsNullOrEmpty(line)) line = orderFallback;
+
+        string drinkName = WantedDrink != null ? WantedDrink.drinkName : "coffee";
+        return line.Replace("{drink}", drinkName);
     }
 
     // Are they actually getting anywhere? remainingDistance shrinking means
@@ -712,11 +977,13 @@ public class CustomerBrain : MonoBehaviour
 
     // Stand still for a moment, then walk. Without the pause they slide off
     // mid-"Interact" animation, which reads as moonwalking.
-    private void MoveAfterReacting(Vector3 destination)
+    private void MoveAfterReacting(Vector3 destination) => MoveAfter(destination, reactionTime);
+
+    private void MoveAfter(Vector3 destination, float delay)
     {
         pendingDestination = destination;
         hasPendingDestination = true;
-        moveAllowedAt = Time.time + reactionTime;
+        moveAllowedAt = Time.time + delay;
 
         if (agent.isOnNavMesh) agent.isStopped = true;
     }
@@ -764,12 +1031,35 @@ public class CustomerBrain : MonoBehaviour
 
         carry.Consume();
         drinkOrdered = false;
+        drinkStarted = false;
+        drinkServedAt = Time.time;      // starts the calm-drain window
+
+        // The visible half of the reward. The drain multiplier is the half that
+        // actually wins you the day, but a bar draining slightly slower is not
+        // something anyone notices mid-panic.
+        patienceLeft = Mathf.Min(patienceLeft + serviceMax * serveBump, serviceMax);
 
         React();
 
-        string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
-        FinishAndLeave(line, true);
-        return line;
+        // THE SPLIT THAT MAKES THE WHOLE PASS WORK.
+        //
+        // This used to end the visit unconditionally, which was fine while a
+        // drink customer had only ever come for a drink. The moment a repair
+        // customer can also want coffee, handing it over would send them home
+        // WITH THEIR PHONE STILL ON YOUR SHELF.
+        //
+        // So: leave only if the drink was the whole reason they came.
+        if (activeJob == null)
+        {
+            string bye = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
+            FinishAndLeave(bye, true);
+            return bye;
+        }
+
+        // Still owed a repair. Thank you, and back to waiting.
+        string thanks = identity != null ? identity.Say(CustomerIdentity.Beat.Reassured) : "";
+        Say(thanks);
+        return thanks;
     }
 
     public string CompleteJob()
@@ -847,6 +1137,46 @@ public class CustomerBrain : MonoBehaviour
         LeaveAfterSpeaking(line, false);
     }
 
+    // Remove them immediately, with no goodbye and no walk to the door.
+    //
+    // WHY THIS ISN'T JUST Destroy(gameObject): a customer's device is a
+    // SEPARATE GameObject sitting in an intake shelf slot. OnDestroy only
+    // releases their waiting spot and closes any open conversation — releasing
+    // the shelf slot and destroying the device both live in Depart().
+    //
+    // So destroying a customer directly would strand their phone on the shelf
+    // holding a slot forever. A full shelf blocks intake, so you'd quietly lose
+    // the ability to take repairs, one abandoned device per incident, with
+    // nothing in the Console to explain it.
+    //
+    // Used by DayClock.StartDay to guarantee a new day begins with an empty
+    // shop. Nothing here touches stats — a customer cleared this way was never
+    // served and was already counted (or deliberately not) elsewhere.
+    public void ForceRemove()
+    {
+        pendingHandoff = null;
+        if (conversation != null) conversation.End();
+
+        if (activeJob != null)
+        {
+            foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
+                spot.Release(activeJob);
+
+            Destroy(activeJob.gameObject);
+            activeJob = null;
+        }
+
+        drinkOrdered = false;
+
+        if (slotIndex >= 0 && queue != null) queue.ReleaseSlot(this);
+        slotIndex = -1;
+
+        if (WaitingArea.Instance != null) WaitingArea.Instance.Release(this);
+        waitingSpot = null;
+
+        Destroy(gameObject);
+    }
+
     private void LeaveAfterSpeaking(string line, bool happy)
     {
         departHappy = happy;
@@ -859,6 +1189,7 @@ public class CustomerBrain : MonoBehaviour
     private void Depart(bool happy)
     {
         state = State.Leaving;
+        leaveDeadline = Time.time + leaveTimeout;
 
         // Whatever was queued up, it's moot now.
         pendingHandoff = null;

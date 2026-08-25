@@ -12,7 +12,17 @@ public class EspressoMachine : Interactable
     private DrinkJob loadedCup;
     private CustomerBrain brewingFor;
 
-    // Everyone waiting on a drink that hasn't been started, oldest first.
+    // Everyone waiting on a drink that hasn't been started, oldest order first.
+    //
+    // THE BUG THIS FIXES: this used to claim "oldest first" while relying on
+    // whatever order FindObjectsByType handed back — and FindObjectsSortMode.None
+    // explicitly guarantees NO order, stable or otherwise. So orders[0] was
+    // arbitrary, and could differ between the frame that drew the prompt and
+    // the frame you pressed E. The prompt said "Make Latte for Priya" and the
+    // machine brewed for Tomas.
+    //
+    // It mostly went unnoticed because everyone wants one of two drinks. It
+    // stops being harmless the moment repair customers queue here too.
     public List<CustomerBrain> PendingOrders
     {
         get
@@ -23,6 +33,8 @@ public class EspressoMachine : Interactable
             {
                 if (b.AwaitingDrink) list.Add(b);
             }
+
+            list.Sort((a, b) => a.DrinkOrderedAt.CompareTo(b.DrinkOrderedAt));
             return list;
         }
     }
@@ -51,7 +63,7 @@ public class EspressoMachine : Interactable
             List<CustomerBrain> orders = PendingOrders;
             if (orders.Count == 0) return "No orders waiting";
 
-            DrinkDefinition want = orders[0].Record.drink;
+            DrinkDefinition want = orders[0].WantedDrink;   // repair customers wish too
             if (ShopInventory.Instance != null && !ShopInventory.Instance.CanBrew(want))
                 return "Out of beans";
 
@@ -82,7 +94,7 @@ public class EspressoMachine : Interactable
         if (orders.Count == 0) return;
 
         CustomerBrain customer = orders[0];
-        DrinkDefinition drink = customer.Record.drink;
+        DrinkDefinition drink = customer.WantedDrink;
 
         if (ShopInventory.Instance == null || !ShopInventory.Instance.ConsumeBeans(drink)) return;
 
