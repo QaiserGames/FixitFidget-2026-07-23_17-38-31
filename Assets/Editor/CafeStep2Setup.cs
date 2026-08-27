@@ -317,7 +317,7 @@ public static class CafeStep2Setup
     public static void ClearAllSeats()
     {
         TableSeat[] seats = Object.FindObjectsByType<TableSeat>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
 
         if (seats.Length == 0)
         {
@@ -400,7 +400,7 @@ public static class CafeStep2Setup
         GameObject bestAny = null;   float bestAnyD = float.MaxValue;
 
         Renderer[] all = Object.FindObjectsByType<Renderer>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         foreach (Renderer r in all)
         {
@@ -579,7 +579,7 @@ public static class CafeStep2Setup
     private static GameObject FindInScene(string name)
     {
         GameObject[] all = Object.FindObjectsByType<GameObject>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
 
         foreach (GameObject go in all)
             if (go.name == name) return go;
@@ -595,7 +595,7 @@ public static class CafeStep2Setup
         List<string> lines = new List<string>();
 
         TableSeat[] seats = Object.FindObjectsByType<TableSeat>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         Line(lines, seats.Length > 0, seats.Length + " active TableSeat(s)");
 
@@ -612,7 +612,7 @@ public static class CafeStep2Setup
             : offMesh + " Stand Point(s) OFF the NavMesh — those seats freeze customers");
 
         WaitingSpot[] all = Object.FindObjectsByType<WaitingSpot>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         int loiter = 0;
         foreach (WaitingSpot s in all) if (s.Kind == WaitingSpot.SpotKind.Loiter) loiter++;

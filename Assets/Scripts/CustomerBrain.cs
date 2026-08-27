@@ -55,6 +55,31 @@ public class CustomerBrain : MonoBehaviour
              "people still walking push past them instead of bouncing off.")]
     [SerializeField] private int settledPriority = 90;
 
+    [Tooltip("Priority while walking away from the counter to their seat. " +
+             "Must be HIGHER than settledPriority (= lower priority), so " +
+             "someone who's just been served goes around the people still " +
+             "waiting instead of shouldering through them.")]
+    [SerializeField] private int leavingCounterPriority = 95;
+
+    [Tooltip("Last resort. A customer who has made no measurable progress for " +
+             "two full stuckTimeouts escalates to this. Low number = pushy, so " +
+             "they will shoulder through rather than stand there forever. " +
+             "Normal movement NEVER uses it.")]
+    [SerializeField] private int forcePriority = 15;
+
+    [Tooltip("How far counts as 'they moved'. Below this over a whole " +
+             "stuckTimeout and they're treated as wedged. Small enough that a " +
+             "slow walker never trips it, big enough that avoidance jitter on " +
+             "a body pinned against another doesn't read as walking.")]
+    [SerializeField] private float progressStep = 0.15f;
+
+    [Tooltip("How far they back away from the counter before turning for their " +
+             "seat.\n\nWithout this their route to a table runs ALONG the " +
+             "counter, straight through everyone else still queueing — which is " +
+             "why serving the person on the right used to shove the other two. " +
+             "Set to 0 to walk straight at the seat like before.")]
+    [SerializeField] private float counterStepBack = 1.2f;
+
     [Tooltip("How close counts as arrived. The prefab ships at 1 m, which " +
              "parks people a metre from their own chair.")]
     [SerializeField] private float arriveDistance = 0.3f;
@@ -195,9 +220,31 @@ public class CustomerBrain : MonoBehaviour
     // False until they've done their look-around on the way in.
     private bool driftDone;
 
+    // Where they're actually headed once they've stepped clear of the counter,
+    // and the clear-of-the-counter point itself.
+    private Vector3 settleDestination;
+    private Vector3 stepBackTo;
+    private bool hasStepBack;
+
+    // How far up the unwedging ladder this customer currently is. 0 = moving
+    // normally. Reset the moment they make progress.
+    private int stuckStage;
+
+    // Set on accept, cleared the moment they actually leave the counter slot.
+    private bool releaseSlotOnMove;
+
     // Jam detection while walking to a spot.
     private float stuckDeadline;
-    private float bestRemaining = float.MaxValue;
+    // Progress is measured as DISTANCE ACTUALLY TRAVELLED, not as
+    // remainingDistance shrinking.
+    //
+    // remainingDistance was the obvious choice and it's the wrong one: every
+    // re-path changes it discontinuously, so a customer sent the long way round
+    // reads as "no progress" while walking perfectly well, and a customer whose
+    // baseline was just reset reads as "progress" while standing still. Body
+    // moved / body didn't move has neither failure mode.
+    private Vector3 lastProgressPos;
+    private bool hasProgressPos;
     private int   settleAttempts;
 
     // Backstop for the walk to the door.
@@ -568,10 +615,39 @@ public class CustomerBrain : MonoBehaviour
         if (hasPendingDestination && Time.time >= moveAllowedAt)
         {
             hasPendingDestination = false;
+
+            // A new move means a new baseline. Without this the watchdog can
+            // inherit an anchor from wherever they were standing before the
+            // pause and immediately think they're wedged.
+            ResetProgressWatch();
+
             if (agent.isOnNavMesh)
             {
                 agent.isStopped = false;
                 agent.SetDestination(pendingDestination);
+            }
+
+            // THE COUNTER SLOT IS RELEASED HERE, NOT ON ACCEPT.
+            //
+            // BeginWaiting used to free it the instant the conversation closed
+            // — while the customer was still standing in it, stopped, for the
+            // reaction beat and however long it took to claim a waiting spot.
+            // The slot was logically empty and physically occupied by a body
+            // that cannot be pushed: a NavMeshAgent with isStopped = true is
+            // immovable, avoidance can't shift it.
+            //
+            // So CounterQueue.ReleaseSlot would shuffle the next person into
+            // that slot, they'd path to within arriveDistance (0.3 m) of a spot
+            // someone was still standing in, and lean on them until the parked
+            // customer finally walked off. That's the whole queue freezing until
+            // one specific person leaves.
+            //
+            // Now the space is only declared free at the moment the body
+            // actually starts moving out of it.
+            if (releaseSlotOnMove)
+            {
+                releaseSlotOnMove = false;
+                ReleaseCounterSlot();
             }
         }
 
@@ -588,23 +664,50 @@ public class CustomerBrain : MonoBehaviour
         switch (state)
         {
             case State.WalkingToCounter:
-                if (!hasPendingDestination && Arrived())
+                if (!hasPendingDestination)
                 {
-                    if (!driftDone)
+                    if (Arrived())
                     {
-                        // Reached their look-around spot. Stand a moment, then
-                        // go and queue. The pause is what sells it — walking
-                        // through a curve at constant speed still reads as a
-                        // conveyor belt.
-                        driftDone = true;
-                        MoveAfter(queue.SlotPoint(slotIndex).position,
-                                  Random.Range(driftPauseMin, driftPauseMax));
-                        break;
-                    }
+                        if (!driftDone)
+                        {
+                            // Reached their look-around spot. Stand a moment,
+                            // then go and queue. The pause is what sells it —
+                            // walking through a curve at constant speed still
+                            // reads as a conveyor belt.
+                            driftDone = true;
+                            MoveAfter(queue.SlotPoint(slotIndex).position,
+                                      Random.Range(driftPauseMin, driftPauseMax));
+                            break;
+                        }
 
-                    state = State.WaitingInQueue;
-                    patienceLeft = queueMax;
-                    StopSteering();     // stop shoving whoever's in front
+                        state = State.WaitingInQueue;
+                        patienceLeft = queueMax;
+                        StopSteering();     // stop shoving whoever's in front
+                    }
+                    else if (ProgressStalled())
+                    {
+                        // Wedged on the way IN. This state had no watchdog at
+                        // all before, which meant someone blocked in the
+                        // doorway stood there until closing time.
+                        //
+                        // Abandoning the sightseeing detour is free, so do that
+                        // first and aim straight at the counter.
+                        driftDone = true;
+
+                        if (!TryUnwedge(queue.SlotPoint(slotIndex).position))
+                        {
+                            // Re-pathing didn't help and neither did barging.
+                            // Nine seconds of zero progress means the room is
+                            // genuinely impassable for them — let them give up
+                            // and walk out, which at least ENDS, and say so
+                            // loudly enough to be fixable.
+                            Debug.LogWarning($"[{CustomerName}] couldn't reach the " +
+                                             $"counter and gave up. Check for a " +
+                                             $"gap narrower than the agent radius " +
+                                             $"between the door and the counter.", this);
+                            StormOut();
+                        }
+                    }
                 }
                 break;
 
@@ -630,8 +733,32 @@ public class CustomerBrain : MonoBehaviour
 
                 if (!hasPendingDestination)
                 {
-                    if (Arrived()) SettleHere();
-                    else CheckJammed();
+                    if (Arrived())
+                    {
+                        if (hasStepBack)
+                        {
+                            // Clear of the counter. NOW turn for the seat.
+                            hasStepBack = false;
+                            ResetProgressWatch();
+
+                            if (agent.isOnNavMesh)
+                            {
+                                agent.isStopped = false;
+
+                                // Drop back to polite. If they escalated to
+                                // forcePriority getting out of the slot, that
+                                // must not follow them across the room.
+                                agent.avoidancePriority = leavingCounterPriority;
+                                agent.SetDestination(settleDestination);
+                            }
+                        }
+                        else SettleHere();
+                    }
+                    else if (ProgressStalled())
+                    {
+                        if (!TryUnwedge(hasStepBack ? stepBackTo : settleDestination))
+                            GiveUpOnSpot();
+                    }
                 }
                 break;
 
@@ -670,7 +797,18 @@ public class CustomerBrain : MonoBehaviour
                 }
 
                 // Don't vanish while still mid-sentence — let the line finish first.
-                if (Arrived() && bubbleTimer <= 0f) Destroy(gameObject);
+                if (Arrived())
+                {
+                    if (bubbleTimer <= 0f) Destroy(gameObject);
+                }
+                else if (exitPoint != null && ProgressStalled())
+                {
+                    // Same ladder on the way out. leaveDeadline above is still
+                    // the hard floor, but re-pathing usually beats it by
+                    // fifteen seconds and nobody has to watch a customer stand
+                    // motionless in the doorway until it fires.
+                    TryUnwedge(exitPoint.position);
+                }
                 break;
         }
     }
@@ -797,7 +935,13 @@ public class CustomerBrain : MonoBehaviour
         patienceLeft = serviceMax;
         settleAttempts = 0;
 
-        ReleaseCounterSlot();
+        // Armed, not fired. The slot is handed back when they physically start
+        // walking out of it — see the deferred-move block in Update. If they
+        // can't find anywhere to go they keep standing here and keep the slot,
+        // which is honest: the queue really is full, and the spawner correctly
+        // holds new arrivals back rather than sending someone to a space that
+        // has a person in it.
+        releaseSlotOnMove = true;
 
         if (!TryTakeWaitingSpot())
         {
@@ -844,10 +988,58 @@ public class CustomerBrain : MonoBehaviour
 
         waitingSpot = spot;
         state = State.Settling;
+        settleDestination = destination;
+        hasStepBack = false;
 
-        bestRemaining = float.MaxValue;
-        stuckDeadline = 0f;
-        RollMovingPriority();
+        ResetProgressWatch();
+
+        // STEP BACK BEFORE YOU TURN.
+        //
+        // The seat is out in the room, but the straight line to it from a
+        // counter slot runs along the counter frontage — through every other
+        // person standing at it. Local avoidance can nudge an agent sideways;
+        // it never re-plans the path. So they grind along it: shoving when
+        // they're allowed to, stalling when they're not. Widening the slots
+        // doesn't help, because the conflict is ALONG the rank, not between
+        // neighbours.
+        //
+        // So take one step backwards into open floor first. From there the
+        // route to any table is clear and nobody is in it.
+        //
+        // The direction comes from the SLOT, not from the customer: FaceTarget
+        // copies the slot's rotation, so the slot's forward is "at the counter"
+        // by definition. Rotate a slot in the scene and the step-back follows
+        // it. If the point isn't on the NavMesh we silently do exactly what we
+        // did before — this can't introduce a new way to fail.
+        if (counterStepBack > 0f && slotIndex >= 0 && queue != null)
+        {
+            Transform slot = queue.SlotPoint(slotIndex);
+            Vector3 probe = slot.position - slot.forward * counterStepBack;
+
+            if (NavMesh.SamplePosition(probe, out NavMeshHit backHit, 1f, NavMesh.AllAreas)
+                && CanReach(backHit.position))
+            {
+                stepBackTo = backHit.position;
+                hasStepBack = true;
+                destination = stepBackTo;
+            }
+        }
+
+        // Yield, don't barge.
+        //
+        // This used to call RollMovingPriority(), which rolls 30-60. Customers
+        // parked at the counter sit at settledPriority (90), and Unity's scale
+        // runs backwards: LOWER number = HIGHER priority. So the one person who
+        // was moving outranked the three standing still, and avoidance decided
+        // THEY should get out of HIS way. Being isStopped, they couldn't step
+        // aside properly — they just got shoved. Serving the customer on the
+        // right visibly barged the middle and left ones out of the way.
+        //
+        // 95 puts the leaver below everyone he passes, so he steers around the
+        // queue instead of through it. Yielding is only safe because the
+        // unwedging ladder (see ProgressStalled / TryUnwedge) escalates him
+        // back to forcePriority if politeness ever costs him six seconds.
+        if (agent != null) agent.avoidancePriority = leavingCounterPriority;
 
         MoveAfterReacting(destination);
         return true;
@@ -926,45 +1118,126 @@ public class CustomerBrain : MonoBehaviour
         return line.Replace("{drink}", drinkName);
     }
 
-    // Are they actually getting anywhere? remainingDistance shrinking means
-    // yes. Flat for stuckTimeout seconds means they're wedged — most likely
-    // two people trying to use a gap only wide enough for one.
-    private void CheckJammed()
+    // ---------- the unwedging ladder ----------
+    //
+    // THE RULE THIS ENFORCES: a customer who is supposed to be moving either
+    // makes measurable progress, or is resolved within a bounded number of
+    // seconds. No state may end in a body standing still forever.
+    //
+    // Progress is measured as remainingDistance shrinking. Flat for
+    // stuckTimeout means something is wrong, and the ladder escalates rather
+    // than jumping straight to a drastic fix — because the cheap causes are by
+    // far the most common and the drastic fixes are the ones that look bad.
+    //
+    //   stage 1  (3s)  re-path          — the path went stale; ask for a new one
+    //   stage 2  (6s)  barge            — someone really is in the way
+    //   stage 3  (9s)  caller's bail-out — give up gracefully, but GIVE UP
+    //
+    // Any real progress at any point resets the whole thing to stage 0, so a
+    // customer who is merely slow is never punished for it.
+
+    // True on the tick where the customer just escalated a stage.
+    private bool ProgressStalled()
     {
-        if (agent == null || agent.pathPending) return;
+        if (agent == null || !agent.isOnNavMesh || agent.pathPending) return false;
 
-        float remaining = agent.remainingDistance;
-
-        // No path at all (or an unreachable one) counts as no progress.
-        if (!float.IsInfinity(remaining) && remaining < bestRemaining - 0.1f)
+        // First look at this move: take the anchor and start the clock.
+        if (!hasProgressPos)
         {
-            bestRemaining = remaining;
+            hasProgressPos = true;
+            lastProgressPos = transform.position;
             stuckDeadline = Time.time + stuckTimeout;
-            return;
+            return false;
         }
 
-        if (stuckDeadline <= 0f)
+        // Covered real ground since the anchor? Then they're fine. Re-anchor,
+        // restart the clock, and forget any stage they'd climbed to.
+        //
+        // A normal walk clears progressStep within a handful of frames, and
+        // even someone crawling at 0.1 m/s clears it inside the window. Only a
+        // body that is genuinely not moving fails this.
+        if ((transform.position - lastProgressPos).sqrMagnitude
+            > progressStep * progressStep)
         {
+            lastProgressPos = transform.position;
             stuckDeadline = Time.time + stuckTimeout;
-            return;
+            stuckStage = 0;
+            return false;
         }
 
-        if (Time.time < stuckDeadline) return;
+        if (Time.time < stuckDeadline) return false;
 
-        // ---- jammed ----
+        lastProgressPos = transform.position;
+        stuckDeadline = Time.time + stuckTimeout;
+        stuckStage++;
+        return true;
+    }
 
+    private void ResetProgressWatch()
+    {
+        hasProgressPos = false;
+        stuckDeadline = 0f;
+        stuckStage = 0;
+    }
+
+    // Handles stages 1 and 2. Returns false at stage 3+, which means "I'm out
+    // of generic ideas, do whatever your state does to end this."
+    private bool TryUnwedge(Vector3 goal)
+    {
+        if (agent == null || !agent.isOnNavMesh) return false;
+
+        switch (stuckStage)
+        {
+            case 1:
+                // Much the most common cause: a path that was valid when it was
+                // set and isn't any more — someone parked across it, or it came
+                // back partial. Cheap to fix and invisible when it works.
+                agent.isStopped = false;
+                agent.ResetPath();
+                agent.SetDestination(goal);
+                return true;
+
+            case 2:
+                // A fresh path didn't help, so a body is genuinely in the way
+                // and politeness has now cost this customer six seconds.
+                // Barge — briefly, and only from here. This is the escape valve
+                // that makes "yield by default" safe to have at all.
+                Debug.Log($"[{CustomerName}] wedged for {stuckTimeout * 2f}s — " +
+                          $"pushing through.", this);
+                agent.isStopped = false;
+
+                // Jittered, for the same reason RollMovingPriority is: two
+                // customers who both escalate would otherwise land on the
+                // IDENTICAL priority and mirror each other into a fresh
+                // standoff. Somebody has to be the one who yields.
+                agent.avoidancePriority =
+                    Mathf.Clamp(forcePriority + Random.Range(-5, 6), 0, 99);
+                agent.SetDestination(goal);
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    // Settling's stage-3 bail-out: this seat isn't happening.
+    private void GiveUpOnSpot()
+    {
         settleAttempts++;
 
         if (WaitingArea.Instance != null) WaitingArea.Instance.Release(this);
         waitingSpot = null;
-        bestRemaining = float.MaxValue;
-        stuckDeadline = 0f;
+        hasStepBack = false;
+        ResetProgressWatch();
 
         // Try somewhere else, twice. After that stop fighting the room and
         // wait where you are — someone standing slightly wrong is far better
         // than two people wrestling until the shop closes.
         if (settleAttempts <= 2 && TryTakeWaitingSpot()) return;
 
+        Debug.LogWarning($"[{CustomerName}] gave up on finding a seat and is " +
+                         $"waiting where they stand. Usually means the seats " +
+                         $"are unreachable, not that the floor is full.", this);
         SettleHere();
     }
 
@@ -1226,6 +1499,7 @@ public class CustomerBrain : MonoBehaviour
             // They were parked at settled priority, which would let everyone
             // else pin them against a table on the way out.
             RollMovingPriority();
+            ResetProgressWatch();
             agent.isStopped = false;
             agent.SetDestination(exitPoint.position);
         }

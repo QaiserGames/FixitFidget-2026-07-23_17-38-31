@@ -54,27 +54,33 @@ public class CounterQueue : MonoBehaviour
 
     public Transform SlotPoint(int index) => slots[index];
 
+    // Clear the slot and stop. Nobody is asked to move.
+    //
+    // WHAT USED TO HAPPEN, AND WHY IT'S GONE
+    //
+    // This used to compact the array toward index 0 and call MoveToSlot on
+    // everyone it shifted, so the line always closed up. Two things wrong with
+    // that:
+    //
+    // 1. It read like a school canteen. Serving the person on the right made
+    //    everyone else slide left, which is what a queue under pressure does,
+    //    not what people standing at a café counter do.
+    //
+    // 2. It was the source of the queue freeze. The shuffle handed a slot to
+    //    someone who then had to physically walk into a space the previous
+    //    occupant hadn't left yet — and a parked NavMeshAgent (isStopped) can't
+    //    be pushed, so they'd lean on each other until one finally walked off.
+    //
+    // ClaimSlot already returns the first free index, so a gap is filled by the
+    // next person through the door instead. The space closes from the entrance,
+    // which is both what you'd actually see and one less thing to go wrong.
+    //
+    // CustomerBrain.MoveToSlot is deliberately left in place. Nothing calls it
+    // now, but a bigger shop with a genuine single-file line would want it back.
     public void ReleaseSlot(CustomerBrain customer)
     {
         for (int i = 0; i < occupants.Length; i++)
             if (occupants[i] == customer)
                 occupants[i] = null;
-
-        // Shuffle everyone forward so there's never a gap in the line.
-        bool moved = true;
-        while (moved)
-        {
-            moved = false;
-            for (int i = 0; i < occupants.Length - 1; i++)
-            {
-                if (occupants[i] == null && occupants[i + 1] != null)
-                {
-                    occupants[i] = occupants[i + 1];
-                    occupants[i + 1] = null;
-                    occupants[i].MoveToSlot(i);
-                    moved = true;
-                }
-            }
-        }
     }
 }

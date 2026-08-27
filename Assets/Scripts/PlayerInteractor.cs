@@ -215,8 +215,37 @@ public class PlayerInteractor : MonoBehaviour
         // the same way and the crosshair can always reach the work surface.
         if (station.StandPoint != null)
         {
-            transform.position = station.StandPoint.position;
+            // TAKE THE FOOTPRINT, KEEP OUR OWN HEIGHT.
+            //
+            // CounterStandPoint sits at y = 0 — floor level — and so does the
+            // Workbench's. But the player's CharacterController is 2 m tall
+            // with its centre on the transform origin, so the transform
+            // belongs at y = 1 for the capsule's feet to reach the floor.
+            // Teleporting to the stand point's y buried the body exactly one
+            // metre in the floor, leaving the top dome poking through.
+            //
+            // Ignoring the stand point's height means nobody has to remember
+            // to author it at 1.0 — which is why the bench had the same bug.
+            // The cost is that a station on a raised platform would need its
+            // height from somewhere else. Fine for a flat shop.
+            Vector3 target = station.StandPoint.position;
+            target.y = transform.position.y;
+
+            // AND MOVE IT THE SUPPORTED WAY.
+            //
+            // A CharacterController keeps its own internal position.
+            // Assigning transform.position behind its back leaves the two
+            // disagreeing until the next Move() — and EnterStation disables
+            // `movement`, so no Move() runs while docked. That's why the body
+            // only snapped back once you walked away. Disabling the
+            // controller across the teleport is how Unity says to relocate one.
+            CharacterController cc = GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+
+            transform.position = target;
             transform.rotation = station.StandPoint.rotation;
+
+            if (cc != null) cc.enabled = true;
         }
 
         station.ActivateCamera(true);

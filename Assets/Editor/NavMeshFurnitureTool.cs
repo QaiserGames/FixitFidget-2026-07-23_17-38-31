@@ -37,6 +37,13 @@ public static class NavMeshFurnitureTool
 
     private const string STAFF_BLOCK = "StaffOnly_NoCustomers";
 
+    // Standing room to leave around the equipment.
+    private const float StaffMargin = 1.0f;
+
+    // Used when nothing is selected — the working nook, not half the room.
+    private static readonly string[] DefaultStaffObjects =
+        { "KitchenCounter", "EspressoMachine" };
+
     // ==================================================================
 
     [MenuItem("Fixit Fidget/NavMesh/1 · Mark furniture Not Walkable")]
@@ -112,50 +119,120 @@ public static class NavMeshFurnitureTool
         System.Type volType = FindType(VOLUME);
         if (volType == null) { NoPackage(); return; }
 
-        GameObject go = FindInScene(STAFF_BLOCK);
+        // ---- WHAT TO BLOCK: whatever you point at ----
+        //
+        // The first version drew one line across the room — everything behind
+        // the counter's front face. That is the right rule for a normal shop
+        // and completely wrong for this one: all 37 pieces of café furniture
+        // sit at z between -10.4 and +2.4, BEHIND the service counter, on the
+        // same side as the kitchen. So "behind the counter" deleted the café
+        // and left the kitchen as the only walkable floor.
+        //
+        // There is no clean line through this room, so stop looking for one.
+        // Wrap only the objects that actually make up the work area.
 
+        List<GameObject> targets = new List<GameObject>();
+
+        foreach (GameObject sel in Selection.gameObjects)
+            if (sel != null && sel.GetComponentInChildren<Renderer>() != null) targets.Add(sel);
+
+        bool fromSelection = targets.Count > 0;
+
+        if (!fromSelection)
+        {
+            foreach (string n in DefaultStaffObjects)
+            {
+                GameObject g = FindInScene(n);
+                if (g != null && g.GetComponentInChildren<Renderer>() != null) targets.Add(g);
+            }
+        }
+
+        if (targets.Count == 0)
+        {
+            EditorUtility.DisplayDialog("NavMesh",
+                "Nothing to wrap.\n\n" +
+                "Select the objects that make up your work area — the kitchen " +
+                "counter, the espresso machine, anything else customers should " +
+                "not be able to stand at — and run this again.", "OK");
+            return;
+        }
+
+        Bounds area = WorldBounds(targets[0]);
+        for (int i = 1; i < targets.Count; i++) area.Encapsulate(WorldBounds(targets[i]));
+
+        // Room to stand and work behind the equipment, without reaching so far
+        // that it swallows a chair.
+        area.Expand(new Vector3(StaffMargin * 2f, 0f, StaffMargin * 2f));
+
+        Vector3 centre = new Vector3(area.center.x, 2f, area.center.z);
+        Vector3 size = new Vector3(area.size.x, 5f, area.size.z);
+
+        // ---- would this strand anybody? Say so BEFORE they bake ----
+
+        List<string> caught = new List<string>();
+        foreach (WaitingSpot s in Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Include))
+        {
+            if (s == null) continue;
+            Vector3 p = s.StandPoint.position;
+            if (p.x > area.min.x && p.x < area.max.x && p.z > area.min.z && p.z < area.max.z)
+                caught.Add(s.name);
+        }
+
+        if (caught.Count > 0 &&
+            !EditorUtility.DisplayDialog("NavMesh",
+                "This would cut " + caught.Count + " waiting spot(s) off the floor:\n\n" +
+                string.Join(", ", caught.ToArray()) + "\n\n" +
+                "Customers who claim those would walk toward somewhere they can't " +
+                "reach. Block it anyway, or cancel and pick fewer objects?",
+                "Block it anyway", "Cancel"))
+            return;
+
+        GameObject go = FindInScene(STAFF_BLOCK);
         if (go == null)
         {
             go = new GameObject(STAFF_BLOCK);
             Undo.RegisterCreatedObjectUndo(go, UNDO);
-
-            // A starting guess, not a decision. Counter sits at z = 5 and the
-            // customer queue at z = 6.1, so the back face of the counter — about
-            // z = 4.5 — is the natural line between front and back of house.
-            // Full room width, because the counter is only 4 m wide in a 30 m
-            // room and walking around the end of it is exactly how they got in.
-            go.transform.position = new Vector3(0f, 0f, 0f);
-
-            Component vol = Undo.AddComponent(go, volType);
-            SerializedObject so = new SerializedObject(vol);
-
-            SerializedProperty size = so.FindProperty("m_Size");
-            SerializedProperty centre = so.FindProperty("m_Center");
-            SerializedProperty area = so.FindProperty("m_Area");
-
-            if (size != null)   size.vector3Value   = new Vector3(31f, 4f, 20.5f);
-            if (centre != null) centre.vector3Value = new Vector3(0f, 1.5f, -5.75f);
-            if (area != null)   area.intValue       = NotWalkable;
-
-            so.ApplyModifiedProperties();
         }
+
+        Undo.RecordObject(go.transform, UNDO);
+        go.transform.position = Vector3.zero;
+        go.transform.rotation = Quaternion.identity;
+        go.transform.localScale = Vector3.one;
+
+        Component vol = go.GetComponent(volType);
+        if (vol == null) vol = Undo.AddComponent(go, volType);
+
+        SerializedObject so = new SerializedObject(vol);
+        SerializedProperty pSize = so.FindProperty("m_Size");
+        SerializedProperty pCentre = so.FindProperty("m_Center");
+        SerializedProperty pArea = so.FindProperty("m_Area");
+
+        if (pSize != null)   pSize.vector3Value   = size;
+        if (pCentre != null) pCentre.vector3Value = centre;
+        if (pArea != null)   pArea.intValue       = NotWalkable;
+        so.ApplyModifiedProperties();
+
+        Debug.Log($"[NavMesh] Staff block wraps {targets.Count} object(s): " +
+                  $"x {area.min.x:F2}..{area.max.x:F2}, z {area.min.z:F2}..{area.max.z:F2}. " +
+                  $"Centre {centre}, size {size}.");
 
         Selection.activeGameObject = go;
         EditorGUIUtility.PingObject(go);
         SceneView.FrameLastActiveSceneView();
 
         EditorUtility.DisplayDialog("NavMesh",
-            "Created '" + STAFF_BLOCK + "' and selected it.\n\n" +
-            "It's an invisible volume that deletes the back of house from the " +
-            "NavMesh. Customers can't path into it at all — and it can't affect " +
-            "you, because the player is a CharacterController and never touches " +
-            "the NavMesh.\n\n" +
-            "SIZE IT NOW: drag the Center and Size on the Nav Mesh Modifier " +
-            "Volume component, or use the box handles in the Scene view. It " +
-            "should cover your kitchen and workbench and stop just behind the " +
-            "counter — NOT reach the customer queue.\n\n" +
-            "Then run '3 · Re-bake NavMesh', and 'Check' to confirm you haven't " +
-            "stranded any seats.", "OK");
+            "Staff area blocked, and selected in the Hierarchy.\n\n" +
+            "Wrapped " + targets.Count + " object(s)" +
+            (fromSelection ? " from your selection" : " (KitchenCounter, EspressoMachine)") +
+            ", plus " + StaffMargin + " m of standing room:\n\n" +
+            "   x " + area.min.x.ToString("F1") + " to " + area.max.x.ToString("F1") + "\n" +
+            "   z " + area.min.z.ToString("F1") + " to " + area.max.z.ToString("F1") + "\n\n" +
+            "It's invisible and it can't affect you — the player is a " +
+            "CharacterController and never touches the NavMesh.\n\n" +
+            "TO CHANGE IT: select the objects you want wrapped and run this " +
+            "again. It re-sizes rather than making a second one.\n\n" +
+            "NEXT: '3 · Re-bake NavMesh', then SAVE THE SCENE (Ctrl+S) — " +
+            "baking writes the NavMesh asset but not the volume itself.", "OK");
     }
 
     [MenuItem("Fixit Fidget/NavMesh/3 · Re-bake NavMesh")]
@@ -164,7 +241,7 @@ public static class NavMeshFurnitureTool
         System.Type surfaceType = FindType(SURFACE);
         if (surfaceType == null) { NoPackage(); return; }
 
-        Object[] surfaces = Object.FindObjectsByType(surfaceType, FindObjectsSortMode.None);
+        Object[] surfaces = Object.FindObjectsByType(surfaceType, FindObjectsInactive.Exclude);
         if (surfaces.Length == 0)
         {
             EditorUtility.DisplayDialog("NavMesh",
@@ -214,7 +291,7 @@ public static class NavMeshFurnitureTool
 
         if (surfaceType == null) { NoPackage(); return; }
 
-        Object[] surfaces = Object.FindObjectsByType(surfaceType, FindObjectsSortMode.None);
+        Object[] surfaces = Object.FindObjectsByType(surfaceType, FindObjectsInactive.Exclude);
         lines.Add((surfaces.Length > 0 ? "✔  " : "✘  ") + surfaces.Length + " NavMeshSurface(s)");
 
         foreach (Object s in surfaces)
@@ -231,7 +308,7 @@ public static class NavMeshFurnitureTool
         }
 
         int mods = modType != null
-            ? Object.FindObjectsByType(modType, FindObjectsSortMode.None).Length : 0;
+            ? Object.FindObjectsByType(modType, FindObjectsInactive.Exclude).Length : 0;
 
         lines.Add((mods > 0 ? "✔  " : "✘  ") + mods + " NavMeshModifier(s) — " +
                   (mods == 0
@@ -248,7 +325,7 @@ public static class NavMeshFurnitureTool
         // toward somewhere unreachable and the jam detector has to rescue them.
         // Far better to hear about it here than to watch it at runtime.
         WaitingSpot[] spots = Object.FindObjectsByType<WaitingSpot>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         List<string> stranded = new List<string>();
         foreach (WaitingSpot s in spots)
@@ -315,6 +392,21 @@ public static class NavMeshFurnitureTool
             "4. Select Floor → NavMesh Surface → Bake", "OK");
     }
 
+    private static void Line(List<string> lines, bool ok, string text)
+    {
+        lines.Add((ok ? "✔  " : "✘  ") + text);
+    }
+
+    private static Bounds WorldBounds(GameObject root)
+    {
+        Renderer[] rs = root.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return new Bounds(root.transform.position, Vector3.one);
+
+        Bounds b = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+        return b;
+    }
+
     private static System.Type FindType(string fullName)
     {
         foreach (Assembly a in System.AppDomain.CurrentDomain.GetAssemblies())
@@ -328,7 +420,7 @@ public static class NavMeshFurnitureTool
     private static GameObject FindInScene(string name)
     {
         GameObject[] all = Object.FindObjectsByType<GameObject>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
 
         foreach (GameObject go in all)
             if (go.name == name) return go;
