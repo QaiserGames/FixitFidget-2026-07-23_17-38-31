@@ -10,7 +10,15 @@ public class CustomerBrain : MonoBehaviour
     // yet, not everyone in the building.
     public enum State { WalkingToCounter, WaitingInQueue, Settling, Waiting, Speaking, Leaving }
 
-    [SerializeField] private float queuePatience = 15f;
+    // TUNING, 2026-08-27. Was 15s. Three logged days showed queued customers
+    // surviving ~18s of queue patience while an accepted job kept the player
+    // away from the counter for ~66s — a 3.5x mismatch, and the reason 32 of 55
+    // arrivals stormed out before ever being spoken to. 40s lets someone in the
+    // queue survive one full repair cycle.
+    //
+    // NOTE: this is a SerializeField, so the value on the Customer prefab wins
+    // over this default. Change it there too.
+    [SerializeField] private float queuePatience = 40f;
     [SerializeField] private float servicePatience = 45f;
     [SerializeField] private float maxTipFraction = 0.6f;
     [SerializeField] private float turnSpeed = 240f;
@@ -195,6 +203,40 @@ public class CustomerBrain : MonoBehaviour
     private bool intakeGiven;
     private bool departHappy = true;
 
+    // ---------- why they left, and what happened while they were here ----------
+    //
+    // Depart() is the single exit for every customer, but by the time it runs
+    // the reason is gone — state has already moved on and the decision that
+    // caused it happened frames earlier. So each exit path stamps its reason
+    // here on the way past, and Depart reads it.
+    //
+    // Defaulting to StormedOutWaiting rather than Declined is deliberate: if a
+    // path is ever added that forgets to stamp, the day should over-report
+    // failures, not quietly hide them.
+    private LostReason lossReason = LostReason.StormedOutWaiting;
+
+    // Everything DayLog needs about this visit. Cheap to keep, and it means the
+    // log never has to reach into a half-destroyed object at exit time.
+    private float arrivedAt;
+    private bool  wasAccepted;
+    private bool  wasServed;
+    private int   paidBase;
+    private int   paidTip;
+    private JobGrade lastGrade = JobGrade.Rejected;
+    private float repairStartedAt = -1f;
+
+    // Remembered rather than read off waitingSpot, because Depart releases the
+    // spot and nulls the reference BEFORE the log call — so asking the live
+    // spot would report blank for every single customer. Where they waited is
+    // one of the more interesting columns (did the seated ones survive and the
+    // loiterers storm out?), so it's worth a field.
+    private WaitingSpot.SpotKind? lastWaitKind;
+
+    public float ArrivedAt => arrivedAt;
+    public bool  WasAccepted => wasAccepted;
+    public LostReason Loss => lossReason;
+    public WaitingSpot.SpotKind? WaitKind => lastWaitKind;
+
     // ---------- conversation ownership ----------
     //
     // THE CONTRACT: while a conversation is open, this customer's body belongs
@@ -353,8 +395,34 @@ public class CustomerBrain : MonoBehaviour
 
     // ---------- café ----------
 
-    // Waiting on a drink that hasn't been started yet.
-    public bool AwaitingDrink => drinkOrdered && !drinkStarted;
+    // Waiting on a drink that doesn't physically exist yet.
+    //
+    // THE BUG THIS FIXES: this used to read `drinkOrdered && !drinkStarted`,
+    // and drinkStarted was a LATCH — set the moment you loaded a cup, cleared
+    // only when the drink reached their hands. Nothing ever checked that the
+    // cup still existed.
+    //
+    // So any cup that was started and never delivered — abandoned on a shelf,
+    // destroyed, or handed to someone else who wanted the same thing (which
+    // CanReceiveDrink explicitly allows) — left that customer latched shut
+    // forever. Their ticket stayed on the rail, because the rail reads
+    // drinkOrdered. The espresso machine skipped them, because it read
+    // AwaitingDrink. The player was shown an order they could not fulfil for
+    // the rest of the day, and the customer eventually stormed out over a
+    // coffee the game had refused to let anyone make.
+    //
+    // The flag is now advisory and physical reality is authoritative: you're
+    // awaiting a drink if you ordered one and no cup is bound to you. Every
+    // failure path self-heals, including ones we haven't thought of — lose the
+    // cup, and the order simply reappears at the machine.
+    public bool AwaitingDrink => drinkOrdered && !DrinkJob.ExistsFor(this);
+
+    // Kept so the machine can still say what it's doing, but nothing gates on
+    // it any more.
+    public bool DrinkStarted => drinkStarted;
+
+    /// <summary>They've asked for a drink, whether or not it's been made yet.</summary>
+    public bool HasDrinkOrder => drinkOrdered;
 
     public void MarkDrinkStarted() => drinkStarted = true;
 
@@ -501,6 +569,8 @@ public class CustomerBrain : MonoBehaviour
         queue = counterQueue;
         exitPoint = exit;
         record = job;
+
+        arrivedAt = DayClock.Instance != null ? DayClock.Instance.SecondsIntoDay : 0f;
 
         // Rolled at spawn and kept quiet until they've settled. Deterministic
         // and simpler than deciding mid-wait — and indistinguishable from the
@@ -864,6 +934,9 @@ public class CustomerBrain : MonoBehaviour
     {
         if (!CanAcceptJob || record == null) return "";
 
+        wasAccepted = true;
+        repairStartedAt = DayClock.Instance != null ? DayClock.Instance.SecondsIntoDay : 0f;
+
         decided = true;
         jobAccepted = true;
 
@@ -987,6 +1060,7 @@ public class CustomerBrain : MonoBehaviour
         }
 
         waitingSpot = spot;
+        if (spot != null) lastWaitKind = spot.Kind;
         state = State.Settling;
         settleDestination = destination;
         hasStepBack = false;
@@ -1265,6 +1339,12 @@ public class CustomerBrain : MonoBehaviour
     {
         if (!CanRefuse) return "";
 
+        // Read before `decided` flips, because OutOfStock and ShelfFull both
+        // hang off CanDecide and go false the instant it does.
+        lossReason = OutOfStock  ? LostReason.OutOfStock
+                   : ShelfFull   ? LostReason.ShelfFull
+                                 : LostReason.Declined;
+
         decided = true;
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "";
@@ -1301,6 +1381,13 @@ public class CustomerBrain : MonoBehaviour
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, false);
+
+        // Accumulated, not assigned — a repair customer who also bought a
+        // coffee gets paid twice in one visit, and the log should show the
+        // whole visit, not the last thing that happened in it.
+        paidBase += basePay;
+        paidTip  += tip;
+        wasServed = true;
 
         carry.Consume();
         drinkOrdered = false;
@@ -1361,6 +1448,11 @@ public class CustomerBrain : MonoBehaviour
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, true, grade);
 
+        paidBase += basePay;
+        paidTip  += tip;
+        wasServed = true;
+        lastGrade = grade;
+
         // It was in the player's hands, so make sure the shelf/bench forgets it.
         foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
             spot.Release(activeJob);
@@ -1374,6 +1466,24 @@ public class CustomerBrain : MonoBehaviour
 
         // Only bubble it if there's no panel showing the same words.
         if (conversation == null) Say(line);
+
+        // THE MIRROR OF THE ServeDrink SPLIT, which was never written.
+        //
+        // ServeDrink learned not to end the visit while a repair was still
+        // outstanding. Handing a repair BACK never learned the reciprocal
+        // check, so giving someone their phone sent them home on top of a
+        // coffee they'd ordered and you hadn't made yet — and because Depart
+        // clears drinkOrdered, the ticket vanished without a word. You lost the
+        // sale and the game never told you it had happened.
+        //
+        // Same rule in both directions now: you leave when nobody owes you
+        // anything.
+        if (drinkOrdered)
+        {
+            Say(line);
+            return line;
+        }
+
         FinishAndLeave(line, true);
         return line;
     }
@@ -1396,6 +1506,14 @@ public class CustomerBrain : MonoBehaviour
 
     private void StormOut()
     {
+        // Captured BEFORE anything else touches state. Storming out of the
+        // queue means you never even heard them; storming out while waiting
+        // means you took the job and didn't get back. Different failures,
+        // different fixes, so they're worth telling apart in the log.
+        lossReason = state == State.WaitingInQueue
+            ? LostReason.StormedOutInQueue
+            : LostReason.StormedOutWaiting;
+
         decided = true;
 
         // If their patience runs out mid-conversation, the panel would
@@ -1491,7 +1609,13 @@ public class CustomerBrain : MonoBehaviour
         if (waitingBadge != null) waitingBadge.Hide();
         if (patienceBar != null) patienceBar.gameObject.SetActive(false);
 
-        if (!happy && DayClock.Instance != null) DayClock.Instance.RecordLost();
+        if (!happy && DayClock.Instance != null) DayClock.Instance.RecordLost(lossReason);
+
+        // One line per visit, written the moment the visit is over. Read-only:
+        // DayLog changes nothing and can be deleted whenever it stops earning
+        // its place.
+        DayLog.Record(this, happy, lossReason, wasServed, wasAccepted,
+                      paidBase, paidTip, lastGrade, repairStartedAt);
 
         hasPendingDestination = false;
         if (agent.isOnNavMesh)

@@ -61,7 +61,22 @@ public class EspressoMachine : Interactable
             if (held == null || !held.IsEmpty) return "Needs an empty cup";
 
             List<CustomerBrain> orders = PendingOrders;
-            if (orders.Count == 0) return "No orders waiting";
+            if (orders.Count == 0)
+            {
+                // Don't just say "no orders" when there are tickets on the rail
+                // — that's the readout contradicting itself, and it's exactly
+                // how the latched-order bug hid for so long. Say which it is.
+                int made = 0;
+                foreach (CustomerBrain b in FindObjectsByType<CustomerBrain>(
+                             FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                {
+                    if (b != null && b.HasDrinkOrder && !b.AwaitingDrink) made++;
+                }
+
+                return made > 0
+                    ? $"No orders waiting ({made} already made)"
+                    : "No orders waiting";
+            }
 
             DrinkDefinition want = orders[0].WantedDrink;   // repair customers wish too
             if (ShopInventory.Instance != null && !ShopInventory.Instance.CanBrew(want))
@@ -104,6 +119,12 @@ public class EspressoMachine : Interactable
         loadedCup = held;
         loadedCup.Locked = true;
         brewingFor = customer;
+
+        // Bound NOW rather than at FinishBrew. AwaitingDrink asks whether a cup
+        // exists for this person, so leaving the cup unowned for the length of
+        // the brew would put them straight back in the queue and let you start
+        // a second cup for someone who already has one coming.
+        loadedCup.SetOwner(customer);
         float speed = UpgradeManager.Instance != null
             ? UpgradeManager.Instance.BrewTimeMultiplier : 1f;
         brewTimer = drink.brewSeconds * speed;

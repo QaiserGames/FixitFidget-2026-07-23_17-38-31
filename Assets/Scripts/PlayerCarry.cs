@@ -58,6 +58,21 @@ public class PlayerCarry : MonoBehaviour
     {
         if (!IsCarrying) return;
 
+        // Validate BEFORE touching anything. The old version re-enabled the
+        // renderers first and then read spot.position, so a null spot threw
+        // partway through and left Carried set — hands full forever, holding
+        // something the player had every reason to believe they'd put down.
+        //
+        // Callers are supposed to check for a full slot area. One of them
+        // didn't. This makes that class of mistake harmless rather than fatal.
+        if (spot == null)
+        {
+            Debug.LogWarning("[PlayerCarry] PlaceAt was given no spot — refusing " +
+                             "rather than stranding the carried item. The caller " +
+                             "should have checked for a free slot first.", this);
+            return;
+        }
+
         SetRenderers(true);      // must come back on before we let go
 
         Carried.transform.position = spot.position + Vector3.up * Carried.restHeight;

@@ -1,0 +1,26 @@
+﻿===== DAY 1 =====
+
+Arrived                18
+Accepted               7
+Served                 7   (4 repairs, 3 drinks)
+
+WHY PEOPLE LEFT UNSERVED
+  Stormed out (queue)  11    <- never even heard them
+  Stormed out (wait)   1    <- took the job, didn't get back
+  Still here at close  0
+  You declined         0    <- a choice, not a failure
+  Out of stock         0
+  Shelf was full       0
+
+GRADES
+  Perfect              3
+  Good                 0
+  Passable             0
+
+MONEY
+  Earned               $197   ($53 of it tips)
+
+Average visit length   75.4s
+Closest call           87% patience left
+
+Per-customer detail is in the CSV beside this file.

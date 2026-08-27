@@ -1,6 +1,26 @@
 using System;
 using UnityEngine;
 
+// WHY A CUSTOMER LEFT WITHOUT BEING SERVED.
+//
+// "Lost" used to be a single number covering two completely different days:
+// the day you over-committed and three people stormed off, and the day you
+// judged you were full, declined three walk-ins, and served everyone you took.
+// Those are a failure and a good decision, and the recap called them the same
+// thing — so it could never answer "what screwed me today?", which is the
+// question the whole upgrade loop hangs off.
+//
+// Only ever APPEND to this. It's headed for save data and the journal.
+public enum LostReason
+{
+    StormedOutInQueue,   // ran out of patience before you even heard them
+    StormedOutWaiting,   // you took the job and didn't get back in time
+    Declined,            // you pressed Q. A choice, not a failure.
+    OutOfStock,          // couldn't make their drink. Not your fault today.
+    ShelfFull,           // no room to take the device
+    StillInShopAtClose   // day ended with them unserved
+}
+
 public class DayClock : MonoBehaviour
 {
     public static DayClock Instance { get; private set; }
@@ -18,12 +38,25 @@ public class DayClock : MonoBehaviour
 
     public int Day { get; private set; }
     public float TimeRemaining { get; private set; }
+
+    // Wall-clock stamp of this morning's opening, so anything logging an event
+    // can say WHEN in the day it happened rather than just that it happened.
+    private float dayStartedAt;
+
+    /// <summary>Seconds since the shop opened this morning.</summary>
+    public float SecondsIntoDay => Time.time - dayStartedAt;
     public bool IsOpen { get; private set; }
     public bool DayOver { get; private set; }
 
     // Stats for the recap.
     public int Served { get; private set; }
+
+    // Storm-outs ONLY. People who wanted serving and didn't get it.
     public int Lost { get; private set; }
+
+    // You turned them away on purpose. Kept apart from Lost so restraint isn't
+    // scored as failure — see the LostReason comment above.
+    public int Declined { get; private set; }
     public int Repairs { get; private set; }
     public int Drinks { get; private set; }
     public int Tips { get; private set; }
@@ -61,10 +94,12 @@ public class DayClock : MonoBehaviour
             if (c != null) c.ForceRemove();
 
         TimeRemaining = dayLengthSeconds;
+        dayStartedAt = Time.time;
         IsOpen = true;
         DayOver = false;
         Served = 0;
         Lost = 0;
+        Declined = 0;
         Repairs = 0;
         Drinks = 0;
         Tips = 0;
@@ -173,7 +208,23 @@ public class DayClock : MonoBehaviour
         Earned += basePay + tip;
     }
 
-    public void RecordLost() => Lost++;
+    // A customer left without being served. The reason decides which column it
+    // lands in: a storm-out is a failure, a decline is a decision.
+    public void RecordLost(LostReason reason)
+    {
+        switch (reason)
+        {
+            case LostReason.Declined:
+            case LostReason.OutOfStock:
+            case LostReason.ShelfFull:
+                Declined++;
+                break;
+
+            default:
+                Lost++;
+                break;
+        }
+    }
 
     // Used by the save system on load, before the first day starts.
     public void SetDay(int day)

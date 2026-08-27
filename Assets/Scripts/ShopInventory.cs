@@ -34,6 +34,11 @@ public class ShopInventory : MonoBehaviour
         return true;
     }
 
+    // Putting an unwanted cup back. Without this, picking up a cup with no
+    // order waiting left you holding it with nowhere to go — carry is 1, so
+    // you had to dump it on a shelf slot a device needed.
+    public void ReturnCup() => cups++;
+
     public bool CanBrew(DrinkDefinition drink)
     {
         if (drink == null) return false;

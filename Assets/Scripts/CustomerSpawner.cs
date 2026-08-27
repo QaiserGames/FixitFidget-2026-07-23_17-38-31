@@ -10,7 +10,13 @@ public class CustomerSpawner : MonoBehaviour
     [SerializeField] private CounterQueue counterQueue;
 
     [Header("Pacing")]
-    [SerializeField] private float spawnInterval = 8f;
+    // TUNING, 2026-08-27. Scene value was 6s, which put 18-19 arrivals into a
+    // 180s day against a shop that demonstrably serves 6-8. Eleven of those
+    // people existed only to time out unseen. 15s gives ~11 arrivals, so
+    // over-demand is mild and the ones you lose are ones you actually met.
+    //
+    // NOTE: SerializeField — the SCENE value wins over this default.
+    [SerializeField] private float spawnInterval = 15f;
     [SerializeField] private int maxCustomers = 3;
 
     [Tooltip("How soon to look again when we held someone back because the " +

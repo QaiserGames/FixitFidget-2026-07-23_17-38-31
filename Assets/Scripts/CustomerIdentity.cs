@@ -10,6 +10,10 @@ public class CustomerIdentity : MonoBehaviour
     public Color ThemeColor { get; private set; } = Color.white;
     public bool IsRegular => profile != null;
     public CustomerProfile Profile => profile;
+
+    // Exposed for the day log, so a run can be read back as "the impatient
+    // ones are the ones storming out" rather than just "three people left".
+    public CustomerArchetype Archetype => archetype;
     public int Relationship { get; private set; }      // stub until memory lands
     // Regulars have faces. Walk-ins fall back to a silhouette in the UI.
     public Sprite Portrait => profile != null ? profile.portraitNeutral : null;

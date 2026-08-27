@@ -487,7 +487,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6efec26716590774ebd18a5fbeabf3c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CustomerBrain
-  queuePatience: 15
+  queuePatience: 40
   servicePatience: 45
   maxTipFraction: 0.6
   turnSpeed: 240
@@ -499,12 +499,41 @@ MonoBehaviour:
   reassureFalloff: 0.6
   reassureTipCost: 0.15
   reassureMaxUses: 3
+  reactionTime: 0.6
+  spotRetryInterval: 1
+  movingPriorityMin: 30
+  movingPriorityMax: 60
+  settledPriority: 90
+  leavingCounterPriority: 95
+  forcePriority: 15
+  progressStep: 0.15
+  counterStepBack: 1.2
+  arriveDistance: 0.3
+  stuckTimeout: 3
+  driftDistanceMin: 2
+  driftDistanceMax: 5
+  driftSpreadDegrees: 70
+  driftPauseMin: 1
+  driftPauseMax: 3
+  walkSpeedJitter: 0.15
+  orderDelayMin: 4
+  orderDelayMax: 8
+  orderTopUp: 0.1
+  serveBump: 0.08
+  drinkingSeconds: 20
+  drinkingDrain: 0.5
+  satisfiedDrain: 0.8
+  orderFallback: Could I get a {drink} while I wait?
+  leaveTimeout: 20
+  shelfYawJitter: 12
+  shelfOffsetJitter: 0.02
   conversationDrainMultiplier: 0.1
   presenceDrainMultiplier: 0.2
   patienceBar: {fileID: 3382181744524018593}
   speechBubble: {fileID: 6256992342730178411}
   identity: {fileID: 5221819417326784668}
   lookTarget: {fileID: 4959249724747449679}
+  waitingBadge: {fileID: 0}
 --- !u!136 &3547829432509808127
 CapsuleCollider:
   m_ObjectHideFlags: 0

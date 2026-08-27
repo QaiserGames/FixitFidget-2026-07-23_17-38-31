@@ -1,0 +1,20 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip
+"Ingrid",no,"WatchOwner","Drink","Latte",,,,4.8,49.0,44.3,29.5,yes,yes,"Served",,1.0,"Seat",6,4
+"Malcom",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",22.8,49.6,26.8,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Mansoor",no,"PhoneOwner","Drink","Coffee",,,,28.8,54.3,25.5,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Priya",no,"WatchOwner","Drink","Latte",,,,10.8,70.5,59.7,46.4,yes,yes,"Served",,1.0,"Seat",6,3
+"Yuki",no,"Radio Owner","Repair","Phone","Cracked Screen","Mechanical",,64.8,91.0,26.3,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Ali",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical","Coffee",70.8,96.0,25.2,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Walter",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical","Coffee",16.8,106.3,89.6,77.6,yes,yes,"Served","Perfect",0.4,"Seat",44,3
+"Nina",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Latte",82.8,110.1,27.3,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Malcom",no,"PhoneOwner","Drink","Latte",,,,100.8,126.6,25.8,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Ingrid",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,106.8,132.3,25.5,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Deshawn",no,"WatchOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",34.8,134.3,99.6,77.9,yes,yes,"Served","Perfect",1.0,"Seat",38,11
+"Priya",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,112.8,139.2,26.4,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Nina",no,"PhoneOwner","Drink","Coffee",,,,139.8,167.4,27.6,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Saamin",no,"PhoneOwner","Drink","Latte",,,,58.8,171.7,113.0,92.8,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
+"Omar",no,"Radio Owner","Repair","Phone","Cracked Screen","Mechanical",,145.8,172.1,26.2,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Alishba",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",151.8,180.7,28.9,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Deshawn",no,"PhoneOwner","Drink","Latte",,,,127.8,190.1,62.3,42.7,yes,yes,"Served",,1.0,"Seat",6,2
+"Nina",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",168.4,196.7,28.3,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Alishba",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Latte",174.4,222.9,48.5,25.3,yes,yes,"Served","Perfect",1.0,"Seat",38,18

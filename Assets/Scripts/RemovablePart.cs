@@ -7,10 +7,12 @@ public class RemovablePart : BenchInteractable
     [SerializeField] private int traySlot = 0;
     [SerializeField] private float moveDuration = 0.35f;
 
-    [Tooltip("Faults beneath this part. It refuses to close over unfinished work.")]
+    [Tooltip("Faults beneath this part. Used only to word the prompt — this " +
+             "no longer refuses to close over unfinished work.")]
     [SerializeField] private GameObject[] faultsBeneath;
 
-    [Tooltip("Parts beneath that must be replaced before this can close.")]
+    [Tooltip("Parts beneath that ought to be replaced before this closes. " +
+             "Advisory, not a gate.")]
     [SerializeField] private ReplaceablePart[] replacementsBeneath;
 
     [SerializeField] private string partName = "Back cover";
@@ -69,18 +71,23 @@ public class RemovablePart : BenchInteractable
         }
     }
 
+   
     public override bool CanInteract
     {
         get
         {
             if (busy) return false;
             if (!IsRemoved) return AllScrewsOut;      // lift off
-            return WorkBeneathDone;                    // put back
+            return true;                               // put back — always allowed
         }
     }
 
     public override string DisplayName => partName;
-    public override string Prompt => IsRemoved ? "Put back on" : "Lift off";
+
+    public override string Prompt =>
+        !IsRemoved       ? "Lift off"
+        : WorkBeneathDone ? "Put back on"
+                          : "Close it up anyway";
     public override ToolType RequiredTool => ToolType.Pry;
 
     public override void Activate()
