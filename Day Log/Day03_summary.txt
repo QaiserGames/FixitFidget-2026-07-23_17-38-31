@@ -1,12 +1,12 @@
 ﻿===== DAY 3 =====
 
-Arrived                19
+Arrived                10
 Accepted               7
-Served                 6   (3 repairs, 3 drinks)
+Served                 7   (3 repairs, 4 drinks)
 
 WHY PEOPLE LEFT UNSERVED
-  Stormed out (queue)  12    <- never even heard them
-  Stormed out (wait)   1    <- took the job, didn't get back
+  Stormed out (queue)  3    <- never even heard them
+  Stormed out (wait)   2    <- took the job, didn't get back
   Still here at close  0
   You declined         0    <- a choice, not a failure
   Out of stock         0
@@ -18,9 +18,9 @@ GRADES
   Passable             0
 
 MONEY
-  Earned               $179   ($41 of it tips)
+  Earned               $215   ($68 of it tips)
 
-Average visit length   67.3s
-Closest call           41% patience left
+Average visit length   68.7s
+Closest call           0% patience left
 
 Per-customer detail is in the CSV beside this file.
