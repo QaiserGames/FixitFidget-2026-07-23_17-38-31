@@ -591,7 +591,11 @@ public class CustomerBrain : MonoBehaviour
         serviceMax = servicePatience * mult;
 
         // They know what they came in for, so dialogue can name it.
-        if (identity != null && record != null) identity.SetDevice(record.Subject);
+        if (identity != null && record != null)
+        {
+            identity.SetDevice(record.Subject);
+            identity.SetFault(record.faultDescription);
+        }
 
         HideBubble();
         if (waitingBadge != null) waitingBadge.Hide();

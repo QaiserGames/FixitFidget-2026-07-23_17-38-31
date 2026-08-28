@@ -22,6 +22,11 @@ public class CustomerIdentity : MonoBehaviour
     private CustomerArchetype archetype;
     private string deviceName = "thing";
 
+    // Lowercased on the way in, because it arrives as a ticket label
+    // ("Cracked Screen") and comes out mid-sentence ("my phone, cracked
+    // screen"). Capitals mid-line read as a UI string that leaked into speech.
+    private string faultName = "something";
+
     public void SetupRegular(CustomerProfile p, int relationship = 0)
     {
         profile = p;
@@ -43,6 +48,12 @@ public class CustomerIdentity : MonoBehaviour
     public void SetDevice(string device)
     {
         if (!string.IsNullOrEmpty(device)) deviceName = device;
+    }
+
+    /// <summary>What's actually wrong with it, for the {fault} token.</summary>
+    public void SetFault(string fault)
+    {
+        if (!string.IsNullOrEmpty(fault)) faultName = fault.ToLowerInvariant();
     }
 
     public float PatienceMultiplier =>
@@ -81,8 +92,16 @@ public class CustomerIdentity : MonoBehaviour
             _ => null
         };
 
-        // {device} lets one written line work across the whole roster.
-        return set.Pick(pool).Replace("{device}", deviceName);
+        // {device} and {fault} let one written line work across the whole
+        // roster. Five personalities x seven beats is 35 lines that cover every
+        // device-and-fault combination, instead of 35 per combination.
+        //
+        // {fault} matters more than it looks: it's how the player learns what
+        // they're being asked to take on before they press E. A decline can't
+        // be a real decision if every job is described identically.
+        return set.Pick(pool)
+                  .Replace("{device}", deviceName)
+                  .Replace("{fault}", faultName);
     }
 
     private DialogueSet ResolveSet()

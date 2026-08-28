@@ -1,10 +1,12 @@
 ﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip
-"Ali",no,"Radio Owner","Repair","Phone","Cracked Screen","Mechanical",,5.3,47.6,42.2,27.6,yes,yes,"Served","Perfect",0.8,"Seat",44,18
-"Priya",no,"Radio Owner","Drink","Latte",,,,20.3,113.5,93.1,63.7,yes,yes,"Served",,0.3,"Seat",6,1
-"Beatriz",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical","Latte",35.3,134.5,99.1,79.3,yes,yes,"StormedOutWaiting","Perfect",0.0,"Seat",44,20
-"Tomas",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,80.3,176.8,96.4,79.9,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
-"Mansoor",no,"Radio Owner","Repair","Phone","Cracked Screen","Mechanical",,125.4,178.3,53.0,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Mansoor",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,50.3,182.2,131.8,90.7,yes,yes,"Served","Perfect",0.2,"Seat",38,3
-"Deshawn",no,"WatchOwner","Drink","Coffee",,,,95.4,191.0,95.7,41.7,yes,yes,"Served",,0.8,"Seat",3,2
-"Yuki",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,65.3,204.5,139.2,102.4,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
-"Yuki",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical",,140.4,227.5,87.1,32.2,yes,yes,"Served","Perfect",0.8,"Seat",44,26
+"Ali",no,"WatchOwner","Drink","Latte",,,,5.9,62.3,56.4,30.9,yes,yes,"Served",,0.9,"Seat",6,4
+"Deshawn",no,"WatchOwner","Drink","Coffee",,,,20.9,85.3,64.4,49.0,yes,yes,"Served",,0.9,"Seat",3,2
+"Ali",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,65.9,117.7,51.8,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Grace",no,"Radio Owner","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",80.9,134.4,53.5,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Walter",no,"Radio Owner","Repair","Phone","Cracked Screen","Mechanical",,95.9,147.9,52.0,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Saamin",no,"PhoneOwner","Repair","Phone","Gunked Up, Won't Charge","Cleaning","Latte",50.9,162.0,111.1,72.9,yes,yes,"Served","Perfect",0.2,"Seat",62,14
+"Tomas",no,"WatchOwner","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",35.9,162.3,126.4,111.7,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
+"Grace",no,"WatchOwner","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",134.9,199.3,64.4,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Grace",no,"Radio Owner","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",149.9,202.2,52.3,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Beatriz",no,"PhoneOwner","Repair","Pocket Watch","Seized Movement","Mechanical","Coffee",118.4,228.3,109.9,79.3,yes,yes,"StormedOutWaiting","Perfect",0.0,"Seat",200,24
+"Valerie",no,"WatchOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Latte",164.9,231.4,66.4,,no,no,"StormedOutInQueue",,0.0,,0,0
