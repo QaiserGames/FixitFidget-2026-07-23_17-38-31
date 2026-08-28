@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3bb5f8dd5d9831243aca7add91ec30b7, type: 3}
-  m_Name: Upgrade_BiggerBench
+  m_Name: Upgrade_BulkRestock
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
-  upgradeName: Bigger Bench
-  description: Hold one more device on the bench at once.
-  type: 2
-  valuePerLevel: 1
-  costPerLevel: 8403000060090000
+  upgradeName: Bulk Restock
+  description: More beans and cups per purchase.
+  type: 3
+  valuePerLevel: 5
+  costPerLevel: 90010000e8030000

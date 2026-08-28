@@ -45,6 +45,15 @@ public class DayClock : MonoBehaviour
 
     /// <summary>Seconds since the shop opened this morning.</summary>
     public float SecondsIntoDay => Time.time - dayStartedAt;
+
+    // Today's forgiveness, set by CustomerSpawner each morning from the
+    // DayDefinition. Lives here rather than on the spawner because it's a
+    // property of the DAY, and CustomerBrain shouldn't have to know that days
+    // are authored on a spawner.
+    //
+    // Reset to 1 in StartDay, so a schedule that's removed or runs out can't
+    // leave a stale multiplier applied to every customer forever.
+    public float PatienceMultiplier { get; set; } = 1f;
     public bool IsOpen { get; private set; }
     public bool DayOver { get; private set; }
 
@@ -100,6 +109,7 @@ public class DayClock : MonoBehaviour
         Served = 0;
         Lost = 0;
         Declined = 0;
+        PatienceMultiplier = 1f;
         Repairs = 0;
         Drinks = 0;
         Tips = 0;

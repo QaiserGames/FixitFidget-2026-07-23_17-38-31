@@ -1,10 +1,7 @@
 ﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip
-"Nina",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical","Coffee",5.7,56.6,51.0,40.6,yes,yes,"Served","Perfect",0.9,"Seat",47,34
-"Priya",no,"Radio Owner","Drink","Coffee",,,,35.7,142.2,106.5,77.8,yes,yes,"Served",,0.5,"Seat",3,1
-"Tomas",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical","Latte",20.7,161.5,140.8,102.0,yes,yes,"Served","Perfect",0.5,"Seat",50,26
-"Valerie",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical",,50.7,194.9,144.2,125.0,yes,yes,"Served","Perfect",0.3,"Seat",44,6
-"Nina",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,155.7,205.1,49.4,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Deshawn",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical",,65.7,205.4,139.7,92.8,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
-"Beatriz",no,"Radio Owner","Drink","Coffee",,,,170.7,222.6,51.9,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Omar",no,"WatchOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Latte",80.7,240.2,159.5,117.9,yes,yes,"Served","Perfect",0.3,"Seat",44,3
-"Priya",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical",,95.7,266.1,170.4,116.2,yes,yes,"Served","Perfect",0.2,"Seat",44,5
+"Ali",no,"Chatty","Repair","Pocket Watch","Seized Movement","Mechanical","Coffee",6.3,83.0,76.7,67.0,yes,yes,"Served","Perfect",0.8,"Seat",203,95
+"Nina",no,"Chatty","Drink","Latte",,,,28.3,102.0,73.7,41.1,yes,yes,"Served",,0.9,"Seat",6,2
+"Yuki",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Coffee",50.3,213.0,162.7,146.9,yes,yes,"Served","Perfect",0.3,"Seat",203,74
+"Walter",no,"Sentimental","Drink","Latte",,,,95.3,237.4,142.1,91.5,yes,yes,"Served",,0.2,"Seat",6,1
+"Ali",no,"Cheerful","Repair","Phone","Gunked Up, Won't Charge","Cleaning","Coffee",65.3,282.0,216.6,171.1,yes,yes,"Served","Good",0.7,"Seat",51,14
+"Ingrid",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Coffee",117.3,292.0,174.6,141.2,yes,yes,"Served","Perfect",0.3,"Seat",203,105

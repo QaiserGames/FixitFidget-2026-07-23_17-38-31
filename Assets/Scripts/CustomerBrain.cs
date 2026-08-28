@@ -136,6 +136,12 @@ public class CustomerBrain : MonoBehaviour
     [Range(0f, 0.5f)]
     [SerializeField] private float serveBump = 0.08f;
 
+    [Tooltip("Patience given back when you hand back a REPAIR to someone who " +
+             "still has a drink coming. Same idea as serveBump, on the half " +
+             "that never had one — see the note in CompleteJob.")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float handbackBump = 0.08f;
+
     [Tooltip("How long the drink keeps them happy at the Drinking rate.")]
     [SerializeField] private float drinkingSeconds = 20f;
 
@@ -512,6 +518,38 @@ public class CustomerBrain : MonoBehaviour
         && reassureUses < reassureMaxUses
         && patienceLeft < CurrentMax * 0.9f;
 
+    // THE DEAD END THIS FIXES, found in play 2026-08-28.
+    //
+    // The repair was done and handed back. They stayed for the coffee they'd
+    // ordered. The beans had run out. There was no verb for "sorry, we're out"
+    // once someone was seated — that only existed at intake — so the player
+    // stood and watched a customer they had already served and been paid by
+    // drain to zero and storm off, with no action available in any direction.
+    //
+    // The architecture spec predicted this exact case and guessed it would be
+    // fine: "they wait, drink never arrives, they just don't get the bonus. No
+    // penalty. Revisit if it feels bad." It feels bad. This is the revisit.
+    //
+    // Deliberately narrow: only when the drink is genuinely unmakeable. It is
+    // an apology for a shortage, not a way to cancel orders you'd rather not
+    // fill.
+    public bool CanApologiseForDrink
+    {
+        get
+        {
+            if (!IsWaiting || !drinkOrdered) return false;
+            if (DrinkJob.ExistsFor(this)) return false;      // it's coming — wait for it
+
+            DrinkDefinition want = WantedDrink;
+            if (want == null) return false;
+
+            return ShopInventory.Instance == null || !ShopInventory.Instance.CanMake(want);
+        }
+    }
+
+    /// <summary>The drink they're waiting on, for the prompt.</summary>
+    public string WantedDrinkName => WantedDrink != null ? WantedDrink.drinkName : "drink";
+
     public bool JobNeedsAttention
     {
         get
@@ -586,9 +624,15 @@ public class CustomerBrain : MonoBehaviour
         RollMovingPriority();
         agent.stoppingDistance = arriveDistance;
 
+        // Two multipliers, and they mean different things. The identity's is WHO
+        // this person is — an Impatient customer is impatient on every day. The
+        // day's is WHEN this is — day 1 is forgiving to everyone, because the
+        // player is learning the shop rather than learning it's cruel.
         float mult = identity != null ? identity.PatienceMultiplier : 1f;
-        queueMax = queuePatience * mult;
-        serviceMax = servicePatience * mult;
+        float dayMult = DayClock.Instance != null ? DayClock.Instance.PatienceMultiplier : 1f;
+
+        queueMax = queuePatience * mult * dayMult;
+        serviceMax = servicePatience * mult * dayMult;
 
         // They know what they came in for, so dialogue can name it.
         if (identity != null && record != null)
@@ -1339,6 +1383,37 @@ public class CustomerBrain : MonoBehaviour
         if (agent.isOnNavMesh) agent.isStopped = true;
     }
 
+    // Tell them we can't make it. The order clears and they go.
+    //
+    // Whether this counts as a loss depends entirely on what else they came
+    // for. Someone who got their repair got what they came for and leaves
+    // slightly disappointed — that is NOT the same failure as a person who
+    // waited and stormed out, and the recap has to stop conflating them or the
+    // "what screwed me today?" question goes back to being unanswerable.
+    public string ApologiseForDrink()
+    {
+        if (!CanApologiseForDrink) return "";
+
+        drinkOrdered = false;
+        drinkStarted = false;
+
+        // Repair delivered = a served customer who missed out on a coffee.
+        // Nothing delivered = a genuine turn-away, and OutOfStock already means
+        // "not your fault" in the recap.
+        bool alreadyServed = wasServed;
+        lossReason = LostReason.OutOfStock;
+
+        // A small ding rather than a full tip, because they did wait for
+        // something that never came — but the repair money stands.
+        paidTip = Mathf.Max(0, paidTip - 1);
+
+        string line = identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "";
+
+        if (conversation == null) Say(line);
+        FinishAndLeave(line, alreadyServed);
+        return line;
+    }
+
     public string RefuseJob()
     {
         if (!CanRefuse) return "";
@@ -1484,6 +1559,27 @@ public class CustomerBrain : MonoBehaviour
         // anything.
         if (drinkOrdered)
         {
+            // FOUND IN PLAYTEST, 2026-08-27, by the first person to play this
+            // build who wasn't me.
+            //
+            // Making them stay for their coffee was the right fix. But nothing
+            // gave them any relief for the half you HAD delivered, so they kept
+            // draining at full rate while you walked to the machine. Handing
+            // back a repair felt like it accomplished nothing, and a customer
+            // who wanted both became strictly harder than two separate people.
+            //
+            // hud-spec.md already names this failure: "adding a second task
+            // without adding time is pure punishment." It gave the drink a
+            // visible jump on serve and never gave the repair one, because
+            // until this build a repair handback ended the visit outright.
+            //
+            // Same principle, same size, applied to the half that was missing
+            // it. Fixed rather than proportional, for the same reason as
+            // orderTopUp: a proportional bump would rescue the angriest hardest
+            // and make dawdling profitable.
+            patienceLeft = Mathf.Min(patienceLeft + serviceMax * handbackBump, serviceMax);
+
+            React();
             Say(line);
             return line;
         }

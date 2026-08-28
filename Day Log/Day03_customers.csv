@@ -1,11 +1,10 @@
 ﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip
-"Nina",no,"WatchOwner","Drink","Latte",,,,7.1,33.3,26.2,15.3,yes,yes,"Served",,1.0,"Seat",6,4
-"Ingrid",no,"PhoneOwner","Drink","Coffee",,,,22.1,52.7,30.6,16.5,yes,yes,"Served",,1.0,"Seat",3,1
-"Ingrid",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical",,37.1,90.5,53.5,32.6,yes,yes,"Served","Perfect",0.8,"Seat",44,26
-"Yuki",no,"PhoneOwner","Drink","Coffee",,,,52.1,110.5,58.4,47.8,yes,yes,"Served",,0.5,"Seat",3,1
-"Alishba",no,"WatchOwner","Drink","Latte",,,,112.1,176.0,63.9,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Beatriz",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical",,127.1,190.5,63.4,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Walter",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical","Coffee",82.1,192.9,110.8,77.9,yes,yes,"Served","Perfect",0.5,"Seat",47,29
-"Deshawn",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",142.1,193.3,51.2,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Ingrid",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical","Coffee",67.1,199.7,132.6,99.6,yes,yes,"StormedOutWaiting","Perfect",0.0,"Seat",44,7
-"Nina",no,"PhoneOwner","Drink","Latte",,,,97.1,224.5,127.4,105.0,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
+"Deshawn",no,"Impatient","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",6.1,57.4,51.3,40.9,yes,yes,"StormedOutWaiting","Perfect",0.0,"Loiter",200,20
+"Beatriz",no,"Impatient","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Coffee",59.1,113.1,54.0,38.0,yes,no,"StormedOutWaiting",,0.0,"Loiter",0,0
+"Ali",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Coffee",72.1,133.0,60.8,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Ingrid",no,"Chatty","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",26.1,159.3,133.1,93.6,yes,yes,"Served","Perfect",0.4,"Seat",206,53
+"Alishba",no,"Cheerful","Drink","Latte",,,,85.1,174.0,88.9,34.4,yes,yes,"Served",,0.8,"Seat",6,3
+"Beatriz",no,"Chatty","Drink","Coffee",,,,125.2,189.8,64.7,46.0,yes,yes,"Served",,0.7,"Seat",3,1
+"Beatriz",no,"Cheerful","Repair","Phone","Gunked Up, Won't Charge","Cleaning",,46.1,208.0,161.8,136.9,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
+"Malcom",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical",,169.2,233.1,63.9,34.8,yes,yes,"Served","Good",0.7,"Seat",160,75
+"Saamin",no,"Sentimental","Drink","Latte",,,,151.2,242.5,91.3,49.3,yes,yes,"Served",,0.9,"Seat",6,3

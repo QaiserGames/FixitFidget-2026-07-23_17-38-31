@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6a410d3657e24d42890fd07dacca356, type: 3}
+  m_Name: Day_01_LearnTheShop
+  m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
+  dayNumber: 1
+  intent: "Learn the shop. Drinks mostly, one repair type, nothing should go wrong.
+    The player should finish thinking 'that was easy' \u2014 that's correct for day
+    1."
+  phases:
+  - phaseName: Calm
+    startsAt: 0
+    spawnInterval: 26
+  - phaseName: Build
+    startsAt: 0.3
+    spawnInterval: 20
+  - phaseName: Rush
+    startsAt: 0.55
+    spawnInterval: 16
+  - phaseName: Recover
+    startsAt: 0.8
+    spawnInterval: 24
+  patienceMultiplier: 1.4
+  maxCustomers: 3
+  drinkOnlyChance: 0.55
+  devices:
+  - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+  allowedArchetypes:
+  - Cheerful
+  - Chatty
+  regularChance: 0

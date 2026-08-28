@@ -12,6 +12,7 @@ public class CustomerInteractable : Interactable
     public override bool IsAvailable =>
         brain != null && (brain.CanHearIntake || brain.CanDecide || brain.JobReady ||
                           brain.JobFixedButAway || brain.CanReceiveDrink ||
+                          brain.CanApologiseForDrink ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
     // Which of those actions can be done from the shop floor, rather than only
@@ -20,6 +21,7 @@ public class CustomerInteractable : Interactable
     // they're standing.
     public bool FloorAvailable =>
         brain != null && (brain.CanReceiveDrink || brain.JobReady ||
+                          brain.CanApologiseForDrink ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
     public override string Prompt
@@ -28,6 +30,11 @@ public class CustomerInteractable : Interactable
         {
             if (brain == null) return "";
             if (brain.CanReceiveDrink) return $"Serve the {brain.Record.Subject}";
+
+            // Ranked above reassurance on purpose: if their drink can't be
+            // made, calming them down only postpones the same dead end.
+            if (brain.CanApologiseForDrink)
+                return $"Sorry, we're out of {brain.WantedDrinkName}";
             if (brain.CanHearIntake || brain.CanDecide) return "Talk to them";
             // The grade is shown BEFORE you commit. This is the whole point:
             // without it, handing back a half-done repair is a nasty surprise
@@ -56,6 +63,8 @@ public class CustomerInteractable : Interactable
         }
 
         if (brain.JobReady) { brain.CompleteJob(); return; }
+
+        if (brain.CanApologiseForDrink) { brain.ApologiseForDrink(); return; }
 
         if (!brain.CanHearIntake && !brain.CanDecide && brain.CanReassure)
         {

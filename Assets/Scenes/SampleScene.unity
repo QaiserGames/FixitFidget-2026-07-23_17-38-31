@@ -2516,6 +2516,14 @@ MonoBehaviour:
   spawnPoint: {fileID: 387075154}
   exitPoint: {fileID: 387075154}
   counterQueue: {fileID: 2048013196}
+  schedule:
+  - {fileID: 11400000, guid: 8e6fb0afa1c141040b4b357e88962c4c, type: 2}
+  - {fileID: 11400000, guid: 0dba614518e3b6343a236611e1a7e376, type: 2}
+  - {fileID: 11400000, guid: f8780dda0c809574e9ef294e3ae90078, type: 2}
+  - {fileID: 11400000, guid: 22c1e6c453a232f4f85be6e90abf1f0e, type: 2}
+  - {fileID: 11400000, guid: 0e1b808327632b1438fa9b48e4e87cd6, type: 2}
+  escalationPerDay: 0.04
+  minimumGap: 5
   spawnInterval: 15
   maxCustomers: 6
   blockedRetryInterval: 1.5
@@ -2527,66 +2535,146 @@ MonoBehaviour:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
   - {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
   archetypes:
-  - archetypeName: Radio Owner
-    patienceMultiplier: 1
-    tipMultiplier: 1
-    moodColor: {r: 1, g: 1, b: 1, a: 1}
+  - archetypeName: Cheerful
+    patienceMultiplier: 1.2
+    tipMultiplier: 1.2
+    moodColor: {r: 0.98, g: 0.84, b: 0.42, a: 1}
     preferredWaitKind: 1
-    drinkWishChance: 0.5
+    drinkWishChance: 0.6
     lines:
       intake:
-      - Two days old. Brand new. Already broken.
+      - "Hi! My {device} \u2014 {fault}. Any chance?"
+      - Morning! {fault} on my {device}. Can you look?
       accepted:
-      - Thank God. I was about to sell it on Marketplace.
+      - Amazing, thank you.
+      - No rush at all.
       completed:
-      - "You, my friend \u2014 chef's kiss. Thank you."
+      - Oh, that's great. Thank you!
+      - Look at that. Cheers.
       declined:
-      - Alright, I'll just sell it. Want a broken {device}?
+      - No worries at all.
+      - "That's alright \u2014 another time."
       reassured:
-      - Do your magic. I trust you.
+      - Of course, take your time.
+      - No problem, honestly.
       stormedOut:
-      - Why waste my time. This place sucks.
-      orderedDrink: []
-  - archetypeName: WatchOwner
+      - "Ah \u2014 I'll have to go. Sorry."
+      - I've run out of time. Never mind.
+      orderedDrink:
+      - "Ooh \u2014 could I get a coffee too?"
+      - Since I'm here, a drink?
+  - archetypeName: Impatient
+    patienceMultiplier: 0.7
+    tipMultiplier: 0.9
+    moodColor: {r: 0.9, g: 0.45, b: 0.35, a: 1}
+    preferredWaitKind: 0
+    drinkWishChance: 0.25
+    lines:
+      intake:
+      - '{device}. {fault}. How long?'
+      - This is {fault}. Can you do it now?
+      accepted:
+      - Fine. I'll wait here.
+      - Quick as you can.
+      completed:
+      - Right. Good.
+      - Finally. Thanks.
+      declined:
+      - Seriously?
+      - Great. Thanks for nothing.
+      reassured:
+      - Fine. A few more minutes.
+      - Alright. Alright.
+      stormedOut:
+      - That's it, I'm done waiting.
+      - Forget it.
+      orderedDrink:
+      - Coffee. While I'm standing here.
+      - Get me a coffee.
+  - archetypeName: Chatty
     patienceMultiplier: 1.3
-    tipMultiplier: 1.4
-    moodColor: {r: 1, g: 1, b: 1, a: 1}
-    preferredWaitKind: 1
-    drinkWishChance: 0.5
-    lines:
-      intake:
-      - This {device} was my dad's. I want it working again.
-      accepted:
-      - Thank you. I think he'd love that.
-      completed:
-      - Oh my god. It looks brand new.
-      declined:
-      - Oh. Okay. Sorry to bother you.
-      reassured:
-      - No rush at all. Take your time.
-      stormedOut:
-      - I'll... come back another time. Maybe.
-      orderedDrink: []
-  - archetypeName: PhoneOwner
-    patienceMultiplier: 0.9
     tipMultiplier: 1
-    moodColor: {r: 1, g: 1, b: 1, a: 1}
+    moodColor: {r: 0.55, g: 0.78, b: 0.92, a: 1}
+    preferredWaitKind: 1
+    drinkWishChance: 0.8
+    lines:
+      intake:
+      - "So \u2014 my {device}. {fault}. Long story."
+      - You'll laugh. {device}, {fault}.
+      accepted:
+      - Brilliant. I'll be right over there.
+      - Take your time, I'm in no hurry at all.
+      completed:
+      - Oh, wonderful. I'll tell everyone about this place.
+      - You're a lifesaver, honestly.
+      declined:
+      - Ah, fair enough. Busy day?
+      - No, no, I understand completely.
+      reassured:
+      - Oh, don't worry about me.
+      - Honestly, it's fine.
+      stormedOut:
+      - I should get going, sadly.
+      - Another time, maybe.
+      orderedDrink:
+      - "Actually \u2014 a coffee would be lovely."
+      - Ooh, while you're up. A drink?
+  - archetypeName: Rushed
+    patienceMultiplier: 0.6
+    tipMultiplier: 1.3
+    moodColor: {r: 0.85, g: 0.62, b: 0.3, a: 1}
+    preferredWaitKind: 0
+    drinkWishChance: 0.15
+    lines:
+      intake:
+      - "Sorry \u2014 {device}, {fault}. I'm late."
+      - I know you're busy. {fault}. Please.
+      accepted:
+      - Thank you. Really.
+      - You're saving me here.
+      completed:
+      - "Thank you \u2014 I have to run."
+      - Perfect. I owe you.
+      declined:
+      - No, I get it. Thanks anyway.
+      - Fair enough. Worth asking.
+      reassured:
+      - Okay. Okay, I can wait.
+      - "Right \u2014 sorry, I'm just up against it."
+      stormedOut:
+      - "I can't \u2014 I have to go. Sorry."
+      - I've left it too late. Sorry.
+      orderedDrink:
+      - Coffee? To go, if that's alright.
+      - A quick coffee, if you can.
+  - archetypeName: Sentimental
+    patienceMultiplier: 1.1
+    tipMultiplier: 1.4
+    moodColor: {r: 0.72, g: 0.6, b: 0.85, a: 1}
     preferredWaitKind: 1
     drinkWishChance: 0.5
     lines:
       intake:
-      - I drove over my {device}. Don't ask.
+      - It's {fault}. This {device} means a lot to me.
+      - "My {device} \u2014 {fault}. I'd hate to lose it."
       accepted:
-      - Thank you. It's the BananaPhone 20 Pro Max.
+      - Thank you. It's been with me a long time.
+      - I appreciate it. More than you know.
       completed:
-      - Let's go! My BananaPhone looks brand new.
+      - "Oh \u2014 thank you. Really, thank you."
+      - You've no idea what this means.
       declined:
-      - You're just mad you don't have the BananaPhone 20 Pro Max.
+      - Oh. That's a shame.
+      - I understand. I'll try elsewhere.
       reassured:
-      - Just don't break my BananaPhone 20 Pro Max.
+      - Thank you. I'll wait.
+      - That's kind of you.
       stormedOut:
-      - Forget you guys. I'm getting the PineappleUltra 30.
-      orderedDrink: []
+      - I'll take it somewhere else, then.
+      - I'd hoped for better. Never mind.
+      orderedDrink:
+      - Could I trouble you for a coffee?
+      - A drink would be nice, thank you.
   firstNames:
   - Valerie
   - Deshawn
@@ -12676,9 +12764,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeManager
   catalogue:
-  - {fileID: 11400000, guid: 938727cfeb5905349896f02a1225d3bd, type: 2}
-  - {fileID: 11400000, guid: 500e62335f9353f4db977efaf482d51e, type: 2}
   - {fileID: 11400000, guid: 539d70bf8ee1f3b4c83acf3851b26853, type: 2}
+  - {fileID: 11400000, guid: 500e62335f9353f4db977efaf482d51e, type: 2}
+  - {fileID: 11400000, guid: 938727cfeb5905349896f02a1225d3bd, type: 2}
+  - {fileID: 11400000, guid: 27f97715fe916c746b9d685a1df4f282, type: 2}
+  - {fileID: 11400000, guid: af4c9275330b36c479b89f9cfcf81452, type: 2}
+  - {fileID: 11400000, guid: 1c982f95841074749a791a340d2f6b4b, type: 2}
 --- !u!114 &1976578424
 MonoBehaviour:
   m_ObjectHideFlags: 0

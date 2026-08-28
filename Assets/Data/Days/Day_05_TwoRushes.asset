@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6a410d3657e24d42890fd07dacca356, type: 3}
+  m_Name: Day_05_TwoRushes
+  m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
+  dayNumber: 5
+  intent: Two peaks with a real lull between. Teaches using quiet time. Repeats for
+    every later day, with a small squeeze each time.
+  phases:
+  - phaseName: Opening
+    startsAt: 0
+    spawnInterval: 16
+  - phaseName: Morning rush
+    startsAt: 0.15
+    spawnInterval: 7
+  - phaseName: Lull
+    startsAt: 0.38
+    spawnInterval: 26
+  - phaseName: Lunch rush
+    startsAt: 0.58
+    spawnInterval: 6
+  - phaseName: Last orders
+    startsAt: 0.82
+    spawnInterval: 15
+  patienceMultiplier: 0.9
+  maxCustomers: 6
+  drinkOnlyChance: 0.25
+  devices: []
+  allowedArchetypes: []
+  regularChance: 0.4

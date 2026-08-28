@@ -1,20 +1,12 @@
 ﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip
-"Yuki",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Latte",17.9,42.5,24.6,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Malcom",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical",,23.9,48.6,24.7,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Ali",no,"WatchOwner","Repair","Phone","Cracked Screen","Mechanical","Latte",29.9,61.7,31.8,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Omar",no,"WatchOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",43.4,73.4,30.0,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Valerie",no,"Radio Owner","Drink","Latte",,,,49.4,74.6,25.1,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Grace",no,"PhoneOwner","Drink","Coffee",,,,62.9,87.4,24.4,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Mansoor",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical",,5.9,90.5,84.6,72.6,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
-"Yuki",no,"Radio Owner","Drink","Coffee",,,,11.9,102.9,91.0,77.8,yes,yes,"Served",,0.3,"Seat",3,0
-"Walter",no,"Radio Owner","Drink","Coffee",,,,79.5,106.6,27.2,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Deshawn",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",88.5,115.6,27.1,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Mansoor",no,"PhoneOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",94.5,121.4,26.9,,no,no,"Declined",,0.1,,0,0
-"Priya",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical","Coffee",123.0,149.5,26.5,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Beatriz",no,"PhoneOwner","Drink","Coffee",,,,135.0,164.4,29.4,18.2,yes,yes,"Served",,1.0,"Seat",3,1
-"Ingrid",no,"Radio Owner","Repair","Phone","Cracked Screen","Mechanical","Coffee",73.5,175.5,102.1,87.4,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
-"Yuki",no,"Radio Owner","Drink","Coffee",,,,117.0,176.1,59.1,44.4,yes,yes,"Served",,1.0,"Seat",3,1
-"Beatriz",no,"WatchOwner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,159.0,190.3,31.3,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Saamin",no,"Radio Owner","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Mechanical",,108.0,205.1,97.1,79.9,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
-"Alishba",no,"PhoneOwner","Drink","Coffee",,,,171.0,219.0,48.0,29.7,yes,yes,"Served",,1.0,"Seat",3,1
-"Ali",no,"PhoneOwner","Repair","Phone","Cracked Screen","Mechanical",,129.0,246.1,117.1,104.9,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0
+"Saamin",no,"Sentimental","Drink","Coffee",,,,7.0,34.1,27.1,13.6,yes,yes,"Served",,1.0,"Seat",3,2
+"Ingrid",no,"Sentimental","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,25.0,68.9,43.8,29.0,yes,yes,"Served","Perfect",0.8,"Seat",94,54
+"Yuki",no,"Sentimental","Repair","Phone","Cracked Screen","Mechanical",,67.0,119.7,52.6,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Deshawn",no,"Sentimental","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Latte",43.0,136.7,93.7,64.1,yes,yes,"Served","Perfect",0.6,"Seat",100,53
+"Omar",no,"Impatient","Repair","Pocket Watch","Seized Movement","Mechanical",,86.1,155.4,69.3,33.4,yes,no,"StormedOutWaiting",,0.0,"Loiter",0,0
+"Yuki",no,"Rushed","Repair","Phone","Gunked Up, Won't Charge","Cleaning",,127.1,161.6,34.5,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Omar",no,"Sentimental","Repair","Phone","Cracked Screen","Mechanical","Coffee",55.0,166.8,111.8,89.3,yes,yes,"Served","Perfect",0.2,"Seat",141,10
+"Malcom",no,"Cheerful","Drink","Latte",,,,120.1,174.6,54.5,,no,no,"OutOfStock",,0.2,,0,0
+"Priya",no,"Sentimental","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,79.0,203.9,124.9,77.5,yes,yes,"Served","Perfect",0.1,"Seat",94,6
+"Malcom",no,"Cheerful","Drink","Coffee",,,,157.1,215.1,58.0,,no,no,"OutOfStock",,0.1,,0,0
+"Ali",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",173.1,338.2,165.0,130.2,yes,yes,"StormedOutWaiting","Perfect",0.0,"Seat",200,68

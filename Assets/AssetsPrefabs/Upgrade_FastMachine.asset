@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Upgrade_FastMachine
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
   upgradeName: Faster Machine
-  description: Pulls coffee/latte in half the time.
+  description: Pulls coffee and latte in less time.
   type: 0
   valuePerLevel: 0.25
-  costPerLevel: 3c0000008c0000002c010000
+  costPerLevel: 2c0100002003000008070000

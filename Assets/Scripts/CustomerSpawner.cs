@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -8,6 +9,23 @@ public class CustomerSpawner : MonoBehaviour
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private Transform exitPoint;
     [SerializeField] private CounterQueue counterQueue;
+
+    [Header("The day schedule")]
+    [Tooltip("One DayDefinition per authored day, in order. Empty = fall back " +
+             "to the flat spawnInterval below, exactly as before.\n\n" +
+             "Runs past the end of this list reuse the LAST definition, with a " +
+             "small escalation per day — see EscalationPerDay.")]
+    [SerializeField] private DayDefinition[] schedule;
+
+    [Tooltip("Each day past the end of the schedule shortens gaps by this " +
+             "fraction. 0.04 = 4% busier per day. Compounds, but is clamped so " +
+             "day 50 doesn't become a firehose.")]
+    [Range(0f, 0.15f)]
+    [SerializeField] private float escalationPerDay = 0.04f;
+
+    [Tooltip("Gaps never fall below this, however far past the schedule you " +
+             "get. The floor that stops escalation running away.")]
+    [SerializeField] private float minimumGap = 5f;
 
     [Header("Pacing")]
     // TUNING, 2026-08-27. Scene value was 6s, which put 18-19 arrivals into a
@@ -68,13 +86,77 @@ public class CustomerSpawner : MonoBehaviour
 
     private float timer;
 
+    // Today's authored day, resolved once each morning rather than looked up
+    // every frame.
+    private DayDefinition today;
+    private float escalation = 1f;
+    private string lastPhase = "";
+
     // -1 so the very first Update of the very first day counts as "the day
     // changed" and gets its opening grace like every other morning.
     private int lastSeenDay = -1;
 
     // A gap between arrivals, varied so the shop doesn't tick like a metronome.
-    private float NextGap =>
-        spawnInterval * Random.Range(1f - spawnJitter, 1f + spawnJitter);
+    //
+    // With a schedule, the base interval comes from wherever we are in the day
+    // rather than being one number for the whole day. That single change is
+    // what turns a flat drip into calm / build / rush / recover.
+    private float NextGap
+    {
+        get
+        {
+            float baseInterval = spawnInterval;
+
+            if (today != null && DayClock.Instance != null)
+                baseInterval = today.IntervalAt(DayFraction) * escalation;
+
+            float gap = baseInterval * Random.Range(1f - spawnJitter, 1f + spawnJitter);
+            return Mathf.Max(minimumGap * 0.5f, gap);
+        }
+    }
+
+    // How far through the day we are, 0 at opening and 1 at close.
+    private float DayFraction
+    {
+        get
+        {
+            DayClock c = DayClock.Instance;
+            if (c == null) return 0f;
+
+            float length = c.SecondsIntoDay + c.TimeRemaining;
+            return length <= 0f ? 0f : Mathf.Clamp01(c.SecondsIntoDay / length);
+        }
+    }
+
+    // The authored day for this day number, or the last one repeated with a
+    // compounding squeeze. You'll author five or eight days; the arc runs to
+    // fifty. Repeating the last one is the honest default — it keeps playing
+    // rather than falling off a cliff, and you can author more whenever.
+    private void ResolveToday(int dayNumber)
+    {
+        today = null;
+        escalation = 1f;
+
+        if (schedule == null || schedule.Length == 0) return;
+
+        foreach (DayDefinition d in schedule)
+            if (d != null && d.dayNumber == dayNumber) { today = d; return; }
+
+        DayDefinition last = null;
+        foreach (DayDefinition d in schedule)
+            if (d != null && (last == null || d.dayNumber > last.dayNumber)) last = d;
+
+        if (last == null) return;
+
+        today = last;
+
+        int past = Mathf.Max(0, dayNumber - last.dayNumber);
+        escalation = Mathf.Pow(1f - escalationPerDay, past);
+
+        // Don't let fifty days of compounding turn the door into a firehose.
+        float floor = last.IntervalAt(0.5f) > 0f ? minimumGap / last.IntervalAt(0.5f) : 0.4f;
+        escalation = Mathf.Max(escalation, Mathf.Clamp01(floor));
+    }
 
     private void Update()
     {
@@ -89,7 +171,17 @@ public class CustomerSpawner : MonoBehaviour
         if (DayClock.Instance != null && DayClock.Instance.Day != lastSeenDay)
         {
             lastSeenDay = DayClock.Instance.Day;
+            ResolveToday(lastSeenDay);
+            lastPhase = "";
             timer = Random.Range(openingGraceMin, openingGraceMax);
+
+            DayClock.Instance.PatienceMultiplier =
+                today != null ? today.patienceMultiplier : 1f;
+
+            if (today != null)
+                Debug.Log($"[Day {lastSeenDay}] {today.name} — {today.intent}" +
+                          (escalation < 0.999f ? $"  (repeated, {(1f - escalation) * 100f:0}% busier)" : ""));
+
             return;
         }
 
@@ -98,9 +190,26 @@ public class CustomerSpawner : MonoBehaviour
 
         timer = NextGap;
 
+        // Crossing into a new phase is the day's shape becoming visible. Logged
+        // rather than surfaced in the UI for now — the hanging sign in
+        // hud-spec.md is where a player should eventually feel this, by
+        // watching the clock walk toward midday.
+        if (today != null)
+        {
+            string phase = today.PhaseNameAt(DayFraction);
+            if (phase != lastPhase)
+            {
+                lastPhase = phase;
+                Debug.Log($"[Day {lastSeenDay}] phase: {phase} " +
+                          $"(gaps ~{today.IntervalAt(DayFraction) * escalation:0.0}s)");
+            }
+        }
+
+        int cap = today != null ? today.maxCustomers : maxCustomers;
+
         int living = FindObjectsByType<CustomerBrain>(
             FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length;
-        if (living >= maxCustomers) return;
+        if (living >= cap) return;
 
         // Don't create someone who has nowhere to stand.
         //
@@ -130,7 +239,9 @@ public class CustomerSpawner : MonoBehaviour
 
         // Who is this?
         CustomerProfile profile = null;
-        bool isRegular = regulars != null && regulars.Length > 0 && Random.value < regularChance;
+
+        float regChance = today != null ? today.regularChance : regularChance;
+        bool isRegular = regulars != null && regulars.Length > 0 && Random.value < regChance;
 
         if (isRegular)
         {
@@ -139,8 +250,7 @@ public class CustomerSpawner : MonoBehaviour
         }
         else
         {
-            CustomerArchetype a = archetypes != null && archetypes.Length > 0
-                ? archetypes[Random.Range(0, archetypes.Length)] : null;
+            CustomerArchetype a = PickArchetype();
             id.SetupWalkIn(a, firstNames[Random.Range(0, firstNames.Length)]);
         }
 
@@ -181,10 +291,42 @@ public class CustomerSpawner : MonoBehaviour
         return drinks[Random.Range(0, drinks.Length)];
     }
 
+    // Today's allowed personalities, or all of them if the day doesn't say.
+    //
+    // This is the pressure budget as an authoring decision. Day 1 has no
+    // Impatient and no Rushed — not because the game noticed you struggling and
+    // backed off, but because you wrote a gentle first day. A game that eases
+    // up when you're drowning takes the credit for your recovery, and the whole
+    // point is that the player owns the chaos.
+    private CustomerArchetype PickArchetype()
+    {
+        if (archetypes == null || archetypes.Length == 0) return null;
+
+        if (today == null || today.allowedArchetypes == null || today.allowedArchetypes.Length == 0)
+            return archetypes[Random.Range(0, archetypes.Length)];
+
+        List<CustomerArchetype> allowed = new();
+        foreach (CustomerArchetype a in archetypes)
+            if (a != null && today.AllowsArchetype(a.archetypeName)) allowed.Add(a);
+
+        // A day that names archetypes the spawner doesn't have would otherwise
+        // spawn faceless customers with no dialogue at all. Fall back loudly.
+        if (allowed.Count == 0)
+        {
+            Debug.LogWarning($"[Day {lastSeenDay}] none of the allowed archetypes " +
+                             $"({string.Join(", ", today.allowedArchetypes)}) exist on " +
+                             "the spawner. Using all of them instead.", this);
+            return archetypes[Random.Range(0, archetypes.Length)];
+        }
+
+        return allowed[Random.Range(0, allowed.Count)];
+    }
+
     private Job RollJob(CustomerProfile profile)
     {
         // Café or repair?
-        bool wantsDrink = drinks != null && drinks.Length > 0 && Random.value < drinkChance;
+        float dChance = today != null ? today.drinkOnlyChance : drinkChance;
+        bool wantsDrink = drinks != null && drinks.Length > 0 && Random.value < dChance;
 
         if (wantsDrink)
         {
@@ -207,7 +349,10 @@ public class CustomerSpawner : MonoBehaviour
         }
         else
         {
-            device = devicePrefabs[Random.Range(0, devicePrefabs.Length)];
+            GameObject[] pool = today != null && today.devices != null && today.devices.Length > 0
+                              ? today.devices : devicePrefabs;
+
+            device = pool[Random.Range(0, pool.Length)];
         }
 
         Job job = new Job { kind = JobKind.Repair, devicePrefab = device };

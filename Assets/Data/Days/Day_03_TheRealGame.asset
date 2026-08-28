@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6a410d3657e24d42890fd07dacca356, type: 3}
+  m_Name: Day_03_TheRealGame
+  m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
+  dayNumber: 3
+  intent: The epiphany. Full cast bar Rushed, a real midday rush, and the first customers
+    who stand in your way.
+  phases:
+  - phaseName: Calm
+    startsAt: 0
+    spawnInterval: 20
+  - phaseName: Build
+    startsAt: 0.22
+    spawnInterval: 13
+  - phaseName: Rush
+    startsAt: 0.45
+    spawnInterval: 8
+  - phaseName: Recover
+    startsAt: 0.72
+    spawnInterval: 18
+  patienceMultiplier: 1
+  maxCustomers: 5
+  drinkOnlyChance: 0.3
+  devices: []
+  allowedArchetypes:
+  - Cheerful
+  - Chatty
+  - Sentimental
+  - Impatient
+  regularChance: 0.3

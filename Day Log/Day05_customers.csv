@@ -1,0 +1,13 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip
+"Beatriz",no,"Impatient","Repair","Phone","Cracked Screen","Mechanical",,7.7,43.5,35.8,26.5,yes,yes,"Served","Perfect",0.2,"Loiter",138,14
+"Walter",no,"Rushed","Drink","Coffee",,,,39.7,76.6,36.9,23.6,yes,yes,"Served",,0.3,"Loiter",3,0
+"Deshawn",no,"Sentimental","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Latte",23.7,109.1,85.4,61.2,yes,yes,"Served","Perfect",0.6,"Seat",100,36
+"Mansoor",no,"Chatty","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Coffee",53.7,111.2,57.5,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Mansoor",no,"Chatty","Drink","Latte",,,,46.7,132.2,85.5,74.0,yes,yes,"Served",,0.3,"Seat",6,1
+"Alishba",no,"Sentimental","Drink","Latte",,,,67.7,144.4,76.7,26.9,yes,yes,"Served",,0.9,"Seat",6,4
+"Ali",no,"Impatient","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Coffee",117.2,154.1,36.9,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Omar",no,"Cheerful","Drink","Latte",,,,60.7,155.3,94.7,42.4,yes,yes,"Served",,0.7,"Seat",6,2
+"Malcom",no,"Impatient","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,154.8,202.2,47.4,30.9,yes,yes,"Served","Perfect",0.0,"Loiter",94,2
+"Yuki",no,"Sentimental","Drink","Coffee",,,,111.2,212.4,101.2,51.7,yes,yes,"Served",,0.5,"Seat",3,1
+"Ali",no,"Chatty","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,123.2,244.4,121.1,78.5,yes,yes,"Served","Perfect",0.5,"Seat",94,22
+"Priya",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Coffee",169.8,290.0,120.2,71.8,yes,yes,"Served","Perfect",0.5,"Seat",203,57

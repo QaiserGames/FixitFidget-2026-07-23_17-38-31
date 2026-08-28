@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6a410d3657e24d42890fd07dacca356, type: 3}
+  m_Name: Day_04_Pressure
+  m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
+  dayNumber: 4
+  intent: "Full cast. This is the day that should sell an upgrade \u2014 the player
+    finishes knowing what failed them."
+  phases:
+  - phaseName: Calm
+    startsAt: 0
+    spawnInterval: 18
+  - phaseName: Build
+    startsAt: 0.2
+    spawnInterval: 12
+  - phaseName: Rush
+    startsAt: 0.42
+    spawnInterval: 7
+  - phaseName: Recover
+    startsAt: 0.75
+    spawnInterval: 16
+  patienceMultiplier: 0.95
+  maxCustomers: 6
+  drinkOnlyChance: 0.28
+  devices: []
+  allowedArchetypes: []
+  regularChance: 0.35
