@@ -36,7 +36,22 @@ public class WaitingSpot : MonoBehaviour
     public float DrainMultiplier => drainMultiplier;
     public Transform StandPoint => standPoint != null ? standPoint : transform;
 
-    public CustomerBrain Occupant { get; private set; }
+    // A Component rather than a CustomerBrain, so PATRONS can sit here too.
+    //
+    // Patrons are the ~14 people in occupancy-and-pacing.md who just come in
+    // for a coffee: no ticket, no patience, no demand on your hands. They are
+    // not decoration — they take up seats, so a busy cafe means the customer
+    // who DOES need you can't sit, falls through to a loiter spot, and drains
+    // at 1.15x instead of 0.6x. The cafe competing for your space is half the
+    // pressure model, and it has never once fired, because 16 seats against 6
+    // customers means seats have never run out.
+    //
+    // Widening the type rather than adding a parallel seat system: two pools of
+    // chairs that don't know about each other would let a patron and a customer
+    // occupy the same seat, which is exactly the bug this whole registry exists
+    // to prevent. Every existing caller passes a CustomerBrain, which is a
+    // Component, so nothing else changes.
+    public Component Occupant { get; private set; }
     public bool IsOccupied => Occupant != null;
 
     // Virtual because a TableSeat is also unavailable while it has a dirty cup
@@ -62,16 +77,16 @@ public class WaitingSpot : MonoBehaviour
         Occupant = null;
     }
 
-    public bool Claim(CustomerBrain customer)
+    public bool Claim(Component occupant)
     {
-        if (customer == null || !IsAvailable) return false;
-        Occupant = customer;
+        if (occupant == null || !IsAvailable) return false;
+        Occupant = occupant;
         return true;
     }
 
-    public void Release(CustomerBrain customer)
+    public void Release(Component occupant)
     {
-        if (Occupant == customer) Occupant = null;
+        if (Occupant == occupant) Occupant = null;
     }
 
     // Shows in the Scene view so you can see where people will stand and

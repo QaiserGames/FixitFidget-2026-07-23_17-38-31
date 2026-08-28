@@ -81,14 +81,14 @@ public class WaitingArea : MonoBehaviour
     // requirement: when every seat is taken (or dirty), a customer who wanted
     // to sit falls through to a loiter spot and starts draining at 1.15x
     // instead of 0.6x. That difference is the entire pressure model.
-    public WaitingSpot Claim(CustomerBrain customer, WaitingSpot.SpotKind preferred)
+    public WaitingSpot Claim(Component occupant, WaitingSpot.SpotKind preferred)
     {
-        WaitingSpot chosen = PickRandom(customer, preferred, true);
-        if (chosen == null) chosen = PickRandom(customer, preferred, false);
+        WaitingSpot chosen = PickRandom(occupant, preferred, true);
+        if (chosen == null) chosen = PickRandom(occupant, preferred, false);
         return chosen;
     }
 
-    private WaitingSpot PickRandom(CustomerBrain customer, WaitingSpot.SpotKind kind, bool matchKind)
+    private WaitingSpot PickRandom(Component occupant, WaitingSpot.SpotKind kind, bool matchKind)
     {
         scratch.Clear();
 
@@ -104,12 +104,29 @@ public class WaitingArea : MonoBehaviour
 
         // Random rather than first-free, so the room doesn't fill left to right.
         WaitingSpot pick = scratch[Random.Range(0, scratch.Count)];
-        return pick.Claim(customer) ? pick : null;
+        return pick.Claim(occupant) ? pick : null;
     }
 
-    public void Release(CustomerBrain customer)
+    public void Release(Component occupant)
     {
         for (int i = 0; i < registry.Count; i++)
-            if (registry[i] != null) registry[i].Release(customer);
+            if (registry[i] != null) registry[i].Release(occupant);
+    }
+
+    // How full the room looks right now. Used by PatronSpawner so patrons stop
+    // arriving before they can squeeze paying customers out entirely — a cafe
+    // so busy you can't work is atmosphere winning over gameplay.
+    public static int FreeSeats
+    {
+        get
+        {
+            int n = 0;
+            for (int i = 0; i < registry.Count; i++)
+            {
+                WaitingSpot s = registry[i];
+                if (s != null && s.IsAvailable && s.Kind == WaitingSpot.SpotKind.Seat) n++;
+            }
+            return n;
+        }
     }
 }
