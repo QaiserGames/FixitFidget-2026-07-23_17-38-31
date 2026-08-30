@@ -1709,6 +1709,12 @@ public class CustomerBrain : MonoBehaviour
         if (waitingBadge != null) waitingBadge.Hide();
         if (patienceBar != null) patienceBar.gameObject.SetActive(false);
 
+        // Counted once per PERSON, here at the exit, rather than once per thing
+        // handed over. Served and Visitors answer different questions and the
+        // recap needs both: "how much work did I get through" and "how many
+        // people left happy".
+        if (wasServed && DayClock.Instance != null) DayClock.Instance.RecordVisitorSatisfied();
+
         if (!happy && DayClock.Instance != null) DayClock.Instance.RecordLost(lossReason);
 
         // One line per visit, written the moment the visit is over. Read-only:

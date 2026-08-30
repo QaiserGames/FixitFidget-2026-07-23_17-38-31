@@ -1,11 +1,12 @@
 ﻿===== DAY 1 =====
 
-Arrived                6
-Accepted               0
-Served                 0   (0 repairs, 0 drinks)
+Arrived                5
+Accepted               5
+People served          5    <- humans, counted once each
+Orders completed       7   (2 repairs, 5 drinks)
 
 WHY PEOPLE LEFT UNSERVED
-  Stormed out (queue)  6    <- never even heard them
+  Stormed out (queue)  0    <- never even heard them
   Stormed out (wait)   0    <- took the job, didn't get back
   Still here at close  0
   You declined         0    <- a choice, not a failure
@@ -13,12 +14,15 @@ WHY PEOPLE LEFT UNSERVED
   Shelf was full       0
 
 GRADES
-  Perfect              0
+  Perfect              2
   Good                 0
   Passable             0
 
 MONEY
-  Earned               $0   ($0 of it tips)
+  Earned               $397   ($108 of it tips)
+  of which cafe walk-ins $80
 
+Average visit length   96.4s
+Closest call           67% patience left
 
 Per-customer detail is in the CSV beside this file.

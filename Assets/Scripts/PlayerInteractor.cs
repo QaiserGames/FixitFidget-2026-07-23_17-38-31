@@ -64,6 +64,8 @@ public class PlayerInteractor : MonoBehaviour
         CurrentPrompt = focused != null ? focused.Prompt : "";
         nearbyStation = FindNearestStation();
         // Q declines whatever we're looking at, once they've had their say.
+        StationKey();
+
         if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame && focused != null)
         {
             CustomerBrain b = focused.GetComponent<CustomerBrain>();
@@ -184,11 +186,35 @@ public class PlayerInteractor : MonoBehaviour
     }
 
     // F — enter and leave stations.
-    private void OnAction()
+    //
+    // ⚠️ THIS WAS NEVER BEING CALLED. PlayerInput sends messages named after
+    // actions in the Input Actions asset, and that asset contains Move, Look,
+    // Interact, Attack, Crouch, Jump, Sprint, Previous, Next and Back — but no
+    // action called "Action" and no binding on <Keyboard>/f at all. So the
+    // method existed, read correctly, and never once fired.
+    //
+    // Kept public-facing as OnAction so that adding the binding later starts
+    // working with no further changes. Until then StationKey() below drives it
+    // directly, the same way Q-decline and the phone-tree digits already do.
+    private void OnAction() => ToggleStation();
+
+    private void ToggleStation()
     {
         if (conversation != null && conversation.InConversation) return;
         if (currentStation != null) { ExitStation(); return; }
         if (nearbyStation != null) EnterStation(nearbyStation);
+    }
+
+    // Read directly rather than through the action map.
+    //
+    // Not the long-term answer — proper gamepad support means every verb goes
+    // through the asset — but it's the same pattern Q and the phone-tree digits
+    // already use, it needs no Unity-side setup, and it makes the verb work
+    // TODAY. Migrating all of them together is a job for the controller pass.
+    private void StationKey()
+    {
+        if (Keyboard.current == null) return;
+        if (Keyboard.current.fKey.wasPressedThisFrame) ToggleStation();
     }
 
 

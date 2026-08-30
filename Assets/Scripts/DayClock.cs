@@ -58,7 +58,26 @@ public class DayClock : MonoBehaviour
     public bool DayOver { get; private set; }
 
     // Stats for the recap.
+    //
+    // ⚠️ Served counts TRANSACTIONS, not people. RecordServed fires once per
+    // thing delivered, so one customer with a repair and a coffee lands twice
+    // — which is how a day could report "Arrived 9, Served 11" while three
+    // people stormed out.
+    //
+    // Kept, because "how much work did I get through" is a real number worth
+    // having. Renamed in the recap to say what it actually means, and joined
+    // by Visitors below, which counts humans.
     public int Served { get; private set; }
+
+    // Distinct people whose visit ended with them getting something. This is
+    // the number that belongs next to Lost and Declined, because those count
+    // people too and comparing them against a transaction count is nonsense.
+    public int Visitors { get; private set; }
+
+    // Passive cafe income. Patrons pay on arrival and never call RecordServed,
+    // so their money reached the till while "Earned today" never moved — a
+    // recap that under-reported the day by exactly $5 a head.
+    public int PatronIncome { get; private set; }
 
     // Storm-outs ONLY. People who wanted serving and didn't get it.
     public int Lost { get; private set; }
@@ -102,11 +121,31 @@ public class DayClock : MonoBehaviour
         foreach (CustomerBrain c in leftovers)
             if (c != null) c.ForceRemove();
 
+        // Patrons too, and they need saying separately.
+        //
+        // DayClock deliberately does NOT wait for patrons before ending the day
+        // — they're atmosphere and would keep a finished day alive forever. But
+        // that also means nothing was ever clearing them, and Time.timeScale
+        // goes to 0 at the recap, which freezes Time.time and therefore freezes
+        // every patron's leave timer mid-count.
+        //
+        // Result: yesterday's customers woke up in today's cafe, still holding
+        // yesterday's seats, with the remainder of yesterday's stay to run.
+        // Plain Destroy is right here — a patron owns nothing but its chair,
+        // and PatronBrain.OnDestroy releases that.
+        PatronBrain[] stragglers = FindObjectsByType<PatronBrain>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        foreach (PatronBrain p in stragglers)
+            if (p != null) Destroy(p.gameObject);
+
         TimeRemaining = dayLengthSeconds;
         dayStartedAt = Time.time;
         IsOpen = true;
         DayOver = false;
         Served = 0;
+        Visitors = 0;
+        PatronIncome = 0;
         Lost = 0;
         Declined = 0;
         PatienceMultiplier = 1f;
@@ -216,6 +255,16 @@ public class DayClock : MonoBehaviour
 
         Tips += tip;
         Earned += basePay + tip;
+    }
+
+    /// <summary>One human whose visit ended with them having got something.</summary>
+    public void RecordVisitorSatisfied() => Visitors++;
+
+    /// <summary>A patron bought a coffee on the way in. No ticket, no demand.</summary>
+    public void RecordPatronIncome(int amount)
+    {
+        PatronIncome += amount;
+        Earned += amount;
     }
 
     // A customer left without being served. The reason decides which column it

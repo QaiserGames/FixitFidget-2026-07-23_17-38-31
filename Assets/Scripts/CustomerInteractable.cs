@@ -29,7 +29,12 @@ public class CustomerInteractable : Interactable
         get
         {
             if (brain == null) return "";
-            if (brain.CanReceiveDrink) return $"Serve the {brain.Record.Subject}";
+            // Record.Subject is what they CAME for. For a drink-only walk-in
+            // that happens to be the drink; for a repair customer who ordered a
+            // coffee while waiting it's their pocket watch — so this read
+            // "Serve the Pocket Watch" while you stood there holding a latte.
+            // WantedDrinkName covers both.
+            if (brain.CanReceiveDrink) return $"Serve the {brain.WantedDrinkName}";
 
             // Ranked above reassurance on purpose: if their drink can't be
             // made, calming them down only postpones the same dead end.

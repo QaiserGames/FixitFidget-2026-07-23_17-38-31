@@ -292,7 +292,8 @@ public class DayLog : MonoBehaviour
         sb.AppendLine();
         sb.AppendLine($"Arrived                {arrived}");
         sb.AppendLine($"Accepted               {accepted}");
-        sb.AppendLine($"Served                 {c.Served}   ({c.Repairs} repairs, {c.Drinks} drinks)");
+        sb.AppendLine($"People served          {c.Visitors}    <- humans, counted once each");
+        sb.AppendLine($"Orders completed       {c.Served}   ({c.Repairs} repairs, {c.Drinks} drinks)");
         sb.AppendLine();
         sb.AppendLine("WHY PEOPLE LEFT UNSERVED");
         sb.AppendLine($"  Stormed out (queue)  {stormedQueue}    <- never even heard them");
@@ -309,6 +310,7 @@ public class DayLog : MonoBehaviour
         sb.AppendLine();
         sb.AppendLine("MONEY");
         sb.AppendLine($"  Earned               ${c.Earned}   (${c.Tips} of it tips)");
+        sb.AppendLine($"  of which cafe walk-ins ${c.PatronIncome}");
         sb.AppendLine();
 
         if (servedCount > 0)

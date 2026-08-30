@@ -129,7 +129,13 @@ public class PatronSpawner : MonoBehaviour
         brain.Init(exitPoint);
 
         if (payPerPatron > 0 && ShopEconomy.Instance != null)
+        {
             ShopEconomy.Instance.AddMoney(payPerPatron);
+
+            // Through DayClock as well, or the till climbs while "Earned today"
+            // sits still and the recap quietly under-reports the day.
+            if (DayClock.Instance != null) DayClock.Instance.RecordPatronIncome(payPerPatron);
+        }
 
         if (consumesStock && ShopInventory.Instance != null)
             ShopInventory.Instance.TakeCup();

@@ -111,7 +111,13 @@ public class CustomerSpawner : MonoBehaviour
                 baseInterval = today.IntervalAt(DayFraction) * escalation;
 
             float gap = baseInterval * Random.Range(1f - spawnJitter, 1f + spawnJitter);
-            return Mathf.Max(minimumGap * 0.5f, gap);
+
+            // Against minimumGap itself, not half of it. The field says "gaps
+            // never fall below this"; halving it here made the real floor 2.5s
+            // against a stated 5s. Harmless on days 1-5, but day 5 repeats and
+            // squeezes 4% per day forever after, so the floor is the only thing
+            // stopping the door becoming a firehose around day 30.
+            return Mathf.Max(minimumGap, gap);
         }
     }
 

@@ -36,9 +36,11 @@ public class RecapUI : MonoBehaviour
  
         text.text =
             $"DAY {c.Day} — CLOSED\n\n" +
-            $"Customers served      {c.Served}\n" +
+            $"People served         {c.Visitors}\n" +
             $"Customers lost        {c.Lost}\n" +
             $"Turned away           {c.Declined}\n" +
+            $"Orders completed      {c.Served}\n" +
+            $"Cafe walk-ins         ${c.PatronIncome}\n" +
             $"Repairs completed     {c.Repairs}\n" +
             $"   Perfect            {c.Perfect}\n" +
             $"   Good               {c.Good}\n" +

@@ -1,7 +1,6 @@
 ﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip
-"Malcom",no,"Cheerful","Drink","Latte",,,,6.5,85.3,78.8,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Omar",no,"Chatty","Repair","Pocket Watch","Seized Movement","Mechanical",,32.5,115.8,83.4,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Grace",no,"Chatty","Drink","Coffee",,,,58.5,144.1,85.6,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Mansoor",no,"Cheerful","Drink","Latte",,,,98.5,177.3,78.8,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Valerie",no,"Chatty","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Coffee",134.5,218.3,83.8,,no,no,"StormedOutInQueue",,0.0,,0,0
-"Malcom",no,"Cheerful","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Coffee",174.5,253.2,78.7,,no,no,"StormedOutInQueue",,0.0,,0,0
+"Walter",no,"Cheerful","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Coffee",4.3,101.7,97.5,82.0,yes,yes,"Served","Perfect",0.7,"Seat",97,42
+"Malcom",no,"Cheerful","Drink","Latte",,,,30.3,120.6,90.3,64.7,yes,yes,"Served",,0.7,"Seat",6,2
+"Tomas",no,"Cheerful","Drink","Latte",,,,56.3,182.9,126.6,56.4,yes,yes,"Served",,0.7,"Seat",6,3
+"Walter",no,"Cheerful","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Coffee",116.3,200.6,84.3,69.3,yes,yes,"Served","Perfect",0.8,"Seat",97,59
+"Priya",no,"Chatty","Drink","Coffee",,,,132.3,215.7,83.4,25.7,yes,yes,"Served",,1.0,"Seat",3,2
