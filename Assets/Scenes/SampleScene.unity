@@ -2696,6 +2696,10 @@ MonoBehaviour:
   regularChance: 0
   drinks:
   - {fileID: 11400000, guid: f8f4c1a2bc2829d4ba3142360184b7a1, type: 2}
+  - {fileID: 11400000, guid: 55549d8f7c3a56d4984c3271d4dc6d9e, type: 2}
+  - {fileID: 11400000, guid: a94a7ba8113e43045ac6150ed0ded603, type: 2}
+  - {fileID: 11400000, guid: f844a400cc4233d4e8f4f7afa8a33f2c, type: 2}
+  - {fileID: 11400000, guid: f1e6e14f3525686459619ec1f37785be, type: 2}
   - {fileID: 11400000, guid: b7cb77bae0a35e04c998dece9a1f9fe4, type: 2}
   drinkChance: 0.4
 --- !u!4 &387075154
