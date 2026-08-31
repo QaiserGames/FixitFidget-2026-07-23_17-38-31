@@ -1,5 +1,12 @@
 using UnityEngine;
 
+public enum RegularVisitKind
+{
+    FollowDayMix,
+    RepairOnly,
+    DrinkOnly
+}
+
 [CreateAssetMenu(fileName = "Regular_", menuName = "FixitFiasco/Customer Profile")]
 public class CustomerProfile : ScriptableObject
 {
@@ -34,6 +41,15 @@ public class CustomerProfile : ScriptableObject
              "A regular who always orders the same coffee is a cheap piece of " +
              "characterisation — set this to 1 and give them a signature drink.")]
     public float drinkWishChance = 0.5f;
+
+    [Header("Visit pattern")]
+    [Tooltip("Whether their main reason for visiting follows the day's mix, " +
+             "is always a repair, or is always a café order.")]
+    public RegularVisitKind primaryVisitKind = RegularVisitKind.FollowDayMix;
+
+    [Tooltip("Their signature drink. Used for a drink-only visit and for a " +
+             "secondary order while waiting. Empty = choose from today's menu.")]
+    public DrinkDefinition preferredDrink;
 
     [Header("What they usually bring")]
     [Tooltip("Their signature device. Left empty = fully random.")]

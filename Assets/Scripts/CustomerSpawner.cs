@@ -319,6 +319,9 @@ public class CustomerSpawner : MonoBehaviour
         float chance = id != null ? id.DrinkWishChance : 0f;
         if (Random.value >= chance) return null;
 
+        if (id != null && id.Profile != null && id.Profile.preferredDrink != null)
+            return id.Profile.preferredDrink;
+
         return drinks[Random.Range(0, drinks.Length)];
     }
 
@@ -355,13 +358,25 @@ public class CustomerSpawner : MonoBehaviour
 
     private Job RollJob(CustomerProfile profile)
     {
-        // Café or repair?
+        // Café or repair? Walk-ins follow the day. A named regular may carry
+        // an authored reason for visiting so their story cannot randomly turn
+        // into "my hot chocolate is broken."
         float dChance = today != null ? today.drinkOnlyChance : drinkChance;
-        bool wantsDrink = drinks != null && drinks.Length > 0 && Random.value < dChance;
+        bool hasDrinks = drinks != null && drinks.Length > 0;
+        bool wantsDrink = profile != null
+            ? profile.primaryVisitKind switch
+            {
+                RegularVisitKind.RepairOnly => false,
+                RegularVisitKind.DrinkOnly  => hasDrinks,
+                _                           => hasDrinks && Random.value < dChance
+            }
+            : hasDrinks && Random.value < dChance;
 
         if (wantsDrink)
         {
-            DrinkDefinition d = drinks[Random.Range(0, drinks.Length)];
+            DrinkDefinition d = profile != null && profile.preferredDrink != null
+                ? profile.preferredDrink
+                : drinks[Random.Range(0, drinks.Length)];
             return new Job
             {
                 kind = JobKind.Drink,
