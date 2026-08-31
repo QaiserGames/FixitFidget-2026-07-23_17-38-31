@@ -112,6 +112,16 @@ public class DayDefinition : ScriptableObject
              "have no history.")]
     public float regularChance = 0.35f;
 
+    [Header("Featured regular")]
+    [Tooltip("A named customer guaranteed to appear once on this day. " +
+             "Leave empty for no authored appearance.")]
+    public CustomerProfile featuredRegular;
+
+    [Range(0f, 0.95f)]
+    [Tooltip("Earliest point in the day when the featured regular may take the " +
+             "next available arrival slot. 0.15 means 15% through the day.")]
+    public float featuredRegularArrivesAt = 0.15f;
+
     // ---------- lookups ----------
 
     /// <summary>Seconds between arrivals at this point in the day.</summary>

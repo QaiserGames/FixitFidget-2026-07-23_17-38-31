@@ -95,6 +95,7 @@ public class CustomerSpawner : MonoBehaviour
     // -1 so the very first Update of the very first day counts as "the day
     // changed" and gets its opening grace like every other morning.
     private int lastSeenDay = -1;
+    private bool featuredRegularSpawned;
 
     // A gap between arrivals, varied so the shop doesn't tick like a metronome.
     //
@@ -178,6 +179,7 @@ public class CustomerSpawner : MonoBehaviour
         {
             lastSeenDay = DayClock.Instance.Day;
             ResolveToday(lastSeenDay);
+            featuredRegularSpawned = false;
             lastPhase = "";
             timer = Random.Range(openingGraceMin, openingGraceMax);
 
@@ -243,15 +245,33 @@ public class CustomerSpawner : MonoBehaviour
         CustomerBrain brain = go.GetComponent<CustomerBrain>();
         CustomerIdentity id = go.GetComponent<CustomerIdentity>();
 
-        // Who is this?
+        // Who is this? A featured regular takes the next available arrival
+        // slot after their authored time. If the counter is full, they wait for
+        // a real opening rather than spawning into nowhere.
         CustomerProfile profile = null;
+        bool featuredDue = today != null
+                        && today.featuredRegular != null
+                        && !featuredRegularSpawned
+                        && DayFraction >= today.featuredRegularArrivesAt;
 
-        float regChance = today != null ? today.regularChance : regularChance;
-        bool isRegular = regulars != null && regulars.Length > 0 && Random.value < regChance;
-
-        if (isRegular)
+        if (featuredDue)
         {
-            profile = regulars[Random.Range(0, regulars.Length)];
+            profile = today.featuredRegular;
+            featuredRegularSpawned = true;
+        }
+        else
+        {
+            float regChance = today != null ? today.regularChance : regularChance;
+            bool isRegular = regulars != null
+                          && regulars.Length > 0
+                          && Random.value < regChance;
+
+            if (isRegular)
+                profile = regulars[Random.Range(0, regulars.Length)];
+        }
+
+        if (profile != null)
+        {
             int relationship = SaveManager.Instance != null
                 ? SaveManager.Instance.RelationshipFor(profile)
                 : 0;
