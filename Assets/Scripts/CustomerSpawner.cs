@@ -252,7 +252,10 @@ public class CustomerSpawner : MonoBehaviour
         if (isRegular)
         {
             profile = regulars[Random.Range(0, regulars.Length)];
-            id.SetupRegular(profile);
+            int relationship = SaveManager.Instance != null
+                ? SaveManager.Instance.RelationshipFor(profile)
+                : 0;
+            id.SetupRegular(profile, relationship);
         }
         else
         {

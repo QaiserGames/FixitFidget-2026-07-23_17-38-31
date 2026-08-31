@@ -8,6 +8,14 @@ public class CustomerProfile : ScriptableObject
     [TextArea(2, 4)] public string bio;
     public Color themeColor = Color.white;
 
+    [Tooltip("Stable key used in save files. Set this once (for example, grace) " +
+             "and never change it after players have saves. Empty falls back to the asset name.")]
+    [SerializeField] private string persistentId = "";
+
+    public string PersistentId => string.IsNullOrWhiteSpace(persistentId)
+        ? name
+        : persistentId.Trim();
+
     [Header("Portraits (regulars only — wired later)")]
     public Sprite portraitNeutral;
     public Sprite portraitHappy;
