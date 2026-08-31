@@ -16,8 +16,7 @@ public class CustomerBrain : MonoBehaviour
     // arrivals stormed out before ever being spoken to. 40s lets someone in the
     // queue survive one full repair cycle.
     //
-    // NOTE: this is a SerializeField, so the value on the Customer prefab wins
-    // over this default. Change it there too.
+    
     [SerializeField] private float queuePatience = 40f;
     [SerializeField] private float servicePatience = 45f;
     [SerializeField] private float maxTipFraction = 0.6f;
@@ -1226,7 +1225,7 @@ public class CustomerBrain : MonoBehaviour
         patienceLeft = Mathf.Min(patienceLeft + serviceMax * orderTopUp, serviceMax);
 
         React();
-        Say(OrderLine());
+        Say(OrderLine(), broadcast: true);      // they're calling across the room
     }
 
     private string OrderLine()
@@ -1624,7 +1623,7 @@ public class CustomerBrain : MonoBehaviour
         if (conversation != null) conversation.End();
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.StormedOut) : "";
-        Say(line);      // bubble — they're shouting at the room, not talking to you
+        Say(line, broadcast: true);   // shouting at the room, not talking to you
         LeaveAfterSpeaking(line, false);
     }
 
@@ -1754,13 +1753,29 @@ public class CustomerBrain : MonoBehaviour
         return line.Length / Mathf.Max(charactersPerSecond, 1f);
     }
 
-    private void Say(string line)
+    // BROADCAST — say it whether or not the player is looking.
+    //
+    // ForceShow used to refuse unless you were focusing this customer or they
+    // were formally Speaking. Sensible for chatter; wrong for the two moments
+    // that MATTER, both of which happen while you're heads-down at the bench
+    // with your back to the room:
+    //
+    //   - a repair customer deciding they want a coffee
+    //   - somebody giving up and walking out
+    //
+    // Suppressed, the ticket rail silently grew a line and a person silently
+    // vanished. The HUD generated a task and the HUD deleted a customer. That
+    // is exactly the "game screwed me" failure — the room is full of people and
+    // none of them can get your attention.
+    //
+    // Broadcast is deliberately rare. If everything shouts, nothing does.
+    private void Say(string line, bool broadcast = false)
     {
         if (string.IsNullOrEmpty(line)) return;
 
         currentLine = line;
         bubbleTimer = RevealTime(line) + lineHoldTime;
-        ForceShow();
+        ForceShow(broadcast);
     }
 
     public void ShowBubble(bool on)
@@ -1774,14 +1789,14 @@ public class CustomerBrain : MonoBehaviour
         else HideNow();
     }
 
-    private void ForceShow()
+    private void ForceShow(bool broadcast = false)
     {
         if (speechBubble == null || string.IsNullOrEmpty(currentLine)) return;
 
         if (player == null) player = FindAnyObjectByType<PlayerInteractor>();
         bool isFocused = player != null && player.Focused != null &&
                          player.Focused.GetComponent<CustomerBrain>() == this;
-        if (!isFocused && state != State.Speaking) return;
+        if (!broadcast && !isFocused && state != State.Speaking) return;
 
         if (revealRoutine != null) StopCoroutine(revealRoutine);
 
