@@ -14,7 +14,8 @@ public class CustomerIdentity : MonoBehaviour
     // Exposed for the day log, so a run can be read back as "the impatient
     // ones are the ones storming out" rather than just "three people left".
     public CustomerArchetype Archetype => archetype;
-    public int Relationship { get; private set; }      // stub until memory lands
+    public int Relationship { get; private set; }
+    public bool HasMetBefore { get; private set; }
     // Regulars have faces. Walk-ins fall back to a silhouette in the UI.
     public Sprite Portrait => profile != null ? profile.portraitNeutral : null;
 
@@ -27,13 +28,17 @@ public class CustomerIdentity : MonoBehaviour
     // screen"). Capitals mid-line read as a UI string that leaked into speech.
     private string faultName = "something";
 
-    public void SetupRegular(CustomerProfile p, int relationship = 0)
+    public void SetupRegular(
+        CustomerProfile p,
+        int relationship = 0,
+        bool hasMetBefore = false)
     {
         profile = p;
         archetype = null;
         DisplayName = p.characterName;
         ThemeColor = p.themeColor;
         Relationship = relationship;
+        HasMetBefore = hasMetBefore;
     }
 
     public void SetupWalkIn(CustomerArchetype a, string name)
@@ -43,6 +48,7 @@ public class CustomerIdentity : MonoBehaviour
         DisplayName = name;
         ThemeColor = a != null ? a.moodColor : Color.white;
         Relationship = 0;
+        HasMetBefore = false;
     }
 
     public void SetDevice(string device)
@@ -108,13 +114,19 @@ public class CustomerIdentity : MonoBehaviour
     {
         if (profile != null)
         {
-            bool warmAvailable = profile.warmLines != null
-                              && profile.warmLines.intake != null
-                              && profile.warmLines.intake.Length > 0;
-
+            bool warmAvailable = HasLines(profile.warmLines);
             if (Relationship >= 2 && warmAvailable) return profile.warmLines;
+
+            bool returnAvailable = HasLines(profile.returnLines);
+            if (HasMetBefore && returnAvailable) return profile.returnLines;
+
             return profile.lines;
         }
         return archetype != null ? archetype.lines : null;
+    }
+
+    private static bool HasLines(DialogueSet set)
+    {
+        return set != null && set.intake != null && set.intake.Length > 0;
     }
 }

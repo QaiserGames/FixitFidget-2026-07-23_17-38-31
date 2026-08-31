@@ -43,9 +43,13 @@ public class CustomerProfile : ScriptableObject
     [Tooltip("Chance they bring their signature device. The rest of the time it's a surprise.")]
     public float preferredDeviceChance = 0.7f;
 
-    [Header("Dialogue")]
+    [Header("First visit dialogue")]
     public DialogueSet lines;
 
-    [Header("Once we know each other (relationship 2+, wired with memory later)")]
+    [Header("Returning after a rough or neutral visit")]
+    [Tooltip("Used when this person has visited before but relationship is below 2.")]
+    public DialogueSet returnLines;
+
+    [Header("Returning with trust (relationship 2+)")]
     public DialogueSet warmLines;
 }
