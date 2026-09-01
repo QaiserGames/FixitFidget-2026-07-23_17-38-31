@@ -16,7 +16,7 @@ MonoBehaviour:
   bio: A retired school photographer with warm manners and exacting standards. Her
     family is gathering for the first time in years, and she wants every memory preserved.
   themeColor: {r: 0.83137256, g: 0.63529414, b: 0.22745098, a: 1}
-  persistentId: Grace
+  persistentId: grace
   portraitNeutral: {fileID: 0}
   portraitHappy: {fileID: 0}
   portraitAnnoyed: {fileID: 0}
