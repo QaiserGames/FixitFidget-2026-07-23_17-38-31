@@ -39,4 +39,4 @@ MonoBehaviour:
   - Chatty
   regularChance: 0
   featuredRegular: {fileID: 11400000, guid: dfd14ad338d46de49bd81a423294b439, type: 2}
-  featuredRegularArrivesAt: 0.15
+  featuredRegularArrivesAt: 0.55
