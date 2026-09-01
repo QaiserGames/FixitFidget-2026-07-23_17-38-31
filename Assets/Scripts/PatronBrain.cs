@@ -76,6 +76,9 @@ public class PatronBrain : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponentInChildren<Animator>();
+
+        // Lower numbers win; customers top out at 95, while variation avoids a patron tie.
+        agent.avoidancePriority = Random.Range(96, 100);
     }
 
     public void Init(Transform exit)
