@@ -62,13 +62,45 @@ public class CustomerIdentity : MonoBehaviour
         if (!string.IsNullOrEmpty(fault)) faultName = fault.ToLowerInvariant();
     }
 
-    public float PatienceMultiplier =>
-        profile != null ? profile.patienceMultiplier :
-        archetype != null ? archetype.patienceMultiplier : 1f;
+    public float PatienceMultiplier
+    {
+        get
+        {
+            float identityMultiplier =
+                profile != null ? profile.patienceMultiplier :
+                archetype != null ? archetype.patienceMultiplier : 1f;
 
-    public float TipMultiplier =>
-        profile != null ? profile.tipMultiplier :
-        archetype != null ? archetype.tipMultiplier : 1f;
+            return identityMultiplier * RelationshipPatienceMultiplier;
+        }
+    }
+
+    public float TipMultiplier
+    {
+        get
+        {
+            float identityMultiplier =
+                profile != null ? profile.tipMultiplier :
+                archetype != null ? archetype.tipMultiplier : 1f;
+
+            return identityMultiplier * RelationshipTipMultiplier;
+        }
+    }
+
+    // Mechanical trust stays modest; authored requests and story access are
+    // the larger Loyal reward. Walk-ins never receive relationship modifiers.
+    private float RelationshipPatienceMultiplier =>
+        !IsRegular           ? 1f :
+        Relationship <= -2   ? 0.90f :
+        Relationship >= 5    ? 1.10f :
+        Relationship >= 2    ? 1.05f :
+                               1f;
+
+    private float RelationshipTipMultiplier =>
+        !IsRegular           ? 1f :
+        Relationship <= -2   ? 0.75f :
+        Relationship >= 5    ? 1.25f :
+        Relationship >= 2    ? 1.15f :
+                               1f;
 
     public WaitingSpot.SpotKind PreferredWaitKind =>
         profile != null ? profile.preferredWaitKind :
