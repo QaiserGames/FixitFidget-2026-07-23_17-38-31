@@ -1530,7 +1530,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 248057e20be071b409cfcb2575ce43a4, type: 2}
+  - {fileID: 2100000, guid: 0b90574a867b7dd41a8918671dd8b6cb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2071,6 +2071,7 @@ GameObject:
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
   - component: {fileID: 330585548}
+  - component: {fileID: 330585549}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -2229,6 +2230,28 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   CustomBlends: {fileID: 0}
+--- !u!114 &330585549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68d187e9dca25b449a2a88a5dfe18a47, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraWallFader
+  gameplayCamera: {fileID: 330585545}
+  target: {fileID: 1039162922}
+  interactor: {fileID: 1039162928}
+  conversation: {fileID: 1039162930}
+  occluders:
+  - {fileID: 240388960}
+  - {fileID: 951608426}
+  targetHeight: 1
+  fadedAlpha: 0.3
+  fadeSeconds: 0.2
 --- !u!1 &352038342
 GameObject:
   m_ObjectHideFlags: 0
@@ -6766,7 +6789,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 248057e20be071b409cfcb2575ce43a4, type: 2}
+  - {fileID: 2100000, guid: 0b90574a867b7dd41a8918671dd8b6cb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
