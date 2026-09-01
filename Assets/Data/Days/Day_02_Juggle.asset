@@ -37,3 +37,5 @@ MonoBehaviour:
   - Chatty
   - Sentimental
   regularChance: 0.15
+  featuredRegular: {fileID: 11400000, guid: dfd14ad338d46de49bd81a423294b439, type: 2}
+  featuredRegularArrivesAt: 0.12

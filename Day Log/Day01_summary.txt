@@ -1,9 +1,9 @@
 ﻿===== DAY 1 =====
 
-Arrived                5
-Accepted               5
-People served          5    <- humans, counted once each
-Orders completed       7   (2 repairs, 5 drinks)
+Arrived                9
+Accepted               9
+People served          9    <- humans, counted once each
+Orders completed       9   (1 repairs, 8 drinks)
 
 WHY PEOPLE LEFT UNSERVED
   Stormed out (queue)  0    <- never even heard them
@@ -14,15 +14,15 @@ WHY PEOPLE LEFT UNSERVED
   Shelf was full       0
 
 GRADES
-  Perfect              2
+  Perfect              1
   Good                 0
   Passable             0
 
 MONEY
-  Earned               $397   ($108 of it tips)
-  of which cafe walk-ins $80
+  Earned               $261   ($60 of it tips)
+  of which cafe walk-ins $75
 
-Average visit length   96.4s
-Closest call           67% patience left
+Average visit length   42.9s
+Closest call           69% patience left
 
 Per-customer detail is in the CSV beside this file.
