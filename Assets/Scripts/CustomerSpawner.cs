@@ -95,6 +95,7 @@ public class CustomerSpawner : MonoBehaviour
     // -1 so the very first Update of the very first day counts as "the day
     // changed" and gets its opening grace like every other morning.
     private int lastSeenDay = -1;
+    private bool featuredRegularSpawned;
 
     // A gap between arrivals, varied so the shop doesn't tick like a metronome.
     //
@@ -178,6 +179,7 @@ public class CustomerSpawner : MonoBehaviour
         {
             lastSeenDay = DayClock.Instance.Day;
             ResolveToday(lastSeenDay);
+            featuredRegularSpawned = false;
             lastPhase = "";
             timer = Random.Range(openingGraceMin, openingGraceMax);
 
@@ -243,16 +245,39 @@ public class CustomerSpawner : MonoBehaviour
         CustomerBrain brain = go.GetComponent<CustomerBrain>();
         CustomerIdentity id = go.GetComponent<CustomerIdentity>();
 
-        // Who is this?
+        // Who is this? A featured regular takes the next available arrival
+        // slot after their authored time. If the counter is full, they wait for
+        // a real opening rather than spawning into nowhere.
         CustomerProfile profile = null;
+        bool featuredDue = today != null
+                        && today.featuredRegular != null
+                        && !featuredRegularSpawned
+                        && DayFraction >= today.featuredRegularArrivesAt;
 
-        float regChance = today != null ? today.regularChance : regularChance;
-        bool isRegular = regulars != null && regulars.Length > 0 && Random.value < regChance;
-
-        if (isRegular)
+        if (featuredDue)
         {
-            profile = regulars[Random.Range(0, regulars.Length)];
-            id.SetupRegular(profile);
+            profile = today.featuredRegular;
+            featuredRegularSpawned = true;
+        }
+        else
+        {
+            float regChance = today != null ? today.regularChance : regularChance;
+            bool isRegular = regulars != null
+                          && regulars.Length > 0
+                          && Random.value < regChance;
+
+            if (isRegular)
+                profile = regulars[Random.Range(0, regulars.Length)];
+        }
+
+        if (profile != null)
+        {
+            int relationship = SaveManager.Instance != null
+                ? SaveManager.Instance.RelationshipFor(profile)
+                : 0;
+            bool hasMetBefore = SaveManager.Instance != null
+                && SaveManager.Instance.HasMet(profile);
+            id.SetupRegular(profile, relationship, hasMetBefore);
         }
         else
         {
@@ -294,6 +319,9 @@ public class CustomerSpawner : MonoBehaviour
         float chance = id != null ? id.DrinkWishChance : 0f;
         if (Random.value >= chance) return null;
 
+        if (id != null && id.Profile != null && id.Profile.preferredDrink != null)
+            return id.Profile.preferredDrink;
+
         return drinks[Random.Range(0, drinks.Length)];
     }
 
@@ -330,13 +358,25 @@ public class CustomerSpawner : MonoBehaviour
 
     private Job RollJob(CustomerProfile profile)
     {
-        // Café or repair?
+        // Café or repair? Walk-ins follow the day. A named regular may carry
+        // an authored reason for visiting so their story cannot randomly turn
+        // into "my hot chocolate is broken."
         float dChance = today != null ? today.drinkOnlyChance : drinkChance;
-        bool wantsDrink = drinks != null && drinks.Length > 0 && Random.value < dChance;
+        bool hasDrinks = drinks != null && drinks.Length > 0;
+        bool wantsDrink = profile != null
+            ? profile.primaryVisitKind switch
+            {
+                RegularVisitKind.RepairOnly => false,
+                RegularVisitKind.DrinkOnly  => hasDrinks,
+                _                           => hasDrinks && Random.value < dChance
+            }
+            : hasDrinks && Random.value < dChance;
 
         if (wantsDrink)
         {
-            DrinkDefinition d = drinks[Random.Range(0, drinks.Length)];
+            DrinkDefinition d = profile != null && profile.preferredDrink != null
+                ? profile.preferredDrink
+                : drinks[Random.Range(0, drinks.Length)];
             return new Job
             {
                 kind = JobKind.Drink,

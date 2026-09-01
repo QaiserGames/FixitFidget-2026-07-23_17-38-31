@@ -1,5 +1,12 @@
 using UnityEngine;
 
+public enum RegularVisitKind
+{
+    FollowDayMix,
+    RepairOnly,
+    DrinkOnly
+}
+
 [CreateAssetMenu(fileName = "Regular_", menuName = "FixitFiasco/Customer Profile")]
 public class CustomerProfile : ScriptableObject
 {
@@ -7,6 +14,14 @@ public class CustomerProfile : ScriptableObject
     public string characterName = "Alex";
     [TextArea(2, 4)] public string bio;
     public Color themeColor = Color.white;
+
+    [Tooltip("Stable key used in save files. Set this once (for example, grace) " +
+             "and never change it after players have saves. Empty falls back to the asset name.")]
+    [SerializeField] private string persistentId = "";
+
+    public string PersistentId => string.IsNullOrWhiteSpace(persistentId)
+        ? name
+        : persistentId.Trim();
 
     [Header("Portraits (regulars only — wired later)")]
     public Sprite portraitNeutral;
@@ -27,6 +42,15 @@ public class CustomerProfile : ScriptableObject
              "characterisation — set this to 1 and give them a signature drink.")]
     public float drinkWishChance = 0.5f;
 
+    [Header("Visit pattern")]
+    [Tooltip("Whether their main reason for visiting follows the day's mix, " +
+             "is always a repair, or is always a café order.")]
+    public RegularVisitKind primaryVisitKind = RegularVisitKind.FollowDayMix;
+
+    [Tooltip("Their signature drink. Used for a drink-only visit and for a " +
+             "secondary order while waiting. Empty = choose from today's menu.")]
+    public DrinkDefinition preferredDrink;
+
     [Header("What they usually bring")]
     [Tooltip("Their signature device. Left empty = fully random.")]
     public GameObject preferredDevice;
@@ -35,9 +59,13 @@ public class CustomerProfile : ScriptableObject
     [Tooltip("Chance they bring their signature device. The rest of the time it's a surprise.")]
     public float preferredDeviceChance = 0.7f;
 
-    [Header("Dialogue")]
+    [Header("First visit dialogue")]
     public DialogueSet lines;
 
-    [Header("Once we know each other (relationship 2+, wired with memory later)")]
+    [Header("Returning after a rough or neutral visit")]
+    [Tooltip("Used when this person has visited before but relationship is below 2.")]
+    public DialogueSet returnLines;
+
+    [Header("Returning with trust (relationship 2+)")]
     public DialogueSet warmLines;
 }

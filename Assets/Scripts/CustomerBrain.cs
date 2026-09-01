@@ -1716,6 +1716,23 @@ public class CustomerBrain : MonoBehaviour
 
         if (!happy && DayClock.Instance != null) DayClock.Instance.RecordLost(lossReason);
 
+        // Named regulars carry one compact memory record into the next day and
+        // the next session. Walk-ins never enter the save file.
+        if (identity != null && identity.Profile != null && SaveManager.Instance != null)
+        {
+            string grade = record != null && record.kind == JobKind.Repair && wasServed
+                ? lastGrade.ToString()
+                : "";
+
+            SaveManager.Instance.RecordRegularVisit(
+                identity.Profile,
+                happy,
+                wasAccepted,
+                wasServed,
+                lossReason,
+                grade);
+        }
+
         // One line per visit, written the moment the visit is over. Read-only:
         // DayLog changes nothing and can be deleted whenever it stops earning
         // its place.

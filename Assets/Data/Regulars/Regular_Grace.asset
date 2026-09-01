@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97892a325f0d8524eaf01f70a23c9b44, type: 3}
+  m_Name: Regular_Grace
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerProfile
+  characterName: Grace
+  bio: A retired school photographer with warm manners and exacting standards. Her
+    family is gathering for the first time in years, and she wants every memory preserved.
+  themeColor: {r: 0.83137256, g: 0.63529414, b: 0.22745098, a: 1}
+  persistentId: grace
+  portraitNeutral: {fileID: 0}
+  portraitHappy: {fileID: 0}
+  portraitAnnoyed: {fileID: 0}
+  portraitSad: {fileID: 0}
+  patienceMultiplier: 1.15
+  tipMultiplier: 1.1
+  preferredWaitKind: 1
+  drinkWishChance: 1
+  primaryVisitKind: 1
+  preferredDrink: {fileID: 11400000, guid: b7cb77bae0a35e04c998dece9a1f9fe4, type: 2}
+  preferredDevice: {fileID: 0}
+  preferredDeviceChance: 0
+  lines:
+    intake:
+    - This {device} has to make it through a family reunion. They tell me the problem
+      is {fault}. Can you help?
+    accepted:
+    - "Thank you. Everyone in my family pretends they hate photographs\u2014until
+      somebody forgets to take them."
+    completed:
+    - There we are. You haven't only fixed a {device}; you've rescued an argument
+      my family hasn't had yet.
+    declined:
+    - I understand. I suppose every family reunion needs at least one disappointment.
+    reassured:
+    - That helps, dear. I can wait a little longer when someone remembers I'm here.
+    stormedOut:
+    - I have waited long enough. The reunion will not postpone itself for either
+      of us.
+    orderedDrink:
+    - While you work, may I have my usual latte? No sugar. Life provides enough of
+      that.
+  returnLines:
+    intake:
+    - We have met before. I wasn't certain I would return, but this {device} has
+      {fault}, and second chances should work both ways.
+    accepted:
+    - All right. Let us see what we can do differently this time.
+    completed:
+    - Much better. I was hoping our first meeting wasn't the whole story.
+    declined:
+    - Twice tells me more than once. I will remember that.
+    reassured:
+    - Thank you for saying so. Being acknowledged does make a difference.
+    stormedOut:
+    - I gave this another chance. I will not make the same mistake a third time.
+    orderedDrink:
+    - A latte, please. If nothing else, let us get that part right.
+  warmLines:
+    intake:
+    - There you are! The reunion survived, and your repair earned several compliments
+      nobody will admit giving. I have another {device}; this time the trouble is
+      {fault}.
+    accepted:
+    - "I knew I came back to the right counter. Take care of it\u2014and yourself."
+    completed:
+    - Wonderful. At this rate, my family will start breaking things just to visit
+      you.
+    declined:
+    - A pity, but you were honest with me. That still counts for something.
+    reassured:
+    - You remembered. That is worth more than a faster clock.
+    stormedOut:
+    - I trusted you with my time this time. Please do not make me regret that.
+    orderedDrink:
+    - You remember the latte, don't you? No sugar. I knew I liked this place.
