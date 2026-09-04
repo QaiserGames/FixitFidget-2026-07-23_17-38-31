@@ -14,6 +14,7 @@ public class DropSpot : MonoBehaviour
     [SerializeField] private ItemSlotArea slotArea;
 
     public SpotKind Kind => kind;
+    public bool Holds(JobBase item) => slotArea != null && slotArea.Holds(item);
 
     // Pure question — never changes state.
     public bool CanAccept(JobBase item)

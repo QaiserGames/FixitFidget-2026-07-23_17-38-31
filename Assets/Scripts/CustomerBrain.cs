@@ -333,6 +333,7 @@ public class CustomerBrain : MonoBehaviour
     public Transform LookTarget => lookTarget;
     public string CustomerName => identity != null ? identity.DisplayName : "Customer";
     public Job Record => record;
+    public JobBase ActiveJob => activeJob;
     public int JobNumber { get; private set; }
     public Color JobColor { get; private set; } = Color.white;
 

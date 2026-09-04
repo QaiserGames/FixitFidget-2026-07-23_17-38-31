@@ -21,6 +21,8 @@ public class ItemInspector : MonoBehaviour
     private PlayerInteractor interaction;
 
     public bool IsHoldingItem => focusedItem != null;
+    public JobBase FocusedItem => focusedItem;
+    public ToolType CurrentTool => currentTool;
     public string CurrentJobCard { get; private set; }
     public string HoverName { get; private set; }
     public string HoverAction { get; private set; }

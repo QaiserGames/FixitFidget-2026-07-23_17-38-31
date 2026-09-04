@@ -97,6 +97,13 @@ public class CustomerSpawner : MonoBehaviour
     private int lastSeenDay = -1;
     private bool featuredRegularSpawned;
 
+    private readonly DayOneOpening opening = new();
+    private CustomerBrain openingCustomer;
+    private DrinkDefinition openingDrink;
+    public DayOneOpening.Step OpeningStep => opening.Current;
+    public bool IsGuidedOpening => opening.IsActive;
+    public CustomerBrain OpeningCustomer => openingCustomer;
+
     // A gap between arrivals, varied so the shop doesn't tick like a metronome.
     //
     // With a schedule, the base interval comes from wherever we are in the day
@@ -167,8 +174,6 @@ public class CustomerSpawner : MonoBehaviour
 
     private void Update()
     {
-        if (DayClock.Instance != null && !DayClock.Instance.IsOpen) return;
-
         // A new morning. Opening the shop shouldn't mean someone is already at
         // the counter — there's a beat where the room is yours, and then the
         // first person wanders in.
@@ -180,6 +185,16 @@ public class CustomerSpawner : MonoBehaviour
             lastSeenDay = DayClock.Instance.Day;
             ResolveToday(lastSeenDay);
             featuredRegularSpawned = false;
+            openingCustomer = null;
+            openingDrink = ResolveOpeningDrink();
+            bool guide = today != null && today.GuidesOpeningOn(lastSeenDay);
+            if (guide && openingDrink == null)
+            {
+                Debug.LogWarning("Day 1 introduction needs a drink definition. " +
+                                 "Using the normal schedule instead.", this);
+                guide = false;
+            }
+            opening.Reset(guide);
             lastPhase = "";
             timer = Random.Range(openingGraceMin, openingGraceMax);
 
@@ -193,7 +208,20 @@ public class CustomerSpawner : MonoBehaviour
             return;
         }
 
+        // Observe real departure, including refusal/time-out, even after the
+        // door closes. The lesson never consumes input or changes the clock.
+        if (opening.VisitInProgress &&
+            (openingCustomer == null || openingCustomer.IsLeaving))
+        {
+            opening.FinishVisit();
+            openingCustomer = null;
+            timer = opening.IsActive ? blockedRetryInterval : NextGap;
+        }
+
+        if (DayClock.Instance != null && !DayClock.Instance.IsOpen) return;
+
         timer -= Time.deltaTime;
+        if (opening.VisitInProgress) return;
         if (timer > 0f) return;
 
         timer = NextGap;
@@ -214,10 +242,15 @@ public class CustomerSpawner : MonoBehaviour
         }
 
         int cap = today != null ? today.maxCustomers : maxCustomers;
+        if (opening.IsActive) cap = 1;
 
         int living = FindObjectsByType<CustomerBrain>(
             FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length;
-        if (living >= cap) return;
+        if (living >= cap)
+        {
+            if (opening.IsActive) timer = blockedRetryInterval;
+            return;
+        }
 
         // Don't create someone who has nowhere to stand.
         //
@@ -252,14 +285,14 @@ public class CustomerSpawner : MonoBehaviour
         bool featuredDue = today != null
                         && today.featuredRegular != null
                         && !featuredRegularSpawned
-                        && DayFraction >= today.featuredRegularArrivesAt;
+                        && opening.AllowsFeatured(DayFraction, today.featuredRegularArrivesAt);
 
         if (featuredDue)
         {
             profile = today.featuredRegular;
             featuredRegularSpawned = true;
         }
-        else
+        else if (!opening.IsActive)
         {
             float regChance = today != null ? today.regularChance : regularChance;
             bool isRegular = regulars != null
@@ -286,11 +319,24 @@ public class CustomerSpawner : MonoBehaviour
         }
 
         // What are they bringing, and what's wrong with it?
-        Job job = RollJob(profile);
+        JobKind? forcedKind = opening.IsActive
+            ? (opening.Current == DayOneOpening.Step.Drink ? JobKind.Drink : JobKind.Repair)
+            : null;
+        Job job = RollJob(profile, forcedKind);
 
         // And would they like something while they wait? Rolled here, kept
         // quiet by CustomerBrain until they've sat down.
         brain.Init(counterQueue, exitPoint, job, RollDrinkWish(id, job));
+        if (opening.TryStartVisit()) openingCustomer = brain;
+    }
+
+    private DrinkDefinition ResolveOpeningDrink()
+    {
+        if (today != null && today.openingDrink != null) return today.openingDrink;
+        if (drinks != null)
+            foreach (DrinkDefinition drink in drinks)
+                if (drink != null) return drink;
+        return null;
     }
 
     // Everyone materialising on the exact same tile is the first half of why
@@ -314,6 +360,7 @@ public class CustomerSpawner : MonoBehaviour
     private DrinkDefinition RollDrinkWish(CustomerIdentity id, Job job)
     {
         if (job == null || job.kind != JobKind.Repair) return null;
+        if (today != null && today.SuppressesRepairDrinksOn(lastSeenDay)) return null;
         if (drinks == null || drinks.Length == 0) return null;
 
         float chance = id != null ? id.DrinkWishChance : 0f;
@@ -356,7 +403,7 @@ public class CustomerSpawner : MonoBehaviour
         return allowed[Random.Range(0, allowed.Count)];
     }
 
-    private Job RollJob(CustomerProfile profile)
+    private Job RollJob(CustomerProfile profile, JobKind? forcedKind = null)
     {
         // Café or repair? Walk-ins follow the day. A named regular may carry
         // an authored reason for visiting so their story cannot randomly turn
@@ -372,9 +419,12 @@ public class CustomerSpawner : MonoBehaviour
             }
             : hasDrinks && Random.value < dChance;
 
+        if (forcedKind.HasValue) wantsDrink = forcedKind.Value == JobKind.Drink;
+
         if (wantsDrink)
         {
-            DrinkDefinition d = profile != null && profile.preferredDrink != null
+            DrinkDefinition d = forcedKind == JobKind.Drink ? openingDrink
+                : profile != null && profile.preferredDrink != null
                 ? profile.preferredDrink
                 : drinks[Random.Range(0, drinks.Length)];
             return new Job
