@@ -1,4 +1,5 @@
 using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -19,6 +20,7 @@ public class DayOneGuideUI : MonoBehaviour
     private GameObject panel;
     private TMP_Text hint;
     private float nextRefresh;
+    private readonly DayOneHintTimer toast = new();
 
     public void Initialize(TMP_Text source, PlayerInteractor player,
         ItemInspector itemInspector, ConversationController dialogue, GameObject recapPanel)
@@ -41,10 +43,16 @@ public class DayOneGuideUI : MonoBehaviour
             || sourceText == null || !sourceText.gameObject.activeInHierarchy;
         if (blocked)
         {
+            // Dialogue/recap must never leave an old toast waiting to pop back
+            // up. A fresh action after closing the panel may show its own hint.
+            if (clock == null || clock.Day != 1 || clock.DayOver) toast.Reset();
+            else toast.Dismiss();
             Show(false);
             return;
         }
 
+        // Expire on time even between the slower state refreshes below.
+        if (!toast.IsVisible(Time.unscaledTime)) Show(false);
         // Hints need no per-frame scene searches or string/layout rebuilding.
         if (Time.unscaledTime < nextRefresh) return;
         nextRefresh = Time.unscaledTime + 0.15f;
@@ -52,38 +60,42 @@ public class DayOneGuideUI : MonoBehaviour
         if (spawner == null || !spawner.IsGuidedOpening
             || (!clock.IsOpen && spawner.OpeningCustomer == null))
         {
+            toast.Reset();
             Show(false);
             return;
         }
         if (panel == null && !CreatePanel()) return;
-        Show(true);
 
         CustomerBrain customer = spawner.OpeningCustomer;
         bool drinkLesson = spawner.OpeningStep == DayOneOpening.Step.Drink;
         string title = drinkLesson ? "FIRST DRINK" : "FIRST REPAIR";
         string next = NextAction(customer, drinkLesson);
         string text = $"<b>{title}</b>\n{next}";
-        if (hint.text != text) hint.text = text;
+        // These messages describe stable actions, never the hovered part.
+        // Title separates the two lessons, so shared instructions can appear
+        // once for each visit without repeating when the player moves around.
+        if (toast.Observe(text, Time.unscaledTime)) hint.text = text;
+        Show(toast.IsVisible(Time.unscaledTime));
     }
 
     private string NextAction(CustomerBrain customer, bool drinkLesson)
     {
         if (customer == null || customer.IsLeaving)
-            return "The next customer is on their way. One request at a time for these first two visits.";
+            return "A customer is on the way. Start with one request.";
         if (!customer.WasAccepted)
         {
             if (interactor != null && interactor.CurrentStation != null && interactor.CurrentStation.IsWorkSurface)
-                return "Press F to step back from the bench. Walk to the staff side of the service counter, then press F to work there.";
+                return "Press F to leave the bench. Head behind the service counter.";
             if (interactor == null || interactor.CurrentStation == null
                 || interactor.CurrentStation.IsWorkSurface)
-                return "Walk to the staff side of the service counter and press F to work there. Intake conversations start from the counter view.";
+                return "Press F behind the service counter to take orders.";
             if (customer.OutOfStock)
-                return "Not enough cups or beans. Aim at the customer and press E to talk, then Q to apologise when offered.";
+                return "No stock: E to talk, then Q to apologise.";
             if (customer.ShelfFull)
-                return "The intake shelf is full. Move an item to a free bench slot before accepting.";
+                return "Shelf full. Move an item to a free bench slot.";
             if (customer.CanHearIntake || customer.CanDecide)
-                return $"Aim the centre crosshair at {customer.CustomerName} and press E to talk. After their line, press E for Take the job.";
-            return $"Let {customer.CustomerName} reach the counter. Then aim the crosshair at them and press E to talk.";
+                return $"Aim at {customer.CustomerName}. E talks; E after their line accepts.";
+            return $"Wait for {customer.CustomerName} to reach the counter.";
         }
         return drinkLesson ? DrinkAction(customer) : RepairAction(customer);
     }
@@ -95,45 +107,45 @@ public class DayOneGuideUI : MonoBehaviour
         if (held != null && !held.IsEmpty && held.Drink == wanted)
         {
             if (interactor != null && interactor.IsAtStation)
-                return $"Press F to step back, then carry the {customer.WantedDrinkName} to {customer.CustomerName}. E serves it when the Serve prompt appears.";
-            return $"Carry the {customer.WantedDrinkName} to {customer.CustomerName}. Press E when the prompt says Serve the {customer.WantedDrinkName}.";
+                return $"Press F to step back, then E near {customer.CustomerName} to serve.";
+            return $"Take the {customer.WantedDrinkName} to {customer.CustomerName}. E serves it.";
         }
         if (carry != null && carry.IsCarrying && (held == null || !held.IsEmpty))
-            return "Free your hands first. Set the item on a free surface, or return an unwanted cup to the cup stack.";
+            return "Hands full. Set the item down or return your cup.";
 
         if (machine == null) machine = FindAnyObjectByType<EspressoMachine>();
         if (machine != null && machine.IsBrewing)
-            return "The machine is brewing. Wait for it to finish; you do not need to hold a button.";
+            return "Brewing... wait for your drink.";
 
         foreach (DrinkJob cup in DrinkJob.Live)
         {
             if (cup == null || cup.Owner != customer || cup.IsEmpty) continue;
             if (held != null)
-                return "Put your spare empty cup back at the cup stack with E, so you can collect the finished drink.";
-            return $"The {customer.WantedDrinkName} is ready. Approach its cup (or the machine) and press E to pick it up.";
+                return "Return the spare cup to its stack with E.";
+            return $"{customer.WantedDrinkName} ready. Press E at the machine or cup.";
         }
         // A previous customer may have left a cup in the machine. Do not tell
         // the player to load another one into an occupied slot.
         if (machine != null && machine.HasCup)
-            return "Clear the cup in the machine first. You can return an unwanted cup to the cup stack with E.";
+            return "Machine occupied. Clear its cup before making another drink.";
 
         ShopInventory stock = ShopInventory.Instance;
         if (customer.CanApologiseForDrink &&
             (stock == null || !stock.CanBrew(wanted) || (held == null && stock.Cups <= 0)))
-            return $"Not enough stock. Approach {customer.CustomerName} and press E when the prompt offers an apology. Restock on the end-of-day recap.";
+            return $"No stock. E near {customer.CustomerName} apologises; restock after closing.";
         if (stock != null && !stock.CanBrew(wanted))
-            return "There are not enough beans for this order. Restocking is available on the end-of-day recap.";
+            return "Not enough beans. Restock after closing.";
         if (held != null && held.IsEmpty)
-            return $"Take your empty cup to the espresso machine. Press E when it offers to make {customer.WantedDrinkName}.";
+            return "Empty cup ready. Press E at the espresso machine.";
         if (stock != null && stock.Cups <= 0)
-            return "No cups left in stock. Look for an empty cup you set down; otherwise restock at the end of the day.";
-        return "Approach the cup stack and press E to take one empty cup.";
+            return "No cups. Collect a spare or restock after closing.";
+        return "Press E at the cup stack to take an empty cup.";
     }
 
     private string RepairAction(CustomerBrain customer)
     {
         JobBase job = customer.ActiveJob;
-        if (job == null) return "Finish the conversation; the customer's item will be placed on the intake shelf.";
+        if (job == null) return "The customer's item will appear on the intake shelf.";
         bool inspecting = inspector != null && inspector.FocusedItem == job;
         bool carrying = carry != null && carry.Carried == job;
 
@@ -141,34 +153,34 @@ public class DayOneGuideUI : MonoBehaviour
         {
             if (inspecting)
                 return inspector.CurrentTool != ToolType.Hand
-                    ? "The repair is complete. Right-click to put your tool down, then right-click again to leave inspection."
-                    : "The repair is complete. Right-click to leave inspection, then press E on the item to pick it up.";
+                    ? "Fixed! Right-click twice: put down the tool, then leave inspection."
+                    : "Fixed! Right-click to leave inspection. E picks up the item.";
             if (carrying)
             {
                 if (interactor != null && interactor.IsAtStation)
-                    return "Press F to step back, then carry the repaired item to its customer and press E at Hand it back.";
-                return $"Take the repaired item to {customer.CustomerName}. Press E when the prompt says Hand it back.";
+                    return "Press F to step back. E near the customer returns their item.";
+                return $"Take the item to {customer.CustomerName}. Press E at Hand it back.";
             }
-            return "Pick up the repaired item with E. It must be in your hands when you return it to its customer.";
+            return "Press E to pick up the repaired item for delivery.";
         }
 
         if (inspector != null && inspector.IsHoldingItem && !inspecting)
-            return "You are inspecting a different item. Right-click to put down any tool, then right-click to leave inspection.";
+            return "Wrong item. Right-click puts down tools, then leaves inspection.";
         if (carrying)
         {
             if (interactor != null && interactor.IsAtStation)
-                return "Press F to step back first. Then approach the repair bench and press E at Set down to place the item.";
-            return "Carry the item to the repair bench. Press E when the prompt says Set down.";
+                return "Press F to step back. E at the bench sets items down.";
+            return "Carry the item to the repair bench. E sets it down.";
         }
         if (carry != null && carry.IsCarrying)
-            return "Free your hands first: set your item on a free surface, or return your cup to the cup stack.";
+            return "Hands full. Set the item down or return your cup.";
         if (inspecting)
         {
             if (job.Quality >= 0.999f && job.HasDetachedParts)
-                return "The faults are fixed. Use the pry tool to refit the cover, then the screwdriver to refit the screws from the tray.";
-            if (!string.IsNullOrEmpty(inspector.HoverAction) && inspector.HoverAction != "Not yet")
-                return $"{inspector.HoverName}: {inspector.HoverAction}. Left-click to act; with the brush, hold left-click and move over grime.";
-            return "Hover over a screw, cover, or faulty part to see its needed tool. Click the tool, then the part. Right-click puts the tool down.";
+                return "Refit the cover with the pry tool, then screws with the screwdriver.";
+            if (inspector.CurrentTool == ToolType.Brush)
+                return "Hold left-click and move the brush over grime to clean it.";
+            return "Click a tool, then a part. Hover shows the tool needed.";
         }
 
         bool onBench = false;
@@ -177,12 +189,12 @@ public class DayOneGuideUI : MonoBehaviour
                 if (drop != null && drop.Kind == DropSpot.SpotKind.Bench && drop.Holds(job))
                     onBench = true;
         if (!onBench)
-            return "Pick up this customer's item from the intake shelf (or where you set it down) with E.";
+            return "Press E to pick up the customer's item from the intake shelf.";
         if (interactor != null && interactor.CurrentStation != null && !interactor.CurrentStation.IsWorkSurface)
-            return "Press F to step back from this station. Walk to the repair bench, then press F to work there.";
+            return "Press F to step back. Head to the repair bench.";
         if (interactor == null || interactor.CurrentStation == null || !interactor.CurrentStation.IsWorkSurface)
-            return "The item is on the bench. Approach the repair bench and press F to work there.";
-        return "Aim the centre crosshair at your item on the bench, then left-click to inspect it.";
+            return "Item placed. Press F at the repair bench to work there.";
+        return "Aim the centre crosshair at the item. Left-click to inspect.";
     }
 
     private bool CreatePanel()
@@ -193,11 +205,11 @@ public class DayOneGuideUI : MonoBehaviour
         panel = new GameObject("Day 1 next action (runtime)", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = panel.GetComponent<RectTransform>();
         rect.SetParent(canvas.transform, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        rect.anchoredPosition = new Vector2(0f, -24f);
+        rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(24f, -24f);
         RectTransform canvasRect = canvas.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(Mathf.Min(620f, canvasRect.rect.width * 0.46f), 120f);
+        rect.sizeDelta = new Vector2(Mathf.Min(460f, canvasRect.rect.width * 0.34f), 104f);
         Image background = panel.GetComponent<Image>();
         background.color = new Color(0.08f, 0.09f, 0.10f, 0.9f);
         background.raycastTarget = false;
@@ -226,9 +238,45 @@ public class DayOneGuideUI : MonoBehaviour
         if (panel != null && panel.activeSelf != visible) panel.SetActive(visible);
     }
 
-    private void OnDisable() => Show(false);
+    private void OnDisable()
+    {
+        toast.Dismiss();
+        Show(false);
+    }
     private void OnDestroy()
     {
         if (panel != null) Destroy(panel);
+    }
+}
+
+// Time/input-independent policy, covered by the Edit Mode checks. Re-observing
+// an unchanged action never extends its three seconds. Returning to an already
+// shown action hides any stale text rather than flashing the old hint again.
+public sealed class DayOneHintTimer
+{
+    public const float Duration = 3f;
+    private readonly HashSet<string> shown = new();
+    private string current;
+    private float visibleUntil;
+
+    public bool Observe(string key, float now)
+    {
+        if (key == current) return false;
+        if (string.IsNullOrEmpty(key) || !shown.Add(key))
+        {
+            Dismiss();
+            return false;
+        }
+        current = key;
+        visibleUntil = now + Duration;
+        return true;
+    }
+
+    public bool IsVisible(float now) => current != null && now < visibleUntil;
+    public void Dismiss() => current = null;
+    public void Reset()
+    {
+        Dismiss();
+        shown.Clear();
     }
 }

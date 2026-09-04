@@ -18,11 +18,34 @@ public static class DayOneOnboardingChecks
             throw new InvalidOperationException("Stop Play Mode before running onboarding checks.");
 
         CheckSequence();
+        CheckHintTiming();
         CheckDefinitions();
         CheckJobRolls();
         Debug.Log("[Day 1 onboarding] PASS: sequence, failure-safe progression, " +
-                  "day isolation, Grace timing, and opening job selection. " +
+                  "day isolation, Grace timing, opening job selection, and three-second hint timing. " +
                   "Still run the in-game checklist for input, navigation, and HUD layout.");
+    }
+
+    private static void CheckHintTiming()
+    {
+        var timer = new DayOneHintTimer();
+        Require(!timer.IsVisible(0f), "No hint before the first action.");
+        Require(timer.Observe("drink:cup", 10f), "A new action starts a toast.");
+        Require(timer.IsVisible(12.99f), "Hint remains visible for three seconds.");
+        Require(!timer.Observe("drink:cup", 12.99f), "Polling cannot restart the timer.");
+        Require(!timer.IsVisible(13f), "Hint disappears at three seconds.");
+        Require(!timer.Observe("drink:cup", 50f) && !timer.IsVisible(50f), "Expired hint cannot repeat.");
+        Require(timer.Observe("drink:brew", 51f), "Next action gets its own hint.");
+        Require(!timer.Observe("drink:cup", 52f) && !timer.IsVisible(52f), "Returning to an old action clears stale text without replay.");
+        Require(timer.Observe("drink:serve", 60f), "Delivery is a new action.");
+        timer.Dismiss();
+        Require(!timer.IsVisible(61f), "Conversation/disable dismisses immediately.");
+        Require(!timer.Observe("drink:serve", 62f) && !timer.IsVisible(62f), "Closing dialogue does not replay the old toast.");
+        Require(timer.Observe("repair:cup", 70f), "Separate lesson may teach the same action.");
+        timer.Reset();
+        Require(!timer.IsVisible(70f), "Reset hides the current hint.");
+        Require(timer.Observe("drink:cup", 80f), "Fresh run can show hints again.");
+        Require(!timer.Observe("", 81f) && !timer.IsVisible(81f), "Empty action hides the panel.");
     }
 
     private static void CheckSequence()

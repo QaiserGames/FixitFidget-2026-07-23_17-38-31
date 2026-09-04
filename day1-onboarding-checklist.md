@@ -5,7 +5,7 @@ This is a branch prototype, not a declaration that the five-day M0 test has pass
 ## What changed
 
 - Day 1 opens with a Coffee-only walk-in, then a repair-only walk-in from the existing Day 1 device pool. The two introductory service visits arrive one at a time.
-- A small top-centre HUD panel describes the next action from actual customer, cup, carrying, and inspection state. Existing E/F prompts and conversations remain authoritative.
+- A compact top-left HUD pop-up describes the next action from actual customer, cup, carrying, and inspection state. Each distinct hint appears once per lesson for three seconds, then disappears; returning to an old action does not replay it. New actions replace stale hints. Existing E/F prompts and conversations remain authoritative and remain visible independently.
 - Refusal, timeout, or removal ends an introductory attempt too; no reward or success is fabricated. Normal spawn pacing resumes after the second attempt.
 - Repair customers do not request an additional beverage on Day 1, including Grace. Profiles and later-day drink wishes are untouched.
 - Grace remains the featured Day 1 customer, eligible from 55% of the day once the two introductory attempts finish. She still needs an available arrival slot before closing. This is not an unconditional arrival guarantee if the opening attempts take the entire day.
@@ -21,8 +21,9 @@ This is a branch prototype, not a declaration that the five-day M0 test has pass
 
 ## First run: normal service
 
-- [ ] Day 1 opens with the `FIRST DRINK` hint; first service customer orders Coffee only.
-- [ ] Opening a conversation hides the guide. Closing it restores the relevant next action.
+- [ ] Day 1 opens with a top-left `FIRST DRINK` pop-up; first service customer orders Coffee only. The hint does not cover the centre ticket or right-side clock/stock.
+- [ ] Stand still: the hint disappears after three seconds and stays hidden. The next new action (such as taking a cup) shows its own three-second pop-up. Going back to an already shown action does not replay it.
+- [ ] Opening a conversation hides the guide immediately. Closing it may show a new action, but never resumes the old pop-up. Hovering over different repair parts does not trigger toasts; selecting the brush can show one cleaning hint.
 - [ ] Enter the service counter from its staff side with F, aim at the customer and press E to talk. After their line, E takes the job; Q declines. F steps away.
 - [ ] After accepting: take an empty cup (E), use the espresso machine (E), wait, collect (E), approach the correct customer and press E at the Serve prompt. The hint should follow each successful change, not just a key press.
 - [ ] No second service customer starts during the first visit. After the first customer leaves, a repair-only customer arrives with `FIRST REPAIR` guidance.
