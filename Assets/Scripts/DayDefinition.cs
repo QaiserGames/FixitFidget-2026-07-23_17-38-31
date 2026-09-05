@@ -101,6 +101,10 @@ public class DayDefinition : ScriptableObject
     [Tooltip("The first lesson's recipe. Empty uses the first valid spawner drink.")]
     public DrinkDefinition openingDrink;
 
+    [Tooltip("How long each new Day 1 guidance pop-up stays on screen.")]
+    [Range(3f, 10f)]
+    public float openingHintDuration = 6f;
+
     [Tooltip("No secondary beverage requests from repair customers on this " +
              "authored day. Does not change their profiles or later visits.")]
     public bool suppressRepairDrinkWishes;

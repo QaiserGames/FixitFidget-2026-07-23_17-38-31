@@ -103,6 +103,9 @@ public class CustomerSpawner : MonoBehaviour
     public DayOneOpening.Step OpeningStep => opening.Current;
     public bool IsGuidedOpening => opening.IsActive;
     public CustomerBrain OpeningCustomer => openingCustomer;
+    public float OpeningHintDuration => today != null
+        ? Mathf.Clamp(today.openingHintDuration, 3f, 10f)
+        : 6f;
 
     // A gap between arrivals, varied so the shop doesn't tick like a metronome.
     //

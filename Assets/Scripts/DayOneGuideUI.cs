@@ -74,7 +74,7 @@ public class DayOneGuideUI : MonoBehaviour
         // These messages describe stable actions, never the hovered part.
         // Title separates the two lessons, so shared instructions can appear
         // once for each visit without repeating when the player moves around.
-        if (toast.Observe(text, Time.unscaledTime)) hint.text = text;
+        if (toast.Observe(text, Time.unscaledTime, spawner.OpeningHintDuration)) hint.text = text;
         Show(toast.IsVisible(Time.unscaledTime));
     }
 
@@ -175,13 +175,7 @@ public class DayOneGuideUI : MonoBehaviour
         if (carry != null && carry.IsCarrying)
             return "Hands full. Set the item down or return your cup.";
         if (inspecting)
-        {
-            if (job.Quality >= 0.999f && job.HasDetachedParts)
-                return "Refit the cover with the pry tool, then screws with the screwdriver.";
-            if (inspector.CurrentTool == ToolType.Brush)
-                return "Hold left-click and move the brush over grime to clean it.";
-            return "Click a tool, then a part. Hover shows the tool needed.";
-        }
+            return RepairBenchAction(job);
 
         bool onBench = false;
         if (drops != null)
@@ -195,6 +189,55 @@ public class DayOneGuideUI : MonoBehaviour
         if (interactor == null || interactor.CurrentStation == null || !interactor.CurrentStation.IsWorkSurface)
             return "Item placed. Press F at the repair bench to work there.";
         return "Aim the centre crosshair at the item. Left-click to inspect.";
+    }
+
+    private string RepairBenchAction(JobBase job)
+    {
+        ToolType tool = inspector.CurrentTool;
+
+        if (job.Quality >= 0.999f)
+        {
+            if (job.HasDetachedComponent<RemovablePart>())
+                return tool == ToolType.Pry
+                    ? "Pry tool selected. Click the cover in the tray to refit it."
+                    : "Fault fixed. Select the pry tool to refit the cover.";
+
+            if (job.HasDetachedComponent<Screw>())
+                return tool == ToolType.Screwdriver
+                    ? "Screwdriver selected. Click each tray screw to refit it."
+                    : "Cover fitted. Select the screwdriver for the tray screws.";
+
+            // A detached part unregisters as its return animation begins. Keep
+            // the message accurate during that short transition.
+            foreach (Screw screw in job.GetComponentsInChildren<Screw>())
+                if (screw.IsOut || screw.IsBusy)
+                    return "Finishing the screws...";
+        }
+
+        foreach (Screw screw in job.GetComponentsInChildren<Screw>())
+            if (!screw.IsOut)
+                return tool == ToolType.Screwdriver
+                    ? "Screwdriver selected. Click each case screw to remove it."
+                    : "Select the screwdriver to remove the case screws.";
+
+        foreach (RemovablePart cover in job.GetComponentsInChildren<RemovablePart>())
+            if (!cover.IsRemoved)
+                return tool == ToolType.Pry
+                    ? "Pry tool selected. Click the loosened cover to lift it off."
+                    : "Select the pry tool to lift the loosened cover.";
+
+        if (job.GetComponentInChildren<GrimeSpot>() != null)
+            return tool == ToolType.Brush
+                ? "Brush selected. Hold left-click and move over the exposed grime."
+                : "Select the brush to clean the exposed grime.";
+
+        foreach (ReplaceablePart part in job.GetComponentsInChildren<ReplaceablePart>())
+            if (!part.IsReplaced)
+                return tool == ToolType.Tweezers
+                    ? "Tweezers selected. Click the broken part to replace it."
+                    : "Select the tweezers to replace the broken part.";
+
+        return "Follow the part label: select the tool it names, then click the part.";
     }
 
     private bool CreatePanel()
@@ -250,16 +293,15 @@ public class DayOneGuideUI : MonoBehaviour
 }
 
 // Time/input-independent policy, covered by the Edit Mode checks. Re-observing
-// an unchanged action never extends its three seconds. Returning to an already
+// an unchanged action never extends its configured duration. Returning to an already
 // shown action hides any stale text rather than flashing the old hint again.
 public sealed class DayOneHintTimer
 {
-    public const float Duration = 3f;
     private readonly HashSet<string> shown = new();
     private string current;
     private float visibleUntil;
 
-    public bool Observe(string key, float now)
+    public bool Observe(string key, float now, float duration)
     {
         if (key == current) return false;
         if (string.IsNullOrEmpty(key) || !shown.Add(key))
@@ -268,7 +310,7 @@ public sealed class DayOneHintTimer
             return false;
         }
         current = key;
-        visibleUntil = now + Duration;
+        visibleUntil = now + Mathf.Clamp(duration, 3f, 10f);
         return true;
     }
 

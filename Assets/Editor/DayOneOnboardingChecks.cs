@@ -22,7 +22,7 @@ public static class DayOneOnboardingChecks
         CheckDefinitions();
         CheckJobRolls();
         Debug.Log("[Day 1 onboarding] PASS: sequence, failure-safe progression, " +
-                  "day isolation, Grace timing, opening job selection, and three-second hint timing. " +
+                  "day isolation, Grace timing, opening job selection, and configurable hint timing. " +
                   "Still run the in-game checklist for input, navigation, and HUD layout.");
     }
 
@@ -30,22 +30,25 @@ public static class DayOneOnboardingChecks
     {
         var timer = new DayOneHintTimer();
         Require(!timer.IsVisible(0f), "No hint before the first action.");
-        Require(timer.Observe("drink:cup", 10f), "A new action starts a toast.");
-        Require(timer.IsVisible(12.99f), "Hint remains visible for three seconds.");
-        Require(!timer.Observe("drink:cup", 12.99f), "Polling cannot restart the timer.");
-        Require(!timer.IsVisible(13f), "Hint disappears at three seconds.");
-        Require(!timer.Observe("drink:cup", 50f) && !timer.IsVisible(50f), "Expired hint cannot repeat.");
-        Require(timer.Observe("drink:brew", 51f), "Next action gets its own hint.");
-        Require(!timer.Observe("drink:cup", 52f) && !timer.IsVisible(52f), "Returning to an old action clears stale text without replay.");
-        Require(timer.Observe("drink:serve", 60f), "Delivery is a new action.");
+        Require(timer.Observe("drink:cup", 10f, 6f), "A new action starts a toast.");
+        Require(timer.IsVisible(15.99f), "Hint remains visible for six seconds.");
+        Require(!timer.Observe("drink:cup", 15.99f, 6f), "Polling cannot restart the timer.");
+        Require(!timer.IsVisible(16f), "Hint disappears at six seconds.");
+        Require(!timer.Observe("drink:cup", 50f, 6f) && !timer.IsVisible(50f), "Expired hint cannot repeat.");
+        Require(timer.Observe("drink:brew", 51f, 6f), "Next action gets its own hint.");
+        Require(!timer.Observe("drink:cup", 52f, 6f) && !timer.IsVisible(52f), "Returning to an old action clears stale text without replay.");
+        Require(timer.Observe("drink:serve", 60f, 6f), "Delivery is a new action.");
         timer.Dismiss();
         Require(!timer.IsVisible(61f), "Conversation/disable dismisses immediately.");
-        Require(!timer.Observe("drink:serve", 62f) && !timer.IsVisible(62f), "Closing dialogue does not replay the old toast.");
-        Require(timer.Observe("repair:cup", 70f), "Separate lesson may teach the same action.");
+        Require(!timer.Observe("drink:serve", 62f, 6f) && !timer.IsVisible(62f), "Closing dialogue does not replay the old toast.");
+        Require(timer.Observe("repair:cup", 70f, 6f), "Separate lesson may teach the same action.");
         timer.Reset();
         Require(!timer.IsVisible(70f), "Reset hides the current hint.");
-        Require(timer.Observe("drink:cup", 80f), "Fresh run can show hints again.");
-        Require(!timer.Observe("", 81f) && !timer.IsVisible(81f), "Empty action hides the panel.");
+        Require(timer.Observe("custom", 80f, 7f), "A custom duration can start a toast.");
+        Require(timer.IsVisible(86.99f) && !timer.IsVisible(87f), "A seven-second setting is honored.");
+        timer.Reset();
+        Require(timer.Observe("drink:cup", 90f, 6f), "Fresh run can show hints again.");
+        Require(!timer.Observe("", 91f, 6f) && !timer.IsVisible(91f), "Empty action hides the panel.");
     }
 
     private static void CheckSequence()
@@ -91,6 +94,7 @@ public static class DayOneOnboardingChecks
         Require(first.GuidesOpeningOn(1) && first.SuppressesRepairDrinksOn(1), "Day 1 opts in.");
         Require(!first.GuidesOpeningOn(2) && !first.SuppressesRepairDrinksOn(2), "Repeating Day 1 cannot leak rules to Day 2.");
         Require(first.openingDrink != null && first.openingDrink.drinkName == "Coffee", "First drink is Coffee.");
+        Require(Mathf.Approximately(first.openingHintDuration, 6f), "Day 1 hints default to six seconds.");
         Require(first.maxCustomers == 3 && Mathf.Approximately(first.patienceMultiplier, 1.4f), "Original cap and patience retained.");
         Require(first.featuredRegular != null && Mathf.Approximately(first.featuredRegularArrivesAt, 0.55f), "Featured visit and 55% timing retained.");
         Require(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(first.featuredRegular))

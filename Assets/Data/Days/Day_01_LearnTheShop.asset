@@ -33,6 +33,7 @@ MonoBehaviour:
   drinkOnlyChance: 0.55
   guidedOpening: 1
   openingDrink: {fileID: 11400000, guid: f8f4c1a2bc2829d4ba3142360184b7a1, type: 2}
+  openingHintDuration: 6
   suppressRepairDrinkWishes: 1
   devices:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
