@@ -35,6 +35,8 @@ public class DayClock : MonoBehaviour
     [SerializeField] private float closingGrace = 90f;
 
     private float closedAt;
+    private int closingTill;
+    private bool advancingDay;
 
     public int Day { get; private set; }
     public float TimeRemaining { get; private set; }
@@ -97,11 +99,19 @@ public class DayClock : MonoBehaviour
 
     public event Action OnDayEnded;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => Instance = null;
+
     private void Awake()
     {
         Instance = this;
         Day = startingDay;
         StartDay();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     public void StartDay()
@@ -156,6 +166,7 @@ public class DayClock : MonoBehaviour
         Perfect = 0;
         Good = 0;
         Passable = 0;
+        closingTill = 0;
         Time.timeScale = 1f;
     }
 
@@ -224,15 +235,88 @@ public class DayClock : MonoBehaviour
 
     private void EndDay()
     {
+        if (DayOver) return;
+        IsOpen = false;
         DayOver = true;
+        TimeRemaining = 0f;
+        closingTill = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
         Time.timeScale = 0f;
+        // Commit before UI/log listeners, so a failing listener cannot prevent
+        // the completed day from being checkpointed.
+        if (SaveManager.Instance != null) SaveManager.Instance.TrySaveRecap();
+        else Debug.LogError("[Save] Day closed without a SaveManager; progress has not been saved.");
         OnDayEnded?.Invoke();
     }
 
-    public void NextDay()
+    public void NextDay() => TryNextDay();
+
+    public bool TryNextDay()
     {
-        Day++;
-        StartDay();
+        if (!DayOver || advancingDay) return false;
+        if (SaveManager.Instance == null)
+        {
+            Debug.LogError("[Save] Cannot continue without a SaveManager.");
+            return false;
+        }
+
+        advancingDay = true;
+        try
+        {
+            if (!SaveManager.Instance.TrySaveNextDay()) return false;
+            Day++;
+            StartDay();
+            return true;
+        }
+        finally { advancingDay = false; }
+    }
+
+    public RecapSaveData CaptureRecap()
+    {
+        return new RecapSaveData
+        {
+            day = Day,
+            peopleServed = Visitors,
+            customersLost = Lost,
+            turnedAway = Declined,
+            ordersCompleted = Served,
+            repairs = Repairs,
+            drinks = Drinks,
+            perfect = Perfect,
+            good = Good,
+            passable = Passable,
+            tips = Tips,
+            earned = Earned,
+            patronIncome = PatronIncome,
+            closingTill = closingTill,
+            elapsedSeconds = Mathf.Max(0f, SecondsIntoDay)
+        };
+    }
+
+    public void RestoreRecap(RecapSaveData recap)
+    {
+        if (recap == null || recap.day != Day)
+            throw new ArgumentException("The recap must belong to the loaded day.", nameof(recap));
+
+        Visitors = recap.peopleServed;
+        Lost = recap.customersLost;
+        Declined = recap.turnedAway;
+        Served = recap.ordersCompleted;
+        Repairs = recap.repairs;
+        Drinks = recap.drinks;
+        Perfect = recap.perfect;
+        Good = recap.good;
+        Passable = recap.passable;
+        Tips = recap.tips;
+        Earned = recap.earned;
+        PatronIncome = recap.patronIncome;
+        closingTill = recap.closingTill;
+        dayStartedAt = Time.time - Mathf.Max(0f, recap.elapsedSeconds);
+        TimeRemaining = 0f;
+        IsOpen = false;
+        DayOver = true;
+        Time.timeScale = 0f;
+        // Do NOT fire OnDayEnded: that would rewrite this day's customer log
+        // from an empty scene and could replay future day-end rewards.
     }
 
     // Called by CustomerBrain. A drink is not a repair — counting them

@@ -10,17 +10,28 @@ public class SaveManager : MonoBehaviour
     // Filled during Awake so other systems can read it in their Start.
     public SaveData Loaded { get; private set; }
     public bool HasSave { get; private set; }
+    public string LastSaveError { get; private set; } = "";
+    public event Action SaveStatusChanged;
 
-    private readonly Dictionary<string, RegularMemoryData> regularMemory =
-        new(StringComparer.Ordinal);
+    private bool writesBlocked;
+
+    private readonly CustomerMemoryService regularMemory = new();
 
     private string PathToFile => Path.Combine(Application.persistentDataPath, "save.json");
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => Instance = null;
 
     private void Awake()
     {
         Instance = this;
         LoadFromDisk();
         RebuildRegularMemory();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     private void LoadFromDisk()
@@ -35,41 +46,58 @@ public class SaveManager : MonoBehaviour
 
         try
         {
-            string json = File.ReadAllText(PathToFile);
-            Loaded = JsonUtility.FromJson<SaveData>(json);
-
-            if (Loaded == null) Loaded = new SaveData();
-
-            // Version 1 had no regular-customer memory. Missing JSON fields load
-            // as null, so migrate in place without discarding money, stock,
-            // upgrades, or the current day.
-            if (Loaded.regularMemories == null)
-                Loaded.regularMemories = new RegularMemoryData[0];
-
-            if (Loaded.version < 2)
-                Loaded.version = 2;
+            Loaded = SaveCheckpointStorage.Read(PathToFile);
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"Save file unreadable, starting fresh: {e.Message}");
+            // Keep an unreadable/newer save untouched instead of silently
+            // replacing it with a fresh game's first completed day.
             Loaded = new SaveData();
             HasSave = false;
+            writesBlocked = true;
+            LastSaveError = "Existing save could not be loaded. It has not been overwritten.";
+            Debug.LogError($"[Save] {LastSaveError} {e.Message}");
         }
     }
 
-    // Gather the current state of every system and write it out.
-    public void Save()
+    // Kept as a void entry point for any existing UnityEvent wiring.
+    public void Save() => TrySaveRecap();
+
+    public bool TrySaveRecap()
+    {
+        DayClock clock = DayClock.Instance;
+        if (clock == null || !clock.DayOver)
+            return FailSave("A recap can only be saved after the day has closed.");
+        return Commit(CaptureState(clock));
+    }
+
+    public bool TrySaveNextDay()
+    {
+        DayClock clock = DayClock.Instance;
+        if (clock == null || !clock.DayOver)
+            return FailSave("The current day has not finished.");
+
+        SaveData current = CaptureState(clock);
+        if (!current.TryCreateNextDay(out SaveData next)) return false;
+
+        // Commit tomorrow BEFORE opening it. Failure leaves today's recap
+        // active, with a visible error and a safe opportunity to retry.
+        return Commit(next);
+    }
+
+    private SaveData CaptureState(DayClock clock)
     {
         SaveData data = new SaveData
         {
-            version = 2,
-            day = DayClock.Instance != null ? DayClock.Instance.Day : 1,
+            day = clock.Day,
+            dayCompleted = clock.DayOver,
+            recap = clock.DayOver ? clock.CaptureRecap() : null,
             money = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0,
             cups = ShopInventory.Instance != null ? ShopInventory.Instance.Cups : 20,
             beans = ShopInventory.Instance != null ? ShopInventory.Instance.Beans : 20
         };
 
-        if (UpgradeManager.Instance != null)
+        if (UpgradeManager.Instance != null && UpgradeManager.Instance.Catalogue != null)
         {
             List<string> names = new();
             List<int> levels = new();
@@ -89,27 +117,46 @@ public class SaveManager : MonoBehaviour
         }
 
         data.regularMemories = SnapshotRegularMemory();
-        Loaded = data;
+        return data;
+    }
+
+    private bool Commit(SaveData data)
+    {
+        if (writesBlocked) return FailSave(LastSaveError);
 
         try
         {
-            File.WriteAllText(PathToFile, JsonUtility.ToJson(data, true));
+            SaveCheckpointStorage.Write(PathToFile, data);
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"Save failed: {e.Message}");
+            Debug.LogError($"[Save] Could not write checkpoint: {e.Message}");
+            return FailSave("Progress was not saved. Check the Console, then retry Continue.");
         }
+
+        Loaded = data;
+        HasSave = true;
+        LastSaveError = "";
+        SaveStatusChanged?.Invoke();
+        return true;
+    }
+
+    private bool FailSave(string message)
+    {
+        LastSaveError = message;
+        SaveStatusChanged?.Invoke();
+        return false;
     }
 
     public int RelationshipFor(CustomerProfile profile)
     {
-        RegularMemoryData memory = GetOrCreate(profile);
+        RegularMemoryData memory = MemoryFor(profile);
         return memory != null ? memory.relationship : 0;
     }
 
     public bool HasMet(CustomerProfile profile)
     {
-        RegularMemoryData memory = GetOrCreate(profile);
+        RegularMemoryData memory = MemoryFor(profile);
         return memory != null && memory.visits > 0;
     }
 
@@ -121,81 +168,21 @@ public class SaveManager : MonoBehaviour
         LostReason lossReason,
         string grade)
     {
-        RegularMemoryData memory = GetOrCreate(profile);
-        if (memory == null) return;
-
-        memory.visits++;
-        memory.relationship = Mathf.Clamp(
-            memory.relationship + RelationshipDelta(happy, accepted, served, lossReason),
-            -4,
-            6);
-
-        memory.lastSeenDay = DayClock.Instance != null ? DayClock.Instance.Day : 0;
-        memory.lastVisitHappy = happy;
-        memory.lastJobAccepted = accepted;
-        memory.lastVisitServed = served;
-        memory.lastLossReason = happy ? "" : lossReason.ToString();
-        memory.lastGrade = grade ?? "";
+        if (profile == null) return;
+        regularMemory.RecordVisit(profile.PersistentId,
+            DayClock.Instance != null ? DayClock.Instance.Day : 0,
+            happy, accepted, served, lossReason, grade);
     }
 
-    private RegularMemoryData GetOrCreate(CustomerProfile profile)
-    {
-        if (profile == null) return null;
-
-        string id = profile.PersistentId;
-        if (string.IsNullOrWhiteSpace(id)) return null;
-
-        if (!regularMemory.TryGetValue(id, out RegularMemoryData memory))
-        {
-            memory = new RegularMemoryData { profileId = id };
-            regularMemory.Add(id, memory);
-        }
-
-        return memory;
-    }
+    public RegularMemoryData MemoryFor(CustomerProfile profile) =>
+        profile != null ? regularMemory.Read(profile.PersistentId) : null;
 
     private void RebuildRegularMemory()
     {
-        regularMemory.Clear();
-        if (Loaded == null || Loaded.regularMemories == null) return;
-
-        foreach (RegularMemoryData memory in Loaded.regularMemories)
-        {
-            if (memory == null || string.IsNullOrWhiteSpace(memory.profileId)) continue;
-            regularMemory[memory.profileId] = memory;
-        }
+        regularMemory.Restore(Loaded != null ? Loaded.regularMemories : null);
     }
 
-    private RegularMemoryData[] SnapshotRegularMemory()
-    {
-        List<RegularMemoryData> snapshot = new(regularMemory.Values);
-        snapshot.Sort((a, b) => string.CompareOrdinal(a.profileId, b.profileId));
-        return snapshot.ToArray();
-    }
-
-    private static int RelationshipDelta(
-        bool happy,
-        bool accepted,
-        bool served,
-        LostReason reason)
-    {
-        // A successful first visit reaches relationship 2, which is the existing
-        // threshold for warm dialogue on the next visit.
-        if (happy && served) return 2;
-
-        // The player could not take these jobs; remember the visit without
-        // treating a capacity or stock failure like a personal betrayal.
-        if (reason == LostReason.OutOfStock || reason == LostReason.ShelfFull)
-            return 0;
-
-        // Abandoning an accepted promise or ignoring somebody until they leave
-        // should land harder than honestly declining at the counter.
-        if (accepted || reason == LostReason.StormedOutInQueue
-                     || reason == LostReason.StormedOutWaiting)
-            return -2;
-
-        return -1;
-    }
+    private RegularMemoryData[] SnapshotRegularMemory() => regularMemory.Snapshot();
 
     // Right-click the component header in the Inspector for these.
     [ContextMenu("Delete Save (New Game)")]

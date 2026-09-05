@@ -93,6 +93,28 @@ public class DayDefinition : ScriptableObject
              "because the café is the simpler half to learn.")]
     public float drinkOnlyChance = 0.25f;
 
+    [Header("Day 1 introduction (opt-in)")]
+    [Tooltip("On Day 1 only, open with one drink visit, then one repair visit. " +
+             "These two customers arrive one at a time; the clock still runs.")]
+    public bool guidedOpening;
+
+    [Tooltip("The first lesson's recipe. Empty uses the first valid spawner drink.")]
+    public DrinkDefinition openingDrink;
+
+    [Tooltip("How long each new Day 1 guidance pop-up stays on screen.")]
+    [Range(3f, 10f)]
+    public float openingHintDuration = 6f;
+
+    [Tooltip("No secondary beverage requests from repair customers on this " +
+             "authored day. Does not change their profiles or later visits.")]
+    public bool suppressRepairDrinkWishes;
+
+    // A short/missing schedule can repeat its last definition. Never replay a
+    // Day 1 lesson (or its no-secondary-drinks rule) on a later day by accident.
+    public bool GuidesOpeningOn(int day) => day == 1 && dayNumber == 1 && guidedOpening;
+    public bool SuppressesRepairDrinksOn(int day) =>
+        day == dayNumber && suppressRepairDrinkWishes;
+
     [Header("What's unlocked")]
     [Tooltip("Devices that can walk in today. EMPTY = everything the spawner " +
              "has. This is how Part 8's 'devices unlock over time' finally " +

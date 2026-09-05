@@ -84,10 +84,23 @@ public abstract class JobBase : MonoBehaviour
     {
         get
         {
-            for (int i = detached.Count - 1; i >= 0; i--)
-                if (detached[i] == null) detached.RemoveAt(i);
+            RemoveMissingDetachedParts();
             return detached.Count > 0;
         }
+    }
+
+    public bool HasDetachedComponent<T>() where T : Component
+    {
+        RemoveMissingDetachedParts();
+        foreach (GameObject part in detached)
+            if (part.GetComponent<T>() != null) return true;
+        return false;
+    }
+
+    private void RemoveMissingDetachedParts()
+    {
+        for (int i = detached.Count - 1; i >= 0; i--)
+            if (detached[i] == null) detached.RemoveAt(i);
     }
 
     public void RegisterDetached(GameObject part)

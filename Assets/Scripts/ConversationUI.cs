@@ -17,6 +17,9 @@ public class ConversationUI : MonoBehaviour
 
     private bool visible;
     private Coroutine revealRoutine;
+    private TextMeshProUGUI fallbackFace;
+    private string portraitInitial = "?";
+    private Color portraitTint = Color.gray;
 
     // The controller waits on this before offering choices.
     public bool LineFinished { get; private set; } = true;
@@ -32,6 +35,11 @@ public class ConversationUI : MonoBehaviour
 
     private void Update()
     {
+        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        {
+            HideImmediately();
+            return;
+        }
         if (group == null) return;
         group.alpha = Mathf.MoveTowards(group.alpha, visible ? 1f : 0f, fadeSpeed * Time.deltaTime);
     }
@@ -39,6 +47,8 @@ public class ConversationUI : MonoBehaviour
     public void Show(string who, Color tint, Sprite face)
     {
         visible = true;
+        portraitInitial = !string.IsNullOrWhiteSpace(who) ? who.Trim().Substring(0, 1).ToUpperInvariant() : "?";
+        portraitTint = Color.Lerp(Color.black, tint, 0.35f);
 
         if (nameText != null)
         {
@@ -46,10 +56,55 @@ public class ConversationUI : MonoBehaviour
             nameText.color = tint;
         }
 
-        if (portrait != null)
-            portrait.sprite = face != null ? face : defaultPortrait;
+        SetPortrait(face, PortraitExpression.Neutral);
 
         if (optionsText != null) optionsText.text = "";
+    }
+
+    public void SetPortrait(Sprite face, PortraitExpression expression)
+    {
+        if (portrait == null) return;
+        Sprite chosen = face != null ? face : defaultPortrait;
+        if (portrait.sprite != chosen) portrait.sprite = chosen;
+        portrait.preserveAspect = true;
+        portrait.color = chosen != null ? Color.white : portraitTint;
+
+        // Missing art still gives the player a readable identity card. Replace
+        // it simply by assigning portrait sprites; no scene rebuilding needed.
+        if (chosen == null && fallbackFace == null)
+        {
+            var host = new GameObject("Portrait identity", typeof(RectTransform), typeof(TextMeshProUGUI));
+            host.transform.SetParent(portrait.transform, false);
+            fallbackFace = host.GetComponent<TextMeshProUGUI>();
+            fallbackFace.font = nameText != null ? nameText.font : TMP_Settings.defaultFontAsset;
+            fallbackFace.fontSize = 30f;
+            fallbackFace.enableAutoSizing = true;
+            fallbackFace.fontSizeMin = 12f;
+            fallbackFace.fontSizeMax = 30f;
+            fallbackFace.alignment = TextAlignmentOptions.Center;
+            fallbackFace.color = Color.white;
+            fallbackFace.raycastTarget = false;
+            RectTransform rect = fallbackFace.rectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = new Vector2(6f, 6f);
+            rect.offsetMax = new Vector2(-6f, -6f);
+        }
+        if (fallbackFace == null) return;
+        fallbackFace.gameObject.SetActive(chosen == null);
+        if (chosen == null)
+        {
+            string mood = expression switch
+            {
+                PortraitExpression.Happy => "Pleased",
+                PortraitExpression.Worried => "Concerned",
+                PortraitExpression.Impatient => "Impatient",
+                PortraitExpression.Surprised => "Surprised",
+                _ => ""
+            };
+            string label = string.IsNullOrEmpty(mood) ? portraitInitial : portraitInitial + "\n" + mood;
+            if (fallbackFace.text != label) fallbackFace.text = label;
+        }
     }
 
     public void Hide()
@@ -57,6 +112,19 @@ public class ConversationUI : MonoBehaviour
         visible = false;
         if (revealRoutine != null) { StopCoroutine(revealRoutine); revealRoutine = null; }
         LineFinished = true;
+        if (DayClock.Instance != null && DayClock.Instance.DayOver && group != null)
+            group.alpha = 0f;
+    }
+
+    public void HideImmediately()
+    {
+        Hide();
+        if (group != null)
+        {
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+        }
+        SetOptions("");
     }
 
     public void SetLine(string line)

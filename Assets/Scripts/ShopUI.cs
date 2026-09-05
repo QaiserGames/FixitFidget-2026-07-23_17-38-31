@@ -14,6 +14,14 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private TMP_Text stockText;
     [SerializeField] private GameObject recapPanel;
 
+    private void Start()
+    {
+        // Runtime-only UI: existing scenes need no new inspector wiring.
+        DayOneGuideUI guide = GetComponent<DayOneGuideUI>();
+        if (guide == null) guide = gameObject.AddComponent<DayOneGuideUI>();
+        guide.Initialize(promptText, interactor, inspector, conversation, recapPanel);
+    }
+
     private void Update()
     {
         // The recap owns the screen — hide the in-game HUD behind it.

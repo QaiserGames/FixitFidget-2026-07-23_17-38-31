@@ -16,11 +16,15 @@ public class CustomerIdentity : MonoBehaviour
     public CustomerArchetype Archetype => archetype;
     public int Relationship { get; private set; }
     public bool HasMetBefore { get; private set; }
+    public CustomerReturnOutcome ReturnOutcome => CustomerReturnPolicy.Classify(previousVisit);
+    public PortraitExpression Expression { get; private set; } = PortraitExpression.Neutral;
     // Regulars have faces. Walk-ins fall back to a silhouette in the UI.
-    public Sprite Portrait => profile != null ? profile.portraitNeutral : null;
+    public Sprite Portrait => PortraitAt(1f);
 
     private CustomerProfile profile;
     private CustomerArchetype archetype;
+    private RegularMemoryData previousVisit;
+    private Beat lastBeat = Beat.Intake;
     private string deviceName = "thing";
 
     // Lowercased on the way in, because it arrives as a ticket label
@@ -39,6 +43,15 @@ public class CustomerIdentity : MonoBehaviour
         ThemeColor = p.themeColor;
         Relationship = relationship;
         HasMetBefore = hasMetBefore;
+        previousVisit = null;
+        lastBeat = Beat.Intake;
+        Expression = PortraitExpression.Neutral;
+    }
+
+    public void SetupRegular(CustomerProfile p, RegularMemoryData memory)
+    {
+        SetupRegular(p, memory != null ? memory.relationship : 0, memory != null && memory.visits > 0);
+        previousVisit = memory != null ? memory.Copy() : null;
     }
 
     public void SetupWalkIn(CustomerArchetype a, string name)
@@ -49,6 +62,9 @@ public class CustomerIdentity : MonoBehaviour
         ThemeColor = a != null ? a.moodColor : Color.white;
         Relationship = 0;
         HasMetBefore = false;
+        previousVisit = null;
+        lastBeat = Beat.Intake;
+        Expression = PortraitExpression.Neutral;
     }
 
     public void SetDevice(string device)
@@ -115,6 +131,25 @@ public class CustomerIdentity : MonoBehaviour
 
     public string Say(Beat beat)
     {
+        lastBeat = beat;
+        Expression = beat switch
+        {
+            Beat.Accepted or Beat.Completed => PortraitExpression.Happy,
+            Beat.Declined => PortraitExpression.Worried,
+            Beat.StormedOut => PortraitExpression.Impatient,
+            Beat.Reassured => PortraitExpression.Surprised,
+            _ => PortraitExpression.Neutral
+        };
+
+        if (beat == Beat.Intake && profile != null && previousVisit != null)
+        {
+            CustomerReturnOutcome outcome = ReturnOutcome;
+            if (outcome != CustomerReturnOutcome.FirstVisit && !CustomerReturnPolicy.AllowsWarmDialogue(outcome))
+                Expression = PortraitExpression.Worried;
+            string callback = PickValid(profile.returnMemoryLines?.For(outcome));
+            if (!string.IsNullOrEmpty(callback)) return Format(callback);
+        }
+
         DialogueSet set = ResolveSet();
         if (set == null) return "";
 
@@ -137,9 +172,48 @@ public class CustomerIdentity : MonoBehaviour
         // {fault} matters more than it looks: it's how the player learns what
         // they're being asked to take on before they press E. A decline can't
         // be a real decision if every job is described identically.
-        return set.Pick(pool)
-                  .Replace("{device}", deviceName)
-                  .Replace("{fault}", faultName);
+        return Format(PickValid(pool));
+    }
+
+    public string SayRepairCompleted(JobGrade grade)
+    {
+        string fallback = Say(Beat.Completed);
+        if (grade == JobGrade.Passable) Expression = PortraitExpression.Worried;
+        else if (grade == JobGrade.Rejected) Expression = PortraitExpression.Impatient;
+
+        if (profile == null) return fallback;
+        if (grade == JobGrade.Passable)
+            return Format(PickValid(profile.passableRepairLines, "It works, but it could use more care. I'll take it as it is."));
+        if (grade == JobGrade.Rejected)
+            return Format(PickValid(profile.rejectedRepairLines, "This still needs work. I'll take it back for now."));
+        return fallback;
+    }
+
+    public string SayDrinkCompleted()
+    {
+        string fallback = Say(Beat.Completed);
+        return profile != null ? Format(PickValid(profile.drinkCompletedLines, "Thank you for the drink.")) : fallback;
+    }
+
+    public PortraitExpression ExpressionAt(float patienceFraction) =>
+        lastBeat == Beat.Intake && patienceFraction <= 0.25f ? PortraitExpression.Impatient : Expression;
+
+    public Sprite PortraitAt(float patienceFraction) =>
+        profile != null ? profile.PortraitFor(ExpressionAt(patienceFraction)) : null;
+
+    private string Format(string line) => (line ?? "")
+        .Replace("{device}", deviceName).Replace("{fault}", faultName);
+
+    private static string PickValid(string[] pool, string fallback = "")
+    {
+        if (pool == null || pool.Length == 0) return fallback;
+        int first = Random.Range(0, pool.Length);
+        for (int i = 0; i < pool.Length; i++)
+        {
+            string line = pool[(first + i) % pool.Length];
+            if (!string.IsNullOrWhiteSpace(line)) return line;
+        }
+        return fallback;
     }
 
     private DialogueSet ResolveSet()
@@ -147,7 +221,8 @@ public class CustomerIdentity : MonoBehaviour
         if (profile != null)
         {
             bool warmAvailable = HasLines(profile.warmLines);
-            if (Relationship >= 2 && warmAvailable) return profile.warmLines;
+            bool latestVisitSupportsTrust = previousVisit == null || CustomerReturnPolicy.AllowsWarmDialogue(ReturnOutcome);
+            if (HasMetBefore && Relationship >= 2 && latestVisitSupportsTrust && warmAvailable) return profile.warmLines;
 
             bool returnAvailable = HasLines(profile.returnLines);
             if (HasMetBefore && returnAvailable) return profile.returnLines;

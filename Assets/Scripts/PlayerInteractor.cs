@@ -45,6 +45,15 @@ public class PlayerInteractor : MonoBehaviour
 
     private void Update()
     {
+        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        {
+            if (focused != null) focused.SetFocused(false);
+            focused = null;
+            nearbyStation = null;
+            CurrentPrompt = "";
+            return;
+        }
+
         // The conversation owns input while it's open.
         if (conversation != null && conversation.InConversation)
         {
@@ -181,6 +190,7 @@ public class PlayerInteractor : MonoBehaviour
     // E — pick up, set down, accept, hand back.
     private void OnInteract()
     {
+        if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
         if (focused != null) focused.Interact(this);
     }
@@ -200,6 +210,7 @@ public class PlayerInteractor : MonoBehaviour
 
     private void ToggleStation()
     {
+        if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
         if (currentStation != null) { ExitStation(); return; }
         if (nearbyStation != null) EnterStation(nearbyStation);
@@ -235,6 +246,7 @@ public class PlayerInteractor : MonoBehaviour
 
     public void EnterStation(StationInteractable station)
     {
+        if (station == null || (DayClock.Instance != null && DayClock.Instance.DayOver)) return;
         currentStation = station;
 
         // Stand in the same place every time, so the view is always composed

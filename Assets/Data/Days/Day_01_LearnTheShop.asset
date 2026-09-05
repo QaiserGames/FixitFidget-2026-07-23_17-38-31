@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: Day_01_LearnTheShop
   m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
   dayNumber: 1
-  intent: "Learn the shop. Drinks mostly, one repair type, nothing should go wrong.
-    The player should finish thinking 'that was easy' \u2014 that's correct for day
-    1."
+  intent: "Learn one drink, then one repair, with next-action hints. No secondary
+    repair drinks today. Resume the authored rhythm and Grace visit afterwards."
   phases:
   - phaseName: Calm
     startsAt: 0
@@ -32,6 +31,10 @@ MonoBehaviour:
   patienceMultiplier: 1.4
   maxCustomers: 3
   drinkOnlyChance: 0.55
+  guidedOpening: 1
+  openingDrink: {fileID: 11400000, guid: f8f4c1a2bc2829d4ba3142360184b7a1, type: 2}
+  openingHintDuration: 6
+  suppressRepairDrinkWishes: 1
   devices:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
   allowedArchetypes:
