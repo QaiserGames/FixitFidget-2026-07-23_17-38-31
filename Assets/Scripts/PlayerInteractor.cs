@@ -246,6 +246,7 @@ public class PlayerInteractor : MonoBehaviour
 
     public void EnterStation(StationInteractable station)
     {
+        if (station == null || (DayClock.Instance != null && DayClock.Instance.DayOver)) return;
         currentStation = station;
 
         // Stand in the same place every time, so the view is always composed

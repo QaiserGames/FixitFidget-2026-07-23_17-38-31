@@ -35,6 +35,12 @@ public class ItemInspector : MonoBehaviour
 
     private void Update()
     {
+        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        {
+            CancelInspection();
+            return;
+        }
+
         var mouse = Mouse.current;
         if (mouse == null) return;
 
@@ -87,7 +93,10 @@ public class ItemInspector : MonoBehaviour
         }
     }
 
-    private void Release()
+    // Cancelling for the recap never returns cursor ownership to a workbench.
+    public void CancelInspection() => Release(false);
+
+    private void Release(bool returnToStation = true)
     {
         if (focusedItem != null)
         {
@@ -95,14 +104,16 @@ public class ItemInspector : MonoBehaviour
             focusedItem.transform.rotation = restRotation;
         }
         focusedItem = null;
-        inspectCam.Priority = 0;
+        if (inspectCam != null) inspectCam.Priority = 0;
+        SetBenchHover(null);
         ClearTool();
         CurrentJobCard = "";
         HoverName = "";
         HoverAction = "";
 
         // Back to choosing — crosshair returns.
-        if (interaction.IsAtStation)
+        if (returnToStation && interaction != null && interaction.IsAtStation
+            && !(DayClock.Instance != null && DayClock.Instance.DayOver))
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;

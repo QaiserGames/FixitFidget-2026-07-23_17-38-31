@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections.Generic;
+using Unity.Cinemachine;
  
 public class RecapUI : MonoBehaviour
 {
@@ -11,6 +13,7 @@ public class RecapUI : MonoBehaviour
     [SerializeField] private UpgradeShopUI upgradeShop;
 
     private SaveManager saveManager;
+    private readonly List<CinemachineInputAxisController> pausedCameraInputs = new();
  
     private void Start()
     {
@@ -30,6 +33,7 @@ public class RecapUI : MonoBehaviour
  
     private void OnDestroy()
     {
+        ResumeCameraInput();
         if (DayClock.Instance != null)
             DayClock.Instance.OnDayEnded -= Show;
         if (saveManager != null) saveManager.SaveStatusChanged -= RefreshText;
@@ -38,8 +42,19 @@ public class RecapUI : MonoBehaviour
  
     private void Show()
     {
+        SuspendCameraInput(FindObjectsByType<CinemachineInputAxisController>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None));
         // Get the player out of any station so they aren't stuck behind the panel.
-        if (player != null) player.ExitStation();
+        if (player != null)
+        {
+            player.ExitStation();
+            player.GetComponent<ItemInspector>()?.CancelInspection();
+            player.GetComponent<ConversationController>()?.End();
+            player.GetComponent<PlayerMovement>()?.ClearInput();
+        }
+        foreach (HoverTooltipUI tooltip in FindObjectsByType<HoverTooltipUI>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            tooltip.HideImmediately();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
@@ -47,6 +62,25 @@ public class RecapUI : MonoBehaviour
         if (upgradeShop != null) upgradeShop.Build();
         if (nextDayButton != null) nextDayButton.interactable = true;
         panel.SetActive(true);
+    }
+
+    private void SuspendCameraInput(IEnumerable<CinemachineInputAxisController> inputs)
+    {
+        // Pause camera readers, not the shared InputAction asset used by UI.
+        // Capture only readers we disabled so authored disabled states survive.
+        foreach (CinemachineInputAxisController input in inputs)
+        {
+            if (input == null || !input.enabled) continue;
+            pausedCameraInputs.Add(input);
+            input.enabled = false;
+        }
+    }
+
+    private void ResumeCameraInput()
+    {
+        foreach (CinemachineInputAxisController input in pausedCameraInputs)
+            if (input != null) input.enabled = true;
+        pausedCameraInputs.Clear();
     }
 
     private void RefreshText()
@@ -79,7 +113,11 @@ public class RecapUI : MonoBehaviour
         if (clock == null || !clock.DayOver) return;
 
         if (nextDayButton != null) nextDayButton.interactable = false;
-        if (clock.TryNextDay()) panel.SetActive(false);
+        if (clock.TryNextDay())
+        {
+            panel.SetActive(false);
+            ResumeCameraInput();
+        }
         else
         {
             if (nextDayButton != null) nextDayButton.interactable = true;

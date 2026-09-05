@@ -96,6 +96,7 @@ public class CustomerSpawner : MonoBehaviour
     // changed" and gets its opening grace like every other morning.
     private int lastSeenDay = -1;
     private bool featuredRegularSpawned;
+    private readonly CustomerVisitRoster roster = new();
 
     private readonly DayOneOpening opening = new();
     private CustomerBrain openingCustomer;
@@ -187,6 +188,7 @@ public class CustomerSpawner : MonoBehaviour
         {
             lastSeenDay = DayClock.Instance.Day;
             ResolveToday(lastSeenDay);
+            ResetRoster();
             featuredRegularSpawned = false;
             openingCustomer = null;
             openingDrink = ResolveOpeningDrink();
@@ -288,6 +290,7 @@ public class CustomerSpawner : MonoBehaviour
         bool featuredDue = today != null
                         && today.featuredRegular != null
                         && !featuredRegularSpawned
+                        && roster.CanVisit(today.featuredRegular.PersistentId)
                         && opening.AllowsFeatured(DayFraction, today.featuredRegularArrivesAt);
 
         if (featuredDue)
@@ -302,23 +305,20 @@ public class CustomerSpawner : MonoBehaviour
                           && regulars.Length > 0
                           && Random.value < regChance;
 
-            if (isRegular)
-                profile = regulars[Random.Range(0, regulars.Length)];
+            if (isRegular) profile = PickAvailableRegular();
         }
 
         if (profile != null)
         {
-            int relationship = SaveManager.Instance != null
-                ? SaveManager.Instance.RelationshipFor(profile)
-                : 0;
-            bool hasMetBefore = SaveManager.Instance != null
-                && SaveManager.Instance.HasMet(profile);
-            id.SetupRegular(profile, relationship, hasMetBefore);
+            RegularMemoryData memory = SaveManager.Instance != null
+                ? SaveManager.Instance.MemoryFor(profile) : null;
+            id.SetupRegular(profile, memory);
         }
         else
         {
             CustomerArchetype a = PickArchetype();
-            id.SetupWalkIn(a, firstNames[Random.Range(0, firstNames.Length)]);
+            int nameIndex = roster.RemainingNames > 0 ? Random.Range(0, roster.RemainingNames) : 0;
+            id.SetupWalkIn(a, roster.TakeName(nameIndex));
         }
 
         // What are they bringing, and what's wrong with it?
@@ -330,7 +330,34 @@ public class CustomerSpawner : MonoBehaviour
         // And would they like something while they wait? Rolled here, kept
         // quiet by CustomerBrain until they've sat down.
         brain.Init(counterQueue, exitPoint, job, RollDrinkWish(id, job));
+        if (profile != null) roster.RecordArrival(profile.PersistentId);
         if (opening.TryStartVisit()) openingCustomer = brain;
+    }
+
+    private void ResetRoster()
+    {
+        List<string> reserved = new();
+        if (regulars != null)
+            foreach (CustomerProfile profile in regulars)
+                if (profile != null) reserved.Add(profile.characterName);
+        // Reserve scheduled names on every day, not just their featured day.
+        if (schedule != null)
+            foreach (DayDefinition day in schedule)
+                if (day != null && day.featuredRegular != null) reserved.Add(day.featuredRegular.characterName);
+        roster.Reset(firstNames, reserved);
+    }
+
+    private CustomerProfile PickAvailableRegular()
+    {
+        List<CustomerProfile> eligible = new();
+        HashSet<string> seenIds = new(System.StringComparer.Ordinal);
+        string featuredId = today != null && today.featuredRegular != null ? today.featuredRegular.PersistentId : null;
+        foreach (CustomerProfile profile in regulars)
+        {
+            if (profile == null || !roster.CanVisitRandomly(profile.PersistentId, featuredId)) continue;
+            if (seenIds.Add(profile.PersistentId)) eligible.Add(profile);
+        }
+        return eligible.Count > 0 ? eligible[Random.Range(0, eligible.Count)] : null;
     }
 
     private DrinkDefinition ResolveOpeningDrink()

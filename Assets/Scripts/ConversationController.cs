@@ -24,6 +24,7 @@ public class ConversationController : MonoBehaviour
 
     public void Begin(CustomerBrain brain)
     {
+        if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (brain == null || InConversation) return;
 
         partner = brain;
@@ -47,6 +48,7 @@ public class ConversationController : MonoBehaviour
 
         // First beat: whatever they came here to say.
         ui.SetLine(brain.HearIntake());
+        RefreshPortrait();
     }
 
     public void End()
@@ -67,17 +69,23 @@ public class ConversationController : MonoBehaviour
             conversationCam.Target.TrackingTarget = null;
         }
 
-        ui.Hide();
+        if (ui != null) ui.Hide();
 
         if (leaving != null) leaving.OnConversationClosed();
     }
 
     private void Update()
     {
+        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        {
+            if (partner != null || closing) End();
+            return;
+        }
         if (!InConversation) return;
 
         // They stormed out or were destroyed under us.
         if (partner == null) { End(); return; }
+        RefreshPortrait();
 
         // A closing line is playing — hold until it's read, then release.
         if (closing)
@@ -119,12 +127,20 @@ public class ConversationController : MonoBehaviour
     private void CloseWith(string line)
     {
         ui.SetLine(line);
+        RefreshPortrait();
         ui.SetOptions("");
         closing = true;
 
         // Scale with length so long closing lines aren't cut off.
         float readTime = string.IsNullOrEmpty(line) ? 0f : line.Length / 30f;
         closeAt = Time.time + readTime + closingPause;
+    }
+
+    private void RefreshPortrait()
+    {
+        if (ui == null || partner == null || partner.Identity == null) return;
+        CustomerIdentity identity = partner.Identity;
+        ui.SetPortrait(identity.PortraitAt(partner.PatienceFraction), identity.ExpressionAt(partner.PatienceFraction));
     }
 
     private string BuildOptions()

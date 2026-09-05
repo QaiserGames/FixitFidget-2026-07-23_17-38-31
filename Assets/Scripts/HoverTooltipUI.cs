@@ -21,6 +21,14 @@ public class HoverTooltipUI : MonoBehaviour
 
     private void Update()
     {
+        // Update and raw mouse input still run at timeScale 0. A scaled fade
+        // cannot clear yesterday's tooltip once the recap has paused the day.
+        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        {
+            HideImmediately();
+            return;
+        }
+
         string title = "";
         string action = "";
 
@@ -65,5 +73,18 @@ public class HoverTooltipUI : MonoBehaviour
             : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f - 60f);
 
         panel.position = screenPos + cursorOffset;
+    }
+
+    public void HideImmediately()
+    {
+        lastTitle = "";
+        hoverTime = 0f;
+        if (group != null)
+        {
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+        }
+        if (nameText != null) nameText.text = "";
+        if (actionText != null) actionText.text = "";
     }
 }

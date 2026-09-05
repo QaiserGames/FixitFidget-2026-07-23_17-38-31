@@ -228,6 +228,8 @@ public class CustomerBrain : MonoBehaviour
     private int   paidBase;
     private int   paidTip;
     private JobGrade lastGrade = JobGrade.Rejected;
+    private bool repairReturned;
+    private string intakeLine = "";
     private float repairStartedAt = -1f;
 
     // Remembered rather than read off waitingSpot, because Depart releases the
@@ -967,11 +969,15 @@ public class CustomerBrain : MonoBehaviour
 
     public string HearIntake()
     {
+        // Leaving and reopening the conversation repeats the same request;
+        // it must not reroll a memory callback or leave an empty dialogue box.
+        if (intakeGiven) return intakeLine;
         if (!CanHearIntake) return "";
 
         intakeGiven = true;
         React();
-        return identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
+        intakeLine = identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
+        return intakeLine;
     }
 
     // DATA ONLY. Nothing here touches the agent, the counter slot, the waiting
@@ -1490,7 +1496,7 @@ public class CustomerBrain : MonoBehaviour
         // So: leave only if the drink was the whole reason they came.
         if (activeJob == null)
         {
-            string bye = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
+            string bye = identity != null ? identity.SayDrinkCompleted() : "";
             FinishAndLeave(bye, true);
             return bye;
         }
@@ -1531,6 +1537,7 @@ public class CustomerBrain : MonoBehaviour
         paidTip  += tip;
         wasServed = true;
         lastGrade = grade;
+        repairReturned = true;
 
         // It was in the player's hands, so make sure the shelf/bench forgets it.
         foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
@@ -1541,7 +1548,7 @@ public class CustomerBrain : MonoBehaviour
 
         React();
 
-        string line = identity != null ? identity.Say(CustomerIdentity.Beat.Completed) : "";
+        string line = identity != null ? identity.SayRepairCompleted(grade) : "";
 
         // Only bubble it if there's no panel showing the same words.
         if (conversation == null) Say(line);
@@ -1679,6 +1686,7 @@ public class CustomerBrain : MonoBehaviour
 
     private void Depart(bool happy)
     {
+        if (state == State.Leaving) return;
         state = State.Leaving;
         leaveDeadline = Time.time + leaveTimeout;
 
@@ -1721,7 +1729,7 @@ public class CustomerBrain : MonoBehaviour
         // the next session. Walk-ins never enter the save file.
         if (identity != null && identity.Profile != null && SaveManager.Instance != null)
         {
-            string grade = record != null && record.kind == JobKind.Repair && wasServed
+            string grade = repairReturned
                 ? lastGrade.ToString()
                 : "";
 

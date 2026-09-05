@@ -7,6 +7,34 @@ public enum RegularVisitKind
     DrinkOnly
 }
 
+public enum PortraitExpression { Neutral, Happy, Worried, Impatient, Surprised }
+
+[System.Serializable]
+public class CustomerReturnDialogue
+{
+    [TextArea(2, 4)] public string[] successfulRepair;
+    [TextArea(2, 4)] public string[] imperfectRepair;
+    [TextArea(2, 4)] public string[] rejectedRepair;
+    [TextArea(2, 4)] public string[] incompleteService;
+    [TextArea(2, 4)] public string[] missedVisit;
+    [TextArea(2, 4)] public string[] declinedVisit;
+    [TextArea(2, 4)] public string[] capacityRefusal;
+    [TextArea(2, 4)] public string[] servedVisit;
+
+    public string[] For(CustomerReturnOutcome outcome) => outcome switch
+    {
+        CustomerReturnOutcome.SuccessfulRepair => successfulRepair,
+        CustomerReturnOutcome.ImperfectRepair => imperfectRepair,
+        CustomerReturnOutcome.RejectedRepair => rejectedRepair,
+        CustomerReturnOutcome.IncompleteService => incompleteService,
+        CustomerReturnOutcome.MissedVisit => missedVisit,
+        CustomerReturnOutcome.DeclinedVisit => declinedVisit,
+        CustomerReturnOutcome.CapacityRefusal => capacityRefusal,
+        CustomerReturnOutcome.ServedVisit => servedVisit,
+        _ => null
+    };
+}
+
 [CreateAssetMenu(fileName = "Regular_", menuName = "FixitFiasco/Customer Profile")]
 public class CustomerProfile : ScriptableObject
 {
@@ -23,11 +51,25 @@ public class CustomerProfile : ScriptableObject
         ? name
         : persistentId.Trim();
 
-    [Header("Portraits (regulars only — wired later)")]
+    [Header("Portrait expressions (regulars)")]
     public Sprite portraitNeutral;
     public Sprite portraitHappy;
     public Sprite portraitAnnoyed;
     public Sprite portraitSad;
+    public Sprite portraitSurprised;
+
+    public Sprite PortraitFor(PortraitExpression expression)
+    {
+        Sprite chosen = expression switch
+        {
+            PortraitExpression.Happy => portraitHappy,
+            PortraitExpression.Worried => portraitSad,
+            PortraitExpression.Impatient => portraitAnnoyed,
+            PortraitExpression.Surprised => portraitSurprised,
+            _ => portraitNeutral
+        };
+        return chosen != null ? chosen : portraitNeutral;
+    }
 
     [Header("Behaviour")]
     public float patienceMultiplier = 1f;
@@ -63,9 +105,17 @@ public class CustomerProfile : ScriptableObject
     public DialogueSet lines;
 
     [Header("Returning after a rough or neutral visit")]
-    [Tooltip("Used when this person has visited before but relationship is below 2.")]
+    [Tooltip("Used after an earlier visit when trust is low or the latest outcome does not support warm dialogue.")]
     public DialogueSet returnLines;
 
     [Header("Returning with trust (relationship 2+)")]
     public DialogueSet warmLines;
+
+    [Header("Intake callback from the actual previous visit")]
+    public CustomerReturnDialogue returnMemoryLines = new();
+
+    [Header("Service outcome responses")]
+    [TextArea(2, 4)] public string[] passableRepairLines;
+    [TextArea(2, 4)] public string[] rejectedRepairLines;
+    [TextArea(2, 4)] public string[] drinkCompletedLines;
 }

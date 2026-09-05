@@ -21,6 +21,7 @@ MonoBehaviour:
   portraitHappy: {fileID: 0}
   portraitAnnoyed: {fileID: 0}
   portraitSad: {fileID: 0}
+  portraitSurprised: {fileID: 0}
   patienceMultiplier: 1.15
   tipMultiplier: 1.1
   preferredWaitKind: 1
@@ -82,4 +83,27 @@ MonoBehaviour:
     stormedOut:
     - I trusted you with my time this time. Please do not make me regret that.
     orderedDrink:
-    - You remember the latte, don't you? No sugar. I knew I liked this place.
+    - A latte, please. No sugar. Life provides enough of that.
+  returnMemoryLines:
+    successfulRepair:
+    - "There you are! Thank you for the care you took with my last repair. Today's patient is my {device}: {fault}."
+    imperfectRepair:
+    - "The last repair had a few rough edges. Could we give this {device} a little more care? The trouble is {fault}."
+    rejectedRepair:
+    - "I took the last repair home unfinished. Could we be more careful with this {device}? The trouble is {fault}."
+    incompleteService:
+    - "You helped with part of my order last time, but we didn't get everything sorted. Today my {device} needs help with {fault}."
+    missedVisit:
+    - "We ran out of time last visit. I'd like to try again: this {device} has {fault}."
+    declinedVisit:
+    - "You couldn't take my job last time. Have you room today? My {device} has {fault}."
+    capacityRefusal:
+    - "You didn't have what you needed last time. Shall we try again? My {device} has {fault}."
+    servedVisit:
+    - "It's good to see a familiar counter. Today it's my {device}: {fault}."
+  passableRepairLines:
+  - "It will do, dear, though I had hoped for a little more care."
+  rejectedRepairLines:
+  - "This still needs work. I'll take it home for now."
+  drinkCompletedLines:
+  - "Thank you, dear. A little comfort goes a long way."
