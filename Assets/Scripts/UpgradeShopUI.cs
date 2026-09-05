@@ -18,6 +18,11 @@ public class UpgradeShopUI : MonoBehaviour
         if (restockButton != null) restockButton.onClick.AddListener(OnRestock);
     }
 
+    private void OnDestroy()
+    {
+        if (restockButton != null) restockButton.onClick.RemoveListener(OnRestock);
+    }
+
     // Called by RecapUI when the day ends.
     public void Build()
     {
@@ -39,12 +44,25 @@ public class UpgradeShopUI : MonoBehaviour
 
     public void OnBuy(UpgradeDefinition def)
     {
-        if (UpgradeManager.Instance != null && UpgradeManager.Instance.Buy(def)) Refresh();
+        if (DayClock.Instance == null || !DayClock.Instance.DayOver) return;
+        if (UpgradeManager.Instance != null && UpgradeManager.Instance.Buy(def))
+            PersistPurchase();
     }
 
     private void OnRestock()
     {
-        if (ShopInventory.Instance != null && ShopInventory.Instance.BuyRestock()) Refresh();
+        if (DayClock.Instance == null || !DayClock.Instance.DayOver) return;
+        if (ShopInventory.Instance != null && ShopInventory.Instance.BuyRestock())
+            PersistPurchase();
+    }
+
+    private void PersistPurchase()
+    {
+        // Only save after a successful transaction, with BOTH the deduction
+        // and its purchased stock/level already applied. Never charge on load.
+        if (SaveManager.Instance != null) SaveManager.Instance.TrySaveRecap();
+        else Debug.LogError("[Save] Purchase could not be saved: no SaveManager.");
+        Refresh();
     }
 
     private void Refresh()
