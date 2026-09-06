@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ee0553b6e75463894dc90dbf06c6fd8, type: 3}
+  m_Name: SilentCalls
+  m_EditorClassIdentifier: Assembly-CSharp::HumanFaultScenario
+  steps:
+  - customerLine: "Calls light up the screen, but I never hear them. Videos sound fine. I think the speaker is broken."
+    options:
+    - "Check what is silencing incoming calls."
+    - "Replace the speaker."
+    - "Erase the phone and start fresh."
+    correctOption: 0
+    wrongResponse: "But videos still sound normal. Could we check the call settings before changing parts or losing my photos?"
+  - customerLine: "Focus is silencing calls. I switched it on to quiet work messages, but I still need to hear my family calling."
+    options:
+    - "Turn off Focus and let every alert through."
+    - "Keep messages quiet; allow calls from family."
+    - "Raise video volume to maximum."
+    correctOption: 1
+    wrongResponse: "I still need quiet messages at work. Can we let my family's calls ring without bringing every alert back?"
+  - customerLine: "Family calls are allowed now. How do I check it works and find this setting again?"
+    options:
+    - "It looks right. We can skip the test."
+    - "Use this setting for every caller."
+    - "Test a family call and show the Focus setting."
+    correctOption: 2
+    wrongResponse: "Let's try a call from family. Then show me where this setting lives so I can change it myself."
+  completionLine: "It's ringing! My messages stay quiet, and I know where to change it now. May I have my phone back?"

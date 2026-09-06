@@ -15,19 +15,26 @@ public class ConversationController : MonoBehaviour
              "them at the counter longer.")]
     [SerializeField] private float closingPause = 1.2f;
 
-    public bool InConversation => partner != null;
+    // Keep ownership through the closing frame, so F/Escape cannot also move
+    // the player out of a station later in that same frame.
+    public bool InConversation => conversationOpen || Time.frameCount == closedAtFrame;
 
     private CustomerBrain partner;
     private float inputReadyAt;
     private bool closing;
     private float closeAt;
+    private HumanFault humanTask;
+    private bool conversationOpen;
+    private int closedAtFrame = -1;
 
     public void Begin(CustomerBrain brain)
     {
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
-        if (brain == null || InConversation) return;
+        if (brain == null || InConversation || Time.timeScale <= 0f || ui == null) return;
+        if (!brain.CanHearIntake && !brain.CanDecide && !brain.CanDiscussHumanFault) return;
 
         partner = brain;
+        conversationOpen = true;
         closing = false;
         inputReadyAt = Time.time + inputDelay;
 
@@ -47,7 +54,7 @@ public class ConversationController : MonoBehaviour
         ui.Show(brain.CustomerName, tint, face);
 
         // First beat: whatever they came here to say.
-        ui.SetLine(brain.HearIntake());
+        if (!TryBeginHuman()) ui.SetLine(brain.HearIntake());
         RefreshPortrait();
     }
 
@@ -60,7 +67,10 @@ public class ConversationController : MonoBehaviour
         // Unity's overloaded == is deliberate here: it catches a partner who
         // has been Destroy()ed, which the null-conditional operator would not.
         CustomerBrain leaving = partner;
+        if (conversationOpen) closedAtFrame = Time.frameCount;
         partner = null;
+        humanTask = null;
+        conversationOpen = false;
         closing = false;
 
         if (conversationCam != null)
@@ -78,13 +88,15 @@ public class ConversationController : MonoBehaviour
     {
         if (DayClock.Instance != null && DayClock.Instance.DayOver)
         {
-            if (partner != null || closing) End();
+            if (conversationOpen || closing) End();
             return;
         }
-        if (!InConversation) return;
-
-        // They stormed out or were destroyed under us.
-        if (partner == null) { End(); return; }
+        if (partner == null)
+        {
+            if (conversationOpen) End(); // Also clean up a destroyed Unity object.
+            return;
+        }
+        if (Time.timeScale <= 0f) return;
         RefreshPortrait();
 
         // A closing line is playing — hold until it's read, then release.
@@ -94,18 +106,49 @@ public class ConversationController : MonoBehaviour
             return;
         }
 
-        ui.SetOptions(ui.LineFinished ? BuildOptions() : "");
+        ui.SetOptions(ui.LineFinished ? (humanTask != null ? BuildHumanOptions() : BuildOptions())
+            : humanTask != null ? "[E] Show full line     [F] Step away" : "");
 
         if (Time.time < inputReadyAt) return;
         var kb = Keyboard.current;
         if (kb == null) return;
+
+        if (kb.fKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) { End(); return; }
+        if (humanTask != null)
+        {
+            if (!humanTask.CanTalkWith(partner)) { End(); return; }
+            if (!ui.LineFinished)
+            {
+                if (kb.eKey.wasPressedThisFrame) ui.SkipReveal();
+                return;
+            }
+            if (kb.qKey.wasPressedThisFrame && partner.JobReady)
+            {
+                CloseWith(partner.CompleteJob());
+                return;
+            }
+            int choice = kb.digit1Key.wasPressedThisFrame ? 0 : kb.digit2Key.wasPressedThisFrame ? 1
+                : kb.digit3Key.wasPressedThisFrame ? 2 : -1;
+            if (humanTask.Choose(partner, choice))
+            {
+                if (humanTask.Finished) CloseWith(humanTask.Run.Line);
+                else ui.SetLine(humanTask.Run.Line);
+                inputReadyAt = Time.time + inputDelay;
+            }
+            return;
+        }
 
         // E: finish the line if it's still revealing, otherwise take the job.
         if (kb.eKey.wasPressedThisFrame)
         {
             if (!ui.LineFinished) { ui.SkipReveal(); return; }
 
-            if (partner.CanAcceptJob) { CloseWith(partner.AcceptJob()); return; }
+            if (partner.CanAcceptJob)
+            {
+                string accepted = partner.AcceptJob();
+                if (!TryBeginHuman()) CloseWith(accepted);
+                return;
+            }
             if (partner.JobReady)     { CloseWith(partner.CompleteJob()); return; }
         }
 
@@ -116,10 +159,30 @@ public class ConversationController : MonoBehaviour
             return;
         }
 
-        // F or Esc: walk away without deciding. They keep waiting.
-        if (kb.fKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
-            End();
     }
+
+    private bool TryBeginHuman()
+    {
+        if (partner == null || !partner.CanDiscussHumanFault) return false;
+        humanTask = partner.HumanConversation;
+        ui.SetHumanLayout(true);
+        ui.SetLine(humanTask.Run.Line);
+        ui.SetOptions("");
+        inputReadyAt = Time.time + inputDelay;
+        return true;
+    }
+
+    private string BuildHumanOptions()
+    {
+        var options = new System.Text.StringBuilder();
+        for (int i = 0; i < humanTask.Run.OptionCount; i++)
+            options.AppendLine($"[{i + 1}] {humanTask.Run.Option(i)}");
+        options.Append($"[F] Step away    Checks {humanTask.Run.Credits}/{humanTask.Run.Count}");
+        if (partner.JobReady) options.Append($"    [Q] Return as-is ({partner.PendingGrade})");
+        return options.ToString();
+    }
+
+    private void OnDisable() => End();
 
     // `closingPause` was declared and then never referenced — every call site
     // hardcoded 1.2f, so nudging the field in the Inspector did nothing at all.

@@ -166,6 +166,11 @@ public class DayOneGuideUI : MonoBehaviour
 
         if (inspector != null && inspector.IsHoldingItem && !inspecting)
             return "Wrong item. Right-click puts down tools, then leaves inspection.";
+        HumanFault human = job.GetComponentInChildren<HumanFault>();
+        if (human != null && !human.Finished && !job.HasDetachedParts)
+            return inspecting
+                ? "This needs a conversation. Right-click to leave inspection, then talk to the customer."
+                : $"Talk to {customer.CustomerName}. Use 1, 2 or 3 to help them work through the problem.";
         if (carrying)
         {
             if (interactor != null && interactor.IsAtStation)
@@ -201,7 +206,8 @@ public class DayOneGuideUI : MonoBehaviour
                 ? "Signal restored. Refit any removed parts, then return the phone."
                 : "Click the signal tiles to join their white ports before the charge arrives.";
 
-        if (job.Quality >= 0.999f)
+        HumanFault human = job.GetComponentInChildren<HumanFault>();
+        if (job.Quality >= 0.999f || human != null)
         {
             if (job.HasDetachedComponent<RemovablePart>())
                 return tool == ToolType.Pry
@@ -219,6 +225,9 @@ public class DayOneGuideUI : MonoBehaviour
                 if (screw.IsOut || screw.IsBusy)
                     return "Finishing the screws...";
         }
+
+        if (human != null)
+            return "No parts need replacing. Leave inspection and talk through the problem with the customer.";
 
         foreach (Screw screw in job.GetComponentsInChildren<Screw>())
             if (!screw.IsOut)

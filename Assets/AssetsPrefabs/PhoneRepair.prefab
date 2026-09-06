@@ -52,6 +52,7 @@ MonoBehaviour:
   layoutSeed: 0
   secondsPerTile: 4
   secondsPerVerifiedTile: 0.3
+  fastForwardMultiplier: 4
   boardMaterial: {fileID: 2100000, guid: 6c1c2d56792a4511b1a570f19e1dfe24, type: 2}
   viewportHeight: 0.36
 --- !u!1 &210057958431804643
@@ -990,6 +991,7 @@ Transform:
   - {fileID: 6609681688785745663}
   - {fileID: 4269579645945676245}
   - {fileID: 706062600000000002}
+  - {fileID: 706062600000000012}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7824066840584290523
@@ -1063,6 +1065,56 @@ MonoBehaviour:
     enableObjects:
     - {fileID: 706062600000000001}
     payout: 45
+  - type: 3
+    description: Calls Stay Silent - Talk It Through
+    enableObjects:
+    - {fileID: 706062600000000011}
+    payout: 25
+--- !u!1 &706062600000000011
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 706062600000000012}
+  - component: {fileID: 706062600000000013}
+  m_Layer: 0
+  m_Name: HumanConversation
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &706062600000000012
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706062600000000011}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2761802281801356239}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &706062600000000013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706062600000000011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a73effba676c4f73849a3a3fc0ceab46, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::HumanFault
+  scenario: {fileID: 11400000, guid: 3887e8f2e39a46abb143a478d728e93f, type: 2}
 --- !u!1 &7433282545182374299
 GameObject:
   m_ObjectHideFlags: 0

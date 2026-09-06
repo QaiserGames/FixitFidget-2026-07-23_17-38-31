@@ -241,6 +241,8 @@ public class PlayerInteractor : MonoBehaviour
 
     private void OnBack()
     {
+        if ((conversation != null && conversation.InConversation)
+            || (DayClock.Instance != null && DayClock.Instance.DayOver)) return;
         ExitStation();
     }
 

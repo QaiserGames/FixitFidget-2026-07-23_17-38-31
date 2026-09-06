@@ -10,7 +10,7 @@ public class CustomerInteractable : Interactable
     }
 
     public override bool IsAvailable =>
-        brain != null && (brain.CanHearIntake || brain.CanDecide || brain.JobReady ||
+        brain != null && (brain.CanHearIntake || brain.CanDecide || brain.CanDiscussHumanFault || brain.JobReady ||
                           brain.JobFixedButAway || brain.CanReceiveDrink ||
                           brain.CanApologiseForDrink ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
@@ -20,7 +20,7 @@ public class CustomerInteractable : Interactable
     // counter-only; handing things over and reassuring people happen wherever
     // they're standing.
     public bool FloorAvailable =>
-        brain != null && (brain.CanReceiveDrink || brain.JobReady ||
+        brain != null && (brain.CanReceiveDrink || brain.CanDiscussHumanFault || brain.JobReady ||
                           brain.CanApologiseForDrink ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
@@ -41,6 +41,7 @@ public class CustomerInteractable : Interactable
             if (brain.CanApologiseForDrink)
                 return $"Sorry, we're out of {brain.WantedDrinkName}";
             if (brain.CanHearIntake || brain.CanDecide) return "Talk to them";
+            if (brain.CanDiscussHumanFault) return "Talk through the problem";
             // The grade is shown BEFORE you commit. This is the whole point:
             // without it, handing back a half-done repair is a nasty surprise
             // rather than a choice you made under pressure.
@@ -67,9 +68,15 @@ public class CustomerInteractable : Interactable
             return;
         }
 
-        if (brain.JobReady) { brain.CompleteJob(); return; }
-
         if (brain.CanApologiseForDrink) { brain.ApologiseForDrink(); return; }
+
+        if (brain.CanDiscussHumanFault)
+        {
+            var diagnosis = player.GetComponent<ConversationController>();
+            if (diagnosis != null) diagnosis.Begin(brain);
+            return;
+        }
+        if (brain.JobReady) { brain.CompleteJob(); return; }
 
         if (!brain.CanHearIntake && !brain.CanDecide && brain.CanReassure)
         {
@@ -77,9 +84,8 @@ public class CustomerInteractable : Interactable
             return;
         }
 
-        // The conversation is only for the intake beat — meeting someone
-        // and deciding whether to help them. Anything else that got focus
-        // (a delivery you're not carrying, say) does nothing.
+        // Remaining conversations are the intake beat. Follow-up diagnosis
+        // was handled above; a delivery we're not carrying does nothing.
         if (!brain.CanHearIntake && !brain.CanDecide) return;
 
         ConversationController conv = player.GetComponent<ConversationController>();

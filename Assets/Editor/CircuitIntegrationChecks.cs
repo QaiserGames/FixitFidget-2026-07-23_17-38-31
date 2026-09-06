@@ -65,7 +65,7 @@ public static class CircuitIntegrationChecks
         {
             var def = root.GetComponent<DeviceDefinition>();
             var repair = root.GetComponent<RepairJob>();
-            Require(def != null && repair != null && def.faults.Length == 3, "Phone has the existing two faults and appended software fault.");
+            Require(def != null && repair != null && def.faults.Length >= 3, "Phone retains the existing faults and appended software fault.");
             Require(def.faults[0].type == FaultType.Mechanical && def.faults[1].type == FaultType.Cleaning
                 && def.faults[2].type == FaultType.Software, "Serialized fault indices preserved.");
             def.ApplyFault(faultIndex);
@@ -179,10 +179,20 @@ public static class CircuitIntegrationChecks
             int turns = puzzle.Run.Turns(0);
             tile.Activate();
             Require(puzzle.Run.Turns(0) == turns, "Disabled/non-inspected puzzle cannot be clicked.");
+            Set(puzzle, "<IsBoosting>k__BackingField", true);
+            Set(puzzle, "boostRequiresRelease", false);
+            puzzle.HideForInspection();
+            Require(!puzzle.IsBoosting, "Leaving inspection cancels pulse boost.");
+            Require((bool)typeof(CircuitPuzzle).GetField("boostRequiresRelease",
+                BindingFlags.NonPublic | BindingFlags.Instance).GetValue(puzzle),
+                "Reopening inspection requires releasing a held boost key.");
             clock.RestoreRecap(new RecapSaveData { day = 1 });
             Require(clock.Day == 1 && clock.DayOver && !clock.IsOpen && Time.timeScale == 0f,
                 "The fixture restores a matching closed-day recap before checking input.");
             Require(!puzzle.IsBeingInspected && !tile.CanInteract, "Recap blocks circuit input.");
+            typeof(CircuitPuzzle).GetMethod("UpdateBoost", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(puzzle, new object[] { true });
+            Require(!puzzle.IsBoosting, "Held Space cannot enable boost during recap.");
             inspector.CancelInspection();
             Require(inspector.FocusedItem == null && !puzzle.ContainsHudPoint(Vector2.zero), "Inspection release clears circuit interaction.");
         }

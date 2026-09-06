@@ -117,10 +117,8 @@ public sealed class CircuitRun
     public int Turns(int i) => turns[i];
     public bool IsAligned(int i) => Openings(i) == solution[i];
 
-    // Every tile the charge has yet to cross is already straight, so the only
-    // thing left to do is wait. This is the exact moment the fast-forward is
-    // worth offering: the player has finished thinking and the board is just
-    // spending their time.
+    // Preserve the owner's contextual hint: once the remaining connections are
+    // correct, fast-forward is the answer to waiting rather than another task.
     public bool RouteClear
     {
         get
@@ -140,11 +138,16 @@ public sealed class CircuitRun
 
     // Only the controller that owns the inspected job supplies active time.
     // Process at most one tile per frame: a hitch must not skip the player's warning.
-    public void Tick(float deltaTime, bool watching)
+    public void Tick(float deltaTime, bool watching, float speedMultiplier = 1f)
     {
         if (!watching || Halted || Finished || deltaTime <= 0f
             || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime)) return;
-        timer -= deltaTime;
+        float speed = float.IsNaN(speedMultiplier) || float.IsInfinity(speedMultiplier)
+            ? 1f : Math.Max(1f, Math.Min(8f, speedMultiplier));
+        // Keep at least 0.25 seconds of visible travel when boosting. Already-fast
+        // configured replay never slows down, and a hitch still checks only one tile.
+        speed = Math.Min(speed, Math.Max(1f, StepDuration / 0.25f));
+        timer -= deltaTime * speed;
         if (timer > 0f) return;
         if (!IsAligned(Reached)) { Halted = true; return; }
         Reached++;

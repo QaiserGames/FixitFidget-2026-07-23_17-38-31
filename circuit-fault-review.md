@@ -4,6 +4,11 @@ Branch: `codex/circuit-fault-verb`, based on merged main `7f2dbe7`.
 The uploaded originals are preserved. This branch develops their circuit verb;
 it does not merge main or modify the save format.
 
+Resumed above the owner's `81a478c` commit. Kept the `fastForwardMultiplier`
+serialized field and `RouteClear` hint; added visible-travel and input safeguards.
+The owner's TimeManager asset remains untouched. The next Human phone fault is
+documented separately in `human-fault-review.md`.
+
 ## What needed fixing
 
 | Finding in the submitted scripts | Result in this branch |
@@ -51,6 +56,19 @@ it does not merge main or modify the save format.
 - The lower HUD presents one contextual instruction, verified progress and
   current repair result. The retry button and its point cost/next completion
   limit appear only after a blockage. The whole panel still blocks click-through.
+- **Hold Space to fast-forward the pulse**, default 4x, adjustable from 1–8 on
+  `PhoneRepair / SoftwareCircuit / Fast Forward Multiplier`. New tiles take one
+  second while held at default settings. Release returns to normal speed without
+  resetting interval progress. The existing moving pulse turns gold, and the HUD
+  changes from the visible hold-Space prompt to "Fast-forwarding". Boost keeps at
+  least 0.25 seconds of travel per tile; verified replay therefore remains visible
+  rather than multiplying its already-fast 0.3 seconds down to 0.075 seconds.
+- Boost still verifies every connection and stops on errors; it has no extra
+  grade cost and never automatically retries. It affects only circuit time, not
+  the day or customer patience. Leaving inspection, pause/recap, loss of application
+  focus, failure and completion cancel boost. Release a held key before boosting
+  again after these transitions. The Retry button uses mouse input only so a UI
+  Submit binding cannot spend a retry when Space is intended to accelerate.
 - New fault payout is a **provisional $45**, matching the existing phone-cleaning
   entry, rather than altering any existing payout. Validate time versus reward.
 - Phone first. The mechanic is reusable on compatible devices; a mechanical
@@ -88,6 +106,12 @@ it does not merge main or modify the save format.
   tile gets its full interval again. Leave during replay and return to check the
   saved interval. After excessive retries, completing the circuit must show
   Passable, with no zero-credit completion result.
+- Hold Space halfway through travel: pulse moves visibly faster and turns gold;
+  release: it continues normally from the same position. Rotate another wire
+  while boosting. Leave a wrong tile ahead: the pulse must stop and wait for an
+  explicit mouse Retry. Hold Space through exit/re-entry, pause, recap or an
+  application switch: boost must require release before it can resume. Check the
+  prompt at 1280x720 and confirm customers/day do not accelerate with the pulse.
 - Final tile completes without an extra wait. HUD shows both completion and
   grade. Early handback still uses existing partial grading; detached parts
   still block handback. Test a real customer's resulting payment/recap too.
@@ -102,18 +126,21 @@ it does not merge main or modify the save format.
 ## Validation performed here
 
 - Compiled the production `CircuitRun.cs` and its shared checks with Roslyn and
-  ran them on .NET 8: **58,771 assertions passed**, including 1,200 seeded layouts
+  ran them on .NET 8: **58,804 assertions passed**, including 1,200 seeded layouts
   plus every feasible exact route length across the supported grid sizes.
   Includes reciprocal paths, no repeated cells, deterministic seeds, visible
   scrambles, solve-to-Perfect, guaranteed fallback geometry, route bounds,
-  both retry speeds, pause/resume at their boundary, and completion-credit floor.
-- C# syntax parsing across 87 available source files: no syntax errors.
-- Phone YAML: 70 unique object records; local file references, parent linkage,
+  both retry speeds, pause/resume at their boundary, completion-credit floor,
+  visible boost travel, mid-tile speed switching, boost failure, equivalent
+  grades at either speed, and invalid boost settings.
+- C# syntax parsing across 92 available source files: no syntax errors.
+- Phone YAML: 73 unique object records including the new Human task; local file references, parent linkage,
   script/material GUIDs and original fault indices validated.
 - Unity Editor, Play Mode and the player shader compiler are unavailable here.
   The Unity integration checks are supplied, **not reported as executed**.
   They now also cover finished-run grading through RepairJob after excessive
-  retries and the runtime minimum scramble setting. HUD appearance needs the
+  retries, runtime minimum scramble setting and boost cancellation/input guards.
+  HUD appearance and live keyboard input need the
   owner's Unity playtest; it has not been rendered here.
 
 The dependency-free runner can also be run with .NET 8:
@@ -121,10 +148,15 @@ The dependency-free runner can also be run with .NET 8:
 
 ## Next roadmap gate
 
-The owner tested the first prototype and likes its gameplay. Test these timing,
-grading and HUD refinements on an actual customer and report clarity, clicks, total time,
+The owner likes the interaction but solves the guided boards very quickly;
+waiting for verification was the main frustration. The approved first step is
+manual speed-up, followed by another playtest before changing board difficulty.
+Do not use forced idle time as the target repair duration. Record time spent
+making decisions separately from pulse travel and interruptions.
+
+Test this refinement on an actual customer and report clarity, clicks, total time,
 grade and whether an interruption feels fair. Then tune it into Phase 1's
-content foundation and tackle the next fault family (Human or wiring the existing
-HoldCallJob). Don't mark the software family finished until the player-build
+content foundation. Human is now implemented for review; wiring the existing
+HoldCallJob follows its playtest. Don't mark the software family finished until the player-build
 and live-customer checks pass; don't start devices 3–8 merely to duplicate an
 unproven interaction.

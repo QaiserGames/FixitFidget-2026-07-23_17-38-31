@@ -25,8 +25,25 @@ public static class CircuitRuleChecks
         RouteBandsAndFallback();
         TimingAndFailure();
         FastRetryTiming();
+        PulseBoost();
+        RouteClearHint();
         GradeCeiling();
         return assertions;
+    }
+
+    private static void RouteClearHint()
+    {
+        var run = new CircuitRun(4, 1, 0, 4f, 123);
+        Require(run.RouteClear && !run.Finished, "Aligned route may show boost hint before verification.");
+        run.Turn(3);
+        Require(!run.RouteClear, "Hint checks the far end, not only the current tile.");
+        run.Turn(3);
+        Require(run.RouteClear && run.Reached == 0 && run.Credits == 0,
+            "Symmetric aligned route is clear, but reading the hint cannot award credits.");
+        run.Tick(4f, true);
+        Require(run.RouteClear && run.Reached == 1, "Verified locked prefix keeps the route-clear hint valid.");
+        run.Turn(2);
+        Require(!run.RouteClear && run.Credits == 1, "Changing an unverified tile removes the hint without changing earned credit.");
     }
 
     private static void Symmetry()
@@ -184,6 +201,54 @@ public static class CircuitRuleChecks
         Require(first.Reached == 0, "Failure at entry has no prefix to fast-forward.");
         first.Tick(4, true);
         Require(first.Reached == 1, "Entry still gets a full normal interval.");
+    }
+
+    private static void PulseBoost()
+    {
+        var run = new CircuitRun(4, 1, 0, 4, 31);
+        run.Tick(0.25f, true, 4);
+        Require(run.Reached == 0 && Math.Abs(run.StepProgress - 0.25f) < 0.001f,
+            "Boost visibly moves through a tile instead of instantly resolving it.");
+        run.Tick(1, true);
+        Require(run.Reached == 0 && Math.Abs(run.StepProgress - 0.5f) < 0.001f,
+            "Releasing boost changes speed without resetting or jumping progress.");
+        run.Tick(100, false, 4);
+        Require(Math.Abs(run.StepProgress - 0.5f) < 0.001f, "Boost cannot bypass inspection pause.");
+        run.Tick(0.5f, true, 4);
+        Require(run.Reached == 1 && run.Credits == 1 && run.Retries == 0,
+            "Boost verifies normally without charging an extra penalty.");
+        run.Turn(1); run.Tick(1, true, 4);
+        Require(run.Halted && run.Reached == 1 && run.Retries == 0,
+            "Boost stops at an incorrect connection and does not auto-retry.");
+        run.Tick(100, true, 4);
+        Require(run.Halted && run.Retries == 0, "Holding boost on a blockage cannot spend retries.");
+        Align(run, 1); run.Retry();
+        run.Tick(0.125f, true, 4);
+        Require(run.Reached == 0 && Math.Abs(run.StepProgress - 0.5f) < 0.001f,
+            "Already-fast replay retains at least a quarter-second of visible travel.");
+        run.Tick(0.125f, true, 4);
+        Require(run.Reached == 1 && run.Credits == 0, "Boosted replay cannot award duplicate credit.");
+        for (int i = 1; i < run.Count; i++) run.Tick(1, true, 4);
+        Require(run.Finished && run.Credits == 3, "Boosted completion retains the ordinary retry grade.");
+        run.Tick(100, true, 4);
+        Require(run.Credits == 3, "Boost after completion cannot change the result.");
+
+        var normal = new CircuitRun(4, 4, 4, 4, 37);
+        var boosted = new CircuitRun(4, 4, 4, 4, 37);
+        for (int i = 0; i < normal.Count; i++)
+        {
+            Align(normal, i); Align(boosted, i);
+            normal.Tick(4, true); boosted.Tick(1, true, 4);
+        }
+        Require(normal.Finished && boosted.Finished && normal.Credits == boosted.Credits,
+            "Identical solutions earn identical credit at either speed.");
+        var invalid = new CircuitRun(4, 1, 0, 4, 41);
+        invalid.Tick(1, true, float.NaN); invalid.Tick(1, true, float.PositiveInfinity);
+        invalid.Tick(1, true, -5);
+        Require(invalid.Reached == 0 && Math.Abs(invalid.StepProgress - 0.75f) < 0.001f,
+            "Invalid boost settings safely use normal speed.");
+        invalid.Tick(100, true, 999);
+        Require(invalid.Reached == 1, "Boosted hitch still cannot skip multiple tiles.");
     }
 
     private static void GradeCeiling()

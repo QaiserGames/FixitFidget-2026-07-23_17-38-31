@@ -256,6 +256,8 @@ public class CustomerBrain : MonoBehaviour
     // they walked away mid-sentence with the conversation camera chasing them.
 
     private ConversationController conversation;
+    private bool conversationStoppedAgent;
+    private bool stoppedBeforeConversation;
     private System.Action pendingHandoff;
 
     // Accepted or refused. Guards against a second decision landing during the
@@ -336,6 +338,9 @@ public class CustomerBrain : MonoBehaviour
     public string CustomerName => identity != null ? identity.DisplayName : "Customer";
     public Job Record => record;
     public JobBase ActiveJob => activeJob;
+    public HumanFault HumanConversation => activeJob != null && record != null && record.faultType == FaultType.Human
+        ? activeJob.GetComponentInChildren<HumanFault>() : null;
+    public bool CanDiscussHumanFault => HumanConversation != null && HumanConversation.CanTalkWith(this);
     public int JobNumber { get; private set; }
     public Color JobColor { get; private set; } = Color.white;
 
@@ -731,6 +736,19 @@ public class CustomerBrain : MonoBehaviour
 
         if (animator != null) animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f);
 
+        if (InConversation)
+        {
+            // Follow-up diagnosis can begin while settling, not just at intake.
+            // Keep normal conversation patience drain, but suspend movement and
+            // movement watchdogs until the camera gives this customer back.
+            if (agent.isOnNavMesh) agent.isStopped = true;
+            FaceTarget();
+            patienceLeft -= Time.deltaTime * DrainRate;
+            UpdateBar(CurrentMax, Color.green);
+            if (patienceLeft <= 0f) StormOut();
+            return;
+        }
+
         // Held still for a beat after accepting, then released.
         if (hasPendingDestination && Time.time >= moveAllowedAt)
         {
@@ -940,6 +958,12 @@ public class CustomerBrain : MonoBehaviour
     public void OnConversationOpened(ConversationController controller)
     {
         conversation = controller;
+        conversationStoppedAgent = agent != null && agent.isOnNavMesh;
+        if (conversationStoppedAgent)
+        {
+            stoppedBeforeConversation = agent.isStopped;
+            agent.isStopped = true;
+        }
     }
 
     // Called by ConversationController.End(), which fires only after the
@@ -948,6 +972,12 @@ public class CustomerBrain : MonoBehaviour
     public void OnConversationClosed()
     {
         conversation = null;
+        if (conversationStoppedAgent && agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = stoppedBeforeConversation;
+            ResetProgressWatch();
+        }
+        conversationStoppedAgent = false;
 
         System.Action change = pendingHandoff;
         pendingHandoff = null;

@@ -16,6 +16,7 @@ public class RepairJob : JobBase
     private GrimeSpot[] grime;
     private ReplaceablePart[] parts;
     private CircuitPuzzle[] circuits;
+    private HumanFault[] humanFaults;
 
     private void Start() => EnsureSnapshot();
 
@@ -26,8 +27,10 @@ public class RepairJob : JobBase
         grime = GetComponentsInChildren<GrimeSpot>();
         parts = GetComponentsInChildren<ReplaceablePart>();
         circuits = GetComponentsInChildren<CircuitPuzzle>();
+        humanFaults = GetComponentsInChildren<HumanFault>();
         totalTasks = grime.Length + parts.Length;
         foreach (CircuitPuzzle puzzle in circuits) totalTasks += puzzle.TotalTasks;
+        foreach (HumanFault human in humanFaults) totalTasks += human.TotalTasks;
         captured = true;
     }
 
@@ -48,17 +51,21 @@ public class RepairJob : JobBase
             if (puzzle != null) remaining += puzzle.RemainingTasks;
             else return totalTasks; // Missing puzzle is a fault, never free completion.
 
+        foreach (HumanFault human in humanFaults)
+            if (human != null) remaining += human.RemainingTasks;
+            else return totalTasks;
+
         return remaining;
     }
 
-    // Nothing to physically do — "not broken, just muted". The GDD's Human
-    // family. Full marks: you identified it and handed it straight back, which
-    // IS the fix. Never a data error that punishes the player.
+    // Human faults require their conversation steps. Empty legacy physical
+    // faults retain their existing behaviour; a missing Human task fails closed.
     public override float Quality
     {
         get
         {
             EnsureSnapshot();
+            if (Record != null && Record.faultType == FaultType.Human && humanFaults.Length == 0) return 0f;
             return totalTasks <= 0 ? 1f : Mathf.Clamp01((totalTasks - RemainingTasks()) / (float)totalTasks);
         }
     }

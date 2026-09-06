@@ -7,12 +7,14 @@ public class PlayerMovement : MonoBehaviour
 
     private CharacterController controller;
     private Vector2 moveInput;
+    private ConversationController conversation;
 
     private void Awake()
     {
         // Runs once when the object wakes up. Grab a reference
         // to the CharacterController sitting on this same GameObject.
         controller = GetComponent<CharacterController>();
+        conversation = GetComponent<ConversationController>();
     }
 
     // Called automatically by the Player Input component whenever
@@ -30,7 +32,8 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        if ((DayClock.Instance != null && DayClock.Instance.DayOver)
+            || (conversation != null && conversation.InConversation))
         {
             ClearInput();
             return;

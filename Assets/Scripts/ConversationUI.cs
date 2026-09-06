@@ -20,6 +20,8 @@ public class ConversationUI : MonoBehaviour
     private TextMeshProUGUI fallbackFace;
     private string portraitInitial = "?";
     private Color portraitTint = Color.gray;
+    private bool humanLayout;
+    private Vector2 savedOptionsSize, savedOptionsPosition, savedDialoguePosition;
 
     // The controller waits on this before offering choices.
     public bool LineFinished { get; private set; } = true;
@@ -109,6 +111,7 @@ public class ConversationUI : MonoBehaviour
 
     public void Hide()
     {
+        SetHumanLayout(false);
         visible = false;
         if (revealRoutine != null) { StopCoroutine(revealRoutine); revealRoutine = null; }
         LineFinished = true;
@@ -142,6 +145,31 @@ public class ConversationUI : MonoBehaviour
     public void SetOptions(string text)
     {
         if (optionsText != null) optionsText.text = text;
+    }
+
+    // Reserve space for three short choices, then restore the authored intake
+    // layout exactly. No scene/prefab UI changes or portrait assets required.
+    public void SetHumanLayout(bool on)
+    {
+        if (on == humanLayout || optionsText == null || dialogueText == null) return;
+        RectTransform choices = optionsText.rectTransform;
+        RectTransform line = dialogueText.rectTransform;
+        if (on)
+        {
+            savedOptionsSize = choices.sizeDelta;
+            savedOptionsPosition = choices.anchoredPosition;
+            savedDialoguePosition = line.anchoredPosition;
+            choices.sizeDelta = new Vector2(savedOptionsSize.x, Mathf.Max(140f, savedOptionsSize.y));
+            choices.anchoredPosition = savedOptionsPosition + Vector2.down * 28f;
+            line.anchoredPosition = savedDialoguePosition + Vector2.up * 56f;
+        }
+        else
+        {
+            choices.sizeDelta = savedOptionsSize;
+            choices.anchoredPosition = savedOptionsPosition;
+            line.anchoredPosition = savedDialoguePosition;
+        }
+        humanLayout = on;
     }
 
     // Dump the whole line at once — for readers faster than the reveal.

@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
+using UnityEngine.InputSystem;
 
 // A diagnostic projection belonging to one device. The run persists when its view closes.
 [DisallowMultipleComponent]
@@ -22,19 +23,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
     [SerializeField, Min(0.25f)] private float secondsPerTile = 4f;
     [Tooltip("Retry speed through locked tiles. Unverified tiles retain their full interval.")]
     [SerializeField, Min(0.05f)] private float secondsPerVerifiedTile = 0.3f;
-
-    [Tooltip("Hold Space to push the charge along this many times faster.\n\n" +
-             "Playtest 2026-09-06: the board was solved in about a second and " +
-             "then the player stood watching a timer with no decision left in " +
-             "it. Waiting was never the cost — the cost is your hands being " +
-             "here instead of at the counter.\n\n" +
-             "It is NOT a skip. The charge still checks every connection and " +
-             "still stops dead at a mistake, but four times sooner, so a tile " +
-             "you thought was straight and isn't gives you no time to catch it. " +
-             "Confident? Floor it. Not sure? Let it walk.\n\n" +
-             "No extra grade penalty — the existing retry cost already prices " +
-             "failure, and charging twice for one mistake would make the button " +
-             "not worth pressing.")]
+    [Tooltip("Hold Space while inspecting to accelerate the pulse. Travel remains visible; this does not speed up customers or the day.")]
     [SerializeField, Range(1f, 8f)] private float fastForwardMultiplier = 4f;
     [Header("Presentation")]
     [Tooltip("Required asset reference so the board shader is included in player builds.")]
@@ -53,10 +42,11 @@ public sealed class CircuitPuzzle : MonoBehaviour
     private ItemInspector inspector;
     private Camera viewCamera;
     private Transform panel, marker;
+    private Renderer markerRenderer;
     private GameObject hud;
     private RectTransform hudRect;
     private TextMeshProUGUI status;
-    private TextMeshProUGUI instruction, progressLabel, resultLabel, retryCost;
+    private TextMeshProUGUI instruction, progressLabel, resultLabel, retryCost, boostLabel;
     private RectTransform progressFill;
     private Button retry;
     private TextMeshProUGUI retryLabel;
@@ -64,7 +54,8 @@ public sealed class CircuitPuzzle : MonoBehaviour
     private int lastReached = -1;
     private bool lastHalted;
     private bool visible;
-    private bool boosting;
+    private bool boostRequiresRelease = true;
+    public bool IsBoosting { get; private set; }
 
     public CircuitRun Run { get { EnsureInitialized(); return run; } }
     public int TotalTasks => Run.Count;
@@ -93,31 +84,19 @@ public sealed class CircuitPuzzle : MonoBehaviour
     {
         if (inspector == null) inspector = FindAnyObjectByType<ItemInspector>();
         if (viewCamera == null) viewCamera = Camera.main;
-        bool watching = IsBeingInspected && viewCamera != null;
+        bool watching = IsBeingInspected && viewCamera != null && Application.isFocused;
         if (watching && panel == null) BuildView();
         watching &= panel != null && hud != null;
         SetVisible(watching);
         if (!watching) return;
         PlaceProjection();
-
-        // Scaling the delta rather than the rules keeps CircuitRun free of Unity
-        // and of any notion of "fast" — it still advances at most one tile per
-        // call, so a frame hitch under boost can't skip past a bad connection
-        // before the player sees it.
-        boosting = FastForwardHeld;
-        run.Tick(Time.deltaTime * (boosting ? fastForwardMultiplier : 1f), true);
+        UpdateBoost(Keyboard.current != null && Keyboard.current.spaceKey.isPressed);
+        run.Tick(Time.deltaTime, true, IsBoosting ? fastForwardMultiplier : 1f);
+        if (run.Halted || run.Finished) ResetBoost();
         if (run.Reached != lastReached || run.Halted != lastHalted) Refresh();
         UpdateMarker();
         UpdateStatus();
     }
-
-    // Only while this board is the thing you're looking at. Leaving the bench,
-    // the recap opening, or a paused clock all end the boost, because
-    // IsBeingInspected already covers every one of those and LateUpdate returns
-    // before this is read.
-    private bool FastForwardHeld =>
-        UnityEngine.InputSystem.Keyboard.current != null
-        && UnityEngine.InputSystem.Keyboard.current.spaceKey.isPressed;
 
     public bool ContainsHudPoint(Vector2 point) => visible && hudRect != null
         && RectTransformUtility.RectangleContainsScreenPoint(hudRect, point);
@@ -143,8 +122,33 @@ public sealed class CircuitPuzzle : MonoBehaviour
     private void SetVisible(bool on)
     {
         visible = on;
+        if (!on) ResetBoost();
         if (panel != null && panel.gameObject.activeSelf != on) panel.gameObject.SetActive(on);
         if (hud != null && hud.activeSelf != on) hud.SetActive(on);
+    }
+
+    private void UpdateBoost(bool held)
+    {
+        if (!visible || !IsBeingInspected || !Application.isFocused || run.Halted || run.Finished)
+        {
+            ResetBoost();
+            return;
+        }
+        // A key held through a pause, retry or inspection change must be released
+        // before it can accelerate this run again. No sticky boost on returning.
+        if (!held) boostRequiresRelease = false;
+        IsBoosting = held && !boostRequiresRelease;
+    }
+
+    private void ResetBoost()
+    {
+        IsBoosting = false;
+        boostRequiresRelease = true;
+    }
+
+    private void OnApplicationFocus(bool focused)
+    {
+        if (!focused) ResetBoost();
     }
 
     public void HideForInspection() => SetVisible(false);
@@ -199,8 +203,9 @@ public sealed class CircuitPuzzle : MonoBehaviour
         }
         MakeLabel(panel, "IN", CellPosition(0) + Vector3.left * 0.95f);
         MakeLabel(panel, "OUT", CellPosition(run.Count - 1) + Vector3.right * 0.95f);
-        marker = MakeBlock(panel, CellPosition(0) + Vector3.back * 0.25f,
-            new Vector3(0.16f, 0.16f, 0.035f), Color.white).transform;
+        markerRenderer = MakeBlock(panel, CellPosition(0) + Vector3.back * 0.25f,
+            new Vector3(0.16f, 0.16f, 0.035f), Color.white);
+        marker = markerRenderer.transform;
         BuildHud();
         Refresh();
     }
@@ -282,6 +287,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
         Vector3 from = run.Reached == 0 ? CellPosition(0) + Vector3.left * 0.6f : CellPosition(run.Reached - 1);
         marker.localPosition = (run.Finished || run.Halted ? CellPosition(next)
             : Vector3.Lerp(from, CellPosition(next), run.StepProgress)) + Vector3.back * 0.25f;
+        Colorize(markerRenderer, IsBoosting ? new Color(1f, 0.86f, 0.4f) : Color.white);
     }
 
     private void BuildHud()
@@ -304,8 +310,10 @@ public sealed class CircuitPuzzle : MonoBehaviour
         resultLabel.alignment = TextAlignmentOptions.Right;
         instruction = HudTopText(new Vector2(22, -54), new Vector2(716, 30), 21);
         instruction.color = new Color(0.86f, 0.87f, 0.82f);
-        progressLabel = HudTopText(new Vector2(22, -108), new Vector2(716, 24), 18);
+        progressLabel = HudTopText(new Vector2(22, -108), new Vector2(250, 24), 18);
         progressLabel.color = new Color(0.7f, 0.78f, 0.76f);
+        boostLabel = HudTopText(new Vector2(282, -108), new Vector2(456, 24), 18);
+        boostLabel.alignment = TextAlignmentOptions.Right;
         var track = new GameObject("Verified progress", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
         track.SetParent(hudRect, false);
         track.anchorMin = track.anchorMax = track.pivot = new Vector2(0, 1);
@@ -326,6 +334,9 @@ public sealed class CircuitPuzzle : MonoBehaviour
         button.pivot = Vector2.zero; button.anchoredPosition = new Vector2(488, 18); button.sizeDelta = new Vector2(250, 40);
         button.GetComponent<Image>().color = new Color(0.14f, 0.27f, 0.32f);
         retry = button.GetComponent<Button>(); retry.targetGraphic = button.GetComponent<Image>();
+        // Mouse-only for this prototype: Space belongs to pulse acceleration,
+        // never to a previously selected Retry button via the UI Submit action.
+        retry.navigation = new Navigation { mode = Navigation.Mode.None };
         retry.onClick.AddListener(RetryFromButton);
         retryLabel = HudText(button, Vector2.zero, button.sizeDelta, 20);
         retryLabel.alignment = TextAlignmentOptions.Center;
@@ -357,29 +368,19 @@ public sealed class CircuitPuzzle : MonoBehaviour
 
     private void UpdateStatus()
     {
-        status.text = run.Finished ? "Signal restored"
-            : run.Halted ? "Signal blocked"
-            : boosting ? $"Reconnect the circuit  ({fastForwardMultiplier:0}x)"
-            : "Reconnect the circuit";
+        status.text = run.Finished ? "Signal restored" : run.Halted ? "Signal blocked" : "Reconnect the circuit";
         status.color = run.Finished ? liveColor : run.Halted ? warningColor : Color.white;
-        // The fast-forward hint is offered at the moment it's worth something —
-        // when every remaining tile is already straight and the board is doing
-        // nothing but spending the player's time. Teaching it there means it
-        // arrives as an answer to a problem they're currently having, rather
-        // than as one more line of chrome to read on the first board.
-        bool waitingOnly = !run.Finished && !run.Halted && run.RouteClear;
-
         instruction.text = run.Finished ? "Circuit complete. Finish any remaining repairs."
             : run.Halted ? $"Connect the white ports on tile {run.Reached + 1}, then retry."
-            : boosting ? "Fast-forwarding. The charge still stops at a bad connection."
-            : waitingOnly ? "Wires all connected — hold SPACE to speed the charge up."
+            : run.RouteClear ? "Wires all connected. Hold SPACE to speed up the charge."
             : run.Reached < run.BestReached ? "Rechecking locked wires. Prepare the next connection."
-            : "Click wires to connect the white ports. Hold SPACE to speed up.";
-
-        instruction.color = boosting ? liveColor
-            : waitingOnly ? new Color(1f, 0.92f, 0.55f)
-            : Color.white;
+            : "Click wires to connect the white ports.";
         progressLabel.text = $"Verified {run.BestReached} / {run.Count}";
+        boostLabel.text = run.Finished || run.Halted ? ""
+            : IsBoosting ? "[SPACE] Fast-forwarding"
+            : boostRequiresRelease && Keyboard.current != null && Keyboard.current.spaceKey.isPressed
+                ? "Release Space, then hold to speed up" : "Hold [SPACE] to speed up pulse";
+        boostLabel.color = IsBoosting ? new Color(1f, 0.86f, 0.4f) : new Color(0.7f, 0.78f, 0.76f);
         resultLabel.text = $"Repair result: {job.Grade}";
         progressFill.anchorMax = new Vector2((float)run.BestReached / run.Count, 1);
         hudRect.sizeDelta = new Vector2(760, run.Halted ? 208 : 148);
