@@ -18,6 +18,7 @@ public class PlayerInteractor : MonoBehaviour
     private Renderer bodyRenderer;
     private Camera cam;
     private ConversationController conversation;
+    private CounterRepairView counterRepair;
     private StationInteractable[] allStations;
 
     public bool IsAtStation => currentStation != null;
@@ -34,6 +35,8 @@ public class PlayerInteractor : MonoBehaviour
     private void Awake()
     {
         conversation = GetComponent<ConversationController>();
+        counterRepair = GetComponent<CounterRepairView>();
+        if (counterRepair == null) counterRepair = gameObject.AddComponent<CounterRepairView>();
         movement = GetComponent<PlayerMovement>();
         bodyRenderer = GetComponentInChildren<Renderer>();
         cam = Camera.main;
@@ -61,6 +64,13 @@ public class PlayerInteractor : MonoBehaviour
             return;
         }
 
+        if (counterRepair != null && counterRepair.OwnsInput)
+        {
+            if (focused != null) focused.SetFocused(false);
+            focused = null; CurrentPrompt = "";
+            StationKey();
+            return;
+        }
         Interactable next = FindBest();
 
         if (next != focused)
@@ -83,20 +93,6 @@ public class PlayerInteractor : MonoBehaviour
 
         DebugInfo = $"station:{(currentStation != null ? currentStation.name : "none")}  focus:{(focused != null ? focused.name : "NULL")}";
 
-        HandlePhoneTreeInput();
-    }
-
-    private void HandlePhoneTreeInput()
-    {
-        if (currentStation == null || Keyboard.current == null) return;
-
-        HoldCallJob call = FindAnyObjectByType<HoldCallJob>();
-        if (call == null || call.CurrentPhase != HoldCallJob.Phase.InTree) return;
-
-        if (Keyboard.current.digit1Key.wasPressedThisFrame) call.PressNumber(1);
-        if (Keyboard.current.digit2Key.wasPressedThisFrame) call.PressNumber(2);
-        if (Keyboard.current.digit3Key.wasPressedThisFrame) call.PressNumber(3);
-        if (Keyboard.current.digit4Key.wasPressedThisFrame) call.PressNumber(4);
     }
 
     // Stations are found separately — Action uses them, Interact never does.
@@ -192,6 +188,7 @@ public class PlayerInteractor : MonoBehaviour
     {
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
+        if (counterRepair != null && counterRepair.OwnsInput) return;
         if (focused != null) focused.Interact(this);
     }
 
@@ -300,6 +297,7 @@ public class PlayerInteractor : MonoBehaviour
     public void ExitStation()
     {
         if (currentStation == null) return;
+        if (counterRepair != null) counterRepair.Close();
 
         if (focused != null)
         {

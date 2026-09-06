@@ -57,7 +57,9 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem);
+        var counter = interactor.GetComponent<CounterRepairView>();
+        bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem)
+            && (counter == null || !counter.IsOpen);
         if (crosshair != null) crosshair.SetActive(showCrosshair);
 
         string line = "";
@@ -68,8 +70,8 @@ public class ShopUI : MonoBehaviour
         if (!string.IsNullOrEmpty(action))
             line += (line.Length > 0 ? "        " : "") + $"[F]  {action}";
 
-        HoldCallJob activeCall = FindAnyObjectByType<HoldCallJob>();
-        if (activeCall != null && activeCall.CurrentPhase != HoldCallJob.Phase.Done)
+        HoldCallJob activeCall = interactor.Focused != null ? interactor.Focused.GetComponentInParent<HoldCallJob>() : null;
+        if (activeCall != null && activeCall.CurrentPhase != HoldCallRun.State.Done)
             line = activeCall.StatusLine + "\n" + line;
 
         if (showDebug)

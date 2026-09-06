@@ -1066,7 +1066,7 @@ MonoBehaviour:
     - {fileID: 706062600000000001}
     payout: 45
   - type: 3
-    description: Calls Stay Silent - Talk It Through
+    description: Calls light up the screen, but the phone never rings
     enableObjects:
     - {fileID: 706062600000000011}
     payout: 25
@@ -1081,7 +1081,7 @@ GameObject:
   - component: {fileID: 706062600000000012}
   - component: {fileID: 706062600000000013}
   m_Layer: 0
-  m_Name: HumanConversation
+  m_Name: HumanMuteSwitch
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1114,7 +1114,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a73effba676c4f73849a3a3fc0ceab46, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::HumanFault
-  scenario: {fileID: 11400000, guid: 3887e8f2e39a46abb143a478d728e93f, type: 2}
+  completionLine: "It's ringing! ...That was the switch, wasn't it?"
 --- !u!1 &7433282545182374299
 GameObject:
   m_ObjectHideFlags: 0

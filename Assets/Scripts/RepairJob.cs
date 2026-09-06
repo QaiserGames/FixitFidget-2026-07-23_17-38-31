@@ -58,7 +58,7 @@ public class RepairJob : JobBase
         return remaining;
     }
 
-    // Human faults require their conversation steps. Empty legacy physical
+    // Human faults require their physical task. Empty legacy physical
     // faults retain their existing behaviour; a missing Human task fails closed.
     public override float Quality
     {

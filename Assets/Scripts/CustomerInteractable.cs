@@ -10,7 +10,7 @@ public class CustomerInteractable : Interactable
     }
 
     public override bool IsAvailable =>
-        brain != null && (brain.CanHearIntake || brain.CanDecide || brain.CanDiscussHumanFault || brain.JobReady ||
+        brain != null && (brain.CanHearIntake || brain.CanDecide || brain.CanFixAtCounter || brain.JobReady ||
                           brain.JobFixedButAway || brain.CanReceiveDrink ||
                           brain.CanApologiseForDrink ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
@@ -20,7 +20,7 @@ public class CustomerInteractable : Interactable
     // counter-only; handing things over and reassuring people happen wherever
     // they're standing.
     public bool FloorAvailable =>
-        brain != null && (brain.CanReceiveDrink || brain.CanDiscussHumanFault || brain.JobReady ||
+        brain != null && (brain.CanReceiveDrink || brain.JobReady ||
                           brain.CanApologiseForDrink ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
@@ -41,7 +41,7 @@ public class CustomerInteractable : Interactable
             if (brain.CanApologiseForDrink)
                 return $"Sorry, we're out of {brain.WantedDrinkName}";
             if (brain.CanHearIntake || brain.CanDecide) return "Talk to them";
-            if (brain.CanDiscussHumanFault) return "Talk through the problem";
+            if (brain.CanFixAtCounter) return brain.HumanConversation.Finished ? "Return the phone" : "Check the mute switch";
             // The grade is shown BEFORE you commit. This is the whole point:
             // without it, handing back a half-done repair is a nasty surprise
             // rather than a choice you made under pressure.
@@ -70,10 +70,9 @@ public class CustomerInteractable : Interactable
 
         if (brain.CanApologiseForDrink) { brain.ApologiseForDrink(); return; }
 
-        if (brain.CanDiscussHumanFault)
+        if (brain.CanFixAtCounter)
         {
-            var diagnosis = player.GetComponent<ConversationController>();
-            if (diagnosis != null) diagnosis.Begin(brain);
+            player.GetComponent<CounterRepairView>()?.Open(brain);
             return;
         }
         if (brain.JobReady) { brain.CompleteJob(); return; }

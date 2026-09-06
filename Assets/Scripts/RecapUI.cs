@@ -42,6 +42,8 @@ public class RecapUI : MonoBehaviour
  
     private void Show()
     {
+        // Return camera-reader ownership before the recap takes its snapshot.
+        if (player != null) player.GetComponent<CounterRepairView>()?.Close();
         SuspendCameraInput(FindObjectsByType<CinemachineInputAxisController>(
             FindObjectsInactive.Include, FindObjectsSortMode.None));
         // Get the player out of any station so they aren't stuck behind the panel.

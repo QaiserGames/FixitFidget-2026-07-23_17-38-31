@@ -23,7 +23,7 @@ public class ConversationController : MonoBehaviour
     private float inputReadyAt;
     private bool closing;
     private float closeAt;
-    private HumanFault humanTask;
+    private CustomerBrain counterAfterClose;
     private bool conversationOpen;
     private int closedAtFrame = -1;
 
@@ -31,7 +31,7 @@ public class ConversationController : MonoBehaviour
     {
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (brain == null || InConversation || Time.timeScale <= 0f || ui == null) return;
-        if (!brain.CanHearIntake && !brain.CanDecide && !brain.CanDiscussHumanFault) return;
+        if (!brain.CanHearIntake && !brain.CanDecide) return;
 
         partner = brain;
         conversationOpen = true;
@@ -54,7 +54,7 @@ public class ConversationController : MonoBehaviour
         ui.Show(brain.CustomerName, tint, face);
 
         // First beat: whatever they came here to say.
-        if (!TryBeginHuman()) ui.SetLine(brain.HearIntake());
+        ui.SetLine(brain.HearIntake());
         RefreshPortrait();
     }
 
@@ -69,7 +69,8 @@ public class ConversationController : MonoBehaviour
         CustomerBrain leaving = partner;
         if (conversationOpen) closedAtFrame = Time.frameCount;
         partner = null;
-        humanTask = null;
+        var counterCustomer = counterAfterClose;
+        counterAfterClose = null;
         conversationOpen = false;
         closing = false;
 
@@ -82,6 +83,8 @@ public class ConversationController : MonoBehaviour
         if (ui != null) ui.Hide();
 
         if (leaving != null) leaving.OnConversationClosed();
+        if (counterCustomer != null && isActiveAndEnabled)
+            StartCoroutine(OpenCounterNextFrame(counterCustomer));
     }
 
     private void Update()
@@ -106,38 +109,13 @@ public class ConversationController : MonoBehaviour
             return;
         }
 
-        ui.SetOptions(ui.LineFinished ? (humanTask != null ? BuildHumanOptions() : BuildOptions())
-            : humanTask != null ? "[E] Show full line     [F] Step away" : "");
+        ui.SetOptions(ui.LineFinished ? BuildOptions() : "");
 
         if (Time.time < inputReadyAt) return;
         var kb = Keyboard.current;
         if (kb == null) return;
 
         if (kb.fKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) { End(); return; }
-        if (humanTask != null)
-        {
-            if (!humanTask.CanTalkWith(partner)) { End(); return; }
-            if (!ui.LineFinished)
-            {
-                if (kb.eKey.wasPressedThisFrame) ui.SkipReveal();
-                return;
-            }
-            if (kb.qKey.wasPressedThisFrame && partner.JobReady)
-            {
-                CloseWith(partner.CompleteJob());
-                return;
-            }
-            int choice = kb.digit1Key.wasPressedThisFrame ? 0 : kb.digit2Key.wasPressedThisFrame ? 1
-                : kb.digit3Key.wasPressedThisFrame ? 2 : -1;
-            if (humanTask.Choose(partner, choice))
-            {
-                if (humanTask.Finished) CloseWith(humanTask.Run.Line);
-                else ui.SetLine(humanTask.Run.Line);
-                inputReadyAt = Time.time + inputDelay;
-            }
-            return;
-        }
-
         // E: finish the line if it's still revealing, otherwise take the job.
         if (kb.eKey.wasPressedThisFrame)
         {
@@ -146,7 +124,8 @@ public class ConversationController : MonoBehaviour
             if (partner.CanAcceptJob)
             {
                 string accepted = partner.AcceptJob();
-                if (!TryBeginHuman()) CloseWith(accepted);
+                if (partner.CanFixAtCounter) { counterAfterClose = partner; End(); }
+                else CloseWith(accepted);
                 return;
             }
             if (partner.JobReady)     { CloseWith(partner.CompleteJob()); return; }
@@ -161,25 +140,11 @@ public class ConversationController : MonoBehaviour
 
     }
 
-    private bool TryBeginHuman()
+    private System.Collections.IEnumerator OpenCounterNextFrame(CustomerBrain owner)
     {
-        if (partner == null || !partner.CanDiscussHumanFault) return false;
-        humanTask = partner.HumanConversation;
-        ui.SetHumanLayout(true);
-        ui.SetLine(humanTask.Run.Line);
-        ui.SetOptions("");
-        inputReadyAt = Time.time + inputDelay;
-        return true;
-    }
-
-    private string BuildHumanOptions()
-    {
-        var options = new System.Text.StringBuilder();
-        for (int i = 0; i < humanTask.Run.OptionCount; i++)
-            options.AppendLine($"[{i + 1}] {humanTask.Run.Option(i)}");
-        options.Append($"[F] Step away    Checks {humanTask.Run.Credits}/{humanTask.Run.Count}");
-        if (partner.JobReady) options.Append($"    [Q] Return as-is ({partner.PendingGrade})");
-        return options.ToString();
+        yield return null; // Opening E must never activate the switch too.
+        if (owner != null && owner.CanFixAtCounter)
+            GetComponent<CounterRepairView>()?.Open(owner);
     }
 
     private void OnDisable() => End();

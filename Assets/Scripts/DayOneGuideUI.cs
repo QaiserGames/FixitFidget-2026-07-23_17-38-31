@@ -149,6 +149,14 @@ public class DayOneGuideUI : MonoBehaviour
         bool inspecting = inspector != null && inspector.FocusedItem == job;
         bool carrying = carry != null && carry.Carried == job;
 
+        if (customer.IsCounterRepair)
+            return job.IsComplete
+                ? "Sound restored. The phone is returned automatically; E on the customer resumes if you stepped away."
+                : "At the counter, click the orange mute switch. Right-click steps away without resetting the repair.";
+        if (job is HoldCallJob call && !call.IsComplete)
+            return call.CurrentPhase == HoldCallRun.State.Ringing ? "Support answered! E on the ringing phone picks up."
+                : call.CurrentPhase == HoldCallRun.State.OnHold ? "On hold. Work on another job; return when the phone rings."
+                : "E on the support phone calls or redials. No menu choices.";
         if (job.IsComplete)
         {
             if (inspecting)
@@ -168,9 +176,7 @@ public class DayOneGuideUI : MonoBehaviour
             return "Wrong item. Right-click puts down tools, then leaves inspection.";
         HumanFault human = job.GetComponentInChildren<HumanFault>();
         if (human != null && !human.Finished && !job.HasDetachedParts)
-            return inspecting
-                ? "This needs a conversation. Right-click to leave inspection, then talk to the customer."
-                : $"Talk to {customer.CustomerName}. Use 1, 2 or 3 to help them work through the problem.";
+            return "At the counter, click the orange mute switch to turn sound on. Right-click steps away.";
         if (carrying)
         {
             if (interactor != null && interactor.IsAtStation)

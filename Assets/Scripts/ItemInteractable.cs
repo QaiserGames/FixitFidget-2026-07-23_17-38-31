@@ -15,6 +15,7 @@ public class ItemInteractable : Interactable
         get
         {
             if (job == null) return false;
+            if (job.Owner != null && job.Owner.IsCounterRepair) return false;
 
             // A cup locked in the machine isn't yours to take yet.
             DrinkJob drink = job as DrinkJob;

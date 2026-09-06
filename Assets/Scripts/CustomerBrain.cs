@@ -340,7 +340,10 @@ public class CustomerBrain : MonoBehaviour
     public JobBase ActiveJob => activeJob;
     public HumanFault HumanConversation => activeJob != null && record != null && record.faultType == FaultType.Human
         ? activeJob.GetComponentInChildren<HumanFault>() : null;
-    public bool CanDiscussHumanFault => HumanConversation != null && HumanConversation.CanTalkWith(this);
+    public bool IsCounterRepair => record != null && record.kind == JobKind.Repair && record.faultType == FaultType.Human;
+    public bool CanFixAtCounter => IsCounterRepair && jobAccepted && !IsLeaving && HumanConversation != null
+        && (HumanConversation.CanFix(this) || HumanConversation.Finished)
+        && Time.timeScale > 0f && !(DayClock.Instance != null && DayClock.Instance.DayOver);
     public int JobNumber { get; private set; }
     public Color JobColor { get; private set; } = Color.white;
 
@@ -367,7 +370,7 @@ public class CustomerBrain : MonoBehaviour
     // drink order.
     public bool InService => IsWaiting || jobAccepted;
 
-    private float CurrentMax => IsWaiting ? serviceMax : queueMax;
+    private float CurrentMax => IsWaiting || (IsCounterRepair && jobAccepted) ? serviceMax : queueMax;
 
     // ---------- the intake beat ----------
 
@@ -378,7 +381,7 @@ public class CustomerBrain : MonoBehaviour
     // Nowhere to put their device. You physically cannot take this job until
     // you've cleared the shelf.
     public bool ShelfFull =>
-        CanDecide && record != null && record.kind == JobKind.Repair &&
+        CanDecide && record != null && record.kind == JobKind.Repair && !IsCounterRepair &&
         (IntakeShelf.Instance == null || !IntakeShelf.Instance.HasRoom);
 
     // A drink order can only be accepted if we can actually make it.
@@ -387,6 +390,16 @@ public class CustomerBrain : MonoBehaviour
         get
         {
             if (!CanDecide) return false;
+            // Fail before reserving the visit if a Human prefab has no physical task.
+            if (IsCounterRepair)
+            {
+                var definition = record.devicePrefab != null ? record.devicePrefab.GetComponent<DeviceDefinition>() : null;
+                var fault = definition != null ? definition.GetFault(record.faultIndex) : null;
+                if (fault == null || fault.enableObjects == null || record.devicePrefab.GetComponent<JobBase>() == null) return false;
+                foreach (var obj in fault.enableObjects)
+                    if (obj != null && obj.GetComponentInChildren<HumanFault>(true) != null) return true;
+                return false;
+            }
 
             if (record != null && record.kind == JobKind.Drink)
                 return ShopInventory.Instance != null && ShopInventory.Instance.CanMake(record.drink);
@@ -562,8 +575,8 @@ public class CustomerBrain : MonoBehaviour
         get
         {
             HoldCallJob call = activeJob as HoldCallJob;
-            return call != null && (call.CurrentPhase == HoldCallJob.Phase.NeedsDialing ||
-                                    call.CurrentPhase == HoldCallJob.Phase.Ringing);
+            return call != null && (call.CurrentPhase == HoldCallRun.State.NeedsDialing ||
+                                    call.CurrentPhase == HoldCallRun.State.Ringing);
         }
     }
 
@@ -852,7 +865,7 @@ public class CustomerBrain : MonoBehaviour
             case State.WaitingInQueue:
                 FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
-                UpdateBar(queueMax, Color.green);
+                UpdateBar(CurrentMax, Color.green);
                 if (patienceLeft <= 0f) StormOut();
                 break;
 
@@ -1048,7 +1061,10 @@ public class CustomerBrain : MonoBehaviour
         // Their number floats over them so you can find them across the room.
         if (waitingBadge != null) waitingBadge.Show(JobNumber, JobColor);
 
-        RunOrDefer(BeginWaiting);
+        if (IsCounterRepair)
+            patienceLeft = serviceMax; // Keep their counter slot; no shelf, waiting spot or secondary drink.
+        else
+            RunOrDefer(BeginWaiting);
 
         React();
         return identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
@@ -1070,17 +1086,24 @@ public class CustomerBrain : MonoBehaviour
             activeJob.SetOwner(this);
             activeJob.Configure(record);
 
-            Transform shelf = IntakeShelf.Instance != null
+            Transform shelf = !IsCounterRepair && IntakeShelf.Instance != null
                 ? IntakeShelf.Instance.Claim(activeJob) : null;
 
             // CanAcceptJob already checked for room, so null here means the
             // shelf isn't wired up. Leave it at the counter rather than lose it.
             PlacementJitter.Apply(activeJob, shelf != null ? shelf : slotPoint,
                                   shelfYawJitter, shelfOffsetJitter);
+            // The view presents this customer's device. The owned task remains
+            // alive here when the player steps away; it is never a carried item.
+            if (IsCounterRepair)
+            {
+                foreach (var renderer in spawned.GetComponentsInChildren<Renderer>(true)) renderer.enabled = false;
+                foreach (var collider in spawned.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            }
         }
 
         JobMarker itemMarker = spawned.GetComponentInChildren<JobMarker>(true);
-        if (itemMarker != null) itemMarker.Show(JobNumber, JobColor);
+        if (itemMarker != null && !IsCounterRepair) itemMarker.Show(JobNumber, JobColor);
     }
 
     // Free the counter slot and go stand somewhere else. This is the whole
@@ -1540,6 +1563,19 @@ public class CustomerBrain : MonoBehaviour
     public string CompleteJob()
     {
         if (!JobReady) return "";
+        return CompleteRepair();
+    }
+
+    public string CompleteCounterRepair(JobBase expected)
+    {
+        if (!CanFixAtCounter || expected == null || expected != activeJob || expected.Owner != this
+            || !expected.IsComplete || !expected.CanHandBack) return "";
+        return CompleteRepair();
+    }
+
+    private string CompleteRepair()
+    {
+        string physicalEnding = IsCounterRepair && HumanConversation != null ? HumanConversation.CompletionLine : null;
 
         // TWO INDEPENDENT AXES, deliberately:
         //   quality -> base pay   (fix it well)
@@ -1578,7 +1614,7 @@ public class CustomerBrain : MonoBehaviour
 
         React();
 
-        string line = identity != null ? identity.SayRepairCompleted(grade) : "";
+        string line = physicalEnding ?? (identity != null ? identity.SayRepairCompleted(grade) : "");
 
         // Only bubble it if there's no panel showing the same words.
         if (conversation == null) Say(line);
@@ -1647,7 +1683,7 @@ public class CustomerBrain : MonoBehaviour
         // queue means you never even heard them; storming out while waiting
         // means you took the job and didn't get back. Different failures,
         // different fixes, so they're worth telling apart in the log.
-        lossReason = state == State.WaitingInQueue
+        lossReason = state == State.WaitingInQueue && !jobAccepted
             ? LostReason.StormedOutInQueue
             : LostReason.StormedOutWaiting;
 

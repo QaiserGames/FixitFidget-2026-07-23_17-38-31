@@ -10,7 +10,7 @@ public static class HumanIntegrationChecks
 {
     private const string PhonePath = "Assets/AssetsPrefabs/PhoneRepair.prefab";
 
-    [MenuItem("Fixit Fidget/Checks/Human conversation integration")]
+    [MenuItem("Fixit Fidget/Checks/Human counter integration")]
     public static void Run()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -19,8 +19,8 @@ public static class HumanIntegrationChecks
         CheckMissingTask();
         CheckLayoutAndInput();
         Debug.Log("[Human integration] PASS: phone fault selection, ownership, pause/recap guards, " +
-            "partial grades, reassembly, persistent progress, and dialogue layout/input cleanup. " +
-            "No scene, prefab, money or save changes. Perform the conversation playtest next.");
+            "physical completion, reassembly, pause and input cleanup. " +
+            "No scene, prefab, money or save changes. Perform the counter playtest next.");
     }
 
     private static void CheckPhone()
@@ -44,7 +44,7 @@ public static class HumanIntegrationChecks
             var record = new Job { faultType = FaultType.Human, faultIndex = 3 };
             repair.Configure(record);
             var human = root.GetComponentInChildren<HumanFault>();
-            Require(human != null && human.Run.IsValid && human.TotalTasks == 3, "Authored three-step scenario is playable.");
+            Require(human != null && human.TotalTasks == 1, "Physical toggle is one task.");
             Require(repair.Family == JobFamily.Human && repair.Grade == JobGrade.Rejected && !repair.IsComplete,
                 "Untouched Human fault does not receive the old free Perfect.");
             Require(root.GetComponentsInChildren<CircuitPuzzle>().Length == 0
@@ -57,31 +57,27 @@ public static class HumanIntegrationChecks
             var strangerObject = new GameObject("Other customer");
             strangerObject.transform.SetParent(fixture.transform, false);
             var stranger = strangerObject.AddComponent<CustomerBrain>();
-            Require(!human.Choose(owner, 0), "Unowned task cannot be answered.");
+            Require(!human.Flip(owner), "Unowned task cannot be answered.");
             repair.SetOwner(owner);
-            Require(owner.CanDiscussHumanFault && !human.Choose(stranger, 0), "Only the accepted device's customer can advance it.");
+            Require(owner.CanFixAtCounter && !human.Flip(stranger), "Only the accepted device's customer can advance it.");
             Time.timeScale = 0f;
-            Require(!human.Choose(owner, 0) && human.Run.Credits == 0, "Paused conversations cannot progress.");
+            Require(!human.Flip(owner) && human.RemainingTasks == 1, "Paused conversations cannot progress.");
             Time.timeScale = 1f;
             var clock = fixture.AddComponent<DayClock>();
             clock.SetDay(1); Clock(clock);
             clock.RestoreRecap(new RecapSaveData { day = 1 });
             Time.timeScale = 1f; // Recap guard must work even if another system changes the clock.
-            Require(!human.Choose(owner, 0), "A closed-day recap independently blocks choices.");
+            Require(!human.Flip(owner), "A closed-day recap independently blocks input.");
             Clock(null);
-            Require(human.Choose(owner, 1) && human.Run.Mistakes == 1 && repair.Grade == JobGrade.Rejected,
-                "Wrong explanation gives feedback without fake repair credit.");
-            Require(human.Choose(owner, 0) && repair.Grade == JobGrade.Passable, "First confirmed check gives partial credit.");
             human.gameObject.SetActive(false);
-            Require(repair.Grade == JobGrade.Passable && !owner.CanDiscussHumanFault, "Hidden device retains progress but blocks input.");
+            Require(repair.Grade == JobGrade.Rejected && !human.Flip(owner), "Hidden task cannot complete.");
             human.gameObject.SetActive(true);
-            Require(human.Choose(owner, 1) && repair.Grade == JobGrade.Good, "Resuming continues the second check.");
             Set(owner, "state", CustomerBrain.State.Leaving);
-            Require(!human.Choose(owner, 2), "A departing customer cannot complete a conversation.");
-            Set(owner, "state", CustomerBrain.State.Waiting);
-            Require(human.Choose(owner, 2) && repair.Grade == JobGrade.Perfect && repair.IsComplete,
-                "All checks resolve the Human fault through actual RepairJob grading.");
-            Require(!owner.CanDiscussHumanFault && !human.Choose(owner, 2), "Completed conversation is not replayable.");
+            Require(!human.Flip(owner), "Departing owner cannot be repaired.");
+            Set(owner, "state", CustomerBrain.State.WaitingInQueue);
+            Require(human.Flip(owner) && repair.Grade == JobGrade.Perfect && repair.IsComplete,
+                "One physical action completes the actual RepairJob.");
+            Require(!human.Flip(owner), "Repeated input cannot award another task.");
             repair.RegisterDetached(fixture);
             Require(!repair.CanHandBack && !repair.IsComplete, "Conversation cannot hand back a disassembled phone.");
             repair.UnregisterDetached(fixture);
@@ -151,7 +147,12 @@ public static class HumanIntegrationChecks
     }
 
     [MenuItem("Fixit Fidget/Playtest/Spawn Human phone customer")]
-    public static void SpawnPracticeCustomer()
+    public static void SpawnPracticeCustomer() => SpawnPractice(PhonePath, FaultType.Human);
+
+    [MenuItem("Fixit Fidget/Playtest/Spawn support-call customer")]
+    public static void SpawnSupportCustomer() => SpawnPractice("Assets/AssetsPrefabs/PhoneJob.prefab", FaultType.Bureaucratic);
+
+    private static void SpawnPractice(string prefabPath, FaultType family)
     {
         if (!EditorApplication.isPlaying || Time.timeScale <= 0f
             || (DayClock.Instance != null && DayClock.Instance.DayOver))
@@ -163,12 +164,12 @@ public static class HumanIntegrationChecks
         var exit = Get(spawner, "exitPoint") as Transform;
         var queue = Get(spawner, "counterQueue") as CounterQueue;
         var archetypes = Get(spawner, "archetypes") as CustomerArchetype[];
-        var phone = AssetDatabase.LoadAssetAtPath<GameObject>(PhonePath);
+        var phone = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
         if (source == null || start == null || exit == null || queue == null || !queue.HasFreeSlot || phone == null)
             throw new InvalidOperationException("Need the scene's customer/door references and a free counter slot.");
         var def = phone.GetComponent<DeviceDefinition>();
-        int index = def != null ? Array.FindIndex(def.faults, f => f != null && f.type == FaultType.Human) : -1;
-        if (index < 0) throw new InvalidOperationException("Phone has no Human fault.");
+        int index = def != null ? Array.FindIndex(def.faults, f => f != null && f.type == family) : -1;
+        if (index < 0) throw new InvalidOperationException("Prefab has no requested fault family.");
         if (!NavMesh.SamplePosition(start.position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
             throw new InvalidOperationException("No walkable NavMesh at the scene's spawn point.");
         GameObject guest = UnityEngine.Object.Instantiate(source, hit.position, start.rotation);
@@ -180,13 +181,13 @@ public static class HumanIntegrationChecks
             UnityEngine.Object.Destroy(guest);
             throw new InvalidOperationException("Customer prefab needs its brain, identity and an agent on the NavMesh.");
         }
-        guest.name = "Human practice customer";
+        guest.name = family + " practice customer";
         identity.SetupWalkIn(archetypes != null ? Array.Find(archetypes, a => a != null) : null, "Practice guest");
         brain.Init(queue, exit, new Job { devicePrefab = phone, deviceName = def.displayName,
-            faultIndex = index, faultType = FaultType.Human, faultDescription = def.faults[index].description, payout = 0 });
+            faultIndex = index, faultType = family, faultDescription = def.faults[index].description, payout = 0 });
         Selection.activeGameObject = guest;
-        Debug.Log("Practice guest is joining the normal counter queue with a silent-call phone. " +
-            "Talk normally, accept, use 1/2/3 to answer and F to step away. Return the phone afterward. " +
+        Debug.Log("Practice guest is joining the normal counter queue. " +
+            "Human: click the mute switch at intake. Support: E calls from the shelf, then answer when it rings. " +
             "Zero payout, but this visit counts in this playtest's recap/log. No save was reset.");
     }
 

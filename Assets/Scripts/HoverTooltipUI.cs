@@ -32,7 +32,13 @@ public class HoverTooltipUI : MonoBehaviour
         string title = "";
         string action = "";
 
-        if (inspector != null && inspector.IsHoldingItem)
+        var counter = interactor != null ? interactor.GetComponent<CounterRepairView>() : null;
+        if (counter != null && counter.IsOpen)
+        {
+            title = counter.HoverName;
+            action = counter.HoverAction;
+        }
+        else if (inspector != null && inspector.IsHoldingItem)
         {
             title = inspector.HoverName;
             action = inspector.HoverAction;
