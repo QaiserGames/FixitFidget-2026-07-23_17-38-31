@@ -141,6 +141,9 @@ public static class CircuitIntegrationChecks
         try
         {
             var clock = root.AddComponent<DayClock>();
+            // Inactive fixtures never run Awake/Start. Mirror save loading by
+            // setting the day before RestoreRecap validates its checkpoint.
+            clock.SetDay(1);
             typeof(DayClock).GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, clock);
             var repair = root.AddComponent<RepairJob>();
             var puzzle = root.AddComponent<CircuitPuzzle>();
@@ -157,6 +160,8 @@ public static class CircuitIntegrationChecks
             tile.Activate();
             Require(puzzle.Run.Turns(0) == turns, "Disabled/non-inspected puzzle cannot be clicked.");
             clock.RestoreRecap(new RecapSaveData { day = 1 });
+            Require(clock.Day == 1 && clock.DayOver && !clock.IsOpen && Time.timeScale == 0f,
+                "The fixture restores a matching closed-day recap before checking input.");
             Require(!puzzle.IsBeingInspected && !tile.CanInteract, "Recap blocks circuit input.");
             inspector.CancelInspection();
             Require(inspector.FocusedItem == null && !puzzle.ContainsHudPoint(Vector2.zero), "Inspection release clears circuit interaction.");
