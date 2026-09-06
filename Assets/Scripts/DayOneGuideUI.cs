@@ -195,6 +195,12 @@ public class DayOneGuideUI : MonoBehaviour
     {
         ToolType tool = inspector.CurrentTool;
 
+        CircuitPuzzle circuit = job.GetComponentInChildren<CircuitPuzzle>();
+        if (circuit != null)
+            return circuit.Finished
+                ? "Signal restored. Refit any removed parts, then return the phone."
+                : "Click the signal tiles to join their white ports before the charge arrives.";
+
         if (job.Quality >= 0.999f)
         {
             if (job.HasDetachedComponent<RemovablePart>())

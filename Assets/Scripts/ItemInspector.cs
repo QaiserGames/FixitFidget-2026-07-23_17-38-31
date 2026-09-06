@@ -19,8 +19,12 @@ public class ItemInspector : MonoBehaviour
     private ToolPickup currentToolPickup;
     private Camera cam;
     private PlayerInteractor interaction;
+    private CircuitPuzzle[] focusedCircuits = System.Array.Empty<CircuitPuzzle>();
+    private bool rotateGesture;
 
     public bool IsHoldingItem => focusedItem != null;
+    public bool IsAtWorkbench => interaction != null && interaction.IsAtStation
+        && interaction.CurrentStation != null && interaction.CurrentStation.IsWorkSurface;
     public JobBase FocusedItem => focusedItem;
     public ToolType CurrentTool => currentTool;
     public string CurrentJobCard { get; private set; }
@@ -81,6 +85,8 @@ public class ItemInspector : MonoBehaviour
         if (mouse.leftButton.wasPressedThisFrame)
         {
             focusedItem = item;
+            focusedCircuits = item.GetComponentsInChildren<CircuitPuzzle>();
+            rotateGesture = false;
             restPosition = item.transform.position;
             restRotation = item.transform.rotation;
 
@@ -98,6 +104,10 @@ public class ItemInspector : MonoBehaviour
 
     private void Release(bool returnToStation = true)
     {
+        foreach (CircuitPuzzle puzzle in focusedCircuits)
+            if (puzzle != null) puzzle.HideForInspection();
+        focusedCircuits = System.Array.Empty<CircuitPuzzle>();
+        rotateGesture = false;
         if (focusedItem != null)
         {
             focusedItem.transform.position = restPosition;
@@ -124,6 +134,28 @@ public class ItemInspector : MonoBehaviour
 
     private void HandleBench(Mouse mouse)
     {
+        // UI uses the existing Input System EventSystem. Raw bench input must
+        // not click through the retry button or rotate the device underneath it.
+        bool overHud = false, overBoard = false;
+        foreach (CircuitPuzzle puzzle in focusedCircuits)
+        {
+            if (puzzle == null) continue;
+            overHud |= puzzle.ContainsHudPoint(mouse.position.ReadValue());
+            overBoard |= puzzle.ContainsBoardPoint(mouse.position.ReadValue());
+        }
+        if (mouse.rightButton.wasPressedThisFrame)
+        {
+            if (currentTool != ToolType.Hand) ClearTool();
+            else Release();
+            return;
+        }
+        if (overHud)
+        {
+            rotateGesture = false;
+            SetBenchHover(null);
+            HoverName = ""; HoverAction = "";
+            return;
+        }
         Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
 
         CurrentJobCard = focusedItem.JobCard;
@@ -132,7 +164,13 @@ public class ItemInspector : MonoBehaviour
         GrimeSpot grime = null;
         ToolPickup hoveredTool = null;
 
-        if (Physics.Raycast(ray, out RaycastHit hit, benchReach))
+        foreach (CircuitPuzzle puzzle in focusedCircuits)
+        {
+            if (puzzle == null) continue;
+            CircuitTile tile = puzzle.TileAtScreenPoint(mouse.position.ReadValue());
+            if (tile != null) { hovered = tile; break; }
+        }
+        if (!overBoard && hovered == null && Physics.Raycast(ray, out RaycastHit hit, benchReach))
         {
             hovered = hit.collider.GetComponent<BenchInteractable>();
             grime = hit.collider.GetComponent<GrimeSpot>();
@@ -158,7 +196,7 @@ public class ItemInspector : MonoBehaviour
             HoverName = hovered.DisplayName;
 
             if (!hovered.CanInteract)
-                HoverAction = "Not yet";
+                HoverAction = hovered is CircuitTile ? hovered.Prompt : "Not yet";
             else if (currentTool == hovered.RequiredTool || hovered.RequiredTool == ToolType.Hand)
             {
                 target = hovered;
@@ -172,6 +210,9 @@ public class ItemInspector : MonoBehaviour
 
         if (mouse.leftButton.wasPressedThisFrame)
         {
+            // Only a drag that STARTS on empty space rotates the item. A press
+            // used to turn a wire or pick up a tool belongs to that action.
+            rotateGesture = hovered == null && grime == null && hoveredTool == null && !overBoard;
             if (hoveredTool != null)
             {
                 if (currentToolPickup != null) currentToolPickup.SetSelected(false);
@@ -193,19 +234,14 @@ public class ItemInspector : MonoBehaviour
             {
                 if (grime != null) grime.Scrub(delta.magnitude * scrubPower);
             }
-            else if (currentTool == ToolType.Hand)
+            else if (currentTool == ToolType.Hand && rotateGesture && !overBoard)
             {
                 focusedItem.transform.Rotate(cam.transform.up, -delta.x * rotateSpeed, Space.World);
                 focusedItem.transform.Rotate(cam.transform.right, delta.y * rotateSpeed, Space.World);
             }
         }
 
-        // Right-click backs out one level: tool first, then the item.
-        if (mouse.rightButton.wasPressedThisFrame)
-        {
-            if (currentTool != ToolType.Hand) ClearTool();
-            else Release();
-        }
+        if (!mouse.leftButton.isPressed) rotateGesture = false;
     }
 
     private void ClearTool()

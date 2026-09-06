@@ -27,7 +27,7 @@ public abstract class BenchInteractable : MonoBehaviour
 
     public abstract void Activate();
 
-    public void SetHighlight(bool on)
+    public virtual void SetHighlight(bool on)
     {
         if (rend == null || highlighted == on) return;
         highlighted = on;

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 [System.Serializable]
 public class DeviceFault
@@ -38,13 +39,23 @@ public class DeviceDefinition : MonoBehaviour
     {
         if (faults == null || faults.Length == 0) return;
 
+        index = Mathf.Clamp(index, 0, faults.Length - 1);
+        var all = new HashSet<GameObject>();
+        var selected = new HashSet<GameObject>();
         for (int i = 0; i < faults.Length; i++)
         {
-            bool on = (i == index);
-            if (faults[i].enableObjects == null) continue;
-
+            if (faults[i] == null || faults[i].enableObjects == null) continue;
             foreach (GameObject g in faults[i].enableObjects)
-                if (g != null) g.SetActive(on);
+            {
+                if (g == null) continue;
+                all.Add(g);
+                if (i == index) selected.Add(g);
+            }
         }
+        // Shared objects must stay on if the chosen fault needs them, regardless
+        // of where the other fault appears in the list.
+        foreach (GameObject g in all) g.SetActive(selected.Contains(g));
+        RepairJob repair = GetComponent<RepairJob>();
+        if (repair != null) repair.CaptureTasks();
     }
 }
