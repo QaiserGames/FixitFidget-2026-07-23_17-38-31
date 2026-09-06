@@ -47,8 +47,11 @@ MonoBehaviour:
   gridWidth: 4
   gridHeight: 4
   scrambledTiles: 4
+  minimumRouteTiles: 6
+  maximumRouteTiles: 9
   layoutSeed: 0
   secondsPerTile: 4
+  secondsPerVerifiedTile: 0.3
   boardMaterial: {fileID: 2100000, guid: 6c1c2d56792a4511b1a570f19e1dfe24, type: 2}
   viewportHeight: 0.36
 --- !u!1 &210057958431804643

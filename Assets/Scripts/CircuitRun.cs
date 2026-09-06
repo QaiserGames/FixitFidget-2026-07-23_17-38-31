@@ -16,6 +16,7 @@ public sealed class CircuitRun
     private readonly Side[] solution;
     private readonly int[] turns;
     private readonly float secondsPerTile;
+    private readonly float secondsPerVerifiedTile;
     private float timer;
     public int Count => cells.Length;
     public int Reached { get; private set; }
@@ -23,34 +24,50 @@ public sealed class CircuitRun
     public int Retries { get; private set; }
     public bool Halted { get; private set; }
     public bool Finished => Reached == Count;
-    public int Credits => Math.Max(0, BestReached - Retries);
+    public int Credits => Math.Max(Finished ? 1 : 0, BestReached - Retries);
     public int RemainingTasks => Count - Credits;
-    public int Ceiling => Math.Max(0, Count - Retries);
-    public int NextRetryCeiling => Math.Max(0, Count - Retries - 1);
-    public float StepProgress => 1f - timer / secondsPerTile;
+    public int Ceiling => Math.Max(1, Count - Retries);
+    public int NextRetryCeiling => Math.Max(1, Count - Retries - 1);
+    private float StepDuration => Reached < BestReached ? secondsPerVerifiedTile : secondsPerTile;
+    public float StepProgress => Math.Max(0f, Math.Min(1f, 1f - timer / StepDuration));
 
-    public CircuitRun(int width, int height, int scrambled, float interval, int seed)
+    public CircuitRun(int width, int height, int scrambled, float interval, int seed,
+        int minimumRouteTiles = 6, int maximumRouteTiles = 9, float verifiedInterval = 0.3f)
     {
         width = Math.Max(2, Math.Min(6, width));
         height = Math.Max(1, Math.Min(6, height));
         secondsPerTile = float.IsNaN(interval) || float.IsInfinity(interval)
             ? 4f : Math.Max(0.25f, interval);
+        secondsPerVerifiedTile = float.IsNaN(verifiedInterval) || float.IsInfinity(verifiedInterval)
+            ? Math.Min(0.3f, secondsPerTile) : Math.Max(0.05f, Math.Min(secondsPerTile, verifiedInterval));
         timer = secondsPerTile;
         var random = new Random(seed); // Never consume Unity's customer/spawner RNG.
-        var route = new List<Cell>();
-        int row = random.Next(height);
-        route.Add(new Cell(0, row));
-        for (int col = 0; col < width - 1; col++)
+        int longest = width + (width - 1) * (height - 1);
+        int minimum = Math.Max(width, Math.Min(longest, minimumRouteTiles));
+        int maximum = Math.Max(minimum, Math.Min(longest, maximumRouteTiles));
+        List<Cell> route = null;
+        for (int attempt = 0; attempt < 32; attempt++)
         {
-            int target = random.Next(height);
-            while (row != target)
+            var candidate = new List<Cell>();
+            int row = random.Next(height);
+            candidate.Add(new Cell(0, row));
+            for (int col = 0; col < width - 1; col++)
             {
-                row += target > row ? 1 : -1;
-                route.Add(new Cell(col, row));
+                int target = random.Next(height);
+                while (row != target)
+                {
+                    row += target > row ? 1 : -1;
+                    candidate.Add(new Cell(col, row));
+                }
+                candidate.Add(new Cell(col + 1, row));
             }
-            route.Add(new Cell(col + 1, row));
+            if (candidate.Count < minimum || candidate.Count > maximum) continue;
+            route = candidate;
+            break;
         }
-        cells = route.ToArray();
+        // A narrow configured band must still produce a valid job when attempts run out.
+        cells = route != null ? route.ToArray()
+            : CreateFallbackRoute(width, height, random.Next(minimum, maximum + 1));
         solution = new Side[Count];
         turns = new int[Count];
         var order = new int[Count];
@@ -71,6 +88,27 @@ public sealed class CircuitRun
             // A 180-degree straight is already connected, so never call it scrambled.
             do { turns[i] = random.Next(1, 4); } while (IsAligned(i));
         }
+    }
+
+    // Exact-length staircase: complete alternating column sweeps, then a partial
+    // sweep if necessary. Later columns run straight once the length is reached.
+    private static Cell[] CreateFallbackRoute(int width, int height, int count)
+    {
+        var route = new List<Cell> { new Cell(0, 0) };
+        int row = 0, extra = count - width;
+        for (int col = 0; col < width - 1; col++)
+        {
+            int steps = Math.Min(height - 1, extra);
+            int direction = col % 2 == 0 ? 1 : -1;
+            for (int step = 0; step < steps; step++)
+            {
+                row += direction;
+                route.Add(new Cell(col, row));
+            }
+            extra -= steps;
+            route.Add(new Cell(col + 1, row));
+        }
+        return route.ToArray();
     }
 
     public Cell Position(int i) => cells[i];
@@ -94,10 +132,10 @@ public sealed class CircuitRun
             || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime)) return;
         timer -= deltaTime;
         if (timer > 0f) return;
-        timer = secondsPerTile;
         if (!IsAligned(Reached)) { Halted = true; return; }
         Reached++;
         BestReached = Math.Max(BestReached, Reached);
+        timer = StepDuration;
         // The final connected tile completes immediately, without another empty wait.
     }
 
@@ -107,7 +145,7 @@ public sealed class CircuitRun
         Retries++;
         Reached = 0;
         Halted = false;
-        timer = secondsPerTile;
+        timer = StepDuration;
         return true;
     }
 

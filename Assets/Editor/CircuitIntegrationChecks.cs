@@ -50,6 +50,7 @@ public static class CircuitIntegrationChecks
         if (EditorApplication.isPlayingOrWillChangePlaymode)
             throw new InvalidOperationException("Stop Play Mode before running circuit integration checks.");
         for (int fault = 0; fault < 3; fault++) CheckPhone(fault);
+        CheckPhone(2, true);
         CheckSharedFaultObjects();
         CheckInputIsolation();
         Debug.Log("[Circuit integration] PASS: prefab references, all phone faults, immediate grading, " +
@@ -57,7 +58,7 @@ public static class CircuitIntegrationChecks
             "No scene, prefab, money or save changes were made. Still perform the circuit playtest.");
     }
 
-    private static void CheckPhone(int faultIndex)
+    private static void CheckPhone(int faultIndex, bool exhaustRetryCredit = false)
     {
         GameObject root = PrefabUtility.LoadPrefabContents(PhonePath);
         try
@@ -97,10 +98,25 @@ public static class CircuitIntegrationChecks
             Require(repair.Quality == 0f, "Hiding circuit cannot award completion.");
             puzzle.gameObject.SetActive(true);
             var run = puzzle.Run;
+            Require(run.Count >= 6 && run.Count <= 9, "Phone route stays within the authored attention budget.");
+            if (exhaustRetryCredit)
+            {
+                if (run.IsAligned(0)) run.Turn(0);
+                for (int attempt = 0; attempt < run.Count + 2; attempt++)
+                {
+                    run.Tick(100f, true);
+                    Require(run.Halted && run.Retry(), "Deliberate failure spends one retry.");
+                }
+                Require(repair.Grade == JobGrade.Rejected, "Unfinished zero-credit circuit is still Rejected.");
+            }
             for (int i = 0; i < run.Count; i++)
                 for (int r = 0; r < 4 && !run.IsAligned(i); r++) run.Turn(i);
             for (int i = 0; i < run.Count; i++) run.Tick(100f, true);
-            Require(repair.Quality == 1f && repair.IsComplete, "Verified circuit flows into existing quality/grade.");
+            if (exhaustRetryCredit)
+                Require(run.Finished && repair.Quality > 0f && repair.Grade == JobGrade.Passable,
+                    "Finished circuit reaches Passable through real RepairJob grading after excessive retries.");
+            else
+                Require(repair.Quality == 1f && repair.IsComplete, "Verified circuit flows into existing quality/grade.");
             var detached = new GameObject("Test detached cover");
             try
             {
@@ -153,7 +169,11 @@ public static class CircuitIntegrationChecks
             Set(station, "isWorkSurface", true); Set(interactor, "currentStation", station);
             Set(inspector, "interaction", interactor); Set(inspector, "focusedItem", repair);
             Set(inspector, "focusedCircuits", new[] { puzzle }); Set(puzzle, "inspector", inspector);
+            Set(puzzle, "scrambledTiles", 0);
             puzzle.EnsureInitialized();
+            bool hasScramble = false;
+            for (int i = 0; i < puzzle.Run.Count; i++) hasScramble |= !puzzle.Run.IsAligned(i);
+            Require(hasScramble, "Normal job clamps a zero scramble setting to at least one wrong tile.");
             var tile = root.AddComponent<CircuitTile>();
             tile.Build(puzzle, 0, null, null, Color.white);
             int turns = puzzle.Run.Turns(0);

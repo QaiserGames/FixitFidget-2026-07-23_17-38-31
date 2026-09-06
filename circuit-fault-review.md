@@ -29,19 +29,28 @@ it does not merge main or modify the save format.
 - Keep the submitted one-credit-per-retry penalty and existing grade thresholds.
   A 6-tile board completed after one retry earns 5/6; two retries earn 4/6.
   The denominator is the selected job's tasks, including other fault tasks if mixed.
-- **A fully connected board can still earn Rejected after enough voluntary
-  retries.** That follows the draft's scoring, not a new failure penalty. The
-  button discloses when the next ceiling is zero. I recommend discussing a
-  minimum completion grade after playtesting; this branch does not silently
-  change payouts or cap that penalty.
+- A finished circuit now has a **one-credit minimum**. Exhausting retry credit
+  can still leave unfinished work Rejected, but a finished software-only phone
+  earns at least Passable. Completion ceilings use the same floor. Existing job
+  grade thresholds and payout multipliers remain unchanged; finishing after many
+  retries can still pay less than handing back a higher-credit unfinished job.
 - The retry is now a deliberate action; the six-second automatic retry wait is
-  removed. Passed tiles remain locked, and the verification charge restarts at
-  the input, as in the draft.
-- Default 4x4, four scrambles, four seconds per tile are retained. The generated
-  route can contain 4–13 tiles (16–52 seconds per uninterrupted pass). This can
-  exceed the roadmap's 20–40 second target: tune after timing real play, not from
-  an assumed average. Grid, scramble count, speed, seed and display size are
-  serialized on `PhoneRepair / SoftwareCircuit`.
+  removed. Passed tiles remain locked. The charge restarts at the input, crossing
+  verified tiles at **0.3 seconds each**, then resumes four seconds per unverified
+  tile. Leaving preserves the remaining interval at either speed; replay never
+  awards duplicate credit. Hitches still advance at most one tile per frame.
+- Default 4x4, four scrambles, four seconds per new tile are retained. Default
+  routes now contain **6–9 tiles: 24–36 seconds of uninterrupted verification**.
+  Player hesitation, interruption and retries add time; this is not a guarantee
+  of total repair duration. Generation tries at most 32 candidates, then builds
+  a valid exact-length staircase inside the requested band. Settings clamp to
+  feasible lengths for other grid sizes. Grid, minimum/maximum route length,
+  scramble count, both speeds, seed and display size are serialized on
+  `PhoneRepair / SoftwareCircuit`. Normal jobs force at least one genuinely
+  disconnected tile; the pure rules model permits zero for controlled tests.
+- The lower HUD presents one contextual instruction, verified progress and
+  current repair result. The retry button and its point cost/next completion
+  limit appear only after a blockage. The whole panel still blocks click-through.
 - New fault payout is a **provisional $45**, matching the existing phone-cleaning
   entry, rather than altering any existing payout. Validate time versus reward.
 - Phone first. The mechanic is reusable on compatible devices; a mechanical
@@ -75,6 +84,10 @@ it does not merge main or modify the save format.
   verified tiles, retry count and interval progress. No credit lost for leaving.
 - Let the charge hit a bad tile. Wait: no automatic penalty. Fix it and choose
   Retry: exactly one credit is lost, including under a double click.
+- Fail after several verified tiles: those tiles replay quickly; the blocked
+  tile gets its full interval again. Leave during replay and return to check the
+  saved interval. After excessive retries, completing the circuit must show
+  Passable, with no zero-credit completion result.
 - Final tile completes without an extra wait. HUD shows both completion and
   grade. Early handback still uses existing partial grading; detached parts
   still block handback. Test a real customer's resulting payment/recap too.
@@ -89,21 +102,27 @@ it does not merge main or modify the save format.
 ## Validation performed here
 
 - Compiled the production `CircuitRun.cs` and its shared checks with Roslyn and
-  ran them on .NET 8: **51,496 assertions passed across 1,200 generated boards**.
+  ran them on .NET 8: **58,771 assertions passed**, including 1,200 seeded layouts
+  plus every feasible exact route length across the supported grid sizes.
   Includes reciprocal paths, no repeated cells, deterministic seeds, visible
-  scrambles, solve-to-Perfect, timing, failure, retry, and zero-credit boundaries.
-- C# syntax parsing across the available source snapshot: no syntax errors.
+  scrambles, solve-to-Perfect, guaranteed fallback geometry, route bounds,
+  both retry speeds, pause/resume at their boundary, and completion-credit floor.
+- C# syntax parsing across 87 available source files: no syntax errors.
 - Phone YAML: 70 unique object records; local file references, parent linkage,
   script/material GUIDs and original fault indices validated.
 - Unity Editor, Play Mode and the player shader compiler are unavailable here.
   The Unity integration checks are supplied, **not reported as executed**.
+  They now also cover finished-run grading through RepairJob after excessive
+  retries and the runtime minimum scramble setting. HUD appearance needs the
+  owner's Unity playtest; it has not been rendered here.
 
 The dependency-free runner can also be run with .NET 8:
 `dotnet run --project Tests/CircuitRules/CircuitRules.csproj`.
 
 ## Next roadmap gate
 
-Play this verb on an actual customer and report clarity, clicks, total time,
+The owner tested the first prototype and likes its gameplay. Test these timing,
+grading and HUD refinements on an actual customer and report clarity, clicks, total time,
 grade and whether an interruption feels fair. Then tune it into Phase 1's
 content foundation and tackle the next fault family (Human or wiring the existing
 HoldCallJob). Don't mark the software family finished until the player-build

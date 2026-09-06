@@ -22,7 +22,9 @@ public static class CircuitRuleChecks
         assertions = 0;
         Symmetry();
         Generation();
+        RouteBandsAndFallback();
         TimingAndFailure();
+        FastRetryTiming();
         GradeCeiling();
         return assertions;
     }
@@ -50,6 +52,9 @@ public static class CircuitRuleChecks
         {
             var run = new CircuitRun(w, h, 4, 0.25f, seed);
             var duplicate = new CircuitRun(w, h, 4, 0.25f, seed);
+            int possible = w + (w - 1) * (h - 1);
+            Require(run.Count >= Math.Max(w, Math.Min(6, possible))
+                && run.Count <= Math.Max(w, Math.Min(9, possible)), "Default length band adapts to feasible grid size.");
             var seen = new HashSet<string>();
             int wrong = 0;
             for (int i = 0; i < run.Count; i++)
@@ -84,6 +89,39 @@ public static class CircuitRuleChecks
         for (int i = 0; i < clean.Count; i++) Require(clean.IsAligned(i), "Zero scramble is respected.");
     }
 
+    private static void RouteBandsAndFallback()
+    {
+        for (int w = 2; w <= 6; w++)
+        for (int h = 1; h <= 6; h++)
+        for (int count = w; count <= w + (w - 1) * (h - 1); count++)
+        {
+            // Exercise the rare fallback directly as well as the public generator.
+            // Reflection keeps this check usable from Unity's separate Editor assembly.
+            var fallback = typeof(CircuitRun).GetMethod("CreateFallbackRoute",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var route = (CircuitRun.Cell[])fallback.Invoke(null, new object[] { w, h, count });
+            Require(route.Length == count && route[0].X == 0 && route[count - 1].X == w - 1,
+                "Fallback has exact requested length and reaches output column.");
+            var seen = new HashSet<string>();
+            for (int i = 0; i < count; i++)
+            {
+                var p = route[i];
+                Require(p.X >= 0 && p.X < w && p.Y >= 0 && p.Y < h && seen.Add(p.X + ":" + p.Y),
+                    "Fallback stays inside grid without revisiting cells.");
+                if (i > 0) Require(Math.Abs(p.X - route[i - 1].X) + Math.Abs(p.Y - route[i - 1].Y) == 1,
+                    "Fallback keeps every connection adjacent.");
+            }
+            var run = new CircuitRun(w, h, 1, 4, count, count, count);
+            Require(run.Count == count, "Even an exact-length band always generates a board.");
+            for (int i = 0; i < run.Count; i++) { Align(run, i); run.Tick(4, true); }
+            Require(run.Finished && run.Credits == count, "Narrow-band generation remains solvable.");
+        }
+        var reversed = new CircuitRun(4, 4, 4, 4, 12, 9, 6);
+        Require(reversed.Count == 9, "Reversed bounds collapse to the feasible minimum.");
+        var outside = new CircuitRun(4, 4, 4, 4, 12, 999, -999);
+        Require(outside.Count == 13, "Impossible bounds clamp without looping forever.");
+    }
+
     private static void TimingAndFailure()
     {
         var run = new CircuitRun(4, 1, 0, 4, 1);
@@ -111,21 +149,60 @@ public static class CircuitRuleChecks
         Require(!run.Turn(3) && !run.Retry(), "Completed board is immutable.");
     }
 
+    private static void FastRetryTiming()
+    {
+        var run = new CircuitRun(6, 1, 0, 4, 9);
+        for (int i = 0; i < 4; i++) run.Tick(4, true);
+        run.Turn(4); run.Tick(4, true);
+        Require(run.Halted && run.BestReached == 4, "Failure after four verified tiles.");
+        Align(run, 4); run.Retry();
+        run.Tick(0.15f, true);
+        Require(run.Reached == 0 && Math.Abs(run.StepProgress - 0.5f) < 0.001f,
+            "Retry marker uses the short interval.");
+        run.Tick(100, false);
+        Require(run.Reached == 0 && Math.Abs(run.StepProgress - 0.5f) < 0.001f,
+            "Leaving during fast replay preserves its remaining time.");
+        run.Tick(0.15f, true);
+        Require(run.Reached == 1 && run.BestReached == 4 && run.Credits == 3,
+            "Replay takes 0.3 seconds and never awards duplicate credit.");
+        for (int i = 1; i < 4; i++) run.Tick(0.3f, true);
+        Require(run.Reached == 4 && run.StepProgress == 0, "Verified prefix replays quickly without starting next tile early.");
+        run.Tick(2, true);
+        Require(run.Reached == 4 && Math.Abs(run.StepProgress - 0.5f) < 0.001f,
+            "First unverified tile restores the full four seconds.");
+        run.Tick(100, false); run.Tick(2, true);
+        Require(run.Reached == 5 && run.BestReached == 5, "Normal interval also survives interruption.");
+        run.Turn(5); run.Tick(4, true); run.Retry();
+        for (int i = 0; i < 5; i++) run.Tick(0.3f, true);
+        Require(run.Reached == 5 && run.Retries == 2, "Second retry includes newly verified prefix.");
+        Align(run, 5); run.Tick(4, true);
+        Require(run.Finished && run.Credits == 4, "Replay does not erase retry penalties.");
+
+        var first = new CircuitRun(4, 1, 0, 4, 1);
+        first.Turn(0); first.Tick(4, true); Align(first, 0); first.Retry();
+        first.Tick(0.3f, true);
+        Require(first.Reached == 0, "Failure at entry has no prefix to fast-forward.");
+        first.Tick(4, true);
+        Require(first.Reached == 1, "Entry still gets a full normal interval.");
+    }
+
     private static void GradeCeiling()
     {
-        // Repeated voluntary retries eventually reach zero credit, as in the submitted design.
-        // The HUD must disclose this; solving after that is not a Perfect payout.
+        // Unfinished work can have zero credit; finishing always earns at least one.
         var run = new CircuitRun(4, 1, 0, 1, 7);
         run.Turn(0);
         for (int i = 0; i < 8; i++)
         {
             run.Tick(1, true);
-            Require(run.Halted && run.NextRetryCeiling >= 0, "Retry floor never negative.");
+            Require(run.Halted && run.NextRetryCeiling >= 1 && run.Credits == 0,
+                "Completion ceiling has a floor; unfinished work gets no free credit.");
             run.Retry();
         }
         for (int i = 0; i < run.Count; i++) Align(run, i);
         for (int i = 0; i < run.Count; i++) run.Tick(1, true);
-        Require(run.Finished && run.Credits == 0 && run.RemainingTasks == run.Count, "No overflow or grade resurrection after repeated retries.");
+        Require(run.Finished && run.Credits == 1 && run.RemainingTasks == run.Count - 1,
+            "Finished circuit retains one credit after repeated retries.");
+        Require(run.Ceiling == 1 && run.NextRetryCeiling == 1, "HUD ceilings agree with the completion floor.");
     }
 
     private static void Align(CircuitRun run, int i)

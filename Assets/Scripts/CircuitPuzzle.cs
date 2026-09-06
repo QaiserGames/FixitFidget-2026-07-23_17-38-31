@@ -13,11 +13,15 @@ public sealed class CircuitPuzzle : MonoBehaviour
     [Header("Board")]
     [SerializeField, Range(2, 6)] private int gridWidth = 4;
     [SerializeField, Range(1, 6)] private int gridHeight = 4;
-    [SerializeField, Min(0)] private int scrambledTiles = 4;
+    [SerializeField, Min(1)] private int scrambledTiles = 4;
+    [SerializeField, Min(2)] private int minimumRouteTiles = 6;
+    [SerializeField, Min(2)] private int maximumRouteTiles = 9;
     [Tooltip("0 creates a fresh layout per job. Set a nonzero seed to reproduce a board.")]
     [SerializeField] private int layoutSeed;
     [Header("Timing")]
     [SerializeField, Min(0.25f)] private float secondsPerTile = 4f;
+    [Tooltip("Retry speed through locked tiles. Unverified tiles retain their full interval.")]
+    [SerializeField, Min(0.05f)] private float secondsPerVerifiedTile = 0.3f;
     [Header("Presentation")]
     [Tooltip("Required asset reference so the board shader is included in player builds.")]
     [SerializeField] private Material boardMaterial;
@@ -38,13 +42,14 @@ public sealed class CircuitPuzzle : MonoBehaviour
     private GameObject hud;
     private RectTransform hudRect;
     private TextMeshProUGUI status;
+    private TextMeshProUGUI instruction, progressLabel, resultLabel, retryCost;
+    private RectTransform progressFill;
     private Button retry;
     private TextMeshProUGUI retryLabel;
     private Rect boardScreenRect;
     private int lastReached = -1;
     private bool lastHalted;
     private bool visible;
-    private string lastStatus;
 
     public CircuitRun Run { get { EnsureInitialized(); return run; } }
     public int TotalTasks => Run.Count;
@@ -64,8 +69,9 @@ public sealed class CircuitPuzzle : MonoBehaviour
         gridWidth = Mathf.Clamp(gridWidth, 2, 6);
         gridHeight = Mathf.Clamp(gridHeight, 1, 6);
         job = GetComponentInParent<JobBase>();
-        run = new CircuitRun(gridWidth, gridHeight, scrambledTiles, secondsPerTile,
-            layoutSeed == 0 ? Guid.NewGuid().GetHashCode() : layoutSeed);
+        run = new CircuitRun(gridWidth, gridHeight, Mathf.Max(1, scrambledTiles), secondsPerTile,
+            layoutSeed == 0 ? Guid.NewGuid().GetHashCode() : layoutSeed,
+            minimumRouteTiles, maximumRouteTiles, secondsPerVerifiedTile);
     }
 
     private void LateUpdate()
@@ -262,17 +268,45 @@ public sealed class CircuitPuzzle : MonoBehaviour
         hudRect.SetParent(hud.transform, false);
         hudRect.anchorMin = hudRect.anchorMax = new Vector2(0.5f, 0f);
         hudRect.pivot = new Vector2(0.5f, 0f);
-        hudRect.anchoredPosition = new Vector2(0, 24); hudRect.sizeDelta = new Vector2(820, 164);
-        hudRect.GetComponent<Image>().color = new Color(0.025f, 0.055f, 0.07f, 0.97f);
-        status = HudText(hudRect, new Vector2(14, 60), new Vector2(792, 94), 21);
+        hudRect.anchoredPosition = new Vector2(0, 24); hudRect.sizeDelta = new Vector2(760, 148);
+        hudRect.GetComponent<Image>().color = new Color(0.055f, 0.075f, 0.08f, 0.97f);
+        status = HudTopText(new Vector2(22, -16), new Vector2(400, 30), 25);
+        resultLabel = HudTopText(new Vector2(422, -18), new Vector2(316, 28), 20);
+        resultLabel.alignment = TextAlignmentOptions.Right;
+        instruction = HudTopText(new Vector2(22, -54), new Vector2(716, 30), 21);
+        instruction.color = new Color(0.86f, 0.87f, 0.82f);
+        progressLabel = HudTopText(new Vector2(22, -108), new Vector2(716, 24), 18);
+        progressLabel.color = new Color(0.7f, 0.78f, 0.76f);
+        var track = new GameObject("Verified progress", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
+        track.SetParent(hudRect, false);
+        track.anchorMin = track.anchorMax = track.pivot = new Vector2(0, 1);
+        track.anchoredPosition = new Vector2(22, -94); track.sizeDelta = new Vector2(716, 6);
+        track.GetComponent<Image>().color = new Color(0.18f, 0.23f, 0.23f);
+        track.GetComponent<Image>().raycastTarget = false;
+        progressFill = new GameObject("Fill", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
+        progressFill.SetParent(track, false);
+        progressFill.anchorMin = Vector2.zero; progressFill.anchorMax = new Vector2(0, 1);
+        progressFill.offsetMin = progressFill.offsetMax = Vector2.zero;
+        progressFill.GetComponent<Image>().color = liveColor;
+        progressFill.GetComponent<Image>().raycastTarget = false;
+        retryCost = HudText(hudRect, new Vector2(22, 18), new Vector2(444, 40), 18);
+        retryCost.alignment = TextAlignmentOptions.MidlineLeft;
+        retryCost.color = new Color(0.86f, 0.87f, 0.82f);
         RectTransform button = new GameObject("Retry", typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<RectTransform>();
         button.SetParent(hudRect, false); button.anchorMin = button.anchorMax = Vector2.zero;
-        button.pivot = Vector2.zero; button.anchoredPosition = new Vector2(14, 12); button.sizeDelta = new Vector2(792, 40);
+        button.pivot = Vector2.zero; button.anchoredPosition = new Vector2(488, 18); button.sizeDelta = new Vector2(250, 40);
         button.GetComponent<Image>().color = new Color(0.14f, 0.27f, 0.32f);
         retry = button.GetComponent<Button>(); retry.targetGraphic = button.GetComponent<Image>();
         retry.onClick.AddListener(RetryFromButton);
         retryLabel = HudText(button, Vector2.zero, button.sizeDelta, 20);
         retryLabel.alignment = TextAlignmentOptions.Center;
+    }
+
+    private TextMeshProUGUI HudTopText(Vector2 pos, Vector2 size, float fontSize)
+    {
+        var text = HudText(hudRect, pos, size, fontSize);
+        text.rectTransform.anchorMin = text.rectTransform.anchorMax = text.rectTransform.pivot = new Vector2(0, 1);
+        return text;
     }
 
     private static TextMeshProUGUI HudText(Transform parent, Vector2 pos, Vector2 size, float fontSize)
@@ -294,14 +328,23 @@ public sealed class CircuitPuzzle : MonoBehaviour
 
     private void UpdateStatus()
     {
-        string progress = run.Finished ? "Signal restored" : run.Halted ? $"Blocked at tile {run.Reached + 1} - fix it, then retry"
-            : $"Signal {run.Reached}/{run.Count} - next tile {run.Reached + 1}";
-        string text = $"{progress} | Repair credit {run.Credits}/{run.Count} | Grade: {job.Grade}\n"
-            + "Click wires to join the white ports. Verified tiles lock.\n"
-            + "Leaving pauses the signal; customer patience keeps running. Right-click to step back.";
-        if (lastStatus != text) { status.text = text; lastStatus = text; }
+        status.text = run.Finished ? "Signal restored" : run.Halted ? "Signal blocked" : "Reconnect the circuit";
+        status.color = run.Finished ? liveColor : run.Halted ? warningColor : Color.white;
+        instruction.text = run.Finished ? "Circuit complete. Finish any remaining repairs."
+            : run.Halted ? $"Connect the white ports on tile {run.Reached + 1}, then retry."
+            : run.Reached < run.BestReached ? "Rechecking locked wires. Prepare the next connection."
+            : "Click wires to connect the white ports.";
+        progressLabel.text = $"Verified {run.BestReached} / {run.Count}";
+        resultLabel.text = $"Repair result: {job.Grade}";
+        progressFill.anchorMax = new Vector2((float)run.BestReached / run.Count, 1);
+        hudRect.sizeDelta = new Vector2(760, run.Halted ? 208 : 148);
+        retry.gameObject.SetActive(run.Halted);
+        retryCost.gameObject.SetActive(run.Halted);
         retry.interactable = run.Halted;
-        retryLabel.text = run.Halted ? $"Retry: lose 1 credit - maximum {run.NextRetryCeiling}/{run.Count}"
-            : run.Finished ? "Finished - return the device when ready" : $"Retry penalty: 1 credit per retry | Current maximum {run.Ceiling}/{run.Count}";
+        if (run.Halted)
+        {
+            retryLabel.text = "Retry (-1 point)";
+            retryCost.text = $"Circuit points after retry: at most {run.NextRetryCeiling}/{run.Count}";
+        }
     }
 }
