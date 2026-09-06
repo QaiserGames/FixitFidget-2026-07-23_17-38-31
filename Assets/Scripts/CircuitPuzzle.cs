@@ -22,6 +22,20 @@ public sealed class CircuitPuzzle : MonoBehaviour
     [SerializeField, Min(0.25f)] private float secondsPerTile = 4f;
     [Tooltip("Retry speed through locked tiles. Unverified tiles retain their full interval.")]
     [SerializeField, Min(0.05f)] private float secondsPerVerifiedTile = 0.3f;
+
+    [Tooltip("Hold Space to push the charge along this many times faster.\n\n" +
+             "Playtest 2026-09-06: the board was solved in about a second and " +
+             "then the player stood watching a timer with no decision left in " +
+             "it. Waiting was never the cost — the cost is your hands being " +
+             "here instead of at the counter.\n\n" +
+             "It is NOT a skip. The charge still checks every connection and " +
+             "still stops dead at a mistake, but four times sooner, so a tile " +
+             "you thought was straight and isn't gives you no time to catch it. " +
+             "Confident? Floor it. Not sure? Let it walk.\n\n" +
+             "No extra grade penalty — the existing retry cost already prices " +
+             "failure, and charging twice for one mistake would make the button " +
+             "not worth pressing.")]
+    [SerializeField, Range(1f, 8f)] private float fastForwardMultiplier = 4f;
     [Header("Presentation")]
     [Tooltip("Required asset reference so the board shader is included in player builds.")]
     [SerializeField] private Material boardMaterial;
@@ -50,6 +64,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
     private int lastReached = -1;
     private bool lastHalted;
     private bool visible;
+    private bool boosting;
 
     public CircuitRun Run { get { EnsureInitialized(); return run; } }
     public int TotalTasks => Run.Count;
@@ -84,11 +99,25 @@ public sealed class CircuitPuzzle : MonoBehaviour
         SetVisible(watching);
         if (!watching) return;
         PlaceProjection();
-        run.Tick(Time.deltaTime, true);
+
+        // Scaling the delta rather than the rules keeps CircuitRun free of Unity
+        // and of any notion of "fast" — it still advances at most one tile per
+        // call, so a frame hitch under boost can't skip past a bad connection
+        // before the player sees it.
+        boosting = FastForwardHeld;
+        run.Tick(Time.deltaTime * (boosting ? fastForwardMultiplier : 1f), true);
         if (run.Reached != lastReached || run.Halted != lastHalted) Refresh();
         UpdateMarker();
         UpdateStatus();
     }
+
+    // Only while this board is the thing you're looking at. Leaving the bench,
+    // the recap opening, or a paused clock all end the boost, because
+    // IsBeingInspected already covers every one of those and LateUpdate returns
+    // before this is read.
+    private bool FastForwardHeld =>
+        UnityEngine.InputSystem.Keyboard.current != null
+        && UnityEngine.InputSystem.Keyboard.current.spaceKey.isPressed;
 
     public bool ContainsHudPoint(Vector2 point) => visible && hudRect != null
         && RectTransformUtility.RectangleContainsScreenPoint(hudRect, point);
@@ -328,12 +357,28 @@ public sealed class CircuitPuzzle : MonoBehaviour
 
     private void UpdateStatus()
     {
-        status.text = run.Finished ? "Signal restored" : run.Halted ? "Signal blocked" : "Reconnect the circuit";
+        status.text = run.Finished ? "Signal restored"
+            : run.Halted ? "Signal blocked"
+            : boosting ? $"Reconnect the circuit  ({fastForwardMultiplier:0}x)"
+            : "Reconnect the circuit";
         status.color = run.Finished ? liveColor : run.Halted ? warningColor : Color.white;
+        // The fast-forward hint is offered at the moment it's worth something —
+        // when every remaining tile is already straight and the board is doing
+        // nothing but spending the player's time. Teaching it there means it
+        // arrives as an answer to a problem they're currently having, rather
+        // than as one more line of chrome to read on the first board.
+        bool waitingOnly = !run.Finished && !run.Halted && run.RouteClear;
+
         instruction.text = run.Finished ? "Circuit complete. Finish any remaining repairs."
             : run.Halted ? $"Connect the white ports on tile {run.Reached + 1}, then retry."
+            : boosting ? "Fast-forwarding. The charge still stops at a bad connection."
+            : waitingOnly ? "Wires all connected — hold SPACE to speed the charge up."
             : run.Reached < run.BestReached ? "Rechecking locked wires. Prepare the next connection."
-            : "Click wires to connect the white ports.";
+            : "Click wires to connect the white ports. Hold SPACE to speed up.";
+
+        instruction.color = boosting ? liveColor
+            : waitingOnly ? new Color(1f, 0.92f, 0.55f)
+            : Color.white;
         progressLabel.text = $"Verified {run.BestReached} / {run.Count}";
         resultLabel.text = $"Repair result: {job.Grade}";
         progressFill.anchorMax = new Vector2((float)run.BestReached / run.Count, 1);

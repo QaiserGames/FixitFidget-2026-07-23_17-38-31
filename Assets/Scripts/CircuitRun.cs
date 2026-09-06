@@ -116,6 +116,20 @@ public sealed class CircuitRun
     public Side Openings(int i) => Rotate(solution[i], turns[i]);
     public int Turns(int i) => turns[i];
     public bool IsAligned(int i) => Openings(i) == solution[i];
+
+    // Every tile the charge has yet to cross is already straight, so the only
+    // thing left to do is wait. This is the exact moment the fast-forward is
+    // worth offering: the player has finished thinking and the board is just
+    // spending their time.
+    public bool RouteClear
+    {
+        get
+        {
+            for (int i = Reached; i < Count; i++)
+                if (!IsAligned(i)) return false;
+            return true;
+        }
+    }
     public bool IsLocked(int i) => i < BestReached || Finished;
     public bool Turn(int i)
     {
