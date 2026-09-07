@@ -29,7 +29,9 @@ it does not claim the remaining six devices are built.
 Negative checks: a disabled parent above a selected task should report an error;
 a fault referencing another prefab should report an error; an empty selected
 fault with no other active task should report an error. Shared task objects are
-allowed. The checks simulate activation without running `ApplyFault` or generating
+allowed. Pickup requires a root `ItemInteractable` and at least one active collider;
+the collider may sit on any child because the runtime resolves the interactable
+through its parent chain. The checks simulate activation without running `ApplyFault` or generating
 a circuit. Counts describe task components, not final grade credits.
 
 ## Scope and limitations

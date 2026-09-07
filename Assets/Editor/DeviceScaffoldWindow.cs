@@ -125,6 +125,8 @@ public static class DeviceScaffoldValidation
         else if (!root.GetComponent<RepairJob>().enabled) result.Error("RepairJob is disabled.");
         if (root.GetComponent<InspectableItem>() == null) result.Error("Missing root InspectableItem.");
         else if (!root.GetComponent<InspectableItem>().enabled) result.Error("InspectableItem is disabled.");
+        if (root.GetComponent<ItemInteractable>() == null) result.Error("Missing root ItemInteractable.");
+        else if (!root.GetComponent<ItemInteractable>().enabled) result.Error("ItemInteractable is disabled.");
         if (!root.activeSelf) result.Error("The device root is inactive.");
         foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
             if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(child.gameObject) > 0)
@@ -174,9 +176,9 @@ public static class DeviceScaffoldValidation
             if (fault.type == FaultType.Bureaucratic) result.Error(prefix + "use the support-call workflow, not a bench scaffold.");
             bool pickup = false;
             foreach (Collider collider in root.GetComponentsInChildren<Collider>(true))
-                if (collider.enabled && IsActiveForFault(collider.transform, root.transform, controlled, selected)
-                    && collider.GetComponentInParent<ItemInteractable>() is ItemInteractable item && item.enabled) pickup = true;
-            if (!pickup) result.Error(prefix + "no active collider leading to an ItemInteractable for pickup.");
+                if (collider.enabled && IsActiveForFault(collider.transform, root.transform, controlled, selected))
+                    pickup = true;
+            if (!pickup) result.Error(prefix + "no active collider is available for pickup.");
             result.Note(prefix + fault.type + " / " + fault.description + " / " + tasks + " task component(s) / $" + fault.payout);
         }
         result.Note("Component counts are not grade credits: circuits and Human tasks own their scoring. No repair initialization was run.");
