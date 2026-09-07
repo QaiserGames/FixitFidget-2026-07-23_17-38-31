@@ -47,7 +47,7 @@ public static class HoldCallRuleChecks
         first.Dial(20, 15); second.Dial(30, 15); first.Tick(21);
         Check(first.Phase == HoldCallRun.State.Ringing && second.Phase == HoldCallRun.State.Connecting, "Call state is per instance.");
 
-        var random = new Random(7291);
+        var random = new System.Random(7291);
         for (int i = 0; i < 2000; i++)
         {
             float hold = 10 + random.Next(40), ring = 5 + random.Next(20);
