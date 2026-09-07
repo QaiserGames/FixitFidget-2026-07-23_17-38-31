@@ -1,11 +1,8 @@
-using System.Collections.Generic;
 using UnityEngine;
 
-// Sound remains spatial; readable status belongs to the screen-space HUD.
+// Sound and a wordless cue remain spatial; the customer ticket owns the timer.
 public sealed class HoldCallPresentation : MonoBehaviour
 {
-    private static readonly List<HoldCallPresentation> active = new();
-    public static IReadOnlyList<HoldCallPresentation> Live => active;
     private HoldCallJob job;
     public HoldCallJob Job => job;
     private AudioSource speaker;
@@ -16,7 +13,7 @@ public sealed class HoldCallPresentation : MonoBehaviour
     private void Start()
     {
         job = GetComponent<HoldCallJob>();
-        SupportCallHUD.EnsureExists();
+        if (GetComponent<SupportCallWorldCue>() == null) gameObject.AddComponent<SupportCallWorldCue>();
         speaker = gameObject.AddComponent<AudioSource>();
         speaker.playOnAwake = false; speaker.loop = true; speaker.spatialBlend = 1f;
         speaker.minDistance = 1f; speaker.maxDistance = 16f; speaker.rolloffMode = AudioRolloffMode.Linear;
@@ -25,10 +22,9 @@ public sealed class HoldCallPresentation : MonoBehaviour
     }
     private void OnEnable()
     {
-        if (!active.Contains(this)) active.Add(this);
         previous = (HoldCallRun.State)(-1);
     }
-    private void OnDisable() { active.Remove(this); if (speaker != null) speaker.Stop(); }
+    private void OnDisable() { if (speaker != null) speaker.Stop(); }
     private void LateUpdate()
     {
         if (job == null) return;
@@ -50,7 +46,6 @@ public sealed class HoldCallPresentation : MonoBehaviour
     }
     private void OnDestroy()
     {
-        active.Remove(this);
         if (music != null) Destroy(music);
         if (ring != null) Destroy(ring);
     }

@@ -1,92 +1,93 @@
-# Counter phone and support-call presentation review
+# Repair presentation review — ticket and world cue revision
 
-Review branch: `codex/repair-presentation-review`, based on the published
-`codex/physical-human-hold-call` commit `7596790`.
+Branch: `codex/repair-presentation-review`. Keep main unmerged until the Unity
+playtest passes. The owner's `System.Random` editor compile correction remains
+included. No fuse rules, timing, grading, payments, saves or schedule changes.
 
-The owner's screenshot identified the compile fix in `HoldCallRuleChecks.cs`:
-`new System.Random(7291)` disambiguates System.Random from UnityEngine.Random.
-That exact correction is included here. Commit the matching local correction
-before switching branches so GitHub Desktop can preserve it. This is a separate
-review branch; the previous branch and main were not advanced.
+## Current design
 
-## What to expect
+The prior separate screen-space call cards are superseded by this revision.
+There is no call `OnGUI`, world-space countdown text or numbered world marker.
+`SupportCallHUD` is retained as an empty compatibility component so a scene
+that added it does not acquire a missing-script reference. It creates no UI.
 
-- Support calls have a screen-space card below the money/clock/stock area.
-  Each card identifies the customer and job number, shows large remaining
-  seconds and a time bar, and says when the player is free to work elsewhere.
-  Ringing changes the card to amber and `Answer now`; a matching number marks
-  the visible phone, with a direction cue if the player needs to find it.
-  The old small world label and extra multi-line counter prompt are removed.
-- Concurrent calls retain separate cards, clocks and job numbers. Pause and
-  recap hide the cards. Existing spatial hold music/ringing remains.
-- The Human phone has a rounded casing, recessed sliding switch, clearer
-  silent/ringing feedback and a short entrance/confirmation movement. Its
-  framing adapts to the camera rather than depending on one field of view.
-  A single fixed-size caption identifies the customer and the controls.
-- This is still replaceable prototype art. It is not a Blender-made asset or
-  a claim of final shipping quality. `HumanFault.PresentationPrefab` now accepts
-  an authored replacement without changing the repair/handback logic.
+| State | Physical phone | Customer ticket |
+| --- | --- | --- |
+| Needs dialing / missed call | Dim grey handset | Call support / Missed call, Dial phone / Redial |
+| Connecting | Amber handset | Connecting |
+| On hold | Slow amber brightness/size pulse | On hold and remaining seconds |
+| Ringing | Bright green, faster pulse, shake and ring arcs | Matching animated handset, Answer now and seconds |
+| Resolved | World cue removed | Resolved / Return phone until delivery |
 
-The fuse path, hold/ring durations, grading, payments, saves, customer schedule,
-and counter repair completion rules are unchanged in this pass.
+The handset is a vector Graphic, not a font character or downloaded image.
+Its dark backing separates it from bright and dark surfaces. The world-space
+canvas faces the camera and grows with distance toward a 52-pixel box, capped
+at 1.8 world units. It uses normal world depth; it does not reveal a phone
+through walls. Timing and the physical phone's ownership remain authoritative.
 
-## Short playtest
+The countdown is a line within the existing JobTicket, not a second obligation
+manager. Customer name, colour, patience and any outstanding drink remain on
+that same card. Delivering the phone removes its call line; any remaining drink
+stays visible. Pause stops animation/timers; recap hides the rail/world cue.
 
-1. Let Unity compile. During an open day, use the existing
-   `Fixit Fidget > Playtest > Spawn support-call customer` menu. Accept and dial
-   the phone. Walk away in isometric view: read the timer without approaching.
-2. Repeat with a second phone. Check both names/timers, answer the right phone,
-   miss a ring deliberately, redial and deliver. Test 1280×720 and your normal
-   resolution. Cards must not cover the top tickets or lower interaction prompt.
-3. Spawn a Human phone customer. Accept, hover and click the orange switch.
-   Confirm the slide, ring, completion line, single payout and departure. Try
-   right-click to put down and F to leave before completion; resume with E.
-4. Pause, reach recap, and load the next day. There must be no stranded caption,
-   call card, ringing audio or unlocked counter cursor. Play one fuse repair,
-   including Spacebar, to confirm the presentation did not intercept its input.
+## Rail layout
 
-Practice guests pay zero but still appear in that play session's recap/log.
-No reset or scene migration is required.
+The existing scene used a single HorizontalLayoutGroup, so adding many tickets
+did not wrap automatically. TicketRailUI now lays out fixed-size 220×172 cards
+in stable order, wrapping centrally with 12-unit gaps. Defaults reserve 460
+canvas units on either side and cap the rail at 1000 units. These three layout
+settings are serialized on TicketRailUI. No authored scene/prefab is rewritten.
 
-## Adjustable presentation
+At the current CanvasScaler settings, a 24-point countdown is 16 pixels at
+1280×720. Names and call state use the same font size. Normal job descriptions
+and secondary drink lines use 20 points and may ellipsize if too long.
+At 16:9, four tickets fit per row and eight occupy two rows. Larger workloads
+add rows rather than hiding or shrinking urgent calls; this is not a promise
+that unlimited obligations fit without encroaching on the central game view.
+Validate your maximum realistic concurrent workload before shipping.
 
-To persist call HUD adjustments, add one `SupportCallHUD` to an empty scene
-object and set UI Scale, Top Inset or Right Inset. If none is authored, one is
-created automatically when a support phone appears. Runtime Inspector changes
-are temporary unless copied to an authored component outside Play Mode.
+## Required Unity test — sound off
 
-Default layout calculations fit one through six cards at 720p, 1080p, 1440p,
-1920×1200 and 3440×1440. At 720p the default action text is 16 pixels and the
-timer is 25.6 pixels. This verifies dimensions, not Unity's rendered result;
-very long names/prompts may ellipsize. Unusually large active-call counts reduce
-the card scale to fit, and should be assessed if the intake capacity increases.
+1. Fetch/pull the review branch with a clean working tree. Let Unity compile.
+   Enter Play Mode during an open day. Do not reset your save.
+2. Use `Fixit Fidget > Playtest > Spawn support-call customer`. Accept and dial.
+   Walk away: the device should have only the amber handset, while the ticket
+   carries its countdown. No separate call box should appear in a corner.
+3. Turn game sound off. Face the bench while keeping the shelf in the camera's
+   view, roughly 15 metres away. When ringing starts, judge whether the green
+   motion is noticed without searching the ticket. Repeat in isometric and
+   counter/bench views. This perceptual test has NOT been run here.
+4. Deliberately aim the camera away from the phone or put it behind a solid
+   object. The ticket must still signal the obligation; a world cue cannot be
+   expected to be visible outside the camera or through a wall.
+5. Repeat with two calls and normal repair/drink customers. Check identity,
+   separate timers, wrap, ordering, missed-call redial, answering and delivery.
+   If a call customer also orders a drink, it must stay listed after handback.
+6. Pause, resume, reach recap and continue to the next day. Check for orphaned
+   icons, ringing sounds, stale call lines or tickets covering corner controls.
+7. Retest the mute-switch phone and one fuse repair, including Spacebar.
+   Their gameplay is unchanged.
 
-## Future Blender replacement
+The practice visits pay zero but count in that play session's recap/log.
+No world-position distance check substitutes for the sound-off visual test.
 
-1. Import the phone with its front facing local -Z, top +Y, and a separate
-   sliding mute switch. Create a Unity wrapper prefab with `CounterPhoneModel`.
-   Imported scale and the visible mesh centre are preserved when framing it.
-2. Add `PhysicalToggle` and a collider to the switch. Assign the wrapper's
-   Mute Switch, Switch Slider and Sound On Position references; the position is
-   relative to the slider's parent. Place it initially in the silent position.
-   The optional Screen field accepts a TMP label for silent/ringing text.
-3. Assign the wrapper to Presentation Prefab on the phone's `HumanFault`.
-   Leave that field empty to use the procedural prototype. The visual prefab
-   needs no job, customer or payment scripts. Keep its local orientation upright.
+## Mute phone / future Blender asset
 
-## Verification performed here
+The previous rounded prototype, sliding orange switch, fixed-size controls
+caption and authored-model hook are retained. It is still prototype art.
 
-- All 102 available C# source files parsed without syntax errors.
-- Layout calculations checked the five resolutions above with 1–6 calls.
-- Geometry calculations verified five closed rounded-part meshes, 800 outward
-  nondegenerate triangles, and consistent edge connectivity.
-- Compared 13 protected gameplay/input/save source files byte-for-byte with
-  the published baseline, including all circuit files and the support timer.
-- Checked new metadata GUIDs for collisions and checked the diff for whitespace
-  errors. The published scene's HUD anchors were read to place the call tray.
+Create a Unity wrapper prefab with CounterPhoneModel, facing local -Z with top
++Y. Assign a PhysicalToggle with collider, the sliding transform and its sound-on
+local position; initially place it in the silent position. Assign an optional
+TMP screen, then set HumanFault.PresentationPrefab to the wrapper. No job,
+customer or payment scripts belong in the visual prefab. An empty field uses
+the existing generated prototype.
 
-Unity is unavailable in this workspace. Unity compilation, actual text wrapping,
-model lighting/appearance, collider targeting and the player-flow checks above
-have not been run here. The reported Random ambiguity is corrected; the prior
-standalone checks did not enable UNITY_EDITOR and therefore missed that import
-collision. Full Unity compilation is still required before Play Mode.
+## Verification limits
+
+Source syntax, protected-gameplay comparisons and numeric layout/world-size
+checks are run in this workspace. Unity is not installed here, so full engine
+compilation, UI mesh rendering, typography, occlusion and actual player detection
+must be tested on the owner's machine. The referenced `claude/hud-spec.md` was
+not present in the published branch; this revision follows the user's supplied
+ticket-rail/four-corner requirements and the actual scene's HUD anchors.
