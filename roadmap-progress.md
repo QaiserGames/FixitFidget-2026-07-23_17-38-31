@@ -1,7 +1,7 @@
 # Roadmap checkpoint — 2026-09-07
 
 This records progress against the existing GDD v4 and recent playtests. It does
-not replace or reschedule the GDD. Current presentation review branch: `codex/repair-presentation-review`.
+not replace or reschedule the GDD. Current content-tool review branch: `codex/device-scaffold`.
 The owner confirmed the previous Grace/recap branch was merged and tested.
 
 | Area | Evidence/status | Next gate |
@@ -27,10 +27,23 @@ Both are implemented for review; see `counter-and-support-playtest.md` and the
 current follow-up `repair-presentation-review.md`.
 The old `human-fault-review.md` describes the superseded quiz prototype.
 
-Next: playtest the presentation changes with the owner's compile correction,
-then build the Phase 1 device
-scaffolding tool before devices 3–8. Do not expand the circuit/fuse challenge in
-this pass: the owner explicitly asked to preserve its current gameplay.
+Latest owner checkpoint: the presentation changes were implemented and tested;
+the concepts are accepted, but their visuals remain placeholders. This does not
+establish that every sound-off/distance/concurrent-call test passed, and does not
+approve the presentation for shipping.
+
+The Phase 1 device scaffold tool is now prepared on `codex/device-scaffold`:
+create-only whole-prefab copying plus per-fault wiring validation. See
+`device-scaffold-review.md`. Unity compilation, its 518 Editor assertions,
+copy creation and bench interaction are pending. Existing gameplay and prefabs
+are unchanged. The GDD v4 §6.2 eight-device scope remains the target, not completed work.
+
+Next: verify the scaffold in Unity, then author and test one new device using
+the existing verbs before expanding devices 3–8. Keep Human/support presentation
+on the art-pass backlog. The owner would like roughly two more verbs; their
+interactions are unselected and implementation is not part of this pass.
+Do not expand the circuit/fuse challenge: the owner explicitly asked to preserve
+its current gameplay.
 
 No main merge, save reset, espresso overhaul, art purchase or story rescheduling.
 Ask before a critical action. Human retains $25 and support retains its prototype
