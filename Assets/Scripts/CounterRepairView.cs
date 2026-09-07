@@ -3,32 +3,33 @@ using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 // Counter-only presentation. ItemInspector's fuse/bench path is unchanged.
 public sealed class CounterRepairView : MonoBehaviour
 {
     [SerializeField, Min(.2f)] private float confirmationSeconds = 1.2f;
+    [SerializeField, Range(.3f, .65f)] private float screenHeight = .48f;
+    [SerializeField, Min(.1f)] private float viewDistance = .65f;
     private readonly List<CinemachineInputAxisController> cameraReaders = new();
-    private readonly List<Material> materials = new();
     private PlayerInteractor player;
     private CustomerBrain customer;
     private HumanFault fault;
     private GameObject display;
-    private Transform slider;
-    private Collider switchCollider;
-    private Renderer switchRenderer;
-    private PhysicalToggle physicalSwitch;
-    private TMP_Text screen;
+    private CounterPhoneModel model;
+    private Canvas overlay;
+    private CanvasScaler overlayScaler;
+    private TMP_Text caption, instruction;
     private Camera cam;
     private AudioSource speaker;
     private AudioClip ringtone;
-    private Material sourceMaterial;
-    private float readyAt, returnAt;
+    private float readyAt, returnAt, openedAt, modelHeight, modelWidth;
+    private Vector3 modelBaseScale, modelOffset;
     private bool hovered;
     private int closedFrame = -1;
     public bool IsOpen => display != null;
     public bool OwnsInput => IsOpen || closedFrame == Time.frameCount;
-    public string HoverName => hovered ? "Mute switch" : "";
+    public string HoverName => hovered ? model.Switch.DisplayName : "";
     public string HoverAction => hovered ? "Left-click to turn sound on" : "";
 
     public bool Open(CustomerBrain owner)
@@ -37,49 +38,59 @@ public sealed class CounterRepairView : MonoBehaviour
         cam = Camera.main;
         if (OwnsInput || owner == null || !owner.CanFixAtCounter || cam == null || player == null
             || !player.IsAtStation || player.CurrentStation.IsWorkSurface || Time.timeScale <= 0f) return false;
-        customer = owner;
-        fault = owner.HumanConversation;
-        var source = fault.Job.GetComponentInChildren<Renderer>(true);
-        if (source == null || source.sharedMaterial == null)
+        customer = owner; fault = owner.HumanConversation;
+        display = new GameObject("Counter phone inspection");
+        if (fault.PresentationPrefab != null)
         {
-            Debug.LogError("Counter repair needs a device renderer/material.", fault);
-            customer = null; fault = null; return false;
+            model = Instantiate(fault.PresentationPrefab, display.transform);
+            if (!model.IsValid)
+            {
+                Debug.LogError("Counter phone prefab needs a toggle with a collider and a switch slider.", fault);
+                Close(); return false;
+            }
         }
-        sourceMaterial = source.sharedMaterial;
+        else
+        {
+            Material source = null;
+            foreach (var renderer in fault.Job.GetComponentsInChildren<MeshRenderer>(true))
+                if (renderer.GetComponent<TMP_Text>() == null && renderer.sharedMaterial != null)
+                { source = renderer.sharedMaterial; break; }
+            if (source == null)
+            {
+                Debug.LogError("Counter repair needs a device renderer/material for its prototype.", fault);
+                Close(); return false;
+            }
+            model = CounterPhoneModel.CreatePrototype(display.transform, source);
+        }
+        model.Bind(fault, owner);
+        Bounds bounds = model.VisualBounds();
+        modelHeight = Mathf.Max(.01f, bounds.size.y); modelWidth = Mathf.Max(.01f, bounds.size.x);
+        modelBaseScale = model.transform.localScale;
+        modelOffset = model.transform.localPosition - display.transform.InverseTransformPoint(bounds.center);
         foreach (var input in FindObjectsByType<CinemachineInputAxisController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             if (input.enabled) { cameraReaders.Add(input); input.enabled = false; }
-        display = new GameObject("Counter phone inspection");
-        Part("Phone", Vector3.zero, new Vector3(.21f, .37f, .026f), new Color(.12f, .16f, .20f));
-        Part("Screen", new Vector3(0, 0, -.017f), new Vector3(.18f, .31f, .006f), new Color(.07f, .24f, .28f));
-        Part("Switch recess", new Vector3(-.119f, .09f, -.01f), new Vector3(.033f, .080f, .028f), new Color(.06f, .07f, .08f));
-        var knob = Part("Mute switch", new Vector3(-.12f, .075f, -.025f), new Vector3(.03f, .037f, .025f), new Color(1f, .43f, .08f), true);
-        slider = knob.transform; switchCollider = knob.GetComponent<Collider>(); switchRenderer = knob.GetComponent<Renderer>();
-        physicalSwitch = knob.AddComponent<PhysicalToggle>(); physicalSwitch.Bind(fault, owner);
-        var label = new GameObject("Phone status"); label.transform.SetParent(display.transform, false);
-        label.transform.localPosition = new Vector3(0, 0, -.023f);
-        screen = label.AddComponent<TextMeshPro>();
-        screen.rectTransform.sizeDelta = new Vector2(.17f, .28f);
-        screen.fontSize = .23f; screen.alignment = TextAlignmentOptions.Center;
-        screen.text = "INCOMING CALL\n\nSound off\n\n<color=#FFAB52>Mute switch</color>";
+        BuildOverlay(owner);
         speaker = display.AddComponent<AudioSource>(); speaker.playOnAwake = false; speaker.volume = .16f;
         ringtone = RepairAudio.MakeTone("Phone confirmation", false); speaker.clip = ringtone;
-        readyAt = Time.time + .25f; returnAt = fault.Finished ? Time.time + .2f : float.PositiveInfinity;
+        openedAt = Time.time; readyAt = Time.time + .25f;
+        returnAt = fault.Finished ? Time.time + .2f : float.PositiveInfinity;
         PositionDisplay();
         Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         return true;
     }
 
-    private GameObject Part(string label, Vector3 position, Vector3 size, Color color, bool clickable = false)
+    private void BuildOverlay(CustomerBrain owner)
     {
-        var part = GameObject.CreatePrimitive(PrimitiveType.Cube); part.name = label;
-        part.transform.SetParent(display.transform, false); part.transform.localPosition = position; part.transform.localScale = size;
-        // Reuse an authored shader so player builds cannot strip a shader
-        // referenced only through Shader.Find.
-        var material = new Material(sourceMaterial); material.color = color;
-        materials.Add(material); part.GetComponent<Renderer>().sharedMaterial = material;
-        part.GetComponent<Collider>().enabled = clickable;
-        part.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        return part;
+        // A separate canvas keeps the caption upright while the phone moves.
+        overlay = RepairOverlayUI.Canvas("Counter repair caption", null, 55);
+        overlayScaler = overlay.GetComponent<CanvasScaler>();
+        var panel = RepairOverlayUI.Panel("Caption", overlay.transform, Vector2.zero, new Vector2(480, 74), RepairOverlayUI.Background).rectTransform;
+        panel.anchorMin = panel.anchorMax = new Vector2(.5f, 0); panel.pivot = new Vector2(.5f, 0);
+        panel.anchoredPosition = new Vector2(0, 88);
+        caption = RepairOverlayUI.Text("Customer", panel, new Vector2(18, -5), new Vector2(444, 28), 23, Color.white);
+        caption.text = owner.CustomerName + " · phone";
+        instruction = RepairOverlayUI.Text("Action", panel, new Vector2(18, -37), new Vector2(444, 26), 19, RepairOverlayUI.Muted);
+        instruction.text = "Click switch · Right-click put down · F step back";
     }
 
     private void Update()
@@ -89,9 +100,11 @@ public sealed class CounterRepairView : MonoBehaviour
             || (DayClock.Instance != null && DayClock.Instance.DayOver)) { Close(); return; }
         if (Time.timeScale <= 0f) { if (speaker != null) speaker.Pause(); return; }
         if (speaker != null) speaker.UnPause();
+        model.Show(fault.Finished);
         if (fault.Finished)
         {
-            slider.localPosition = Vector3.MoveTowards(slider.localPosition, new Vector3(-.12f, .105f, -.025f), Time.deltaTime * .2f);
+            caption.text = "Sound restored"; caption.color = RepairOverlayUI.Mint;
+            instruction.text = "Returning the phone";
             if (Time.time >= returnAt)
             {
                 var owner = customer; var job = fault.Job;
@@ -102,31 +115,43 @@ public sealed class CounterRepairView : MonoBehaviour
         var mouse = Mouse.current; var keys = Keyboard.current;
         if (Time.time < readyAt) return;
         if ((mouse != null && mouse.rightButton.wasPressedThisFrame) || (keys != null && keys.escapeKey.wasPressedThisFrame)) { Close(); return; }
-        hovered = mouse != null && switchCollider.Raycast(cam.ScreenPointToRay(mouse.position.ReadValue()), out _, 2f);
-        physicalSwitch.SetHighlight(hovered);
-        if (hovered && mouse.leftButton.wasPressedThisFrame && physicalSwitch.CanInteract)
+        hovered = mouse != null && model.Switch.HitTarget.Raycast(cam.ScreenPointToRay(mouse.position.ReadValue()), out _, Mathf.Max(viewDistance, cam.nearClipPlane + .3f) + 2f);
+        model.Switch.SetHighlight(hovered);
+        if (hovered && mouse.leftButton.wasPressedThisFrame && model.Switch.CanInteract)
         {
-            physicalSwitch.Activate();
-            hovered = false; switchRenderer.sharedMaterial.color = new Color(.3f, .95f, .6f);
-            screen.text = "INCOMING CALL\n\n<color=#67FFAB>RINGING</color>\n\nSound on";
-            speaker.Play(); returnAt = Time.time + Mathf.Max(.2f, confirmationSeconds);
+            model.Switch.Activate(); model.Show(true);
+            hovered = false; speaker.Play();
+            returnAt = Time.time + Mathf.Max(.2f, confirmationSeconds);
         }
     }
 
     private void LateUpdate() { if (IsOpen) PositionDisplay(); }
     private void PositionDisplay()
     {
-        display.transform.SetPositionAndRotation(cam.transform.TransformPoint(new Vector3(0, -.04f, .65f)), cam.transform.rotation);
+        float distance = Mathf.Max(viewDistance, cam.nearClipPlane + .3f);
+        float height = cam.orthographic ? cam.orthographicSize * 2 : 2 * distance * Mathf.Tan(cam.fieldOfView * Mathf.Deg2Rad / 2);
+        float scale = Mathf.Min(height * screenHeight / modelHeight, height * cam.aspect * .52f / modelWidth);
+        float entrance = Mathf.SmoothStep(0, 1, Mathf.Clamp01((Time.time - openedAt) / .2f));
+        // The model moves into the view; input waits until that motion settles.
+        Vector3 position = cam.transform.TransformPoint(new Vector3(0, -height * (.035f + (1 - entrance) * .08f), distance));
+        float ringMotion = fault.Finished ? Mathf.Sin((Time.time - returnAt) * 30) * .6f : 0f;
+        display.transform.SetPositionAndRotation(position, cam.transform.rotation * Quaternion.Euler(0, -12, -3 + ringMotion));
+        // Preserve an imported model's unit conversion and centre its visible mesh.
+        model.transform.localScale = modelBaseScale * scale;
+        model.transform.localPosition = modelOffset * scale;
+        if (overlayScaler != null)
+            overlayScaler.scaleFactor = Mathf.Clamp(Mathf.Min(Screen.width / 1600f, Screen.height / 900f), .8f, 1.6f);
     }
+
     public void Close()
     {
         if (IsOpen) closedFrame = Time.frameCount;
         if (display != null) { display.SetActive(false); Destroy(display); }
-        display = null; fault = null; customer = null; hovered = false;
+        if (overlay != null) { overlay.gameObject.SetActive(false); Destroy(overlay.gameObject); }
+        overlay = null; overlayScaler = null;
+        display = null; model = null; fault = null; customer = null; hovered = false;
         foreach (var input in cameraReaders) if (input != null) input.enabled = true;
         cameraReaders.Clear();
-        foreach (var material in materials) if (material != null) Destroy(material);
-        materials.Clear();
         if (ringtone != null) Destroy(ringtone);
         if (player != null && player.IsAtStation && !(DayClock.Instance != null && DayClock.Instance.DayOver))
         { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }

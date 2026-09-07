@@ -4,6 +4,9 @@ using UnityEngine;
 public sealed class HumanFault : MonoBehaviour
 {
     [SerializeField] private string completionLine = "It's ringing! ...That was the switch, wasn't it?";
+    [Tooltip("Optional authored presentation, e.g. a Blender model wrapped in a Unity prefab. Empty uses the prototype.")]
+    [SerializeField] private CounterPhoneModel presentationPrefab;
+    public CounterPhoneModel PresentationPrefab => presentationPrefab;
     private JobBase job;
     public int TotalTasks => 1;
     public int RemainingTasks => Finished ? 0 : 1;

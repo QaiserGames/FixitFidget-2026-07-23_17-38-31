@@ -61,6 +61,12 @@ public class ShopUI : MonoBehaviour
         bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem)
             && (counter == null || !counter.IsOpen);
         if (crosshair != null) crosshair.SetActive(showCrosshair);
+        if (counter != null && counter.IsOpen)
+        {
+            // The counter caption includes the switch and exit controls.
+            promptText.text = "";
+            return;
+        }
 
         string line = "";
         string interact = interactor.CurrentPrompt;
@@ -69,10 +75,6 @@ public class ShopUI : MonoBehaviour
         if (!string.IsNullOrEmpty(interact)) line += $"[E]  {interact}";
         if (!string.IsNullOrEmpty(action))
             line += (line.Length > 0 ? "        " : "") + $"[F]  {action}";
-
-        HoldCallJob activeCall = interactor.Focused != null ? interactor.Focused.GetComponentInParent<HoldCallJob>() : null;
-        if (activeCall != null && activeCall.CurrentPhase != HoldCallRun.State.Done)
-            line = activeCall.StatusLine + "\n" + line;
 
         if (showDebug)
             line += "\n" + interactor.DebugInfo;
