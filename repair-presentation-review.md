@@ -3,10 +3,11 @@
 Review branch: `codex/repair-presentation-review`, based on the published
 `codex/physical-human-hold-call` commit `7596790`.
 
-**Integration is pending the owner's one-line compile fix.** That fix was made
-on their computer and was not present on the remote branch when this work was
-prepared. Reconcile it before pulling this branch over local changes. This is
-a separate review branch; the previous branch and main were not advanced.
+The owner's screenshot identified the compile fix in `HoldCallRuleChecks.cs`:
+`new System.Random(7291)` disambiguates System.Random from UnityEngine.Random.
+That exact correction is included here. Commit the matching local correction
+before switching branches so GitHub Desktop can preserve it. This is a separate
+review branch; the previous branch and main were not advanced.
 
 ## What to expect
 
@@ -29,7 +30,7 @@ a separate review branch; the previous branch and main were not advanced.
 The fuse path, hold/ring durations, grading, payments, saves, customer schedule,
 and counter repair completion rules are unchanged in this pass.
 
-## Short playtest after reconciling the compile fix
+## Short playtest
 
 1. Let Unity compile. During an open day, use the existing
    `Fixit Fidget > Playtest > Spawn support-call customer` menu. Accept and dial
@@ -86,5 +87,6 @@ the card scale to fit, and should be assessed if the intake capacity increases.
 
 Unity is unavailable in this workspace. Unity compilation, actual text wrapping,
 model lighting/appearance, collider targeting and the player-flow checks above
-have not been run here. The owner's original compile correction remains an
-explicit integration requirement, not an error claimed to be fixed by this pass.
+have not been run here. The reported Random ambiguity is corrected; the prior
+standalone checks did not enable UNITY_EDITOR and therefore missed that import
+collision. Full Unity compilation is still required before Play Mode.

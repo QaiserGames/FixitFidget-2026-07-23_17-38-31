@@ -11,8 +11,8 @@ The owner confirmed the previous Grace/recap branch was merged and tested.
 | Recap checkpoint | Owner confirmed the previous save/reload change worked. | Retest cursor isolation on this branch; do not assume every save-failure/purchase case was owner-tested. |
 | M1 customer showcase | Grace callbacks, identity reservations, and expression hooks merged; owner reports tests worked. | Signature interaction/content work remains; this does not certify all M1 acceptance checks. |
 | Phase 1 reusable software verb | Owner's `81a478c` Spacebar implementation reviewed and preserved, including its serialized multiplier and route-clear hint. Visible boost, reset/input safeguards and 58,804 rule assertions pass. | Playtest visible acceleration and input transitions, then assess puzzle decisions separately from waiting time. Unity/player-build gates remain. |
-| Phase 1 Human fault | Owner playtested the counter toggle: it works, but the placeholder appearance was rejected. Prepared rounded prototype, readable caption and authored-model hook. Story scenario/rules retained dormant. | Reconcile owner's local compile fix, then Unity presentation/input playtest. Blender artwork and final appearance remain open. |
-| Phase 1 Bureaucratic fault | Owner reports hold status is unreadable from isometric view. Prepared screen-space customer cards, large countdowns, time bars and matching phone markers. Existing 20–30s hold/15s ring rules preserved. | Reconcile compile fix, then test isometric readability, simultaneous calls, closing and actual attention cost in Unity. |
+| Phase 1 Human fault | Owner playtested the counter toggle: it works, but the placeholder appearance was rejected. Prepared rounded prototype, readable caption and authored-model hook. Story scenario/rules retained dormant. | Unity presentation/input playtest. Blender artwork and final appearance remain open. |
+| Phase 1 Bureaucratic fault | Owner reports hold status is unreadable from isometric view. Prepared screen-space customer cards, large countdowns, time bars and matching phone markers. Existing 20–30s hold/15s ring rules preserved. Owner's System.Random compile correction incorporated. | Compile in Unity, then test isometric readability, simultaneous calls, closing and actual attention cost. |
 | M1 final content | Storyteller focus boundary, film-camera repair/strap detail, photo consequence, final expressions, and recognition test are incomplete. | Make those individual slices reviewable before marking M1 complete. |
 | Custom character/portrait art | Custom modelling paused by the owner. No final customer portraits yet; Hades-like individuality is being considered. | Decide from references and in-game scale when ready; current code needs no art commitment. |
 | Espresso redesign | Free brewing before orders, machine choices, cooling, and waste recorded as ideas. | Explicit design review before implementation. |
@@ -27,7 +27,7 @@ Both are implemented for review; see `counter-and-support-playtest.md` and the
 current follow-up `repair-presentation-review.md`.
 The old `human-fault-review.md` describes the superseded quiz prototype.
 
-Next: resolve the owner's presentation findings and local compile correction,
+Next: playtest the presentation changes with the owner's compile correction,
 then build the Phase 1 device
 scaffolding tool before devices 3–8. Do not expand the circuit/fuse challenge in
 this pass: the owner explicitly asked to preserve its current gameplay.
