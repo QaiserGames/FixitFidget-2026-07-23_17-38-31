@@ -19,6 +19,10 @@ public class RegularMemoryData
     public string lastLossReason = "";
     public string lastGrade = "";
 
+    // Additive v3 field: absent in existing saves means no boundary was set.
+    // Keyed by this record's stable profileId (Grace: grace_focus_boundary in the GDD).
+    public bool focusBoundarySet = false;
+
     public RegularMemoryData Copy() => (RegularMemoryData)MemberwiseClone();
 }
 

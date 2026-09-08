@@ -186,6 +186,7 @@ public class CustomerBrain : MonoBehaviour
     private CounterQueue queue;
     private Transform exitPoint;
     private PlayerInteractor player;
+    private CustomerStoryteller storyteller;
 
     private float patienceLeft;
     private float speakTimer;
@@ -338,6 +339,12 @@ public class CustomerBrain : MonoBehaviour
     public string CustomerName => identity != null ? identity.DisplayName : "Customer";
     public Job Record => record;
     public JobBase ActiveJob => activeJob;
+    internal bool SpeechBusy => bubbleTimer > 0f || InConversation;
+    internal bool CanTellStory => isActiveAndEnabled && identity != null && identity.Profile != null
+        && identity.Profile.storyteller && state == State.Waiting && !InConversation
+        && activeJob is RepairJob && !activeJob.IsComplete
+        && Time.timeScale > 0f && !(DayClock.Instance != null && DayClock.Instance.DayOver);
+    public bool CanRequestFocus => storyteller != null && storyteller.CanRequestFocus && !JobNeedsAttention;
     public HumanFault HumanConversation => activeJob != null && record != null && record.faultType == FaultType.Human
         ? activeJob.GetComponentInChildren<HumanFault>() : null;
     public bool IsCounterRepair => record != null && record.kind == JobKind.Repair && record.faultType == FaultType.Human;
@@ -663,6 +670,14 @@ public class CustomerBrain : MonoBehaviour
 
         HideBubble();
         if (waitingBadge != null) waitingBadge.Hide();
+
+        storyteller = GetComponent<CustomerStoryteller>();
+        if (identity != null && identity.Profile != null && identity.Profile.storyteller)
+        {
+            if (storyteller == null) storyteller = gameObject.AddComponent<CustomerStoryteller>();
+            storyteller.Initialize(this);
+        }
+        else if (storyteller != null) storyteller.Initialize(this);
 
         slotIndex = queue.ClaimSlot(this);
         if (slotIndex < 0)
@@ -1675,6 +1690,23 @@ public class CustomerBrain : MonoBehaviour
         Say(identity != null ? identity.Say(CustomerIdentity.Beat.Reassured) : "");
     }
 
+    public void RequestFocus()
+    {
+        if (!CanRequestFocus || !storyteller.RequestFocus()) return;
+        // Not reassurance: no patience bonus, tip charge, or relationship cost.
+        // Hide the interrupted story before acknowledging the boundary.
+        HideBubble();
+        string reply = identity.Profile.focusReply;
+        Say(string.IsNullOrWhiteSpace(reply) ? "Of course. I'll let you concentrate." : reply, true);
+    }
+
+    internal bool TrySayStoryLine(string line)
+    {
+        if (!CanTellStory || SpeechBusy || speechBubble == null || string.IsNullOrWhiteSpace(line)) return false;
+        Say(line, true);
+        return true;
+    }
+
     // ---------- leaving ----------
 
     private void StormOut()
@@ -1805,7 +1837,8 @@ public class CustomerBrain : MonoBehaviour
                 wasAccepted,
                 wasServed,
                 lossReason,
-                grade);
+                grade,
+                storyteller != null && storyteller.FocusRequested);
         }
 
         // One line per visit, written the moment the visit is over. Read-only:

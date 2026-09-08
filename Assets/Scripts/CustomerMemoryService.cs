@@ -25,7 +25,7 @@ public sealed class CustomerMemoryService
     }
 
     public void RecordVisit(string profileId, int day, bool happy, bool accepted,
-                            bool served, LostReason reason, string grade)
+                            bool served, LostReason reason, string grade, bool focusRequested = false)
     {
         if (string.IsNullOrWhiteSpace(profileId)) return;
         if (!records.TryGetValue(profileId, out RegularMemoryData memory))
@@ -45,6 +45,7 @@ public sealed class CustomerMemoryService
         // that fact even though the existing economy treats the visit as happy.
         memory.lastLossReason = happy && reason != LostReason.OutOfStock ? "" : reason.ToString();
         memory.lastGrade = grade ?? "";
+        memory.focusBoundarySet |= focusRequested;
     }
 
     public RegularMemoryData[] Snapshot()

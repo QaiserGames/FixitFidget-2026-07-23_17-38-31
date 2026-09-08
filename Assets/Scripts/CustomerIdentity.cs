@@ -16,6 +16,7 @@ public class CustomerIdentity : MonoBehaviour
     public CustomerArchetype Archetype => archetype;
     public int Relationship { get; private set; }
     public bool HasMetBefore { get; private set; }
+    public bool RemembersFocusBoundary => previousVisit != null && previousVisit.focusBoundarySet;
     public CustomerReturnOutcome ReturnOutcome => CustomerReturnPolicy.Classify(previousVisit);
     public PortraitExpression Expression { get; private set; } = PortraitExpression.Neutral;
     // Regulars have faces. Walk-ins fall back to a silhouette in the UI.
@@ -147,11 +148,11 @@ public class CustomerIdentity : MonoBehaviour
             if (outcome != CustomerReturnOutcome.FirstVisit && !CustomerReturnPolicy.AllowsWarmDialogue(outcome))
                 Expression = PortraitExpression.Worried;
             string callback = PickValid(profile.returnMemoryLines?.For(outcome));
-            if (!string.IsNullOrEmpty(callback)) return Format(callback);
+            if (!string.IsNullOrEmpty(callback)) return WithFocusCallback(Format(callback), beat);
         }
 
         DialogueSet set = ResolveSet();
-        if (set == null) return "";
+        if (set == null) return WithFocusCallback("", beat);
 
         string[] pool = beat switch
         {
@@ -172,7 +173,17 @@ public class CustomerIdentity : MonoBehaviour
         // {fault} matters more than it looks: it's how the player learns what
         // they're being asked to take on before they press E. A decline can't
         // be a real decision if every job is described identically.
-        return Format(PickValid(pool));
+        return WithFocusCallback(Format(PickValid(pool)), beat);
+    }
+
+    private string WithFocusCallback(string line, Beat beat)
+    {
+        // Preserve the honest grade/outcome callback; quiet is not forgiveness
+        // for a failed repair, nor a replacement for the current intake request.
+        if (beat != Beat.Intake || profile == null || !profile.storyteller
+            || !RemembersFocusBoundary || string.IsNullOrWhiteSpace(profile.focusReturnLine)) return line;
+        return string.IsNullOrWhiteSpace(line) ? Format(profile.focusReturnLine)
+            : line + "\n\n" + Format(profile.focusReturnLine);
     }
 
     public string SayRepairCompleted(JobGrade grade)

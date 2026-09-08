@@ -1,6 +1,8 @@
 # Device scaffold review
 
-This is the content-authoring step recorded next in `roadmap-progress.md`.
+This is a prepared content-authoring tool, not permission to expand the roster now.
+The supplied GDD v4.1 §19 prioritizes Grace's M1 showcase before device expansion;
+see `roadmap-progress.md` and `grace-focus-playtest.md` for the current next slice.
 GDD v4 §6.2 lists watch, phone, lamp, radio, toaster, film camera, turntable and
 handheld game as the core eight devices. This tool prepares copies for authoring;
 it does not claim the remaining six devices are built.
@@ -20,11 +22,16 @@ it does not claim the remaining six devices are built.
    and its cover, screws, tasks and internal references belong to the new copy.
    The meshes, materials, fault descriptions, payouts and puzzle settings are
    deliberately inherited; a copied phone is still visually and mechanically a phone.
-5. Inspect the new prefab using the same window. In a disposable test scene,
-   exercise each fault with the existing repair setup. Check pickup, opening,
-   task interaction, reassembly and handback. Confirm the original phone still
-   behaves normally. Do not enroll a new device in customer arrivals until its
-   visuals, descriptions, reachability and job balance have been reviewed.
+5. Inspect the new prefab using the same window. For a short practice run,
+   leave the new prefab in **Template prefab**. Start an open day, select one
+   fault in the window and click **Spawn practice customer**. Exercise pickup,
+   opening, task interaction, reassembly and handback. Repeat after the first
+   customer leaves. Each visit has zero base payout. It uses the normal customer
+   lifecycle and affects logs/recap; it is NOT an isolated save sandbox. **Stop
+   Play Mode before the day closes** if you want to retain your prior checkpoint.
+   A day-end autosave can persist results from the test. Confirm the
+   original phone still behaves normally. Do not enroll a new device in customer
+   arrivals until its visuals, descriptions, reachability and balance are reviewed.
 
 Negative checks: a disabled parent above a selected task should report an error;
 a fault referencing another prefab should report an error; an empty selected
@@ -46,12 +53,15 @@ a circuit. Counts describe task components, not final grade credits.
   the tool does not invent a new physical toggle for a different device.
 - Validation catches structural issues, not occlusion, camera framing, model fit,
   every missing optional field, runtime-generated geometry, or playability.
-- No runtime scripts, existing prefabs, schedules, save data or payout rules change.
+- The scaffold tool itself edits no runtime scripts, existing prefabs, schedules,
+  save data or payout rules. Normal runtime day-end saving still applies to practice.
 
 Source syntax and the proposed repository diff can be checked outside Unity.
-The 518 Editor assertions, prefab creation and actual gameplay must be run in
-Unity; they have not been executed in this workspace.
+The owner reported that validation and copy creation worked after the pickup
+validator correction. The new practice button and actual copied-device gameplay
+are pending Unity testing; they have not been executed in this workspace.
 
-After this gate, build one deliberately authored device slice using existing
-verbs, test it end to end, then expand the roster. Two more verbs are on the
-design backlog; choose their distinct interactions before committing to implementation.
+Keep the copy as an authoring test for now. Next production work is Grace's
+storyteller/focus callback, then her camera/photo consequence. Neither M1 completion
+nor expansion to devices 3–8 is implied by this tool. Two more verbs remain design
+backlog items, not implementations scheduled by this change.

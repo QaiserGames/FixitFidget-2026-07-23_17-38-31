@@ -12,7 +12,7 @@ public class CustomerInteractable : Interactable
     public override bool IsAvailable =>
         brain != null && (brain.CanHearIntake || brain.CanDecide || brain.CanFixAtCounter || brain.JobReady ||
                           brain.JobFixedButAway || brain.CanReceiveDrink ||
-                          brain.CanApologiseForDrink ||
+                          brain.CanApologiseForDrink || brain.CanRequestFocus ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
     // Which of those actions can be done from the shop floor, rather than only
@@ -21,7 +21,7 @@ public class CustomerInteractable : Interactable
     // they're standing.
     public bool FloorAvailable =>
         brain != null && (brain.CanReceiveDrink || brain.JobReady ||
-                          brain.CanApologiseForDrink ||
+                          brain.CanApologiseForDrink || brain.CanRequestFocus ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
     public override string Prompt
@@ -53,6 +53,7 @@ public class CustomerInteractable : Interactable
                     : $"Hand it back ({g})";
             }
             if (brain.JobFixedButAway) return $"Their {brain.Record.Subject} is ready";
+            if (brain.CanRequestFocus) return "Let me focus";
             if (brain.CanReassure && !brain.JobNeedsAttention) return "Reassure";
             return "";
         }
@@ -76,6 +77,7 @@ public class CustomerInteractable : Interactable
             return;
         }
         if (brain.JobReady) { brain.CompleteJob(); return; }
+        if (brain.CanRequestFocus) { brain.RequestFocus(); return; }
 
         if (!brain.CanHearIntake && !brain.CanDecide && brain.CanReassure)
         {

@@ -101,6 +101,15 @@ public class CustomerProfile : ScriptableObject
     [Tooltip("Chance they bring their signature device. The rest of the time it's a surprise.")]
     public float preferredDeviceChance = 0.7f;
 
+    [Header("Storyteller (opt-in; pending bench repairs only)")]
+    public bool storyteller;
+    [TextArea(2, 4)] public string[] storyLines;
+    [Min(1f)] public float storyFirstDelay = 12f;
+    [Min(1f)] public float storyInterval = 22f;
+    [Range(0, 5)] public int storyMaxLines = 3;
+    [TextArea(2, 4)] public string focusReply = "Of course. I'll let you concentrate.";
+    [TextArea(2, 4)] public string focusReturnLine = "I remember you need quiet while you work. I'll let you concentrate.";
+
     [Header("First visit dialogue")]
     public DialogueSet lines;
 

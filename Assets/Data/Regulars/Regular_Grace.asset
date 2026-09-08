@@ -30,6 +30,16 @@ MonoBehaviour:
   preferredDrink: {fileID: 11400000, guid: b7cb77bae0a35e04c998dece9a1f9fe4, type: 2}
   preferredDevice: {fileID: 0}
   preferredDeviceChance: 0
+  storyteller: 1
+  storyFirstDelay: 12
+  storyInterval: 22
+  storyMaxLines: 3
+  storyLines:
+  - My brother insists on taking every family photograph. Conveniently, he's never in the embarrassing ones.
+  - We tried arranging everyone by height once. Auntie Rose climbed onto a chair. She's eighty-three.
+  - The best photographs happen just after someone says the photograph is over.
+  focusReply: "Of course, dear. I'll save the next chapter for your tea break."
+  focusReturnLine: "I was going to... Later. You need quiet. Is now a good time?"
   lines:
     intake:
     - This {device} has to make it through a family reunion. They tell me the problem

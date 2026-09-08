@@ -1,7 +1,9 @@
-# Roadmap checkpoint — 2026-09-07
+# Roadmap checkpoint — 2026-09-08
 
-This records progress against the existing GDD v4 and recent playtests. It does
-not replace or reschedule the GDD. Current content-tool review branch: `codex/device-scaffold`.
+This records progress against the supplied **GDD v4.1** (the uploaded filename
+says v4) and recent playtests. It does not replace or reschedule the GDD.
+Current review branch: `codex/device-scaffold` (scaffold playtest completion plus
+the first storyteller/focus slice, in separate commits).
 The owner confirmed the previous Grace/recap branch was merged and tested.
 
 | Area | Evidence/status | Next gate |
@@ -13,7 +15,8 @@ The owner confirmed the previous Grace/recap branch was merged and tested.
 | Phase 1 reusable software verb | Owner's `81a478c` Spacebar implementation reviewed and preserved, including its serialized multiplier and route-clear hint. Visible boost, reset/input safeguards and 58,804 rule assertions pass. | Playtest visible acceleration and input transitions, then assess puzzle decisions separately from waiting time. Unity/player-build gates remain. |
 | Phase 1 Human fault | Owner playtested the counter toggle: it works, but the placeholder appearance was rejected. Prepared rounded prototype, readable caption and authored-model hook. Story scenario/rules retained dormant. | Unity presentation/input playtest. Blender artwork and final appearance remain open. |
 | Phase 1 Bureaucratic fault | Revised to wordless handset cues at the physical phones and live countdowns on their existing customer tickets. Replaced the separate call HUD with a wrapping rail; no IMGUI or world-space call text. Existing 20–30s hold/15s ring rules and owner's System.Random fix preserved. | Compile in Unity; test from the bench with sound off and a phone in view at 15m, plus concurrent calls, drink obligations, pause/recap and handback. Actual visual detection remains unverified here. |
-| M1 final content | Storyteller focus boundary, film-camera repair/strap detail, photo consequence, final expressions, and recognition test are incomplete. | Make those individual slices reviewable before marking M1 complete. |
+| M1 storyteller slice | Grace-only sparse story lines, polite focus interaction, and additive remembered quiet/callback are prepared. Existing grade callbacks stay factual; no repair/economy tuning changes. | Run the Editor checks and live two-visit test in `grace-focus-playtest.md`; presentation still needs in-game review. |
+| M1 final content | Film-camera repair/strap detail, photo consequence, final expressions, and recognition test remain incomplete. | Do not mark M1 complete or expand the device roster merely because the focus slice passes. |
 | Custom character/portrait art | Custom modelling paused by the owner. No final customer portraits yet; Hades-like individuality is being considered. | Decide from references and in-game scale when ready; current code needs no art commitment. |
 | Espresso redesign | Free brewing before orders, machine choices, cooling, and waste recorded as ideas. | Explicit design review before implementation. |
 
@@ -34,13 +37,19 @@ approve the presentation for shipping.
 
 The Phase 1 device scaffold tool is now prepared on `codex/device-scaffold`:
 create-only whole-prefab copying plus per-fault wiring validation. See
-`device-scaffold-review.md`. Unity compilation, its 518 Editor assertions,
-copy creation and bench interaction are pending. Existing gameplay and prefabs
-are unchanged. The GDD v4 §6.2 eight-device scope remains the target, not completed work.
+`device-scaffold-review.md`. The owner reports validation and copy creation now
+work. A selected-fault practice-customer button completes the pending test path;
+its live Unity test is still required. Practice follows the normal run and can
+affect a day-end save, so stop Play Mode before closing for a non-persistent run.
+The GDD §6.2 eight-device scope remains the launch target, not completed work.
 
-Next: verify the scaffold in Unity, then author and test one new device using
-the existing verbs before expanding devices 3–8. Keep Human/support presentation
-on the art-pass backlog. The owner would like roughly two more verbs; their
+Priority correction from GDD §19.1–19.3: **M1 Grace before roster expansion**.
+Finish the scaffold's small test path, then validate the storyteller/focus
+boundary and visible return memory using current placeholder art. Next after
+that gate is the deliberately authored camera/strap and returned-photo slice,
+not a generic lamp. Preserve the current Day 1/Day 2 schedule until the full
+episode schedule is deliberately reconciled with the GDD. Keep Human/support
+presentation on the art-pass backlog. The owner would like roughly two more verbs; their
 interactions are unselected and implementation is not part of this pass.
 Do not expand the circuit/fuse challenge: the owner explicitly asked to preserve
 its current gameplay.

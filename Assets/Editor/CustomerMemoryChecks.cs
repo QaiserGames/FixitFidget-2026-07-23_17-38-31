@@ -18,6 +18,7 @@ public static class CustomerMemoryChecks
         try
         {
             CheckStorageAndTrust();
+            CheckFocusMemory();
             CheckOutcomes();
             CheckRoster();
             CheckAuthoredIdentity();
@@ -74,6 +75,27 @@ public static class CustomerMemoryChecks
     private static RegularMemoryData Visit(bool happy, bool served, string grade = "", string reason = "") =>
         new RegularMemoryData { profileId = "grace", visits = 1, relationship = 4,
             lastVisitHappy = happy, lastVisitServed = served, lastGrade = grade, lastLossReason = reason };
+
+    private static void CheckFocusMemory()
+    {
+        var oldSave = JsonUtility.FromJson<SaveData>("{\"version\":3,\"day\":2,\"regularMemories\":[{\"profileId\":\"grace\",\"visits\":1,\"relationship\":2}]}");
+        oldSave.ValidateAndMigrate();
+        Require(!oldSave.regularMemories[0].focusBoundarySet, "Old v3 saves invent no focus boundary.");
+        var service = new CustomerMemoryService();
+        service.Restore(oldSave.regularMemories);
+        service.RecordVisit("grace", 2, true, true, true, LostReason.StormedOutWaiting, "Good", true);
+        var memory = service.Read("grace");
+        Require(memory.focusBoundarySet && memory.visits == 2 && memory.relationship == 4,
+            "Boundary records once with the normal visit, with no relationship penalty/bonus.");
+        var roundTrip = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(new SaveData { regularMemories = service.Snapshot() }));
+        service.Restore(roundTrip.regularMemories);
+        roundTrip.regularMemories[0].focusBoundarySet = false;
+        service.RecordVisit("grace", 3, false, true, false, LostReason.StormedOutWaiting, "");
+        Require(service.Read("grace").focusBoundarySet && service.Read("grace").relationship == 2,
+            "Quiet survives JSON, copy isolation, and a later failed visit without altering normal trust loss.");
+        service.RecordVisit("alex", 3, true, true, true, LostReason.StormedOutWaiting, "Perfect");
+        Require(!service.Read("alex").focusBoundarySet, "Boundary belongs to one stable customer ID.");
+    }
 
     private static void CheckOutcomes()
     {
@@ -134,6 +156,15 @@ public static class CustomerMemoryChecks
 
             identity.SetupRegular(copy, Visit(true, true, "Rejected"));
             Require(identity.Say(CustomerIdentity.Beat.Intake).Contains("unfinished"), "A rejected repair cannot receive the warm success callback.");
+            Require(copy.storyteller && copy.storyLines.Length > 0, "Grace has authored storyteller content.");
+            var focusMemory = Visit(true, true, "Rejected");
+            focusMemory.focusBoundarySet = true;
+            identity.SetupRegular(copy, focusMemory);
+            string focusIntake = identity.Say(CustomerIdentity.Beat.Intake);
+            Require(focusIntake.Contains("unfinished") && focusIntake.Contains(copy.focusReturnLine)
+                && identity.RemembersFocusBoundary, "Focus callback augments rather than replaces the factual repair outcome.");
+            Require(!identity.Say(CustomerIdentity.Beat.Accepted).Contains(copy.focusReturnLine),
+                "Boundary callback is intake-only, not repeated on every response.");
             identity.SetupRegular(copy, Visit(true, true));
             Require(identity.Say(CustomerIdentity.Beat.Intake).Contains("familiar counter"), "Drink-only service does not invent a repaired device.");
             Require(identity.SayRepairCompleted(JobGrade.Rejected).Contains("still needs work")

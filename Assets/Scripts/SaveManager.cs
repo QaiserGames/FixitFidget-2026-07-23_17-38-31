@@ -166,12 +166,13 @@ public class SaveManager : MonoBehaviour
         bool accepted,
         bool served,
         LostReason lossReason,
-        string grade)
+        string grade,
+        bool focusRequested = false)
     {
         if (profile == null) return;
         regularMemory.RecordVisit(profile.PersistentId,
             DayClock.Instance != null ? DayClock.Instance.Day : 0,
-            happy, accepted, served, lossReason, grade);
+            happy, accepted, served, lossReason, grade, focusRequested);
     }
 
     public RegularMemoryData MemoryFor(CustomerProfile profile) =>
