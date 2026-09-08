@@ -154,8 +154,17 @@ public static class HumanIntegrationChecks
 
     private static void SpawnPractice(string prefabPath, FaultType family)
     {
-        if (!EditorApplication.isPlaying || Time.timeScale <= 0f
-            || (DayClock.Instance != null && DayClock.Instance.DayOver))
+        var device = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        var definition = device != null ? device.GetComponent<DeviceDefinition>() : null;
+        int index = definition?.faults != null ? Array.FindIndex(definition.faults, f => f != null && f.type == family) : -1;
+        if (index < 0) throw new InvalidOperationException("Prefab has no requested fault family.");
+        SpawnPractice(prefabPath, index);
+    }
+
+    internal static void SpawnPractice(string prefabPath, int faultIndex)
+    {
+        if (!EditorApplication.isPlaying || Time.timeScale <= 0f || DayClock.Instance == null
+            || !DayClock.Instance.IsOpen || DayClock.Instance.DayOver)
             throw new InvalidOperationException("Enter Play Mode during an open day first.");
         var spawner = UnityEngine.Object.FindAnyObjectByType<CustomerSpawner>();
         if (spawner == null) throw new InvalidOperationException("No active customer spawner in this scene.");
@@ -168,8 +177,9 @@ public static class HumanIntegrationChecks
         if (source == null || start == null || exit == null || queue == null || !queue.HasFreeSlot || phone == null)
             throw new InvalidOperationException("Need the scene's customer/door references and a free counter slot.");
         var def = phone.GetComponent<DeviceDefinition>();
-        int index = def != null ? Array.FindIndex(def.faults, f => f != null && f.type == family) : -1;
-        if (index < 0) throw new InvalidOperationException("Prefab has no requested fault family.");
+        if (def?.faults == null || faultIndex < 0 || faultIndex >= def.faults.Length || def.faults[faultIndex] == null)
+            throw new InvalidOperationException("Prefab has no requested fault index.");
+        FaultType family = def.faults[faultIndex].type;
         if (!NavMesh.SamplePosition(start.position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
             throw new InvalidOperationException("No walkable NavMesh at the scene's spawn point.");
         GameObject guest = UnityEngine.Object.Instantiate(source, hit.position, start.rotation);
@@ -184,11 +194,11 @@ public static class HumanIntegrationChecks
         guest.name = family + " practice customer";
         identity.SetupWalkIn(archetypes != null ? Array.Find(archetypes, a => a != null) : null, "Practice guest");
         brain.Init(queue, exit, new Job { devicePrefab = phone, deviceName = def.displayName,
-            faultIndex = index, faultType = family, faultDescription = def.faults[index].description, payout = 0 });
+            faultIndex = faultIndex, faultType = family, faultDescription = def.faults[faultIndex].description, payout = 0 });
         Selection.activeGameObject = guest;
-        Debug.Log("Practice guest is joining the normal counter queue. " +
-            "Human: click the mute switch at intake. Support: E calls from the shelf, then answer when it rings. " +
-            "Zero payout, but this visit counts in this playtest's recap/log. No save was reset.");
+        Debug.Log($"Practice guest joined the queue with {def.displayName}: {def.faults[faultIndex].description}. " +
+            "Accept and repair it through the normal interaction path. Zero base payout; logs/recap are affected. " +
+            "Stop Play Mode BEFORE the day closes to avoid saving this test. No save was reset.");
     }
 
     private static TMP_Text TextChild(Transform parent, string name)

@@ -9,6 +9,7 @@ public sealed class DeviceScaffoldWindow : EditorWindow
 {
     private GameObject template;
     private string deviceName = "New device";
+    private int playtestFault;
     private Vector2 scroll;
     private string report = "Choose a bench repair prefab, then inspect its wiring.";
 
@@ -26,10 +27,42 @@ public sealed class DeviceScaffoldWindow : EditorWindow
             using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(deviceName)))
                 if (GUILayout.Button("Create separate prefab…")) Create();
         }
+        DrawPlaytest();
         scroll = EditorGUILayout.BeginScrollView(scroll);
         EditorGUILayout.SelectableLabel(report, EditorStyles.wordWrappedLabel,
             GUILayout.MinHeight(250), GUILayout.ExpandHeight(true));
         EditorGUILayout.EndScrollView();
+    }
+
+    private void DrawPlaytest()
+    {
+        DeviceDefinition definition = template != null ? template.GetComponent<DeviceDefinition>() : null;
+        if (definition?.faults == null || definition.faults.Length == 0) return;
+        playtestFault = Mathf.Clamp(playtestFault, 0, definition.faults.Length - 1);
+        string[] choices = new string[definition.faults.Length];
+        for (int i = 0; i < choices.Length; i++)
+        {
+            DeviceFault fault = definition.faults[i];
+            choices[i] = fault == null ? i + " · Missing fault" : i + " · " + fault.type + " · " + fault.description;
+        }
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Playtest copied prefab", EditorStyles.boldLabel);
+        playtestFault = EditorGUILayout.Popup("Fault", playtestFault, choices);
+        EditorGUILayout.HelpBox("During an open day, spawn a zero-base-payout practice customer through the normal queue. This affects the run's logs/recap and CAN enter the day-end save. Stop Play Mode before the day closes to retain your previous checkpoint.", MessageType.Warning);
+        using (new EditorGUI.DisabledScope(!EditorApplication.isPlaying))
+            if (GUILayout.Button("Spawn practice customer")) SpawnPractice();
+    }
+
+    private void SpawnPractice()
+    {
+        if (!Inspect()) return;
+        try
+        {
+            HumanIntegrationChecks.SpawnPractice(AssetDatabase.GetAssetPath(template), playtestFault);
+            report += "\n\nPractice customer spawned for fault " + playtestFault
+                + ". Stop Play Mode BEFORE the day closes if you do not want this test saved.";
+        }
+        catch (System.InvalidOperationException ex) { report += "\n\nNot spawned: " + ex.Message; }
     }
 
     private bool Inspect()
