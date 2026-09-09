@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 // Owns every place a waiting customer can go. A customer asks for a spot the
 // moment their job is accepted, and hands it back when they leave.
@@ -68,7 +69,7 @@ public class WaitingArea : MonoBehaviour
             for (int i = 0; i < registry.Count; i++)
             {
                 WaitingSpot s = registry[i];
-                if (s != null && s.IsAvailable) return true;
+                if (s != null && s.IsAvailable && HasClaimClearance(s, null)) return true;
             }
             return false;
         }
@@ -95,7 +96,7 @@ public class WaitingArea : MonoBehaviour
         for (int i = 0; i < registry.Count; i++)
         {
             WaitingSpot s = registry[i];
-            if (s == null || !s.IsAvailable) continue;
+            if (s == null || !s.IsAvailable || !HasClaimClearance(s, occupant)) continue;
             if (matchKind && s.Kind != kind) continue;
             scratch.Add(s);
         }
@@ -113,6 +114,27 @@ public class WaitingArea : MonoBehaviour
             if (registry[i] != null) registry[i].Release(occupant);
     }
 
+    // Separate spot components can still point to the same physical space.
+    // Reserve body room, including the stopping margin, across both populations.
+    public static bool HasClaimClearance(WaitingSpot candidate, Component occupant)
+    {
+        if (candidate == null) return false;
+        NavMeshAgent agent = occupant != null ? occupant.GetComponent<NavMeshAgent>() : null;
+        float radius = agent != null ? agent.radius + agent.stoppingDistance : 0.35f;
+        foreach (WaitingSpot spot in registry)
+        {
+            if (spot == null || spot == candidate || !spot.IsOccupied || spot.Occupant == occupant) continue;
+            NavMeshAgent other = spot.Occupant.GetComponent<NavMeshAgent>();
+            float otherRadius = other != null ? other.radius + other.stoppingDistance : 0.35f;
+            Vector3 delta = candidate.StandPoint.position - spot.StandPoint.position;
+            if (Mathf.Abs(delta.y) > 1.5f) continue;
+            delta.y = 0;
+            float clearance = radius + otherRadius + 0.1f;
+            if (delta.sqrMagnitude < clearance * clearance) return false;
+        }
+        return true;
+    }
+
     // How full the room looks right now. Used by PatronSpawner so patrons stop
     // arriving before they can squeeze paying customers out entirely — a cafe
     // so busy you can't work is atmosphere winning over gameplay.
@@ -124,7 +146,7 @@ public class WaitingArea : MonoBehaviour
             for (int i = 0; i < registry.Count; i++)
             {
                 WaitingSpot s = registry[i];
-                if (s != null && s.IsAvailable && s.Kind == WaitingSpot.SpotKind.Seat) n++;
+                if (s != null && s.IsAvailable && s.Kind == WaitingSpot.SpotKind.Seat && HasClaimClearance(s, null)) n++;
             }
             return n;
         }

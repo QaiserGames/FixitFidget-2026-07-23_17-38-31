@@ -12,6 +12,7 @@ public class JobTicket : MonoBehaviour
     private SupportCallIcon callIcon;
     private TMP_Text callState, callSeconds;
     private bool wasSupport;
+    private float cardWidth = 220, cardHeight = 118;
 
     public CustomerBrain Target { get; private set; }
 
@@ -49,7 +50,7 @@ public class JobTicket : MonoBehaviour
             callLine.gameObject.SetActive(true);
             if (jobText != null)
             {
-                Place(jobText.rectTransform, new Vector2(10, -34), new Vector2(200, 46));
+                Place(jobText.rectTransform, new Vector2(8, -27), new Vector2(cardWidth - 16, 40));
                 jobText.textWrappingMode = TextWrappingModes.NoWrap;
                 jobText.text = Target.Record != null ? Target.Record.deviceName : "Support phone";
                 if (Target.HasDrinkOrder && Target.WantedDrink != null)
@@ -76,7 +77,7 @@ public class JobTicket : MonoBehaviour
             if (callLine != null) callLine.gameObject.SetActive(false);
             if (jobText != null)
             {
-                Place(jobText.rectTransform, new Vector2(10, -36), new Vector2(200, 108));
+                Place(jobText.rectTransform, new Vector2(8, -27), new Vector2(cardWidth - 16, cardHeight - 42));
                 jobText.textWrappingMode = TextWrappingModes.Normal;
                 // Delivery must remove the call obligation, even if a drink remains.
                 jobText.text = wasSupport && Target.ActiveJob == null
@@ -97,28 +98,48 @@ public class JobTicket : MonoBehaviour
     {
         if (slotText != null)
         {
-            Place(slotText.rectTransform, new Vector2(10, -3), new Vector2(200, 30));
-            slotText.enableAutoSizing = false; slotText.fontSize = 24;
+            Place(slotText.rectTransform, new Vector2(8, -2), new Vector2(cardWidth - 16, 25));
+            slotText.enableAutoSizing = false; slotText.fontSize = 21;
             slotText.overflowMode = TextOverflowModes.Ellipsis;
             slotText.textWrappingMode = TextWrappingModes.NoWrap;
             slotText.alignment = TextAlignmentOptions.TopLeft;
         }
         if (jobText != null)
         {
-            jobText.enableAutoSizing = false; jobText.fontSize = 20;
+            jobText.enableAutoSizing = false; jobText.fontSize = 17;
             jobText.overflowMode = TextOverflowModes.Ellipsis;
             jobText.alignment = TextAlignmentOptions.TopLeft;
         }
     }
+    public void SetCardSize(float width, float height)
+    {
+        cardWidth = width; cardHeight = height;
+        ConfigureLayout();
+        if (jobText != null)
+            Place(jobText.rectTransform, new Vector2(8, -27), new Vector2(width - 16,
+                callLine != null && callLine.gameObject.activeSelf ? 40 : height - 42));
+        if (patienceFill != null)
+        {
+            RectTransform track = patienceFill.transform.parent as RectTransform;
+            Place(track != null && track != transform ? track : patienceFill.rectTransform,
+                new Vector2(8, -height + 10), new Vector2(width - 16, 6));
+        }
+        if (callLine != null)
+        {
+            Place(callLine, new Vector2(8, -68), new Vector2(width - 16, 36));
+            Place(callState.rectTransform, new Vector2(34, 0), new Vector2(width - 54, 18));
+            Place(callSeconds.rectTransform, new Vector2(34, -18), new Vector2(width - 54, 18));
+        }
+    }
     private void BuildCallLine()
     {
-        callLine = RepairOverlayUI.Panel("Support call obligation", transform, new Vector2(10, -84),
-            new Vector2(200, 60), RepairOverlayUI.Background).rectTransform;
+        callLine = RepairOverlayUI.Panel("Support call obligation", transform, new Vector2(8, -68),
+            new Vector2(cardWidth - 16, 36), RepairOverlayUI.Background).rectTransform;
         var rect = RepairOverlayUI.Rect("Phone", callLine, new Vector2(0, 1), new Vector2(.5f, .5f),
-            new Vector2(25, -31), new Vector2(44, 44));
+            new Vector2(17, -18), new Vector2(30, 30));
         callIcon = rect.gameObject.AddComponent<SupportCallIcon>(); callIcon.raycastTarget = false;
-        callState = RepairOverlayUI.Text("Call state", callLine, new Vector2(52, -1), new Vector2(144, 27), 24, Color.white);
-        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(52, -30), new Vector2(144, 27), 24, RepairOverlayUI.Muted);
+        callState = RepairOverlayUI.Text("Call state", callLine, new Vector2(34, 0), new Vector2(cardWidth - 54, 18), 16, Color.white);
+        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(34, -18), new Vector2(cardWidth - 54, 18), 16, RepairOverlayUI.Muted);
         callState.textWrappingMode = callSeconds.textWrappingMode = TextWrappingModes.NoWrap;
         if (jobText != null) { callState.font = jobText.font; callSeconds.font = jobText.font; }
     }

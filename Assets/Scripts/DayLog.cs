@@ -63,6 +63,9 @@ public class DayLog : MonoBehaviour
         public string waitKind;
         public int    basePay;
         public int    tip;
+        public int    storyLines;
+        public bool   focusRequested;
+        public bool   rememberedFocus;
     }
 
     private readonly List<Visit> visits = new();
@@ -142,6 +145,7 @@ public class DayLog : MonoBehaviour
 
         DrinkDefinition wish = brain.WantedDrink;
         bool wishIsExtra = job != null && job.kind == JobKind.Repair && wish != null;
+        CustomerStoryteller storyteller = brain.GetComponent<CustomerStoryteller>();
 
         visits.Add(new Visit
         {
@@ -159,12 +163,15 @@ public class DayLog : MonoBehaviour
             accepted        = accepted,
             served          = served,
             outcome         = happy ? "Served" : reason.ToString(),
-            grade           = served && job != null && job.kind == JobKind.Repair
+            grade           = brain.HasReturnedRepair && job != null && job.kind == JobKind.Repair
                                 ? grade.ToString() : "",
             patienceAtExit  = brain.PatienceFraction,
             waitKind        = brain.WaitKind.HasValue ? brain.WaitKind.Value.ToString() : "",
             basePay         = basePay,
-            tip             = tip
+            tip             = tip,
+            storyLines      = storyteller != null ? storyteller.LinesSpoken : 0,
+            focusRequested  = storyteller != null && storyteller.FocusRequested,
+            rememberedFocus = id != null && id.RemembersFocusBoundary
         });
     }
 
@@ -234,8 +241,8 @@ public class DayLog : MonoBehaviour
     {
         StringBuilder sb = new StringBuilder();
         sb.AppendLine("name,regular,character,kind,subject,fault,fault_family,drink_wish," +
-                      "arrived_s,left_s,in_shop_s,repair_s,accepted,served,outcome,grade," +
-                      "patience_at_exit,wait_kind,base_pay,tip");
+                      "arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade," +
+                      "patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus");
 
         foreach (Visit v in visits)
         {
@@ -250,7 +257,9 @@ public class DayLog : MonoBehaviour
                 v.accepted ? "yes" : "no", v.served ? "yes" : "no",
                 Q(v.outcome), Q(v.grade), F(v.patienceAtExit), Q(v.waitKind),
                 v.basePay.ToString(CultureInfo.InvariantCulture),
-                v.tip.ToString(CultureInfo.InvariantCulture)));
+                v.tip.ToString(CultureInfo.InvariantCulture),
+                v.storyLines.ToString(CultureInfo.InvariantCulture),
+                v.focusRequested ? "yes" : "no", v.rememberedFocus ? "yes" : "no"));
         }
 
         return sb.ToString();
@@ -263,11 +272,15 @@ public class DayLog : MonoBehaviour
         int outOfStock = 0, shelfFull = 0, stillIn = 0;
         float servedInShop = 0f;
         int servedCount = 0;
+        int satisfiedCount = 0;
+        int helpedButUnhappy = 0;
         float worstPatience = 1f;
 
         foreach (Visit v in visits)
         {
             if (v.accepted) accepted++;
+            if (v.outcome == "Served") satisfiedCount++;
+            if (v.served && v.outcome != "Served") helpedButUnhappy++;
 
             switch (v.outcome)
             {
@@ -292,12 +305,14 @@ public class DayLog : MonoBehaviour
         sb.AppendLine();
         sb.AppendLine($"Arrived                {arrived}");
         sb.AppendLine($"Accepted               {accepted}");
-        sb.AppendLine($"People served          {c.Visitors}    <- humans, counted once each");
+        sb.AppendLine($"People helped          {servedCount}    <- received service; may still leave unhappy");
+        sb.AppendLine($"Left satisfied         {satisfiedCount}");
+        sb.AppendLine($"Helped but unhappy     {helpedButUnhappy}    <- also included in departures below");
         sb.AppendLine($"Orders completed       {c.Served}   ({c.Repairs} repairs, {c.Drinks} drinks)");
         sb.AppendLine();
-        sb.AppendLine("WHY PEOPLE LEFT UNSERVED");
+        sb.AppendLine("WHY PEOPLE LEFT UNSATISFIED (includes partial service)");
         sb.AppendLine($"  Stormed out (queue)  {stormedQueue}    <- never even heard them");
-        sb.AppendLine($"  Stormed out (wait)   {stormedWaiting}    <- took the job, didn't get back");
+        sb.AppendLine($"  Stormed out (wait)   {stormedWaiting}    <- an obligation was still pending");
         sb.AppendLine($"  Still here at close  {stillIn}");
         sb.AppendLine($"  You declined         {declined}    <- a choice, not a failure");
         sb.AppendLine($"  Out of stock         {outOfStock}");
@@ -315,12 +330,13 @@ public class DayLog : MonoBehaviour
 
         if (servedCount > 0)
         {
-            sb.AppendLine($"Average visit length   {servedInShop / servedCount:0.0}s");
-            sb.AppendLine($"Closest call           {worstPatience * 100f:0}% patience left");
+            sb.AppendLine($"Average helped visit   {servedInShop / servedCount:0.0}s");
+            sb.AppendLine($"Lowest helped patience {worstPatience * 100f:0}% (includes unhappy exits)");
         }
 
         sb.AppendLine();
         sb.AppendLine("Per-customer detail is in the CSV beside this file.");
+        sb.AppendLine("service_s measures acceptance to departure, including waiting; it is not hands-on repair time.");
         return sb.ToString();
     }
 

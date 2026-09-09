@@ -58,12 +58,8 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private int movingPriorityMin = 30;
     [SerializeField] private int movingPriorityMax = 60;
 
-    [Tooltip("Priority once they've settled. High number = low priority, so " +
-             "people still walking push past them instead of bouncing off.")]
-    [SerializeField] private int settledPriority = 90;
-
     [Tooltip("Priority while walking away from the counter to their seat. " +
-             "Must be HIGHER than settledPriority (= lower priority), so " +
+             "Stationary agents use priority zero, so " +
              "someone who's just been served goes around the people still " +
              "waiting instead of shouldering through them.")]
     [SerializeField] private int leavingCounterPriority = 95;
@@ -230,6 +226,7 @@ public class CustomerBrain : MonoBehaviour
     private int   paidTip;
     private JobGrade lastGrade = JobGrade.Rejected;
     private bool repairReturned;
+    internal bool HasReturnedRepair => repairReturned;
     private string intakeLine = "";
     private float repairStartedAt = -1f;
 
@@ -1262,7 +1259,7 @@ public class CustomerBrain : MonoBehaviour
         agent.ResetPath();
         agent.isStopped = true;
         agent.velocity = Vector3.zero;
-        agent.avoidancePriority = settledPriority;
+        agent.avoidancePriority = 0; // A stationary body cannot yield to a walker.
     }
 
     private void SettleHere()

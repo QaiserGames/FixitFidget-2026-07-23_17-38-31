@@ -1,10 +1,36 @@
-# Roadmap checkpoint — 2026-09-08
+# Roadmap checkpoint — 2026-09-09
 
 This records progress against the supplied **GDD v4.1** (the uploaded filename
 says v4) and recent playtests. It does not replace or reschedule the GDD.
 Current review branch: `codex/device-scaffold` (scaffold playtest completion plus
 the first storyteller/focus slice, in separate commits).
 The owner confirmed the previous Grace/recap branch was merged and tested.
+
+September 9: owner completed another five-day playtest. All five CSV arrival,
+acceptance, received-service and cash totals reconcile with their summaries.
+Satisfied departures by day: 5/5, 10/10, 8/13, 9/13, 2/12. Day 5 helped four
+people; two received repairs but timed out with pending drinks. That overlap is
+now explained in the log summary. This is one experienced-player run, not grounds
+for automatic difficulty tuning. Logs show all five current repair families.
+
+Grace appeared once on Day 1 (watch Cleaning, Perfect) and once on Day 2 (phone
+Human, Perfect). Existing logs cannot establish storyteller/focus coverage.
+New CSV fields record story delivery and quiet memory for subsequent tests.
+The scaffold remains a manually spawned copy test, not a sixth fault.
+
+Next M1 authoring step is implemented: each featured day can opt into an exact
+bench device/fault request. Defaults preserve existing assets and schedules.
+See `featured-repair-playtest.md`. No camera asset has been authored or enabled
+by this step; the cleaning/shutter/strap and returned-photo content remain open.
+Unity compile and the new Editor checks still need running on the owner's PC.
+
+New screenshot follow-up: floor visibility and patron/customer overlap take
+priority over further content. Compact tickets, precise patron arrival, stopped
+agent priority, safer patron recovery and spatial seat claims are prepared.
+See `crowd-and-ticket-playtest.md`. The Patron prefab's 1m stopping distance and
+unchecked recovery warp are confirmed code/configuration risks; the screenshot's
+exact collision sequence remains unproven. No Unity navigation or visual test has
+been run here. Nearby chairs may need spacing adjustments if reservations clash.
 
 | Area | Evidence/status | Next gate |
 | --- | --- | --- |

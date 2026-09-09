@@ -9,6 +9,8 @@ public class TicketRailUI : MonoBehaviour
     [SerializeField, Min(220)] private float maxRailWidth = 1000;
     [SerializeField, Min(0)] private float cornerReserve = 460;
     [SerializeField, Min(0)] private float topInset = 20;
+    [SerializeField, Min(140)] private float minimumTicketWidth = 150;
+    [SerializeField, Min(118)] private float ticketHeight = 118;
     private readonly List<JobTicket> ordered = new();
     private readonly List<CustomerBrain> stale = new();
     private LayoutGroup authoredLayout;
@@ -76,23 +78,26 @@ public class TicketRailUI : MonoBehaviour
         var canvasRect = canvas.transform as RectTransform;
         float width = canvasRect != null ? canvasRect.rect.width : 1920;
         float available = Mathf.Max(220, Mathf.Min(maxRailWidth, width - cornerReserve * 2));
-        int columns = Mathf.Max(1, Mathf.FloorToInt((available + 12) / 232));
         int count = ordered.Count;
+        int columns = Mathf.Max(1, Mathf.Min(Mathf.Max(1, count), Mathf.FloorToInt((available + 8) / (Mathf.Max(140, minimumTicketWidth) + 8))));
+        float cardWidth = Mathf.Min(220, (available - (columns - 1) * 8) / columns);
+        float cardHeight = Mathf.Max(118, ticketHeight);
         int rows = Mathf.CeilToInt(count / (float)columns);
         railRect.anchorMin = railRect.anchorMax = new Vector2(.5f, 1);
         railRect.pivot = new Vector2(.5f, 1);
         railRect.anchoredPosition = new Vector2(0, -topInset);
-        railRect.sizeDelta = new Vector2(available, rows == 0 ? 0 : rows * 184 - 12);
+        railRect.sizeDelta = new Vector2(available, rows == 0 ? 0 : rows * (cardHeight + 8) - 8);
         for (int i = 0; i < count; i++)
         {
             if (ordered[i] == null) continue;
             int row = i / columns, column = i % columns;
             int inRow = Mathf.Min(columns, count - row * columns);
-            float rowWidth = inRow * 232 - 12;
+            float rowWidth = inRow * (cardWidth + 8) - 8;
             var rect = (RectTransform)ordered[i].transform;
             rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1); rect.pivot = new Vector2(0, 1);
-            rect.sizeDelta = new Vector2(220, 172);
-            rect.anchoredPosition = new Vector2(-rowWidth / 2 + column * 232, -row * 184);
+            rect.sizeDelta = new Vector2(cardWidth, cardHeight);
+            rect.anchoredPosition = new Vector2(-rowWidth / 2 + column * (cardWidth + 8), -row * (cardHeight + 8));
+            ordered[i].SetCardSize(cardWidth, cardHeight);
         }
     }
     private void OnDisable()

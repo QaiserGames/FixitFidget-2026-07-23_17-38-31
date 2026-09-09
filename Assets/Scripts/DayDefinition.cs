@@ -144,6 +144,10 @@ public class DayDefinition : ScriptableObject
              "next available arrival slot. 0.15 means 15% through the day.")]
     public float featuredRegularArrivesAt = 0.15f;
 
+    [Tooltip("Give this featured appearance a specific repair. Other arrivals and the opening lesson keep their normal jobs. Off preserves existing days.")]
+    public bool useFeaturedRepair;
+    public FeaturedRepairRequest featuredRepair = new FeaturedRepairRequest();
+
     // ---------- lookups ----------
 
     /// <summary>Seconds between arrivals at this point in the day.</summary>

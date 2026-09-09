@@ -13,6 +13,7 @@ public sealed class CustomerStoryteller : MonoBehaviour
     private float retryAt;
 
     public bool FocusRequested => run != null && run.FocusRequested;
+    public int LinesSpoken => run != null ? run.LinesSpoken : 0;
     public bool CanRequestFocus => isActiveAndEnabled && owner != null
         && owner.CanTellStory && run != null && run.CanRequestFocus;
 

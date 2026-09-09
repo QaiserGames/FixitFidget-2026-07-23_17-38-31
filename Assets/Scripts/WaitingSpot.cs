@@ -79,7 +79,7 @@ public class WaitingSpot : MonoBehaviour
 
     public bool Claim(Component occupant)
     {
-        if (occupant == null || !IsAvailable) return false;
+        if (occupant == null || !isActiveAndEnabled || !IsAvailable || !WaitingArea.HasClaimClearance(this, occupant)) return false;
         Occupant = occupant;
         return true;
     }

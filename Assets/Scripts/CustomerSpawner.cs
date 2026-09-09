@@ -325,7 +325,14 @@ public class CustomerSpawner : MonoBehaviour
         JobKind? forcedKind = opening.IsActive
             ? (opening.Current == DayOneOpening.Step.Drink ? JobKind.Drink : JobKind.Repair)
             : null;
-        Job job = RollJob(profile, forcedKind);
+        Job job = null;
+        if (featuredDue && today.useFeaturedRepair)
+        {
+            string error = "Choose a featured repair request.";
+            if (today.featuredRepair == null || !today.featuredRepair.TryCreateJob(out job, out error))
+                Debug.LogWarning($"{today.name}: featured repair is invalid ({error}). Using the regular's normal job.", today);
+        }
+        if (job == null) job = RollJob(profile, forcedKind);
 
         // And would they like something while they wait? Rolled here, kept
         // quiet by CustomerBrain until they've sat down.
