@@ -19,4 +19,8 @@ public class DrinkDefinition : ScriptableObject
     public GameObject cupPrefab;
 
     public Color cupColor = new Color(0.85f, 0.75f, 0.6f);
+
+    [Header("Dispenser freshness (seconds after filling)")]
+    [Min(1)] public float freshSeconds = 30;
+    [Min(2)] public float coldSeconds = 60;
 }

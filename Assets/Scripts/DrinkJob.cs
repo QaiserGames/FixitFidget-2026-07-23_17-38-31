@@ -42,17 +42,22 @@ public class DrinkJob : JobBase
     [SerializeField] private Color emptyColor = new Color(0.9f, 0.9f, 0.88f);
  
     // An empty cup isn't servable. Only a brewed one is.
-    public override bool IsComplete => Drink != null;
+    public override bool IsComplete => CanHandBack;
  
     // A coffee has no partial credit — it's brewed or it isn't. There's no
     // "60% of a latte", so drinks never enter the grading system.
     public override float Quality => Drink != null ? 1f : 0f;
-    public override bool CanHandBack => Drink != null;
+    public override bool CanHandBack => Drink != null && !Locked && (freshness == null || freshness.CanServe);
     // True while sitting in the machine. Stops the player snatching it mid-brew.
     public bool Locked { get; set; }
  
     public DrinkDefinition Drink { get; private set; }
     public bool IsEmpty => Drink == null;
+    private DrinkFreshness freshness;
+    public bool HasFreshness => freshness != null;
+    public DrinkFreshness.Stage FreshnessStage => freshness != null ? freshness.Current : DrinkFreshness.Stage.Fresh;
+    public float FreshnessRemaining => freshness != null ? freshness.RemainingFraction : 1;
+    public float FreshnessTipMultiplier => freshness != null ? freshness.TipMultiplier : 1;
  
     // Was this cup ever claimed by someone? Used to notice the moment they
     // leave without it.
@@ -65,6 +70,7 @@ public class DrinkJob : JobBase
 
     private void Update()
     {
+        if (DayClock.Instance == null || !DayClock.Instance.DayOver) freshness?.Advance(Time.deltaTime);
         // THE ORPHANED LATTE. CanReceiveDrink deliberately lets any latte go to
         // anyone who wants a latte — including one abandoned by a customer who
         // stormed off. But the cup kept the dead customer's job number and
@@ -89,10 +95,12 @@ public class DrinkJob : JobBase
         if (marker != null) marker.Hide();
     }
  
-    public void SetDrink(DrinkDefinition drink)
+    public void SetDrink(DrinkDefinition drink, bool perishable = false)
     {
         Drink = drink;
+        freshness = drink != null && perishable ? new DrinkFreshness(drink.freshSeconds, drink.coldSeconds) : null;
         if (drink != null) Tint(drink.cupColor);
+        if (freshness != null && GetComponent<DrinkFreshnessRing>() == null) gameObject.AddComponent<DrinkFreshnessRing>();
     }
  
     private void Tint(Color c)

@@ -135,6 +135,8 @@ public class PlayerInteractor : MonoBehaviour
         if (currentStation != null)
         {
             Vector2 centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            if (currentStation.GetComponent<BeverageStation>() != null && Mouse.current != null)
+                centre = Mouse.current.position.ReadValue();
             Ray ray = cam.ScreenPointToRay(centre);
 
             RaycastHit[] hits = Physics.RaycastAll(ray, stationReach);
@@ -292,6 +294,11 @@ public class PlayerInteractor : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        if (station.GetComponent<BeverageStation>() != null)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
     }
 
     public void ExitStation()

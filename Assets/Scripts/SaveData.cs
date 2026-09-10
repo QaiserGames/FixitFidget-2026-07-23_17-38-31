@@ -23,6 +23,16 @@ public class RegularMemoryData
     // Keyed by this record's stable profileId (Grace: grace_focus_boundary in the GDD).
     public bool focusBoundarySet = false;
 
+    // Additive v4 episode facts. Generic lastGrade is deliberately insufficient:
+    // repairing a watch or serving coffee cannot create a reunion photograph.
+    public bool graceCameraAttempted;
+    public bool graceCameraReturned;
+    public string graceCameraGrade = "";
+    public int graceCameraDay;
+    public bool graceReturnAcknowledged;
+    public bool gracePhotoClaimed;
+    public string gracePhotoVariant = "";
+
     public RegularMemoryData Copy() => (RegularMemoryData)MemberwiseClone();
 }
 
@@ -53,7 +63,7 @@ public class SaveData
 {
     // Bump this when the format changes, and handle old numbers in
     // ValidateAndMigrate. This is what lets updates not destroy saves.
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
     public int version = CurrentVersion;
 
     public int day = 1;

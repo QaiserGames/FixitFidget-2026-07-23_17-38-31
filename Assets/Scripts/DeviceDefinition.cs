@@ -20,6 +20,9 @@ public class DeviceDefinition : MonoBehaviour
     [Tooltip("Used in dialogue via the {device} token. e.g. 'pocket watch'")]
     public string displayName = "thing";
 
+    [Tooltip("Stable episode marker for an explicitly featured request. Does not enroll random repairs in a story.")]
+    public string storyEpisodeId = "";
+
     public DeviceFault[] faults;
 
     public DeviceFault GetFault(int index)

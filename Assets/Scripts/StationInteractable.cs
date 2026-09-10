@@ -16,6 +16,11 @@ public class StationInteractable : Interactable
 
     public string StationLabel => label;
     public bool IsWorkSurface => isWorkSurface;
+    public void ConfigureBeverageView(CinemachineCamera camera, Transform stand)
+    {
+        stationCamera = camera; standPoint = stand; label = "Prepare drinks";
+        isWorkSurface = false; dropSpot = null;
+    }
 
     // Only offered to Interact when we're carrying something to put down.
     public override bool IsAvailable

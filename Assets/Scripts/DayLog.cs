@@ -66,6 +66,9 @@ public class DayLog : MonoBehaviour
         public int    storyLines;
         public bool   focusRequested;
         public bool   rememberedFocus;
+        public string storyEpisode;
+        public string cameraGrade;
+        public string photoVariant;
     }
 
     private readonly List<Visit> visits = new();
@@ -146,6 +149,8 @@ public class DayLog : MonoBehaviour
         DrinkDefinition wish = brain.WantedDrink;
         bool wishIsExtra = job != null && job.kind == JobKind.Repair && wish != null;
         CustomerStoryteller storyteller = brain.GetComponent<CustomerStoryteller>();
+        RegularMemoryData storyMemory = id != null && id.Profile != null && SaveManager.Instance != null
+            ? SaveManager.Instance.MemoryFor(id.Profile) : null;
 
         visits.Add(new Visit
         {
@@ -171,7 +176,10 @@ public class DayLog : MonoBehaviour
             tip             = tip,
             storyLines      = storyteller != null ? storyteller.LinesSpoken : 0,
             focusRequested  = storyteller != null && storyteller.FocusRequested,
-            rememberedFocus = id != null && id.RemembersFocusBoundary
+            rememberedFocus = id != null && id.RemembersFocusBoundary,
+            storyEpisode    = job != null ? job.storyEpisodeId : "",
+            cameraGrade     = storyMemory != null ? storyMemory.graceCameraGrade : "",
+            photoVariant    = storyMemory != null ? storyMemory.gracePhotoVariant : ""
         });
     }
 
@@ -242,7 +250,7 @@ public class DayLog : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.AppendLine("name,regular,character,kind,subject,fault,fault_family,drink_wish," +
                       "arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade," +
-                      "patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus");
+                      "patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant");
 
         foreach (Visit v in visits)
         {
@@ -259,7 +267,8 @@ public class DayLog : MonoBehaviour
                 v.basePay.ToString(CultureInfo.InvariantCulture),
                 v.tip.ToString(CultureInfo.InvariantCulture),
                 v.storyLines.ToString(CultureInfo.InvariantCulture),
-                v.focusRequested ? "yes" : "no", v.rememberedFocus ? "yes" : "no"));
+                v.focusRequested ? "yes" : "no", v.rememberedFocus ? "yes" : "no",
+                Q(v.storyEpisode), Q(v.cameraGrade), Q(v.photoVariant)));
         }
 
         return sb.ToString();

@@ -14,6 +14,9 @@ public class Job
     public int faultIndex;
     public FaultType faultType;
     public string faultDescription = "broken";
+    // Explicit authored episode identity. Random jobs never infer story facts
+    // from a display name or a similar-looking device.
+    public string storyEpisodeId = "";
 
     // --- drink jobs ---
     public DrinkDefinition drink;

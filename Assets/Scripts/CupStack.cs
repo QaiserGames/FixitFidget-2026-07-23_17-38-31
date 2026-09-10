@@ -72,13 +72,14 @@ public class CupStack : Interactable
         // itself returns to stock — it's the beans that are gone.
         if (HeldCup(carry) != null)
         {
+            bool returnStock = HeldCup(carry).IsEmpty;
             carry.Consume();
-            if (ShopInventory.Instance != null) ShopInventory.Instance.ReturnCup();
+            if (returnStock && ShopInventory.Instance != null) ShopInventory.Instance.ReturnCup();
             return;
         }
 
         // Taking one.
-        if (cupPrefab == null) return;
+        if (!carry.HasSpace || cupPrefab == null || cupPrefab.GetComponent<DrinkJob>() == null) return;
         if (ShopInventory.Instance == null || !ShopInventory.Instance.TakeCup()) return;
 
         GameObject cup = Instantiate(cupPrefab, transform.position, transform.rotation);

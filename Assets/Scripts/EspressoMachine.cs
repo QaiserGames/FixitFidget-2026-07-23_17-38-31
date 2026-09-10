@@ -39,7 +39,7 @@ public class EspressoMachine : Interactable
         }
     }
 
-    public override bool IsAvailable => true;
+    public override bool IsAvailable => isActiveAndEnabled;
 
     public override string Prompt
     {

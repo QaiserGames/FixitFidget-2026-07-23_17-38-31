@@ -42,20 +42,31 @@ public class ShopInventory : MonoBehaviour
     public bool CanBrew(DrinkDefinition drink)
     {
         if (drink == null) return false;
-        return beans >= drink.beansCost;
+        return beans >= Mathf.Max(0, drink.beansCost);
     }
 
     public bool ConsumeBeans(DrinkDefinition drink)
     {
         if (!CanBrew(drink)) return false;
-        beans -= drink.beansCost;
+        beans -= Mathf.Max(0, drink.beansCost);
         return true;
     }
 
     public bool CanMake(DrinkDefinition drink)
     {
         if (drink == null) return false;
-        return cups >= drink.cupsCost && beans >= drink.beansCost;
+        // Prebrewing has already spent stock. A finished drink remains sellable
+        // when the inventory is empty; a purchased empty cup can still be filled.
+        bool emptyCup = false;
+        foreach (DrinkJob cup in DrinkJob.Live)
+        {
+            if (cup == null) continue;
+            if (cup.Drink == drink && cup.CanHandBack) return true;
+            if (cup.IsEmpty && !cup.Locked) emptyCup = true;
+        }
+        foreach (BeverageSlot slot in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
+            if (slot.drink == drink && slot.IsPouring && slot.Cup != null) return true;
+        return (cups >= Mathf.Max(1, drink.cupsCost) || emptyCup) && CanBrew(drink);
     }
 
     public bool BuyRestock()

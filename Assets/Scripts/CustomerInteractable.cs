@@ -12,7 +12,7 @@ public class CustomerInteractable : Interactable
     public override bool IsAvailable =>
         brain != null && (brain.CanHearIntake || brain.CanDecide || brain.CanFixAtCounter || brain.JobReady ||
                           brain.JobFixedButAway || brain.CanReceiveDrink ||
-                          brain.CanApologiseForDrink || brain.CanRequestFocus ||
+                          brain.CanApologiseForDrink || brain.CanRequestFocus || brain.HasColdDrinkForOrder ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
     // Which of those actions can be done from the shop floor, rather than only
@@ -21,7 +21,7 @@ public class CustomerInteractable : Interactable
     // they're standing.
     public bool FloorAvailable =>
         brain != null && (brain.CanReceiveDrink || brain.JobReady ||
-                          brain.CanApologiseForDrink || brain.CanRequestFocus ||
+                          brain.CanApologiseForDrink || brain.CanRequestFocus || brain.HasColdDrinkForOrder ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
     public override string Prompt
@@ -35,6 +35,7 @@ public class CustomerInteractable : Interactable
             // "Serve the Pocket Watch" while you stood there holding a latte.
             // WantedDrinkName covers both.
             if (brain.CanReceiveDrink) return $"Serve the {brain.WantedDrinkName}";
+            if (brain.HasColdDrinkForOrder) return "This one's gone cold — discard it";
 
             // Ranked above reassurance on purpose: if their drink can't be
             // made, calming them down only postpones the same dead end.
@@ -61,6 +62,7 @@ public class CustomerInteractable : Interactable
 
     public override void Interact(PlayerInteractor player)
     {
+        if (brain.HasColdDrinkForOrder) return;
         // Quick handovers — no camera move, no panel.
         if (brain.CanReceiveDrink)
         {

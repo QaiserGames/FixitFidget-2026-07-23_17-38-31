@@ -104,6 +104,14 @@ public class DayOneGuideUI : MonoBehaviour
     {
         DrinkJob held = carry != null ? carry.Carried as DrinkJob : null;
         DrinkDefinition wanted = customer.WantedDrink;
+        if (FindAnyObjectByType<BeverageStation>() != null)
+        {
+            if (held != null && !held.IsEmpty && !held.CanHandBack)
+                return "That drink is cold. Use the discard tray; the cup and ingredients are lost.";
+            if (held != null && held.CanHandBack && held.Drink == wanted)
+                return $"F steps back. E near {customer.CustomerName} serves. C switches carried items.";
+            return $"F enters the dispenser. Take a cup, place it under {customer.WantedDrinkName}, then press its button with E. C switches hands.";
+        }
         if (held != null && !held.IsEmpty && held.Drink == wanted)
         {
             if (interactor != null && interactor.IsAtStation)

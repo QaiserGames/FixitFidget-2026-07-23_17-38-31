@@ -167,12 +167,25 @@ public class SaveManager : MonoBehaviour
         bool served,
         LostReason lossReason,
         string grade,
-        bool focusRequested = false)
+        bool focusRequested = false,
+        Job storyJob = null)
     {
         if (profile == null) return;
         regularMemory.RecordVisit(profile.PersistentId,
             DayClock.Instance != null ? DayClock.Instance.Day : 0,
             happy, accepted, served, lossReason, grade, focusRequested);
+        if (storyJob != null && storyJob.kind == JobKind.Repair)
+            regularMemory.RecordGraceCamera(profile.PersistentId, storyJob.storyEpisodeId,
+                DayClock.Instance != null ? DayClock.Instance.Day : 0, grade);
+    }
+
+    public RegularMemoryData MemoryForId(string profileId) => regularMemory.Read(profileId);
+
+    public bool AcknowledgeGraceReturn(CustomerProfile profile, out GracePhotoOutcome outcome)
+    {
+        outcome = GracePhotoOutcome.None;
+        return profile != null && regularMemory.AcknowledgeGraceReturn(profile.PersistentId,
+            DayClock.Instance != null ? DayClock.Instance.Day : 0, out outcome);
     }
 
     public RegularMemoryData MemoryFor(CustomerProfile profile) =>

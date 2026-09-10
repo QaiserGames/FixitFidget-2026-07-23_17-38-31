@@ -56,6 +56,40 @@ public sealed class CustomerMemoryService
         return result.ToArray();
     }
 
+    public bool RecordGraceCamera(string profileId, string episodeId, int day, string returnedGrade)
+    {
+        if (!GraceCameraEpisode.Matches(profileId, episodeId)) return false;
+        if (!records.TryGetValue(profileId, out RegularMemoryData memory))
+        {
+            memory = new RegularMemoryData { profileId = profileId };
+            records.Add(profileId, memory);
+        }
+        // The displayed keepsake belongs to the first completed episode; later
+        // jobs cannot recolor an already handed-over photograph.
+        if (memory.gracePhotoClaimed) return false;
+        memory.graceCameraAttempted = true;
+        memory.graceCameraDay = Math.Max(0, day);
+        memory.graceCameraReturned = GraceCameraEpisode.IsKnownGrade(returnedGrade);
+        memory.graceCameraGrade = memory.graceCameraReturned ? returnedGrade : "";
+        memory.graceReturnAcknowledged = false;
+        return true;
+    }
+
+    public bool AcknowledgeGraceReturn(string profileId, int day, out GracePhotoOutcome outcome)
+    {
+        outcome = GracePhotoOutcome.None;
+        if (!records.TryGetValue(profileId, out RegularMemoryData memory)
+            || !GraceCameraEpisode.HasPendingReturn(memory, day)) return false;
+        outcome = GraceCameraEpisode.PhotoOutcome(memory);
+        memory.graceReturnAcknowledged = true;
+        if (outcome == GracePhotoOutcome.Clear || outcome == GracePhotoOutcome.Imperfect)
+        {
+            memory.gracePhotoClaimed = true;
+            memory.gracePhotoVariant = outcome.ToString();
+        }
+        return true;
+    }
+
     private static int RelationshipDelta(bool happy, bool accepted, bool served, LostReason reason)
     {
         // Existing relationship tuning is preserved in this extraction.

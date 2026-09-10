@@ -470,7 +470,18 @@ public class CustomerBrain : MonoBehaviour
             if (drink == null) return false;
 
             // Any latte will do — including one abandoned by someone who left.
-            return drink.Drink != null && drink.Drink == WantedDrink;
+            return drink.CanHandBack && drink.Drink == WantedDrink;
+        }
+    }
+
+    public bool HasColdDrinkForOrder
+    {
+        get
+        {
+            var carry = FindAnyObjectByType<PlayerCarry>();
+            var cup = carry != null ? carry.Carried as DrinkJob : null;
+            return drinkOrdered && IsWaiting && cup != null && cup.Drink == WantedDrink
+                && cup.FreshnessStage == DrinkFreshness.Stage.Cold;
         }
     }
 
@@ -663,6 +674,7 @@ public class CustomerBrain : MonoBehaviour
         {
             identity.SetDevice(record.Subject);
             identity.SetFault(record.faultDescription);
+            identity.SetStoryRequest(record);
         }
 
         HideBubble();
@@ -1079,7 +1091,8 @@ public class CustomerBrain : MonoBehaviour
             RunOrDefer(BeginWaiting);
 
         React();
-        return identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
+        string acceptedLine = identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
+        return identity != null ? identity.AcceptReturnMemento(acceptedLine) : acceptedLine;
     }
 
     // The device goes on the intake shelf, not in front of the customer —
@@ -1526,6 +1539,7 @@ public class CustomerBrain : MonoBehaviour
         float tipMult = identity != null ? identity.TipMultiplier : 1f;
 
         int basePay = drink.Drink != null ? drink.Drink.price : 4;
+        tipMult *= drink.FreshnessTipMultiplier;
         float reassurePenalty = Mathf.Clamp01(1f - reassureUses * reassureTipCost);
         int tip = Mathf.RoundToInt(basePay * maxTipFraction * speedFraction * tipMult * reassurePenalty);
 
@@ -1835,7 +1849,8 @@ public class CustomerBrain : MonoBehaviour
                 wasServed,
                 lossReason,
                 grade,
-                storyteller != null && storyteller.FocusRequested);
+                storyteller != null && storyteller.FocusRequested,
+                record);
         }
 
         // One line per visit, written the moment the visit is over. Read-only:

@@ -27,6 +27,8 @@ public class CustomerIdentity : MonoBehaviour
     private RegularMemoryData previousVisit;
     private Beat lastBeat = Beat.Intake;
     private string deviceName = "thing";
+    private bool isGraceCameraRequest;
+    private string returnRequestLine = "Today, I've brought my {device}: {fault}.";
 
     // Lowercased on the way in, because it arrives as a ticket label
     // ("Cracked Screen") and comes out mid-sentence ("my phone, cracked
@@ -45,6 +47,7 @@ public class CustomerIdentity : MonoBehaviour
         Relationship = relationship;
         HasMetBefore = hasMetBefore;
         previousVisit = null;
+        isGraceCameraRequest = false;
         lastBeat = Beat.Intake;
         Expression = PortraitExpression.Neutral;
     }
@@ -64,6 +67,7 @@ public class CustomerIdentity : MonoBehaviour
         Relationship = 0;
         HasMetBefore = false;
         previousVisit = null;
+        isGraceCameraRequest = false;
         lastBeat = Beat.Intake;
         Expression = PortraitExpression.Neutral;
     }
@@ -77,6 +81,28 @@ public class CustomerIdentity : MonoBehaviour
     public void SetFault(string fault)
     {
         if (!string.IsNullOrEmpty(fault)) faultName = fault.ToLowerInvariant();
+    }
+
+    public void SetStoryRequest(Job job)
+    {
+        isGraceCameraRequest = profile != null && job != null && job.kind == JobKind.Repair
+            && GraceCameraEpisode.Matches(profile.PersistentId, job.storyEpisodeId);
+        returnRequestLine = job != null && job.kind == JobKind.Drink
+            ? "Today, I'd love a {device}." : "Today, I've brought my {device}: {fault}.";
+    }
+
+    private bool HasGraceReturn => GraceCameraEpisode.HasPendingReturn(previousVisit,
+        DayClock.Instance != null ? DayClock.Instance.Day : 0);
+
+    // Called only after the player accepts the return visit. Opening/reopening
+    // dialogue is read-only and cannot silently award the shop a keepsake.
+    public string AcceptReturnMemento(string acceptedLine)
+    {
+        if (!HasGraceReturn || SaveManager.Instance == null
+            || !SaveManager.Instance.AcknowledgeGraceReturn(profile, out GracePhotoOutcome outcome))
+            return acceptedLine;
+        previousVisit = SaveManager.Instance.MemoryFor(profile);
+        return acceptedLine + "\n\n" + GraceCameraEpisode.HandoffLine(outcome);
     }
 
     public float PatienceMultiplier
@@ -142,6 +168,17 @@ public class CustomerIdentity : MonoBehaviour
             _ => PortraitExpression.Neutral
         };
 
+        if (beat == Beat.Intake && HasGraceReturn)
+        {
+            GracePhotoOutcome photo = GraceCameraEpisode.PhotoOutcome(previousVisit);
+            Expression = photo == GracePhotoOutcome.Missed ? PortraitExpression.Worried : PortraitExpression.Happy;
+            string request = isGraceCameraRequest ? GraceCameraEpisode.Intake
+                : returnRequestLine;
+            return WithFocusCallback(GraceCameraEpisode.ReturnLine(photo) + "\n\n" + Format(request), beat);
+        }
+        if (beat == Beat.Intake && isGraceCameraRequest)
+            return WithFocusCallback(GraceCameraEpisode.Intake, beat);
+
         if (beat == Beat.Intake && profile != null && previousVisit != null)
         {
             CustomerReturnOutcome outcome = ReturnOutcome;
@@ -193,6 +230,7 @@ public class CustomerIdentity : MonoBehaviour
         else if (grade == JobGrade.Rejected) Expression = PortraitExpression.Impatient;
 
         if (profile == null) return fallback;
+        if (isGraceCameraRequest) return GraceCameraEpisode.CompletionLine(grade);
         if (grade == JobGrade.Passable)
             return Format(PickValid(profile.passableRepairLines, "It works, but it could use more care. I'll take it as it is."));
         if (grade == JobGrade.Rejected)
@@ -207,7 +245,8 @@ public class CustomerIdentity : MonoBehaviour
     }
 
     public PortraitExpression ExpressionAt(float patienceFraction) =>
-        lastBeat == Beat.Intake && patienceFraction <= 0.25f ? PortraitExpression.Impatient : Expression;
+        (lastBeat == Beat.Intake || lastBeat == Beat.Accepted || lastBeat == Beat.OrderedDrink)
+        && patienceFraction <= 0.25f ? PortraitExpression.Impatient : Expression;
 
     public Sprite PortraitAt(float patienceFraction) =>
         profile != null ? profile.PortraitFor(ExpressionAt(patienceFraction)) : null;

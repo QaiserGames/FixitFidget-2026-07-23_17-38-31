@@ -8,6 +8,7 @@
     <Compile Include="../../Assets/Scripts/StorytellerRun.cs" />
     <Compile Include="../../Assets/Scripts/SaveData.cs" />
     <Compile Include="../../Assets/Scripts/CustomerMemoryService.cs" />
+    <Compile Include="../../Assets/Scripts/GraceCameraEpisode.cs" />
     <Compile Include="../../Assets/Editor/StorytellerRuleChecks.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>

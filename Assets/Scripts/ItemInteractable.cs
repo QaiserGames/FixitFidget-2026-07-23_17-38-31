@@ -24,21 +24,22 @@ public class ItemInteractable : Interactable
             if (drink == null && job.Owner == null) return false;
 
             PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
-            return carry != null && !carry.IsCarrying;
+            return carry != null && carry.HasSpace;
         }
     }
 
-    public override string Prompt => "Pick up";
+    public override string Prompt => job is DrinkJob cup && !cup.IsEmpty
+        ? $"Take {cup.Drink.drinkName} ({cup.FreshnessStage.ToString().ToLowerInvariant()})" : "Pick up";
 
     public override void Interact(PlayerInteractor player)
     {
         PlayerCarry carry = player.GetComponent<PlayerCarry>();
         if (carry == null) return;
 
-        carry.PickUp(job);
+        if (!carry.TryPickUp(job)) return;
 
         // Taking something always means you're about to walk somewhere —
         // so step out of the station in the same press.
-        if (player.IsAtStation) player.ExitStation();
+        if (player.IsAtStation && player.CurrentStation.GetComponent<BeverageStation>() == null) player.ExitStation();
     }
 }

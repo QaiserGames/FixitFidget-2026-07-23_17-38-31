@@ -11,7 +11,7 @@ public class PhoneInteractable : Interactable
             if (job == null || !job.CanOperate) return false;
             if (job.CanActivate) return true;
             var carry = FindAnyObjectByType<PlayerCarry>();
-            return job.IsComplete && carry != null && !carry.IsCarrying;
+            return job.IsComplete && carry != null && carry.HasSpace;
         }
     }
     public override string Prompt => job == null ? "" : job.IsComplete ? "Pick up the phone"
@@ -21,7 +21,7 @@ public class PhoneInteractable : Interactable
         if (!IsAvailable) return;
         if (job.CanActivate) { job.Activate(); return; }
         var carry = player.GetComponent<PlayerCarry>();
-        if (carry == null || carry.IsCarrying || !job.IsComplete) return;
+        if (carry == null || !carry.HasSpace || !job.IsComplete) return;
         carry.PickUp(job);
         if (player.IsAtStation) player.ExitStation();
     }
