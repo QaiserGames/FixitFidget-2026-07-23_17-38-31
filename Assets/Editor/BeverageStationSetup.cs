@@ -1,102 +1,307 @@
 #if UNITY_EDITOR
 using System;
-using TMPro;
+using System.Collections.Generic;
+using System.Linq;
 using Unity.Cinemachine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
-// Scene installation is explicit and undoable; existing scene/prefab files are not rewritten by a code update.
+// This installer is explicit and undoable. The authored FBX owns the visible anatomy;
+// separate invisible targets make the controls forgiving without enlarging the prop.
 public static class BeverageStationSetup
 {
+    private const string ModelPath = "Assets/Art/Models/BeverageDispenserV2.fbx";
+    private const string MaterialFolder = "Assets/Art/Materials/BeverageDispenserV2";
+    private static readonly Vector3 CupRowCentre = new Vector3(0, .087f, -.196f);
+
     [MenuItem("Fixit Fidget/Content/Install six-drink dispenser in open scene")]
     public static void Install()
     {
-        if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Stop Play Mode first.");
-        var existing = UnityEngine.Object.FindAnyObjectByType<BeverageStation>();
-        if (existing != null) { Selection.activeGameObject = existing.gameObject; return; }
-        var old = UnityEngine.Object.FindAnyObjectByType<EspressoMachine>();
-        if (old == null) throw new InvalidOperationException("Open the shop scene containing the espresso machine.");
-        var source = new SerializedObject(old);
-        var oldCup = source.FindProperty("cupSlot").objectReferenceValue as Transform;
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+            throw new InvalidOperationException("Stop Play Mode before installing the dispenser.");
+        Scene scene = SceneManager.GetActiveScene();
+        var existing = UnityEngine.Object.FindObjectsByType<BeverageStation>(FindObjectsInactive.Include,
+            FindObjectsSortMode.None).Where(item => item.gameObject.scene == scene).ToArray();
+        var old = UnityEngine.Object.FindObjectsByType<EspressoMachine>(FindObjectsInactive.Include,
+            FindObjectsSortMode.None).FirstOrDefault(item => item.gameObject.scene == scene);
+        var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+        if (modelAsset == null) throw new InvalidOperationException("Import " + ModelPath + " first.");
+        if (old == null && existing.Length == 0)
+            throw new InvalidOperationException("Open the shop scene containing the espresso machine.");
+
         string[] names = { "Coffee", "Tea", "HotChocolate", "Espresso", "Americano", "Latte" };
         var drinks = new DrinkDefinition[names.Length];
         for (int i = 0; i < names.Length; i++)
         {
-            drinks[i] = AssetDatabase.LoadAssetAtPath<DrinkDefinition>("Assets/AssetsPrefabs/Drinks/Drink_" + names[i] + ".asset");
-            if (drinks[i] == null || drinks[i].cupPrefab == null || drinks[i].cupPrefab.GetComponent<DrinkJob>() == null)
+            drinks[i] = AssetDatabase.LoadAssetAtPath<DrinkDefinition>(
+                "Assets/AssetsPrefabs/Drinks/Drink_" + names[i] + ".asset");
+            if (drinks[i] == null || drinks[i].cupPrefab == null ||
+                drinks[i].cupPrefab.GetComponent<DrinkJob>() == null)
                 throw new InvalidOperationException("Missing drink or cup prefab: " + names[i]);
         }
-        Undo.IncrementCurrentGroup(); int group = Undo.GetCurrentGroup(); Undo.SetCurrentGroupName("Install beverage dispenser");
-        var root = new GameObject("Beverage dispenser prototype");
-        Undo.RegisterCreatedObjectUndo(root, "Create dispenser");
-        root.transform.position = oldCup != null ? oldCup.position : old.transform.position + Vector3.up;
-        Vector3 forward = Vector3.ProjectOnPlane(old.transform.forward, Vector3.up);
-        root.transform.rotation = Quaternion.LookRotation(forward.sqrMagnitude > .01f ? forward : Vector3.forward);
-        var station = root.AddComponent<StationInteractable>(); root.AddComponent<BeverageStation>();
-        Material dark = MaterialAsset("Dispenser dark", new Color(.09f, .13f, .14f));
-        Material light = MaterialAsset("Dispenser cream", new Color(.87f, .84f, .73f));
-        Shape("Dispenser wall", root.transform, new Vector3(0, .3f, .22f), new Vector3(2.7f, .65f, .2f), dark, false);
-        var stand = new GameObject("Drink stand point").transform; stand.SetParent(root.transform, false);
-        stand.localPosition = new Vector3(0, -root.transform.position.y, -1.25f);
-        var cameraObject = new GameObject("Drink station camera"); cameraObject.transform.SetParent(root.transform, false);
-        cameraObject.transform.localPosition = new Vector3(0, 1.15f, -2.6f);
-        cameraObject.transform.LookAt(root.transform.TransformPoint(new Vector3(0, .2f, 0)));
-        var camera = cameraObject.AddComponent<CinemachineCamera>(); camera.Priority = 0;
-        camera.Lens.FieldOfView = 62;
-        station.ConfigureBeverageView(camera, stand);
-        for (int i = 0; i < drinks.Length; i++)
+
+        Vector3 position;
+        Quaternion rotation;
+        // A second installation preserves the placement the artist chose for this version.
+        var previousV2 = existing.FirstOrDefault(item => item.transform.Find("Visual model") != null);
+        if (previousV2 != null)
         {
-            var section = new GameObject(drinks[i].drinkName); section.transform.SetParent(root.transform, false);
-            section.transform.localPosition = new Vector3((i - 2.5f) * .43f, 0, 0);
-            var slot = section.AddComponent<BeverageSlot>(); slot.drink = drinks[i];
-            var pad = Shape("Cup pad", section.transform, new Vector3(0, -.025f, -.12f), new Vector3(.32f, .05f, .32f), light, true);
-            var padControl = pad.AddComponent<BeverageControl>(); padControl.slot = slot;
-            var point = new GameObject("Cup point").transform; point.SetParent(section.transform, false); point.localPosition = new Vector3(0, 0, -.12f); slot.cupPoint = point;
-            var button = Shape("Dispense button", section.transform, new Vector3(0, .4f, .06f), new Vector3(.28f, .14f, .09f), light, true);
-            var buttonControl = button.AddComponent<BeverageControl>(); buttonControl.slot = slot; buttonControl.dispenseButton = true;
-            Label(drinks[i].drinkName, section.transform, new Vector3(0, .6f, -.005f), .32f);
-            var nozzle = Shape("Nozzle", section.transform, new Vector3(0, .27f, -.1f), new Vector3(.06f, .1f, .12f), dark, false);
-            var stream = nozzle.AddComponent<LineRenderer>(); stream.useWorldSpace = false;
-            stream.sharedMaterial = MaterialAsset("Pour " + i, drinks[i].cupColor);
-            stream.positionCount = 2; stream.SetPosition(0, Vector3.zero); stream.SetPosition(1, new Vector3(0, -2, 0));
-            stream.startWidth = stream.endWidth = .12f; stream.enabled = false; slot.stream = stream;
+            position = previousV2.transform.position;
+            rotation = previousV2.transform.rotation;
         }
-        var supply = Shape("Empty cups", root.transform, new Vector3(-1.6f, .05f, -.12f), new Vector3(.28f, .15f, .32f), light, true);
-        supply.AddComponent<BeverageCupSupply>().cupPrefab = drinks[0].cupPrefab;
-        Label("CUPS", root.transform, new Vector3(-1.6f, .3f, -.1f), .3f);
-        var discard = Shape("Discard tray", root.transform, new Vector3(1.6f, .015f, -.12f), new Vector3(.3f, .08f, .36f), dark, true);
-        discard.AddComponent<BeverageCupSupply>().discard = true;
-        Label("DISCARD", root.transform, new Vector3(1.6f, .3f, -.1f), .3f);
-        Undo.RecordObject(old, "Disable old order-bound brewer"); old.enabled = false;
-        EditorSceneManager.MarkSceneDirty(root.scene); Undo.CollapseUndoOperations(group);
-        Selection.activeGameObject = root;
-        Debug.Log("[Beverage dispenser] Installed six independent slots. Scene changes are undoable. F enters; point + E uses pads/buttons; C switches hands; F leaves. Position the prototype to suit your counter before saving. Ingredients use the existing shared Beans stock; timing is editable on each drink asset.");
+        else if (old != null)
+        {
+            var oldCup = new SerializedObject(old).FindProperty("cupSlot").objectReferenceValue as Transform;
+            Vector3 front = Vector3.ProjectOnPlane(old.transform.forward, Vector3.up).normalized;
+            if (front.sqrMagnitude < .1f) front = Vector3.back;
+            // The old cup establishes which face is the working side. The new model faces -Z.
+            if (oldCup != null && Vector3.Dot(oldCup.position - old.transform.position, front) < 0)
+                front = -front;
+            rotation = Quaternion.LookRotation(-front, Vector3.up);
+            Vector3 oldCupPosition = oldCup != null ? oldCup.position : old.transform.position;
+            position = oldCupPosition - rotation * CupRowCentre;
+        }
+        else
+        {
+            var previous = existing[0];
+            rotation = previous.transform.rotation;
+            position = previous.transform.position;
+        }
+
+        Undo.IncrementCurrentGroup();
+        int group = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName("Install compact beverage dispenser");
+        try
+        {
+            // Replace the old generated station as one undoable operation, never duplicate it.
+            foreach (var prior in existing) Undo.DestroyObjectImmediate(prior.gameObject);
+            var root = new GameObject("Beverage dispenser");
+            Undo.RegisterCreatedObjectUndo(root, "Create compact beverage dispenser");
+            SceneManager.MoveGameObjectToScene(root, scene);
+            root.transform.SetPositionAndRotation(position, rotation);
+            root.transform.localScale = Vector3.one;
+            var station = root.AddComponent<StationInteractable>();
+            root.AddComponent<BeverageStation>();
+
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(modelAsset, root.transform);
+            model.name = "Visual model";
+            AlignModel(model.transform);
+            AssignModelMaterials(model);
+            // The case stays solid; controls use their own broad, invisible hit areas.
+            var body = new GameObject("Dispenser body collider");
+            body.transform.SetParent(root.transform, false);
+            var bodyCollider = body.AddComponent<BoxCollider>();
+            bodyCollider.center = new Vector3(0, .34f, .1f);
+            bodyCollider.size = new Vector3(1.07f, .59f, .20f);
+
+            var stand = new GameObject("Drink stand point").transform;
+            stand.SetParent(root.transform, false);
+            stand.localPosition = new Vector3(0, -position.y, -.95f);
+            var cameraObject = new GameObject("Drink station camera");
+            cameraObject.transform.SetParent(root.transform, false);
+            cameraObject.transform.localPosition = new Vector3(0, .77f, -1.28f);
+            cameraObject.transform.LookAt(root.transform.TransformPoint(new Vector3(0, .30f, -.10f)));
+            var camera = cameraObject.AddComponent<CinemachineCamera>();
+            camera.Priority = 0;
+            camera.Lens.FieldOfView = 58;
+            camera.Lens.NearClipPlane = .03f;
+            station.ConfigureBeverageView(camera, stand);
+
+            for (int i = 0; i < drinks.Length; i++)
+            {
+                float x = (i - 2.5f) * .158f;
+                var section = new GameObject(drinks[i].drinkName);
+                section.transform.SetParent(root.transform, false);
+                var slot = section.AddComponent<BeverageSlot>();
+                slot.drink = drinks[i];
+                var cupPoint = new GameObject("Cup point").transform;
+                cupPoint.SetParent(section.transform, false);
+                cupPoint.localPosition = new Vector3(x, .087f, -.196f);
+                slot.cupPoint = cupPoint;
+
+                var zone = HitTarget("Cup and nozzle area", section.transform,
+                    new Vector3(x, .246f, -.20f), new Vector3(.151f, .335f, .20f));
+                var control = zone.AddComponent<BeverageControl>();
+                control.slot = slot;
+                control.dispenseButton = false;
+                // A deliberate paddle press retains cup-less dispensing and ingredient waste.
+                var button = HitTarget("Dispense paddle", section.transform,
+                    new Vector3(x, .465f, -.172f), new Vector3(.093f, .092f, .038f));
+                var buttonControl = button.AddComponent<BeverageControl>();
+                buttonControl.slot = slot;
+                buttonControl.dispenseButton = true;
+
+                var pour = new GameObject("Visible pour");
+                pour.transform.SetParent(section.transform, false);
+                pour.transform.localPosition = new Vector3(x, .288f, -.196f);
+                var stream = pour.AddComponent<LineRenderer>();
+                stream.useWorldSpace = false;
+                stream.sharedMaterial = MaterialAsset("BF_Pour_" + names[i], drinks[i].cupColor, 0, .25f, true);
+                stream.positionCount = 2;
+                stream.SetPosition(0, Vector3.zero);
+                stream.SetPosition(1, new Vector3(0, -.105f, 0));
+                stream.startWidth = .009f;
+                stream.endWidth = .013f;
+                stream.numCapVertices = 4;
+                stream.numCornerVertices = 3;
+                stream.enabled = false;
+                stream.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                slot.stream = stream;
+            }
+            var supply = HitTarget("Cup stack", root.transform, new Vector3(-.635f, .17f, -.103f),
+                new Vector3(.17f, .32f, .24f));
+            supply.AddComponent<BeverageCupSupply>().cupPrefab = drinks[0].cupPrefab;
+            var discard = HitTarget("Discard basin", root.transform, new Vector3(.635f, .105f, -.11f),
+                new Vector3(.18f, .18f, .27f));
+            discard.AddComponent<BeverageCupSupply>().discard = true;
+
+            // The former separate CupStack sits directly on KitchenCounter. Preserve that
+            // dedicated leaf object inactive so the new caddy is the one visible supply.
+            foreach (var legacyCups in UnityEngine.Object.FindObjectsByType<CupStack>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (legacyCups.gameObject.scene != scene || legacyCups.transform.childCount != 0
+                    || Vector3.Distance(legacyCups.transform.position, root.transform.position) > 2f) continue;
+                Undo.RecordObject(legacyCups.gameObject, "Preserve old cup supply inactive");
+                legacyCups.gameObject.SetActive(false);
+            }
+
+            if (old != null)
+            {
+                Undo.RecordObject(old, "Disable previous brewer");
+                old.enabled = false;
+                // The current shop's EspressoMachine is a dedicated top-level prop.
+                // Never deactivate a shared counter or a station hierarchy if another scene differs.
+                bool dedicated = old.gameObject.name == "EspressoMachine" && old.transform.parent == null
+                    && old.GetComponentsInChildren<StationInteractable>(true).Length == 0
+                    && old.GetComponentsInChildren<DropSpot>(true).Length == 0;
+                if (dedicated)
+                {
+                    Undo.RecordObject(old.gameObject, "Preserve old espresso prop inactive");
+                    old.gameObject.SetActive(false);
+                }
+                else
+                {
+                    var renderer = old.GetComponent<Renderer>();
+                    if (renderer != null) { Undo.RecordObject(renderer, "Hide previous brewer"); renderer.enabled = false; }
+                    var collider = old.GetComponent<Collider>();
+                    if (collider != null) { Undo.RecordObject(collider, "Disable previous brewer collider"); collider.enabled = false; }
+                }
+            }
+            EditorSceneManager.MarkSceneDirty(scene);
+            Undo.CollapseUndoOperations(group);
+            Selection.activeGameObject = root;
+            Debug.Log("[Beverage dispenser] Installed compact six-valve model: 1.45m overall footprint, "
+                + "1.08m case, 0.64m height. Previous espresso prop preserved. F enters/leaves; "
+                + "point at a broad drink section to prepare or collect; C switches hands. "
+                + "Use the paddle for deliberate dispensing without a cup. Scene changes are undoable.");
+        }
+        catch
+        {
+            Undo.RevertAllDownToGroup(group);
+            throw;
+        }
     }
-    private static GameObject Shape(string name, Transform parent, Vector3 pos, Vector3 scale, Material mat, bool collider)
+
+    private static GameObject HitTarget(string name, Transform parent, Vector3 position, Vector3 size)
     {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cube); go.name = name;
-        go.transform.SetParent(parent, false); go.transform.localPosition = pos; go.transform.localScale = scale;
-        go.GetComponent<Renderer>().sharedMaterial = mat;
-        if (!collider) UnityEngine.Object.DestroyImmediate(go.GetComponent<Collider>());
-        return go;
+        var target = new GameObject(name);
+        target.transform.SetParent(parent, false);
+        target.transform.localPosition = position;
+        target.AddComponent<BoxCollider>().size = size;
+        return target;
     }
-    private static void Label(string label, Transform parent, Vector3 pos, float width)
+
+    private static Transform Marker(Transform model, string name)
     {
-        var go = new GameObject(label + " label"); go.transform.SetParent(parent, false); go.transform.localPosition = pos;
-        var text = go.AddComponent<TextMeshPro>(); text.text = label; text.fontSize = 1.1f;
-        text.alignment = TextAlignmentOptions.Center; text.color = new Color(.95f, .94f, .85f);
-        text.rectTransform.sizeDelta = new Vector2(width, .16f); text.raycastTarget = false;
+        var result = model.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+        if (result == null) throw new InvalidOperationException("Dispenser model is missing " + name);
+        return result;
     }
-    private static Material MaterialAsset(string name, Color color)
+
+    private static void AlignModel(Transform model)
     {
-        const string folder = "Assets/BeveragePrototype";
-        if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets", "BeveragePrototype");
-        string path = folder + "/" + name + ".mat";
+        model.localPosition = Vector3.zero;
+        model.localRotation = Quaternion.identity;
+        model.localScale = Vector3.one;
+        Transform origin = Marker(model, "AnchorBase");
+        Transform front = Marker(model, "AnchorFront");
+        Transform up = Marker(model, "AnchorUp");
+        Vector3 localOrigin = model.InverseTransformPoint(origin.position);
+        Vector3 frontVector = model.InverseTransformPoint(front.position) - localOrigin;
+        Vector3 upVector = model.InverseTransformPoint(up.position) - localOrigin;
+        float importedMetre = upVector.magnitude;
+        if (importedMetre <= .0001f) throw new InvalidOperationException("Invalid dispenser model scale.");
+        model.localScale = Vector3.one / importedMetre;
+        model.localRotation = Quaternion.LookRotation(Vector3.back, Vector3.up)
+            * Quaternion.Inverse(Quaternion.LookRotation(frontVector, upVector));
+        model.localPosition = -(model.localRotation * (localOrigin / importedMetre));
+        // Export/import unit or axis mistakes are caught before the scene is left installed.
+        var cup = Marker(model, "CupPoint_Coffee");
+        Vector3 cupLocal = model.parent.InverseTransformPoint(cup.position);
+        if ((cupLocal - new Vector3(-.395f, .087f, -.196f)).sqrMagnitude > .000025f)
+            throw new InvalidOperationException("Dispenser FBX axes or units do not match its control points: " + cupLocal);
+    }
+
+    private static void AssignModelMaterials(GameObject model)
+    {
+        var palette = new Dictionary<string, Color>
+        {
+            { "BF_Enamel", new Color(.075f, .19f, .175f) },
+            { "BF_Cream", new Color(.87f, .80f, .62f) },
+            { "BF_Steel", new Color(.38f, .44f, .44f) },
+            { "BF_Chrome", new Color(.67f, .73f, .72f) },
+            { "BF_Shadow", new Color(.021f, .034f, .034f) },
+            { "BF_Paper", new Color(.95f, .91f, .80f) },
+            { "BF_Coffee", new Color(.36f, .20f, .10f) },
+            { "BF_Tea", new Color(.41f, .58f, .27f) },
+            { "BF_Cocoa", new Color(.60f, .29f, .17f) },
+            { "BF_Espresso", new Color(.22f, .27f, .27f) },
+            { "BF_Americano", new Color(.30f, .49f, .56f) },
+            { "BF_Latte", new Color(.81f, .60f, .29f) }
+        };
+        foreach (var renderer in model.GetComponentsInChildren<Renderer>(true))
+        {
+            Material[] materials = renderer.sharedMaterials;
+            for (int i = 0; i < materials.Length; i++)
+            {
+                string name = materials[i] != null ? materials[i].name.Replace(" (Instance)", "") : "BF_Enamel";
+                if (!palette.TryGetValue(name, out Color color)) color = palette["BF_Enamel"];
+                float metallic = name == "BF_Chrome" ? .87f : name == "BF_Steel" ? .72f
+                    : name == "BF_Enamel" ? .22f : .05f;
+                float smoothness = name == "BF_Chrome" ? .8f : name == "BF_Steel" ? .65f
+                    : name == "BF_Paper" ? .3f : .56f;
+                materials[i] = MaterialAsset(name, color, metallic, smoothness);
+            }
+            renderer.sharedMaterials = materials;
+        }
+    }
+
+    private static Material MaterialAsset(string name, Color color, float metallic, float smoothness, bool unlit = false)
+    {
+        EnsureFolder(MaterialFolder);
+        string path = MaterialFolder + "/" + name + ".mat";
         var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (mat != null) return mat;
-        mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); mat.color = color;
-        AssetDatabase.CreateAsset(mat, path); return mat;
+        var shader = Shader.Find(unlit ? "Universal Render Pipeline/Unlit" : "Universal Render Pipeline/Lit");
+        if (shader == null) throw new InvalidOperationException("The dispenser requires the Universal Render Pipeline shaders.");
+        mat = new Material(shader) { name = name, color = color };
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
+        AssetDatabase.CreateAsset(mat, path);
+        return mat;
+    }
+
+    private static void EnsureFolder(string path)
+    {
+        if (AssetDatabase.IsValidFolder(path)) return;
+        int split = path.LastIndexOf('/');
+        string parent = path.Substring(0, split);
+        EnsureFolder(parent);
+        AssetDatabase.CreateFolder(parent, path.Substring(split + 1));
     }
 }
 #endif

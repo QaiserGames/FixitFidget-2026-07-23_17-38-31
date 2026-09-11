@@ -27,7 +27,7 @@ public sealed class DrinkFreshnessRing : MonoBehaviour
     private void LateUpdate()
     {
         Camera cam = Camera.main;
-        bool visible = cup != null && cup.HasFreshness && cam != null;
+        bool visible = cup != null && cup.HasFreshness && !cup.UsesDispenserVisual && cam != null;
         var carry = FindAnyObjectByType<PlayerCarry>();
         var player = carry != null ? carry.GetComponent<PlayerInteractor>() : null;
         if (carry != null && carry.Contains(cup) && player != null && player.IsAtStation) visible = false;

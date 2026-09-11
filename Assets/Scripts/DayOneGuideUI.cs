@@ -110,7 +110,21 @@ public class DayOneGuideUI : MonoBehaviour
                 return "That drink is cold. Use the discard tray; the cup and ingredients are lost.";
             if (held != null && held.CanHandBack && held.Drink == wanted)
                 return $"F steps back. E near {customer.CustomerName} serves. C switches carried items.";
-            return $"F enters the dispenser. Take a cup, place it under {customer.WantedDrinkName}, then press its button with E. C switches hands.";
+            if (interactor == null || interactor.CurrentStation == null
+                || interactor.CurrentStation.GetComponent<BeverageStation>() == null)
+                return "Walk to the drink station. F brings the dispenser into view.";
+            foreach (var section in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
+            {
+                if (section.drink != wanted) continue;
+                if (section.IsPouring) return $"{customer.WantedDrinkName} is filling. You can prepare another cup while it pours.";
+                if (section.Cup != null && section.Cup.CanHandBack)
+                    return $"{customer.WantedDrinkName} is ready. Click its section to collect it; F steps back.";
+            }
+            if (held != null && held.IsEmpty)
+                return $"Point at {customer.WantedDrinkName}. Click or E places your cup and starts pouring.";
+            if (carry != null && !carry.HasSpace)
+                return "Both hands are occupied. C selects the other item; deliver or set one down.";
+            return "Click the cup stack to take a cup. Both hands and your selected item appear at the bottom right.";
         }
         if (held != null && !held.IsEmpty && held.Drink == wanted)
         {

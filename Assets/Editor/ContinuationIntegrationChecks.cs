@@ -15,6 +15,7 @@ public static class ContinuationIntegrationChecks
         var scene = EditorSceneManager.NewPreviewScene();
         var previousInventory = ShopInventory.Instance;
         DrinkDefinition recipe = null;
+        DrinkJob cup = null, second = null;
         try
         {
             var host = new GameObject("Isolated dispenser checks"); SceneManager.MoveGameObjectToScene(host, scene);
@@ -29,7 +30,10 @@ public static class ContinuationIntegrationChecks
             Set(slot, "pourLeft", 0f); Call(slot, "Update");
             Require(slot.Cup == null, "Wasted pour creates no cup.");
             var cupObject = new GameObject("Empty cup"); cupObject.transform.SetParent(host.transform);
-            var cup = cupObject.AddComponent<DrinkJob>();
+            cup = cupObject.AddComponent<DrinkJob>();
+            // Preview-scene MonoBehaviours do not receive runtime OnEnable.
+            // Exercise the same registry lifecycle as a cup spawned in Play Mode.
+            Call(cup, "OnEnable");
             Require(carry.TryPickUp(cup) && slot.TransferCup(carry) && !carry.IsCarrying, "Cup leaves the selected hand for its slot.");
             Require(slot.TryPour() && cup.Locked && stock.Beans == 3, "Loaded pour spends stock and locks its cup.");
             Require(!carry.TryPickUp(cup) && !slot.TransferCup(carry), "No mid-pour pickup.");
@@ -40,7 +44,7 @@ public static class ContinuationIntegrationChecks
             Require(!slot.TryPour() && stock.Beans == 3, "Filled cup blocks another drink.");
             Require(slot.TransferCup(carry) && slot.Cup == null, "Lifting frees the slot immediately.");
             var secondObject = new GameObject("Second cup"); secondObject.transform.SetParent(host.transform);
-            var second = secondObject.AddComponent<DrinkJob>();
+            second = secondObject.AddComponent<DrinkJob>(); Call(second, "OnEnable");
             Require(carry.TryPickUp(second) && carry.Count == 2 && !carry.HasSpace, "Two items fill both hands.");
             Require(!carry.TryPickUp(cup), "The same cup cannot occupy both hands.");
             Require(carry.Carried == second, "Newest pickup is selected.");
@@ -52,6 +56,9 @@ public static class ContinuationIntegrationChecks
         }
         finally
         {
+            // Remove only this fixture's cups; never clear a scene's live registry.
+            if (cup != null) Call(cup, "OnDisable");
+            if (second != null) Call(second, "OnDisable");
             EditorSceneManager.ClosePreviewScene(scene);
             typeof(ShopInventory).GetProperty("Instance", BindingFlags.Public | BindingFlags.Static).SetValue(null, previousInventory);
             if (recipe != null) UnityEngine.Object.DestroyImmediate(recipe);

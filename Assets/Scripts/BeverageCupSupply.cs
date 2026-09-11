@@ -35,6 +35,7 @@ public sealed class BeverageCupSupply : Interactable
         }
         if (!carry.HasSpace || cupPrefab == null || cupPrefab.GetComponent<DrinkJob>() == null || !stock.TakeCup()) return;
         var made = Instantiate(cupPrefab).GetComponent<DrinkJob>();
+        made.EnsureDispenserVisual();
         if (!carry.TryPickUp(made)) { Destroy(made.gameObject); stock.ReturnCup(); }
     }
 }

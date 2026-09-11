@@ -20,6 +20,9 @@ public class PlayerInteractor : MonoBehaviour
     private ConversationController conversation;
     private CounterRepairView counterRepair;
     private StationInteractable[] allStations;
+    private ItemInspector inspector;
+    private PlayerCarry carry;
+    private int lastInteractionFrame = -1;
 
     public bool IsAtStation => currentStation != null;
     public Interactable Focused => focused;
@@ -38,6 +41,8 @@ public class PlayerInteractor : MonoBehaviour
         counterRepair = GetComponent<CounterRepairView>();
         if (counterRepair == null) counterRepair = gameObject.AddComponent<CounterRepairView>();
         movement = GetComponent<PlayerMovement>();
+        inspector = GetComponent<ItemInspector>();
+        carry = GetComponent<PlayerCarry>();
         bodyRenderer = GetComponentInChildren<Renderer>();
         cam = Camera.main;
 
@@ -48,7 +53,7 @@ public class PlayerInteractor : MonoBehaviour
 
     private void Update()
     {
-        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver)
         {
             if (focused != null) focused.SetFocused(false);
             focused = null;
@@ -60,11 +65,12 @@ public class PlayerInteractor : MonoBehaviour
         // The conversation owns input while it's open.
         if (conversation != null && conversation.InConversation)
         {
+            ClearFocus();
             CurrentPrompt = "";
             return;
         }
 
-        if (counterRepair != null && counterRepair.OwnsInput)
+        if (counterRepair != null && counterRepair.OwnsInput || inspector != null && inspector.IsHoldingItem)
         {
             if (focused != null) focused.SetFocused(false);
             focused = null; CurrentPrompt = "";
@@ -84,6 +90,10 @@ public class PlayerInteractor : MonoBehaviour
         nearbyStation = FindNearestStation();
         // Q declines whatever we're looking at, once they've had their say.
         StationKey();
+
+        if (currentStation != null && currentStation.GetComponent<BeverageStation>() != null
+            && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            OnInteract();
 
         if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame && focused != null)
         {
@@ -134,6 +144,8 @@ public class PlayerInteractor : MonoBehaviour
         // ---- At a station: physical raycast from the crosshair ----
         if (currentStation != null)
         {
+            if (cam == null) cam = Camera.main;
+            if (cam == null) return null;
             Vector2 centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             if (currentStation.GetComponent<BeverageStation>() != null && Mouse.current != null)
                 centre = Mouse.current.position.ReadValue();
@@ -155,8 +167,10 @@ public class PlayerInteractor : MonoBehaviour
         }
 
         // ---- On the shop floor: nearest available wins ----
-        Collider[] near = Physics.OverlapSphere(transform.position, reach);
-
+        return FindFloorTarget(Physics.OverlapSphere(transform.position, reach));
+    }
+    private Interactable FindFloorTarget(Collider[] near)
+    {
         Interactable best = null;
         float bestScore = float.MinValue;
 
@@ -182,16 +196,49 @@ public class PlayerInteractor : MonoBehaviour
             }
         }
 
+        // Override pickup only for a device that this reachable bench already
+        // holds. Deliveries, intake, loose pickups and full benches are untouched.
+        if (best is ItemInteractable)
+        {
+            if (carry == null) carry = GetComponent<PlayerCarry>();
+            StationInteractable placement = null;
+            float placementDistance = float.PositiveInfinity;
+            foreach (Collider h in near)
+            {
+                var station = h.GetComponentInParent<StationInteractable>();
+                if (station == null || !station.PrefersPlacementOver(best, carry)) continue;
+                float distance = Vector3.Distance(transform.position, station.transform.position);
+                if (distance < placementDistance) { placementDistance = distance; placement = station; }
+            }
+            if (placement != null) return placement;
+        }
         return best;
     }
 
     // E — pick up, set down, accept, hand back.
     private void OnInteract()
     {
+        if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0) return;
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
         if (counterRepair != null && counterRepair.OwnsInput) return;
-        if (focused != null) focused.Interact(this);
+        if (inspector != null && inspector.IsHoldingItem) return;
+        // Input callbacks can run before Update; resolve the current pointer and
+        // carrying state now rather than acting on last frame's highlighted cup.
+        Interactable target = FindBest();
+        if (target == null || !target.IsAvailable) { ClearFocus(); return; }
+        lastInteractionFrame = Time.frameCount;
+        ClearFocus();
+        focused = target;
+        focused.SetFocused(true);
+        focused.Interact(this);
+        ClearFocus();
+    }
+
+    private void ClearFocus()
+    {
+        if (focused != null) focused.SetFocused(false);
+        focused = null; CurrentPrompt = "";
     }
 
     // F — enter and leave stations.
@@ -209,7 +256,7 @@ public class PlayerInteractor : MonoBehaviour
 
     private void ToggleStation()
     {
-        if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
+        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
         if (currentStation != null) { ExitStation(); return; }
         if (nearbyStation != null) EnterStation(nearbyStation);
@@ -249,6 +296,7 @@ public class PlayerInteractor : MonoBehaviour
     {
         if (station == null || (DayClock.Instance != null && DayClock.Instance.DayOver)) return;
         currentStation = station;
+        lastInteractionFrame = Time.frameCount;
 
         // Stand in the same place every time, so the view is always composed
         // the same way and the crosshair can always reach the work surface.
@@ -304,6 +352,7 @@ public class PlayerInteractor : MonoBehaviour
     public void ExitStation()
     {
         if (currentStation == null) return;
+        lastInteractionFrame = Time.frameCount;
         if (counterRepair != null) counterRepair.Close();
 
         if (focused != null)

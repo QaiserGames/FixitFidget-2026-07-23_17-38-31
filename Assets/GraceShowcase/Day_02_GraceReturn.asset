@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6a410d3657e24d42890fd07dacca356, type: 3}
+  m_Name: Day_02_GraceReturn
+  m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
+  dayNumber: 2
+  intent: Teach overlap. The player should have to leave a repair to make a coffee
+    for the first time.
+  phases:
+  - phaseName: Calm
+    startsAt: 0
+    spawnInterval: 22
+  - phaseName: Build
+    startsAt: 0.25
+    spawnInterval: 15
+  - phaseName: Rush
+    startsAt: 0.5
+    spawnInterval: 11
+  - phaseName: Recover
+    startsAt: 0.75
+    spawnInterval: 20
+  patienceMultiplier: 1.2
+  maxCustomers: 4
+  drinkOnlyChance: 0.4
+  guidedOpening: 0
+  openingDrink: {fileID: 0}
+  openingHintDuration: 6
+  suppressRepairDrinkWishes: 0
+  devices: []
+  allowedArchetypes:
+  - Cheerful
+  - Chatty
+  - Sentimental
+  regularChance: 0.15
+  featuredRegular: {fileID: 11400000, guid: dfd14ad338d46de49bd81a423294b439, type: 2}
+  featuredRegularArrivesAt: 0.12
+  useFeaturedRepair: 0
+  featuredRepair:
+    devicePrefab: {fileID: 0}
+    faultIndex: 0
+    storyEpisodeId: 

@@ -7,6 +7,9 @@ public class SaveManager : MonoBehaviour
 {
     public static SaveManager Instance { get; private set; }
 
+    [Tooltip("Use a separate save for the focused playtest scene. Campaign progress is kept in save.json.")]
+    [SerializeField] private bool useInteractionPlaytestSave;
+
     // Filled during Awake so other systems can read it in their Start.
     public SaveData Loaded { get; private set; }
     public bool HasSave { get; private set; }
@@ -17,7 +20,8 @@ public class SaveManager : MonoBehaviour
 
     private readonly CustomerMemoryService regularMemory = new();
 
-    private string PathToFile => Path.Combine(Application.persistentDataPath, "save.json");
+    private string PathToFile => Path.Combine(Application.persistentDataPath,
+        useInteractionPlaytestSave ? "interaction-playtest.json" : "save.json");
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics() => Instance = null;

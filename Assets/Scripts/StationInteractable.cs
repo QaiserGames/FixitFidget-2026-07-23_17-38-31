@@ -16,6 +16,15 @@ public class StationInteractable : Interactable
 
     public string StationLabel => label;
     public bool IsWorkSurface => isWorkSurface;
+    // When carrying another device, an item already on this bench must not
+    // steal the bench's set-down action. Customer actions keep their own priority.
+    public bool PrefersPlacementOver(Interactable candidate, PlayerCarry carry)
+    {
+        if (!isWorkSurface || dropSpot == null || carry == null || !carry.IsCarrying
+            || !dropSpot.CanAccept(carry.Carried) || !(candidate is ItemInteractable)) return false;
+        var placed = candidate.GetComponentInParent<JobBase>();
+        return placed != null && dropSpot.Holds(placed);
+    }
     public void ConfigureBeverageView(CinemachineCamera camera, Transform stand)
     {
         stationCamera = camera; standPoint = stand; label = "Prepare drinks";

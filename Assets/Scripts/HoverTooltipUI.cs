@@ -23,7 +23,9 @@ public class HoverTooltipUI : MonoBehaviour
     {
         // Update and raw mouse input still run at timeScale 0. A scaled fade
         // cannot clear yesterday's tooltip once the recap has paused the day.
-        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver
+            || interactor != null && interactor.CurrentStation != null
+                && interactor.CurrentStation.GetComponent<BeverageStation>() != null)
         {
             HideImmediately();
             return;

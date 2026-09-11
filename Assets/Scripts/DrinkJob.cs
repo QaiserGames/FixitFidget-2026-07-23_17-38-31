@@ -54,6 +54,9 @@ public class DrinkJob : JobBase
     public DrinkDefinition Drink { get; private set; }
     public bool IsEmpty => Drink == null;
     private DrinkFreshness freshness;
+    private DrinkLiquidVisual liquidVisual;
+    public bool UsesDispenserVisual => liquidVisual != null;
+    public DrinkLiquidVisual LiquidVisual => liquidVisual;
     public bool HasFreshness => freshness != null;
     public DrinkFreshness.Stage FreshnessStage => freshness != null ? freshness.Current : DrinkFreshness.Stage.Fresh;
     public float FreshnessRemaining => freshness != null ? freshness.RemainingFraction : 1;
@@ -99,8 +102,27 @@ public class DrinkJob : JobBase
     {
         Drink = drink;
         freshness = drink != null && perishable ? new DrinkFreshness(drink.freshSeconds, drink.coldSeconds) : null;
-        if (drink != null) Tint(drink.cupColor);
-        if (freshness != null && GetComponent<DrinkFreshnessRing>() == null) gameObject.AddComponent<DrinkFreshnessRing>();
+        if (liquidVisual != null) liquidVisual.SetFill(drink != null ? 1 : 0, drink, false);
+        else if (drink != null) Tint(drink.cupColor);
+        if (freshness != null && liquidVisual == null && GetComponent<DrinkFreshnessRing>() == null)
+            gameObject.AddComponent<DrinkFreshnessRing>();
+    }
+
+    // Call before PlayerCarry records renderer states. Legacy cups keep their
+    // authored appearance; only dispenser supply cups opt into this presentation.
+    public void EnsureDispenserVisual()
+    {
+        if (liquidVisual != null) return;
+        liquidVisual = GetComponent<DrinkLiquidVisual>();
+        if (liquidVisual == null) liquidVisual = gameObject.AddComponent<DrinkLiquidVisual>();
+        liquidVisual.Initialize();
+        liquidVisual.SetFill(Drink != null ? 1 : 0, Drink, false);
+        restHeight = .001f;
+    }
+
+    public void ShowPourProgress(DrinkDefinition drink, float fraction, bool flowing)
+    {
+        if (liquidVisual != null) liquidVisual.SetFill(fraction, drink, flowing);
     }
  
     private void Tint(Color c)

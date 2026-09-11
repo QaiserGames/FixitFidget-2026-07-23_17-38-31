@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6a410d3657e24d42890fd07dacca356, type: 3}
+  m_Name: Day_01_GraceCamera
+  m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
+  dayNumber: 1
+  intent: 'Learn one drink, then one repair, with next-action hints. No secondary
+    repair drinks today. Resume the authored rhythm and Grace visit afterwards. Prototype:
+    Grace''s reunion camera; preserve her strap.'
+  phases:
+  - phaseName: Calm
+    startsAt: 0
+    spawnInterval: 26
+  - phaseName: Build
+    startsAt: 0.3
+    spawnInterval: 20
+  - phaseName: Rush
+    startsAt: 0.55
+    spawnInterval: 16
+  - phaseName: Recover
+    startsAt: 0.8
+    spawnInterval: 24
+  patienceMultiplier: 1.4
+  maxCustomers: 3
+  drinkOnlyChance: 0.55
+  guidedOpening: 1
+  openingDrink: {fileID: 11400000, guid: f8f4c1a2bc2829d4ba3142360184b7a1, type: 2}
+  openingHintDuration: 6
+  suppressRepairDrinkWishes: 1
+  devices:
+  - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+  allowedArchetypes:
+  - Cheerful
+  - Chatty
+  regularChance: 0
+  featuredRegular: {fileID: 11400000, guid: dfd14ad338d46de49bd81a423294b439, type: 2}
+  featuredRegularArrivesAt: 0.55
+  useFeaturedRepair: 1
+  featuredRepair:
+    devicePrefab: {fileID: 4068417638479487646, guid: 37fd044e1625dd048b010ff5d14fba84, type: 3}
+    faultIndex: 0
+    storyEpisodeId: grace_reunion_camera_v1
