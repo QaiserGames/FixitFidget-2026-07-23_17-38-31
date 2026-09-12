@@ -104,7 +104,7 @@ public class DrinkJob : JobBase
         freshness = drink != null && perishable ? new DrinkFreshness(drink.freshSeconds, drink.coldSeconds) : null;
         if (liquidVisual != null) liquidVisual.SetFill(drink != null ? 1 : 0, drink, false);
         else if (drink != null) Tint(drink.cupColor);
-        if (freshness != null && liquidVisual == null && GetComponent<DrinkFreshnessRing>() == null)
+        if (freshness != null && GetComponent<DrinkFreshnessRing>() == null)
             gameObject.AddComponent<DrinkFreshnessRing>();
     }
 

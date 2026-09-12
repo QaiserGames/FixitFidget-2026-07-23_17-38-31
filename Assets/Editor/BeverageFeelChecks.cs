@@ -47,12 +47,22 @@ public static class BeverageFeelChecks
                 "The fixture starts with two purchased empty cups and the first selected.");
             int cupStock = stock.Cups;
             var control = first.gameObject.AddComponent<BeverageControl>(); control.slot = first;
+            var paddle = Child(first.gameObject, "Coffee paddle").AddComponent<BeverageControl>();
+            paddle.slot = first; paddle.dispenseButton = true;
+            var secondControl = second.gameObject.AddComponent<BeverageControl>(); secondControl.slot = second;
+            var secondPaddle = Child(second.gameObject, "Tea paddle").AddComponent<BeverageControl>();
+            secondPaddle.slot = second; secondPaddle.dispenseButton = true;
             control.Interact(player);
-            Require(first.IsPouring && first.Cup == firstCup && firstCup.Locked && carry.Carried == secondCup && stock.Beans == 6,
-                "One contextual activation places the selected cup and begins its pour with one ingredient debit.");
-            Require(stock.Cups == cupStock && !first.PlaceAndPour(carry) && stock.Beans == 6,
+            Require(!first.IsPouring && first.Cup == firstCup && !firstCup.Locked && carry.Carried == secondCup && stock.Beans == 8,
+                "Clicking the generous cup area places the selected cup without starting or charging for a pour.");
+            paddle.Interact(player);
+            Require(first.IsPouring && firstCup.Locked && stock.Beans == 6,
+                "Clicking the named paddle begins the placed cup's pour with one ingredient debit.");
+            paddle.Interact(player); control.Interact(player);
+            Require(stock.Cups == cupStock && first.Cup == firstCup && carry.Carried == secondCup && stock.Beans == 6,
                 "Starting a pour never buys another cup, and repeated activation cannot debit again.");
-            Require(second.PlaceAndPour(carry) && second.Cup == secondCup && second.IsPouring && stock.Beans == 4 && carry.Count == 0,
+            secondControl.Interact(player); secondPaddle.Interact(player);
+            Require(second.Cup == secondCup && second.IsPouring && stock.Beans == 4 && carry.Count == 0,
                 "A second section starts independently while the first is filling.");
             Require(!first.TransferCup(carry) && !carry.TryPickUp(firstCup), "A filling cup cannot be collected by either pickup path.");
 
@@ -73,18 +83,20 @@ public static class BeverageFeelChecks
                 && firstCup.CanHandBack && firstCup.HasFreshness && firstCup.Owner == null,
                 "The completed cup stays under its nozzle, fresh and available without an order.");
             Require(Near(firstCup.LiquidVisual.FillAmount, 1) && !first.stream.enabled
-                && firstCup.GetComponent<DrinkFreshnessRing>() == null,
-                "Completion leaves a full physical surface and removes the stream without adding the old world ring.");
+                && firstCup.GetComponent<DrinkFreshnessRing>() != null && Near(firstCup.FreshnessRemaining, 1),
+                "Completion leaves a full physical liquid surface and a separate fully fresh cooling indicator.");
             Require(second.IsPouring && secondCup.Locked && Near(second.Progress, .70f),
                 "Completing one section leaves the other pour running.");
             int beansBefore = stock.Beans;
             Require(!first.TryPour() && stock.Beans == beansBefore, "A filled cup blocks another ingredient debit.");
             stock.SetStock(0, 0);
             Require(stock.CanMake(coffee), "A prebrewed fresh drink remains usable when unspent stock is empty.");
-            Require(first.PlaceAndPour(carry) && carry.Carried == firstCup && first.Cup == null,
+            control.Interact(player);
+            Require(carry.Carried == firstCup && first.Cup == null,
                 "The same generous contextual control collects a finished cup and frees its section.");
             Set(second, "pourLeft", 0f); Call(second, "Update");
-            Require(second.PlaceAndPour(carry) && carry.Count == 2 && second.Cup == null,
+            secondControl.Interact(player);
+            Require(carry.Count == 2 && second.Cup == null,
                 "Both finished drinks can occupy the shared hands.");
 
             var freshness = (DrinkFreshness)Get(firstCup, "freshness");
@@ -100,18 +112,24 @@ public static class BeverageFeelChecks
             carry.PlaceAt(shelf); carry.PlaceAt(shelf);
             var thirdCup = Cup(host, "Third cup", cups);
             Require(carry.TryPickUp(thirdCup), "A free hand can hold another empty cup.");
-            Require(!first.PlaceAndPour(carry) && carry.Carried == thirdCup && first.Cup == null && stock.Beans == 0,
-                "Missing ingredients leave the selected empty cup in the player's hand.");
+            control.Interact(player); paddle.Interact(player);
+            Require(!first.IsPouring && first.Cup == thirdCup && stock.Beans == 0,
+                "An empty cup can be placed with no ingredients, but its paddle cannot start a pour or overspend.");
+            control.Interact(player);
+            Require(carry.Carried == thirdCup && first.Cup == null,
+                "A placed empty cup can be taken back when its recipe is out of stock.");
             stock.SetStock(5, 8);
             Time.timeScale = 0;
-            Require(!first.PlaceAndPour(carry) && !first.TryPour() && first.Cup == null && carry.Carried == thirdCup && stock.Beans == 8,
+            control.Interact(player); paddle.Interact(player);
+            Require(!first.IsPouring && first.Cup == null && carry.Carried == thirdCup && stock.Beans == 8,
                 "Paused placement and paddle input neither move a cup nor spend ingredients.");
             var supply = Child(host, "Paused cup supply").AddComponent<BeverageCupSupply>();
             supply.Interact(player); supply.discard = true; supply.Interact(player);
             Require(carry.Carried == thirdCup && stock.Cups == 5,
                 "Paused supply and return input cannot create, consume, or refund a cup.");
             Time.timeScale = 1;
-            Require(first.PlaceAndPour(carry), "Placement and pouring resume after pause.");
+            control.Interact(player); paddle.Interact(player);
+            Require(first.IsPouring && first.Cup == thirdCup, "Placement and pouring resume after pause.");
             SetProgress(first, .4f);
             float remaining = (float)Get(first, "pourLeft");
             Time.timeScale = 0; Call(first, "Update");
@@ -125,7 +143,8 @@ public static class BeverageFeelChecks
             var endedDay = Child(host, "Ended day guard").AddComponent<DayClock>();
             typeof(DayClock).GetProperty("DayOver").SetValue(endedDay, true); Instance(endedDay);
             beansBefore = stock.Beans;
-            Require(!first.PlaceAndPour(carry) && !first.TransferCup(carry) && !second.TryPour() && stock.Beans == beansBefore,
+            control.Interact(player); secondPaddle.Interact(player);
+            Require(first.Cup == thirdCup && carry.Count == 0 && !second.IsPouring && stock.Beans == beansBefore,
                 "The day-end recap blocks both cup transfers and fresh pours even when timeScale is positive.");
             Instance<DayClock>(null);
 
@@ -137,7 +156,7 @@ public static class BeverageFeelChecks
             Set(waste, "pourLeft", 0f); Call(waste, "Update");
             Require(waste.Cup == null && DrinkJob.Live.Count == cupsBeforeWaste,
                 "Wasted ingredients do not create a replacement cup.");
-            Debug.Log("[Beverage feel] PASS: contextual place-and-pour, one debit, two independent sections, rising liquid and stream endpoints, pickup locks, full-slot blocking, prebrew, collection, cooling/cold rules, stock exhaustion, pause and interrupted pours. No scene or save changes.");
+            Debug.Log("[Beverage feel] PASS: separate cup placement and named paddle activation, one debit, two independent sections, rising liquid and stream endpoints, pickup locks, full-slot blocking, prebrew, collection, separate cooling indicator, cooling/cold rules, stock exhaustion, pause and interrupted pours. No scene or save changes.");
         }
         finally
         {

@@ -109,7 +109,7 @@ public class DayOneGuideUI : MonoBehaviour
             if (held != null && !held.IsEmpty && !held.CanHandBack)
                 return "That drink is cold. Use the discard tray; the cup and ingredients are lost.";
             if (held != null && held.CanHandBack && held.Drink == wanted)
-                return $"F steps back. E near {customer.CustomerName} serves. C switches carried items.";
+                return $"F steps back. Walk to {customer.CustomerName}; E serves the matching drink.";
             if (interactor == null || interactor.CurrentStation == null
                 || interactor.CurrentStation.GetComponent<BeverageStation>() == null)
                 return "Walk to the drink station. F brings the dispenser into view.";
@@ -117,14 +117,16 @@ public class DayOneGuideUI : MonoBehaviour
             {
                 if (section.drink != wanted) continue;
                 if (section.IsPouring) return $"{customer.WantedDrinkName} is filling. You can prepare another cup while it pours.";
+                if (section.Cup != null && section.Cup.IsEmpty)
+                    return $"Cup placed. Look at the {customer.WantedDrinkName} paddle and click to pour.";
                 if (section.Cup != null && section.Cup.CanHandBack)
                     return $"{customer.WantedDrinkName} is ready. Click its section to collect it; F steps back.";
             }
             if (held != null && held.IsEmpty)
-                return $"Point at {customer.WantedDrinkName}. Click or E places your cup and starts pouring.";
+                return $"Look under the {customer.WantedDrinkName} nozzle. Click places your cup; its named paddle starts the pour.";
             if (carry != null && !carry.HasSpace)
                 return "Both hands are occupied. C selects the other item; deliver or set one down.";
-            return "Click the cup stack to take a cup. Both hands and your selected item appear at the bottom right.";
+            return "Look at the cup stack. Left click takes a cup in your left hand; right click uses your right hand. E chooses automatically.";
         }
         if (held != null && !held.IsEmpty && held.Drink == wanted)
         {

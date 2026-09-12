@@ -13,11 +13,11 @@ public sealed class BeverageCupSupply : Interactable
             if (discard)
             {
                 var cup = carry != null ? carry.Carried as DrinkJob : null;
-                if (cup == null) return "Select a cup — C switches held item";
+                if (cup == null) return "Return or discard a cup · click its hand";
                 return cup.IsEmpty ? "Return unused cup to stock"
                     : $"Discard {cup.Drink.drinkName} — cup and ingredients are lost";
             }
-            return carry == null || !carry.HasSpace ? "Both hands full — C switches held item"
+            return carry == null || !carry.HasSpace ? "Both hands full · place a cup first"
                 : ShopInventory.Instance == null || ShopInventory.Instance.Cups <= 0 ? "Out of cups" : "Take empty cup";
         }
     }

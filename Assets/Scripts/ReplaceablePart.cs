@@ -27,7 +27,7 @@ public class ReplaceablePart : BenchInteractable
 
     public override void Activate()
     {
-        if (IsReplaced) return;
+        if (!CanInteract) return;
 
         if (brokenVisual != null) brokenVisual.SetActive(false);
         if (freshVisual != null) freshVisual.SetActive(true);

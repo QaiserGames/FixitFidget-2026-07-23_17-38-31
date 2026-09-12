@@ -456,21 +456,36 @@ public class CustomerBrain : MonoBehaviour
 
     public void MarkDrinkStarted() => drinkStarted = true;
 
-    // Is the player holding this customer's drink?
+    // Delivery chooses the matching item from either physical hand. Reading a
+    // prompt must never change which hand the player uses at a work station.
+    private PlayerCarry DeliveryCarry => player != null
+        ? player.GetComponent<PlayerCarry>() : FindAnyObjectByType<PlayerCarry>();
+
+    private DrinkJob FindServeableDrink(PlayerCarry carry)
+    {
+        if (carry == null) return null;
+        for (int i = 0; i < carry.Count; i++)
+            if (carry.GetItem(i) is DrinkJob cup && cup.Drink == WantedDrink && cup.CanHandBack)
+                return cup;
+        return null;
+    }
+
+    private static bool SelectDeliveryItem(PlayerCarry carry, JobBase item)
+    {
+        if (carry == null || item == null) return false;
+        for (int side = 0; side < carry.Capacity; side++)
+            if (carry.GetHandItem(side) == item) return carry.SelectHand(side);
+        return false;
+    }
+
+    // Any matching drink will do, including a cup whose original owner left.
     public bool CanReceiveDrink
     {
         get
         {
             if (!drinkOrdered || !IsWaiting) return false;
 
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
-            if (carry == null || !carry.IsCarrying) return false;
-
-            DrinkJob drink = carry.Carried as DrinkJob;
-            if (drink == null) return false;
-
-            // Any latte will do — including one abandoned by someone who left.
-            return drink.CanHandBack && drink.Drink == WantedDrink;
+            return FindServeableDrink(DeliveryCarry) != null;
         }
     }
 
@@ -478,10 +493,13 @@ public class CustomerBrain : MonoBehaviour
     {
         get
         {
-            var carry = FindAnyObjectByType<PlayerCarry>();
-            var cup = carry != null ? carry.Carried as DrinkJob : null;
-            return drinkOrdered && IsWaiting && cup != null && cup.Drink == WantedDrink
-                && cup.FreshnessStage == DrinkFreshness.Stage.Cold;
+            if (!drinkOrdered || !IsWaiting) return false;
+            var carry = DeliveryCarry;
+            if (carry == null || FindServeableDrink(carry) != null) return false;
+            for (int i = 0; i < carry.Count; i++)
+                if (carry.GetItem(i) is DrinkJob cup && cup.Drink == WantedDrink
+                    && cup.FreshnessStage == DrinkFreshness.Stage.Cold) return true;
+            return false;
         }
     }
 
@@ -531,8 +549,8 @@ public class CustomerBrain : MonoBehaviour
             // That trade is the decision the clock is supposed to force.
             if (!IsWaiting || activeJob == null || !activeJob.CanHandBack) return false;
 
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
-            return carry != null && carry.Carried == activeJob;
+            PlayerCarry carry = DeliveryCarry;
+            return carry != null && carry.Contains(activeJob);
         }
     }
 
@@ -1530,10 +1548,9 @@ public class CustomerBrain : MonoBehaviour
     // Hand over a finished drink.
     public string ServeDrink(PlayerCarry carry)
     {
-        if (!CanReceiveDrink || carry == null) return "";
-
-        DrinkJob drink = carry.Carried as DrinkJob;
-        if (drink == null) return "";
+        if (!drinkOrdered || !IsWaiting || carry == null) return "";
+        DrinkJob drink = FindServeableDrink(carry);
+        if (!SelectDeliveryItem(carry, drink)) return "";
 
         float speedFraction = Mathf.Clamp01(patienceLeft / serviceMax);
         float tipMult = identity != null ? identity.TipMultiplier : 1f;
@@ -1589,7 +1606,9 @@ public class CustomerBrain : MonoBehaviour
     public string CompleteJob()
     {
         if (!JobReady) return "";
-        return CompleteRepair();
+        var carry = DeliveryCarry;
+        if (!SelectDeliveryItem(carry, activeJob)) return "";
+        return CompleteRepair(carry);
     }
 
     public string CompleteCounterRepair(JobBase expected)
@@ -1599,7 +1618,7 @@ public class CustomerBrain : MonoBehaviour
         return CompleteRepair();
     }
 
-    private string CompleteRepair()
+    private string CompleteRepair(PlayerCarry deliveryCarry = null)
     {
         string physicalEnding = IsCounterRepair && HumanConversation != null ? HumanConversation.CompletionLine : null;
 
@@ -1635,7 +1654,8 @@ public class CustomerBrain : MonoBehaviour
         foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
             spot.Release(activeJob);
 
-        Destroy(activeJob.gameObject);
+        if (deliveryCarry != null) deliveryCarry.Consume();
+        else Destroy(activeJob.gameObject);
         activeJob = null;
 
         React();

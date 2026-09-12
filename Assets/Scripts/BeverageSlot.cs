@@ -49,6 +49,7 @@ public sealed class BeverageSlot : MonoBehaviour
         pouring = true;
         if (Application.isPlaying)
         {
+            if (pourAudio == null) pourAudio = GetComponent<BeveragePourAudio>();
             if (pourAudio == null) pourAudio = gameObject.AddComponent<BeveragePourAudio>();
             pourAudio.Begin();
         }

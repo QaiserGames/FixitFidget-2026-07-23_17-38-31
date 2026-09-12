@@ -19,7 +19,10 @@ public static class CarryInteractionChecks
         try
         {
             var host = new GameObject("Isolated carry checks"); SceneManager.MoveGameObjectToScene(host, scene);
-            host.transform.position = new Vector3(5000, 5000, 5000);
+            // Preview scenes already isolate rendering. Keeping this fixture near
+            // the origin avoids half-millimetre float quantization at 5 km when
+            // checking a cup held only 62 cm away from a perspective camera.
+            host.transform.position = new Vector3(5, 5, 5);
             var player = Child(host, "Player");
             var carry = player.AddComponent<PlayerCarry>();
             Set(carry, "capacity", 1); Call(carry, "Awake");
@@ -41,7 +44,7 @@ public static class CarryInteractionChecks
             var originalScale = first.transform.localScale; var originalShadows = firstRenderer.shadowCastingMode;
             Require(carry.TryPickUp(first) && carry.TryPickUp(second), "Two different items fit the shared hands.");
             Require(carry.Count == 2 && carry.SelectedIndex == 1 && carry.GetItem(0) == first && carry.GetItem(1) == second,
-                "HUD indices match actual carried items and newest pickup selection.");
+                "Item indices match actual carried items and newest pickup selection.");
             Require(!firstCollider.enabled && !carry.TryPickUp(first), "Held colliders are disabled and duplicate pickup is rejected.");
             bench.Interact(interactor);
             Require(drop.Holds(second) && carry.Carried == first && carry.Count == 1, "First set-down preserves the remaining selected item.");
@@ -77,11 +80,73 @@ public static class CarryInteractionChecks
             Set(carry, "viewCamera", view);
             Require(carry.TryPickUp(cup), "The cup shares the same carrying path as repair devices.");
             Call(carry, "LateUpdate");
+            Vector3 floorPosition = cup.transform.position;
+            view.transform.position += new Vector3(4, 2, -3); view.orthographic = true; view.orthographicSize = 8;
+            Call(carry, "LateUpdate");
+            Require(Vector3.Distance(cup.transform.position, floorPosition) < .0001f,
+                "Moving or resizing the isometric camera cannot drag a held cup away from the character.");
+            Vector3 step = new Vector3(.7f, 0, -.3f); player.transform.position += step;
+            Call(carry, "LateUpdate");
+            Require(Vector3.Distance(cup.transform.position, floorPosition + step) < .001f && cup.transform.localScale == new Vector3(.8f, 1.2f, .9f),
+                "Floor carrying follows the body at the exact authored scale.");
+            var beverage = Child(host, "Beverage view"); beverage.AddComponent<BeverageStation>();
+            var beverageStation = beverage.AddComponent<StationInteractable>();
+            Set(interactor, "currentStation", beverageStation); Set(carry, "interaction", interactor);
+            view.orthographic = false;
+            Call(carry, "LateUpdate");
             var centre = view.WorldToViewportPoint(cup.GetComponentInChildren<Renderer>().bounds.center);
             Require(Vector3.Dot(cup.transform.up, Vector3.up) > .999f, "Held drinks stay upright while the station camera looks down.");
-            Require(centre.x > .2f && centre.x < .7f && centre.y > .05f && centre.y < .3f && centre.z > view.nearClipPlane,
-                "The held cup remains visible in the lower view without looking at the floor.");
-            Debug.Log("[Carry interaction] PASS: shared capacity migration, two sequential device bench drops, loose pickups, customer priority, full benches, selection, restoration, pause, duplicate-input guards and upright visible cups. No scene or save changes.");
+            Require(centre.x > .2f && centre.x < .4f && centre.y > .05f && centre.y < .3f && centre.z > view.nearClipPlane,
+                "The left-hand cup is visible in the lower left of the beverage view.");
+            view.transform.position += new Vector3(.2f, .1f, .3f);
+            view.transform.rotation = Quaternion.Euler(15, 48, 0);
+            typeof(PlayerCarry).GetMethod("RefreshForCamera", Private).Invoke(carry, new object[] { view });
+            var afterCameraMove = view.WorldToViewportPoint(cup.GetComponentInChildren<Renderer>().bounds.center);
+            Require(Vector2.Distance(centre, afterCameraMove) < .001f,
+                $"A camera pose resolved after LateUpdate still renders the cup in the same hand without a frame of lag. Before {centre:F6}; after {afterCameraMove:F6}.");
+            Require(carry.GetHandItem(0) == cup && carry.GetHandItem(1) == null && carry.SelectedHandIndex == 0,
+                "The first cup physically occupies the left hand.");
+            Require(carry.SelectHand(1) && carry.Carried == null && carry.Count == 1,
+                "Choosing an empty right hand cannot act on the left cup.");
+            var rightCup = Cup(host, "Right cup");
+            Require(carry.TryPickUp(rightCup) && carry.GetHandItem(1) == rightCup && carry.GetHandItem(0) == cup,
+                "The right hand takes a separate cup without moving the left cup.");
+            carry.SelectHand(0); carry.PlaceAt(Child(host, "Left return").transform);
+            Require(carry.GetHandItem(0) == null && carry.GetHandItem(1) == rightCup,
+                "Placing the left cup never shifts the right cup into the other hand.");
+            carry.SelectHand(0);
+            carry.PlaceAt(Child(host, "Empty left hand target").transform);
+            Require(carry.GetHandItem(1) == rightCup && carry.Count == 1,
+                "A second placement with the empty left hand never moves the right-hand cup.");
+            var replacement = Cup(host, "Replacement cup"); carry.SelectHand(1);
+            Require(!carry.TryPickUp(replacement) && carry.GetHandItem(1) == rightCup && carry.Count == 1,
+                "An explicitly occupied hand refuses pickup even when the other hand is empty.");
+            carry.UseAutomaticHand();
+            Require(carry.TryPickUp(replacement) && carry.GetHandItem(0) == replacement,
+                "Automatic pickup uses the available hand after explicit selection is cleared.");
+            Call(carry, "LateUpdate");
+            var rightCentre = view.WorldToViewportPoint(rightCup.GetComponentInChildren<Renderer>().bounds.center);
+            Require(rightCentre.x > .6f && rightCentre.x < .8f, "The right cup stays visibly in the right hand.");
+            Set(interactor, "currentStation", null);
+            view.orthographic = true;
+            view.transform.position = player.transform.position + new Vector3(-4, 4, -4);
+            view.transform.LookAt(player.transform.position);
+            Call(carry, "LateUpdate");
+            foreach (var carriedCup in new[] { replacement, rightCup })
+            {
+                // The real capsule is radius .5. A ray toward the established
+                // isometric view must miss it by at least the cup's radius.
+                Vector3 offset = carriedCup.GetComponentInChildren<Renderer>().bounds.center - player.transform.position;
+                Vector2 planarOffset = new Vector2(offset.x, offset.z);
+                Vector2 towardCamera = new Vector2(-view.transform.forward.x, -view.transform.forward.z).normalized;
+                float alongRay = Mathf.Max(0, -Vector2.Dot(planarOffset, towardCamera));
+                Require((planarOffset + towardCamera * alongRay).magnitude > .545f,
+                    "Both carried cups remain visible past the capsule silhouette in the isometric view.");
+            }
+            var oldOverlay = Child(player, "Carried items");
+            var retired = player.AddComponent<PlayerCarryHUD>(); retired.Retire();
+            Require(!oldOverlay.activeSelf && !retired.enabled, "An existing hands overlay is retired rather than rebuilt.");
+            Debug.Log("[Carry interaction] PASS: two-device bench drops, input guards, exact placement restoration, stable left/right slots, occupied-hand rejection, camera-independent visible floor carry, first-person cup presentation and retired hands HUD. No scene or save changes.");
         }
         finally { Time.timeScale = timeScale; EditorSceneManager.ClosePreviewScene(scene); }
     }

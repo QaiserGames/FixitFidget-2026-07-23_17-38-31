@@ -15,19 +15,20 @@ public sealed class BeverageControl : Interactable
             if (slot.IsPouring) return $"Pouring {slot.drink.drinkName} · {Mathf.RoundToInt(slot.Progress * 100)}%";
             var carry = FindAnyObjectByType<PlayerCarry>();
             if (slot.Cup != null)
-                return slot.Cup.IsEmpty ? slot.PourPrompt
-                    : carry == null || !carry.HasSpace ? "Both hands full — C switches held item"
+                return slot.Cup.IsEmpty ? "Take empty cup · aim at the named paddle to pour"
+                    : carry == null || !carry.HasSpace ? "Both hands full · set down or deliver an item"
                     : $"Take {slot.drink.drinkName} ({slot.Cup.FreshnessStage.ToString().ToLowerInvariant()})";
-            if (ShopInventory.Instance == null || !ShopInventory.Instance.CanBrew(slot.drink)) return "Out of ingredients";
-            return carry != null && carry.Carried is DrinkJob cup && cup.IsEmpty
-                ? $"Place cup and pour {slot.drink.drinkName}" : "Take a cup from the stack · C switches held item";
+            bool hasEmpty = carry != null && ((carry.GetHandItem(0) is DrinkJob left && left.IsEmpty)
+                || (carry.GetHandItem(1) is DrinkJob right && right.IsEmpty));
+            return hasEmpty ? $"Place cup under {slot.drink.drinkName}"
+                : "Take a cup · left / right click chooses that hand";
         }
     }
     public override void Interact(PlayerInteractor player)
     {
         if (!IsAvailable || player == null) return;
         if (dispenseButton) slot.TryPour();
-        else slot.PlaceAndPour(player.GetComponent<PlayerCarry>());
+        else slot.TransferCup(player.GetComponent<PlayerCarry>());
     }
     public override void SetFocused(bool focused) { if (slot != null) slot.SetFocused(focused); }
 }

@@ -91,9 +91,11 @@ public class PlayerInteractor : MonoBehaviour
         // Q declines whatever we're looking at, once they've had their say.
         StationKey();
 
-        if (currentStation != null && currentStation.GetComponent<BeverageStation>() != null
-            && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-            OnInteract();
+        if (currentStation != null && currentStation.GetComponent<BeverageStation>() != null && Mouse.current != null)
+        {
+            if (Mouse.current.leftButton.wasPressedThisFrame) PerformInteraction(0);
+            else if (Mouse.current.rightButton.wasPressedThisFrame) PerformInteraction(1);
+        }
 
         if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame && focused != null)
         {
@@ -147,8 +149,6 @@ public class PlayerInteractor : MonoBehaviour
             if (cam == null) cam = Camera.main;
             if (cam == null) return null;
             Vector2 centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-            if (currentStation.GetComponent<BeverageStation>() != null && Mouse.current != null)
-                centre = Mouse.current.position.ReadValue();
             Ray ray = cam.ScreenPointToRay(centre);
 
             RaycastHit[] hits = Physics.RaycastAll(ray, stationReach);
@@ -216,13 +216,23 @@ public class PlayerInteractor : MonoBehaviour
     }
 
     // E — pick up, set down, accept, hand back.
-    private void OnInteract()
+    private void OnInteract() => PerformInteraction(-1);
+    private void PerformInteraction(int hand)
     {
         if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0) return;
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
         if (counterRepair != null && counterRepair.OwnsInput) return;
         if (inspector != null && inspector.IsHoldingItem) return;
+        if (currentStation != null && currentStation.GetComponent<BeverageStation>() != null)
+        {
+            if (carry == null) carry = GetComponent<PlayerCarry>();
+            if (carry != null)
+            {
+                if (hand >= 0) carry.SelectHand(hand);
+                else carry.UseAutomaticHand();
+            }
+        }
         // Input callbacks can run before Update; resolve the current pointer and
         // carrying state now rather than acting on last frame's highlighted cup.
         Interactable target = FindBest();
@@ -342,11 +352,6 @@ public class PlayerInteractor : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        if (station.GetComponent<BeverageStation>() != null)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
     }
 
     public void ExitStation()
@@ -363,6 +368,7 @@ public class PlayerInteractor : MonoBehaviour
 
         currentStation.ActivateCamera(false);
         currentStation = null;
+        if (carry != null) carry.UseAutomaticHand();
         movement.enabled = true;
         if (bodyRenderer != null) bodyRenderer.enabled = true;
 

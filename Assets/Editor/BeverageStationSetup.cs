@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
 
 // This installer is explicit and undoable. The authored FBX owns the visible anatomy;
 // separate invisible targets make the controls forgiving without enlarging the prop.
@@ -108,6 +109,7 @@ public static class BeverageStationSetup
             camera.Lens.FieldOfView = 58;
             camera.Lens.NearClipPlane = .03f;
             station.ConfigureBeverageView(camera, stand);
+            cameraObject.AddComponent<BeverageLook>().station = station;
 
             for (int i = 0; i < drinks.Length; i++)
             {
@@ -116,6 +118,9 @@ public static class BeverageStationSetup
                 section.transform.SetParent(root.transform, false);
                 var slot = section.AddComponent<BeverageSlot>();
                 slot.drink = drinks[i];
+                var audio = section.AddComponent<BeveragePourAudio>();
+                audio.pourClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Dispenser/SoftPour.wav");
+                audio.completionClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Dispenser/CupReady.wav");
                 var cupPoint = new GameObject("Cup point").transform;
                 cupPoint.SetParent(section.transform, false);
                 cupPoint.localPosition = new Vector3(x, .087f, -.196f);
@@ -132,6 +137,31 @@ public static class BeverageStationSetup
                 var buttonControl = button.AddComponent<BeverageControl>();
                 buttonControl.slot = slot;
                 buttonControl.dispenseButton = true;
+                string modelName = i == 2 ? "Cocoa" : names[i];
+                var paddle = Marker(model.transform, modelName + " ceramic paddle");
+                var motion = paddle.gameObject.AddComponent<BeveragePaddleMotion>();
+                motion.slot = slot;
+                motion.pressedOffset = paddle.parent.InverseTransformVector(root.transform.forward * .006f);
+                var captionObject = new GameObject("Printed " + drinks[i].drinkName);
+                captionObject.transform.SetParent(root.transform, false);
+                captionObject.transform.localPosition = new Vector3(x, .478f, -.164f);
+                captionObject.transform.localRotation = Quaternion.identity;
+                var caption = captionObject.AddComponent<TextMeshPro>();
+                caption.font = TMP_Settings.defaultFontAsset;
+                caption.text = i == 2 ? "HOT\nCHOCOLATE" : drinks[i].drinkName.ToUpperInvariant();
+                caption.fontSize = 5;
+                caption.fontStyle = FontStyles.Bold;
+                caption.alignment = TextAlignmentOptions.Center;
+                caption.textWrappingMode = TextWrappingModes.NoWrap;
+                caption.color = new Color(1f, .96f, .82f);
+                caption.rectTransform.sizeDelta = new Vector2(10, 3);
+                caption.ForceMeshUpdate();
+                Vector3 textSize = caption.textBounds.size;
+                float fitted = Mathf.Min(.082f / Mathf.Max(.001f, textSize.x), .043f / Mathf.Max(.001f, textSize.y));
+                caption.transform.localScale = Vector3.one * fitted;
+                caption.transform.SetParent(paddle, true);
+                caption.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                caption.GetComponent<Renderer>().receiveShadows = false;
 
                 var pour = new GameObject("Visible pour");
                 pour.transform.SetParent(section.transform, false);
@@ -194,8 +224,8 @@ public static class BeverageStationSetup
             Undo.CollapseUndoOperations(group);
             Selection.activeGameObject = root;
             Debug.Log("[Beverage dispenser] Installed compact six-valve model: 1.45m overall footprint, "
-                + "1.08m case, 0.64m height. Previous espresso prop preserved. F enters/leaves; "
-                + "point at a broad drink section to prepare or collect; C switches hands. "
+                + "1.08m case, 0.67m height. Previous espresso prop preserved. F enters/leaves; "
+                + "mouse looks around; left/right clicks use the corresponding hand. Place a cup, then press its named paddle. "
                 + "Use the paddle for deliberate dispensing without a cup. Scene changes are undoable.");
         }
         catch

@@ -44,6 +44,13 @@ public class ItemInspector : MonoBehaviour
             CancelInspection();
             return;
         }
+        if (Time.timeScale <= 0f)
+        {
+            rotateGesture = false;
+            SetBenchHover(null);
+            HoverName = ""; HoverAction = "";
+            return;
+        }
 
         var mouse = Mouse.current;
         if (mouse == null) return;
@@ -172,9 +179,7 @@ public class ItemInspector : MonoBehaviour
         }
         if (!overBoard && hovered == null && Physics.Raycast(ray, out RaycastHit hit, benchReach))
         {
-            hovered = hit.collider.GetComponent<BenchInteractable>();
-            grime = hit.collider.GetComponent<GrimeSpot>();
-            hoveredTool = hit.collider.GetComponent<ToolPickup>();
+            ResolveBenchHit(hit.collider, out hovered, out grime, out hoveredTool);
         }
 
         BenchInteractable target = null;
@@ -210,20 +215,7 @@ public class ItemInspector : MonoBehaviour
 
         if (mouse.leftButton.wasPressedThisFrame)
         {
-            // Only a drag that STARTS on empty space rotates the item. A press
-            // used to turn a wire or pick up a tool belongs to that action.
-            rotateGesture = hovered == null && grime == null && hoveredTool == null && !overBoard;
-            if (hoveredTool != null)
-            {
-                if (currentToolPickup != null) currentToolPickup.SetSelected(false);
-                currentToolPickup = hoveredTool;
-                currentTool = hoveredTool.tool;
-                hoveredTool.SetSelected(true);
-            }
-            else if (target != null)
-            {
-                target.Activate();
-            }
+            HandleBenchPress(hovered, grime, hoveredTool, overBoard);
         }
 
         if (mouse.leftButton.isPressed)
@@ -242,6 +234,35 @@ public class ItemInspector : MonoBehaviour
         }
 
         if (!mouse.leftButton.isPressed) rotateGesture = false;
+    }
+
+    private static void ResolveBenchHit(Collider collider, out BenchInteractable part,
+        out GrimeSpot grime, out ToolPickup tool)
+    {
+        // A model's visible blade, screw head or tool handle can own the hit
+        // collider while its behaviour lives on the containing part. Resolve
+        // the nearest owner so clicking that anatomy reaches the same task.
+        part = collider != null ? collider.GetComponentInParent<BenchInteractable>() : null;
+        grime = collider != null ? collider.GetComponentInParent<GrimeSpot>() : null;
+        tool = collider != null ? collider.GetComponentInParent<ToolPickup>() : null;
+    }
+
+    private void HandleBenchPress(BenchInteractable part, GrimeSpot grime, ToolPickup tool, bool overBoard)
+    {
+        if (Time.timeScale <= 0f || DayClock.Instance != null && DayClock.Instance.DayOver) return;
+        // Only a drag that starts on empty space rotates the item. Picking a
+        // tool, turning a wire, or pressing a covered part owns that press.
+        rotateGesture = part == null && grime == null && tool == null && !overBoard;
+        if (tool != null)
+        {
+            if (currentToolPickup != null) currentToolPickup.SetSelected(false);
+            currentToolPickup = tool;
+            currentTool = tool.tool;
+            tool.SetSelected(true);
+        }
+        else if (grime == null && part != null && part.isActiveAndEnabled && part.CanInteract
+            && (currentTool == part.RequiredTool || part.RequiredTool == ToolType.Hand))
+            part.Activate();
     }
 
     private void ClearTool()

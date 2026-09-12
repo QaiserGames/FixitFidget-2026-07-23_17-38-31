@@ -57,6 +57,16 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
+        // This view uses a small centre reticle and its own concise action caption.
+        // Suppress the shared large E/F line while keeping the aimed controls clear.
+        if (interactor.CurrentStation != null
+            && interactor.CurrentStation.GetComponent<BeverageStation>() != null)
+        {
+            if (promptText != null) promptText.text = "";
+            if (crosshair != null) crosshair.SetActive(Time.timeScale > 0);
+            return;
+        }
+
         var counter = interactor.GetComponent<CounterRepairView>();
         bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem)
             && (counter == null || !counter.IsOpen);
