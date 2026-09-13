@@ -1,0 +1,11 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Beatriz",no,"Impatient","Repair","Phone","Frozen Boot Sequence - Reconnect Signal","Software",,26.8,90.6,63.9,30.1,yes,yes,"Served","Perfect",0.0,"Loiter",56,1,0,no,no,,,
+"Saamin",no,"Impatient","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,46.8,100.6,53.8,30.7,yes,no,"StormedOutWaiting",,0.0,"Loiter",0,0,0,no,no,,,
+"Omar",no,"Chatty","Repair","Phone","Frozen Boot Sequence - Reconnect Signal","Software","Americano",6.8,110.9,104.1,91.2,yes,yes,"Served","Perfect",0.4,"Seat",60,28,0,no,no,,,
+"Alishba",no,"Impatient","Drink","Espresso",,,,72.8,114.1,41.3,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Yuki",no,"Impatient","Repair","Phone","Cracked Screen","Mechanical",,101.8,146.3,44.5,30.9,yes,no,"StormedOutWaiting",,0.0,"Loiter",0,0,0,no,no,,,
+"Ingrid",no,"Impatient","Repair","Phone","Frozen Boot Sequence - Reconnect Signal","Software","Espresso",114.3,154.3,40.0,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Priya",no,"Chatty","Drink","Tea",,,,122.3,199.0,76.7,44.0,yes,yes,"Served",,0.8,"Seat",3,1,0,no,no,,,
+"Tomas",no,"Sentimental","Drink","Coffee",,,,166.3,225.6,59.3,40.3,yes,yes,"Served",,0.7,"Seat",3,1,0,no,no,,,
+"Ali",no,"Sentimental","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic","Espresso",130.3,244.9,114.6,76.5,yes,yes,"Served","Perfect",0.8,"Seat",79,38,0,no,no,,,
+"Valerie",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical",,59.8,266.3,206.5,146.7,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0,0,no,no,,,

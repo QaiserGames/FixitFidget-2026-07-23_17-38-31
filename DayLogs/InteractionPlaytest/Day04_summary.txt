@@ -1,0 +1,31 @@
+﻿===== DAY 4 =====
+
+Arrived                12
+Accepted               9
+People helped          7    <- received service; may still leave unhappy
+Left satisfied         7
+Helped but unhappy     0    <- also included in departures below
+Orders completed       11   (4 repairs, 7 drinks)
+
+WHY PEOPLE LEFT UNSATISFIED (includes partial service)
+  Stormed out (queue)  1    <- never even heard them
+  Stormed out (wait)   2    <- an obligation was still pending
+  Still here at close  0
+  You declined         2    <- a choice, not a failure
+  Out of stock         0
+  Shelf was full       0
+
+GRADES
+  Perfect              4
+  Good                 0
+  Passable             0
+
+MONEY
+  Earned               $615   ($188 of it tips)
+  of which cafe walk-ins $75
+
+Average helped visit   86.8s
+Lowest helped patience 37% (includes unhappy exits)
+
+Per-customer detail is in the CSV beside this file.
+service_s measures acceptance to departure, including waiting; it is not hands-on repair time.

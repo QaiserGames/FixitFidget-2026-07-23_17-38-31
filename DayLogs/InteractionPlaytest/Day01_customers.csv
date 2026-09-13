@@ -1,0 +1,6 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Ali",no,"Chatty","Drink","Coffee",,,,7.0,52.5,45.5,33.5,yes,yes,"Served",,1.0,"Seat",3,1,0,no,no,,,
+"Priya",no,"Chatty","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,56.3,105.1,48.8,35.2,yes,yes,"Served","Perfect",0.9,"Seat",94,44,0,no,no,,,
+"Mansoor",no,"Chatty","Drink","Tea",,,,134.5,180.0,45.5,19.4,yes,yes,"Served",,1.0,"Seat",3,1,0,no,no,,,
+"Beatriz",no,"Cheerful","Drink","Americano",,,,150.5,187.4,36.9,21.4,yes,yes,"Served",,1.0,"Seat",4,2,0,no,no,,,
+"Grace",yes,"Grace","Repair","reunion film camera","dirty lens and film path, jammed shutter; keep the scratched strap","Mechanical",,118.5,254.9,136.4,101.2,yes,yes,"Served","Good",0.3,"Seat",40,6,2,no,no,"grace_reunion_camera_v1","Good",

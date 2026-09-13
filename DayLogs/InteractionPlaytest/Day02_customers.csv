@@ -1,0 +1,7 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Tomas",no,"Chatty","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Hot Chocolate",50.3,91.9,41.6,,no,no,"Declined",,0.5,,0,0,0,no,no,,,
+"Alishba",no,"Chatty","Drink","Latte",,,,6.3,143.0,136.7,121.7,yes,yes,"Served",,0.4,"Seat",6,1,0,no,no,,,
+"Malcom",no,"Cheerful","Drink","Tea",,,,159.3,228.8,69.4,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Deshawn",no,"Cheerful","Repair","Phone","Frozen Boot Sequence - Reconnect Signal","Software",,65.3,238.4,173.1,142.1,yes,yes,"Served","Perfect",0.2,"Seat",56,6,0,no,no,,,
+"Omar",no,"Cheerful","Drink","Hot Chocolate",,,,106.3,265.4,159.0,110.1,yes,yes,"Served",,0.2,"Seat",5,0,0,no,no,,,
+"Grace",yes,"Grace","Repair","Phone","Gunked Up, Won't Charge","Cleaning","Latte",28.3,267.6,239.3,206.2,yes,yes,"Served","Perfect",0.4,"Seat",68,14,2,yes,no,,"Good","Clear"

@@ -10,6 +10,9 @@ public class SaveManager : MonoBehaviour
     [Tooltip("Use a separate save for the focused playtest scene. Campaign progress is kept in save.json.")]
     [SerializeField] private bool useInteractionPlaytestSave;
 
+    [Tooltip("Separate playtest checkpoint filename. Only used when playtest saving is enabled.")]
+    [SerializeField] private string interactionPlaytestSaveName = "interaction-playtest.json";
+
     // Filled during Awake so other systems can read it in their Start.
     public SaveData Loaded { get; private set; }
     public bool HasSave { get; private set; }
@@ -21,7 +24,13 @@ public class SaveManager : MonoBehaviour
     private readonly CustomerMemoryService regularMemory = new();
 
     private string PathToFile => Path.Combine(Application.persistentDataPath,
-        useInteractionPlaytestSave ? "interaction-playtest.json" : "save.json");
+        useInteractionPlaytestSave ? PlaytestFileName : "save.json");
+
+    private string PlaytestFileName => string.IsNullOrWhiteSpace(interactionPlaytestSaveName)
+        || !interactionPlaytestSaveName.StartsWith("playtest-", StringComparison.Ordinal)
+        || Path.GetFileName(interactionPlaytestSaveName) != interactionPlaytestSaveName
+        || !interactionPlaytestSaveName.EndsWith(".json", StringComparison.Ordinal)
+        ? "interaction-playtest.json" : interactionPlaytestSaveName;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics() => Instance = null;
