@@ -1,0 +1,36 @@
+ACE'S CAFE - STREET ASSET SOURCES
+Source and license pages checked 2026-09-14.
+
+Kenney - Car Kit: sedan and hatchback models.
+https://kenney.nl/assets/car-kit
+
+Quaternius - Animal Pack Vol.2: Cat and Eagle models/animations.
+Creator's original upload: https://opengameart.org/node/78596
+
+Amal Kumar / Poly Haven - painted_plaster_wall: color and normal maps.
+https://polyhaven.com/a/painted_plaster_wall
+
+eye-candy.xyz / Poly Haven - asphalt_floor: color and normal maps.
+https://polyhaven.com/a/asphalt_floor
+
+All assets above are published under CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+Poly Haven asset license: https://polyhaven.com/license
+Attribution is voluntary; these credits preserve the assets' provenance.
+
+V4 surface pass (2026-09-15): Poly Haven, CC0 1.0 Universal (https://polyhaven.com/license).
+Concrete Pavement — Charlotte Baglioni — https://polyhaven.com/a/concrete_pavement
+Oak Veneer 01 — Jenelle van Heerden — https://polyhaven.com/a/oak_veneer_01
+Bitumen — Rob Tuytel — https://polyhaven.com/a/bitumen
+Fabric Pattern 07 — Rob Tuytel — https://polyhaven.com/a/fabric_pattern_07
+Sparse Grass — https://polyhaven.com/a/sparse_grass
+Imported 1K JPEG base color and OpenGL normal maps; fabric uses normal only.
+Source URLs and file hashes recorded in assessment workspace validation/texture-source/sources.json.
+
+V4 completion (2026-09-16): additional Kenney Car Kit models: taxi, van, SUV,
+delivery, sedan-sports and SUV-luxury. Same CC0 source and vehicle atlas as above.
+CafeBookcase.fbx: original project asset authored for Aces Cafe; editable Blender
+source retained in assessment workspace implementation/art/CafeBookcase.
+Oak material uses the credited Poly Haven Oak Veneer 01 maps above.
+Sparse Grass author: Amal Kumar.
+Neighborhood postcard: original flat geometric illustration authored for this scene.

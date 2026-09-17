@@ -34,6 +34,7 @@ public class PlayerCarry : MonoBehaviour
     private ItemInspector inspector;
     private CounterRepairView counterRepair;
     private PlayerHandsVisual physicalHands;
+    private CafeViewMode viewMode;
 
     public JobBase Carried { get { Prune(); return SelectedHeld()?.item; } }
     public bool IsCarrying => Carried != null;
@@ -85,6 +86,7 @@ public class PlayerCarry : MonoBehaviour
         dialogue = GetComponent<ConversationController>();
         inspector = GetComponent<ItemInspector>();
         counterRepair = GetComponent<CounterRepairView>();
+        viewMode = GetComponent<CafeViewMode>();
         viewCamera = Camera.main;
         // Existing scenes may still carry the old component after a reload.
         var oldHUD = GetComponent<PlayerCarryHUD>();
@@ -129,16 +131,20 @@ public class PlayerCarry : MonoBehaviour
         if (interaction == null) interaction = GetComponent<PlayerInteractor>();
         bool atStation = interaction != null && interaction.IsAtStation;
         bool beverageView = atStation && interaction.CurrentStation.GetComponent<BeverageStation>() != null && viewCamera != null;
+        // Pausing releases walking input, but the selected camera stays in first
+        // person. Keep held objects in that camera's view while the pause is open.
+        bool firstPerson = beverageView || !atStation && viewMode != null && viewMode.isActiveAndEnabled
+            && viewMode.FirstPersonSelected && viewCamera != null;
         bool show = (!atStation || beverageView)
             && (dialogue == null || !dialogue.InConversation) && (inspector == null || !inspector.IsHoldingItem)
             && (counterRepair == null || !counterRepair.OwnsInput) && (DayClock.Instance == null || !DayClock.Instance.DayOver);
-        Quaternion facing = UprightRotation(beverageView ? viewCamera.transform.forward : transform.forward);
+        Quaternion facing = UprightRotation(firstPerson ? viewCamera.transform.forward : transform.forward);
         if (physicalHands != null) physicalHands.SetVisible(show);
         for (int side = 0; side < capacity; side++)
         {
             Held held = hands.Find(h => h.hand == side);
             bool active = side == SelectedHandIndex;
-            Vector3 centre = HandCentre(side, beverageView, active);
+            Vector3 centre = HandCentre(side, firstPerson, active);
             if (held != null)
             {
                 // Metre-authored objects keep their real scale in both views.
@@ -153,7 +159,7 @@ public class PlayerCarry : MonoBehaviour
                 bool cup = held != null && held.item is DrinkJob;
                 Vector3 size = held != null ? held.visualBounds : Vector3.zero;
                 physicalHands.Pose(side, centre, facing, held != null, cup, size,
-                    beverageView ? viewCamera : null, transform);
+                    firstPerson ? viewCamera : null, transform);
             }
         }
         if (physicalHands != null) physicalHands.SetCapacity(capacity);

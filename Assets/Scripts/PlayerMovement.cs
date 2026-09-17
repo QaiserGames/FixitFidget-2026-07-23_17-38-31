@@ -8,6 +8,7 @@ public class PlayerMovement : MonoBehaviour
     private CharacterController controller;
     private Vector2 moveInput;
     private ConversationController conversation;
+    private CafeViewMode viewMode;
 
     private void Awake()
     {
@@ -15,6 +16,7 @@ public class PlayerMovement : MonoBehaviour
         // to the CharacterController sitting on this same GameObject.
         controller = GetComponent<CharacterController>();
         conversation = GetComponent<ConversationController>();
+        viewMode = GetComponent<CafeViewMode>();
     }
 
     // Called automatically by the Player Input component whenever
@@ -32,18 +34,21 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        if ((DayClock.Instance != null && DayClock.Instance.DayOver)
+        if (Time.timeScale <= 0 || (DayClock.Instance != null && DayClock.Instance.DayOver)
             || (conversation != null && conversation.InConversation))
         {
             ClearInput();
             return;
         }
 
+        if (viewMode != null && viewMode.SuppressWalkingMovement) return;
+
         Vector3 move = new Vector3(moveInput.x, 0f, moveInput.y);
 
-        // Rotate the input 45 degrees to match the camera's angle,
-        // so "up" on the stick means "up on the screen."
-        move = Quaternion.Euler(0f, 45f, 0f) * move;
+        // Existing scenes keep their 45-degree controls. The optional walking
+        // camera supplies its yaw so orbiting never reverses screen movement.
+        float cameraYaw = viewMode != null && viewMode.isActiveAndEnabled ? viewMode.MovementYaw : 45;
+        move = Quaternion.Euler(0f, cameraYaw, 0f) * move;
 
         controller.SimpleMove(move * moveSpeed);
     }

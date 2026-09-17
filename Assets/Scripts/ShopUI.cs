@@ -13,9 +13,13 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private bool showDebug = false;
     [SerializeField] private TMP_Text stockText;
     [SerializeField] private GameObject recapPanel;
+    [SerializeField] private bool displayCafeTime;
+    [SerializeField] private TMP_Text viewHintText;
+    private CafeViewMode viewMode;
 
     private void Start()
     {
+        viewMode = interactor != null ? interactor.GetComponent<CafeViewMode>() : null;
         // Runtime-only UI: existing scenes need no new inspector wiring.
         DayOneGuideUI guide = GetComponent<DayOneGuideUI>();
         if (guide == null) guide = gameObject.AddComponent<DayOneGuideUI>();
@@ -26,6 +30,11 @@ public class ShopUI : MonoBehaviour
     {
         // The recap owns the screen — hide the in-game HUD behind it.
         bool recapOpen = recapPanel != null && recapPanel.activeSelf;
+        if (viewHintText != null)
+        {
+            viewHintText.gameObject.SetActive(!recapOpen && viewMode != null && viewMode.CanChangeView);
+            if (viewMode != null) viewHintText.text = viewMode.ControlsHint;
+        }
         if (moneyText != null) moneyText.gameObject.SetActive(!recapOpen);
         if (clockText != null) clockText.gameObject.SetActive(!recapOpen);
         if (stockText != null) stockText.gameObject.SetActive(!recapOpen);
@@ -38,9 +47,15 @@ public class ShopUI : MonoBehaviour
         if (clockText != null && DayClock.Instance != null)
         {
             var c = DayClock.Instance;
-            int mins = Mathf.FloorToInt(c.TimeRemaining / 60f);
-            int secs = Mathf.FloorToInt(c.TimeRemaining % 60f);
-            clockText.text = c.IsOpen ? $"Day {c.Day}   {mins}:{secs:00}" : $"Day {c.Day}   CLOSING";
+            if (displayCafeTime)
+                clockText.text = $"Day {c.Day}   {FormatHour(c.CurrentHour)}\n<size=65%>"
+                    + (c.IsOpen ? $"Closes at {FormatHour(c.ClosingHour)}" : "Closed · finishing service") + "</size>";
+            else
+            {
+                int mins = Mathf.FloorToInt(c.TimeRemaining / 60f);
+                int secs = Mathf.FloorToInt(c.TimeRemaining % 60f);
+                clockText.text = c.IsOpen ? $"Day {c.Day}   {mins}:{secs:00}" : $"Day {c.Day}   CLOSING";
+            }
         }
 
         if (ShopEconomy.Instance != null)
@@ -68,7 +83,8 @@ public class ShopUI : MonoBehaviour
         }
 
         var counter = interactor.GetComponent<CounterRepairView>();
-        bool showCrosshair = interactor.IsAtStation && (inspector == null || !inspector.IsHoldingItem)
+        bool showCrosshair = (interactor.IsAtStation || viewMode != null && viewMode.WalkingFirstPerson && !viewMode.PointerReleased)
+            && Time.timeScale > 0 && (inspector == null || !inspector.IsHoldingItem)
             && (counter == null || !counter.IsOpen);
         if (crosshair != null) crosshair.SetActive(showCrosshair);
         if (counter != null && counter.IsOpen)
@@ -90,5 +106,13 @@ public class ShopUI : MonoBehaviour
             line += "\n" + interactor.DebugInfo;
 
         promptText.text = line;
+    }
+
+    public static string FormatHour(float hour)
+    {
+        int totalMinutes = Mathf.FloorToInt(Mathf.Clamp(hour, 0, 24) * 60f + .001f);
+        int h = (totalMinutes / 60) % 24;
+        int twelveHour = h % 12 == 0 ? 12 : h % 12;
+        return $"{twelveHour}:{totalMinutes % 60:00} {(h < 12 ? "AM" : "PM")}";
     }
 }

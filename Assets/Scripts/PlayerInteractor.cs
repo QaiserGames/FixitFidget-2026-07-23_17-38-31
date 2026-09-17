@@ -22,6 +22,7 @@ public class PlayerInteractor : MonoBehaviour
     private StationInteractable[] allStations;
     private ItemInspector inspector;
     private PlayerCarry carry;
+    private CafeViewMode viewMode;
     private int lastInteractionFrame = -1;
 
     public bool IsAtStation => currentStation != null;
@@ -43,6 +44,7 @@ public class PlayerInteractor : MonoBehaviour
         movement = GetComponent<PlayerMovement>();
         inspector = GetComponent<ItemInspector>();
         carry = GetComponent<PlayerCarry>();
+        viewMode = GetComponent<CafeViewMode>();
         bodyRenderer = GetComponentInChildren<Renderer>();
         cam = Camera.main;
 
@@ -69,6 +71,9 @@ public class PlayerInteractor : MonoBehaviour
             CurrentPrompt = "";
             return;
         }
+
+        if (viewMode != null && viewMode.SuppressWalkingInteraction)
+        { ClearFocus(); nearbyStation = null; return; }
 
         if (counterRepair != null && counterRepair.OwnsInput || inspector != null && inspector.IsHoldingItem)
         {
@@ -166,8 +171,30 @@ public class PlayerInteractor : MonoBehaviour
             return null;
         }
 
-        // ---- On the shop floor: nearest available wins ----
+        if (viewMode != null && viewMode.WalkingFirstPerson) return FindFirstPersonFloorTarget();
+
+        // ---- Isometric shop floor: nearest available wins ----
         return FindFloorTarget(Physics.OverlapSphere(transform.position, reach));
+    }
+
+    private Interactable FindFirstPersonFloorTarget()
+    {
+        if (cam == null) cam = Camera.main;
+        if (cam == null) return null;
+        Ray ray = cam.ViewportPointToRay(new Vector3(.5f, .5f));
+        RaycastHit[] hits = Physics.RaycastAll(ray, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider.transform.IsChildOf(transform)) continue;
+            Interactable item = hit.collider.GetComponentInParent<Interactable>();
+            if (item != null && item.IsAvailable && (!(item is CustomerInteractable customer) || customer.FloorAvailable))
+                return item;
+            // Triggers can provide prompts, but solid furniture and walls stop
+            // the view ray from selecting an item hidden on their other side.
+            if (!hit.collider.isTrigger) return null;
+        }
+        return null;
     }
     private Interactable FindFloorTarget(Collider[] near)
     {
@@ -220,6 +247,7 @@ public class PlayerInteractor : MonoBehaviour
     private void PerformInteraction(int hand)
     {
         if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0) return;
+        if (viewMode != null && viewMode.SuppressWalkingInteraction) return;
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
         if (counterRepair != null && counterRepair.OwnsInput) return;

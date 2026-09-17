@@ -52,7 +52,7 @@ public class PatronBrain : MonoBehaviour
              "getting wedged and standing in a seat for the rest of the day.")]
     [SerializeField] private float maxLifetime = 240f;
 
-    [Tooltip("How long to be stuck before trying to shake loose.")]
+    [Tooltip("Seconds without getting closer along the route before trying a new path.")]
     [SerializeField] private float stallSeconds = 3f;
     [Tooltip("Patrons must reach their own chair marker. A large stopping distance lets adjacent seats settle in the same aisle.")]
     [SerializeField, Range(0.01f, 0.2f)] private float seatStoppingDistance = 0.08f;
@@ -66,10 +66,12 @@ public class PatronBrain : MonoBehaviour
     private float leaveAt;
     private float bornAt;
 
-    private Vector3 lastPosition;
     private float lastProgressAt;
+    private float bestRemainingDistance = float.PositiveInfinity;
     private int unwedgeAttempts;
     private Vector3 destination;
+    private bool walkingAnimation;
+    private float walkingChangeTimer;
 
     private static readonly int IsWalkingHash = Animator.StringToHash("IsWalking");
 
@@ -89,7 +91,6 @@ public class PatronBrain : MonoBehaviour
     {
         exitPoint = exit;
         bornAt = Time.time;
-        lastPosition = transform.position;
         lastProgressAt = Time.time;
 
         TryTakeSeat();
@@ -123,8 +124,7 @@ public class PatronBrain : MonoBehaviour
 
     private void Update()
     {
-        if (animator != null && agent != null)
-            animator.SetBool(IsWalkingHash, agent.velocity.sqrMagnitude > 0.05f);
+        UpdateWalkingAnimation();
 
         if (Time.time - bornAt > maxLifetime && state != State.Leaving)
         {
@@ -184,6 +184,29 @@ public class PatronBrain : MonoBehaviour
         if (look.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(look);
     }
 
+    private void UpdateWalkingAnimation()
+    {
+        if (animator == null || agent == null) return;
+
+        // Different start/stop speeds and a short hold prevent tiny avoidance
+        // corrections from restarting the walk clip every other frame.
+        bool canWalk = agent.isOnNavMesh && !agent.isStopped
+            && (state == State.Settling || state == State.Leaving);
+        float threshold = walkingAnimation ? 0.08f : 0.25f;
+        bool wantsWalk = canWalk && agent.velocity.sqrMagnitude > threshold * threshold;
+        if (wantsWalk == walkingAnimation) walkingChangeTimer = 0f;
+        else
+        {
+            walkingChangeTimer += Time.deltaTime;
+            if (!canWalk || walkingChangeTimer >= 0.12f)
+            {
+                walkingAnimation = wantsWalk;
+                walkingChangeTimer = 0f;
+            }
+        }
+        animator.SetBool(IsWalkingHash, walkingAnimation);
+    }
+
     private void Leave()
     {
         if (state == State.Leaving) return;
@@ -220,7 +243,8 @@ public class PatronBrain : MonoBehaviour
         destination = target;
         agent.SetDestination(target);
         lastProgressAt = Time.time;
-        lastPosition = transform.position;
+        bestRemainingDistance = float.PositiveInfinity;
+        unwedgeAttempts = 0;
     }
 
     private bool Arrived()
@@ -231,17 +255,20 @@ public class PatronBrain : MonoBehaviour
             && Vector3.Distance(transform.position, destination) <= agent.stoppingDistance + 0.15f;
     }
 
-    // Twenty agents in one room is where avoidance gets hard — the occupancy
-    // doc flags it. This is the cheap version of CustomerBrain's unwedging
-    // ladder: nudge, then give up and go home rather than standing in a
-    // doorway for the rest of the day.
+    // Re-plan normally when crowded; never teleport a visible patron. Only
+    // shortening the route counts as progress, so rocking from side to side
+    // cannot keep a blocked seat claim alive indefinitely.
     private void WatchForWedging()
     {
         if (agent == null || !agent.isOnNavMesh) return;
+        if (agent.pathPending) return;
 
-        if ((transform.position - lastPosition).sqrMagnitude > 0.01f)
+        float remaining = agent.hasPath && agent.pathStatus == NavMeshPathStatus.PathComplete
+            ? agent.remainingDistance : float.PositiveInfinity;
+        if (!float.IsInfinity(remaining) && !float.IsNaN(remaining)
+            && remaining < bestRemainingDistance - 0.15f)
         {
-            lastPosition = transform.position;
+            bestRemainingDistance = remaining;
             lastProgressAt = Time.time;
             unwedgeAttempts = 0;
             return;
@@ -249,42 +276,21 @@ public class PatronBrain : MonoBehaviour
 
         if (Time.time - lastProgressAt < stallSeconds) return;
 
-        unwedgeAttempts++;
+        unwedgeAttempts = Mathf.Min(unwedgeAttempts + 1, 3);
         lastProgressAt = Time.time;
 
-        if (unwedgeAttempts >= 3)
+        if (unwedgeAttempts >= 3 && state != State.Leaving)
         {
-            // A patron who can't get where they're going is worth nothing and
-            // is occupying a seat claim. Cut them loose.
+            // Two ordinary re-paths did not help. Release the seat and try the
+            // exit, keeping the existing overall lifetime backstop in Update.
             Leave();
-            if (state == State.Leaving && exitPoint == null) Destroy(gameObject);
             return;
         }
 
-        Vector2 nudge = Random.insideUnitCircle.normalized * 0.6f;
-        Vector3 probe = transform.position + new Vector3(nudge.x, 0f, nudge.y);
-
-        if (NavMesh.SamplePosition(probe, out NavMeshHit hit, 0.6f, agent.areaMask)
-            && !NavMesh.Raycast(transform.position, hit.position, out _, agent.areaMask)
-            && HasBodyClearance(hit.position))
-        {
-            Vector3 destination = state == State.Leaving && exitPoint != null
-                ? exitPoint.position : seat != null ? seat.StandPoint.position : transform.position;
-            if (agent.Warp(hit.position)) SetDestination(destination);
-        }
-    }
-
-    private bool HasBodyClearance(Vector3 position)
-    {
-        foreach (NavMeshAgent other in FindObjectsByType<NavMeshAgent>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
-        {
-            if (other == agent || !other.enabled || !other.isOnNavMesh) continue;
-            Vector3 delta = position - other.transform.position;
-            if (Mathf.Abs(delta.y) > Mathf.Max(agent.height, other.height)) continue;
-            delta.y = 0;
-            float clearance = agent.radius + other.radius + 0.1f;
-            if (delta.sqrMagnitude < clearance * clearance) return false;
-        }
-        return true;
+        // Retain the progress baseline and attempt count across a re-path.
+        // Merely obtaining a fresh path must not reset the stall watchdog.
+        agent.isStopped = false;
+        agent.ResetPath();
+        agent.SetDestination(destination);
     }
 }

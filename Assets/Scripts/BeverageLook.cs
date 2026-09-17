@@ -9,20 +9,36 @@ public sealed class BeverageLook : MonoBehaviour
     public StationInteractable station;
     public float sensitivity = .09f;
     private PlayerInteractor player;
+    private ConversationController dialogue;
+    private ItemInspector inspector;
+    private CounterRepairView counterRepair;
+    private Unity.Cinemachine.CinemachineBrain brain;
     private Quaternion rest;
     private Vector2 angles;
     private bool wasActive;
     private bool acceptingInput;
-    private void Awake() { rest = transform.localRotation; player = FindAnyObjectByType<PlayerInteractor>(); }
+    private void Awake()
+    {
+        rest = transform.localRotation;
+        player = FindAnyObjectByType<PlayerInteractor>();
+        if (player != null)
+        {
+            dialogue = player.GetComponent<ConversationController>();
+            inspector = player.GetComponent<ItemInspector>();
+            counterRepair = player.GetComponent<CounterRepairView>();
+        }
+        brain = Camera.main != null ? Camera.main.GetComponent<Unity.Cinemachine.CinemachineBrain>() : null;
+    }
     private void Update()
     {
         bool active = player != null && player.CurrentStation == station;
         if (!active) { if (wasActive) transform.localRotation = rest; wasActive = false; acceptingInput = false; angles = Vector2.zero; return; }
         if (!wasActive) { angles = Vector2.zero; transform.localRotation = rest; wasActive = true; acceptingInput = false; }
-        var dialogue = player.GetComponent<ConversationController>();
-        var brain = Camera.main != null ? Camera.main.GetComponent<Unity.Cinemachine.CinemachineBrain>() : null;
+        if (counterRepair == null) counterRepair = player.GetComponent<CounterRepairView>();
         if (Time.timeScale <= 0 || Mouse.current == null || !Application.isFocused
+            || Cursor.lockState != CursorLockMode.Locked
             || DayClock.Instance != null && DayClock.Instance.DayOver
+            || inspector != null && inspector.IsHoldingItem || counterRepair != null && counterRepair.OwnsInput
             || dialogue != null && dialogue.InConversation || brain != null && brain.IsBlending)
         { acceptingInput = false; return; }
         // Cursor locking and focus changes can deliver a stale mouse delta.

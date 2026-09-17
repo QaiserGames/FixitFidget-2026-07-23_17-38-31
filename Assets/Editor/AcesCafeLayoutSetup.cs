@@ -58,6 +58,226 @@ public static class AcesCafeLayoutSetup
         return ValidateLayout();
     }
 
+    // A one-time edit of the existing scene, preserving its wiring and all
+    // child offsets. Deliberately leaves review, the final bake and saving to
+    // the caller because the outside/counter pass can add more colliders.
+    public static string UpgradeCirculationV2()
+    {
+        RequireStoppedAndSaved();
+        if (SceneManager.GetActiveScene().path != ScenePath)
+            throw new InvalidOperationException("Open the saved Ace's Cafe layout before expanding it.");
+        const string markerName = "Circulation v2 - room 14.8 x 18";
+        var root = Find("ACE'S CAFE - layout study 02");
+        if (root.GetComponentsInChildren<Transform>(true).Any(t => t.name == markerName))
+            return "Circulation v2 is already applied; no objects moved.";
+
+        // Resolve everything before editing; a renamed or missing object must
+        // not leave the room half enlarged.
+        string[] required = { "Floor", "Player", "Inside-only ceiling", "Back plaster", "Right plaster",
+            "Left rear plaster", "Left window sill", "Front left sill", "Front right sill",
+            "Front window header", "Street window header", "Skirting - back", "Skirting - right",
+            "Entry apron", "Staff floor inset", "02 - intake and queue", "03 - repair work area",
+            "04 - drinks work area", "Counter extensions and cabinetry", "Window banquette - future seated animation" };
+        var refs = required.ToDictionary(n => n, n => Find(n).transform);
+        var shell = Find("01 - room and windows").transform;
+        var tables = Enumerable.Range(1, 4).Select(i => Find("Table " + i).transform).ToArray();
+        if (tables.Any(t => t.GetComponentsInChildren<TableSeat>(true).Length != 4))
+            throw new InvalidOperationException("Expected four existing table groups, each with four seats.");
+        var tableTops = tables.Select(t => t.Cast<Transform>().Single(c => c.name == "Round table")).ToArray();
+        var loiters = Find("WaitingArea").GetComponentsInChildren<WaitingSpot>(true)
+            .Where(s => s.isActiveAndEnabled && !(s is TableSeat)).OrderBy(s => s.name).ToArray();
+        if (loiters.Length != 4)
+            throw new InvalidOperationException("Expected four active loiter spots; review their enabled states before upgrading.");
+        var streetPosts = shell.Cast<Transform>().Where(t => t.name == "Street window post")
+            .OrderBy(t => t.position.z).ToArray();
+        var frontPosts = shell.Cast<Transform>().Where(t => t.name == "Front window post")
+            .OrderBy(t => t.position.x).ToArray();
+        if (streetPosts.Length != 4 || frontPosts.Length != 6)
+            throw new InvalidOperationException("Window post count changed; review the intended window layout first.");
+        var boundaries = Find("Window collision boundaries").GetComponents<BoxCollider>();
+        var leftWindow = boundaries.Single(c => c.center.x < -5f && c.center.z > 0f);
+        var frontLeft = boundaries.Single(c => c.center.x < 0f && c.size.x > 3f);
+        var frontRight = boundaries.Single(c => c.center.x > 0f && c.size.x > 3f);
+        var apronFront = boundaries.Single(c => c.center.z < -2f && c.size.x > 10f);
+        var apronLeft = boundaries.Single(c => c.center.x < -5f && c.center.z < -1f && c.size.x < 1f);
+        var apronRight = boundaries.Single(c => c.center.x > 5f && c.center.z < -1f && c.size.x < 1f);
+
+        Undo.IncrementCurrentGroup();
+        int undoGroup = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName("Expand Ace's Cafe circulation");
+        Undo.RegisterFullObjectHierarchyUndo(root, "Expand Ace's Cafe circulation");
+        Undo.RecordObjects(new Object[] { refs["Floor"], refs["Player"] }, "Move floor and player start");
+        foreach (var loiter in loiters)
+            Undo.RecordObject(loiter.transform, "Move loiter to room edge");
+        try
+        {
+            ResizePlanar(refs["Floor"], 0f, 9f, 1.48f, 1.8f);
+            ResizePlanar(refs["Inside-only ceiling"], 0f, 9f, 1.48f, 1.8f); // Retains the owner's exact Y.
+            ResizePlanar(refs["Back plaster"], 0f, 18.12f, 15.05f, .24f);
+            ResizePlanar(refs["Right plaster"], 7.52f, 9f, .24f, 18.25f);
+            ResizePlanar(refs["Left rear plaster"], -7.52f, 15.4f, .24f, 5.45f);
+            ResizePlanar(refs["Left window sill"], -7.52f, 6.35f, .24f, 12.7f);
+            ResizePlanar(refs["Front left sill"], -4.3f, -.12f, 6.2f, .24f);
+            ResizePlanar(refs["Front right sill"], 4.3f, -.12f, 6.2f, .24f);
+            ResizePlanar(refs["Front window header"], 0f, -.12f, 15f, .24f);
+            ResizePlanar(refs["Street window header"], -7.52f, 6.35f, .24f, 12.7f);
+            ResizePlanar(refs["Skirting - back"], 0f, 17.94f, 14.8f, .08f);
+            ResizePlanar(refs["Skirting - right"], 7.36f, 9f, .08f, 18f);
+            ResizePlanar(refs["Entry apron"], 0f, -2f, 15f, 4f);
+            var inset = refs["Staff floor inset"];
+            ResizePlanar(inset, inset.position.x, inset.position.z + 3f, 14.65f, inset.localScale.z);
+            float[] postZ = { 0f, 4.2f, 8.45f, 12.7f };
+            float[] postX = { -7.4f, -4.4f, -1.2f, 1.2f, 4.4f, 7.4f };
+            for (int i = 0; i < streetPosts.Length; i++)
+                streetPosts[i].position = new Vector3(-7.52f, streetPosts[i].position.y, postZ[i]);
+            for (int i = 0; i < frontPosts.Length; i++)
+                frontPosts[i].position = new Vector3(postX[i], frontPosts[i].position.y, frontPosts[i].position.z);
+            ResizeBoundary(leftWindow, -7.52f, 6.35f, .18f, 12.7f);
+            ResizeBoundary(frontLeft, -4.3f, -.12f, 6.2f, .18f);
+            ResizeBoundary(frontRight, 4.3f, -.12f, 6.2f, .18f);
+            ResizeBoundary(apronFront, 0f, -4.05f, 15.2f, .12f);
+            ResizeBoundary(apronLeft, -7.57f, -2f, .12f, 4f);
+            ResizeBoundary(apronRight, 7.57f, -2f, .12f, 4f);
+
+            foreach (string name in new[] { "02 - intake and queue", "03 - repair work area",
+                "04 - drinks work area", "Counter extensions and cabinetry", "Player" })
+                refs[name].position += Vector3.forward * 3f;
+            Vector3[] centers = { new Vector3(-3f, 0f, 9f), new Vector3(3f, 0f, 9f),
+                new Vector3(-3f, 0f, 3.5f), new Vector3(3f, 0f, 3.5f) };
+            for (int i = 0; i < tables.Length; i++)
+            {
+                Vector3 delta = centers[i] - tableTops[i].position;
+                delta.y = 0f;
+                tables[i].position += delta;
+                // Diagonal chairs keep occupied bodies out of the central and cross aisles.
+                tables[i].RotateAround(tableTops[i].position, Vector3.up, 45f);
+            }
+            refs["Window banquette - future seated animation"].position += Vector3.left;
+            Vector3[] loiterPositions = { new Vector3(-6.2f, 0f, 10.9f), new Vector3(-5.5f, 0f, .9f),
+                new Vector3(6.2f, 0f, .75f), new Vector3(6.2f, 0f, 4f) };
+            for (int i = 0; i < loiters.Length; i++)
+            {
+                Vector3 destination = loiterPositions[i];
+                destination.y = loiters[i].StandPoint.position.y;
+                loiters[i].transform.position += destination - loiters[i].StandPoint.position;
+            }
+            var marker = new GameObject(markerName);
+            marker.transform.SetParent(root.transform, false);
+            Undo.RegisterCreatedObjectUndo(marker, "Record circulation upgrade");
+            Physics.SyncTransforms();
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            Undo.CollapseUndoOperations(undoGroup);
+            return "Circulation v2 applied: 14.8 x 18 m, 16 seats, 5.5 m table-row spacing. Ceiling Y preserved at "
+                + refs["Inside-only ceiling"].position.y.ToString("0.000")
+                + ". Scene is unsaved; finish the counter/outside pass, then bake routes and validate.";
+        }
+        catch
+        {
+            Undo.RevertAllDownToGroup(undoGroup);
+            throw;
+        }
+    }
+
+    private static void ResizePlanar(Transform target, float x, float z, float width, float depth)
+    {
+        target.position = new Vector3(x, target.position.y, z);
+        target.localScale = new Vector3(width, target.localScale.y, depth);
+    }
+
+    private static void ResizeBoundary(BoxCollider target, float x, float z, float width, float depth)
+    {
+        target.center = new Vector3(x, target.center.y, z);
+        target.size = new Vector3(width, target.size.y, depth);
+    }
+
+    // Read-only stress model: occupy every seat/loiter/queue marker at once,
+    // then flood the floor with the current player's actual collision shape.
+    // This complements a NavMesh check; it does not simulate moving crowds.
+    public static string ValidateOccupiedCirculationV2()
+    {
+        if (SceneManager.GetActiveScene().path != ScenePath || EditorApplication.isPlayingOrWillChangePlaymode)
+            throw new InvalidOperationException("Validate the stopped Ace's Cafe layout.");
+        Physics.SyncTransforms();
+        var player = Find("Player").GetComponent<CharacterController>();
+        if (player == null) throw new InvalidOperationException("Player CharacterController is missing.");
+        var scene = SceneManager.GetActiveScene();
+        var targets = Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude)
+            .Where(s => s.gameObject.scene == scene).Select(s => s.StandPoint)
+            .Concat(Find("CounterQueue").transform.Cast<Transform>()).Where(t => t != null).Distinct().ToArray();
+        var occupied = targets.Select(t => new Vector2(t.position.x, t.position.z)).ToArray();
+        float radius = player.radius * Mathf.Max(Mathf.Abs(player.transform.lossyScale.x),
+            Mathf.Abs(player.transform.lossyScale.z));
+        float height = Mathf.Max(player.height * Mathf.Abs(player.transform.lossyScale.y), radius * 2f);
+        const float step = .20f;
+        const float minX = -7.2f;
+        const float minZ = -3.8f;
+        const int cols = 73;
+        const int rows = 109;
+        const float standingRadius = .65f; // Customer radius plus its 0.30 m arrival margin.
+        var clear = new bool[cols * rows];
+        var visited = new bool[clear.Length];
+        var positions = new Vector2[clear.Length];
+        var hits = new Collider[64];
+        float floorY = Find("Floor").transform.position.y;
+        Vector2 start = new Vector2(player.transform.position.x, player.transform.position.z);
+        int seed = -1;
+        float seedDistance = .75f * .75f;
+        for (int z = 0; z < rows; z++)
+        for (int x = 0; x < cols; x++)
+        {
+            int index = z * cols + x;
+            Vector2 point = new Vector2(minX + x * step, minZ + z * step);
+            positions[index] = point;
+            float bodyClearance = radius + standingRadius + .03f;
+            if (occupied.Any(p => (point - p).sqrMagnitude < bodyClearance * bodyClearance)) continue;
+            Vector3 bottom = new Vector3(point.x, floorY + .06f + radius, point.y);
+            Vector3 top = new Vector3(point.x, floorY + .06f + height - radius, point.y);
+            int count = Physics.OverlapCapsuleNonAlloc(bottom, top, radius + .03f, hits, ~0, QueryTriggerInteraction.Ignore);
+            bool blocked = count == hits.Length;
+            for (int h = 0; h < count && !blocked; h++)
+                blocked = hits[h] != null && hits[h].GetComponentInParent<PlayerMovement>() == null;
+            if (blocked) continue;
+            clear[index] = true;
+            float distance = (point - start).sqrMagnitude;
+            if (distance < seedDistance) { seedDistance = distance; seed = index; }
+        }
+        if (seed < 0) return "Occupied circulation: player start has no clear nearby sample. Review the staff area.";
+        var frontier = new Queue<int>();
+        frontier.Enqueue(seed);
+        visited[seed] = true;
+        while (frontier.Count > 0)
+        {
+            int index = frontier.Dequeue();
+            int x = index % cols;
+            int z = index / cols;
+            if (x > 0) Visit(index - 1);
+            if (x < cols - 1) Visit(index + 1);
+            if (z > 0) Visit(index - cols);
+            if (z < rows - 1) Visit(index + cols);
+        }
+        void Visit(int next)
+        {
+            if (!clear[next] || visited[next]) return;
+            visited[next] = true;
+            frontier.Enqueue(next);
+        }
+        var unreachable = new List<string>();
+        for (int i = 0; i < targets.Length; i++)
+        {
+            bool accessible = false;
+            for (int cell = 0; cell < visited.Length && !accessible; cell++)
+                accessible = visited[cell] && (positions[cell] - occupied[i]).sqrMagnitude <= 2.05f * 2.05f;
+            if (!accessible) unreachable.Add(targets[i].parent.name + "/" + targets[i].name);
+        }
+        string result = "Occupied circulation: " + (targets.Length - unreachable.Count) + "/" + targets.Length
+            + " customer positions have a reachable delivery approach with player radius " + radius.ToString("0.00")
+            + " m. All positions modelled as occupied; 0.20 m grid, stationary 0.65 m body envelopes. "
+            + (unreachable.Count == 0 ? "PASS for this static model; moving-crowd playtest still required."
+                : "Blocked: " + string.Join("; ", unreachable));
+        Debug.Log(result);
+        return result;
+    }
+
     private static void RequireStoppedAndSaved()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode)

@@ -28,6 +28,12 @@ public class DayClock : MonoBehaviour
     [SerializeField] private float dayLengthSeconds = 180f;   // 3 min for testing, 7 for ship
     [SerializeField] private int startingDay = 1;
 
+    [Header("Cafe opening hours")]
+    [Tooltip("The displayed opening time. The day still lasts dayLengthSeconds in real time.")]
+    [SerializeField, Range(0f, 23f)] private float openingHour = 9f;
+    [Tooltip("Last orders on the cafe clock. Existing customers can still finish their jobs.")]
+    [SerializeField, Range(1f, 24f)] private float closingHour = 20f;
+
     [Tooltip("Deadlock backstop. Only counts once EVERY remaining customer is " +
              "walking out — while anyone is still being served it resets, so " +
              "it can never cut a repair short. Generous on purpose: by the time " +
@@ -40,6 +46,13 @@ public class DayClock : MonoBehaviour
 
     public int Day { get; private set; }
     public float TimeRemaining { get; private set; }
+
+    public float OpeningHour => Mathf.Clamp(openingHour, 0f, 23f);
+    public float ClosingHour => Mathf.Clamp(closingHour, OpeningHour + 1f, 24f);
+    /// <summary>Opening is 0; last orders and the recap are 1. Pauses with the existing countdown.</summary>
+    public float NormalizedDay => dayLengthSeconds > 0f
+        ? Mathf.Clamp01(1f - TimeRemaining / dayLengthSeconds) : 1f;
+    public float CurrentHour => Mathf.Lerp(OpeningHour, ClosingHour, NormalizedDay);
 
     // Wall-clock stamp of this morning's opening, so anything logging an event
     // can say WHEN in the day it happened rather than just that it happened.

@@ -1,6 +1,8 @@
 using UnityEngine;
 using Unity.Cinemachine;
+using UnityEngine.InputSystem;
 
+[DefaultExecutionOrder(-100)]
 public class StationInteractable : Interactable
 {
     [SerializeField] private CinemachineCamera stationCamera;
@@ -8,6 +10,83 @@ public class StationInteractable : Interactable
     [SerializeField] private DropSpot dropSpot;
     [Tooltip("Where the player stands while using this station. Keeps the view consistent.")]
     [SerializeField] private Transform standPoint;
+    [SerializeField, Range(.02f, .3f)] private float mouseLookSensitivity = .09f;
+    [SerializeField, Min(1f)] private float stickLookSpeed = 90f;
+
+    private CinemachineInputAxisController lookInput;
+    private CinemachineBrain brain;
+    private PlayerInteractor player;
+    private ItemInspector inspector;
+    private ConversationController conversation;
+    private CounterRepairView counterRepair;
+    private bool lookReady;
+
+    private void Awake()
+    {
+        player = FindAnyObjectByType<PlayerInteractor>();
+        if (player != null)
+        {
+            inspector = player.GetComponent<ItemInspector>();
+            conversation = player.GetComponent<ConversationController>();
+            counterRepair = player.GetComponent<CounterRepairView>();
+        }
+        brain = Camera.main != null ? Camera.main.GetComponent<CinemachineBrain>() : null;
+        ConfigureLookInput();
+        if (lookInput != null) lookInput.enabled = false;
+    }
+
+    // Also used by the scene setup to make the mouse defaults visible in the
+    // inspector. Mouse distance is already accumulated over a frame; scaling
+    // it by frame time again made slow frames turn farther than fast frames.
+    public void ConfigureLookInput()
+    {
+        lookInput = stationCamera != null ? stationCamera.GetComponent<CinemachineInputAxisController>() : null;
+        if (lookInput == null) return;
+        lookInput.SuppressInputWhileBlending = true;
+        lookInput.IgnoreTimeScale = false;
+        foreach (var control in lookInput.Controllers)
+        {
+            if (!(control.Owner is CinemachinePanTilt)) continue;
+            control.Input.Gain = control.Name == "Look Y (Tilt)" ? -mouseLookSensitivity : mouseLookSensitivity;
+            control.Input.CancelDeltaTime = true;
+            control.Driver.AccelTime = control.Driver.DecelTime = 0;
+        }
+    }
+
+    private void Update()
+    {
+        if (lookInput == null) return; // BeverageLook owns the dispenser view.
+        // CounterRepairView can be added by PlayerInteractor after our Awake.
+        if (counterRepair == null && player != null) counterRepair = player.GetComponent<CounterRepairView>();
+        bool ownsLook = player != null && player.CurrentStation == this && Application.isFocused
+            && Time.timeScale > 0 && Cursor.lockState == CursorLockMode.Locked
+            && !(DayClock.Instance != null && DayClock.Instance.DayOver)
+            && !(inspector != null && inspector.IsHoldingItem)
+            && !(conversation != null && conversation.InConversation)
+            && !(counterRepair != null && counterRepair.OwnsInput)
+            && !(brain != null && brain.IsBlending);
+        // Skip the first frame after locking/focus/blending so a stale mouse
+        // delta cannot jerk the view. No smoothing or delayed mouse response.
+        lookInput.enabled = ownsLook && lookReady;
+        lookReady = ownsLook;
+        if (!lookInput.enabled) return;
+        foreach (var control in lookInput.Controllers)
+        {
+            if (!(control.Owner is CinemachinePanTilt)) continue;
+            var action = control.Input.InputAction != null ? control.Input.InputAction.action : null;
+            bool pointer = action == null || action.activeControl == null || action.activeControl.device is Pointer;
+            float gain = pointer ? mouseLookSensitivity : stickLookSpeed;
+            control.Input.Gain = control.Name == "Look Y (Tilt)" ? -gain : gain;
+            // Stick deflection is a rate, unlike a mouse's travelled distance.
+            control.Input.CancelDeltaTime = pointer;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (lookInput != null) lookInput.enabled = false;
+        lookReady = false;
+    }
 
     public Transform StandPoint => standPoint;
 
