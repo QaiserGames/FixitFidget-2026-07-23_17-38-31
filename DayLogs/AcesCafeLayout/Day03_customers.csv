@@ -1,0 +1,11 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Beatriz",no,"Chatty","Repair","Pocket Watch","Seized Movement","Mechanical","Coffee",57.8,80.6,22.9,,no,no,"Declined",,0.8,,0,0,0,no,no,,,
+"Malcom",no,"Chatty","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Americano",4.8,100.3,95.6,78.3,yes,yes,"Served","Perfect",0.6,"Seat",98,41,0,no,no,,,
+"Mansoor",no,"Chatty","Drink","Coffee",,,,44.8,115.0,70.3,41.4,yes,yes,"Served",,0.8,"Seat",3,1,0,no,no,,,
+"Yuki",no,"Cheerful","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic",,93.3,135.2,41.9,,no,no,"ShelfFull",,0.4,,0,0,0,no,no,,,
+"Ingrid",no,"Impatient","Repair","Phone","Calls light up the screen, but the phone never rings","Human",,125.3,143.4,18.1,5.1,yes,yes,"Served","Perfect",1.0,,31,15,0,no,no,,,
+"Nina",no,"Cheerful","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic",,72.3,160.8,88.5,41.7,yes,yes,"Served","Perfect",0.6,"Seat",75,31,0,no,no,,,
+"Valerie",no,"Cheerful","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Tea",24.8,172.6,147.9,102.7,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0,0,no,no,,,
+"Deshawn",no,"Cheerful","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic","Coffee",109.3,188.4,79.1,61.9,yes,yes,"Served","Perfect",1.0,"Seat",78,38,0,no,no,,,
+"Ali",no,"Sentimental","Repair","Pocket Watch","Seized Movement","Mechanical",,151.3,262.3,111.0,67.2,yes,yes,"Served","Perfect",0.3,"Seat",200,40,0,no,no,,,
+"Priya",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",169.3,278.3,109.0,77.1,yes,yes,"Served","Perfect",0.5,"Seat",206,78,0,no,no,,,
