@@ -22,7 +22,9 @@ public class ReplaceablePart : BenchInteractable
 
     
     public override string DisplayName => partName;
-    public override string Prompt => "Replace";
+    public override string Prompt => IsReplaced ? "Already replaced"
+        : coveredBy != null && !coveredBy.IsRemoved ? $"Remove the {coveredBy.DisplayName.ToLowerInvariant()} first"
+        : "Replace";
     public override ToolType RequiredTool => ToolType.Tweezers;
 
     public override void Activate()

@@ -254,11 +254,44 @@ public class DayClock : MonoBehaviour
         TimeRemaining = 0f;
         closingTill = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
         Time.timeScale = 0f;
+        SettleClosingCups();
         // Commit before UI/log listeners, so a failing listener cannot prevent
         // the completed day from being checkpointed.
         if (SaveManager.Instance != null) SaveManager.Instance.TrySaveRecap();
         else Debug.LogError("[Save] Day closed without a SaveManager; progress has not been saved.");
         OnDayEnded?.Invoke();
+    }
+
+    private void SettleClosingCups()
+    {
+        // Cups are work for the current day, not checkpoint inventory. Settle
+        // them before saving so Continue and loading this recap open alike.
+        // Read locks BEFORE cancelling pours: a partly filled cup is still
+        // IsEmpty until brewing completes, but it must not receive a refund.
+        var cups = new System.Collections.Generic.List<DrinkJob>();
+        var slots = new System.Collections.Generic.List<BeverageSlot>();
+        foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+        {
+            cups.AddRange(root.GetComponentsInChildren<DrinkJob>(true));
+            slots.AddRange(root.GetComponentsInChildren<BeverageSlot>(true));
+        }
+        foreach (DrinkJob cup in cups)
+        {
+            if (cup == null) continue;
+            if (cup.IsEmpty && !cup.Locked && ShopInventory.Instance != null)
+                ShopInventory.Instance.ReturnCup();
+        }
+        foreach (BeverageSlot slot in slots)
+            if (slot != null) slot.CancelForDayClose();
+        foreach (DrinkJob cup in cups)
+        {
+            if (cup == null) continue;
+            // Remove it from the live registry immediately; Destroy waits until
+            // the frame ends, and no closed-day cup should count as stock.
+            cup.gameObject.SetActive(false);
+            if (Application.isPlaying) Destroy(cup.gameObject);
+            else DestroyImmediate(cup.gameObject);
+        }
     }
 
     public void NextDay() => TryNextDay();

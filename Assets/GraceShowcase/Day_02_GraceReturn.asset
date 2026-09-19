@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Day_02_GraceReturn
   m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
   dayNumber: 2
-  intent: Teach overlap. The player should have to leave a repair to make a coffee
-    for the first time.
+  intent: Grace returns for a latte and the camera photo consequence. The keepsake
+    becomes durable at this day recap.
   phases:
   - phaseName: Calm
     startsAt: 0
@@ -29,7 +29,7 @@ MonoBehaviour:
     startsAt: 0.75
     spawnInterval: 20
   patienceMultiplier: 1.2
-  maxCustomers: 4
+  maxCustomers: 2
   drinkOnlyChance: 0.4
   guidedOpening: 0
   openingDrink: {fileID: 0}
@@ -40,9 +40,9 @@ MonoBehaviour:
   - Cheerful
   - Chatty
   - Sentimental
-  regularChance: 0.15
+  regularChance: 0
   featuredRegular: {fileID: 11400000, guid: dfd14ad338d46de49bd81a423294b439, type: 2}
-  featuredRegularArrivesAt: 0.12
+  featuredRegularArrivesAt: 0
   useFeaturedRepair: 0
   featuredRepair:
     devicePrefab: {fileID: 0}

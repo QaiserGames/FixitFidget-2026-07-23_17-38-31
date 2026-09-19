@@ -156,7 +156,8 @@ public static class BeverageFeelChecks
             Set(waste, "pourLeft", 0f); Call(waste, "Update");
             Require(waste.Cup == null && DrinkJob.Live.Count == cupsBeforeWaste,
                 "Wasted ingredients do not create a replacement cup.");
-            Debug.Log("[Beverage feel] PASS: separate cup placement and named paddle activation, one debit, two independent sections, rising liquid and stream endpoints, pickup locks, full-slot blocking, prebrew, collection, separate cooling indicator, cooling/cold rules, stock exhaustion, pause and interrupted pours. No scene or save changes.");
+            CheckClosingSettlement(host, carry, stock, endedDay, first, second, coffee, cups);
+            Debug.Log("[Beverage feel] PASS: separate cup placement and named paddle activation, one debit, two independent sections, rising liquid and stream endpoints, pickup locks, full-slot blocking, prebrew, collection, separate cooling indicator, cooling/cold rules, stock exhaustion, pause, interrupted pours, and closing cup/checkpoint settlement. No scene or save changes. Normal input, next-day reload, and audible playback still need gameplay verification.");
         }
         finally
         {
@@ -166,6 +167,58 @@ public static class BeverageFeelChecks
             Time.timeScale = previousTimeScale;
             foreach (var recipe in recipes) if (recipe != null) UnityEngine.Object.DestroyImmediate(recipe);
         }
+    }
+
+    private static void CheckClosingSettlement(GameObject host, PlayerCarry carry, ShopInventory stock,
+        DayClock clock, BeverageSlot first, BeverageSlot second, DrinkDefinition recipe, List<DrinkJob> cups)
+    {
+        // Replace the earlier fixture with an exact closing state: unused cups
+        // in a hand and a slot, a prepared drink in the other hand, and a pour.
+        foreach (DrinkJob old in cups)
+            if (old != null) UnityEngine.Object.DestroyImmediate(old.gameObject);
+        first.CancelForDayClose(); second.CancelForDayClose();
+        stock.SetStock(10, 10); Time.timeScale = 1; Instance<DayClock>(null);
+        var heldUnused = Cup(host, "Unused held at closing", cups);
+        Require(stock.TakeCup() && carry.TryPickUp(heldUnused), "Closing fixture has an unused held cup.");
+        var placedUnused = Cup(host, "Unused placed at closing", cups);
+        Require(stock.TakeCup() && carry.TryPickUp(placedUnused) && first.TransferCup(carry),
+            "Closing fixture has an unused cup in a dispenser slot.");
+        var partlyFilled = Cup(host, "Pour interrupted by closing", cups);
+        Require(stock.TakeCup() && carry.TryPickUp(partlyFilled) && second.TransferCup(carry) && second.TryPour(),
+            "Closing fixture charges for an active pour once.");
+        SetProgress(second, .4f);
+        var filled = Cup(host, "Prepared held at closing", cups);
+        Require(stock.TakeCup() && stock.ConsumeBeans(recipe), "Closing fixture buys a prepared drink.");
+        filled.SetDrink(recipe, true);
+        Require(carry.TryPickUp(filled) && partlyFilled.IsEmpty && partlyFilled.Locked,
+            "A partly filled cup has no recipe yet, so its lock is needed to prevent an unused-cup refund.");
+        var audio = second.gameObject.AddComponent<BeveragePourAudio>();
+        Call(audio, "Awake");
+        Set(audio, "active", true); Set(audio, "flowPaused", true); Set(audio, "completionPaused", true);
+        Instance(clock); clock.SetDay(1);
+        typeof(DayClock).GetProperty("DayOver").SetValue(clock, true);
+        Time.timeScale = 0;
+        Call(clock, "SettleClosingCups");
+        Require(stock.Cups == 8 && stock.Beans == 6,
+            "Closing refunds only the two unused cups; the prepared drink and interrupted pour keep all debits.");
+        Require(carry.Count == 0 && first.Cup == null && second.Cup == null && !second.IsPouring
+            && !first.stream.enabled && !second.stream.enabled,
+            "Closing clears held cups, both dispenser slots, pour state, and streams.");
+        Require(!(bool)Get(audio, "active") && !(bool)Get(audio, "flowPaused") && !(bool)Get(audio, "completionPaused"),
+            "Closing cancels audio state rather than resuming a paused pour or completion next day.");
+        foreach (DrinkJob live in DrinkJob.Live)
+            Require(live == null || live.gameObject.scene != host.scene,
+                "Settled cups no longer count as available drinks or empty cups in this scene.");
+        var checkpoint = new SaveData { day = 1, dayCompleted = true, cups = stock.Cups, beans = stock.Beans,
+            recap = new RecapSaveData { day = 1 } };
+        var reloaded = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(checkpoint));
+        reloaded.ValidateAndMigrate();
+        Require(checkpoint.TryCreateNextDay(out SaveData continued) && reloaded.TryCreateNextDay(out SaveData resumed)
+            && continued.cups == resumed.cups && continued.beans == resumed.beans && resumed.cups == 8 && resumed.beans == 6,
+            "Continuing or reloading the settled checkpoint preserves the same stock without serializing cups.");
+        Call(clock, "SettleClosingCups");
+        Require(stock.Cups == 8 && stock.Beans == 6, "Settling an already empty shop cannot refund cups twice.");
+        Instance<DayClock>(null); Time.timeScale = 1;
     }
 
     private static DrinkDefinition Recipe(string label, float seconds, List<DrinkDefinition> recipes)

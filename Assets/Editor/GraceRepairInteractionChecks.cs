@@ -26,10 +26,10 @@ public static class GraceRepairInteractionChecks
             Instance<DayClock>(null); Time.timeScale = 1f;
             var host = new GameObject("Isolated Grace click checks"); SceneManager.MoveGameObjectToScene(host, scene);
             var camera = UnityEngine.Object.Instantiate(prefab, host.transform);
-            camera.transform.SetPositionAndRotation(new Vector3(7000, 7000, 7000), Quaternion.identity);
+            camera.transform.SetPositionAndRotation(new Vector3(5, 5, 5), Quaternion.identity);
             camera.GetComponent<DeviceDefinition>().ApplyFault(0);
             var job = camera.GetComponent<GraceCameraRepairJob>();
-            var shutter = job.Shutter; Call(shutter, "Awake");
+            var shutter = job.Shutter;
             foreach (Renderer renderer in shutter.GetComponentsInChildren<Renderer>(true))
                 if (renderer.sharedMaterial != null && !AssetDatabase.Contains(renderer.sharedMaterial))
                     generatedMaterials.Add(renderer.sharedMaterial);
@@ -40,6 +40,9 @@ public static class GraceRepairInteractionChecks
             var blade = shutter.transform.Find("Bent shutter blade").GetComponent<Collider>();
             Require(blade != null && blade.GetComponent<BenchInteractable>() == null,
                 "The authored visible shutter blade reproduces the child-collider interaction bug.");
+            // Synchronize BEFORE reading bounds for the ray origin. The old
+            // helper synchronized after its caller had already read stale bounds.
+            Physics.SyncTransforms();
             Collider hit = FrontHit(camera, blade.bounds.center);
             Require(hit == blade, "A ray aimed at the visible blade first hits its child collider.");
             var resolved = Resolve(hit);
@@ -79,6 +82,7 @@ public static class GraceRepairInteractionChecks
             Require(!blade.gameObject.activeSelf && shutter.transform.Find("Working shutter blade").gameObject.activeSelf,
                 "Repair visibly replaces the bent blade with the working blade.");
             Press(inspector, Resolve(shutter.transform.Find("Working shutter blade").GetComponent<Collider>()));
+            Require(shutter.Prompt == "Already replaced", "A finished shutter does not imply another blocked step.");
             Require(job.Grade == JobGrade.Perfect && camera.transform.Find("KEEP - scratched sentimental strap") != null,
                 "Repeated clicks preserve the finished repair and original sentimental strap.");
 

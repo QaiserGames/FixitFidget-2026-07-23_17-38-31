@@ -17,7 +17,7 @@ public sealed class BeverageCupSupply : Interactable
                 return cup.IsEmpty ? "Return unused cup to stock"
                     : $"Discard {cup.Drink.drinkName} — cup and ingredients are lost";
             }
-            return carry == null || !carry.HasSpace ? "Both hands full · place a cup first"
+            return carry == null || !carry.HasSpace ? "Both hands full · return a spare cup at the return / discard tray"
                 : ShopInventory.Instance == null || ShopInventory.Instance.Cups <= 0 ? "Out of cups" : "Take empty cup";
         }
     }

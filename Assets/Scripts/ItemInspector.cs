@@ -30,6 +30,17 @@ public class ItemInspector : MonoBehaviour
     public string CurrentJobCard { get; private set; }
     public string HoverName { get; private set; }
     public string HoverAction { get; private set; }
+    public string CollectionPrompt
+    {
+        get
+        {
+            if (focusedItem == null) return "";
+            var carry = GetComponent<PlayerCarry>();
+            if (carry == null || !carry.HasSpace) return "Hands full — free a hand to collect";
+            string progress = focusedItem is GraceCameraRepairJob grace ? "\n" + grace.TaskSummary : "";
+            return "Pick up item and step back" + progress;
+        }
+    }
 
     private void Awake()
     {
@@ -108,6 +119,22 @@ public class ItemInspector : MonoBehaviour
 
     // Cancelling for the recap never returns cursor ownership to a workbench.
     public void CancelInspection() => Release(false);
+
+    // Use the ordinary pickup rules; an unfinished repair remains collectable.
+    // Release first so inspection cannot snap the carried item back to the bench.
+    public bool TryCollectInspectedItem()
+    {
+        if (focusedItem == null || !IsAtWorkbench || Time.timeScale <= 0f
+            || DayClock.Instance != null && DayClock.Instance.DayOver) return false;
+        var pickup = focusedItem.GetComponentInChildren<ItemInteractable>();
+        var carry = GetComponent<PlayerCarry>();
+        if (pickup == null || !pickup.IsAvailable || carry == null || !carry.HasSpace) return false;
+        var item = focusedItem;
+        carry.UseAutomaticHand();
+        Release();
+        pickup.Interact(interaction);
+        return carry.Contains(item);
+    }
 
     private void Release(bool returnToStation = true)
     {
@@ -201,7 +228,7 @@ public class ItemInspector : MonoBehaviour
             HoverName = hovered.DisplayName;
 
             if (!hovered.CanInteract)
-                HoverAction = hovered is CircuitTile ? hovered.Prompt : "Not yet";
+                HoverAction = hovered is CircuitTile || hovered is ReplaceablePart ? hovered.Prompt : "Not yet";
             else if (currentTool == hovered.RequiredTool || hovered.RequiredTool == ToolType.Hand)
             {
                 target = hovered;

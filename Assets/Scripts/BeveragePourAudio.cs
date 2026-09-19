@@ -89,10 +89,12 @@ public sealed class BeveragePourAudio : MonoBehaviour
         if (!active && flowSource.volume <= 0) flowSource.Stop();
     }
 
-    private void OnDisable()
+    public void Cancel()
     {
         active = running = flowPaused = completionPaused = false;
         if (flowSource != null) flowSource.Stop();
         if (completionSource != null) completionSource.Stop();
     }
+
+    private void OnDisable() => Cancel();
 }

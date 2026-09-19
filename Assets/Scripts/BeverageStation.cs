@@ -64,7 +64,7 @@ public sealed class BeverageStation : MonoBehaviour
                 if (slot.Cup == focusedCup) { selected = slot; break; }
 
         title.text = selected != null && selected.drink != null ? selected.drink.drinkName
-            : supply != null ? supply.discard ? "Discard basin" : "Cup stack" : "Drink station";
+            : supply != null ? supply.discard ? "Cup return / discard" : "Cup stack" : "Drink station";
         if (selected != null && selected.IsPouring)
             action.text = "Pouring " + Mathf.RoundToInt(selected.Progress * 100) + "% · prepare another cup while it fills";
         else if (focused != null && (control != null || supply != null || selected != null))

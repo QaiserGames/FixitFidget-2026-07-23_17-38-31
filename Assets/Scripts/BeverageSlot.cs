@@ -139,6 +139,19 @@ public sealed class BeverageSlot : MonoBehaviour
         }
         if (focusOutline != null) focusOutline.enabled = focused;
     }
+    public void CancelForDayClose()
+    {
+        // DayClock has already classified unused versus in-progress cups.
+        // No refund or completion cue belongs to this cancellation.
+        pouring = false; caughtPour = false; pourLeft = 0f;
+        if (cup != null) cup.Locked = false;
+        cup = null;
+        if (stream != null) stream.enabled = false;
+        if (pourAudio == null) pourAudio = GetComponent<BeveragePourAudio>();
+        if (pourAudio != null) pourAudio.Cancel();
+        SetFocused(false);
+    }
+
     private void OnDisable()
     {
         // Interrupting a station wastes spent ingredients, but never strands a locked cup.

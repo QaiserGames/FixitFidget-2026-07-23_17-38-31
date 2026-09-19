@@ -78,7 +78,8 @@ public class PlayerInteractor : MonoBehaviour
         if (counterRepair != null && counterRepair.OwnsInput || inspector != null && inspector.IsHoldingItem)
         {
             if (focused != null) focused.SetFocused(false);
-            focused = null; CurrentPrompt = "";
+            focused = null;
+            CurrentPrompt = inspector != null && inspector.IsHoldingItem ? inspector.CollectionPrompt : "";
             StationKey();
             return;
         }
@@ -251,7 +252,12 @@ public class PlayerInteractor : MonoBehaviour
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
         if (counterRepair != null && counterRepair.OwnsInput) return;
-        if (inspector != null && inspector.IsHoldingItem) return;
+        if (inspector != null && inspector.IsHoldingItem)
+        {
+            lastInteractionFrame = Time.frameCount;
+            inspector.TryCollectInspectedItem();
+            return;
+        }
         if (currentStation != null && currentStation.GetComponent<BeverageStation>() != null)
         {
             if (carry == null) carry = GetComponent<PlayerCarry>();
