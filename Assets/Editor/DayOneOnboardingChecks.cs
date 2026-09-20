@@ -20,9 +20,10 @@ public static class DayOneOnboardingChecks
         CheckSequence();
         CheckHintTiming();
         CheckDefinitions();
+        CheckFeaturedHints();
         CheckJobRolls();
         Debug.Log("[Day 1 onboarding] PASS: sequence, failure-safe progression, " +
-                  "day isolation, Grace timing, opening job selection, and configurable hint timing. " +
+                  "day isolation, Grace visit hints, pending drink guidance, opening job selection, and configurable hint timing. " +
                   "Still run the in-game checklist for input, navigation, and HUD layout.");
     }
 
@@ -82,6 +83,48 @@ public static class DayOneOnboardingChecks
         Require(!lesson.IsActive && !lesson.VisitInProgress, "Later day clears an unfinished lesson.");
         lesson.Reset(true);
         Require(lesson.Current == DayOneOpening.Step.Drink && !lesson.VisitInProgress, "Fresh Day 1 restarts cleanly.");
+    }
+
+    private static void CheckFeaturedHints()
+    {
+        string[] paths = { "Assets/GraceShowcase/Day_01_GraceCamera.asset", "Assets/GraceShowcase/Day_02_GraceReturn.asset" };
+        foreach (string path in paths)
+        {
+            DayDefinition day = AssetDatabase.LoadAssetAtPath<DayDefinition>(path);
+            Require(day != null && day.GuidesFeaturedVisitOn(day.dayNumber), path + " enables featured hints.");
+            Require(!day.guidedOpening, "Featured hints do not restore the old opening sequence.");
+            Require(!day.GuidesFeaturedVisitOn(day.dayNumber + 1), "Repeating a day asset cannot repeat its featured hints.");
+        }
+        var defaults = ScriptableObject.CreateInstance<DayDefinition>();
+        var host = new GameObject("Temporary featured hint check") { hideFlags = HideFlags.HideAndDontSave };
+        host.SetActive(false);
+        try
+        {
+            Require(!defaults.showFeaturedVisitHints && !defaults.GuidesFeaturedVisitOn(1), "Unconfigured days remain opt-out.");
+            var guide = host.AddComponent<DayOneGuideUI>();
+            var customer = host.AddComponent<CustomerBrain>();
+            typeof(CustomerBrain).GetField("wasAccepted", PrivateInstance).SetValue(customer, true);
+            typeof(CustomerBrain).GetField("repairReturned", PrivateInstance).SetValue(customer, true);
+            typeof(CustomerBrain).GetField("drinkOrdered", PrivateInstance).SetValue(customer, true);
+            string next = (string)typeof(DayOneGuideUI).GetMethod("FeaturedAction", PrivateInstance)
+                .Invoke(guide, new object[] { customer, null });
+            Require(next.StartsWith("Repair returned.") && !next.Contains("intake shelf"),
+                "Returning the repair cannot hide an outstanding drink behind a missing-item hint.");
+            var job = host.AddComponent<RepairJob>();
+            var inspector = host.AddComponent<ItemInspector>();
+            typeof(CustomerBrain).GetField("activeJob", PrivateInstance).SetValue(customer, job);
+            typeof(ItemInspector).GetField("focusedItem", PrivateInstance).SetValue(inspector, job);
+            typeof(DayOneGuideUI).GetField("inspector", PrivateInstance).SetValue(guide, inspector);
+            string collection = (string)typeof(DayOneGuideUI).GetMethod("RepairAction", PrivateInstance)
+                .Invoke(guide, new object[] { customer });
+            Require(collection.Contains("Press E") && !collection.Contains("Right-click"),
+                "Completed inspection explains direct E collection, without the old exit-first sequence.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(host);
+            UnityEngine.Object.DestroyImmediate(defaults);
+        }
     }
 
     private static DayDefinition DayOne() =>

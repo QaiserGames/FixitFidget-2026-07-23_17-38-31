@@ -20,6 +20,7 @@ public class DayOneGuideUI : MonoBehaviour
     private GameObject panel;
     private TMP_Text hint;
     private float nextRefresh;
+    private int hintDay = -1;
     private readonly DayOneHintTimer toast = new();
 
     public void Initialize(TMP_Text source, PlayerInteractor player,
@@ -37,7 +38,13 @@ public class DayOneGuideUI : MonoBehaviour
     private void LateUpdate()
     {
         DayClock clock = DayClock.Instance;
-        bool blocked = clock == null || clock.Day != 1 || clock.DayOver
+        if (clock != null && hintDay != clock.Day)
+        {
+            hintDay = clock.Day;
+            toast.Reset();
+            nextRefresh = 0f;
+        }
+        bool blocked = clock == null || clock.DayOver
             || (recap != null && recap.activeInHierarchy)
             || (conversation != null && conversation.InConversation)
             || sourceText == null || !sourceText.gameObject.activeInHierarchy;
@@ -45,7 +52,7 @@ public class DayOneGuideUI : MonoBehaviour
         {
             // Dialogue/recap must never leave an old toast waiting to pop back
             // up. A fresh action after closing the panel may show its own hint.
-            if (clock == null || clock.Day != 1 || clock.DayOver) toast.Reset();
+            if (clock == null || clock.DayOver) toast.Reset();
             else toast.Dismiss();
             Show(false);
             return;
@@ -57,8 +64,9 @@ public class DayOneGuideUI : MonoBehaviour
         if (Time.unscaledTime < nextRefresh) return;
         nextRefresh = Time.unscaledTime + 0.15f;
         if (spawner == null) spawner = FindAnyObjectByType<CustomerSpawner>();
-        if (spawner == null || !spawner.IsGuidedOpening
-            || (!clock.IsOpen && spawner.OpeningCustomer == null))
+        CustomerProfile featured = spawner != null ? spawner.FeaturedHintProfile : null;
+        if (spawner == null || (!spawner.IsGuidedOpening && featured == null)
+            || (!clock.IsOpen && spawner.OpeningCustomer == null && spawner.FeaturedCustomer == null))
         {
             toast.Reset();
             Show(false);
@@ -66,16 +74,39 @@ public class DayOneGuideUI : MonoBehaviour
         }
         if (panel == null && !CreatePanel()) return;
 
-        CustomerBrain customer = spawner.OpeningCustomer;
+        CustomerBrain customer = featured != null ? spawner.FeaturedCustomer : spawner.OpeningCustomer;
         bool drinkLesson = spawner.OpeningStep == DayOneOpening.Step.Drink;
-        string title = drinkLesson ? "FIRST DRINK" : "FIRST REPAIR";
-        string next = NextAction(customer, drinkLesson);
+        string title = featured != null ? $"DAY {clock.Day} · {featured.characterName.ToUpperInvariant()}"
+            : drinkLesson ? "FIRST DRINK" : "FIRST REPAIR";
+        string next = featured != null ? FeaturedAction(customer, featured) : NextAction(customer, drinkLesson);
         string text = $"<b>{title}</b>\n{next}";
         // These messages describe stable actions, never the hovered part.
         // Title separates the two lessons, so shared instructions can appear
         // once for each visit without repeating when the player moves around.
         if (toast.Observe(text, Time.unscaledTime, spawner.OpeningHintDuration)) hint.text = text;
         Show(toast.IsVisible(Time.unscaledTime));
+    }
+
+    private string FeaturedAction(CustomerBrain customer, CustomerProfile profile)
+    {
+        if (customer == null || customer.IsLeaving)
+            return spawner.FeaturedVisitStarted
+                ? $"{profile.characterName}'s visit is over. Finish the remaining requests; closing brings the recap and save."
+                : hintDay == 1
+                    ? $"{profile.characterName} is on the way with a repair. Start behind the service counter."
+                    : $"{profile.characterName} is visiting again. Talk at the counter to hear how things went.";
+        if (!customer.WasAccepted) return NextAction(customer, false);
+        // A repair can be returned while its drink is still outstanding.
+        // Observe that order, even when another hand/cup has claimed it.
+        if (customer.HasReturnedRepair && customer.HasDrinkOrder)
+            return "Repair returned. " + DrinkAction(customer);
+        if (customer.Record != null && customer.Record.kind == JobKind.Drink)
+            return DrinkAction(customer);
+        if (customer.HasDrinkOrder && (customer.CanReceiveDrink
+            || (interactor != null && interactor.CurrentStation != null
+                && interactor.CurrentStation.GetComponent<BeverageStation>() != null)))
+            return DrinkAction(customer);
+        return RepairAction(customer);
     }
 
     private string NextAction(CustomerBrain customer, bool drinkLesson)
@@ -104,6 +135,14 @@ public class DayOneGuideUI : MonoBehaviour
     {
         DrinkJob held = carry != null ? carry.Carried as DrinkJob : null;
         DrinkDefinition wanted = customer.WantedDrink;
+        // Delivery accepts either hand, so guidance must not hide a ready drink
+        // merely because the other hand was selected at the dispenser.
+        if (carry != null)
+            for (int i = 0; i < carry.Count; i++)
+                if (carry.GetItem(i) is DrinkJob cup && cup.CanHandBack && cup.Drink == wanted)
+                    return $"F steps back. Walk to {customer.CustomerName}; E serves the matching drink.";
+        if (customer.CanApologiseForDrink)
+            return $"No stock. E near {customer.CustomerName} apologises; restock after closing.";
         if (FindAnyObjectByType<BeverageStation>() != null)
         {
             if (held != null && !held.IsEmpty && !held.CanHandBack)
@@ -171,7 +210,7 @@ public class DayOneGuideUI : MonoBehaviour
         JobBase job = customer.ActiveJob;
         if (job == null) return "The customer's item will appear on the intake shelf.";
         bool inspecting = inspector != null && inspector.FocusedItem == job;
-        bool carrying = carry != null && carry.Carried == job;
+        bool carrying = carry != null && carry.Contains(job);
 
         if (customer.IsCounterRepair)
             return job.IsComplete
@@ -181,17 +220,18 @@ public class DayOneGuideUI : MonoBehaviour
             return call.CurrentPhase == HoldCallRun.State.Ringing ? "Support answered! E on the ringing phone picks up."
                 : call.CurrentPhase == HoldCallRun.State.OnHold ? "On hold. Work on another job; return when the phone rings."
                 : "E on the support phone calls or redials. No menu choices.";
-        if (job.IsComplete)
+        if (job.IsComplete || (job.CanHandBack && job.Grade != JobGrade.Rejected && carrying))
         {
             if (inspecting)
-                return inspector.CurrentTool != ToolType.Hand
-                    ? "Fixed! Right-click twice: put down the tool, then leave inspection."
-                    : "Fixed! Right-click to leave inspection. E picks up the item.";
+                return carry != null && !carry.HasSpace
+                    ? "Fixed! Free a hand before collecting the item."
+                    : "Fixed! Press E to pick up the item and step back from inspection.";
             if (carrying)
             {
                 if (interactor != null && interactor.IsAtStation)
                     return "Press F to step back. E near the customer returns their item.";
-                return $"Take the item to {customer.CustomerName}. Press E at Hand it back.";
+                return $"{job.Grade} repair. Take it to {customer.CustomerName}; E hands it back."
+                    + (job.Grade == JobGrade.Perfect ? "" : " You can keep repairing for a higher grade.");
             }
             return "Press E to pick up the repaired item for delivery.";
         }
@@ -290,7 +330,7 @@ public class DayOneGuideUI : MonoBehaviour
         Canvas canvas = sourceText.GetComponentInParent<Canvas>();
         if (canvas == null || canvas.rootCanvas.renderMode == RenderMode.WorldSpace) return false;
         canvas = canvas.rootCanvas;
-        panel = new GameObject("Day 1 next action (runtime)", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        panel = new GameObject("Next action hint (runtime)", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = panel.GetComponent<RectTransform>();
         rect.SetParent(canvas.transform, false);
         rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);

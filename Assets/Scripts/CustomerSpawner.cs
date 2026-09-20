@@ -100,10 +100,15 @@ public class CustomerSpawner : MonoBehaviour
 
     private readonly DayOneOpening opening = new();
     private CustomerBrain openingCustomer;
+    private CustomerBrain featuredCustomer;
     private DrinkDefinition openingDrink;
     public DayOneOpening.Step OpeningStep => opening.Current;
     public bool IsGuidedOpening => opening.IsActive;
     public CustomerBrain OpeningCustomer => openingCustomer;
+    public CustomerProfile FeaturedHintProfile => today != null && today.GuidesFeaturedVisitOn(lastSeenDay)
+        ? today.featuredRegular : null;
+    public CustomerBrain FeaturedCustomer => featuredCustomer;
+    public bool FeaturedVisitStarted => featuredRegularSpawned;
     public float OpeningHintDuration => today != null
         ? Mathf.Clamp(today.openingHintDuration, 3f, 10f)
         : 6f;
@@ -190,6 +195,7 @@ public class CustomerSpawner : MonoBehaviour
             ResolveToday(lastSeenDay);
             ResetRoster();
             featuredRegularSpawned = false;
+            featuredCustomer = null;
             openingCustomer = null;
             openingDrink = ResolveOpeningDrink();
             bool guide = today != null && today.GuidesOpeningOn(lastSeenDay);
@@ -337,6 +343,7 @@ public class CustomerSpawner : MonoBehaviour
         // And would they like something while they wait? Rolled here, kept
         // quiet by CustomerBrain until they've sat down.
         brain.Init(counterQueue, exitPoint, job, RollDrinkWish(id, job));
+        if (featuredDue) featuredCustomer = brain;
         if (profile != null) roster.RecordArrival(profile.PersistentId);
         if (opening.TryStartVisit()) openingCustomer = brain;
     }
