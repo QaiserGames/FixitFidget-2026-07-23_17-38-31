@@ -1,30 +1,30 @@
-﻿===== DAY 1 =====
+﻿===== DAY 4 =====
 
-Arrived                4
-Accepted               3
+Arrived                13
+Accepted               7
 People helped          3    <- received service; may still leave unhappy
 Left satisfied         3
 Helped but unhappy     0    <- also included in departures below
-Orders completed       4   (1 repairs, 3 drinks)
+Orders completed       4   (2 repairs, 2 drinks)
 
 WHY PEOPLE LEFT UNSATISFIED (includes partial service)
-  Stormed out (queue)  1    <- never even heard them
-  Stormed out (wait)   0    <- an obligation was still pending
+  Stormed out (queue)  4    <- never even heard them
+  Stormed out (wait)   4    <- an obligation was still pending
   Still here at close  0
-  You declined         0    <- a choice, not a failure
+  You declined         1    <- a choice, not a failure
   Out of stock         0
-  Shelf was full       0
+  Shelf was full       1
 
 GRADES
-  Perfect              0
-  Good                 1
+  Perfect              2
+  Good                 0
   Passable             0
 
 MONEY
-  Earned               $139   ($10 of it tips)
-  of which cafe walk-ins $75
+  Earned               $298   ($60 of it tips)
+  of which cafe walk-ins $80
 
-Average helped visit   84.8s
+Average helped visit   91.6s
 Lowest helped patience 22% (includes unhappy exits)
 
 Per-customer detail is in the CSV beside this file.
