@@ -137,7 +137,12 @@ public static class GraceShowcaseSetup
         root.AddComponent<ItemInteractable>();
         Primitive(root.transform, "Camera body", new Vector3(0, .023f, 0), new Vector3(.24f, .046f, .16f), body);
         Primitive(root.transform, "Lens housing", new Vector3(-.065f, .055f, -.024f), new Vector3(.074f, .036f, .074f), metal, PrimitiveType.Cylinder);
-        Primitive(root.transform, "Lens glass", new Vector3(-.065f, .093f, -.024f), new Vector3(.057f, .003f, .057f), glass, PrimitiveType.Cylinder);
+        // A cylinder primitive brings a CapsuleCollider. Squashed to a 3 mm disc,
+        // that capsule becomes a 57 mm ball over the lens, which hid the lens
+        // grime from the brush: Grace's camera could never reach Perfect. The
+        // glass is decorative; the housing below still gives the lens a body.
+        var lensGlass = Primitive(root.transform, "Lens glass", new Vector3(-.065f, .093f, -.024f), new Vector3(.057f, .003f, .057f), glass, PrimitiveType.Cylinder);
+        UnityEngine.Object.DestroyImmediate(lensGlass.GetComponent<Collider>());
         Primitive(root.transform, "Open film path", new Vector3(.056f, .049f, -.043f), new Vector3(.08f, .008f, .055f), metal);
 
         var lensDirt = Primitive(root.transform, "Lens grime", new Vector3(-.065f, .1f, -.024f), new Vector3(.038f, .007f, .039f), grime);

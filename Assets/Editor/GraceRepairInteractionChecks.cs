@@ -56,14 +56,17 @@ public static class GraceRepairInteractionChecks
             Require(inspector.CurrentTool == ToolType.Brush && !shutter.IsReplaced,
                 "The brush cannot perform a tweezers replacement.");
 
-            // Model the player's already-cleaned camera. Grime removal itself is
-            // covered by the brush playtest; the regression here is the final
-            // visible blade click that previously could never finish the repair.
+            // Clean the camera the way the brush does. The inspector scrubs only
+            // what the view ray hits FIRST, so every spot is brushed through real
+            // view rays, re-checked as it shrinks (a shrinking spot can sink into
+            // a neighbouring collider). This used to delete the grime directly,
+            // which is how a lens spot hidden inside the lens glass's capsule
+            // collider went unnoticed while players could never reach Perfect.
             foreach (var grime in camera.GetComponentsInChildren<GrimeSpot>())
             {
                 Require(Resolve(grime.GetComponent<Collider>()).grime == grime,
                     "All authored camera cleaning surfaces remain discoverable by the bench resolver.");
-                UnityEngine.Object.DestroyImmediate(grime.gameObject);
+                ScrubThroughView(camera, grime);
             }
             Require(job.Quality == 0f, "A clean camera with a jammed shutter still cannot receive a passing grade.");
             Press(inspector, Resolve(tweezers.GetComponentInChildren<Collider>()));
@@ -99,7 +102,7 @@ public static class GraceRepairInteractionChecks
             var screwHit = Child(screw.gameObject, "Screw head mesh").AddComponent<BoxCollider>();
             Require(Resolve(screwHit).part == screw,
                 "The nearest screw target wins over its parent cover, preserving the existing disassembly hierarchy.");
-            Debug.Log("[Grace camera interaction] PASS: real blade collider ray, parent task resolution, child tool selection, wrong-tool/pause/recap gates, final tweezers click reaches Perfect, visual swap, strap preservation, covered parts and nearest screw targets. No scene or save changes.");
+            Debug.Log("[Grace camera interaction] PASS: every grime spot brushed clean through view rays (down and 30-degree tilts, re-checked as it shrinks), real blade collider ray, parent task resolution, child tool selection, wrong-tool/pause/recap gates, final tweezers click reaches Perfect, visual swap, strap preservation, covered parts and nearest screw targets. No scene or save changes.");
         }
         finally
         {
@@ -107,6 +110,54 @@ public static class GraceRepairInteractionChecks
             foreach (var material in generatedMaterials) if (material != null) UnityEngine.Object.DestroyImmediate(material);
             Instance(previousClock); Time.timeScale = previousTimeScale;
         }
+    }
+
+    // Views a player brushes a top-facing surface from: straight down, and
+    // tilted 30 degrees each way.
+    private static readonly Vector3[] TiltedViews =
+    {
+        Quaternion.Euler(30, 0, 0) * Vector3.down, Quaternion.Euler(-30, 0, 0) * Vector3.down,
+        Quaternion.Euler(0, 0, 30) * Vector3.down, Quaternion.Euler(0, 0, -30) * Vector3.down,
+    };
+
+    // Brush one spot to clean in strokes, the way ItemInspector does: only the
+    // nearest collider on the view ray is scrubbed. Straight down must always
+    // reach it, and so must at least two of the four tilted views.
+    private static void ScrubThroughView(GameObject root, GrimeSpot grime)
+    {
+        const float Stroke = 10f;
+        string name = grime.name;
+        Call(grime, "Awake"); // edit mode: record its full health and size first
+        for (int stroke = 0; stroke < 40; stroke++)
+        {
+            Physics.SyncTransforms();
+            Vector3 target = grime.GetComponent<Collider>().bounds.center;
+            float health = (float)Get(grime, "scrubHealth");
+            Collider straight = NearestHit(root, new Ray(target + Vector3.up * .5f, Vector3.down));
+            Require(straight != null && Resolve(straight).grime == grime,
+                $"'{name}' can be brushed from above at {health:0}% dirty, but the view ray first hits '{(straight != null ? straight.name : "nothing")}'.");
+            int tilted = 0;
+            foreach (Vector3 view in TiltedViews)
+            {
+                Collider hit = NearestHit(root, new Ray(target - view * .5f, view));
+                if (hit != null && Resolve(hit).grime == grime) tilted++;
+            }
+            Require(tilted >= 2, $"'{name}' at {health:0}% dirty is reachable from only {tilted} of 4 tilted views.");
+            // GrimeSpot destroys itself at zero with Destroy(), which edit mode
+            // refuses; remove it the same way once the last stroke would land.
+            if (health <= Stroke) { UnityEngine.Object.DestroyImmediate(grime.gameObject); return; }
+            grime.Scrub(Stroke);
+        }
+        throw new InvalidOperationException($"'{name}' did not come clean after 40 brush strokes.");
+    }
+
+    private static Collider NearestHit(GameObject root, Ray ray)
+    {
+        Collider nearest = null; float distance = float.PositiveInfinity;
+        foreach (var collider in root.GetComponentsInChildren<Collider>())
+            if (collider.enabled && collider.Raycast(ray, out RaycastHit hit, 1f) && hit.distance < distance)
+            { nearest = collider; distance = hit.distance; }
+        return nearest;
     }
 
     private static Collider FrontHit(GameObject root, Vector3 point)

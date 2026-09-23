@@ -1,5 +1,7 @@
 # Current position and identity assessment — September 22, 2026
 
+> **September 23 update.** Both open playtest reports below now have a measured cause and a fix; only the owner's feel and live Perfect replays remain. First-person stutter: instant movement plus a 1 mm Min Move Distance that, at ~240 fps, swallowed movement after every stop. Grace's camera capped at Good: the lens glass's capsule collider enclosed the lens grime, so the brush could never reach it. Details, numbers and next steps are in the September 23 entry of Current-Handoff-2026-09-12.md.
+
 This dated assessment supersedes older next-step instructions below. It completes the interrupted September 21 review. It does not approve a new appearance, authorize implementation, or replace the GDD with another roadmap.
 
 **Subsequent backup completed:** after this assessment, the owner explicitly authorized a full checkpoint and push on codex/grace-showcase-baseline. **7f9fc8e** was pushed and verified on GitHub, including the two previously local commits plus saved scene/prefab/material/log changes and direction documents in Docs/ProjectDirection. Main remains **7f2dbe7**. Only Unity recovery files remain untracked; they are preserved in the verified local safety snapshot. This follow-up changes version history/documentation only, not gameplay behavior; backup is not quality sign-off. This completion record accompanies a subsequent documentation-only commit.

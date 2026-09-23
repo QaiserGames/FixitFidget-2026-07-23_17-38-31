@@ -35927,6 +35927,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   moveSpeed: 5
+  firstPersonAcceleration: 50
+  firstPersonBraking: 50
 --- !u!143 &1039162924
 CharacterController:
   m_ObjectHideFlags: 0
@@ -35950,7 +35952,7 @@ CharacterController:
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
-  m_MinMoveDistance: 0.001
+  m_MinMoveDistance: 0
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &1039162925
 MonoBehaviour:

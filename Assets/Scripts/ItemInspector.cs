@@ -251,7 +251,10 @@ public class ItemInspector : MonoBehaviour
 
             if (currentTool == ToolType.Brush)
             {
-                if (grime != null) grime.Scrub(delta.magnitude * scrubPower);
+                // Wide Brush was sold in the upgrade shop but never read here,
+                // so buying it changed nothing. It now scales every stroke.
+                float brush = UpgradeManager.Instance != null ? UpgradeManager.Instance.ScrubSpeedMultiplier : 1f;
+                if (grime != null) grime.Scrub(delta.magnitude * scrubPower * brush);
             }
             else if (currentTool == ToolType.Hand && rotateGesture && !overBoard)
             {
