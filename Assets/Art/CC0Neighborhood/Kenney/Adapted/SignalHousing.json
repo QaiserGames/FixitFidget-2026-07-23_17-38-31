@@ -1,0 +1,40 @@
+{
+  "source": "https://kenney.nl/assets/city-kit-roads",
+  "source_model": "traffic-light-object-vertical",
+  "license": "CC0-1.0",
+  "derivative_changes": "Removed 36 static lens triangles, split housing and hood colors into material slots, rotated to face Unity -Z, scaled light-center spacing to 0.18m. UV palette replaced by flat colors. Original geometry otherwise unchanged.",
+  "removed_triangles": 36,
+  "remaining_triangles": 228,
+  "scale": 4.383561643835616,
+  "unity_coordinates": {
+    "origin": "center of amber light; place at existing signal amber height",
+    "faces": "-Z",
+    "red_center": [
+      0,
+      0.18,
+      -0.1643836
+    ],
+    "amber_center": [
+      0,
+      0,
+      -0.1643836
+    ],
+    "green_center": [
+      0,
+      -0.18,
+      -0.1643836
+    ],
+    "disc_radius": 0.0675,
+    "hood_front_z": -0.263452,
+    "bounds_size": [
+      0.2676712328767123,
+      0.6276712328767122,
+      0.4278355287671233
+    ]
+  },
+  "materials": [
+    "SignalOchre",
+    "SignalCharcoal"
+  ],
+  "sha256": "48b3974f28326d419867750c6305ae6c2b7eda297f5dede14249df43b32edc94"
+}

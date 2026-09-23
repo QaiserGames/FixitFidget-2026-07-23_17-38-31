@@ -1,0 +1,37 @@
+[
+  {
+    "file": "Casual_2.fbx",
+    "bytes": 8099148,
+    "sha256": "9b4c6520de636575d4ba612e3db0716306858b24871da8c0ce039d914523e694",
+    "source": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+    "license": "CC0-1.0"
+  },
+  {
+    "file": "Casual_Hoodie.fbx",
+    "bytes": 8108476,
+    "sha256": "55fd019ef45766267e4decf101899b8c4f6019d077cef9047a6de1b7a2120b41",
+    "source": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+    "license": "CC0-1.0"
+  },
+  {
+    "file": "Farmer.fbx",
+    "bytes": 8096108,
+    "sha256": "2dc21f6ece90959015b55c0e42917a02c9d08e2b890b840df386b3b7971378d1",
+    "source": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+    "license": "CC0-1.0"
+  },
+  {
+    "file": "Suit.fbx",
+    "bytes": 8118684,
+    "sha256": "75adb87a522c0af711890db5afac22259f4e7fda5ec5173e9af09d1581704268",
+    "source": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+    "license": "CC0-1.0"
+  },
+  {
+    "file": "Worker.fbx",
+    "bytes": 8091404,
+    "sha256": "41f5e13b9bea4a990fd0552a8083e2ce6375ed30b1b1775f3644891e6b4a1bbb",
+    "source": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+    "license": "CC0-1.0"
+  }
+]

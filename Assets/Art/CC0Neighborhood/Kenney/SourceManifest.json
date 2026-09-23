@@ -1,0 +1,366 @@
+{
+  "author": "Kenney",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "verified_on": "2026-09-23",
+  "packs": [
+    {
+      "name": "Nature",
+      "source_url": "https://kenney.nl/assets/nature-kit",
+      "archive_sha256": "fa7974a0d342bfe63c38664ba9f8ec1a4aab8ea25f099bdc56870e33588c4d9d",
+      "texture_sha256": null,
+      "assets": [
+        {
+          "file": "Nature/tree_oak.fbx",
+          "sha256": "efa277f3467e6102cce7d35381a4e8256e2346f86c6ce83a0fd02f5586b7c9fe",
+          "source_obj_bounds": {
+            "min": [
+              -0.3202769,
+              0.0,
+              -0.369824
+            ],
+            "max": [
+              0.3202771,
+              1.22624,
+              0.369824
+            ],
+            "size": [
+              0.640554,
+              1.22624,
+              0.739648
+            ]
+          },
+          "source_materials": [
+            "leafsGreen",
+            "woodBark"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Nature/tree_small.fbx",
+          "sha256": "6a9bd07d31060bc8fff09ea14c630d416131ce33bca4a587497716ef18b4766c",
+          "source_obj_bounds": {
+            "min": [
+              -0.1773187,
+              0.0,
+              -0.20475
+            ],
+            "max": [
+              0.1773187,
+              1.110037,
+              0.20475
+            ],
+            "size": [
+              0.3546374,
+              1.110037,
+              0.4095
+            ]
+          },
+          "source_materials": [
+            "woodBark",
+            "leafsGreen"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Nature/plant_bushDetailed.fbx",
+          "sha256": "dbf6bb7abdc22304a97c331c245d7bdbc8ae3977555229670c2f08a5eb67098f",
+          "source_obj_bounds": {
+            "min": [
+              -0.3012719,
+              0.0,
+              -0.3012719
+            ],
+            "max": [
+              0.3012719,
+              0.3604109,
+              0.3012719
+            ],
+            "size": [
+              0.6025438,
+              0.3604109,
+              0.6025438
+            ]
+          },
+          "source_materials": [
+            "grass"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Nature/plant_bushLarge.fbx",
+          "sha256": "51860c0a7e4f438c83edc17845ed06ee4e5bde498a952f09db8c4dde889c51e5",
+          "source_obj_bounds": {
+            "min": [
+              -0.187155,
+              0.0,
+              -0.1678439
+            ],
+            "max": [
+              0.187155,
+              0.242933,
+              0.1678439
+            ],
+            "size": [
+              0.37431,
+              0.242933,
+              0.3356878
+            ]
+          },
+          "source_materials": [
+            "grass"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Nature/flower_purpleA.fbx",
+          "sha256": "d95109e8d69177743b2eb14a39a0a5e5ebbceeed0d49956a36a97a3eb4e05f23",
+          "source_obj_bounds": {
+            "min": [
+              -0.05456302,
+              0.0,
+              -0.09052953
+            ],
+            "max": [
+              0.1045345,
+              0.2425,
+              0.09052953
+            ],
+            "size": [
+              0.15909752,
+              0.2425,
+              0.18105906
+            ]
+          },
+          "source_materials": [
+            "grass",
+            "colorPurple"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Nature/flower_purpleC.fbx",
+          "sha256": "9fa624d4ca31f1f6753873fb2f364a38b69ecb0c65935350e74ae4880bfdb786",
+          "source_obj_bounds": {
+            "min": [
+              -0.0760625,
+              0.0,
+              -0.09052953
+            ],
+            "max": [
+              0.1045345,
+              0.1825,
+              0.09052953
+            ],
+            "size": [
+              0.180597,
+              0.1825,
+              0.18105906
+            ]
+          },
+          "source_materials": [
+            "grass",
+            "colorPurple",
+            "colorWhite"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Nature/flower_yellowA.fbx",
+          "sha256": "ae47d1d93a42e736622d62c71fa0b333e03667cfff624b98bb89bc5d4a3aca0c",
+          "source_obj_bounds": {
+            "min": [
+              -0.05456302,
+              0.0,
+              -0.09052953
+            ],
+            "max": [
+              0.1045345,
+              0.1925,
+              0.09052953
+            ],
+            "size": [
+              0.15909752,
+              0.1925,
+              0.18105906
+            ]
+          },
+          "source_materials": [
+            "grass",
+            "colorYellow"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Nature/flower_redC.fbx",
+          "sha256": "1b5ea6f3cacd52ca25efaa23c12df3573698bd9582fcc6ba3c4f3615d4879e3b",
+          "source_obj_bounds": {
+            "min": [
+              -0.0760625,
+              0.0,
+              -0.09052953
+            ],
+            "max": [
+              0.1045345,
+              0.2325,
+              0.09052953
+            ],
+            "size": [
+              0.180597,
+              0.2325,
+              0.18105906
+            ]
+          },
+          "source_materials": [
+            "grass",
+            "colorRed",
+            "colorWhite"
+          ],
+          "source_obj_axes": "Y up"
+        }
+      ]
+    },
+    {
+      "name": "Furniture",
+      "source_url": "https://kenney.nl/assets/furniture-kit",
+      "archive_sha256": "e67652d0932cee41683f74711c03d3e192a2af9979ef8e6b237711f5482d46b0",
+      "texture_sha256": null,
+      "assets": [
+        {
+          "file": "Furniture/chairRounded.fbx",
+          "sha256": "37548d5440f173bcd85f60b7a4e8476952a999b3fd5b84ff98aca7bf9673ecc8",
+          "source_obj_bounds": {
+            "min": [
+              -0.2,
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.455,
+              0.2
+            ],
+            "size": [
+              0.2,
+              0.455,
+              0.2
+            ]
+          },
+          "source_materials": [
+            "wood"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Furniture/chairCushion.fbx",
+          "sha256": "a2b0f6bf28dc91ac955c002d145b32885449a6fe85a3f869165331a451fb8a99",
+          "source_obj_bounds": {
+            "min": [
+              -0.2,
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.46,
+              0.2
+            ],
+            "size": [
+              0.2,
+              0.46,
+              0.2
+            ]
+          },
+          "source_materials": [
+            "wood",
+            "carpet"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "Furniture/bench.fbx",
+          "sha256": "2c570d3a665509f8f246b7dae42900f07a285b2db86743f0fccce7ad6cdf262f",
+          "source_obj_bounds": {
+            "min": [
+              -0.4,
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.47,
+              0.2
+            ],
+            "size": [
+              0.4,
+              0.47,
+              0.2
+            ]
+          },
+          "source_materials": [
+            "wood"
+          ],
+          "source_obj_axes": "Y up"
+        }
+      ]
+    },
+    {
+      "name": "CityRoads",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "archive_sha256": "22058af3d68173a7cf9bda9f0e243a8cef6bd68168c302ebc76327063849674e",
+      "texture_sha256": "a48e2962661ae44368ffddf3054f80ed8491d082b757dcc3011184cd9a98b185",
+      "assets": [
+        {
+          "file": "CityRoads/traffic-light-object-vertical.fbx",
+          "sha256": "094f02b8a4ac48c8037044c7d78d2c457f0e79f6044c40c3ed3ef15b92d52d97",
+          "source_obj_bounds": {
+            "min": [
+              -0.06009997,
+              -0.07159375,
+              -0.03053125
+            ],
+            "max": [
+              0.03750001,
+              0.07159375,
+              0.03053125
+            ],
+            "size": [
+              0.09759998,
+              0.1431875,
+              0.0610625
+            ]
+          },
+          "source_materials": [
+            "colormap"
+          ],
+          "source_obj_axes": "Y up"
+        },
+        {
+          "file": "CityRoads/traffic-light.fbx",
+          "sha256": "ab3db75f5b2e34080337e938daa9db135c0fa7df0370439c7a6b297c64466f51",
+          "source_obj_bounds": {
+            "min": [
+              -0.0726,
+              2.255818e-17,
+              -0.045
+            ],
+            "max": [
+              0.045,
+              0.515,
+              0.045
+            ],
+            "size": [
+              0.1176,
+              0.515,
+              0.09
+            ]
+          },
+          "source_materials": [
+            "colormap"
+          ],
+          "source_obj_axes": "Y up"
+        }
+      ]
+    }
+  ]
+}

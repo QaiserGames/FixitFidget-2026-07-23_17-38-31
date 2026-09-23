@@ -1,5 +1,60 @@
 # Current handoff — September 12, 2026
 
+## September 23 (afternoon) — GPT Astra's neighborhood refresh finished, applied and verified
+
+**Read this entry first.** On September 22–23 the owner asked GPT Astra (the Codex desktop app) for free CC0 assets that fit the game: trees, shrubs, bushes and flowers, "actual good chairs", better door handles, a nicer stoplight, and more NPC looks than the beach guy, without breaking patience bars. It imported the art and wrote the tools, then stopped before applying anything (last edit 11:44). Its final edit also broke the Editor assembly (`EditorUtility.InstanceIDToObject` no longer compiles in Unity 6.5), so none of its tools could run. The owner asked Claude to finish the work; this entry records that.
+
+**Now in the game.** Walk-in customers and patrons use five CC0 Quaternius bodies: Casual, Hoodie, Farmer, Suit and Worker. Named regulars (Grace) keep the Beach body, so for now the Beach body means "a regular". Walk-ins pick a look from a stable hash of their name; patrons cycle. The six street neighbors have fixed looks. In the café scene:
+- The 16 table chairs and 2 patio chairs are Kenney rounded timber chairs.
+- The three courtyard and rear-lane trees are faceted Kenney trees, and the four benches are Kenney benches.
+- The four existing planter beds and the three tree planters have flowers and bushes.
+- The entrance doors have rounded brass pulls.
+- All 16 traffic signals have hooded ochre/charcoal housings on slim posts. Their lenses are the same renderers StreetLife already drives.
+
+Old visuals are hidden, not deleted. Every old collider, seat anchor and route is untouched. The new visuals have no colliders and are excluded from NavMesh builds.
+
+**How it runs.** `Fixit Fidget > Neighborhood refresh` (`Assets/Editor/NeighborhoodRefreshSteps.cs`) runs in four steps:
+1. Record gameplay baseline and before photos.
+2. Placeholder neighbors.
+3. Apply scenery.
+4. Verify.
+
+The same menu can also retake photos, put the original chairs back, or discard unsaved scene changes. Evidence is in `Logs/NeighborhoodRefresh/2026-09-23_120730/`: before-, now- and after- photos, `npc-lineup.png` and `gameplay-baseline.json`.
+
+**Defects found in GPT Astra's tools and fixed before applying.**
+1. The compile error: the baseline now records serialized values with stable GlobalObjectIds.
+2. The rig check compared live bone poses. Beach.fbx is imported with its animations, so its hips sit 7.8 mm below rest, and the check failed. Read straight from the FBX files, all 80 bones and every bind matrix of Beach and Casual_2 are identical. The check now compares mesh bind poses.
+3. The skinning-bounds check baked meshes without their 100× renderer scale, so every box was inflated 100× and millimetre differences failed. It now uses `BakeMesh(useScale: true)`.
+4. The gameplay guard required stand points on loiter spots. `WaitingSpot.StandPoint` deliberately falls back to the spot itself, so only seats require one now.
+5. The courtyard cut removed the planter soil and box tops, leaving hollow planters. It now removes only the old canopy spheres and trunks. Per-mesh counts are logged: foliage 3×2,304, trunks 3×80, bench slats 4×108, bench iron 4×96.
+6. Smaller fixes:
+   - a preflight check, so nothing changes if a target is missing;
+   - one-step undo;
+   - mesh assets rewritten in place on re-runs, and named to match their files;
+   - script edits to prefab instances recorded as overrides; the saved scene holds all 88 CC0 instances with their material and position overrides.
+
+**Verified.** Step 2 PASS: every look has complete meshes, materials and bones; Customer (12 components) and Patron (10) have gameplay, UI and animation components byte-identical; baked skinning passed in idle and walk poses. The line-up photo shows all six bodies correctly skinned. Step 4 PASS:
+- 16 seats at 0.6 drain, 20 active waiting spots, original save and log paths, no probes or missing scripts, walking settings intact, 16 signal heads and 48 lenses;
+- café layout 26/26 paths; occupied circulation 23/23;
+- gameplay preservation: all 180 settings and anchor records unchanged from the pre-refresh baseline, including Customer and Patron brain, identity and interactable.
+
+A 90-second Play check showed new-look customers and patrons entering, queuing and paying (+$5 patron income), with 0 errors and 0 warnings. It was stopped before closing: the save is still Day 2 start, $139, and the day logs are untouched. `TableSeat.snapToSeat` is still off (no sit animation), so seated NPCs stand beside the chair as before; chair height does not affect posing yet.
+
+**Owner decisions.**
+1. **Chairs.** The Kenney chairs are chunkier and a single flat colour, where the authored ladder-back chairs follow the art-style guide's dark-frame / light-seat grain. GDD 14.1's "confident colour blocking" allows them, and the owner asked for new chairs, so they are in. If they are not wanted, use `Neighborhood refresh > Put the original chairs back` (one undo step), then save.
+2. **Regulars.** All regulars still share the Beach body. GDD 14.2 wants each regular to have a distinct silhouette, which belongs with the owner's character work.
+
+**Files.**
+- New: `Assets/Scripts/NpcVisualVariants.cs`; `Assets/Editor/NpcVisualVariantSetup.cs`, `NeighborhoodVisualRefresh.cs`, `NeighborhoodRefreshChecks.cs`, `NeighborhoodRefreshSteps.cs`; `Assets/Art/CC0Neighborhood/**` (Kenney models, licences and manifest, `Adapted/SignalHousing`, `Authored/EntranceRefresh.fbx`, generated `Materials/` and `Meshes/`); `Assets/Art/PlaceholderNeighbors/**` (five FBX, CC0 text, manifest, README, generated `Materials/`).
+- Changed: `Assets/AssetsPrefabs/Customer.prefab`, `Patron.prefab`, `Assets/Playtests/AcesCafeLayoutPlaytest.unity`.
+
+**Saved: yes. Committed: no. Pushed: no.** Unity was left stopped in `AcesCafeLayoutPlaytest` with the scene clean.
+
+**Next, in order.**
+1. The owner plays a day and judges the look: chairs, benches, NPC bodies.
+2. Commit in focused checkpoints: movement fixes; Grace camera and checks; neighborhood refresh and NPC looks.
+3. Continue the morning's list below: feel test, a fresh Day 1→2 Grace Perfect run with the Restock click, and the portrait policy.
+
 ## September 23 — walking stutter and floating player fixed; Grace's camera can reach Perfect
 
 **Read this entry first.** The owner asked to fix the first-person stutter and a new "player capsule floating above the café", then continue the roadmap with GDD v4.1 as the source of truth, and authorised working directly in Unity without a discussion round.
