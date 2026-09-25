@@ -98,9 +98,15 @@ public class ShopUI : MonoBehaviour
         string interact = interactor.CurrentPrompt;
         string action = interactor.StationPrompt;
 
-        if (!string.IsNullOrEmpty(interact)) line += $"[E]  {interact}";
+        // Keys follow the device in use: [E] / [F] on a keyboard, the pad's
+        // own labels once a controller is being used (see ControlHints).
+        if (!string.IsNullOrEmpty(interact)) line += $"[{ControlHints.Interact}]  {interact}";
         if (!string.IsNullOrEmpty(action))
-            line += (line.Length > 0 ? "        " : "") + $"[F]  {action}";
+            line += (line.Length > 0 ? "        " : "") + $"[{ControlHints.Station}]  {action}";
+        // Working on an item with a controller: say how to change tools and put things down.
+        if (PadInput.UsingPad && inspector != null && inspector.IsHoldingItem)
+            line += $"\n[{ControlHints.Tools}]  {inspector.CurrentToolName}        [{ControlHints.Use}]  Use        [{ControlHints.Back}]  "
+                + (inspector.CurrentTool != ToolType.Hand ? "Put tool down" : "Put item down");
 
         if (showDebug)
             line += "\n" + interactor.DebugInfo;

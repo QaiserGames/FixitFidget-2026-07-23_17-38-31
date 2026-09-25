@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
@@ -64,6 +65,25 @@ public class RecapUI : MonoBehaviour
         if (upgradeShop != null) upgradeShop.Build();
         if (nextDayButton != null) nextDayButton.interactable = true;
         panel.SetActive(true);
+    }
+
+    // Controller: keep one of the recap's buttons selected while it is open, so
+    // the D-pad / left stick move between Next Day and the upgrades and A
+    // presses. A mouse player never gets a selection they didn't make.
+    private void Update()
+    {
+        if (panel == null || !panel.activeInHierarchy || !PadInput.UsingPad) return;
+        EventSystem events = EventSystem.current;
+        if (events == null) return;
+        GameObject selected = events.currentSelectedGameObject;
+        if (selected != null && selected.activeInHierarchy && selected.transform.IsChildOf(panel.transform)
+            && selected.TryGetComponent(out Selectable current) && current.IsInteractable()) return;
+        Selectable target = nextDayButton != null && nextDayButton.gameObject.activeInHierarchy
+            && nextDayButton.IsInteractable() ? nextDayButton : null;
+        if (target == null)
+            foreach (Selectable candidate in panel.GetComponentsInChildren<Selectable>())
+                if (candidate.IsInteractable()) { target = candidate; break; }
+        if (target != null) events.SetSelectedGameObject(target.gameObject);
     }
 
     private void SuspendCameraInput(IEnumerable<CinemachineInputAxisController> inputs)

@@ -271,7 +271,13 @@ public class CustomerSpawner : MonoBehaviour
         // leave, with no explanation and no mark on the recap.
         //
         // Hold them at the door instead and check again shortly.
-        if (counterQueue != null && !counterQueue.HasFreeSlot)
+        //
+        // Customers still walking over from the car park or a neighbour's door
+        // (CafeArrivals) each claim a slot the moment they reach the door, so
+        // each of them counts against the free slots too. With nobody walking
+        // over this is exactly the old HasFreeSlot test.
+        if (counterQueue != null
+            && counterQueue.FreeSlotCount <= NpcJourney.OnTheWay(CafeArrivals.Kind.Customer))
         {
             timer = blockedRetryInterval;
             return;
@@ -342,7 +348,16 @@ public class CustomerSpawner : MonoBehaviour
 
         // And would they like something while they wait? Rolled here, kept
         // quiet by CustomerBrain until they've sat down.
-        brain.Init(counterQueue, exitPoint, job, RollDrinkWish(id, job));
+        DrinkDefinition wish = RollDrinkWish(id, job);
+
+        // Where they come from. Outside the guided Day 1 opening (whose pacing is
+        // authored), a new customer gets out of a car in the café's lot or leaves
+        // a neighbour's front door and walks over; they only start - counter slot,
+        // patience, drift into the room - once they reach the door. Without
+        // CafeArrivals in the scene they start at the door, as they always did.
+        bool walkingOver = !opening.IsActive && CafeArrivals.TryArrive(go, CafeArrivals.Kind.Customer,
+            () => brain.Init(counterQueue, exitPoint, job, wish));
+        if (!walkingOver) brain.Init(counterQueue, exitPoint, job, wish);
         if (featuredDue) featuredCustomer = brain;
         if (profile != null) roster.RecordArrival(profile.PersistentId);
         if (opening.TryStartVisit()) openingCustomer = brain;

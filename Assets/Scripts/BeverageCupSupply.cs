@@ -13,7 +13,9 @@ public sealed class BeverageCupSupply : Interactable
             if (discard)
             {
                 var cup = carry != null ? carry.Carried as DrinkJob : null;
-                if (cup == null) return "Return or discard a cup · click its hand";
+                if (cup == null) return PadInput.UsingPad
+                    ? $"Return or discard a cup · {ControlHints.LeftHand} / {ControlHints.RightHand} picks the hand"
+                    : "Return or discard a cup · click its hand";
                 return cup.IsEmpty ? "Return unused cup to stock"
                     : $"Discard {cup.Drink.drinkName} — cup and ingredients are lost";
             }

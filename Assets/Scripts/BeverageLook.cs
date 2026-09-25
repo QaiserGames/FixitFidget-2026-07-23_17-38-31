@@ -8,6 +8,8 @@ public sealed class BeverageLook : MonoBehaviour
 {
     public StationInteractable station;
     public float sensitivity = .09f;
+    [Tooltip("Controller look speed at full right-stick deflection, degrees per second (sideways, up/down).")]
+    public Vector2 stickSpeed = new Vector2(95f, 65f);
     private PlayerInteractor player;
     private ConversationController dialogue;
     private ItemInspector inspector;
@@ -35,7 +37,7 @@ public sealed class BeverageLook : MonoBehaviour
         if (!active) { if (wasActive) transform.localRotation = rest; wasActive = false; acceptingInput = false; angles = Vector2.zero; return; }
         if (!wasActive) { angles = Vector2.zero; transform.localRotation = rest; wasActive = true; acceptingInput = false; }
         if (counterRepair == null) counterRepair = player.GetComponent<CounterRepairView>();
-        if (Time.timeScale <= 0 || Mouse.current == null || !Application.isFocused
+        if (Time.timeScale <= 0 || Mouse.current == null && !PadInput.Connected || !Application.isFocused
             || Cursor.lockState != CursorLockMode.Locked
             || DayClock.Instance != null && DayClock.Instance.DayOver
             || inspector != null && inspector.IsHoldingItem || counterRepair != null && counterRepair.OwnsInput
@@ -43,11 +45,15 @@ public sealed class BeverageLook : MonoBehaviour
         { acceptingInput = false; return; }
         // Cursor locking and focus changes can deliver a stale mouse delta.
         if (!acceptingInput) { acceptingInput = true; return; }
-        ApplyLookDelta(Mouse.current.delta.ReadValue());
+        Vector2 delta = Mouse.current != null ? Mouse.current.delta.ReadValue() * sensitivity : Vector2.zero;
+        // The right stick is a turn rate, so it is scaled by frame time.
+        Vector2 stick = PadInput.Curved(PadInput.RightStick);
+        float dt = Mathf.Min(Time.unscaledDeltaTime, .1f);
+        delta += new Vector2(stick.x * stickSpeed.x, stick.y * stickSpeed.y) * dt;
+        ApplyLookDelta(delta);
     }
-    private void ApplyLookDelta(Vector2 mouseDelta)
+    private void ApplyLookDelta(Vector2 delta)
     {
-        Vector2 delta = mouseDelta * sensitivity;
         angles.x = Mathf.Clamp(angles.x + delta.x, -52, 52);
         angles.y = Mathf.Clamp(angles.y - delta.y, -28, 34);
         Quaternion worldRest = transform.parent != null ? transform.parent.rotation * rest : rest;

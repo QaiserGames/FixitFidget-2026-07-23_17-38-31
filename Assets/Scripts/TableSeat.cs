@@ -25,16 +25,16 @@ public class TableSeat : WaitingSpot
              "this object's position.")]
     [SerializeField] private Transform cupSpot;
 
-    [Header("Sitting (grey-box)")]
+    [Header("Sitting")]
 
-    [Tooltip("OFF until a sit animation exists. While off, the customer walks " +
-             "to the Stand Point beside the chair and stands there facing the " +
-             "table — which reads fine. Turning it on before you have the " +
-             "animation makes them stand THROUGH the chair, which does not.")]
+    [Tooltip("ON: customers and patrons with an NpcSeating component sit down " +
+             "on this chair (sit-down, seated idle, stand-up clips baked by " +
+             "Fixit Fidget > NPC > Sit 1). OFF: they stand at the Stand Point " +
+             "beside the chair facing the table, as in the grey-box.")]
     [SerializeField] private bool snapToSeat = false;
 
-    [Tooltip("Where the body goes once snapToSeat is on — the chair's seat " +
-             "surface, facing the table.")]
+    [Tooltip("The chair's seat surface, at its centre. The sitting NPC's hips " +
+             "come down here; which way they face comes from the Cup Spot.")]
     [SerializeField] private Transform seatPose;
 
     // What's sitting on the table for this seat. A GameObject rather than a

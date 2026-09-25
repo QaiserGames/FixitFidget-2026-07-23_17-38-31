@@ -68,6 +68,7 @@ public class PlayerMovement : MonoBehaviour
 
     // Called automatically by the Player Input component whenever
     // the "Move" action fires (WASD, stick, d-pad — doesn't matter).
+    // The left stick is also read directly in Update (see PadInput).
     // The name matters: "On" + the action's name.
     private void OnMove(InputValue value)
     {
@@ -108,8 +109,15 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
+        // A controller's left stick is read directly as well as through
+        // PlayerInput's Move action. PlayerInput only listens to the device of
+        // the control scheme it last switched to, and walking must never wait
+        // for that switch. The larger of the two wins, so nothing doubles.
+        Vector2 stick = PadInput.LeftStick;
+        Vector2 input = stick.sqrMagnitude > moveInput.sqrMagnitude ? stick : moveInput;
+
         // A stick can report slightly more than 1 on its diagonals.
-        Vector2 target = Vector2.ClampMagnitude(moveInput, 1f);
+        Vector2 target = Vector2.ClampMagnitude(input, 1f);
 
         if (viewMode != null && viewMode.WalkingFirstPerson)
         {

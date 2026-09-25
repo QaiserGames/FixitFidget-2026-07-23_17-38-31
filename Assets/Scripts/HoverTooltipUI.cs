@@ -76,7 +76,9 @@ public class HoverTooltipUI : MonoBehaviour
             actionText.text = action;
         }
 
-        Vector2 screenPos = Cursor.visible && Mouse.current != null
+        // Follows the controller's on-screen cursor too (see GamePointer).
+        Vector2 screenPos = GamePointer.PadCursorActive ? GamePointer.Position
+            : Cursor.visible && Mouse.current != null
             ? Mouse.current.position.ReadValue()
             : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f - 60f);
 

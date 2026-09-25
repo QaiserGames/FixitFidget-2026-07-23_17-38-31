@@ -1,8 +1,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
-/// <summary>Decorative street motion on authored routes; never joins café gameplay.</summary>
+/// <summary>
+/// Decorative street motion on authored routes; never changes café gameplay.
+/// Cars stop for people on crossings and for café cars turning across their lane
+/// (<see cref="RoadBlock"/>), never queue on a crossing or in a junction box, and can
+/// lend a lane to a café customer's car at runtime (<see cref="JoinTraffic"/>).
+/// </summary>
 public sealed class StreetLife : MonoBehaviour
 {
     public enum TrafficSignalState { Phase0Green, Phase0Amber, AllRedToPhase1, Phase1Green, Phase1Amber, AllRedToPhase0 }
@@ -71,6 +77,23 @@ public sealed class StreetLife : MonoBehaviour
         [NonSerialized] internal bool waitingForSignal, respawning;
         [NonSerialized] internal float respawnRemaining;
         [NonSerialized] internal int respawnCycle, routeOrder;
+        // Personal space (walkers only): sideways step off the route line, and why.
+        [NonSerialized] internal bool isWalker;
+        [NonSerialized] internal float lateral, lateralTarget, heldFor, clearFor;
+        [NonSerialized] internal Vector3 offsetRight, velocity;
+        [NonSerialized] internal NavMeshObstacle obstacle;
+        // A car borrowing a lane at runtime (a café customer's car): it leaves the
+        // lane instead of respawning when it reaches the end of the route.
+        [NonSerialized] internal bool guest;
+        [NonSerialized] internal Action<Actor> guestReachedEnd;
+        [NonSerialized] internal float lastSpeed;
+
+        /// <summary>Metres travelled along the route (read-only view for café cars).</summary>
+        public float RouteDistance => distance;
+        /// <summary>Length of the whole route in metres.</summary>
+        public float RouteLength => length;
+        /// <summary>Speed actually driven last frame, metres per second.</summary>
+        public float CurrentSpeed => lastSpeed;
     }
 
     public List<Actor> actors = new List<Actor>();
@@ -78,10 +101,123 @@ public sealed class StreetLife : MonoBehaviour
     [Min(1f)] public float signalGreenSeconds = 14f;
     [Tooltip("All approaches hold while cars already inside a junction clear it. Author speeds and stop-line positions to clear within this interval.")]
     [Min(1f)] public float signalClearanceSeconds = 5f;
+    [Tooltip("Someone waiting at a signalled crossing (a café visitor) is like a pressed button: the green of the traffic " +
+             "in their way ends early once it has run this long, seconds. The amber and all-red that follow are unchanged.")]
+    [Min(2f)] public float walkRequestMinGreen = 7f;
+
+    [Header("Walkers' personal space")]
+    [Tooltip("Street walkers (actors with legs or a walking Animator) never walk through anybody. They keep this " +
+             "much room behind whoever is ahead of them, metres centre to centre.")]
+    [Min(0.3f)] public float walkerFollowGap = 0.85f;
+    [Tooltip("Half the width of a walker's path, metres. Someone further to the side than this is not in the way.")]
+    [Min(0.2f)] public float walkerCorridor = 0.5f;
+    [Tooltip("How far ahead a walker looks for people in its way, metres.")]
+    [Min(0.5f)] public float walkerLookAhead = 1.8f;
+    [Tooltip("How far a walker steps aside to pass someone, metres. Oncoming people get a little over half of it.")]
+    [Range(0f, 1f)] public float walkerSidestep = 0.55f;
+    [Tooltip("Seconds a walker follows someone slower (or waits behind someone standing) before stepping round them.")]
+    [Min(0f)] public float walkerPatience = 1.2f;
+    [Tooltip("Play Mode: walkers also make way for café NPCs and the player, and café NPCs steer round walkers.")]
+    public bool walkersShareTheSidewalk = true;
+
+    [Header("Crossings and turning cars")]
+    [Tooltip("How far ahead a car looks for a crossing in use or a car turning across its lane, metres.")]
+    [Min(2f)] public float roadBlockLookAhead = 14f;
+    [Tooltip("Room a car leaves before a crossing in use or a car in its way, metres.")]
+    [Min(0.2f)] public float roadBlockStopGap = 0.8f;
+    [Tooltip("How hard a car brakes for a crossing in use, metres per second squared.")]
+    [Min(0.5f)] public float roadBlockBraking = 3.5f;
+
+    private struct Body
+    {
+        public Vector3 position, velocity;
+        public float radius;
+        public Actor owner;
+    }
+
+    /// <summary>
+    /// A rectangle on the ground that traffic treats like something standing in its
+    /// lane: a pedestrian crossing while people use it, or a café car turning into or
+    /// out of the lot. While <see cref="active"/>, cars stop before it (braking, not
+    /// stopping dead). With <see cref="letTrafficInsideClear"/> a car already on it
+    /// keeps going, so nobody ends up parked on a crossing. A <see cref="keepClear"/>
+    /// block is never stopped on even when nobody uses it: a car only drives onto it
+    /// when there is room for its whole body beyond it (crossings, junction boxes).
+    /// </summary>
+    public sealed class RoadBlock
+    {
+        public Vector3 center;
+        /// <summary>x: half width along the block's right, y: half length along its forward.</summary>
+        public Vector2 halfSize;
+        public float yaw;
+        public bool active;
+        public bool letTrafficInsideClear;
+        public bool keepClear;
+        public string label;
+    }
+
+    /// <summary>Someone or something on the street that isn't a StreetLife actor (café visitors walking outside, café cars).</summary>
+    public interface IStreetBody
+    {
+        Vector3 Position { get; }
+        Vector3 Velocity { get; }
+        float Radius { get; }
+    }
+
+    private static readonly List<RoadBlock> roadBlocks = new List<RoadBlock>();
+    private static readonly List<IStreetBody> streetBodies = new List<IStreetBody>();
+    private static readonly List<StreetLife> instances = new List<StreetLife>();
+    private static NavMeshAgent[] cachedAgents = Array.Empty<NavMeshAgent>();
+    private static CharacterController[] cachedCharacters = Array.Empty<CharacterController>();
+    private static float nextCacheScan;
+    private static int nextGuestOrder = 100000;
+    private readonly List<Actor> finishedGuests = new List<Actor>();
+    private const float CarHalfWidth = 1.05f;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        roadBlocks.Clear();
+        streetBodies.Clear();
+        instances.Clear();
+        cachedAgents = Array.Empty<NavMeshAgent>();
+        cachedCharacters = Array.Empty<CharacterController>();
+        nextCacheScan = 0f;
+        nextGuestOrder = 100000;
+    }
+
+    /// <summary>The street in Play Mode (the first enabled one), or null.</summary>
+    public static StreetLife Main => instances.Count > 0 ? instances[0] : null;
+
+    public static RoadBlock AddRoadBlock(Vector3 center, Vector2 halfSize, float yaw, bool active,
+                                         bool letTrafficInsideClear, bool keepClear, string label)
+    {
+        var block = new RoadBlock
+        {
+            center = center, halfSize = halfSize, yaw = yaw, active = active,
+            letTrafficInsideClear = letTrafficInsideClear, keepClear = keepClear, label = label
+        };
+        roadBlocks.Add(block);
+        return block;
+    }
+
+    public static void RemoveRoadBlock(RoadBlock block) => roadBlocks.Remove(block);
+
+    public static void RegisterBody(IStreetBody body)
+    {
+        if (body != null && !streetBodies.Contains(body)) streetBodies.Add(body);
+    }
+
+    public static void UnregisterBody(IStreetBody body) => streetBodies.Remove(body);
+    private readonly List<Body> bodies = new List<Body>();
+    private NavMeshAgent[] sidewalkAgents = Array.Empty<NavMeshAgent>();
+    private CharacterController[] sidewalkCharacters = Array.Empty<CharacterController>();
+    private float nextBodyScan;
     private static readonly int IsWalking = Animator.StringToHash("IsWalking");
     private readonly List<List<Actor>> trafficGroups = new List<List<Actor>>();
     private string trafficSetupError;
     private float signalTime;
+    private readonly bool[] walkRequests = new bool[2];
     private TrafficSignalState displayedSignalState = (TrafficSignalState)(-1);
     private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
     private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
@@ -117,6 +253,9 @@ public sealed class StreetLife : MonoBehaviour
             if (entry == null) continue;
             if (entry.respawning && entry.actor != null) entry.actor.gameObject.SetActive(true);
             entry.respawning = entry.waitingForSignal = false;
+            entry.isWalker = false;
+            entry.lateral = entry.lateralTarget = entry.heldFor = entry.clearFor = 0f;
+            entry.offsetRight = entry.velocity = Vector3.zero;
             entry.respawnRemaining = 0f;
             entry.respawnCycle = 0;
             entry.routeOrder = routeOrder++;
@@ -182,6 +321,10 @@ public sealed class StreetLife : MonoBehaviour
                     if (parameter.nameHash == IsWalking && parameter.type == AnimatorControllerParameterType.Bool)
                         entry.drivesAnimator = true;
             }
+            // People on foot. Cars, birds and anything in a traffic group keep their own rules.
+            entry.isWalker = !entry.trafficManaged
+                && (entry.wings == null || entry.wings.Length == 0) && (entry.wheels == null || entry.wheels.Length == 0)
+                && (entry.drivesAnimator || entry.legs != null && entry.legs.Length > 0);
         }
         RebuildTraffic();
         // Traffic may correct crowded starting phases. Resolve the next stop after that correction.
@@ -199,20 +342,46 @@ public sealed class StreetLife : MonoBehaviour
         if (dt <= 0f || float.IsNaN(dt) || float.IsInfinity(dt)) return;
         UpdateRespawns(Mathf.Min(dt, 0.25f));
         SolveTraffic(dt);
+        GatherBodies();
         foreach (Actor entry in actors)
         {
             if (entry == null || entry.actor == null || entry.length < 0.001f || !entry.actor.gameObject.activeInHierarchy)
                 continue;
             Vector3 before = entry.actor.position;
             float advance = entry.trafficManaged ? entry.trafficMove : ProposeMovement(entry, dt, dt);
+            if (entry.isWalker) advance = MindTheWay(entry, advance, dt);
             entry.distance = entry.openRoute ? Mathf.Min(entry.distance + advance, entry.length) : Mathf.Repeat(entry.distance + advance, entry.length);
             RecordStopProgress(entry, advance);
             entry.actor.position = Sample(entry, entry.distance, out Vector3 direction);
+            if (entry.isWalker)
+            {
+                entry.actor.position += WalkerOffset(entry, direction, dt);
+                entry.velocity = (entry.actor.position - before) / dt;
+                if (entry.obstacle != null) entry.obstacle.velocity = entry.velocity;
+                // Face the way the feet actually go, sidesteps included, but never more
+                // than about 40 degrees off the route: people sidestep, they don't turn to the kerb.
+                Vector3 step = entry.actor.position - before, route = direction;
+                step.y = route.y = 0f;
+                if (step.sqrMagnitude > 1e-8f && route.sqrMagnitude > 1e-8f)
+                {
+                    route.Normalize();
+                    float forward = Vector3.Dot(step, route);
+                    Vector3 sideways = step - route * forward;
+                    direction = route * Mathf.Max(forward, sideways.magnitude * 1.2f) + sideways;
+                }
+            }
             float moved = entry.trafficManaged ? advance : Vector3.Distance(before, entry.actor.position);
-            bool walking = moved / dt > 0.01f;
+            entry.lastSpeed = moved / dt;
+            // Walkers slowed to a shuffle behind someone stand rather than moonwalk.
+            bool walking = moved / dt > (entry.isWalker ? 0.15f : 0.01f);
             if (entry.drivesAnimator && entry.animator != null)
                 entry.animator.SetBool(IsWalking, walking);
-            if (entry.openRoute && entry.distance >= entry.length) BeginRespawn(entry);
+            if (entry.openRoute && entry.distance >= entry.length)
+            {
+                // A borrowed car hands itself back rather than looping round again.
+                if (entry.guest) { finishedGuests.Add(entry); continue; }
+                BeginRespawn(entry);
+            }
             if (!walking) continue;
 
             if (!entry.alignToSlope) direction.y = 0f;
@@ -231,10 +400,148 @@ public sealed class StreetLife : MonoBehaviour
             entry.stridePhase = Mathf.Repeat(entry.stridePhase + moved / Mathf.Max(0.05f, entry.strideLength) * Mathf.PI * 2f, Mathf.PI * 2f);
             Pose(entry.legs, entry.legRest, entry.legAxis, Mathf.Sin(entry.stridePhase) * entry.legAngle, true);
         }
+        // Borrowed cars that reached the end of their lane go back to whoever lent them.
+        if (finishedGuests.Count > 0)
+        {
+            foreach (Actor guest in finishedGuests)
+            {
+                RemoveFromTraffic(guest);
+                guest.guestReachedEnd?.Invoke(guest);
+            }
+            finishedGuests.Clear();
+        }
+        ServeWalkRequests();
         // Gate time advances by the same bounded step as traffic, so a hitch cannot skip
         // clearance while cars inside an intersection have barely moved.
         signalTime = Mathf.Repeat(signalTime + Mathf.Min(dt, 0.25f), 2f * (Mathf.Max(1f, signalGreenSeconds) + Mathf.Max(1f, signalClearanceSeconds)));
         RefreshSignalHeads();
+    }
+
+    // ---------- walkers' personal space ----------
+
+    // Everyone a walker has to respect this frame: the other walkers, and in Play
+    // Mode the café's NavMesh agents and the player.
+    private void GatherBodies()
+    {
+        bodies.Clear();
+        bool anyWalker = false;
+        bool sharing = walkersShareTheSidewalk && Application.isPlaying;
+        foreach (Actor entry in actors)
+        {
+            if (entry == null || !entry.isWalker || entry.actor == null || !entry.actor.gameObject.activeInHierarchy) continue;
+            anyWalker = true;
+            if (sharing && entry.obstacle == null) entry.obstacle = AddObstacle(entry.actor);
+            bodies.Add(new Body { position = entry.actor.position, velocity = entry.velocity, radius = 0.3f, owner = entry });
+        }
+        if (!anyWalker || !sharing) return;
+        if (Time.unscaledTime >= nextBodyScan)
+        {
+            nextBodyScan = Time.unscaledTime + 0.5f;
+            sidewalkAgents = FindObjectsByType<NavMeshAgent>(FindObjectsInactive.Exclude);
+            sidewalkCharacters = FindObjectsByType<CharacterController>(FindObjectsInactive.Exclude);
+        }
+        foreach (NavMeshAgent agent in sidewalkAgents)
+            if (agent != null && agent.isActiveAndEnabled)
+                bodies.Add(new Body { position = agent.transform.position, velocity = agent.velocity, radius = 0.3f });
+        foreach (CharacterController character in sidewalkCharacters)
+            if (character != null && character.enabled)
+                bodies.Add(new Body { position = character.transform.position, velocity = character.velocity, radius = 0.3f });
+        // Café visitors walking to and from the door, and café cars, are off the NavMesh.
+        foreach (IStreetBody body in streetBodies)
+            if (body != null)
+                bodies.Add(new Body { position = body.Position, velocity = body.Velocity, radius = Mathf.Max(0.1f, body.Radius) });
+    }
+
+    // Street walkers never walk through anybody. Someone ahead going the same way,
+    // or standing still, is followed at walkerFollowGap; after walkerPatience the
+    // walker steps round them. Oncoming people get room: both step away from each
+    // other's side and nobody stops, so two walkers can never hold each other up
+    // face to face.
+    private float MindTheWay(Actor walker, float advance, float dt)
+    {
+        Sample(walker, walker.distance, out Vector3 heading);
+        heading.y = 0f;
+        if (heading.sqrMagnitude < 1e-8f) return advance;
+        heading.Normalize();
+        Vector3 here = walker.actor.position;
+        Vector3 right = new Vector3(heading.z, 0f, -heading.x);
+        float allowed = advance;
+        float blockerAlong = float.PositiveInfinity, blockerSide = 0f;
+        float oncomingAlong = float.PositiveInfinity, oncomingSide = 0f;
+        foreach (Body body in bodies)
+        {
+            if (body.owner == walker) continue;
+            Vector3 offset = body.position - here;
+            if (Mathf.Abs(offset.y) > 1.6f) continue;
+            offset.y = 0f;
+            float along = Vector3.Dot(offset, heading);
+            if (along <= 0.05f || along > walkerLookAhead) continue;
+            float side = Vector3.Dot(offset, right);
+            // Wider bodies (a café car) take up more of the path than a person does.
+            float extra = Mathf.Max(0f, body.radius - 0.3f);
+            if (Vector3.Dot(body.velocity, heading) < -0.25f)
+            {
+                if (Mathf.Abs(side) < walkerCorridor + 0.3f + extra && along < oncomingAlong) { oncomingAlong = along; oncomingSide = side; }
+                continue;
+            }
+            if (Mathf.Abs(side) > walkerCorridor + extra) continue;
+            allowed = Mathf.Min(allowed, Mathf.Max(0f, along - walkerFollowGap));
+            if (along < blockerAlong) { blockerAlong = along; blockerSide = side; }
+        }
+        if (oncomingAlong < 1.2f) allowed = Mathf.Min(allowed, advance * 0.65f);
+
+        walker.heldFor = allowed < advance * 0.9f ? walker.heldFor + dt : 0f;
+        if (!float.IsInfinity(oncomingAlong))
+        {
+            // Away from their side; dead ahead, keep right.
+            walker.lateralTarget = (Mathf.Abs(oncomingSide) < 0.08f ? 1f : -Mathf.Sign(oncomingSide)) * walkerSidestep * 0.6f;
+            walker.clearFor = 0f;
+        }
+        else if (!float.IsInfinity(blockerAlong))
+        {
+            // Round them, away from their side; dead ahead, pass on their left.
+            if (walker.heldFor >= walkerPatience)
+                walker.lateralTarget = (Mathf.Abs(blockerSide) < 0.08f ? -1f : -Mathf.Sign(blockerSide)) * walkerSidestep;
+            walker.clearFor = 0f;
+        }
+        else
+        {
+            walker.clearFor += dt;
+            if (walker.clearFor > 0.8f) walker.lateralTarget = 0f;
+        }
+        return allowed;
+    }
+
+    private static Vector3 WalkerOffset(Actor walker, Vector3 direction, float dt)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude > 1e-8f)
+        {
+            direction.Normalize();
+            Vector3 right = new Vector3(direction.z, 0f, -direction.x);
+            // The sideways direction turns with the walker instead of snapping round at corners.
+            walker.offsetRight = walker.offsetRight.sqrMagnitude < 0.5f ? right
+                : Vector3.RotateTowards(walker.offsetRight, right, Mathf.Max(90f, walker.turnSpeed) * Mathf.Deg2Rad * dt, 0f);
+        }
+        walker.lateral = Mathf.MoveTowards(walker.lateral, walker.lateralTarget, 0.9f * dt);
+        return walker.offsetRight * walker.lateral;
+    }
+
+    // Café NPCs' own avoidance steers round a walker that carries one of these.
+    // Not carving: the NavMesh itself never changes.
+    private static NavMeshObstacle AddObstacle(Transform actor)
+    {
+        NavMeshObstacle obstacle = actor.GetComponent<NavMeshObstacle>();
+        if (obstacle == null) obstacle = actor.gameObject.AddComponent<NavMeshObstacle>();
+        Vector3 scale = actor.lossyScale;
+        float across = Mathf.Max(0.01f, Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.z)));
+        float up = Mathf.Max(0.01f, Mathf.Abs(scale.y));
+        obstacle.carving = false;
+        obstacle.shape = NavMeshObstacleShape.Capsule;
+        obstacle.radius = 0.3f / across;
+        obstacle.height = 1.8f / up;
+        obstacle.center = new Vector3(0f, 0.9f / up, 0f);
+        return obstacle;
     }
 
     private static float RequiredSpacing(Actor follower, Actor leader) =>
@@ -348,6 +655,8 @@ public sealed class StreetLife : MonoBehaviour
             entry.distance = 0f;
             entry.trafficMove = 0f;
             entry.respawning = false;
+            entry.lateral = entry.lateralTarget = entry.heldFor = entry.clearFor = 0f;
+            entry.offsetRight = entry.velocity = Vector3.zero;
             RebuildStops(entry);
             entry.actor.position = Sample(entry, 0f, out Vector3 direction);
             if (!entry.alignToSlope) direction.y = 0f;
@@ -362,8 +671,12 @@ public sealed class StreetLife : MonoBehaviour
         {
             if (group[0].openRoute) group.Sort(CompareRoutePosition);
             foreach (Actor entry in group)
-                entry.trafficMove = !entry.respawning && entry.actor != null && entry.actor.gameObject.activeInHierarchy ?
-                    ProposeMovement(entry, dt, 0.25f) : 0f;
+            {
+                bool moving = !entry.respawning && entry.actor != null && entry.actor.gameObject.activeInHierarchy;
+                entry.trafficMove = moving ? ProposeMovement(entry, dt, 0.25f) : 0f;
+                // Someone on a crossing, or a café car turning across the lane: stop short of it.
+                if (moving && roadBlocks.Count > 0) entry.trafficMove = Mathf.Min(entry.trafficMove, RoomBeforeRoadBlocks(entry, dt));
+            }
             if (group.Count < 2) continue;
             if (group[0].openRoute)
             {
@@ -376,6 +689,8 @@ public sealed class StreetLife : MonoBehaviour
                     {
                         float room = leader.distance - follower.distance - RequiredSpacing(follower, leader);
                         follower.trafficMove = Mathf.Min(follower.trafficMove, Mathf.Max(0f, room + leader.trafficMove));
+                        // Never end up stopped on a crossing or in a junction box behind a queue.
+                        if (roadBlocks.Count > 0) follower.trafficMove = KeepClear(follower, leader, follower.trafficMove, dt);
                     }
                     leader = follower;
                 }
@@ -391,6 +706,417 @@ public sealed class StreetLife : MonoBehaviour
                     follower.trafficMove = Mathf.Min(follower.trafficMove, Mathf.Max(0f, room + leader.trafficMove));
                 }
         }
+    }
+
+    // ---------- crossings, turning cars and borrowed cars ----------
+
+    // Where a block lies relative to a car: along its heading (from the car's centre)
+    // and across it (positive to the car's right).
+    private static void BlockExtent(RoadBlock block, Vector3 origin, Vector3 forward, Vector3 right,
+                                    out float alongMin, out float alongMax, out float sideMin, out float sideMax)
+    {
+        Quaternion turn = Quaternion.Euler(0f, block.yaw, 0f);
+        Vector3 bx = turn * Vector3.right * block.halfSize.x, bz = turn * Vector3.forward * block.halfSize.y;
+        alongMin = sideMin = float.PositiveInfinity;
+        alongMax = sideMax = float.NegativeInfinity;
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 c = block.center + ((i & 1) == 0 ? bx : -bx) + ((i & 2) == 0 ? bz : -bz) - origin;
+            float a = c.x * forward.x + c.z * forward.z, s = c.x * right.x + c.z * right.z;
+            alongMin = Mathf.Min(alongMin, a); alongMax = Mathf.Max(alongMax, a);
+            sideMin = Mathf.Min(sideMin, s); sideMax = Mathf.Max(sideMax, s);
+        }
+    }
+
+    private bool CarFrame(Actor car, out Vector3 here, out Vector3 forward, out Vector3 right)
+    {
+        here = Sample(car, car.distance, out forward);
+        forward.y = 0f;
+        right = Vector3.zero;
+        if (forward.sqrMagnitude < 1e-8f) return false;
+        forward.Normalize();
+        right = new Vector3(forward.z, 0f, -forward.x);
+        return true;
+    }
+
+    // How far this car may move before it would drive into an active block, braking
+    // towards it rather than stopping dead.
+    private float RoomBeforeRoadBlocks(Actor car, float dt)
+    {
+        if (!CarFrame(car, out Vector3 here, out Vector3 forward, out Vector3 right)) return float.PositiveInfinity;
+        float half = Mathf.Max(0.1f, car.vehicleLength) * 0.5f;
+        float room = float.PositiveInfinity;
+        foreach (RoadBlock block in roadBlocks)
+        {
+            if (block == null || !block.active || Mathf.Abs(block.center.y - here.y) > 3f) continue;
+            BlockExtent(block, here, forward, right, out float near, out float far, out float sideMin, out float sideMax);
+            if (sideMax < -CarHalfWidth || sideMin > CarHalfWidth) continue;   // not in this lane
+            if (far < -half) continue;                                         // already behind the car
+            float gap = near - half;                                           // front bumper to the block
+            if (gap < 0f)
+            {
+                // Already on it: a crossing is cleared, anything else waits.
+                if (block.letTrafficInsideClear) continue;
+                return 0f;
+            }
+            if (gap > roadBlockLookAhead) continue;
+            room = Mathf.Min(room, Mathf.Max(0f, gap - roadBlockStopGap));
+        }
+        if (float.IsInfinity(room)) return room;
+        float allowedSpeed = Mathf.Sqrt(2f * roadBlockBraking * room);
+        return Mathf.Min(room, allowedSpeed * Mathf.Min(dt, 0.25f));
+    }
+
+    // Don't drive onto a keep-clear block (a crossing, a junction box) unless the
+    // whole car fits beyond it, so a queue never ends on top of one.
+    private float KeepClear(Actor car, Actor leader, float move, float dt)
+    {
+        if (leader == null || !CarFrame(car, out Vector3 here, out Vector3 forward, out Vector3 right)) return move;
+        float half = Mathf.Max(0.1f, car.vehicleLength) * 0.5f;
+        float leaderRear = leader.distance - car.distance - Mathf.Max(0.1f, leader.vehicleLength) * 0.5f;
+        // A leader that is driving off will have made room by the time we get there.
+        float leaderSpeed = dt > 1e-5f ? leader.trafficMove / dt : 0f;
+        if (leaderSpeed > 1f) leaderRear += leaderSpeed * 1.5f;
+        float gapBehindLeader = Mathf.Max(car.minimumGap, leader.minimumGap);
+        foreach (RoadBlock block in roadBlocks)
+        {
+            if (block == null || !block.keepClear || Mathf.Abs(block.center.y - here.y) > 3f) continue;
+            BlockExtent(block, here, forward, right, out float near, out float far, out float sideMin, out float sideMax);
+            if (sideMax < -CarHalfWidth || sideMin > CarHalfWidth) continue;
+            float gap = near - half;
+            if (gap < -0.05f || gap > roadBlockLookAhead) continue;            // already on it, or far off
+            if (far > leaderRear) continue;                                    // the leader itself is on or before it
+            float roomBeyond = leaderRear - gapBehindLeader - far;
+            if (roomBeyond >= car.vehicleLength + 0.2f) continue;              // fits after it
+            float room = Mathf.Max(0f, gap - 0.3f);
+            float allowedSpeed = Mathf.Sqrt(2f * roadBlockBraking * room);
+            move = Mathf.Min(move, Mathf.Min(room, allowedSpeed * Mathf.Min(dt, 0.25f)));
+        }
+        return move;
+    }
+
+    /// <summary>True while any car's body overlaps the block grown by <paramref name="margin"/> metres.</summary>
+    public bool AnyCarOn(RoadBlock block, float margin)
+    {
+        if (block == null) return false;
+        foreach (Actor car in actors)
+        {
+            if (car == null || !car.trafficManaged || car.respawning || car.actor == null || !car.actor.gameObject.activeInHierarchy) continue;
+            if (!CarFrame(car, out Vector3 here, out Vector3 forward, out Vector3 right)) continue;
+            if (Mathf.Abs(block.center.y - here.y) > 3f) continue;
+            BlockExtent(block, here, forward, right, out float near, out float far, out float sideMin, out float sideMax);
+            float half = Mathf.Max(0.1f, car.vehicleLength) * 0.5f + margin;
+            if (far < -half || near > half) continue;
+            if (sideMax < -CarHalfWidth - margin || sideMin > CarHalfWidth + margin) continue;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>True when a moving car is too close to stop before the block.</summary>
+    public bool CarClosingOn(RoadBlock block, float withinMetres)
+    {
+        if (block == null) return false;
+        foreach (Actor car in actors)
+        {
+            if (car == null || !car.trafficManaged || car.respawning || car.actor == null || !car.actor.gameObject.activeInHierarchy) continue;
+            if (car.lastSpeed < 0.3f) continue;
+            if (!CarFrame(car, out Vector3 here, out Vector3 forward, out Vector3 right)) continue;
+            if (Mathf.Abs(block.center.y - here.y) > 3f) continue;
+            BlockExtent(block, here, forward, right, out float near, out float far, out float sideMin, out float sideMax);
+            if (sideMax < -CarHalfWidth || sideMin > CarHalfWidth) continue;
+            float gap = near - Mathf.Max(0.1f, car.vehicleLength) * 0.5f;
+            if (gap >= -0.5f && gap <= withinMetres) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Someone is waiting to cross alongside junction phase <paramref name="parallelPhase"/>
+    /// (a café visitor at a signalled crossing - like pressing the button). Call every frame
+    /// while waiting; the other phase's green then ends early, once it has run
+    /// <see cref="walkRequestMinGreen"/> seconds.
+    /// </summary>
+    public void RequestWalk(int parallelPhase)
+    {
+        if (parallelPhase == 0 || parallelPhase == 1) walkRequests[parallelPhase] = true;
+    }
+
+    private void ServeWalkRequests()
+    {
+        bool forPhase0 = walkRequests[0], forPhase1 = walkRequests[1];
+        walkRequests[0] = walkRequests[1] = false;
+        if (!forPhase0 && !forPhase1) return;
+        float green = Mathf.Max(1f, signalGreenSeconds), clearance = Mathf.Max(1f, signalClearanceSeconds);
+        float halfCycle = green + clearance;
+        float time = Mathf.Repeat(signalTime, halfCycle * 2f);
+        float cycleStart = signalTime - time;
+        float minGreen = Mathf.Min(walkRequestMinGreen, green);
+        // Waiting to walk with phase 1 while phase 0 has its green: phase 0 goes to amber now.
+        if (forPhase1 && time < green && time >= minGreen) signalTime = cycleStart + green;
+        // ... and the other way round.
+        else if (forPhase0 && time >= halfCycle && time < halfCycle + green && time - halfCycle >= minGreen) signalTime = cycleStart + halfCycle + green;
+    }
+
+    /// <summary>
+    /// Seconds before the traffic that drives over a crossing gets its green again, while
+    /// junction phase <paramref name="parallelPhase"/> (the traffic alongside the crossing)
+    /// has its turn: its green, its amber and the all-reds either side, when the crossing
+    /// traffic is held at its stop line. Someone may start across while they can reach the
+    /// far kerb inside it (like a walk signal that turns to a flashing don't-walk in time).
+    /// 0 when the crossing traffic has its green or amber.
+    /// </summary>
+    public float WalkTimeLeft(int parallelPhase)
+    {
+        float green = Mathf.Max(1f, signalGreenSeconds), clearance = Mathf.Max(1f, signalClearanceSeconds);
+        float halfCycle = green + clearance, amber = Mathf.Min(2f, clearance);
+        float time = Mathf.Repeat(signalTime, halfCycle * 2f);
+        if (parallelPhase == 1)
+        {
+            // Phase 0 drives over the crossing: held from the end of its amber to the end of the cycle.
+            return time >= green + amber ? halfCycle * 2f - time : 0f;
+        }
+        if (parallelPhase == 0)
+        {
+            // Phase 1 drives over it: held from the end of its amber, round the cycle, to half way.
+            if (time >= halfCycle + green + amber) return halfCycle * 2f - time + halfCycle;
+            return time < halfCycle ? halfCycle - time : 0f;
+        }
+        return 0f;
+    }
+
+    /// <summary>
+    /// For someone about to walk from <paramref name="from"/> to <paramref name="to"/> over the
+    /// road: true while a car's body is on that walk (grown by <paramref name="halfWidth"/>),
+    /// or a moving car could not stop before reaching it. A car standing at its stop line
+    /// beside a crossing is not in the way.
+    /// </summary>
+    public bool CarThreatens(Vector3 from, Vector3 to, float halfWidth)
+    {
+        foreach (Actor car in actors)
+        {
+            if (car == null || !car.trafficManaged || car.respawning || car.actor == null || !car.actor.gameObject.activeInHierarchy) continue;
+            if (!CarFrame(car, out Vector3 here, out Vector3 forward, out Vector3 right)) continue;
+            if (Mathf.Abs(here.y - from.y) > 3f) continue;
+            float half = Mathf.Max(0.1f, car.vehicleLength) * 0.5f;
+            // How far it could still roll before stopping (it stops short of a crossing in use).
+            float roll = car.lastSpeed >= 0.3f ? car.lastSpeed * car.lastSpeed / (2f * roadBlockBraking) + roadBlockStopGap : 0f;
+            Vector3 centre = here + forward * (roll * 0.5f);
+            if (SegmentTouchesBox(from, to, halfWidth, centre, forward, right, half + roll * 0.5f, CarHalfWidth)) return true;
+        }
+        return false;
+    }
+
+    // The segment a-b, grown by `grow`, against a box on the ground (slab test in the box's frame).
+    private static bool SegmentTouchesBox(Vector3 a, Vector3 b, float grow, Vector3 centre, Vector3 forward, Vector3 right,
+                                          float halfLength, float halfWidth)
+    {
+        Vector3 pa = a - centre, pb = b - centre;
+        float ax = pa.x * forward.x + pa.z * forward.z, az = pa.x * right.x + pa.z * right.z;
+        float bx = pb.x * forward.x + pb.z * forward.z, bz = pb.x * right.x + pb.z * right.z;
+        float t0 = 0f, t1 = 1f;
+        return ClipSlab(ax, bx - ax, halfLength + grow, ref t0, ref t1) && ClipSlab(az, bz - az, halfWidth + grow, ref t0, ref t1);
+    }
+
+    private static bool ClipSlab(float p, float d, float half, ref float t0, ref float t1)
+    {
+        if (Mathf.Abs(d) < 1e-6f) return p >= -half && p <= half;
+        float a = (-half - p) / d, b = (half - p) / d;
+        if (a > b) { float swap = a; a = b; b = swap; }
+        if (a > t0) t0 = a;
+        if (b < t1) t1 = b;
+        return t0 <= t1;
+    }
+
+    /// <summary>Seconds of green left for junction phase 0 or 1; 0 when that phase isn't green.</summary>
+    public float GreenRemaining(int phase)
+    {
+        float green = Mathf.Max(1f, signalGreenSeconds), halfCycle = green + Mathf.Max(1f, signalClearanceSeconds);
+        float time = Mathf.Repeat(signalTime, halfCycle * 2f);
+        if (phase == 0) return time < green ? green - time : 0f;
+        if (phase == 1) return time >= halfCycle && time < halfCycle + green ? halfCycle + green - time : 0f;
+        return 0f;
+    }
+
+    private List<Actor> FindGroup(string group)
+    {
+        foreach (List<Actor> lane in trafficGroups)
+            if (lane.Count > 0 && lane[0].trafficGroup == group) return lane;
+        return null;
+    }
+
+    /// <summary>Where <paramref name="position"/> lies along a traffic group's route, metres from its start.</summary>
+    public bool TryRouteDistance(string group, Vector3 position, out float distance)
+    {
+        distance = 0f;
+        List<Actor> lane = FindGroup(group);
+        if (lane == null) return false;
+        Actor template = lane[0];
+        if (template.points == null || template.points.Length < 2) return false;
+        float nearest = float.PositiveInfinity;
+        for (int segment = 1; segment < template.points.Length; segment++)
+        {
+            Vector3 start = template.points[segment - 1], edge = template.points[segment] - start;
+            float t = edge.sqrMagnitude > 1e-6f ? Mathf.Clamp01(Vector3.Dot(position - start, edge) / edge.sqrMagnitude) : 0f;
+            float separation = (position - (start + edge * t)).sqrMagnitude;
+            if (separation >= nearest) continue;
+            nearest = separation;
+            distance = template.lengths[segment - 1] + (template.lengths[segment] - template.lengths[segment - 1]) * t;
+        }
+        return true;
+    }
+
+    /// <summary>The route position and heading at <paramref name="distance"/> along a traffic group.</summary>
+    public bool TryRoutePoint(string group, float distance, out Vector3 point, out Vector3 direction)
+    {
+        point = direction = Vector3.zero;
+        List<Actor> lane = FindGroup(group);
+        if (lane == null || lane[0].points == null || lane[0].points.Length < 2) return false;
+        point = Sample(lane[0], Mathf.Clamp(distance, 0f, lane[0].length), out direction);
+        return true;
+    }
+
+    /// <summary>Junction phase a traffic group obeys (-1 when unsignalled or unknown).</summary>
+    public int SignalPhaseOf(string group)
+    {
+        List<Actor> lane = FindGroup(group);
+        return lane != null ? lane[0].junctionSignalPhase : -1;
+    }
+
+    /// <summary>
+    /// Whether a car of <paramref name="length"/> could join the lane at <paramref name="distance"/>
+    /// right now without crowding anyone: every car keeps its bumper gap, and one coming up
+    /// behind has another <paramref name="approachSeconds"/> of driving in hand.
+    /// </summary>
+    public bool CanJoinTraffic(string group, float distance, float length, float approachSeconds = 1.5f)
+    {
+        List<Actor> lane = FindGroup(group);
+        if (lane == null) return false;
+        foreach (Actor other in lane)
+        {
+            if (other.respawning || other.actor == null || !other.actor.gameObject.activeInHierarchy) continue;
+            float spacing = (Mathf.Max(0.1f, length) + Mathf.Max(0.1f, other.vehicleLength)) * 0.5f
+                          + Mathf.Max(0f, Mathf.Max(lane[0].minimumGap, other.minimumGap)) + 0.01f;
+            float ahead = other.distance - distance;
+            if (ahead >= 0f ? ahead < spacing : -ahead < spacing + Mathf.Max(0f, other.speed) * approachSeconds) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Adds a car to a traffic lane at runtime (a café customer driving in or out). It
+    /// obeys the lane's signals and spacing like any other car, and when it reaches the
+    /// end of the route it is handed back through <paramref name="reachedEnd"/> instead
+    /// of respawning. Call <see cref="LeaveTraffic"/> to take it out earlier.
+    /// </summary>
+    public Actor JoinTraffic(string group, Transform car, float length, float speed, Transform[] wheels, float wheelRadius,
+                             Vector3 wheelAxis, float distance, Action<Actor> reachedEnd)
+    {
+        List<Actor> lane = FindGroup(group);
+        if (lane == null || car == null) return null;
+        Actor template = lane[0];
+        var entry = new Actor
+        {
+            actor = car, waypoints = template.waypoints, openRoute = template.openRoute, speed = Mathf.Max(0.5f, speed),
+            trafficGroup = template.trafficGroup, vehicleLength = Mathf.Max(0.5f, length), minimumGap = template.minimumGap,
+            stopWaypoints = template.stopWaypoints, stopDuration = template.stopDuration,
+            junctionSignalPhase = template.junctionSignalPhase, smoothRoute = template.smoothRoute,
+            alignToSlope = template.alignToSlope, turnSpeed = template.turnSpeed,
+            wheels = wheels ?? Array.Empty<Transform>(), wheelRadius = Mathf.Max(0.05f, wheelRadius), wheelAxis = wheelAxis,
+        };
+        entry.points = template.points;
+        entry.lengths = template.lengths;
+        entry.length = template.length;
+        entry.distance = entry.openRoute ? Mathf.Clamp(distance, 0f, entry.length) : Mathf.Repeat(distance, entry.length);
+        entry.wheelRest = RestRotations(entry.wheels);
+        entry.wingRest = RestRotations(entry.wings);
+        entry.legRest = RestRotations(entry.legs);
+        entry.trafficManaged = true;
+        entry.guest = true;
+        entry.guestReachedEnd = reachedEnd;
+        entry.routeOrder = nextGuestOrder++;
+        RebuildStops(entry);
+        car.position = Sample(entry, entry.distance, out Vector3 direction);
+        if (!entry.alignToSlope) direction.y = 0f;
+        if (direction.sqrMagnitude > 1e-6f) car.rotation = Quaternion.LookRotation(direction, Vector3.up);
+        actors.Add(entry);
+        lane.Add(entry);
+        if (entry.openRoute) lane.Sort(CompareRoutePosition);
+        return entry;
+    }
+
+    /// <summary>Takes a car added with <see cref="JoinTraffic"/> back out of its lane; it stays where it is.</summary>
+    public void LeaveTraffic(Actor guest)
+    {
+        if (guest == null || !guest.guest) return;
+        RemoveFromTraffic(guest);
+    }
+
+    private void RemoveFromTraffic(Actor guest)
+    {
+        actors.Remove(guest);
+        foreach (List<Actor> lane in trafficGroups) lane.Remove(guest);
+        guest.trafficMove = 0f;
+        guest.lastSpeed = 0f;
+    }
+
+    /// <summary>
+    /// For people walking outside the NavMesh (café visitors): the nearest body ahead of
+    /// <paramref name="position"/> inside a corridor along <paramref name="heading"/> -
+    /// street walkers, other registered bodies, café NavMesh agents and the player.
+    /// </summary>
+    public static bool NearestBodyAhead(Vector3 position, Vector3 heading, float lookAhead, float corridor, IStreetBody self,
+                                        out Vector3 bodyPosition, out Vector3 bodyVelocity, out float bodyRadius)
+    {
+        bodyPosition = bodyVelocity = Vector3.zero;
+        bodyRadius = 0f;
+        heading.y = 0f;
+        if (heading.sqrMagnitude < 1e-8f) return false;
+        heading.Normalize();
+        Vector3 right = new Vector3(heading.z, 0f, -heading.x);
+        float best = float.PositiveInfinity;
+        bool found = false;
+        // A local function can't write out parameters: collect here, copy out at the end.
+        Vector3 nearestPosition = Vector3.zero, nearestVelocity = Vector3.zero;
+        float nearestRadius = 0f;
+
+        void Consider(Vector3 p, Vector3 v, float r)
+        {
+            Vector3 offset = p - position;
+            if (Mathf.Abs(offset.y) > 1.6f) return;
+            offset.y = 0f;
+            float along = Vector3.Dot(offset, heading);
+            if (along <= 0.05f || along > lookAhead + r || along >= best) return;
+            if (Mathf.Abs(Vector3.Dot(offset, right)) > corridor + r) return;
+            best = along; nearestPosition = p; nearestVelocity = v; nearestRadius = r; found = true;
+        }
+
+        foreach (StreetLife street in instances)
+            foreach (Actor walker in street.actors)
+                if (walker != null && walker.isWalker && walker.actor != null && walker.actor.gameObject.activeInHierarchy)
+                    Consider(walker.actor.position, walker.velocity, 0.3f);
+        foreach (IStreetBody body in streetBodies)
+            if (body != null && !ReferenceEquals(body, self))
+                Consider(body.Position, body.Velocity, Mathf.Max(0.1f, body.Radius));
+        if (Time.unscaledTime >= nextCacheScan)
+        {
+            nextCacheScan = Time.unscaledTime + 0.5f;
+            cachedAgents = FindObjectsByType<NavMeshAgent>(FindObjectsInactive.Exclude);
+            cachedCharacters = FindObjectsByType<CharacterController>(FindObjectsInactive.Exclude);
+        }
+        foreach (NavMeshAgent agent in cachedAgents)
+            if (agent != null && agent.isActiveAndEnabled) Consider(agent.transform.position, agent.velocity, 0.3f);
+        foreach (CharacterController character in cachedCharacters)
+            if (character != null && character.enabled) Consider(character.transform.position, character.velocity, 0.3f);
+        bodyPosition = nearestPosition;
+        bodyVelocity = nearestVelocity;
+        bodyRadius = nearestRadius;
+        return found;
+    }
+
+    private void OnEnable()
+    {
+        if (!instances.Contains(this)) instances.Add(this);
     }
 
     private static void RebuildStops(Actor entry)
@@ -559,6 +1285,7 @@ public sealed class StreetLife : MonoBehaviour
 
     private void OnDisable()
     {
+        instances.Remove(this);
         foreach (Actor entry in actors)
             if (entry != null && entry.drivesAnimator && entry.animator != null)
                 entry.animator.SetBool(IsWalking, false);

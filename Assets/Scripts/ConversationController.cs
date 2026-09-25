@@ -113,11 +113,15 @@ public class ConversationController : MonoBehaviour
 
         if (Time.time < inputReadyAt) return;
         var kb = Keyboard.current;
-        if (kb == null) return;
+        // Controller: A answers, Y turns them away, B (or X, like F) steps away.
+        bool stepAway = kb != null && (kb.fKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+            || PadInput.Pressed(PadButton.East) || PadInput.Pressed(PadButton.West);
+        bool answer = kb != null && kb.eKey.wasPressedThisFrame || PadInput.Pressed(PadButton.South);
+        bool refuse = kb != null && kb.qKey.wasPressedThisFrame || PadInput.Pressed(PadButton.North);
 
-        if (kb.fKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) { End(); return; }
+        if (stepAway) { End(); return; }
         // E: finish the line if it's still revealing, otherwise take the job.
-        if (kb.eKey.wasPressedThisFrame)
+        if (answer)
         {
             if (!ui.LineFinished) { ui.SkipReveal(); return; }
 
@@ -132,7 +136,7 @@ public class ConversationController : MonoBehaviour
         }
 
         // Q: turn them away.
-        if (kb.qKey.wasPressedThisFrame && ui.LineFinished && partner.CanRefuse)
+        if (refuse && ui.LineFinished && partner.CanRefuse)
         {
             CloseWith(partner.RefuseJob());
             return;
@@ -173,9 +177,10 @@ public class ConversationController : MonoBehaviour
 
     private string BuildOptions()
     {
-        if (partner.OutOfStock)  return "We're out of stock          [Q]  Apologise";
-        if (partner.ShelfFull)   return "No room on the shelf        [Q]  Turn them away";
-        if (partner.CanAcceptJob) return "[E]  Take the job          [Q]  Turn them away";
-        return "[F]  Step away";
+        string refuse = ControlHints.Refuse;
+        if (partner.OutOfStock)  return $"We're out of stock          [{refuse}]  Apologise";
+        if (partner.ShelfFull)   return $"No room on the shelf        [{refuse}]  Turn them away";
+        if (partner.CanAcceptJob) return $"[{ControlHints.Interact}]  Take the job          [{refuse}]  Turn them away";
+        return $"[{ControlHints.Say("F", ControlHints.Back)}]  Step away";
     }
 }

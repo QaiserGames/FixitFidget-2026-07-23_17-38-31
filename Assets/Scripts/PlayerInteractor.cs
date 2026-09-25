@@ -24,8 +24,10 @@ public class PlayerInteractor : MonoBehaviour
     private PlayerCarry carry;
     private CafeViewMode viewMode;
     private int lastInteractionFrame = -1;
+    private int lastBackFrame = -1;
 
     public bool IsAtStation => currentStation != null;
+    public bool IsAtBeverageStation => currentStation != null && currentStation.GetComponent<BeverageStation>() != null;
     public Interactable Focused => focused;
     public string CurrentPrompt { get; private set; }
     public string DebugInfo { get; private set; }
@@ -64,6 +66,10 @@ public class PlayerInteractor : MonoBehaviour
             return;
         }
 
+        // Controller B. Also bound to PlayerInput's Back action; the frame
+        // guard in OnBack keeps the two from peeling two layers at once.
+        if (PadInput.Pressed(PadButton.East)) OnBack();
+
         // The conversation owns input while it's open.
         if (conversation != null && conversation.InConversation)
         {
@@ -81,6 +87,8 @@ public class PlayerInteractor : MonoBehaviour
             focused = null;
             CurrentPrompt = inspector != null && inspector.IsHoldingItem ? inspector.CollectionPrompt : "";
             StationKey();
+            // Controller A collects the inspected item, exactly like E.
+            if (PadInput.Pressed(PadButton.South)) PerformInteraction(-1);
             return;
         }
         Interactable next = FindBest();
@@ -97,13 +105,24 @@ public class PlayerInteractor : MonoBehaviour
         // Q declines whatever we're looking at, once they've had their say.
         StationKey();
 
-        if (currentStation != null && currentStation.GetComponent<BeverageStation>() != null && Mouse.current != null)
+        // Drink station: left / right click, or LB / RB on a controller, use
+        // that hand. E / A picks a hand automatically.
+        if (IsAtBeverageStation)
         {
-            if (Mouse.current.leftButton.wasPressedThisFrame) PerformInteraction(0);
-            else if (Mouse.current.rightButton.wasPressedThisFrame) PerformInteraction(1);
+            Mouse mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame || PadInput.Pressed(PadButton.LeftShoulder))
+                PerformInteraction(0);
+            else if (mouse != null && mouse.rightButton.wasPressedThisFrame || PadInput.Pressed(PadButton.RightShoulder))
+                PerformInteraction(1);
         }
 
-        if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame && focused != null)
+        // Controller A. PlayerInput's Interact action may already have run this
+        // frame; PerformInteraction's frame guard makes the second call a no-op.
+        if (PadInput.Pressed(PadButton.South)) PerformInteraction(-1);
+
+        bool refuse = Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame
+            || PadInput.Pressed(PadButton.North);
+        if (refuse && focused != null)
         {
             CustomerBrain b = focused.GetComponent<CustomerBrain>();
             if (b != null && b.CanRefuse) b.RefuseJob();
@@ -306,16 +325,15 @@ public class PlayerInteractor : MonoBehaviour
         if (nearbyStation != null) EnterStation(nearbyStation);
     }
 
-    // Read directly rather than through the action map.
-    //
-    // Not the long-term answer — proper gamepad support means every verb goes
-    // through the asset — but it's the same pattern Q and the phone-tree digits
-    // already use, it needs no Unity-side setup, and it makes the verb work
-    // TODAY. Migrating all of them together is a job for the controller pass.
+    // Read directly rather than through the action map: F on the keyboard, X
+    // (Square on PlayStation) on a controller. Every context-dependent verb in
+    // the game reads its keys this way, so the rules about who owns input this
+    // frame stay in one place per verb. See PadInput for the full layout.
     private void StationKey()
     {
-        if (Keyboard.current == null) return;
-        if (Keyboard.current.fKey.wasPressedThisFrame) ToggleStation();
+        bool pressed = Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame
+            || PadInput.Pressed(PadButton.West);
+        if (pressed) ToggleStation();
     }
 
 
@@ -329,10 +347,19 @@ public class PlayerInteractor : MonoBehaviour
         }
     }
 
+    // Esc, or B on a controller. Back peels ONE layer per press: the counter
+    // phone first, then the item being worked on (its tool before the item),
+    // and only then the station itself. It used to leave the station outright,
+    // dropping everything in between in a single press.
     private void OnBack()
     {
+        // Esc arrives through PlayerInput and B through Update as well.
+        if (lastBackFrame == Time.frameCount) return;
         if ((conversation != null && conversation.InConversation)
             || (DayClock.Instance != null && DayClock.Instance.DayOver)) return;
+        lastBackFrame = Time.frameCount;
+        if (counterRepair != null && counterRepair.IsOpen) { counterRepair.Close(); return; }
+        if (inspector != null && inspector.IsHoldingItem) { inspector.StepBack(); return; }
         ExitStation();
     }
 

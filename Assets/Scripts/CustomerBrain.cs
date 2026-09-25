@@ -179,6 +179,8 @@ public class CustomerBrain : MonoBehaviour
     private State state;
     private NavMeshAgent agent;
     private Animator animator;
+    // Sits them on a chair when their waiting spot is a table seat (optional).
+    private NpcSeating seating;
     private CounterQueue queue;
     private Transform exitPoint;
     private PlayerInteractor player;
@@ -673,6 +675,7 @@ public class CustomerBrain : MonoBehaviour
         // GetComponentInChildren rather than GetComponent, so a model swapped
         // in as a child later still works without touching this again.
         animator = GetComponentInChildren<Animator>();
+        seating = GetComponent<NpcSeating>();
 
         RollMovingPriority();
         agent.stoppingDistance = arriveDistance;
@@ -990,9 +993,13 @@ public class CustomerBrain : MonoBehaviour
                 }
 
                 // Don't vanish while still mid-sentence — let the line finish first.
+                //
+                // Out of the door they walk back to their car or home (CafeArrivals
+                // strips this brain there, so from here on nothing counts them);
+                // without CafeArrivals they vanish at the door as before.
                 if (Arrived())
                 {
-                    if (bubbleTimer <= 0f) Destroy(gameObject);
+                    if (bubbleTimer <= 0f && !CafeArrivals.TryDepart(gameObject)) Destroy(gameObject);
                 }
                 else if (exitPoint != null && ProgressStalled())
                 {
@@ -1298,6 +1305,12 @@ public class CustomerBrain : MonoBehaviour
         state = State.Waiting;
         StopSteering();
         ScheduleDrinkWish();
+
+        // A table seat means an actual chair: sit down on it. NpcSeating walks
+        // round the chair, sits, and stands them up again by itself the moment
+        // they're given somewhere else to go. Without it (or with Snap To Seat
+        // off) they wait standing beside the chair, as they always have.
+        if (seating != null && waitingSpot is TableSeat tableSeat) seating.TrySit(tableSeat);
     }
 
     // ---------- the drink wish ----------
@@ -2009,6 +2022,8 @@ public class CustomerBrain : MonoBehaviour
     // never take the customer's whole brain down with it.
     private void React()
     {
+        // The standing gesture would pull a seated customer up out of the chair.
+        if (seating != null && seating.Busy) return;
         if (animator != null) animator.SetTrigger("Interact");
     }
 
@@ -2016,6 +2031,9 @@ public class CustomerBrain : MonoBehaviour
     // once they've settled.
     private void FaceTarget()
     {
+        // Sitting (or getting up) faces the table; NpcSeating owns the body then.
+        if (seating != null && seating.Busy) return;
+
         // Never steer rotation while the agent is moving us. Turning the body
         // one way while the path drags it another IS the moonwalk.
         if (agent.velocity.sqrMagnitude > 0.01f) return;
@@ -2060,6 +2078,8 @@ public class CustomerBrain : MonoBehaviour
     // switch to "standing still" logic while they were visibly still walking.
     private bool Arrived()
     {
+        // Still getting up from a chair: the walk hasn't started yet.
+        if (seating != null && seating.Busy) return false;
         if (agent.pathPending) return false;
         if (agent.remainingDistance > agent.stoppingDistance) return false;
         return !agent.hasPath || agent.velocity.sqrMagnitude < 0.01f;

@@ -97,8 +97,9 @@ public class PatronSpawner : MonoBehaviour
             FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length;
         if (living >= maxPatrons) return;
 
-        // The valve.
-        if (WaitingArea.FreeSeats <= reserveSeatsForCustomers) return;
+        // The valve. Patrons still walking over (CafeArrivals) take their seat at
+        // the door, so count them as seated already.
+        if (WaitingArea.FreeSeats - NpcJourney.OnTheWay(CafeArrivals.Kind.Patron) <= reserveSeatsForCustomers) return;
 
         Spawn();
     }
@@ -126,6 +127,16 @@ public class PatronSpawner : MonoBehaviour
         PatronBrain brain = go.GetComponent<PatronBrain>();
         if (brain == null) brain = go.AddComponent<PatronBrain>();
 
+        // They walk over from a car in the lot or a neighbour's door first
+        // (CafeArrivals), and come in - take a seat, pay - at the door. Without
+        // CafeArrivals they start at the door straight away, as before.
+        if (CafeArrivals.TryArrive(go, CafeArrivals.Kind.Patron, () => ComeIn(brain))) return;
+        ComeIn(brain);
+    }
+
+    private void ComeIn(PatronBrain brain)
+    {
+        if (brain == null) return;
         brain.Init(exitPoint);
 
         if (payPerPatron > 0 && ShopEconomy.Instance != null)

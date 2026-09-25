@@ -90,7 +90,9 @@ public sealed class CircuitPuzzle : MonoBehaviour
         SetVisible(watching);
         if (!watching) return;
         PlaceProjection();
-        UpdateBoost(Keyboard.current != null && Keyboard.current.spaceKey.isPressed);
+        // Space, or LT held on a controller. Y retries a blocked signal.
+        UpdateBoost(BoostHeld);
+        if (run.Halted && PadInput.Pressed(PadButton.North)) RetryFromButton();
         run.Tick(Time.deltaTime, true, IsBoosting ? fastForwardMultiplier : 1f);
         if (run.Halted || run.Finished) ResetBoost();
         if (run.Reached != lastReached || run.Halted != lastHalted) Refresh();
@@ -126,6 +128,10 @@ public sealed class CircuitPuzzle : MonoBehaviour
         if (panel != null && panel.gameObject.activeSelf != on) panel.gameObject.SetActive(on);
         if (hud != null && hud.activeSelf != on) hud.SetActive(on);
     }
+
+    private static bool BoostHeld => Keyboard.current != null && Keyboard.current.spaceKey.isPressed
+        || PadInput.LeftTrigger > .5f;
+    private static string BoostKey => PadInput.UsingPad ? ControlHints.Boost : "SPACE";
 
     private void UpdateBoost(bool held)
     {
@@ -372,14 +378,15 @@ public sealed class CircuitPuzzle : MonoBehaviour
         status.color = run.Finished ? liveColor : run.Halted ? warningColor : Color.white;
         instruction.text = run.Finished ? "Circuit complete. Finish any remaining repairs."
             : run.Halted ? $"Connect the white ports on tile {run.Reached + 1}, then retry."
-            : run.RouteClear ? "Wires all connected. Hold SPACE to speed up the charge."
+            : run.RouteClear ? $"Wires all connected. Hold {BoostKey} to speed up the charge."
             : run.Reached < run.BestReached ? "Rechecking locked wires. Prepare the next connection."
+            : PadInput.UsingPad ? $"Aim at a wire and press {ControlHints.Use} to connect the white ports."
             : "Click wires to connect the white ports.";
         progressLabel.text = $"Verified {run.BestReached} / {run.Count}";
         boostLabel.text = run.Finished || run.Halted ? ""
-            : IsBoosting ? "[SPACE] Fast-forwarding"
-            : boostRequiresRelease && Keyboard.current != null && Keyboard.current.spaceKey.isPressed
-                ? "Release Space, then hold to speed up" : "Hold [SPACE] to speed up pulse";
+            : IsBoosting ? $"[{BoostKey}] Fast-forwarding"
+            : boostRequiresRelease && BoostHeld
+                ? $"Release {BoostKey}, then hold to speed up" : $"Hold [{BoostKey}] to speed up pulse";
         boostLabel.color = IsBoosting ? new Color(1f, 0.86f, 0.4f) : new Color(0.7f, 0.78f, 0.76f);
         resultLabel.text = $"Repair result: {job.Grade}";
         progressFill.anchorMax = new Vector2((float)run.BestReached / run.Count, 1);
@@ -389,7 +396,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
         retry.interactable = run.Halted;
         if (run.Halted)
         {
-            retryLabel.text = "Retry (-1 point)";
+            retryLabel.text = PadInput.UsingPad ? $"[{ControlHints.Refuse}] Retry (-1 point)" : "Retry (-1 point)";
             retryCost.text = $"Circuit points after retry: at most {run.NextRetryCeiling}/{run.Count}";
         }
     }

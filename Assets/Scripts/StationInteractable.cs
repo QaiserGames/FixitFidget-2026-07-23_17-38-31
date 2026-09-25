@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using Unity.Cinemachine;
 using UnityEngine.InputSystem;
@@ -11,6 +13,7 @@ public class StationInteractable : Interactable
     [Tooltip("Where the player stands while using this station. Keeps the view consistent.")]
     [SerializeField] private Transform standPoint;
     [SerializeField, Range(.02f, .3f)] private float mouseLookSensitivity = .09f;
+    [Tooltip("Controller look speed at full right-stick deflection, degrees per second.")]
     [SerializeField, Min(1f)] private float stickLookSpeed = 90f;
 
     private CinemachineInputAxisController lookInput;
@@ -20,6 +23,10 @@ public class StationInteractable : Interactable
     private ConversationController conversation;
     private CounterRepairView counterRepair;
     private bool lookReady;
+    // The Look action's gamepad binding carries a ScaleVector2 processor (x8 in
+    // the project asset), so the raw gain would turn the view at 8x the speed
+    // written in stickLookSpeed. Measured once from the binding itself.
+    private float stickScale = 1f;
 
     private void Awake()
     {
@@ -50,7 +57,22 @@ public class StationInteractable : Interactable
             control.Input.Gain = control.Name == "Look Y (Tilt)" ? -mouseLookSensitivity : mouseLookSensitivity;
             control.Input.CancelDeltaTime = true;
             control.Driver.AccelTime = control.Driver.DecelTime = 0;
+            if (control.Input.InputAction != null) stickScale = GamepadScale(control.Input.InputAction.action);
         }
+    }
+
+    private static float GamepadScale(InputAction action)
+    {
+        if (action == null) return 1f;
+        foreach (InputBinding binding in action.bindings)
+        {
+            string path = binding.effectivePath;
+            if (string.IsNullOrEmpty(path) || !path.StartsWith("<Gamepad>")) continue;
+            Match scale = Regex.Match(binding.effectiveProcessors ?? "", @"ScaleVector2\(\s*x\s*=\s*([0-9.]+)");
+            return scale.Success && float.TryParse(scale.Groups[1].Value, NumberStyles.Float,
+                CultureInfo.InvariantCulture, out float value) && value > 0f ? value : 1f;
+        }
+        return 1f;
     }
 
     private void Update()
@@ -75,7 +97,7 @@ public class StationInteractable : Interactable
             if (!(control.Owner is CinemachinePanTilt)) continue;
             var action = control.Input.InputAction != null ? control.Input.InputAction.action : null;
             bool pointer = action == null || action.activeControl == null || action.activeControl.device is Pointer;
-            float gain = pointer ? mouseLookSensitivity : stickLookSpeed;
+            float gain = pointer ? mouseLookSensitivity : stickLookSpeed / Mathf.Max(.01f, stickScale);
             control.Input.Gain = control.Name == "Look Y (Tilt)" ? -gain : gain;
             // Stick deflection is a rate, unlike a mouse's travelled distance.
             control.Input.CancelDeltaTime = pointer;

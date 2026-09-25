@@ -6257,6 +6257,9 @@ GameObject:
   - component: {fileID: 1089430621343658072}
   - component: {fileID: 661982147998631853}
   - component: {fileID: 8045482184892936230}
+  - component: {fileID: 2398367413442495383}
+  - component: {fileID: 6224756885650047934}
+  - component: {fileID: 4315566200852983925}
   m_Layer: 0
   m_Name: Patron
   m_TagString: Untagged
@@ -6422,6 +6425,79 @@ MonoBehaviour:
     - {fileID: 3809737621049357471}
     - {fileID: 3870671431123134085}
   fixedAppearance: -1
+--- !u!114 &2398367413442495383
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8691143923126116028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dc46936f227a434fa0c2f0e40752b88, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PolygonNpcVisual
+  appearancePrefabs:
+  - {fileID: 4464390408674354245, guid: fea7cafced8da7a4da058e5818bf0ed0, type: 3}
+  - {fileID: 4321579450071752955, guid: c1e9e39c146d8774eb2c458376a511ce, type: 3}
+  - {fileID: 6875399569856482529, guid: 378ab9483cb04d543823729aee8f486a, type: 3}
+  - {fileID: 175111637012937834, guid: 1268b7caf00548948a2c1c821ce529a4, type: 3}
+  - {fileID: 2587795080676364953, guid: ce0fb9986c575374f97ca547e28307dd, type: 3}
+  - {fileID: 6906109284697016849, guid: f7e033dae2f1103419459f30255d2a9d, type: 3}
+  - {fileID: 6153903307878634389, guid: 7cfe75460215a394798f7f4ae2692891, type: 3}
+  - {fileID: 7193337223252241190, guid: f490fe64fe7fa8b479a51d2cc57cbd63, type: 3}
+  - {fileID: 1978230642461478812, guid: ec8159bcbca20254589f305d5e5f96f1, type: 3}
+  - {fileID: 6782974640148442873, guid: d6ad92a6a26f71a419e4106d7934d4a4, type: 3}
+  - {fileID: 3654126489537125623, guid: 6e60d96762e07694086d3b5f4d519411, type: 3}
+  - {fileID: 2800363244470583931, guid: 2e1297afd8049c444bca7bc1025cd164, type: 3}
+  - {fileID: 4535879926197449244, guid: 5982c4621e5670041bbd26659680071b, type: 3}
+  - {fileID: 6724186107739488057, guid: 3fb267662607ab24399e61ca775f5ce6, type: 3}
+  - {fileID: 7236857262814840105, guid: 65025400c2560c3428b67000506481a2, type: 3}
+  - {fileID: 68109615320612230, guid: d1d6118c44e2a3f44868f3c7fce215a2, type: 3}
+  - {fileID: 2121298225629461297, guid: 4619e761f64f7c94f914c81ea69997ab, type: 3}
+  keepOriginalShare: 0.2
+  fixedAppearance: -1
+  visualScale: 0
+  fitWhileSeated: 1
+  restingWristAboveThigh: 0.14
+  seatedHipLift: 0.025
+--- !u!114 &6224756885650047934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8691143923126116028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2948fcb943e2b3344b231d102fff5430, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSeating
+  data: {fileID: 11400000, guid: 29023ce813b1f2e4f95a9f1273073ddd, type: 2}
+  stepSpeed: 1.15
+  sideClearance: 0.62
+  hipAboveSeat: 0.085
+  hipBehindSeatCentre: -0.01
+  maxStartDistance: 0.75
+  maxHeightCorrection: 0.12
+  seatedAgentRadius: 0.15
+  chatWithCompany: 0.55
+  chatAlone: 0.12
+--- !u!114 &4315566200852983925
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8691143923126116028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16a1478816d123c41b816c22e6023cb6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PersonalSpace
+  bodyRadius: 0.28
+  maxSlideSpeed: 1.6
+  stillSpeed: 0.12
 --- !u!1 &8704201694931179259
 GameObject:
   m_ObjectHideFlags: 0

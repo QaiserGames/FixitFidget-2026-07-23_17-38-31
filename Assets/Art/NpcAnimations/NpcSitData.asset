@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f39cd3ae3c85754da455f5278a4dad6, type: 3}
+  m_Name: NpcSitData
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSitData
+  enterLength: 1.3000001
+  exitLength: 1.0333334
+  seatedHip: {x: -0.0028895736, y: 0.4940909, z: -0.22151063}
+  seatedFeet: {x: 0.01874683, y: 0.032519385, z: 0.23024754}
+  standingHipHeight: 0.9153749
+  retargetScale: 1.0343851

@@ -1,0 +1,18 @@
+-------------------------------------------------------
+License:
+CC0 1.0 Universal (CC0 1.0) 
+Public Domain Dedication
+https://creativecommons.org/publicdomain/zero/1.0/
+
+------------------------------------------------------
+Models by @Quaternius
+Consider supporting me on Patreon!
+
+https://www.patreon.com/quaternius
+
+-------------------------------------------------------
+Join the Discord Server:
+https://discord.gg/vJqnRUYRfT
+
+Source: Universal Animation Library [Standard] by Quaternius (quaternius.com), downloaded from opengameart.org/content/universal-animation-library on 2026-09-24.
+Used for: the cafe NPCs sit-down / seated idle / stand-up clips (baked onto the Quaternius Beach rig by Fixit Fidget > NPC > Build sit animations).

@@ -59,6 +59,8 @@ public class PatronBrain : MonoBehaviour
 
     private NavMeshAgent agent;
     private Animator animator;
+    // Sits them on the chair (optional; see NpcSeating).
+    private NpcSeating seating;
     private Transform exitPoint;
 
     private State state = State.Entering;
@@ -82,6 +84,7 @@ public class PatronBrain : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         agent.stoppingDistance = Mathf.Clamp(seatStoppingDistance, 0.01f, 0.2f);
         animator = GetComponentInChildren<Animator>();
+        seating = GetComponent<NpcSeating>();
 
         // Lower numbers win; customers top out at 95, while variation avoids a patron tie.
         agent.avoidancePriority = Random.Range(96, 100);
@@ -156,7 +159,11 @@ public class PatronBrain : MonoBehaviour
                         agent.velocity = Vector3.zero;
                         agent.avoidancePriority = 0;
                     }
-                    FaceTable();
+                    // Actually sit on the chair when the seat allows it; stand
+                    // facing the table otherwise. Leave() needs no change:
+                    // NpcSeating stands them up when the exit path arrives.
+                    if (seating == null || !(seat is TableSeat tableSeat) || !seating.TrySit(tableSeat))
+                        FaceTable();
                 }
                 break;
 
@@ -170,7 +177,11 @@ public class PatronBrain : MonoBehaviour
 
             case State.Leaving:
                 WatchForWedging();
-                if (Arrived() || Time.time - bornAt > maxLifetime + 20f) Destroy(gameObject);
+                // Out of the door they walk back to their car or home (CafeArrivals
+                // removes this brain there); without it they vanish at the door as
+                // before. The lifetime backstop still removes one who can't get out.
+                if (Arrived()) { if (!CafeArrivals.TryDepart(gameObject)) Destroy(gameObject); }
+                else if (Time.time - bornAt > maxLifetime + 20f) Destroy(gameObject);
                 break;
         }
     }
@@ -250,6 +261,8 @@ public class PatronBrain : MonoBehaviour
     private bool Arrived()
     {
         if (agent == null || !agent.isOnNavMesh) return false;
+        // Still getting up from a chair: the walk hasn't started yet.
+        if (seating != null && seating.Busy) return false;
         if (agent.pathPending) return false;
         return agent.pathStatus == NavMeshPathStatus.PathComplete
             && Vector3.Distance(transform.position, destination) <= agent.stoppingDistance + 0.15f;

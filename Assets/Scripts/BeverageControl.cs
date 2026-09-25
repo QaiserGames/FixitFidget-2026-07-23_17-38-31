@@ -21,6 +21,7 @@ public sealed class BeverageControl : Interactable
             bool hasEmpty = carry != null && ((carry.GetHandItem(0) is DrinkJob left && left.IsEmpty)
                 || (carry.GetHandItem(1) is DrinkJob right && right.IsEmpty));
             return hasEmpty ? $"Place cup under {slot.drink.drinkName}"
+                : PadInput.UsingPad ? $"Take a cup · {ControlHints.LeftHand} / {ControlHints.RightHand} chooses that hand"
                 : "Take a cup · left / right click chooses that hand";
         }
     }

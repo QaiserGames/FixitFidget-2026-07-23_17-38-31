@@ -30,7 +30,13 @@ public sealed class CounterRepairView : MonoBehaviour
     public bool IsOpen => display != null;
     public bool OwnsInput => IsOpen || closedFrame == Time.frameCount;
     public string HoverName => hovered ? model.Switch.DisplayName : "";
-    public string HoverAction => hovered ? "Left-click to turn sound on" : "";
+    public string HoverAction => !hovered ? ""
+        : PadInput.UsingPad ? $"{ControlHints.Interact} or {ControlHints.Use} to turn sound on" : "Left-click to turn sound on";
+    // The phone has a single control, so a controller needs no cursor here:
+    // the switch is always the target and A or RT flips it.
+    private static string ControlsLine => PadInput.UsingPad
+        ? $"{ControlHints.Interact} / {ControlHints.Use} switch · {ControlHints.Cancel} put down · {ControlHints.Station} step back"
+        : "Click switch · Right-click put down · F step back";
 
     public bool Open(CustomerBrain owner)
     {
@@ -90,7 +96,7 @@ public sealed class CounterRepairView : MonoBehaviour
         caption = RepairOverlayUI.Text("Customer", panel, new Vector2(18, -5), new Vector2(444, 28), 23, Color.white);
         caption.text = owner.CustomerName + " · phone";
         instruction = RepairOverlayUI.Text("Action", panel, new Vector2(18, -37), new Vector2(444, 26), 19, RepairOverlayUI.Muted);
-        instruction.text = "Click switch · Right-click put down · F step back";
+        instruction.text = ControlsLine;
     }
 
     private void Update()
@@ -113,11 +119,16 @@ public sealed class CounterRepairView : MonoBehaviour
             return;
         }
         var mouse = Mouse.current; var keys = Keyboard.current;
+        string controls = ControlsLine;
+        if (instruction != null && instruction.text != controls) instruction.text = controls;
         if (Time.time < readyAt) return;
         if ((mouse != null && mouse.rightButton.wasPressedThisFrame) || (keys != null && keys.escapeKey.wasPressedThisFrame)) { Close(); return; }
-        hovered = mouse != null && model.Switch.HitTarget.Raycast(cam.ScreenPointToRay(mouse.position.ReadValue()), out _, Mathf.Max(viewDistance, cam.nearClipPlane + .3f) + 2f);
+        bool pad = PadInput.UsingPad;
+        hovered = pad || mouse != null && model.Switch.HitTarget.Raycast(cam.ScreenPointToRay(mouse.position.ReadValue()), out _, Mathf.Max(viewDistance, cam.nearClipPlane + .3f) + 2f);
         model.Switch.SetHighlight(hovered);
-        if (hovered && mouse.leftButton.wasPressedThisFrame && model.Switch.CanInteract)
+        bool press = mouse != null && mouse.leftButton.wasPressedThisFrame
+            || PadInput.Pressed(PadButton.South) || PadInput.Pressed(PadButton.RightTrigger);
+        if (hovered && press && model.Switch.CanInteract)
         {
             model.Switch.Activate(); model.Show(true);
             hovered = false; speaker.Play();

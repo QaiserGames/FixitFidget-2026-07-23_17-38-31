@@ -22,6 +22,19 @@ public sealed class CafeViewMode : MonoBehaviour
     [Range(20, 60)] public float minimumDistance = 24;
     [Range(25, 80)] public float maximumDistance = 48;
 
+    [Header("Controller")]
+    [Tooltip("First-person turn speed at full right-stick deflection, degrees per second.")]
+    [SerializeField, Range(60, 360)] private float padLookYawSpeed = 170f;
+    [Tooltip("First-person look up/down speed at full right-stick deflection, degrees per second.")]
+    [SerializeField, Range(40, 240)] private float padLookPitchSpeed = 110f;
+    [SerializeField] private bool invertPadLookY;
+    [Tooltip("Overhead orbit speed at full right-stick deflection, degrees per second.")]
+    [SerializeField, Range(30, 240)] private float padOrbitSpeed = 110f;
+    [Tooltip("Overhead tilt speed at full right-stick deflection, degrees per second.")]
+    [SerializeField, Range(10, 120)] private float padTiltSpeed = 45f;
+    [Tooltip("Overhead zoom speed on the triggers, metres per second.")]
+    [SerializeField, Range(4, 60)] private float padZoomSpeed = 22f;
+
     PlayerInteractor interactor;
     ConversationController conversation;
     ItemInspector inspector;
@@ -31,15 +44,19 @@ public sealed class CafeViewMode : MonoBehaviour
     bool firstPerson, pointerReleased, acceptingLook, bodyWasVisible;
     bool[] wallVisibility, fixtureVisibility;
     float yaw, pitch = 8, isoYaw = 45, isoPitch = 50, isoDistance = 34;
+    float homeIsoYaw = 45, homeIsoPitch = 50, homeIsoDistance = 34;
     int resumedAtFrame = -1;
 
     public bool FirstPersonSelected => firstPerson;
     public bool WalkingFirstPerson => isActiveAndEnabled && firstPerson && !AtStation && !OverlayOwnsInput;
     public bool PointerReleased => pointerReleased;
     public bool CanChangeView => isActiveAndEnabled && !AtStation && !OverlayOwnsInput;
-    public string ControlsHint => !CanChangeView ? "" : firstPerson
-        ? pointerReleased ? "Click to look around    V  Isometric" : "V  Isometric    Esc  Free cursor"
-        : "V  First person    Middle-drag  Orbit    Scroll  Zoom";
+    public string ControlsHint => !CanChangeView ? "" : PadInput.UsingPad
+        ? firstPerson ? $"{ControlHints.View}  Isometric"
+            : $"{ControlHints.View}  First person    Right stick  Orbit    {ControlHints.Zoom}  Zoom"
+        : firstPerson
+            ? pointerReleased ? "Click to look around    V  Isometric" : "V  Isometric    Esc  Free cursor"
+            : "V  First person    Middle-drag  Orbit    Scroll  Zoom";
     public bool SuppressWalkingInteraction => WalkingFirstPerson
         && (pointerReleased || Time.frameCount <= resumedAtFrame || brain != null && brain.IsBlending);
     public bool SuppressWalkingMovement => WalkingFirstPerson && pointerReleased;
@@ -78,6 +95,8 @@ public sealed class CafeViewMode : MonoBehaviour
             isoPitch = Mathf.DeltaAngle(0, isometricCamera.transform.eulerAngles.x);
             isoDistance = Mathf.Clamp(Vector3.Distance(isometricCamera.transform.position, isometricFocus), minimumDistance, maximumDistance);
         }
+        // Where the controller's R3 returns the overhead view to.
+        homeIsoYaw = isoYaw; homeIsoPitch = isoPitch; homeIsoDistance = isoDistance;
         // Let the authored walking camera face the cafe on first entry.
         yaw = firstPersonCamera != null ? firstPersonCamera.transform.eulerAngles.y : isoYaw;
         if (firstPersonCamera != null) firstPersonCamera.Priority = 0;
@@ -89,42 +108,77 @@ public sealed class CafeViewMode : MonoBehaviour
         var keyboard = Keyboard.current;
         var mouse = Mouse.current;
         if (!Application.isFocused || !CanChangeView) { acceptingLook = false; return; }
-        if (keyboard != null && keyboard.vKey.wasPressedThisFrame)
+        // V, or the controller's View / Share / Minus button.
+        if (keyboard != null && keyboard.vKey.wasPressedThisFrame || PadInput.Pressed(PadButton.Select))
         {
             SetFirstPerson(!firstPerson);
             return;
         }
+        // A hitch must not turn one held stick into a huge jump.
+        float padDelta = Mathf.Min(Time.unscaledDeltaTime, .1f);
         if (firstPerson)
         {
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             { pointerReleased = true; acceptingLook = false; RefreshCursor(); return; }
             if (pointerReleased)
             {
-                if (mouse != null && mouse.leftButton.wasPressedThisFrame && !PointerOverUI())
+                bool clickResume = mouse != null && mouse.leftButton.wasPressedThisFrame && !PointerOverUI();
+                // A controller never needs a free cursor: touching a stick resumes looking.
+                bool padResume = PadInput.UsingPad
+                    && (PadInput.RightStick != Vector2.zero || PadInput.LeftStick != Vector2.zero);
+                if (clickResume || padResume)
                 { pointerReleased = false; resumedAtFrame = Time.frameCount; RefreshCursor(); }
                 acceptingLook = false;
                 return;
             }
-            if (mouse == null || brain != null && brain.IsBlending)
+            if (brain != null && brain.IsBlending)
             { acceptingLook = false; return; }
             // Ignore the first delta after a blend, cursor lock or focus change.
             if (!acceptingLook) { acceptingLook = true; return; }
-            Vector2 delta = mouse.delta.ReadValue() * lookSensitivity;
+            Vector2 delta = mouse != null ? mouse.delta.ReadValue() * lookSensitivity : Vector2.zero;
+            // The stick is a turn RATE (degrees per second), unlike the mouse's
+            // travelled distance, so it is scaled by frame time.
+            Vector2 stick = PadInput.Curved(PadInput.RightStick);
+            if (stick != Vector2.zero)
+            {
+                delta.x += stick.x * padLookYawSpeed * padDelta;
+                delta.y += stick.y * padLookPitchSpeed * padDelta * (invertPadLookY ? -1f : 1f);
+            }
             yaw = Mathf.Repeat(yaw + delta.x, 360);
             pitch = Mathf.Clamp(pitch - delta.y, -75, 75);
             transform.rotation = Quaternion.Euler(0, yaw, 0);
         }
-        else if (mouse != null && !PointerOverUI())
+        else
         {
-            if (mouse.middleButton.isPressed)
+            if (mouse != null && !PointerOverUI())
             {
-                Vector2 delta = mouse.delta.ReadValue();
-                isoYaw = Mathf.Repeat(isoYaw + delta.x * .18f, 360);
-                isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f, 38, 68);
+                if (mouse.middleButton.isPressed)
+                {
+                    Vector2 delta = mouse.delta.ReadValue();
+                    isoYaw = Mathf.Repeat(isoYaw + delta.x * .18f, 360);
+                    isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f, 38, 68);
+                }
+                float scroll = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(scroll) > .01f)
+                    isoDistance = Mathf.Clamp(isoDistance - Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f, minimumDistance, maximumDistance);
             }
-            float scroll = mouse.scroll.ReadValue().y;
-            if (Mathf.Abs(scroll) > .01f)
-                isoDistance = Mathf.Clamp(isoDistance - Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f, minimumDistance, maximumDistance);
+            // Controller: right stick orbits and tilts, triggers zoom (RT in,
+            // LT out), R3 returns to the authored overhead angle.
+            Vector2 orbit = PadInput.Curved(PadInput.RightStick, 1.4f);
+            if (orbit != Vector2.zero)
+            {
+                isoYaw = Mathf.Repeat(isoYaw + orbit.x * padOrbitSpeed * padDelta, 360);
+                isoPitch = Mathf.Clamp(isoPitch - orbit.y * padTiltSpeed * padDelta, 38, 68);
+            }
+            float zoom = PadInput.RightTrigger - PadInput.LeftTrigger;
+            if (Mathf.Abs(zoom) > .01f)
+                isoDistance = Mathf.Clamp(isoDistance - zoom * padZoomSpeed * padDelta, minimumDistance, maximumDistance);
+            if (PadInput.Pressed(PadButton.RightStickPress))
+            {
+                isoYaw = homeIsoYaw;
+                isoPitch = homeIsoPitch;
+                isoDistance = homeIsoDistance;
+            }
         }
     }
 
@@ -175,7 +229,9 @@ public sealed class CafeViewMode : MonoBehaviour
         bool locked = Application.isFocused && !OverlayOwnsInput && (AtStation || firstPerson && !pointerReleased);
         CursorLockMode mode = locked ? CursorLockMode.Locked : CursorLockMode.None;
         if (Cursor.lockState != mode) { Cursor.lockState = mode; acceptingLook = false; }
-        Cursor.visible = !locked;
+        // With a controller in hand the mouse arrow is only clutter; views that
+        // need a pointer draw the controller's own cursor (PadCursor).
+        Cursor.visible = !locked && !PadInput.UsingPad;
     }
 
     void RefreshCutawayWalls()

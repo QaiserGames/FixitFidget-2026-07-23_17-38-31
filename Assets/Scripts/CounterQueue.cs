@@ -39,6 +39,21 @@ public class CounterQueue : MonoBehaviour
         }
     }
 
+    // How many slots are free right now. The spawner compares this with the
+    // customers still walking over from their car or front door (CafeArrivals):
+    // each of them will claim a slot at the door, so each one needs one kept free.
+    public int FreeSlotCount
+    {
+        get
+        {
+            if (occupants == null) return 0;
+            int free = 0;
+            foreach (CustomerBrain c in occupants)
+                if (c == null) free++;
+            return free;
+        }
+    }
+
     public int ClaimSlot(CustomerBrain customer)
     {
         for (int i = 0; i < occupants.Length; i++)

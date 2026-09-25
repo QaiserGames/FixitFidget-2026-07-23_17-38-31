@@ -12,7 +12,7 @@ public sealed class BeverageStation : MonoBehaviour
     private StationInteractable station;
     private Canvas canvas;
     private UnityEngine.UI.CanvasScaler scaler;
-    private TMP_Text title, action;
+    private TMP_Text title, action, controls;
     private BeverageSlot[] slots;
 
     private void Start()
@@ -36,9 +36,9 @@ public sealed class BeverageStation : MonoBehaviour
             new Vector2(502, 31), 17, Color.white);
         action.alignment = TextAlignmentOptions.Center;
         action.textWrappingMode = TextWrappingModes.NoWrap;
-        var controls = RepairOverlayUI.Text("Controls", card, new Vector2(12, -66),
+        controls = RepairOverlayUI.Text("Controls", card, new Vector2(12, -66),
             new Vector2(502, 22), 15, RepairOverlayUI.Muted);
-        controls.text = "Left click · left hand   Right click · right hand   E · use   F · step back";
+        controls.text = ControlsLine;
         controls.alignment = TextAlignmentOptions.Center;
         Refresh();
     }
@@ -54,6 +54,8 @@ public sealed class BeverageStation : MonoBehaviour
         canvas.gameObject.SetActive(show);
         if (!show) return;
         scaler.scaleFactor = Mathf.Clamp(Mathf.Min(Screen.width / 1440f, Screen.height / 900f), .6f, 1.4f);
+        string line = ControlsLine;
+        if (controls.text != line) controls.text = line;
         var focused = player.Focused;
         var control = focused != null ? focused.GetComponentInParent<BeverageControl>() : null;
         var supply = focused != null ? focused.GetComponentInParent<BeverageCupSupply>() : null;
@@ -77,4 +79,8 @@ public sealed class BeverageStation : MonoBehaviour
     }
 
     private void OnDisable() { if (canvas != null) canvas.gameObject.SetActive(false); }
+
+    private static string ControlsLine => PadInput.UsingPad
+        ? $"{ControlHints.LeftHand} · left hand   {ControlHints.RightHand} · right hand   {ControlHints.Interact} · use   {ControlHints.Back} · step back"
+        : "Left click · left hand   Right click · right hand   E · use   F · step back";
 }

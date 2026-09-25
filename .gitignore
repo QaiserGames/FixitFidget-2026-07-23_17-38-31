@@ -105,3 +105,13 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+# Purchased Asset Store sources stay local while this repository is public.
+/Assets/Synty/
+/Assets/Synty.meta
+/Assets/Art/CityNeighbors/
+/Assets/Art/CityNeighbors.meta
+/Assets/LightingOptimisationSample/
+/Assets/LightingOptimisationSample.meta
+
+/Assets/LightingOptimizationTutorial/
+/Assets/LightingOptimizationTutorial.meta

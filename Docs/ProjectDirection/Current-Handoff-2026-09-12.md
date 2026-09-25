@@ -1,5 +1,120 @@
 # Current handoff — September 12, 2026
 
+## September 24–25 — furnishing pass, the café car park with real arrivals, walkers fixed
+
+**Read this entry first.** All of it is saved in `AcesCafeLayoutPlaytest.unity` and committed to git on 25 Sept (a local commit on the current branch, not pushed). Project docs: `claude/cafe-furnishing-pass.md`, `claude/cafe-car-park-and-arrivals.md`, `claude/ace-after-dark.md`.
+
+- **Furnishing pass (24 Sept).** The café now reads as a real, lived-in café that is still a repair shop:
+  - window lounge, reading nook, window bar, entrance nook, counter cubbies, work mats, parts cabinet, signs and menu;
+  - nothing gameplay-critical moved, and occupied circulation was re-proven.
+  - Tool: `Fixit Fidget > Cafe furnishing`. Details in the project doc.
+- **Car park and arrivals (24 Sept).** Visitors no longer appear at the door. They drive into the café's own car park across the street (three stalls, one-way aisle, dropped kerbs, a zebra to the door), or walk out of the Saffron house or the first courtyard shop and use the junction crossings. Inside the café nothing changed, because the brain starts at the door. Tool: `Fixit Fidget > Cafe parking lot`.
+- **Walker fix (25 Sept), after Mansoor saw NPCs "line up because of the cars" and collide.** Found with a new recorder (`Play - record arrivals for 2 minutes`, writing to `Logs/ArrivalsTrace/`):
+  - **Line-ups.** A car waiting at its red light touched the signalled crossing, so walkers stood through their own green. Now only a car on the walker's own line, or one that can't stop, holds them. A waiting pedestrian also shortens the conflicting green (like a button; minimum 7 s).
+  - **Collisions.** The 12 s "unstuck" jump landed on people, and nobody could step aside on a crossing. `NpcJourney` now picks each frame's velocity by trying 40 options against everyone (people, café NPCs, the player, cars as boxes). Walkers keep their own lines, gather at kerbs in groups, wait at doorways for people coming out, and land beside anyone on the door spot.
+  - **Walking room.** `3 - Measure walking room` bakes, per walk segment, how far walkers may stray without touching anything. Combined meshes are now split into their real pieces, and `2 - Check` now reports all paths clear (the old Saffron-house PROBLEM was a box round a whole combined mesh).
+  - **Results** (2-minute rush recordings): overlaps 16 → 0, walks helped on 2 → 0, time held still 57 s → 0, longest kerb wait 31 s → 15 s.
+  - **Files:** `NpcJourney`, `StreetCrossing`, `StreetLife` (new field `walkRequestMinGreen` = 7), `CafeArrivals` (room per segment, `Today` visit records), `CafeCar` (`BodyCentre`), `PersonalSpace`, `CafeParkingLot`, new `CafeArrivalsRecorder`.
+  - **Scene diff** (checked against the 22:22 save): only the new room arrays, `walkRequestMinGreen`, and 12 stale `approachPoint: {fileID: 0}` lines that `TableSeat` no longer has.
+- **Night mode (design only, no code).** The pitch, the pushbacks and Mansoor's decisions are in `claude/ace-after-dark.md`. Decided 25 Sept:
+  - there is a night every night (the calm phase after a chaotic day);
+  - theft gives trophies only, and the next morning Ace has to keep a straight face (a fast meter: stop it on the green with Space or pad X);
+  - getting caught ends the night in jail, with bail the next morning and a reputation hit (5 stars are needed to franchise);
+  - regulars and enterable places grow with each area.
+  The only related code is `CafeArrivals.Today` (who came from which door or car), a playtest readout for now.
+- **Playtest save.** The recordings played Days 13–15 on the playtest save.
+- **Settled 25 Sept:**
+  - the six comment-only `*-1.cs` stubs are deleted (through Unity, with their .meta files);
+  - Mansoor's 22:22 edits were intended: lamp posts stood in the road, and cars drove through them.
+- **Still open:** the night-mode points in section 9 of the doc, starting with the reputation spec.
+
+## September 23 (evening) — POLYGON City pass: a real city, POLYGON cars and people, café props
+
+**Read this entry first.** The owner bought POLYGON City (Synty) and asked to use it:
+- give the NPCs randomised looks from the pack;
+- make the neighbourhood feel like a city;
+- replace the cars, and the buildings where it helps;
+- add props inside the café so it feels alive.
+
+Claude also finished the work Codex (GPT Astra) had started: it had extracted the pack but applied nothing. Fable's second-pass items (left café windows, the door-pull gap, cups and food, different trees) were not found in the project, either as files or as scene changes.
+
+**Now in the game.**
+- **NPC looks.**
+  - Walk-ins and patrons wear 17 POLYGON civilians (8 women, 9 men). A fifth of anonymous walk-ins keep a CC0 look, and named regulars (Grace) keep their own bodies.
+  - The 6 street neighbours and 14 new street walkers have fixed looks. The two police officers only walk the beat; they never queue.
+  - `PolygonNpcVisual` is a bone follower. The Quaternius rig cannot be Humanoid, so the POLYGON body copies each bone's turn from its T-pose, sized so the hips match. The actor's Animator, navigation, patience bar and bubbles are untouched.
+- **City** (`15 - POLYGON City streets`), 118 buildings:
+  - Brick mixed-use rows on the empty halves of the eight blocks: shops below, flats above, rooftop plant, signs, water towers, a billboard and a donut shop.
+  - POLYGON terraces on the hill. The grey placeholder homes are hidden, not deleted.
+  - Office towers (the glass ones stacked on their lobby and capped with their roof) and a hazy skyline band out to about 140 m.
+  - A parking lot, a bus stop and a hot-dog cart.
+  - Lamps, scaled street trees, benches, bins, hydrants, mailboxes and manholes, plus yard greenery.
+  - The old distant grass is paved as city ground; the hill stays green.
+- **Traffic.**
+  - All 16 Kenney cars now drive POLYGON bodies, keeping the same routes, lanes, signals and spacing. Each through lane also has one extra POLYGON car, 24 in all.
+  - Colours are varied using the pack's alternate atlases. Taxi, police and ambulance keep their livery.
+  - `CityCarBody` puts the Kenney body back if the purchased art is missing.
+- **Café** (`16 - POLYGON cafe details`, 30 props):
+  - tall plants in the corners and along the courtyard windows;
+  - a supply shelf, a crate and boxes in the staff corner past the repair bench;
+  - a bread board and mugs on the front counter, and plates and a small plant at its right end;
+  - syrup bottles and mugs either side of the drinks dispenser;
+  - a delivery box on the rear cabinet, a wall clock, and planters either side of the doors.
+- **Kept on purpose.** The hand-built ring round the café stays: the bay-window houses and the shop houses. It was built around the café windows, the orbit camera and the sun angles, and it gives Ace's its San Francisco character. Swapping it for stock modules would make the café look like a Synty demo scene.
+
+**Guards.**
+- **Buildings.** Each is capped by CafeDaylight's own sun path, so no new shadow falls in the café from 9:30 to 17:00. It is also capped by the orbit camera's lowest height at that distance (0.7 r − 1 m).
+- **Clearance map.** A 20 cm map of everything 0.12–2.1 m above the street, computed from mesh triangles and taken before and after the pass. Rendering would miss walls and poles, which a top-down camera only sees edge-on. No new obstacle is within 0.35 m of any walking route or 1.1 m of any car lane, and nothing new is on the café's block.
+- **Added props.** None has a collider, light or script, and the NavMesh ignores them.
+- **Café prop distances.** None stands within:
+  - 0.8 m of a waiting spot;
+  - 0.7 m of a stand point;
+  - 0.35 m of a cup spot;
+  - 0.55 m of an item slot, drop spot, bench rig or the beverage station;
+  - 1.2 m of the counter queue.
+- **Café prop placement.** Floor props stay out of open NavMesh walking space. Heights come from the real geometry: counter tops, the 17 mm staff floor, and a plate for a loaf.
+- **Final City 3: PASS.**
+  - 20 walking routes and 24 car routes are clear.
+  - All 118 buildings pass the shadow and camera rules.
+  - 16 seats, 20 waiting spots, 16 signal heads and 48 lenses.
+  - Café layout 26/26; occupied circulation 23/23.
+  - Gameplay preservation: 179 records unchanged.
+- **Play check** (about 60 s, Day 3). POLYGON customers and patrons entered and paid, and POLYGON cars and walkers moved. There were 0 errors. The only warning was a Synty shelf mesh with an extra material, fixed and re-dressed afterwards. Play was stopped mid-day, before the end-of-day save.
+
+**How it runs.** `Fixit Fidget > City pack`:
+- NPC looks: 1 builds the look prefabs, 2 takes a line-up photo, Close-up takes a walk-cycle photo, 3 applies the looks to Customer and Patron, and Undo removes them.
+- City: 1 records the baseline and before photos, 2 builds, 3 checks and photographs; there are also Undo and Photograph.
+- Cafe: 0 surveys (plan, anchors, NavMesh), 1 dresses; there are also Undo and Photograph.
+- Catalog measures and photographs the pack.
+
+Evidence is in `Logs/CityPack/`, which git ignores.
+
+**Licensing.** The repository is public:
+- The Synty files and the look prefabs built from them are ignored: `/Assets/Synty/`, `/Assets/Art/CityNeighbors/` and the lighting sample folders.
+- The scene and prefabs refer to them by GUID only.
+- A fresh clone shows the original bodies and cars through the fallbacks. It also shows missing city prefabs until the pack is imported and NPC looks 1 is run again.
+
+**Lighting pack.** Not applied: it is a Viking village tutorial. As City-Asset-Setup.md says, only its two skyboxes and lightmap parameter assets are kept, as references. CafeDaylight still runs the day.
+
+**Files.**
+- New:
+  - `Assets/Scripts/PolygonNpcVisual.cs` and `CityCarBody.cs`;
+  - `Assets/Editor/CityPackCatalog.cs`, `PolygonNpcSetup.cs`, `CityPackChecks.cs`, `PolygonCityDressing.cs` and `CafeLivelyProps.cs`;
+  - `Assets/Art/CityNeighbors/Prefabs/*` (19 looks, ignored).
+- Changed: `Assets/AssetsPrefabs/Customer.prefab` and `Patron.prefab` (PolygonNpcVisual added; the check found no other component changed), and `Assets/Playtests/AcesCafeLayoutPlaytest.unity`.
+- `MovementCornerProbe` stays removed; the gameplay guard rejects any probe component.
+
+**Saved: yes. Committed: no. Pushed: no.**
+
+**Next.**
+1. The owner plays a full day and judges the looks, the traffic density and the café props.
+2. Owner decision: keep the hand-built ring round the café (recommended), or swap it for POLYGON modules.
+3. Commit in checkpoints. Code, prefabs and scene are fine to push; the Synty folders are ignored.
+4. Candidates:
+   - leave used cups and plates on tables after patrons go, a gameplay way to make the café feel alive;
+   - greenery on the paved plazas;
+   - the hill's east tower, skipped because its 16:30 shadow reached the café.
+
 ## September 23 (afternoon) — GPT Astra's neighborhood refresh finished, applied and verified
 
 **Read this entry first.** On September 22–23 the owner asked GPT Astra (the Codex desktop app) for free CC0 assets that fit the game: trees, shrubs, bushes and flowers, "actual good chairs", better door handles, a nicer stoplight, and more NPC looks than the beach guy, without breaking patience bars. It imported the art and wrote the tools, then stopped before applying anything (last edit 11:44). Its final edit also broke the Editor assembly (`EditorUtility.InstanceIDToObject` no longer compiles in Unity 6.5), so none of its tools could run. The owner asked Claude to finish the work; this entry records that.

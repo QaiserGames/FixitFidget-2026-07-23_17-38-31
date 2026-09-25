@@ -116,16 +116,16 @@ public class DayOneGuideUI : MonoBehaviour
         if (!customer.WasAccepted)
         {
             if (interactor != null && interactor.CurrentStation != null && interactor.CurrentStation.IsWorkSurface)
-                return "Press F to leave the bench. Head behind the service counter.";
+                return $"Press {F} to leave the bench. Head behind the service counter.";
             if (interactor == null || interactor.CurrentStation == null
                 || interactor.CurrentStation.IsWorkSurface)
-                return "Press F behind the service counter to take orders.";
+                return $"Press {F} behind the service counter to take orders.";
             if (customer.OutOfStock)
-                return "No stock: E to talk, then Q to apologise.";
+                return $"No stock: {E} to talk, then {Q} to apologise.";
             if (customer.ShelfFull)
                 return "Shelf full. Move an item to a free bench slot.";
             if (customer.CanHearIntake || customer.CanDecide)
-                return $"Aim at {customer.CustomerName}. E talks; E after their line accepts.";
+                return $"Aim at {customer.CustomerName}. {E} talks; {E} after their line accepts.";
             return $"Wait for {customer.CustomerName} to reach the counter.";
         }
         return drinkLesson ? DrinkAction(customer) : RepairAction(customer);
@@ -140,38 +140,42 @@ public class DayOneGuideUI : MonoBehaviour
         if (carry != null)
             for (int i = 0; i < carry.Count; i++)
                 if (carry.GetItem(i) is DrinkJob cup && cup.CanHandBack && cup.Drink == wanted)
-                    return $"F steps back. Walk to {customer.CustomerName}; E serves the matching drink.";
+                    return $"{F} steps back. Walk to {customer.CustomerName}; {E} serves the matching drink.";
         if (customer.CanApologiseForDrink)
-            return $"No stock. E near {customer.CustomerName} apologises; restock after closing.";
+            return $"No stock. {E} near {customer.CustomerName} apologises; restock after closing.";
         if (FindAnyObjectByType<BeverageStation>() != null)
         {
             if (held != null && !held.IsEmpty && !held.CanHandBack)
                 return "That drink is cold. Use the discard tray; the cup and ingredients are lost.";
             if (held != null && held.CanHandBack && held.Drink == wanted)
-                return $"F steps back. Walk to {customer.CustomerName}; E serves the matching drink.";
+                return $"{F} steps back. Walk to {customer.CustomerName}; {E} serves the matching drink.";
             if (interactor == null || interactor.CurrentStation == null
                 || interactor.CurrentStation.GetComponent<BeverageStation>() == null)
-                return "Walk to the drink station. F brings the dispenser into view.";
+                return $"Walk to the drink station. {F} brings the dispenser into view.";
             foreach (var section in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
             {
                 if (section.drink != wanted) continue;
                 if (section.IsPouring) return $"{customer.WantedDrinkName} is filling. You can prepare another cup while it pours.";
                 if (section.Cup != null && section.Cup.IsEmpty)
-                    return $"Cup placed. Look at the {customer.WantedDrinkName} paddle and click to pour.";
+                    return Pad ? $"Cup placed. Aim at the {customer.WantedDrinkName} paddle and press {E} to pour."
+                        : $"Cup placed. Look at the {customer.WantedDrinkName} paddle and click to pour.";
                 if (section.Cup != null && section.Cup.CanHandBack)
-                    return $"{customer.WantedDrinkName} is ready. Click its section to collect it; F steps back.";
+                    return Pad ? $"{customer.WantedDrinkName} is ready. Aim at its section and press {E} to collect it; {ControlHints.Back} steps back."
+                        : $"{customer.WantedDrinkName} is ready. Click its section to collect it; F steps back.";
             }
             if (held != null && held.IsEmpty)
-                return $"Look under the {customer.WantedDrinkName} nozzle. Click places your cup; its named paddle starts the pour.";
+                return Pad ? $"Aim under the {customer.WantedDrinkName} nozzle. {E} places your cup; its named paddle starts the pour."
+                    : $"Look under the {customer.WantedDrinkName} nozzle. Click places your cup; its named paddle starts the pour.";
             if (carry != null && !carry.HasSpace)
-                return "Both hands are occupied. C selects the other item; deliver or set one down.";
-            return "Look at the cup stack. Left click takes a cup in your left hand; right click uses your right hand. E chooses automatically.";
+                return $"Both hands are occupied. {ControlHints.SwitchHand} selects the other item; deliver or set one down.";
+            return Pad ? $"Aim at the cup stack. {ControlHints.LeftHand} takes a cup in your left hand; {ControlHints.RightHand} uses your right hand. {E} chooses automatically."
+                : "Look at the cup stack. Left click takes a cup in your left hand; right click uses your right hand. E chooses automatically.";
         }
         if (held != null && !held.IsEmpty && held.Drink == wanted)
         {
             if (interactor != null && interactor.IsAtStation)
-                return $"Press F to step back, then E near {customer.CustomerName} to serve.";
-            return $"Take the {customer.WantedDrinkName} to {customer.CustomerName}. E serves it.";
+                return $"Press {F} to step back, then {E} near {customer.CustomerName} to serve.";
+            return $"Take the {customer.WantedDrinkName} to {customer.CustomerName}. {E} serves it.";
         }
         if (carry != null && carry.IsCarrying && (held == null || !held.IsEmpty))
             return "Hands full. Set the item down or return your cup.";
@@ -184,8 +188,8 @@ public class DayOneGuideUI : MonoBehaviour
         {
             if (cup == null || cup.Owner != customer || cup.IsEmpty) continue;
             if (held != null)
-                return "Return the spare cup to its stack with E.";
-            return $"{customer.WantedDrinkName} ready. Press E at the machine or cup.";
+                return $"Return the spare cup to its stack with {E}.";
+            return $"{customer.WantedDrinkName} ready. Press {E} at the machine or cup.";
         }
         // A previous customer may have left a cup in the machine. Do not tell
         // the player to load another one into an occupied slot.
@@ -195,14 +199,14 @@ public class DayOneGuideUI : MonoBehaviour
         ShopInventory stock = ShopInventory.Instance;
         if (customer.CanApologiseForDrink &&
             (stock == null || !stock.CanBrew(wanted) || (held == null && stock.Cups <= 0)))
-            return $"No stock. E near {customer.CustomerName} apologises; restock after closing.";
+            return $"No stock. {E} near {customer.CustomerName} apologises; restock after closing.";
         if (stock != null && !stock.CanBrew(wanted))
             return "Not enough beans. Restock after closing.";
         if (held != null && held.IsEmpty)
-            return "Empty cup ready. Press E at the espresso machine.";
+            return $"Empty cup ready. Press {E} at the espresso machine.";
         if (stock != null && stock.Cups <= 0)
             return "No cups. Collect a spare or restock after closing.";
-        return "Press E at the cup stack to take an empty cup.";
+        return $"Press {E} at the cup stack to take an empty cup.";
     }
 
     private string RepairAction(CustomerBrain customer)
@@ -214,38 +218,40 @@ public class DayOneGuideUI : MonoBehaviour
 
         if (customer.IsCounterRepair)
             return job.IsComplete
-                ? "Sound restored. The phone is returned automatically; E on the customer resumes if you stepped away."
+                ? $"Sound restored. The phone is returned automatically; {E} on the customer resumes if you stepped away."
+                : Pad ? $"At the counter, press {E} to flip the orange mute switch. {ControlHints.Cancel} steps away without resetting the repair."
                 : "At the counter, click the orange mute switch. Right-click steps away without resetting the repair.";
         if (job is HoldCallJob call && !call.IsComplete)
-            return call.CurrentPhase == HoldCallRun.State.Ringing ? "Support answered! E on the ringing phone picks up."
+            return call.CurrentPhase == HoldCallRun.State.Ringing ? $"Support answered! {E} on the ringing phone picks up."
                 : call.CurrentPhase == HoldCallRun.State.OnHold ? "On hold. Work on another job; return when the phone rings."
-                : "E on the support phone calls or redials. No menu choices.";
+                : $"{E} on the support phone calls or redials. No menu choices.";
         if (job.IsComplete || (job.CanHandBack && job.Grade != JobGrade.Rejected && carrying))
         {
             if (inspecting)
                 return carry != null && !carry.HasSpace
                     ? "Fixed! Free a hand before collecting the item."
-                    : "Fixed! Press E to pick up the item and step back from inspection.";
+                    : $"Fixed! Press {E} to pick up the item and step back from inspection.";
             if (carrying)
             {
                 if (interactor != null && interactor.IsAtStation)
-                    return "Press F to step back. E near the customer returns their item.";
-                return $"{job.Grade} repair. Take it to {customer.CustomerName}; E hands it back."
+                    return $"Press {F} to step back. {E} near the customer returns their item.";
+                return $"{job.Grade} repair. Take it to {customer.CustomerName}; {E} hands it back."
                     + (job.Grade == JobGrade.Perfect ? "" : " You can keep repairing for a higher grade.");
             }
-            return "Press E to pick up the repaired item for delivery.";
+            return $"Press {E} to pick up the repaired item for delivery.";
         }
 
         if (inspector != null && inspector.IsHoldingItem && !inspecting)
-            return "Wrong item. Right-click puts down tools, then leaves inspection.";
+            return $"Wrong item. {ControlHints.Cancel} puts down tools, then leaves inspection.";
         HumanFault human = job.GetComponentInChildren<HumanFault>();
         if (human != null && !human.Finished && !job.HasDetachedParts)
-            return "At the counter, click the orange mute switch to turn sound on. Right-click steps away.";
+            return Pad ? $"At the counter, press {E} to flip the orange mute switch and turn sound on. {ControlHints.Cancel} steps away."
+                : "At the counter, click the orange mute switch to turn sound on. Right-click steps away.";
         if (carrying)
         {
             if (interactor != null && interactor.IsAtStation)
-                return "Press F to step back. E at the bench sets items down.";
-            return "Carry the item to the repair bench. E sets it down.";
+                return $"Press {F} to step back. {E} at the bench sets items down.";
+            return $"Carry the item to the repair bench. {E} sets it down.";
         }
         if (carry != null && carry.IsCarrying)
             return "Hands full. Set the item down or return your cup.";
@@ -258,12 +264,13 @@ public class DayOneGuideUI : MonoBehaviour
                 if (drop != null && drop.Kind == DropSpot.SpotKind.Bench && drop.Holds(job))
                     onBench = true;
         if (!onBench)
-            return "Press E to pick up the customer's item from the intake shelf.";
+            return $"Press {E} to pick up the customer's item from the intake shelf.";
         if (interactor != null && interactor.CurrentStation != null && !interactor.CurrentStation.IsWorkSurface)
-            return "Press F to step back. Head to the repair bench.";
+            return $"Press {F} to step back. Head to the repair bench.";
         if (interactor == null || interactor.CurrentStation == null || !interactor.CurrentStation.IsWorkSurface)
-            return "Item placed. Press F at the repair bench to work there.";
-        return "Aim the centre crosshair at the item. Left-click to inspect.";
+            return $"Item placed. Press {F} at the repair bench to work there.";
+        return Pad ? $"Aim the centre crosshair at the item. Press {ControlHints.Use} to inspect."
+            : "Aim the centre crosshair at the item. Left-click to inspect.";
     }
 
     private string RepairBenchAction(JobBase job)
@@ -274,6 +281,7 @@ public class DayOneGuideUI : MonoBehaviour
         if (circuit != null)
             return circuit.Finished
                 ? "Signal restored. Refit any removed parts, then return the phone."
+                : Pad ? $"Aim at the signal tiles and press {ControlHints.Use} to join their white ports before the charge arrives."
                 : "Click the signal tiles to join their white ports before the charge arrives.";
 
         HumanFault human = job.GetComponentInChildren<HumanFault>();
@@ -281,13 +289,13 @@ public class DayOneGuideUI : MonoBehaviour
         {
             if (job.HasDetachedComponent<RemovablePart>())
                 return tool == ToolType.Pry
-                    ? "Pry tool selected. Click the cover in the tray to refit it."
-                    : "Fault fixed. Select the pry tool to refit the cover.";
+                    ? $"Pry tool selected. {Aim("the cover in the tray")} to refit it."
+                    : $"Fault fixed. {Select("pry tool")} to refit the cover.";
 
             if (job.HasDetachedComponent<Screw>())
                 return tool == ToolType.Screwdriver
-                    ? "Screwdriver selected. Click each tray screw to refit it."
-                    : "Cover fitted. Select the screwdriver for the tray screws.";
+                    ? $"Screwdriver selected. {Aim("each tray screw")} to refit it."
+                    : $"Cover fitted. {Select("screwdriver")} for the tray screws.";
 
             // A detached part unregisters as its return animation begins. Keep
             // the message accurate during that short transition.
@@ -302,28 +310,39 @@ public class DayOneGuideUI : MonoBehaviour
         foreach (Screw screw in job.GetComponentsInChildren<Screw>())
             if (!screw.IsOut)
                 return tool == ToolType.Screwdriver
-                    ? "Screwdriver selected. Click each case screw to remove it."
-                    : "Select the screwdriver to remove the case screws.";
+                    ? $"Screwdriver selected. {Aim("each case screw")} to remove it."
+                    : $"{Select("screwdriver")} to remove the case screws.";
 
         foreach (RemovablePart cover in job.GetComponentsInChildren<RemovablePart>())
             if (!cover.IsRemoved)
                 return tool == ToolType.Pry
-                    ? "Pry tool selected. Click the loosened cover to lift it off."
-                    : "Select the pry tool to lift the loosened cover.";
+                    ? $"Pry tool selected. {Aim("the loosened cover")} to lift it off."
+                    : $"{Select("pry tool")} to lift the loosened cover.";
 
         if (job.GetComponentInChildren<GrimeSpot>() != null)
             return tool == ToolType.Brush
-                ? "Brush selected. Hold left-click and move over the exposed grime."
-                : "Select the brush to clean the exposed grime.";
+                ? Pad ? $"Brush selected. Hold {ControlHints.Use} over the exposed grime."
+                    : "Brush selected. Hold left-click and move over the exposed grime."
+                : $"{Select("brush")} to clean the exposed grime.";
 
         foreach (ReplaceablePart part in job.GetComponentsInChildren<ReplaceablePart>())
             if (!part.IsReplaced)
                 return tool == ToolType.Tweezers
-                    ? "Tweezers selected. Click the broken part to replace it."
-                    : "Select the tweezers to replace the broken part.";
+                    ? $"Tweezers selected. {Aim("the broken part")} to replace it."
+                    : $"{Select("tweezers")} to replace the broken part.";
 
-        return "Follow the part label: select the tool it names, then click the part.";
+        return Pad ? $"Follow the part label: pick the tool it names with {ControlHints.Tools}, then press {ControlHints.Use} on the part."
+            : "Follow the part label: select the tool it names, then click the part.";
     }
+
+    // Button names follow the device in use (see ControlHints). With the
+    // keyboard these read exactly as the original hints did.
+    private static bool Pad => PadInput.UsingPad;
+    private static string E => ControlHints.Interact;
+    private static string F => ControlHints.Station;
+    private static string Q => ControlHints.Refuse;
+    private static string Aim(string target) => Pad ? $"Press {ControlHints.Use} on {target}" : $"Click {target}";
+    private static string Select(string tool) => Pad ? $"Select the {tool} with {ControlHints.Tools}" : $"Select the {tool}";
 
     private bool CreatePanel()
     {
