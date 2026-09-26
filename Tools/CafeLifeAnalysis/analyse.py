@@ -9,7 +9,7 @@
    shove      Ace moved with no input
    settle     time from accepting a seat/spot to reaching it, against the straight-line distance
    leave      time from leaving to being out of the door
-usage: analyse2.py trace.csv [label]
+usage: analyse.py trace.csv [label]
 """
 import sys, math, json
 import numpy as np, pandas as pd
@@ -96,7 +96,7 @@ def pivots(k):
             turned = cy[jj + 1] - cy[i + 1]
             net = math.hypot(x[jj] - x[i], z[jj] - z[i])
             if turned > 120 and net < 0.35:
-                ev.append(dict(name=g.name.iloc[i], kind=g.kind.iloc[i], t0=round(t[i], 1), t1=round(t[jj], 1),
+                ev.append(dict(name=g.name.iloc[i], kind=g.kind.iloc[i], id=pid, t0=round(t[i], 1), t1=round(t[jj], 1),
                                turned=int(turned), net=round(net, 2), state=g.state.iloc[i],
                                x=round(x[i], 2), z=round(z[i], 2), speed=round(float(np.nanmean(g.speed.values[i:jj + 1])), 2)))
                 last = t[jj]

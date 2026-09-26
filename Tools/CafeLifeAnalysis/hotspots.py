@@ -25,10 +25,14 @@ def plot(m, st, out, title):
     fig.savefig(out, dpi=110, bbox_inches='tight')
 
 if __name__ == '__main__':
-    m = mapplot.load_map('map.json')
-    recs = [('baseline', 'rec1/trace.csv'), ('stress', 'rec2/trace.csv'), ('counter', 'rec3/trace.csv'), ('tables', 'rec4/trace.csv')]
+    # usage: hotspots.py [before|after] [out.png] [map.json]
+    which = sys.argv[1] if len(sys.argv) > 1 else 'before'
+    out = sys.argv[2] if len(sys.argv) > 2 else 'hotspots_%s.png' % which
+    m = mapplot.load_map(sys.argv[3] if len(sys.argv) > 3 else ('map_after.json' if which == 'after' else 'map.json'))
+    prefix = 'after' if which == 'after' else 'rec'
+    recs = [('baseline', prefix + '1/trace.csv'), ('stress', prefix + '2/trace.csv'), ('counter', prefix + '3/trace.csv'), ('tables', prefix + '4/trace.csv')]
     st = collect(recs)
-    st.to_csv('before_stuck.csv', index=False)
-    plot(m, st, sys.argv[1] if len(sys.argv) > 1 else 'hotspots_before.png',
-         'Before: %d stuck episodes, %.0f person-seconds (circle size = duration, arrow = where they were trying to go)' % (len(st), st.dur.sum()))
-    print(st.groupby('rec').dur.agg(['count', 'sum']))
+    st.to_csv('%s_stuck.csv' % which, index=False)
+    plot(m, st, out, '%s: %d stuck episodes, %.0f person-seconds (circle size = duration, arrow = where they were trying to go)' % (
+        which.capitalize(), len(st), st.dur.sum() if len(st) else 0))
+    print(st.groupby('rec').dur.agg(['count', 'sum']) if len(st) else 'no stuck episodes')
