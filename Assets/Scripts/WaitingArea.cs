@@ -36,7 +36,7 @@ public class WaitingArea : MonoBehaviour
 
     public static void Register(WaitingSpot spot)
     {
-        if (spot == null || registry.Contains(spot)) return;
+        if (spot == null || spot.AmbientOnly || registry.Contains(spot)) return;
         registry.Add(spot);
     }
 

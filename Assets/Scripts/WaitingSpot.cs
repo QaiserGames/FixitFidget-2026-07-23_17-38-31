@@ -32,7 +32,14 @@ public class WaitingSpot : MonoBehaviour
              "Seats are calmer (0.6), loitering worse (1.15).")]
     [SerializeField] protected float drainMultiplier = 1f;
 
+    [Tooltip("Keep this spot out of the waiting pool: customers never wait " +
+             "here and the patron valve doesn't count it. For atmosphere-only " +
+             "places such as the lounge sofa, which patrons reach through a " +
+             "CafeMoment instead. Untick to make it an ordinary seat.")]
+    [SerializeField] protected bool ambientOnly;
+
     public SpotKind Kind => kind;
+    public bool AmbientOnly => ambientOnly;
     public float DrainMultiplier => drainMultiplier;
     public Transform StandPoint => standPoint != null ? standPoint : transform;
 
@@ -65,7 +72,7 @@ public class WaitingSpot : MonoBehaviour
     // deleting anything you might want back.
     protected virtual void OnEnable()
     {
-        WaitingArea.Register(this);
+        if (!ambientOnly) WaitingArea.Register(this);
     }
 
     protected virtual void OnDisable()

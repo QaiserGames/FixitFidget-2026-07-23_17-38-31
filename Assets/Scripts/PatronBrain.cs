@@ -34,7 +34,7 @@ using UnityEngine.AI;
 [RequireComponent(typeof(NavMeshAgent))]
 public class PatronBrain : MonoBehaviour
 {
-    private enum State { Entering, Settling, Sitting, Leaving }
+    private enum State { Entering, Settling, Sitting, Leaving, Browsing }
 
     [Header("Timing")]
     [Tooltip("How long they stay in their seat before leaving.")]
@@ -72,14 +72,42 @@ public class PatronBrain : MonoBehaviour
     [Tooltip("Total waiting for one blocked seat before choosing another one (or, at the door, going anyway).")]
     [SerializeField] private float politeWaitMax = 4f;
 
+    // CAFÉ MOMENTS. The small, noticeable things that make the room feel
+    // lived in: someone reading on the sofa, someone browsing the shelf,
+    // someone leaning on the wall with nowhere to sit. Every one of them needs
+    // a CafeMoment in the scene (Fixit Fidget > NPC > Café moments); with none
+    // placed, patrons behave exactly as before. None of it touches the
+    // customers' seats, so the pressure model is unchanged.
+    [Header("Café moments (see CafeMoment)")]
+    [Tooltip("Chance a patron goes to the bookshelf first, takes a book and reads it at their seat.")]
+    [SerializeField, Range(0f, 1f)] private float browseChance = .25f;
+    [Tooltip("Chance a patron picks the lounge sofa over a table while a sofa seat is free. Someone carrying " +
+             "a book picks it more often.")]
+    [SerializeField, Range(0f, 1f)] private float couchChance = .3f;
+    [Tooltip("Chance a patron would rather stand and lean on a wall for a while than sit. With every seat " +
+             "taken they lean if there's a free wall, instead of turning round at the door.")]
+    [SerializeField, Range(0f, 1f)] private float leanChance = .12f;
+    [Tooltip("Seconds spent at the shelf choosing a book.")]
+    [SerializeField] private float browseMin = 5f;
+    [SerializeField] private float browseMax = 10f;
+    [Tooltip("Seconds leaning before they leave.")]
+    [SerializeField] private float leanMin = 25f;
+    [SerializeField] private float leanMax = 50f;
+
     private NavMeshAgent agent;
     private Animator animator;
     // Sits them on the chair (optional; see NpcSeating).
     private NpcSeating seating;
+    // Leans and browses (see NpcPose). Added the first time a moment needs it.
+    private NpcPose pose;
     private Transform exitPoint;
 
     private State state = State.Entering;
     private WaitingSpot seat;
+    // The lean or bookshelf they're using. A sofa claim lives on its seat.
+    private CafeMoment moment;
+    private bool atShelf;
+    private float browseUntil;
     private float leaveAt;
     private float bornAt;
 
@@ -105,6 +133,7 @@ public class PatronBrain : MonoBehaviour
         agent.stoppingDistance = Mathf.Clamp(seatStoppingDistance, 0.01f, 0.2f);
         animator = GetComponentInChildren<Animator>();
         seating = GetComponent<NpcSeating>();
+        pose = GetComponent<NpcPose>();
 
         // Lower numbers win; customers top out at 95, while variation avoids a patron tie.
         agent.avoidancePriority = Random.Range(96, 100);
@@ -116,25 +145,30 @@ public class PatronBrain : MonoBehaviour
         bornAt = Time.time;
         lastProgressAt = Time.time;
 
+        // Not everyone heads straight for a chair.
+        if (Random.value < browseChance && HeadForMoment(CafeMoment.Kind.Bookshelf, State.Browsing)) return;
+        if (Random.value < leanChance && HeadForMoment(CafeMoment.Kind.Lean, State.Settling)) return;
         TryTakeSeat();
     }
 
     private void TryTakeSeat()
     {
-        if (WaitingArea.Instance == null) { Leave(); return; }
+        // A table, or the sofa. Someone carrying a book usually wants the sofa.
+        float sofaChance = pose != null && pose.CarryingBook ? Mathf.Max(couchChance, .7f) : couchChance;
+        bool sofaFirst = Random.value < sofaChance;
+        WaitingSpot spot = sofaFirst ? ClaimSofa() : null;
+        if (spot == null) spot = ClaimTableSeat();
+        if (spot == null && !sofaFirst) spot = ClaimSofa();   // tables full: the sofa will do
 
-        // Seat ONLY. Never falls back to a loiter spot the way a customer does
-        // — those exist for people waiting on the player, and a patron standing
-        // in one would push a real customer out of the calmest place to wait.
-        WaitingSpot spot = WaitingArea.Instance.Claim(this, WaitingSpot.SpotKind.Seat);
-
-        if (spot == null || spot.Kind != WaitingSpot.SpotKind.Seat)
+        if (spot == null)
         {
-            if (spot != null) spot.Release(this);
+            if (WaitingArea.Instance == null && CafeMoment.All.Count == 0) { Leave(); return; }
 
-            // Nowhere to sit. Hover a moment so it reads as someone looking
-            // around and deciding against it, rather than a spawn that
-            // instantly turns around.
+            // Nowhere to sit. Lean on a free wall for a while if there is one;
+            // otherwise hover a moment so it reads as someone looking around
+            // and deciding against it, rather than a spawn that instantly
+            // turns around.
+            if (HeadForMoment(CafeMoment.Kind.Lean, State.Settling)) return;
             state = State.Settling;
             leaveAt = Time.time + noSeatLingerSeconds;
             return;
@@ -143,6 +177,51 @@ public class PatronBrain : MonoBehaviour
         seat = spot;
         state = State.Settling;
         SetDestination(seat.StandPoint.position);
+    }
+
+    private WaitingSpot ClaimTableSeat()
+    {
+        if (WaitingArea.Instance == null) return null;
+
+        // Seat ONLY. Never falls back to a loiter spot the way a customer does
+        // — those exist for people waiting on the player, and a patron standing
+        // in one would push a real customer out of the calmest place to wait.
+        WaitingSpot spot = WaitingArea.Instance.Claim(this, WaitingSpot.SpotKind.Seat);
+        if (spot != null && spot.Kind != WaitingSpot.SpotKind.Seat)
+        {
+            spot.Release(this);
+            spot = null;
+        }
+        return spot;
+    }
+
+    private WaitingSpot ClaimSofa()
+    {
+        CafeMoment sofa = CafeMoment.ClaimCouch(this);
+        return sofa != null ? sofa.Seat : null;
+    }
+
+    // Walk to a free lean or bookshelf moment of this kind, if there is one.
+    private bool HeadForMoment(CafeMoment.Kind kind, State next)
+    {
+        CafeMoment found = CafeMoment.ClaimFree(kind, gameObject);
+        if (found == null) return false;
+
+        moment = found;
+        atShelf = false;
+        state = next;
+        SetDestination(found.StandPoint.position);
+        return true;
+    }
+
+    private NpcPose Pose
+    {
+        get
+        {
+            if (pose == null) pose = GetComponent<NpcPose>();
+            if (pose == null) pose = gameObject.AddComponent<NpcPose>();
+            return pose;
+        }
     }
 
     private void Update()
@@ -158,7 +237,7 @@ public class PatronBrain : MonoBehaviour
         switch (state)
         {
             case State.Settling:
-                if (seat == null)
+                if (seat == null && moment == null)
                 {
                     if (Time.time >= leaveAt) Leave();
                     break;
@@ -172,15 +251,18 @@ public class PatronBrain : MonoBehaviour
                 {
                     goalWatch.Reset();
                     state = State.Sitting;
+                    StopHere();
+
+                    if (moment != null)
+                    {
+                        // A wall to lean on rather than a chair.
+                        leaveAt = Time.time + Random.Range(leanMin, leanMax);
+                        if (!Pose.TryLean(moment)) FaceAlong(moment.Facing);
+                        break;
+                    }
+
                     leaveAt = Time.time + Random.Range(minStay, maxStay);
 
-                    if (agent.isOnNavMesh)
-                    {
-                        agent.ResetPath();
-                        agent.isStopped = true;
-                        agent.velocity = Vector3.zero;
-                        agent.avoidancePriority = 0;
-                    }
                     // Actually sit on the chair when the seat allows it; stand
                     // facing the table otherwise. Leave() needs no change:
                     // NpcSeating stands them up when the exit path arrives.
@@ -189,11 +271,50 @@ public class PatronBrain : MonoBehaviour
                 }
                 break;
 
+            case State.Browsing:
+                if (moment == null) { TryTakeSeat(); break; }
+
+                if (!atShelf)
+                {
+                    if (Paused()) break;
+                    WatchForWedging();
+                    if (state != State.Browsing) break;
+
+                    if (Arrived() || SeatBlockedButClose())
+                    {
+                        goalWatch.Reset();
+                        StopHere();
+                        atShelf = true;
+                        browseUntil = Time.time + Random.Range(browseMin, browseMax);
+                        if (!Pose.TryBrowse(moment)) FaceAlong(moment.Facing);
+                    }
+                    break;
+                }
+
+                if (Time.time < browseUntil) break;
+
+                // Found something to read: take it to a seat. The shelf is
+                // let go of after a seat is claimed, so the same person can't
+                // be sent straight back to it.
+                CafeMoment shelf = moment;
+                moment = null;
+                atShelf = false;
+                TryTakeSeat();
+                shelf.Release(gameObject);
+
+                // Nowhere to sit or lean: they've already stood and looked
+                // around for a while, so skip the hover and go (the book is
+                // put back rather than carried off).
+                if (seat == null && moment == null) Leave();
+                break;
+
             case State.Sitting:
                 // Seats can be switched off in the Inspector mid-run, and a
                 // disabled spot clears its occupant — so re-check rather than
                 // trusting the reference to still mean anything.
-                if (seat == null || seat.Occupant != this) { Leave(); break; }
+                bool stillThere = seat != null ? seat.Occupant == this
+                                : moment != null && moment.IsHeldBy(gameObject);
+                if (!stillThere) { Leave(); break; }
                 if (Time.time >= leaveAt) Leave();
                 break;
 
@@ -212,10 +333,23 @@ public class PatronBrain : MonoBehaviour
     private void FaceTable()
     {
         if (seat == null) return;
+        FaceAlong(seat.StandPoint.forward);
+    }
 
-        Vector3 look = seat.StandPoint.forward;
+    private void FaceAlong(Vector3 look)
+    {
         look.y = 0f;
         if (look.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(look);
+    }
+
+    // Arrived: drop the path and stand still as scenery.
+    private void StopHere()
+    {
+        if (!agent.isOnNavMesh) return;
+        agent.ResetPath();
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+        agent.avoidancePriority = 0;
     }
 
     private void UpdateWalkingAnimation()
@@ -225,7 +359,7 @@ public class PatronBrain : MonoBehaviour
         // Different start/stop speeds and a short hold prevent tiny avoidance
         // corrections from restarting the walk clip every other frame.
         bool canWalk = agent.isOnNavMesh && !agent.isStopped
-            && (state == State.Settling || state == State.Leaving);
+            && (state == State.Settling || state == State.Leaving || state == State.Browsing);
         float threshold = walkingAnimation ? 0.08f : 0.25f;
         bool wantsWalk = canWalk && agent.velocity.sqrMagnitude > threshold * threshold;
         if (wantsWalk == walkingAnimation) walkingChangeTimer = 0f;
@@ -245,7 +379,11 @@ public class PatronBrain : MonoBehaviour
     {
         if (state == State.Leaving) return;
 
+        // A reader leaves the book where they sat: on the table, or on the sofa.
+        if (pose != null && pose.CarryingBook) pose.PutBookDown(BookRest());
+
         ReleaseSeat();
+        ReleaseMoment();
         state = State.Leaving;
 
         if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
@@ -260,12 +398,27 @@ public class PatronBrain : MonoBehaviour
         seat = null;
     }
 
+    private void ReleaseMoment()
+    {
+        if (moment != null) moment.Release(gameObject);
+        moment = null;
+        atShelf = false;
+    }
+
+    private Transform BookRest()
+    {
+        CafeMoment sofa = CafeMoment.CouchFor(seat);
+        if (sofa != null) return sofa.BookRest;
+        return seat is TableSeat tableSeat ? tableSeat.CupSpot : null;
+    }
+
     // Releasing on destroy as well as on leaving, because a seat held by a
     // deleted patron is a chair nobody can ever sit in again — and with the day
     // reset destroying everyone, that would leak a seat per patron per day.
     private void OnDestroy()
     {
         ReleaseSeat();
+        ReleaseMoment();
     }
 
     private void SetDestination(Vector3 target)
@@ -288,7 +441,7 @@ public class PatronBrain : MonoBehaviour
 
     private bool BlockedNearGoal(Vector3 goal) =>
         agent != null && agent.isOnNavMesh && !agent.pathPending
-        && (seating == null || !seating.Busy)
+        && (seating == null || !seating.Busy) && (pose == null || !pose.Busy)
         && goalWatch.Blocked(transform.position, goal, nearGoalRadius, nearGoalPatience);
 
     // Someone is standing on or beside their seat. From a step away they sit
@@ -313,11 +466,15 @@ public class PatronBrain : MonoBehaviour
 
     private void SwitchSeat()
     {
-        WaitingSpot old = seat;
+        WaitingSpot oldSeat = seat;
+        CafeMoment oldMoment = moment;
         seat = null;
-        TryTakeSeat();              // the old seat is still claimed by us, so it can't come straight back
-        if (old != null) old.Release(this);
-        if (seat == null && state != State.Leaving) Leave();   // nowhere else: go, as the stuck watchdog would
+        moment = null;
+        atShelf = false;
+        TryTakeSeat();              // the old place is still claimed by us, so it can't come straight back
+        if (oldSeat != null) oldSeat.Release(this);
+        if (oldMoment != null) oldMoment.Release(gameObject);
+        if (seat == null && moment == null && state != State.Leaving) Leave();   // nowhere else: go, as the stuck watchdog would
     }
 
     private bool PauseForBlocker()
@@ -360,8 +517,10 @@ public class PatronBrain : MonoBehaviour
     private bool Arrived()
     {
         if (agent == null || !agent.isOnNavMesh) return false;
-        // Still getting up from a chair: the walk hasn't started yet.
+        // Still getting up from a chair, or stepping back from a wall or the
+        // shelf: the walk hasn't started yet.
         if (seating != null && seating.Busy) return false;
+        if (pose != null && pose.Busy) return false;
         if (agent.pathPending) return false;
         return agent.pathStatus == NavMeshPathStatus.PathComplete
             && Vector3.Distance(transform.position, destination) <= agent.stoppingDistance + 0.15f;

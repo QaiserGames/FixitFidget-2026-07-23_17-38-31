@@ -234,6 +234,9 @@ public class CustomerBrain : MonoBehaviour
     private Animator animator;
     // Sits them on a chair when their waiting spot is a table seat (optional).
     private NpcSeating seating;
+    // Leans them on the wall when their loiter spot has a CafeMoment lean
+    // (optional; added the first time one is used).
+    private NpcPose pose;
     private CounterQueue queue;
     private Transform exitPoint;
     private PlayerInteractor player;
@@ -735,6 +738,7 @@ public class CustomerBrain : MonoBehaviour
         // in as a child later still works without touching this again.
         animator = GetComponentInChildren<Animator>();
         seating = GetComponent<NpcSeating>();
+        pose = GetComponent<NpcPose>();
 
         RollMovingPriority();
         agent.stoppingDistance = arriveDistance;
@@ -851,6 +855,10 @@ public class CustomerBrain : MonoBehaviour
 
         foreach (WaitingSpot spot in WaitingArea.Spots)
             if (spot != null && FlatDistance(point, spot.StandPoint.position) < driftClearance) return false;
+
+        foreach (CafeMoment m in CafeMoment.All)
+            if (m != null && (FlatDistance(point, m.StandPoint.position) < driftClearance
+                              || FlatDistance(point, m.PosePosition) < driftClearance)) return false;
 
         return NobodyWithin(point, driftClearance);
     }
@@ -1481,6 +1489,7 @@ public class CustomerBrain : MonoBehaviour
     private bool BlockedNearGoal(Vector3 goal) =>
         agent != null && agent.isOnNavMesh && !agent.pathPending
         && (seating == null || !seating.Busy)   // still getting up: not walking yet
+        && (pose == null || !pose.Busy)         // still stepping back from a wall
         && goalWatch.Blocked(transform.position, goal, nearGoalRadius, nearGoalPatience);
 
     // Stop and let whoever is in the way move, the way a person would, then
@@ -1508,6 +1517,20 @@ public class CustomerBrain : MonoBehaviour
         // they're given somewhere else to go. Without it (or with Snap To Seat
         // off) they wait standing beside the chair, as they always have.
         if (seating != null && waitingSpot is TableSeat tableSeat) seating.TrySit(tableSeat);
+
+        // A loiter spot by a wall: lean on it while they wait. Looks only - the
+        // spot's patience drain is unchanged. NpcPose stands them up again by
+        // itself when they're given somewhere to go, like NpcSeating.
+        else if (waitingSpot != null && waitingSpot.Kind == WaitingSpot.SpotKind.Loiter)
+        {
+            CafeMoment lean = CafeMoment.LeanFor(waitingSpot);
+            if (lean != null)
+            {
+                if (pose == null) pose = GetComponent<NpcPose>();
+                if (pose == null) pose = gameObject.AddComponent<NpcPose>();
+                pose.TryLean(lean);
+            }
+        }
     }
 
     // ---------- the drink wish ----------
@@ -2237,7 +2260,9 @@ public class CustomerBrain : MonoBehaviour
     private void FaceTarget()
     {
         // Sitting (or getting up) faces the table; NpcSeating owns the body then.
+        // Leaning faces away from the wall; NpcPose owns it.
         if (seating != null && seating.Busy) return;
+        if (pose != null && pose.Busy) return;
 
         // Never steer rotation while the agent is moving us. Turning the body
         // one way while the path drags it another IS the moonwalk.
@@ -2283,8 +2308,10 @@ public class CustomerBrain : MonoBehaviour
     // switch to "standing still" logic while they were visibly still walking.
     private bool Arrived()
     {
-        // Still getting up from a chair: the walk hasn't started yet.
+        // Still getting up from a chair, or stepping away from a wall: the
+        // walk hasn't started yet.
         if (seating != null && seating.Busy) return false;
+        if (pose != null && pose.Busy) return false;
         if (agent.pathPending) return false;
         if (agent.remainingDistance > agent.stoppingDistance) return false;
         return !agent.hasPath || agent.velocity.sqrMagnitude < 0.01f;
