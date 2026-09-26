@@ -112,6 +112,12 @@ public sealed class CafeLabDirector : MonoBehaviour
         if (CustomerSpawnMethod == null) missing += " CustomerSpawner.Spawn";
         if (missing.Length > 0)
             Debug.LogWarning("[Café lab] Some lab actions are unavailable; these members were renamed or removed:" + missing, this);
+    }
+
+    // Logged from Start, not Awake: the autopilot flag is set right after
+    // AddComponent, so Awake would always report the default.
+    private void Start()
+    {
         Debug.Log($"[Café lab] Lab session: save {CafeLab.SaveFileName}, day logs {CafeLab.LogFolderName}. " +
                   $"Autopilot {(Autopilot ? "on" : "off")}. The real playtest save is untouched.", this);
     }
