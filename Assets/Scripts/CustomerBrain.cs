@@ -106,6 +106,59 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float driftPauseMin = 1f;
     [SerializeField] private float driftPauseMax = 3f;
 
+    // THE DOORWAY PAUSE, found 2026-09-26 by sampling the look-around point
+    // against the real layout: with arrivals now handed over at the door, one
+    // in six picked a point inside the one-metre door opening and stood there
+    // for up to three seconds, with everyone behind them in a line. Another
+    // one in seven picked a point beside a chair, where a sitter's navigation
+    // body is parked, and walked circles round it trying to reach it.
+    [Tooltip("The look-around point must be at least this far from the door, " +
+             "so nobody stops in the doorway with people queueing behind them.")]
+    [SerializeField] private float driftMinFromDoor = 2.5f;
+
+    [Tooltip("...and at least this far from other people and from every seat, " +
+             "waiting spot and counter slot, so it's never somebody's place.")]
+    [SerializeField] private float driftClearance = 1f;
+
+    [Tooltip("Points tried before giving up on the look-around and walking " +
+             "straight to the counter.")]
+    [Min(1)]
+    [SerializeField] private int driftAttempts = 6;
+
+    [Header("Blocked near the goal")]
+
+    [Tooltip("Within this distance of where they're going, walking round and " +
+             "round without getting closer means someone is standing on or " +
+             "next to the spot. Avoidance can't fix that - it's what makes " +
+             "them circle.")]
+    [SerializeField] private float nearGoalRadius = 1.6f;
+
+    [Tooltip("Seconds of getting no closer inside that radius before they stop " +
+             "circling and do what a person would do instead.")]
+    [SerializeField] private float nearGoalPatience = 1.25f;
+
+    [Tooltip("Blocked this close to a waiting spot or counter slot, they take " +
+             "it from here. A chair's sit-down walk starts from up to 0.75 m " +
+             "away, and standing half a step off a mark reads fine.")]
+    [SerializeField] private float closeEnough = 0.75f;
+
+    [Tooltip("Blocked this close to the door on the way out, they're out.")]
+    [SerializeField] private float exitCloseEnough = 1f;
+
+    [Tooltip("Blocked further away: they stop and wait this long for the " +
+             "person in the way, then try again.")]
+    [SerializeField] private float politePause = 1.2f;
+
+    [Tooltip("Total waiting for one blocked spot before they choose another " +
+             "(or, at the counter, queue from where they are).")]
+    [SerializeField] private float politeWaitMax = 4f;
+
+    [Tooltip("After giving up on every waiting spot, how long they wait where " +
+             "they stand before asking for a spot again. Without it they asked " +
+             "again the very next frame and went round the whole stuck ladder, " +
+             "shoving included, over and over.")]
+    [SerializeField] private float giveUpRetryDelay = 8f;
+
     [Tooltip("Per-customer walk speed variation. 0.15 = ±15%. Identical pace " +
              "reads as a conveyor belt however good the models are.")]
     [Range(0f, 0.5f)]
@@ -270,6 +323,12 @@ public class CustomerBrain : MonoBehaviour
 
     // False until they've done their look-around on the way in.
     private bool driftDone;
+    private Vector3 driftPoint;
+
+    // Circling detection (see NpcGoalWatch) and how long they've already
+    // stood waiting for the current goal to clear.
+    private readonly NpcGoalWatch goalWatch = new NpcGoalWatch();
+    private float politeWaited;
 
     // Where they're actually headed once they've stepped clear of the counter,
     // and the clear-of-the-counter point itself.
@@ -735,10 +794,11 @@ public class CustomerBrain : MonoBehaviour
         // Veer into the room before heading for the counter. Not the full
         // Drifting state from GDD §4.5 — just enough that six arrivals don't
         // trace the same line to the same spot.
-        Vector3 drift;
-        if (PickDriftPoint(out drift))
+        goalWatch.Reset();
+        politeWaited = 0f;
+        if (PickDriftPoint(out driftPoint))
         {
-            agent.SetDestination(drift);
+            agent.SetDestination(driftPoint);
         }
         else
         {
@@ -750,6 +810,10 @@ public class CustomerBrain : MonoBehaviour
     // Somewhere INTO the shop, but off the direct line. Takes the bearing to
     // the counter and swings it wide, so they always make progress inward —
     // wandering back out of the door would look broken, not lifelike.
+    //
+    // A few tries, because the first random point is often no good: still in
+    // the doorway, on top of somebody, or on a place someone will stand. No
+    // good point at all just means no look-around - they walk straight in.
     private bool PickDriftPoint(out Vector3 point)
     {
         point = Vector3.zero;
@@ -759,16 +823,61 @@ public class CustomerBrain : MonoBehaviour
         toCounter.y = 0f;
         if (toCounter.sqrMagnitude < 0.01f) return false;
 
-        Vector3 dir = Quaternion.Euler(0f, Random.Range(-driftSpreadDegrees, driftSpreadDegrees), 0f)
-                    * toCounter.normalized;
+        for (int attempt = 0; attempt < Mathf.Max(1, driftAttempts); attempt++)
+        {
+            Vector3 dir = Quaternion.Euler(0f, Random.Range(-driftSpreadDegrees, driftSpreadDegrees), 0f)
+                        * toCounter.normalized;
 
-        Vector3 probe = transform.position + dir * Random.Range(driftDistanceMin, driftDistanceMax);
+            Vector3 probe = transform.position + dir * Random.Range(driftDistanceMin, driftDistanceMax);
 
-        if (!NavMesh.SamplePosition(probe, out NavMeshHit hit, 2f, NavMesh.AllAreas)) return false;
-        if (!CanReach(hit.position)) return false;
+            if (!NavMesh.SamplePosition(probe, out NavMeshHit hit, 2f, NavMesh.AllAreas)) continue;
+            if (!DriftPointIsFree(hit.position)) continue;
+            if (!CanReach(hit.position)) continue;
 
-        point = hit.position;
+            point = hit.position;
+            return true;
+        }
+        return false;
+    }
+
+    // Past the doorway, and not a place anyone is or will be standing.
+    private bool DriftPointIsFree(Vector3 point)
+    {
+        if (exitPoint != null && FlatDistance(point, exitPoint.position) < driftMinFromDoor) return false;
+
+        if (queue != null)
+            for (int i = 0; i < queue.SlotCount; i++)
+                if (FlatDistance(point, queue.SlotPoint(i).position) < driftClearance) return false;
+
+        foreach (WaitingSpot spot in WaitingArea.Spots)
+            if (spot != null && FlatDistance(point, spot.StandPoint.position) < driftClearance) return false;
+
+        return NobodyWithin(point, driftClearance);
+    }
+
+    // No other café NPC, and no visitor still walking in from outside, within
+    // radius of point. Only asked on arrival and at a look-around point, so a
+    // scene-wide search is affordable.
+    private bool NobodyWithin(Vector3 point, float radius)
+    {
+        foreach (NavMeshAgent other in FindObjectsByType<NavMeshAgent>(FindObjectsInactive.Exclude))
+        {
+            if (other == agent || !other.isActiveAndEnabled) continue;
+            if (FlatDistance(point, other.transform.position) < radius) return false;
+        }
+        foreach (NpcJourney walker in NpcJourney.Active)
+        {
+            if (walker == null || walker.gameObject == gameObject || !walker.isActiveAndEnabled) continue;
+            if (FlatDistance(point, walker.transform.position) < radius) return false;
+        }
         return true;
+    }
+
+    private static float FlatDistance(Vector3 a, Vector3 b)
+    {
+        Vector3 d = a - b;
+        d.y = 0f;
+        return d.magnitude;
     }
 
     // Someone ahead of them left — shuffle up the line. Their device isn't
@@ -777,6 +886,8 @@ public class CustomerBrain : MonoBehaviour
     {
         slotIndex = newIndex;
         driftDone = true;   // the line moved — stop sightseeing and get in it
+        goalWatch.Reset();
+        politeWaited = 0f;
 
         // Queued customers park themselves on arrival (see StopSteering), so
         // shuffling up the line has to wake the agent back up first.
@@ -816,6 +927,7 @@ public class CustomerBrain : MonoBehaviour
             // inherit an anchor from wherever they were standing before the
             // pause and immediately think they're wedged.
             ResetProgressWatch();
+            goalWatch.Reset();
 
             if (agent.isOnNavMesh)
             {
@@ -870,15 +982,39 @@ public class CustomerBrain : MonoBehaviour
                             // then go and queue. The pause is what sells it —
                             // walking through a curve at constant speed still
                             // reads as a conveyor belt.
+                            //
+                            // Unless somebody walked up in the meantime: then
+                            // standing there would be standing in their way.
                             driftDone = true;
-                            MoveAfter(queue.SlotPoint(slotIndex).position,
-                                      Random.Range(driftPauseMin, driftPauseMax));
+                            politeWaited = 0f;
+                            float look = NobodyWithin(transform.position, driftClearance)
+                                ? Random.Range(driftPauseMin, driftPauseMax) : 0f;
+                            MoveAfter(queue.SlotPoint(slotIndex).position, look);
                             break;
                         }
 
-                        state = State.WaitingInQueue;
-                        patienceLeft = queueMax;
-                        StopSteering();     // stop shoving whoever's in front
+                        JoinQueueHere();
+                    }
+                    else if (!driftDone && BlockedNearGoal(driftPoint))
+                    {
+                        // Someone is standing on the patch of floor they meant
+                        // to look around from. Nobody circles a stranger to
+                        // reach an empty spot: skip it and go and queue.
+                        driftDone = true;
+                        politeWaited = 0f;
+                        goalWatch.Reset();
+                        ResetProgressWatch();
+                        if (agent.isOnNavMesh) agent.SetDestination(queue.SlotPoint(slotIndex).position);
+                    }
+                    else if (driftDone && BlockedNearGoal(queue.SlotPoint(slotIndex).position))
+                    {
+                        // Their slot, with somebody still in it (usually the
+                        // last customer stepping back). Close by, or after
+                        // waiting a moment, queue from where they are rather
+                        // than walking circles round them.
+                        if (goalWatch.Distance <= closeEnough
+                            || !PauseForBlocker(queue.SlotPoint(slotIndex).position))
+                            JoinQueueHere();
                     }
                     else if (ProgressStalled())
                     {
@@ -931,24 +1067,24 @@ public class CustomerBrain : MonoBehaviour
                 {
                     if (Arrived())
                     {
-                        if (hasStepBack)
-                        {
-                            // Clear of the counter. NOW turn for the seat.
-                            hasStepBack = false;
-                            ResetProgressWatch();
-
-                            if (agent.isOnNavMesh)
-                            {
-                                agent.isStopped = false;
-
-                                // Drop back to polite. If they escalated to
-                                // forcePriority getting out of the slot, that
-                                // must not follow them across the room.
-                                agent.avoidancePriority = leavingCounterPriority;
-                                agent.SetDestination(settleDestination);
-                            }
-                        }
+                        if (hasStepBack) HeadForSpot();   // clear of the counter: NOW turn for the seat
                         else SettleHere();
+                    }
+                    else if (hasStepBack && BlockedNearGoal(stepBackTo))
+                    {
+                        // Someone is standing in the step-back space. The step
+                        // only exists to get clear of the counter, and they are
+                        // clear enough: head for the seat.
+                        HeadForSpot();
+                    }
+                    else if (!hasStepBack && BlockedNearGoal(settleDestination))
+                    {
+                        // Their seat or spot has a body on or beside it. From a
+                        // step away, take it (a chair's sit-down walk starts
+                        // from here). Further out, wait a moment; after that,
+                        // choose somewhere else.
+                        if (goalWatch.Distance <= closeEnough) SettleHere();
+                        else if (!PauseForBlocker(settleDestination)) GiveUpOnSpot();
                     }
                     else if (ProgressStalled())
                     {
@@ -997,11 +1133,21 @@ public class CustomerBrain : MonoBehaviour
                 // Out of the door they walk back to their car or home (CafeArrivals
                 // strips this brain there, so from here on nothing counts them);
                 // without CafeArrivals they vanish at the door as before.
-                if (Arrived())
+                bool atDoor = Arrived();
+
+                // Somebody on the exit mark itself (a visitor coming in, often)
+                // used to be circled until they moved. Near the door is out;
+                // further back, give them a moment, then go anyway - the walk
+                // home starts from wherever they are.
+                if (!atDoor && exitPoint != null && !hasPendingDestination
+                    && BlockedNearGoal(exitPoint.position))
+                    atDoor = goalWatch.Distance <= exitCloseEnough || !PauseForBlocker(exitPoint.position);
+
+                if (atDoor)
                 {
                     if (bubbleTimer <= 0f && !CafeArrivals.TryDepart(gameObject)) Destroy(gameObject);
                 }
-                else if (exitPoint != null && ProgressStalled())
+                else if (exitPoint != null && !hasPendingDestination && ProgressStalled())
                 {
                     // Same ladder on the way out. leaveDeadline above is still
                     // the hard floor, but re-pathing usually beats it by
@@ -1223,6 +1369,8 @@ public class CustomerBrain : MonoBehaviour
         hasStepBack = false;
 
         ResetProgressWatch();
+        goalWatch.Reset();
+        politeWaited = 0f;
 
         // STEP BACK BEFORE YOU TURN.
         //
@@ -1300,8 +1448,57 @@ public class CustomerBrain : MonoBehaviour
         agent.avoidancePriority = 0; // A stationary body cannot yield to a walker.
     }
 
+    // At their counter slot (or as near to it as someone standing there lets
+    // them get): start queueing.
+    private void JoinQueueHere()
+    {
+        goalWatch.Reset();
+        state = State.WaitingInQueue;
+        patienceLeft = queueMax;
+        StopSteering();     // stop shoving whoever's in front
+    }
+
+    // Done stepping back from the counter (or can't, and doesn't need to):
+    // turn and walk to the claimed spot.
+    private void HeadForSpot()
+    {
+        hasStepBack = false;
+        ResetProgressWatch();
+        goalWatch.Reset();
+        politeWaited = 0f;
+
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+
+            // Drop back to polite. If they escalated to forcePriority getting
+            // out of the slot, that must not follow them across the room.
+            agent.avoidancePriority = leavingCounterPriority;
+            agent.SetDestination(settleDestination);
+        }
+    }
+
+    private bool BlockedNearGoal(Vector3 goal) =>
+        agent != null && agent.isOnNavMesh && !agent.pathPending
+        && (seating == null || !seating.Busy)   // still getting up: not walking yet
+        && goalWatch.Blocked(transform.position, goal, nearGoalRadius, nearGoalPatience);
+
+    // Stop and let whoever is in the way move, the way a person would, then
+    // walk on. False once they've waited politeWaitMax for this goal: the
+    // caller decides what happens instead (take it from here, choose another
+    // spot, go out anyway).
+    private bool PauseForBlocker(Vector3 goal)
+    {
+        if (politeWaited >= politeWaitMax) return false;
+        politeWaited += politePause;
+        goalWatch.Reset();
+        MoveAfter(goal, politePause);
+        return true;
+    }
+
     private void SettleHere()
     {
+        goalWatch.Reset();
         state = State.Waiting;
         StopSteering();
         ScheduleDrinkWish();
@@ -1476,6 +1673,12 @@ public class CustomerBrain : MonoBehaviour
                          $"waiting where they stand. Usually means the seats " +
                          $"are unreachable, not that the floor is full.", this);
         SettleHere();
+
+        // Actually wait where they stand. The Waiting state asks for a spot
+        // again whenever it has none, and retryClaimAt was already in the
+        // past, so "waiting where they stand" lasted one frame: they claimed
+        // again, walked, jammed, shoved at stage 2, gave up, and round again.
+        retryClaimAt = Time.time + giveUpRetryDelay;
     }
 
     private bool CanReach(Vector3 destination)
@@ -1893,6 +2096,8 @@ public class CustomerBrain : MonoBehaviour
                       paidBase, paidTip, lastGrade, repairStartedAt);
 
         hasPendingDestination = false;
+        goalWatch.Reset();
+        politeWaited = 0f;
         if (agent.isOnNavMesh)
         {
             // They were parked at settled priority, which would let everyone

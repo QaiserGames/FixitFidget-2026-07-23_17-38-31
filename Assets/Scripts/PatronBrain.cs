@@ -57,6 +57,21 @@ public class PatronBrain : MonoBehaviour
     [Tooltip("Patrons must reach their own chair marker. A large stopping distance lets adjacent seats settle in the same aisle.")]
     [SerializeField, Range(0.01f, 0.2f)] private float seatStoppingDistance = 0.08f;
 
+    [Header("Blocked near the goal")]
+    [Tooltip("Within this distance of their seat (or the door), walking round without getting closer means " +
+             "someone is standing on or beside it. See NpcGoalWatch.")]
+    [SerializeField] private float nearGoalRadius = 1.6f;
+    [Tooltip("Seconds of getting no closer inside that radius before they stop circling.")]
+    [SerializeField] private float nearGoalPatience = 1.25f;
+    [Tooltip("Blocked this close to their seat, they sit anyway: the chair's sit-down walk starts from up to 0.75 m away.")]
+    [SerializeField] private float closeEnough = 0.75f;
+    [Tooltip("Blocked this close to the door on the way out, they're out.")]
+    [SerializeField] private float exitCloseEnough = 1f;
+    [Tooltip("Blocked further away: stop and wait this long for the person in the way, then try again.")]
+    [SerializeField] private float politePause = 1.2f;
+    [Tooltip("Total waiting for one blocked seat before choosing another one (or, at the door, going anyway).")]
+    [SerializeField] private float politeWaitMax = 4f;
+
     private NavMeshAgent agent;
     private Animator animator;
     // Sits them on the chair (optional; see NpcSeating).
@@ -74,6 +89,11 @@ public class PatronBrain : MonoBehaviour
     private Vector3 destination;
     private bool walkingAnimation;
     private float walkingChangeTimer;
+
+    // Circling detection, and standing still to let someone out of the way.
+    private readonly NpcGoalWatch goalWatch = new NpcGoalWatch();
+    private float pausedUntil;
+    private float politeWaited;
 
     private static readonly int IsWalkingHash = Animator.StringToHash("IsWalking");
 
@@ -144,11 +164,13 @@ public class PatronBrain : MonoBehaviour
                     break;
                 }
 
+                if (Paused()) break;
                 WatchForWedging();
                 if (state != State.Settling) break;
 
-                if (Arrived())
+                if (Arrived() || SeatBlockedButClose())
                 {
+                    goalWatch.Reset();
                     state = State.Sitting;
                     leaveAt = Time.time + Random.Range(minStay, maxStay);
 
@@ -176,11 +198,12 @@ public class PatronBrain : MonoBehaviour
                 break;
 
             case State.Leaving:
+                if (Paused()) break;
                 WatchForWedging();
                 // Out of the door they walk back to their car or home (CafeArrivals
                 // removes this brain there); without it they vanish at the door as
                 // before. The lifetime backstop still removes one who can't get out.
-                if (Arrived()) { if (!CafeArrivals.TryDepart(gameObject)) Destroy(gameObject); }
+                if (Arrived() || ExitBlockedButClose()) { if (!CafeArrivals.TryDepart(gameObject)) Destroy(gameObject); }
                 else if (Time.time - bornAt > maxLifetime + 20f) Destroy(gameObject);
                 break;
         }
@@ -256,6 +279,82 @@ public class PatronBrain : MonoBehaviour
         lastProgressAt = Time.time;
         bestRemainingDistance = float.PositiveInfinity;
         unwedgeAttempts = 0;
+        goalWatch.Reset();
+        politeWaited = 0f;
+        pausedUntil = 0f;
+    }
+
+    // ---------- blocked near the goal (see NpcGoalWatch) ----------
+
+    private bool BlockedNearGoal(Vector3 goal) =>
+        agent != null && agent.isOnNavMesh && !agent.pathPending
+        && (seating == null || !seating.Busy)
+        && goalWatch.Blocked(transform.position, goal, nearGoalRadius, nearGoalPatience);
+
+    // Someone is standing on or beside their seat. From a step away they sit
+    // anyway; further out they wait a moment; after that they choose another
+    // seat, instead of the old circle-for-nine-seconds-then-walk-out.
+    private bool SeatBlockedButClose()
+    {
+        if (!BlockedNearGoal(destination)) return false;
+        if (goalWatch.Distance <= closeEnough) return true;
+        if (PauseForBlocker()) return false;
+        SwitchSeat();
+        return false;
+    }
+
+    // Near the door is out; further back, wait a moment, then go anyway (the
+    // walk home starts from wherever they are).
+    private bool ExitBlockedButClose()
+    {
+        if (!BlockedNearGoal(destination)) return false;
+        return goalWatch.Distance <= exitCloseEnough || !PauseForBlocker();
+    }
+
+    private void SwitchSeat()
+    {
+        WaitingSpot old = seat;
+        seat = null;
+        TryTakeSeat();              // the old seat is still claimed by us, so it can't come straight back
+        if (old != null) old.Release(this);
+        if (seat == null && state != State.Leaving) Leave();   // nowhere else: go, as the stuck watchdog would
+    }
+
+    private bool PauseForBlocker()
+    {
+        if (politeWaited >= politeWaitMax) return false;
+        politeWaited += politePause;
+        pausedUntil = Time.time + politePause;
+        goalWatch.Reset();
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+        return true;
+    }
+
+    // True while standing still to let someone out of the way. Walks on (same
+    // destination, fresh watchdogs) when the pause is up.
+    private bool Paused()
+    {
+        if (pausedUntil <= 0f) return false;
+        if (Time.time < pausedUntil)
+        {
+            if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+            return true;
+        }
+
+        pausedUntil = 0f;
+        goalWatch.Reset();
+        lastProgressAt = Time.time;
+        bestRemainingDistance = float.PositiveInfinity;
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(destination);
+        }
+        return false;
     }
 
     private bool Arrived()

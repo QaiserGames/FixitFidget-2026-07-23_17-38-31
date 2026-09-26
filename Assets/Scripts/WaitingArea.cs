@@ -48,6 +48,10 @@ public class WaitingArea : MonoBehaviour
     // Handy in the Console when you're wondering why nobody sits down.
     public static int RegisteredSpots => registry.Count;
 
+    // Read-only view of every registered spot. CustomerBrain uses it to keep
+    // its look-around point off places where somebody will be standing.
+    public static IReadOnlyList<WaitingSpot> Spots => registry;
+
     private void Awake()
     {
         Instance = this;
