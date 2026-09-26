@@ -115,3 +115,6 @@ InitTestScene*.unity*
 
 /Assets/LightingOptimizationTutorial/
 /Assets/LightingOptimizationTutorial.meta
+
+# Cafe lab sessions (Fixit Fidget > Cafe life > Lab) log beside the real days; keep them out of the repo.
+/DayLogs/CafeLab/

@@ -37,8 +37,11 @@ public class SaveManager : MonoBehaviour
     // One shared copy per editor/game session.
     private static ReviewLines fallbackLines;
 
+    // A café lab session (editor only, see CafeLab) keeps its own checkpoint,
+    // so testing the café's people never touches the real playtest save.
     private string PathToFile => Path.Combine(Application.persistentDataPath,
-        useInteractionPlaytestSave ? PlaytestFileName : "save.json");
+        CafeLab.Active ? CafeLab.SaveFileName
+        : useInteractionPlaytestSave ? PlaytestFileName : "save.json");
 
     private string PlaytestFileName => string.IsNullOrWhiteSpace(interactionPlaytestSaveName)
         || !interactionPlaytestSaveName.StartsWith("playtest-", StringComparison.Ordinal)

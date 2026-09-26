@@ -260,6 +260,8 @@ public class DayLog : MonoBehaviour
     private string LogDirectory()
     {
 #if UNITY_EDITOR
+        // A café lab session (see CafeLab) logs beside the real days, never over them.
+        if (CafeLab.Active) return Path.Combine(Directory.GetParent(Application.dataPath).FullName, CafeLab.LogFolderName);
         return Path.Combine(Directory.GetParent(Application.dataPath).FullName, folderName);
 #else
         return Path.Combine(Application.persistentDataPath, folderName);

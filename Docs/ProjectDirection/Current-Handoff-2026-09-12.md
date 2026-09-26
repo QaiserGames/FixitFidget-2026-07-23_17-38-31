@@ -1,5 +1,49 @@
 # Current handoff — September 12, 2026
 
+## September 26 (later) — café NPC pass: observation only, nothing changed yet
+
+**Read this entry first.** Mansoor is about to play Day 2 (Grace returning) to inspect the reputation work before it is committed. Until that is approved, no gameplay code changes. The café NPC pass has started, but only as observation.
+
+- **Nothing in the NPC systems was changed.** `CustomerBrain`, `PatronBrain`, `NpcSeating`, `PersonalSpace`, `CafeArrivals`, `NpcJourney`, the prefabs, the animator and the NavMesh are as they were.
+- **New, observation-only tooling (uncommitted, none of it runs unless you use it):**
+  - `Assets/Scripts/Diagnostics/CafeLab.cs` — the "Café lab": a throwaway test save (`playtest-cafe-lab.json`, day logs under `DayLogs/CafeLab`), an autopilot that serves customers, and stress buttons (send N in at once, all leave, block the aisle/door, move Ace). Started only from `Fixit Fidget > Café life > Lab`; a normal Play never enters it.
+  - `Assets/Scripts/Diagnostics/CafeLifeProbe.cs` + `Assets/Editor/CafeLifeRecorder.cs` — record a 20 Hz trace of every NPC (`trace.csv`) and an MP4 (Game view or one of four fixed café cameras) to `Logs/CafeLife/<stamp>/`.
+  - `Assets/Editor/CafeMapExport.cs` — writes the NavMesh, seats, slots and furniture footprints to `Logs/CafeLife/map.json` for analysis.
+  - Two one-line hooks make the lab save path work: `SaveManager.PathToFile` and `DayLog.LogDirectory` check `CafeLab.Active` first (false outside a lab session).
+  - `Tools/CafeLifeAnalysis/` — Python scripts that turn a trace into the stuck/spin/flicker/contact tables and the hotspot map (needs python3 with pandas, numpy, matplotlib, pillow, and ffmpeg).
+- **Baseline footage kept:** `Logs/CafeLife/2026-09-26_020900` (normal), `_022112` (stress, whole café), `_024632` (counter camera), `_024840` (tables and door). Clips of the five key incidents in `Logs/CafeLife/clips/`, the hotspot map and contact sheets in `Logs/CafeLife/analysis/`. All four sessions used the lab save; **the playtest save is still the Day 2 start of 25 Sept 23:52.**
+- **Findings and the proposal** are in the project: `claude/npc-behavior-map.md` (how the current architecture works, file by file) and `claude/cafe-npc-observations-2026-09-26.md` (the observation report with timestamps, the root causes of the spinning, and the smallest changes proposed). Short version: the spinning is RVO deflecting walkers around *parked* agents (seated NPCs leave their invisible agent on the aisle corner, priority 0), the body turning to face whatever the avoidance did, watchdogs that cannot see an orbit, and everyone converging on the one exit point through a 0.96 m NavMesh doorway (baked at radius 0.5 for 0.35 m agents).
+- **Customer-memory check (`CustomerMemoryChecks.cs:199`, fails at line 216):** the check expects the *response* face to win after "Accepted" even at low patience; `CustomerIdentity.ExpressionAt` (used by the ticket rail and the conversation panel) shows Impatient at ≤ 25 % patience for Intake, Accepted and OrderedDrink. Facts and options are in the chat report; Mansoor decides which behaviour fits before the NPC work starts.
+- **Git:** still nothing committed on `main`. The reputation work is one commit-to-be; the diagnostics are a second. `Logs/` is git-ignored.
+
+## September 26 — the café's reputation (day side) built; pink-scene recovery; working on main
+
+**Read this entry first.** Everything below is saved in the project and **not committed**: git is still at the "minor" commit (`9426285`) on `main`.
+
+- **Recovery (early 26 Sept).**
+  - Switching GitHub Desktop to the old `main` (5 Sept) made the café pink. That branch's `.gitignore` predates the Synty purchase, so GitHub Desktop moved the Synty, CityNeighbors and lighting-tutorial folders into a stash (and `_Recovery`, `Claude outputs` and `DayLogs` from the baseline branch into another). Stashing removes the files from disk.
+  - Everything was copied back into the project folder with `Fixit Fidget > Recovery > Restore files swept into GitHub Desktop stashes (26 Sept)` (`Assets/Editor/StashRecovery.cs`). Nothing was staged, committed or deleted.
+  - The stashes are kept as a backup: `a33d42a` (made on main), `8c92557` (baseline) and `d226896` (pensive-pasteur). Don't press "Restore" on them in GitHub Desktop.
+  - **From now on, work on `main` only.** `main`, `codex/grace-showcase-baseline` and `origin/main` are the same commit. Don't check out the old `codex/*` branches: their `.gitignore` lacks the Synty rules, and the same thing would happen again.
+- **Reputation, day side (built 26 Sept; spec: `claude/reputation-spec.md` §12).** Mansoor asked to keep building rather than wait for the next playtest.
+  - **In the recap:** a new block in the middle column shows five stars (gold = earned, outline = not yet), the café's name for its stars ("Just opened" to "Best in the city"), "Next star X / Y" with a bar, today's reviews (+/−) with the five counts, and up to three quotes (best, worst, a regular's). "New star!" appears on the day one is earned.
+  - **Rules:** Loved it +2, Liked it +1, Fine 0, Let down −1, Never again −2. Declines, out of stock and a full shelf leave no review, and patrons never review. Stars come at 5, 30, 120, 300 and 580 and are never taken away. Reputation never goes below 0. The day is counted once, at closing; resuming a recap never counts it again.
+  - **Save version 5.** Old saves load with reputation 0.
+  - **Code:** new `ReputationRules`, `ReputationLedger` and `ReviewLines`, hooked into `CustomerBrain.Depart`, `DayClock.EndDay`, `SaveManager`, `SaveData`, `RecapUI` and `DayLog` (a `review` column and a REVIEWS block). `PlaytestCheckpointTools` now shows each checkpoint's reputation.
+  - **Review lines are draft placeholders** in `Assets/Data/Reputation/ReviewLines.asset` (tokens `{name}`, `{thing}`, `{drink}`), waiting for the content pass.
+  - **Tools:** `Fixit Fidget > Reputation > Add stars and reviews to the recap (open scene)` (already run on the café scene; running it again only re-wires), `Fixit Fidget > Reputation > Preview a busy day in the recap (Play mode, recap open)` (shows the longest lines; saves nothing), `Fixit Fidget > Checks > Reputation rules`, and the console test `Tests/ReputationRules`.
+  - **Placeholder art:** `Assets/Art/UI/ReputationStar.png` and `ReputationStarEmpty.png`, drawn by the setup tool.
+  - **Not built yet:** scandals and the franchise offer (night side), star objects in the café, faces for the verdicts, and lines of their own for regulars.
+- **Verified 26 Sept.**
+  - 0 compile errors. Reputation rules PASS (19,685 assertions), Recap save PASS, Recap input PASS. The console tests pass.
+  - An unattended Day 2 was played to closing on the playtest save: 4 queue walkouts gave 4 "Let down" reviews and −4 for the day, with reputation staying at 0. The v5 checkpoint held the reviews and the quote, and the resumed recap showed the same.
+  - **Afterwards the playtest save was stepped back.** The current checkpoint is byte-identical to the Day 2 start of 25 Sept 23:52. The "previous" checkpoint is now that same Day 2 start (it was the Day 1 recap; a copy is in `Logs/SaveInspection/2026-09-26_010909/previous.json`). The test day's checkpoint is kept beside the save as `playtest-aces-cafe.replaced-…json`. `DayLogs/AcesCafeLayout/Day02_*` were put back byte for byte.
+- **Fixed on the way:** resuming a closed day showed "New Text" in the middle of the recap. The focus-name label's fade used game time, which the recap pauses. `FocusNameUI` now fades in real time.
+- **Found, not fixed:**
+  - `Fixit Fidget > Checks > Customer memory and identity` fails at `CustomerMemoryChecks.cs:218` ("The response takes precedence over low-patience intake."). `CustomerIdentity.ExpressionAt` shows Impatient for the Intake, Accepted and OrderedDrink beats at 25 % patience or less. This is older than today's work, and neither file was touched. Decide which of the two is right.
+  - The upgrade list grows downward past its own frame. Six upgrades already reach the bottom of a 1080p screen, so a seventh will run off it. It needs a scroll view or two columns before more upgrades are added.
+- **Git:** all of the above is uncommitted on `main`. New files are the reputation scripts (with .meta files), `Assets/Art/UI/`, `Assets/Data/Reputation/`, `Tests/ReputationRules/` and `Assets/Editor/StashRecovery.cs` (safe to delete once everything is confirmed back). None of it is purchased content.
+
 ## September 24–25 — furnishing pass, the café car park with real arrivals, walkers fixed
 
 **Read this entry first.** All of it is saved in `AcesCafeLayoutPlaytest.unity` and committed to git on 25 Sept (a local commit on the current branch, not pushed). Project docs: `claude/cafe-furnishing-pass.md`, `claude/cafe-car-park-and-arrivals.md`, `claude/ace-after-dark.md`.
