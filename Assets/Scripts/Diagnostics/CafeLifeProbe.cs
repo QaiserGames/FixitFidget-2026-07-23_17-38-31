@@ -236,7 +236,9 @@ public sealed class CafeLifeProbe : MonoBehaviour
     {
         NpcLocomotion loco = go.GetComponent<NpcLocomotion>();
         if (loco == null) return "";
-        return $";leg={loco.Purpose};rec={loco.LastRecovery}{(loco.GaveUp ? ";gaveup" : "")}";
+        NpcLookAt look = go.GetComponent<NpcLookAt>();
+        string looking = look != null && look.Looking ? $";look={look.TargetYaw:0}" : "";
+        return $";leg={loco.Purpose};rec={loco.LastRecovery}{(loco.GaveUp ? ";gaveup" : "")}{looking}";
     }
 
     private static int StuckStage(GameObject go)

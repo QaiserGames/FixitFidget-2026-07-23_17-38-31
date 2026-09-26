@@ -77,6 +77,8 @@ public sealed class NpcSeating : MonoBehaviour
     private NavMeshAgent agent;
     private Animator animator;
     private PolygonNpcVisual visual;
+    private NpcLocomotion locomotion;
+    private Vector3 lastStepPosition;
     private TableSeat seat;
     private Phase phase = Phase.Standing;
     // Stand point, beside the chair, in front of the chair (where the feet stay while seated).
@@ -107,6 +109,7 @@ public sealed class NpcSeating : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponentInChildren<Animator>();
         visual = GetComponent<PolygonNpcVisual>();
+        locomotion = GetComponent<NpcLocomotion>();
         var found = new List<Transform>();
         foreach (Transform child in transform)
             if (child.name == "PatienceBar" || child.name == "SpeechBubble") found.Add(child);
@@ -155,7 +158,7 @@ public sealed class NpcSeating : MonoBehaviour
         active.Add(this);
         // A city body fits itself to the chair while the rig's hips are down.
         if (visual != null) visual.Seated = true;
-        Begin(Phase.Approaching, PathLength() / stepSpeed);
+        Begin(Phase.Approaching, StepTime());
         return true;
     }
 
@@ -203,7 +206,7 @@ public sealed class NpcSeating : MonoBehaviour
             case Phase.Approaching:
                 // Never sat down: head straight back from wherever the body is.
                 path[1] = path[2] = transform.position;
-                Begin(Phase.Returning, PathLength() / stepSpeed);
+                Begin(Phase.Returning, StepTime());
                 break;
             case Phase.SittingDown:
             case Phase.Seated:
@@ -225,7 +228,7 @@ public sealed class NpcSeating : MonoBehaviour
         {
             case Phase.Approaching:
                 FollowPath(t, true);
-                animator.SetBool(IsWalkingHash, t < 1f);
+                WalkClip();
                 if (t >= 1f)
                 {
                     animator.SetBool(SeatedHash, true);
@@ -246,11 +249,11 @@ public sealed class NpcSeating : MonoBehaviour
                 break;
             case Phase.StandingUp:
                 Hold();
-                if (t >= 1f) Begin(Phase.Returning, PathLength() / stepSpeed);
+                if (t >= 1f) Begin(Phase.Returning, StepTime());
                 break;
             case Phase.Returning:
                 FollowPath(t, false);
-                animator.SetBool(IsWalkingHash, t < 1f);
+                WalkClip();
                 if (t >= 1f) HandBack();
                 break;
         }
@@ -262,18 +265,21 @@ public sealed class NpcSeating : MonoBehaviour
         phase = next;
         phaseStarted = Time.time;
         phaseLength = Mathf.Max(0f, length);
+        lastStepPosition = transform.position;
         if (next != Phase.Approaching && next != Phase.Returning) animator.SetBool(IsWalkingHash, false);
     }
 
     private void Hold() => transform.SetPositionAndRotation(path[2], seatRotation);
 
-    // Walk the two legs of the path by arc length, facing the way of travel and
-    // turning to (or from) the table near the chair.
+    // Walk the two legs of the path by arc length - easing in from standing and
+    // out to a stop, the way a person takes two steps - facing the way of
+    // travel and turning to (or from) the table over the last part of the way.
     private void FollowPath(float t, bool towardSeat)
     {
         float a = Vector3.Distance(path[0], path[1]);
         float b = Vector3.Distance(path[1], path[2]);
-        float s = (towardSeat ? t : 1f - t) * (a + b);
+        float eased = t * t * (3f - 2f * t);
+        float s = (towardSeat ? eased : 1f - eased) * (a + b);
         Vector3 position = s <= a
             ? Vector3.Lerp(path[0], path[1], a > 1e-4f ? s / a : 1f)
             : Vector3.Lerp(path[1], path[2], b > 1e-4f ? (s - a) / b : 1f);
@@ -281,13 +287,28 @@ public sealed class NpcSeating : MonoBehaviour
         if (!towardSeat) travel = -travel;
         travel.y = 0f;
         Quaternion facing = travel.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(travel.normalized) : transform.rotation;
-        float settle = towardSeat ? Mathf.InverseLerp(.72f, 1f, t) : Mathf.InverseLerp(.28f, 0f, t);
+        float settle = towardSeat ? Mathf.InverseLerp(.6f, 1f, t) : Mathf.InverseLerp(.42f, 0f, t);
         Quaternion target = Quaternion.Slerp(facing, seatRotation, settle);
         transform.position = position;
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, target, 540f * Time.deltaTime);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, target, 360f * Time.deltaTime);
+    }
+
+    // The walk clip follows the body's real speed (through NpcLocomotion, so
+    // the stride matches the floor), not a flag that flips at the ends.
+    private void WalkClip()
+    {
+        float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+        float speed = Vector3.Distance(transform.position, lastStepPosition) / dt;
+        lastStepPosition = transform.position;
+        if (locomotion != null) locomotion.DriveWalk(speed, dt);
+        else animator.SetBool(IsWalkingHash, speed > .1f);
     }
 
     private float PathLength() => Mathf.Max(.15f, Vector3.Distance(path[0], path[1]) + Vector3.Distance(path[1], path[2]));
+
+    // Eased in and out, so the middle of the path runs ~1.5x the average; the
+    // extra fifth keeps that peak at an ordinary walking pace.
+    private float StepTime() => PathLength() / stepSpeed * 1.2f;
 
     private void Chat()
     {

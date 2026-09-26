@@ -149,6 +149,22 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float conversationDrainMultiplier = 0.1f;
     [SerializeField] private float presenceDrainMultiplier = 0.2f;
 
+    [Header("Attention (pass 1b)")]
+    [Tooltip("At the counter: how far away Ace can be and still be looked at, metres.")]
+    [SerializeField] private float counterLookRange = 4f;
+    [Tooltip("Waiting: how far away Ace can be, carrying their order, before they follow him with their eyes, metres.")]
+    [SerializeField] private float deliveryNoticeRange = 5f;
+    [Tooltip("Waiting and standing: within this distance a customer whose order is coming turns to face Ace, metres.")]
+    [SerializeField] private float deliveryTurnRange = 2.6f;
+    [Tooltip("Where Ace's eyes are above his transform (the capsule's centre), metres.")]
+    [SerializeField] private float aceEyeOffset = 0.65f;
+    [Tooltip("Queue variation: how far a customer stands off the slot sideways, metres (either way).")]
+    [SerializeField] private float queueSideVariation = 0.18f;
+    [Tooltip("Queue variation: how far a customer stands off the slot along it, metres (mostly back).")]
+    [SerializeField] private float queueDepthVariation = 0.14f;
+    [Tooltip("Queue variation: how far off the slot's facing a customer stands, degrees (either way).")]
+    [SerializeField] private float queueYawVariation = 14f;
+
     [SerializeField] private PatienceBar patienceBar;
     [SerializeField] private TMP_Text speechBubble;
     [SerializeField] private CustomerIdentity identity;
@@ -168,7 +184,15 @@ public class CustomerBrain : MonoBehaviour
     private CounterQueue queue;
     private Transform exitPoint;
     private PlayerInteractor player;
+    private PlayerCarry playerCarry;
+    private float playerSearchedAt = -10f;
     private CustomerStoryteller storyteller;
+    // Head look (counter, delivery) and the personal way of standing in the queue.
+    private NpcLookAt lookAt;
+    private float queueSide, queueDepth, queueYaw, nextQueueShift;
+    // Delivery acknowledgement: is Ace bringing my order, and have I turned to him for it.
+    private bool orderComing, turnedForDelivery;
+    private float orderCheckAt, attentionUntil;
 
     private float patienceLeft;
     private float speakTimer;
@@ -429,8 +453,20 @@ public class CustomerBrain : MonoBehaviour
 
     // Delivery chooses the matching item from either physical hand. Reading a
     // prompt must never change which hand the player uses at a work station.
-    private PlayerCarry DeliveryCarry => player != null
-        ? player.GetComponent<PlayerCarry>() : FindAnyObjectByType<PlayerCarry>();
+    private PlayerCarry DeliveryCarry
+    {
+        get
+        {
+            PlayerInteractor ace = Player;
+            if (ace != null)
+            {
+                // `player` can be handed in from outside (checks); derive the hands from him.
+                if (playerCarry == null || playerCarry.gameObject != ace.gameObject) playerCarry = ace.GetComponent<PlayerCarry>();
+                if (playerCarry != null) return playerCarry;
+            }
+            return FindAnyObjectByType<PlayerCarry>();
+        }
+    }
 
     private DrinkJob FindServeableDrink(PlayerCarry carry)
     {
@@ -647,6 +683,14 @@ public class CustomerBrain : MonoBehaviour
         seating = GetComponent<NpcSeating>();
         locomotion = GetComponent<NpcLocomotion>();
         if (locomotion == null) locomotion = gameObject.AddComponent<NpcLocomotion>();
+        lookAt = GetComponent<NpcLookAt>();
+        if (lookAt == null) lookAt = gameObject.AddComponent<NpcLookAt>();
+
+        // Nobody stands on the exact same centimetre facing the exact same way.
+        queueSide = Random.Range(-queueSideVariation, queueSideVariation);
+        queueDepth = Random.Range(-queueDepthVariation, queueDepthVariation * .35f);
+        queueYaw = Random.Range(-queueYawVariation, queueYawVariation);
+        nextQueueShift = Time.time + Random.Range(6f, 12f);
 
         // Two multipliers, and they mean different things. The identity's is WHO
         // this person is — an Impatient customer is impatient on every day. The
@@ -707,9 +751,25 @@ public class CustomerBrain : MonoBehaviour
         else
         {
             driftDone = true;
-            locomotion.MoveTo(queue.SlotPoint(slotIndex).position, Walk("slot"));
+            locomotion.MoveTo(QueuePoint(slotIndex), Walk("slot"));
         }
     }
+
+    // ---------- standing in the queue ----------
+    //
+    // The slot is where the queue puts them; this is where THEY stand: a hand's
+    // width to one side, a little back, turned a few degrees - rolled once per
+    // customer, and shifted slightly every so often (a weight shift). The queue
+    // order and the slot logic do not change.
+    private Vector3 QueuePoint(int index)
+    {
+        Transform slot = queue.SlotPoint(index);
+        Vector3 point = slot.position + slot.right * queueSide + slot.forward * queueDepth;
+        if (NavMesh.SamplePosition(point, out NavMeshHit hit, .5f, NavMesh.AllAreas)) point = hit.position;
+        return point;
+    }
+
+    private Quaternion QueueFacing(int index) => queue.SlotPoint(index).rotation * Quaternion.Euler(0f, queueYaw, 0f);
 
     // ---------- how to walk each leg ----------
     //
@@ -764,12 +824,14 @@ public class CustomerBrain : MonoBehaviour
         slotIndex = newIndex;
         driftDone = true;   // the line moved — stop sightseeing and get in it
 
-        locomotion.MoveTo(queue.SlotPoint(slotIndex).position, Walk("slot"));
+        locomotion.MoveTo(QueuePoint(slotIndex), Walk("slot"));
     }
 
     private void Update()
     {
         if (agent == null) return;
+
+        UpdateAttention();
 
         if (InConversation)
         {
@@ -837,7 +899,7 @@ public class CustomerBrain : MonoBehaviour
                             // reads as a conveyor belt.
                             driftDone = true;
                             locomotion.Park(null);
-                            MoveAfter(queue.SlotPoint(slotIndex).position, Walk("slot"),
+                            MoveAfter(QueuePoint(slotIndex), Walk("slot"),
                                       Random.Range(driftPauseMin, driftPauseMax));
                             break;
                         }
@@ -851,7 +913,7 @@ public class CustomerBrain : MonoBehaviour
                         // The look-around detour is not worth fighting for:
                         // aim straight at the counter instead.
                         driftDone = true;
-                        locomotion.MoveTo(queue.SlotPoint(slotIndex).position, Walk("slot"));
+                        locomotion.MoveTo(QueuePoint(slotIndex), Walk("slot"));
                     }
                     else if (locomotion.GaveUp)
                     {
@@ -951,6 +1013,112 @@ public class CustomerBrain : MonoBehaviour
         }
     }
 
+    // ---------- attention: looking at Ace ----------
+    //
+    // The head does the looking (NpcLookAt); the body turns only when the head
+    // cannot reach, and only once, so nobody pivots after the player.
+    //   Queue:    look at Ace while he is near the counter and in front of them;
+    //             the customer he is talking to also turns to face him.
+    //   Waiting:  when Ace comes over CARRYING THEIR ORDER (their device, or a
+    //             cup of what they asked for), follow him with the eyes from a
+    //             few metres, and - if standing - turn to face him when close.
+    //             The hand-over itself keeps the gaze on him for a moment.
+    //   Leaving:  nothing; they have somewhere to be.
+    private PlayerInteractor Player
+    {
+        get
+        {
+            if (player == null && Time.time - playerSearchedAt > 2f)
+            {
+                playerSearchedAt = Time.time;
+                player = FindAnyObjectByType<PlayerInteractor>();
+                playerCarry = player != null ? player.GetComponent<PlayerCarry>() : null;
+            }
+            return player;
+        }
+    }
+
+    private void UpdateAttention()
+    {
+        if (lookAt == null) return;
+        PlayerInteractor ace = Player;
+        if (ace == null) { lookAt.Clear(); return; }
+        Vector3 eyes = Vector3.up * aceEyeOffset;
+        Vector3 toAce = ace.transform.position - transform.position;
+        toAce.y = 0f;
+        float distance = toAce.magnitude;
+        float bearing = distance > .05f ? Vector3.Angle(transform.forward, toAce) : 0f;
+        bool seated = seating != null && seating.Busy;
+
+        if (InConversation)
+        {
+            lookAt.LookAt(ace.transform, eyes, 1f);
+            return;
+        }
+
+        switch (state)
+        {
+            case State.WaitingInQueue:
+                if (distance < counterLookRange && bearing < 110f) lookAt.LookAt(ace.transform, eyes, .9f);
+                else lookAt.Clear();
+                ShiftWeightInQueue();
+                break;
+
+            case State.Settling:
+            case State.Waiting:
+                if (Time.time >= orderCheckAt)
+                {
+                    orderCheckAt = Time.time + .2f;
+                    bool coming = jobAccepted && distance < deliveryNoticeRange && (JobReady || CanReceiveDrink);
+                    if (!coming) turnedForDelivery = false;
+                    orderComing = coming;
+                }
+                if (orderComing || Time.time < attentionUntil)
+                {
+                    lookAt.LookAt(ace.transform, eyes, 1f);
+                    // Standing: turn to meet him once he is close. Seated: the head is enough.
+                    if (orderComing && !seated && !turnedForDelivery && distance < deliveryTurnRange && state == State.Waiting)
+                    {
+                        turnedForDelivery = true;
+                        locomotion.Face(FacingTowards(ace.transform.position));
+                    }
+                }
+                else if (distance < 2.2f && bearing < 100f) lookAt.LookAt(ace.transform, eyes, .5f);   // someone walked up
+                else lookAt.Clear();
+                break;
+
+            case State.Speaking:
+                if (Time.time < attentionUntil || (distance < 3f && bearing < 110f)) lookAt.LookAt(ace.transform, eyes, 1f);
+                else lookAt.Clear();
+                break;
+
+            default:
+                lookAt.Clear();
+                break;
+        }
+    }
+
+    // A small change of facing every so often while queueing: a weight shift,
+    // not a fidget. Suppressed while Ace is being looked at from close by.
+    private void ShiftWeightInQueue()
+    {
+        if (Time.time < nextQueueShift || slotIndex < 0 || queue == null) return;
+        nextQueueShift = Time.time + Random.Range(7f, 14f);
+        if (hasPendingDestination || locomotion == null || locomotion.HasGoal) return;
+        queueYaw = Mathf.Clamp(queueYaw + Random.Range(-6f, 6f), -queueYawVariation - 4f, queueYawVariation + 4f);
+        locomotion.Face(QueueFacing(slotIndex));
+    }
+
+    private Quaternion FacingTowards(Vector3 point)
+    {
+        Vector3 to = point - transform.position;
+        to.y = 0f;
+        return to.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(to.normalized, Vector3.up) : transform.rotation;
+    }
+
+    // Keep the eyes on Ace for a moment after something changed hands.
+    private void HoldAttention(float seconds) => attentionUntil = Mathf.Max(attentionUntil, Time.time + seconds);
+
     // ---------- conversation hand-off ----------
 
     // Called by ConversationController.Begin(). From here until the panel
@@ -958,7 +1126,15 @@ public class CustomerBrain : MonoBehaviour
     public void OnConversationOpened(ConversationController controller)
     {
         conversation = controller;
-        if (locomotion != null) locomotion.Pause();
+        if (locomotion != null)
+        {
+            locomotion.Pause();
+            // Turn to the person you are talking to (the head follows him; the
+            // body squares up once, here, not every time he shifts).
+            PlayerInteractor ace = Player;
+            if (ace != null && !(seating != null && seating.Busy)) locomotion.Face(FacingTowards(ace.transform.position));
+        }
+        HoldAttention(1.5f);
     }
 
     // Called by ConversationController.End(), which fires only after the
@@ -1208,10 +1384,10 @@ public class CustomerBrain : MonoBehaviour
     // because neither is ever quite done. Once you're there, you're scenery.
     private void StopSteering()
     {
-        Transform target = null;
-        if (slotIndex >= 0 && queue != null) target = queue.SlotPoint(slotIndex);
-        else if (waitingSpot != null) target = waitingSpot.StandPoint;
-        locomotion.Park(target != null ? target.rotation : (Quaternion?)null);
+        Quaternion? facing = null;
+        if (slotIndex >= 0 && queue != null) facing = QueueFacing(slotIndex);
+        else if (waitingSpot != null) facing = waitingSpot.StandPoint.rotation;
+        locomotion.Park(facing);
     }
 
     private void SettleHere()
@@ -1405,6 +1581,7 @@ public class CustomerBrain : MonoBehaviour
         patienceLeft = Mathf.Min(patienceLeft + serviceMax * serveBump, serviceMax);
 
         React();
+        HoldAttention(2.5f);
 
         // THE SPLIT THAT MAKES THE WHOLE PASS WORK.
         //
@@ -1483,6 +1660,7 @@ public class CustomerBrain : MonoBehaviour
         activeJob = null;
 
         React();
+        HoldAttention(2.5f);
 
         string line = physicalEnding ?? (identity != null ? identity.SayRepairCompleted(grade) : "");
 

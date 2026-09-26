@@ -44,7 +44,12 @@ using UnityEngine.AI;
 ///
 /// SITTING: while <see cref="NpcSeating"/> owns the body the agent is switched
 /// off, so a request to move first asks the seating to stand the NPC up and
-/// runs once the agent is handed back.
+/// runs once the agent is handed back; the seating feeds the walk clip through
+/// <see cref="DriveWalk"/> while it moves the body by hand.
+///
+/// SETTING OFF: a leg that starts more than <c>turnFirstBeyond</c> degrees off
+/// the body's heading turns on the spot first (up to half a second), then
+/// walks, instead of sliding sideways while the body catches up.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NavMeshAgent))]
@@ -108,6 +113,12 @@ public sealed class NpcLocomotion : MonoBehaviour
     [SerializeField, Range(20f, 130f)] private float detourAngle = 70f;
     [SerializeField, Range(.1f, 1.5f)] private float detourHold = .35f;
 
+    [Header("Setting off")]
+    [Tooltip("If the route starts more than this far round from where the body faces, turn on the spot first instead of sliding off sideways (degrees).")]
+    [SerializeField, Range(20f, 150f)] private float turnFirstBeyond = 60f;
+    [Tooltip("Longest the body turns before it starts walking anyway, seconds.")]
+    [SerializeField, Range(.1f, 1f)] private float turnFirstMax = .5f;
+
     [Header("Walk animation")]
     [Tooltip("Speed above which the walk starts (m/s).")]
     [SerializeField, Range(.05f, 1f)] private float walkStart = .35f;
@@ -167,6 +178,10 @@ public sealed class NpcLocomotion : MonoBehaviour
     private bool yielding;
     private int yieldsWithoutProgress;
     private int priorityBeforeYield;
+
+    // Setting off: turn towards the route before the first step.
+    private bool turningFirst;
+    private float turnFirstUntil;
 
     // Heading.
     private float headingVelocity;
@@ -264,7 +279,38 @@ public sealed class NpcLocomotion : MonoBehaviour
         agent.stoppingDistance = Mathf.Max(0f, options.stoppingDistance);
         agent.avoidancePriority = Mathf.Clamp(options.priority, 0, 99);
         agent.SetDestination(destination);
+        BeginTurnFirst();
         return true;
+    }
+
+    // A person facing the wrong way turns, then walks; an agent released
+    // straight away accelerates along the path while the body is still
+    // turning, which reads as a sideways slide out of every chair and slot.
+    private void BeginTurnFirst()
+    {
+        Vector3 route = Flat(goal - transform.position);
+        float angle = route.sqrMagnitude > 1e-4f ? Vector3.Angle(Flat(transform.forward), route) : 0f;
+        if (angle < turnFirstBeyond) { turningFirst = false; return; }
+        turningFirst = true;
+        turnFirstUntil = Time.time + turnFirstMax;
+        agent.isStopped = true;
+    }
+
+    private void TurnFirst(float dt)
+    {
+        Vector3 route = agent.hasPath && !agent.pathPending ? Flat(agent.steeringTarget - transform.position) : Flat(goal - transform.position);
+        if (route.sqrMagnitude < 1e-4f) route = Flat(goal - transform.position);
+        float angle = route.sqrMagnitude > 1e-4f ? Vector3.Angle(Flat(transform.forward), route) : 0f;
+        if ((angle <= 25f && !agent.pathPending) || Time.time >= turnFirstUntil)
+        {
+            turningFirst = false;
+            agent.isStopped = false;
+            stalledSince = Time.time;
+            return;
+        }
+        agent.isStopped = true;
+        if (route.sqrMagnitude > 1e-4f)
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(route.normalized, Vector3.up), turnSpeed * .9f * dt);
     }
 
     /// <summary>
@@ -280,6 +326,7 @@ public sealed class NpcLocomotion : MonoBehaviour
         GaveUp = false;
         steppingAside = false;
         yielding = false;
+        turningFirst = false;
         pushedBackSince = -1f;
         EndPassThrough();
         afterStanding = null;
@@ -315,6 +362,7 @@ public sealed class NpcLocomotion : MonoBehaviour
         {
             agent.isStopped = false;
             if (!agent.hasPath && !agent.pathPending) agent.SetDestination(steppingAside ? agent.destination : goal);
+            BeginTurnFirst();
         }
     }
 
@@ -332,13 +380,20 @@ public sealed class NpcLocomotion : MonoBehaviour
             walkChangeTimer = 0f;
             return;
         }
-        if (seating != null && seating.Busy) return;
+        if (seating != null && seating.Busy) return;   // NpcSeating moves the body and calls DriveWalk
 
         float dt = Time.deltaTime;
+        if (hasGoal && !paused && turningFirst) TurnFirst(dt);
         if (hasGoal && !paused) { WatchProgress(); WatchStall(); }
         UpdateHeading(dt);
-        UpdateAnimation(dt);
+        Animate(Speed, hasGoal && !paused && !agent.isStopped, agent.isStopped, dt);
     }
+
+    /// <summary>
+    /// For a body that is moved by hand (NpcSeating's steps round a chair):
+    /// feed the walk clip from this speed so the stride still matches the floor.
+    /// </summary>
+    public void DriveWalk(float speed, float dt) => Animate(speed, true, speed < .05f, dt);
 
     private float RemainingToGoal()
     {
@@ -580,7 +635,7 @@ public sealed class NpcLocomotion : MonoBehaviour
 
     // ------------------------------------------------------------ animation
 
-    private void UpdateAnimation(float dt)
+    private void Animate(float speed, bool mayWalk, bool stoppedNow, float dt)
     {
         if (animator == null) return;
         if (!animatorChecked)
@@ -590,13 +645,12 @@ public sealed class NpcLocomotion : MonoBehaviour
                 foreach (AnimatorControllerParameter p in animator.parameters)
                     if (p.nameHash == WalkRateHash && p.type == AnimatorControllerParameterType.Float) hasWalkRate = true;
         }
-        float speed = Speed;
-        bool wants = hasGoal && !paused && !agent.isStopped && speed > (walkingAnimation ? walkStop : walkStart);
+        bool wants = mayWalk && speed > (walkingAnimation ? walkStop : walkStart);
         if (wants == walkingAnimation) walkChangeTimer = 0f;
         else
         {
             walkChangeTimer += dt;
-            if (walkChangeTimer >= walkHold || (!wants && agent.isStopped))
+            if (walkChangeTimer >= walkHold || (!wants && stoppedNow))
             {
                 walkingAnimation = wants;
                 walkChangeTimer = 0f;
