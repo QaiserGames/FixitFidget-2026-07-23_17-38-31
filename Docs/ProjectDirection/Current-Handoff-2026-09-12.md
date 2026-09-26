@@ -26,7 +26,14 @@
 - **Settled 25 Sept:**
   - the six comment-only `*-1.cs` stubs are deleted (through Unity, with their .meta files);
   - Mansoor's 22:22 edits were intended: lamp posts stood in the road, and cars drove through them.
-- **Still open:** the night-mode points in section 9 of the doc, starting with the reputation spec.
+- **Reputation spec (25 Sept, written only):** `claude/reputation-spec.md` in the project. Decided:
+  - stars are earned on a points ladder from customer reviews (+2 to −2 per review) and stay earned; declines, out of stock and a full shelf leave no review;
+  - reviews show as faces/verdicts, so "stars" only ever means the café;
+  - getting caught starts a scandal: one star off for 5 days (7, then 10 in the same district), franchise on hold, −20 reputation; a catch is saved at once;
+  - stars never change how busy a day is;
+  - five stars plus a franchise fee ends the San Francisco chapter, then free play continues;
+  - build the day side (reviews + stars) right after M1 closes, and the scandal with "getting caught". Thresholds get rescaled from 7-minute playtests.
+- **Still open:** the rest of section 9 of `claude/ace-after-dark.md` (how kind night Ace can be; whether Night 1 is in the public demo).
 
 ## September 23 (evening) — POLYGON City pass: a real city, POLYGON cars and people, café props
 
