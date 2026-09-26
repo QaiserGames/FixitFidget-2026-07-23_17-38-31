@@ -244,12 +244,29 @@ public class CustomerIdentity : MonoBehaviour
         return profile != null ? Format(PickValid(profile.drinkCompletedLines, "Thank you for the drink.")) : fallback;
     }
 
+    // Two readers ask two different questions of the same face.
+    //
+    // The TICKET RAIL asks "how is this person doing right now?" It is read
+    // for the whole wait, so once patience is low the face turns impatient
+    // whatever they last said - including after you took their job or they
+    // ordered a drink. That is the warning the rail exists to give.
     public PortraitExpression ExpressionAt(float patienceFraction) =>
         (lastBeat == Beat.Intake || lastBeat == Beat.Accepted || lastBeat == Beat.OrderedDrink)
         && patienceFraction <= 0.25f ? PortraitExpression.Impatient : Expression;
 
     public Sprite PortraitAt(float patienceFraction) =>
         profile != null ? profile.PortraitFor(ExpressionAt(patienceFraction)) : null;
+
+    // The CONVERSATION PANEL asks "how did they take what was just said?" It
+    // is read the moment a line lands, so the response's face wins: someone
+    // who has just said "thanks, I'll wait" is not shown scowling at you,
+    // however low their patience. Only the intake line - spoken before you
+    // have done anything - lets low patience show through.
+    public PortraitExpression PanelExpressionAt(float patienceFraction) =>
+        lastBeat == Beat.Intake && patienceFraction <= 0.25f ? PortraitExpression.Impatient : Expression;
+
+    public Sprite PanelPortraitAt(float patienceFraction) =>
+        profile != null ? profile.PortraitFor(PanelExpressionAt(patienceFraction)) : null;
 
     private string Format(string line) => (line ?? "")
         .Replace("{device}", deviceName).Replace("{fault}", faultName);

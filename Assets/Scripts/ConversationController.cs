@@ -172,7 +172,9 @@ public class ConversationController : MonoBehaviour
     {
         if (ui == null || partner == null || partner.Identity == null) return;
         CustomerIdentity identity = partner.Identity;
-        ui.SetPortrait(identity.PortraitAt(partner.PatienceFraction), identity.ExpressionAt(partner.PatienceFraction));
+        // The panel shows how they took the last line; the ticket rail is the
+        // place that shows their running mood (CustomerIdentity.ExpressionAt).
+        ui.SetPortrait(identity.PanelPortraitAt(partner.PatienceFraction), identity.PanelExpressionAt(partner.PatienceFraction));
     }
 
     private string BuildOptions()

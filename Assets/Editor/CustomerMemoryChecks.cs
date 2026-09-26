@@ -193,10 +193,23 @@ public static class CustomerMemoryChecks
             copy.portraitSurprised = surprise;
             Require(copy.PortraitFor(PortraitExpression.Happy) == neutral && copy.PortraitFor(PortraitExpression.Surprised) == surprise,
                 "Missing expressions fall back to neutral; assigned expressions are used.");
+            // Two readers of the face (decided 26 Sept 2026): the conversation
+            // panel shows how they took the last line, the ticket rail shows
+            // their running mood.
             identity.Say(CustomerIdentity.Beat.Intake);
-            Require(identity.ExpressionAt(0.2f) == PortraitExpression.Impatient, "Low patience can change the intake portrait.");
+            Require(identity.ExpressionAt(0.2f) == PortraitExpression.Impatient, "Rail: low patience can change the intake portrait.");
+            Require(identity.PanelExpressionAt(0.2f) == PortraitExpression.Impatient, "Panel: at intake nothing has been said yet, so low patience shows.");
+            Require(identity.PanelExpressionAt(0.8f) == PortraitExpression.Neutral, "Panel: a patient intake is neutral.");
             identity.Say(CustomerIdentity.Beat.Accepted);
-            Require(identity.ExpressionAt(0.2f) == PortraitExpression.Happy, "The response takes precedence over low-patience intake.");
+            Require(identity.PanelExpressionAt(0.2f) == PortraitExpression.Happy, "Panel: the response takes precedence over low patience.");
+            Require(identity.ExpressionAt(0.2f) == PortraitExpression.Impatient, "Rail: an accepted customer running out of patience still looks impatient.");
+            Require(identity.ExpressionAt(0.8f) == PortraitExpression.Happy, "Rail: while patience holds, the response face stays.");
+            identity.Say(CustomerIdentity.Beat.OrderedDrink);
+            Require(identity.ExpressionAt(0.2f) == PortraitExpression.Impatient && identity.PanelExpressionAt(0.2f) == PortraitExpression.Neutral,
+                "Rail keeps the mood after a drink order; the panel would show the beat's own face.");
+            identity.Say(CustomerIdentity.Beat.Reassured);
+            Require(identity.ExpressionAt(0.2f) == PortraitExpression.Surprised && identity.PanelExpressionAt(0.2f) == PortraitExpression.Surprised,
+                "Reassurance is a response on both: it shows even at low patience.");
         }
         finally
         {
