@@ -17,8 +17,9 @@ using UnityEngine.AI;
 /// Standing up needs no call. The moment a brain gives the agent somewhere to
 /// walk (leaving, storming out, re-pathing), this component notices, holds the
 /// agent still, plays the stand-up clip, walks back round the chair to the
-/// stand point and only then lets the agent go. While getting up it keeps the
-/// chair reserved, so nobody heads for a chair that is still occupied.
+/// stand point and only then lets the agent go. From the first step towards the
+/// chair until the body is back on the stand point it is the chair's Sitter, so
+/// nobody can claim a chair that still has somebody in it.
 ///
 /// Needs the "Seated" and "Talking" animator parameters and the sit states that
 /// Fixit Fidget > NPC > Sit 2 - Wire sitting adds, plus a TableSeat with Snap
@@ -78,7 +79,6 @@ public sealed class NpcSeating : MonoBehaviour
     private readonly Vector3[] path = new Vector3[3];
     private Quaternion seatRotation;
     private float phaseStarted, phaseLength, nextChat;
-    private bool reserved;
     private bool? hasSitParameters;
     private float standingRadius = -1f;
     // Patience bar and speech bubble ride lower while seated, over the seated head.
@@ -126,6 +126,7 @@ public sealed class NpcSeating : MonoBehaviour
         fromStandPoint.y = 0f;
         if (fromStandPoint.sqrMagnitude > maxStartDistance * maxStartDistance) return false;
         seat = target;
+        seat.SetSitter(this);
         float floor = transform.position.y;
         Placement(seat, floor, out Vector3 feet, out seatRotation);
         Vector3 seatCentre = seat.SeatPose.position;
@@ -211,7 +212,6 @@ public sealed class NpcSeating : MonoBehaviour
             agent.velocity = Vector3.zero;
         }
         if (wantsToWalk) StandUp();
-        KeepSeatReserved();
 
         float t = phaseLength <= 1e-4f ? 1f : Mathf.Clamp01((Time.time - phaseStarted) / phaseLength);
         switch (phase)
@@ -313,19 +313,6 @@ public sealed class NpcSeating : MonoBehaviour
         return Vector3.Dot(transform.position - centre, side) >= 0f ? 1f : -1f;
     }
 
-    private void KeepSeatReserved()
-    {
-        if (seat == null || reserved) return;
-        if ((phase == Phase.StandingUp || phase == Phase.Returning) && seat.Occupant == null && seat.Claim(this))
-            reserved = true;
-    }
-
-    private void ReleaseReservation()
-    {
-        if (reserved && seat != null) seat.Release(this);
-        reserved = false;
-    }
-
     private void PlaceOverheads()
     {
         float amount = phase switch
@@ -363,7 +350,7 @@ public sealed class NpcSeating : MonoBehaviour
             animator.SetBool(SeatedHash, false);
             animator.SetBool(TalkingHash, false);
         }
-        ReleaseReservation();
+        if (seat != null) seat.ClearSitter(this);
         active.Remove(this);
         seat = null;
         if (visual != null) visual.Seated = false;
@@ -384,7 +371,7 @@ public sealed class NpcSeating : MonoBehaviour
 
     private void OnDestroy()
     {
-        ReleaseReservation();
+        if (seat != null) seat.ClearSitter(this);
         active.Remove(this);
     }
 }

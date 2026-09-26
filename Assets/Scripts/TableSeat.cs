@@ -48,13 +48,38 @@ public class TableSeat : WaitingSpot
 
     public bool IsDirty => dirtyCup != null;
 
+    // Whoever's body is in this chair right now, or getting into or out of it.
+    // NpcSeating sets it from the first step round the chair until the body is
+    // back on the stand point.
+    //
+    // WHY THIS IS SEPARATE FROM Occupant
+    // Occupant is the brain's claim, and a brain lets go of its seat the moment
+    // it decides to leave. The body then still needs about two seconds to stand
+    // up and step back round the chair. NpcSeating used to re-claim the seat
+    // for those seconds, but only on its own update, later in the same frame -
+    // so any brain that asked in between got a chair with somebody still in
+    // it, and walked up to them.
+    public Component Sitter { get; private set; }
+
+    public void SetSitter(Component sitter)
+    {
+        if (sitter != null && (Sitter == null || Sitter == sitter)) Sitter = sitter;
+    }
+
+    public void ClearSitter(Component sitter)
+    {
+        if (Sitter == sitter) Sitter = null;
+    }
+
     // THE LINE THAT MAKES BUSSING A MECHANIC.
     //
     // A dirty seat is not available, so it can't be claimed, so the next
     // customer who wanted to sit falls through to a loiter spot and drains
     // ~2x faster. Leave enough cups out and the whole room sours. Clearing
     // them is the pressure-release valve.
-    public override bool IsAvailable => Occupant == null && !IsDirty;
+    //
+    // A chair with a body still in it isn't available either.
+    public override bool IsAvailable => Occupant == null && !IsDirty && Sitter == null;
 
     public void SetDirty(GameObject cup)
     {
