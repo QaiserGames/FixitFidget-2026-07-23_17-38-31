@@ -1,5 +1,5 @@
 """Before/after comparison of the four café recordings (same cameras, same stress timeline)."""
-import sys, json, math, numpy as np, pandas as pd
+import sys, os, json, math, numpy as np, pandas as pd
 sys.path.insert(0, '.')
 import analyse as A
 from classify_pivots import classify
@@ -26,15 +26,16 @@ def yaw_jitter(k):
     reversals, walked = 0, 0.0
     for pid, g in k.groupby('id'):
         g = g.sort_values('t')
-        w = g[(g['sub'] == 'Standing') & (g.speed > 0.5) & (g.dt < 0.2)]
-        if len(w) < 3: continue
-        rate = (A.ang(w.yaw, w.yaw.shift()) / w.dt).values
-        walked += w.dt.sum()
-        r = rate[1:]
-        sign = np.sign(r)
-        big = np.abs(r) > 60
-        flips = (sign[1:] != sign[:-1]) & big[1:] & big[:-1]
-        reversals += int(flips.sum())
+        # Turn rate between CONSECUTIVE samples first; only then keep the walking ones,
+        # so a gap (standing still for a minute) never becomes a fake spike.
+        rate = (A.ang(g.yaw, g.yaw.shift()) / g.dt).values
+        walking = ((g['sub'] == 'Standing') & (g.speed > 0.5) & (g.dt < 0.2)).values
+        walked += float(g.dt.values[walking].sum()) if walking.any() else 0.0
+        for i in range(2, len(g)):
+            if not (walking[i] and walking[i - 1]): continue
+            a, b = rate[i - 1], rate[i]
+            if np.isnan(a) or np.isnan(b): continue
+            if np.sign(a) != np.sign(b) and abs(a) > 60 and abs(b) > 60: reversals += 1
     return reversals, walked, (reversals / walked * 60 if walked else float('nan'))
 
 def door_departures(k, exit_xz=(-0.3, -1.2), r=1.2):
@@ -45,6 +46,25 @@ def door_departures(k, exit_xz=(-0.3, -1.2), r=1.2):
     per = d[d.near].groupby('id').t.agg(lambda s: s.max() - s.min())
     return dict(max_simultaneous=int(n.max()) if len(n) else 0, seconds_with_3plus=round(float((n >= 3).sum()) * 0.05, 1),
                 funnel_time_median=round(float(per.median()), 1) if len(per) else 0, funnel_time_max=round(float(per.max()), 1) if len(per) else 0)
+
+def attention(df):
+    """Head-look episodes (rows tagged look= in the trace) and how the queue stands."""
+    c = df[df.kind == 'C'].sort_values(['id', 't'])
+    look = c['info'].fillna('').str.contains('look=')
+    episodes, seconds = 0, 0.0
+    for pid, g in c.groupby('id'):
+        l = look.loc[g.index].values
+        episodes += int((l[1:] & ~l[:-1]).sum() + (1 if len(l) and l[0] else 0))
+        seconds += float(l.sum()) * 0.05
+    q = c[c.state == 'WaitingInQueue']
+    if len(q):
+        slotx = np.array([-1.6, 0.0, 1.6])
+        off = np.abs(q.x.values[:, None] - slotx[None, :]).min(axis=1)
+        yaw = np.abs(((q.yaw.values + 180) % 360) - 180)
+        queue = dict(queue_x_offset_p90=round(float(np.quantile(off, .9)), 2), queue_yaw_p90=round(float(np.quantile(yaw, .9)), 1),
+                     queue_z_offset_p90=round(float(np.quantile(np.abs(q.z.values - 12.5), .9)), 2))
+    else: queue = dict(queue_x_offset_p90=0.0, queue_yaw_p90=0.0, queue_z_offset_p90=0.0)
+    return dict(look_episodes=episodes, look_seconds=round(seconds, 1), **queue)
 
 def one(path, label):
     df = A.load(path); k = A.people(df)
@@ -72,13 +92,14 @@ def one(path, label):
                settle_median=round(float(jn[jn.state=='Settling'].dur.median()), 1) if len(jn) else 0, settle_max=round(float(jn[jn.state=='Settling'].dur.max()), 1) if len(jn) else 0,
                detour_median=round(float((jn.path / jn.straight.clip(lower=0.5)).median()), 2) if len(jn) else 0,
                frame_ms_mean=round(float(fr.mean()), 1), frame_ms_p99=round(float(fr.quantile(.99)), 1),
-               door=door_departures(k), hotspots=hot)
+               door=door_departures(k), hotspots=hot, **attention(df))
     return res, st, pb
 
 if __name__ == '__main__':
     pd.set_option('display.width', 250)
-    recs = [('rec1','rec1/trace.csv'),('rec2','rec2/trace.csv'),('rec3','rec3/trace.csv'),('rec4','rec4/trace.csv'),
-            ('after1','after1/trace.csv'),('after2','after2/trace.csv'),('after3','after3/trace.csv'),('after4','after4/trace.csv')]
+    # usage: compare.py [prefix ...]   (default: rec after) - each prefix names <prefix>1..4/trace.csv
+    prefixes = sys.argv[1:] or ['rec', 'after']
+    recs = [(f'{p}{i}', f'{p}{i}/trace.csv') for p in prefixes for i in (1, 2, 3, 4) if os.path.exists(f'{p}{i}/trace.csv')]
     allres, allst, allpb = [], [], []
     for lab, p in recs:
         r, st, pb = one(p, lab); allres.append(r)
@@ -89,12 +110,13 @@ if __name__ == '__main__':
     t = pd.DataFrame(allres)[cols]
     print(t.to_string(index=False))
     print('\nDOOR', pd.DataFrame([dict(rec=r['rec'], **r['door']) for r in allres]).to_string(index=False))
+    print('\nATTENTION / QUEUE', pd.DataFrame([dict(rec=r['rec'], **{k: r[k] for k in ('look_episodes','look_seconds','queue_x_offset_p90','queue_z_offset_p90','queue_yaw_p90')}) for r in allres]).to_string(index=False))
     print('\nHOTSPOTS (episodes, seconds)')
     print(pd.DataFrame([dict(rec=r['rec'], **{k: v for k, v in r['hotspots'].items()}) for r in allres]).to_string(index=False))
     if allst:
         st = pd.concat(allst); st.to_csv('results/stuck_all.csv', index=False)
-        print('\nSTUCK (after only)'); print(st[st.rec.str.startswith('after')].to_string(index=False))
+        print('\nSTUCK (all but the baseline)'); print(st[~st.rec.str.startswith('rec')].to_string(index=False))
     if allpb:
         pb = pd.concat(allpb); pb.to_csv('results/pushed_back.csv', index=False)
         print('\nPUSHED BACK'); print(pb.groupby('rec').agg(n=('dur','size'), s=('dur','sum'), m=('moved','sum')).to_string())
-        print(pb[pb.rec.str.startswith('after')].to_string(index=False))
+        print(pb[~pb.rec.str.startswith('rec')].to_string(index=False))

@@ -18,10 +18,11 @@ def classify(path, label):
 
 if __name__ == '__main__':
     pd.set_option('display.width', 250)
+    import os
+    prefixes = sys.argv[1:] or ['rec', 'after']
     out = []
-    for lab, p in [('rec1','rec1/trace.csv'),('rec2','rec2/trace.csv'),('rec3','rec3/trace.csv'),('rec4','rec4/trace.csv'),
-                   ('after1','after1/trace.csv'),('after2','after2/trace.csv'),('after3','after3/trace.csv'),('after4','after4/trace.csv')]:
-        out.append(classify(p, lab))
+    for lab, p in [(f'{pre}{i}', f'{pre}{i}/trace.csv') for pre in prefixes for i in (1, 2, 3, 4)]:
+        if os.path.exists(p): out.append(classify(p, lab))
     out = pd.concat(out)
     print(out.to_string())
     print(out.groupby(['rec','kind']).size().unstack(fill_value=0))
