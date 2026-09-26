@@ -22,6 +22,9 @@ public class FocusNameUI : MonoBehaviour
 
         if (show) label.text = who;
 
-        group.alpha = Mathf.MoveTowards(group.alpha, show ? 1f : 0f, fadeSpeed * Time.deltaTime);
+        // Unscaled: the recap pauses the game (timeScale 0). Scaled time froze
+        // the fade, so resuming a closed day left the label's placeholder
+        // ("New Text") showing in the middle of the recap.
+        group.alpha = Mathf.MoveTowards(group.alpha, show ? 1f : 0f, fadeSpeed * Time.unscaledDeltaTime);
     }
 }

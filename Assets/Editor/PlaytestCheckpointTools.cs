@@ -73,6 +73,9 @@ public static class PlaytestCheckpointTools
             if (data == null) return "(empty)";
             var s = new StringBuilder();
             s.Append($"Day {data.day} {(data.dayCompleted ? "closed (recap)" : "start")}, ${data.money}, cups {data.cups}, beans {data.beans}, saved {File.GetLastWriteTime(path):yyyy-MM-dd HH:mm}");
+            s.Append($"\n    save v{data.version}, reputation {data.reputation}, {data.starsEarned} of 5 stars");
+            if (data.dayCompleted && data.recap != null)
+                s.Append($" (that day: {(data.recap.reputationChange >= 0 ? "+" : "")}{data.recap.reputationChange})");
             if (data.regularMemories != null)
                 foreach (var m in data.regularMemories)
                     if (m != null)

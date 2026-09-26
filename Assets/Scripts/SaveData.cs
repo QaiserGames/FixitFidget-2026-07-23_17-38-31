@@ -55,6 +55,19 @@ public class RecapSaveData
     public int patronIncome;
     public int closingTill;
     public float elapsedSeconds;
+
+    // Additive v5: the day's reviews (claude/reputation-spec.md). Absent in
+    // older saves, which simply show no reviews for that day.
+    public int reviewsLoved;
+    public int reviewsLiked;
+    public int reviewsFine;
+    public int reviewsLetDown;
+    public int reviewsNeverAgain;
+    public int reputationChange;
+    public int starsBefore;
+    // The quoted reviews exactly as shown, so a resumed recap reads the same.
+    public string[] reviewQuotes = new string[0];
+    public int[] reviewQuoteVerdicts = new int[0];
 }
 
 // The complete contents of a save file. If it's not in here, it isn't saved.
@@ -63,7 +76,7 @@ public class SaveData
 {
     // Bump this when the format changes, and handle old numbers in
     // ValidateAndMigrate. This is what lets updates not destroy saves.
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
     public int version = CurrentVersion;
 
     public int day = 1;
@@ -71,6 +84,12 @@ public class SaveData
 
     public int cups = 20;
     public int beans = 20;
+
+    // Additive v5: the café's reputation (claude/reputation-spec.md). Older
+    // saves start at zero. starsEarned is kept separately because earned stars
+    // stay earned even if reputation later dips below their threshold.
+    public int reputation = 0;
+    public int starsEarned = 0;
 
     // False = a start-of-day checkpoint (also the meaning of v1/v2 saves).
     // True = resume the closed-day recap, without running that day again.
@@ -96,6 +115,13 @@ public class SaveData
         upgradeNames ??= new string[0];
         upgradeLevels ??= new int[0];
         regularMemories ??= new RegularMemoryData[0];
+        reputation = Math.Max(0, reputation);
+        starsEarned = Math.Max(0, Math.Min(5, starsEarned));
+        if (recap != null)
+        {
+            recap.reviewQuotes ??= new string[0];
+            recap.reviewQuoteVerdicts ??= new int[0];
+        }
 
         if (version < 3)
         {

@@ -12,7 +12,7 @@ internal static class Program
             var jsonOptions = new JsonSerializerOptions { IncludeFields = true };
             var old = JsonSerializer.Deserialize<SaveData>("{\"version\":3,\"day\":5,\"money\":211,\"regularMemories\":[{\"profileId\":\"grace\",\"lastGrade\":\"Perfect\"}]}", jsonOptions);
             old.ValidateAndMigrate();
-            if (old.version != 4 || old.day != 5 || old.money != 211 || old.regularMemories[0].graceCameraAttempted)
+            if (old.version != SaveData.CurrentVersion || old.day != 5 || old.money != 211 || old.regularMemories[0].graceCameraAttempted)
                 throw new Exception("Old save migration altered progress or invented a camera episode.");
             Console.WriteLine($"Continuation PASS: {checks} episode/freshness assertions and old-save JSON migration.");
             return 0;

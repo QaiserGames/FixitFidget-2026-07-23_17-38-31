@@ -69,6 +69,7 @@ public class DayLog : MonoBehaviour
         public string storyEpisode;
         public string cameraGrade;
         public string photoVariant;
+        public string review;        // the verdict for the café's reputation (reputation-spec.md)
     }
 
     private readonly List<Visit> visits = new();
@@ -179,8 +180,28 @@ public class DayLog : MonoBehaviour
             rememberedFocus = id != null && id.RemembersFocusBoundary,
             storyEpisode    = job != null ? job.storyEpisodeId : "",
             cameraGrade     = storyMemory != null ? storyMemory.graceCameraGrade : "",
-            photoVariant    = storyMemory != null ? storyMemory.gracePhotoVariant : ""
+            photoVariant    = storyMemory != null ? storyMemory.gracePhotoVariant : "",
+            review          = ReviewLabel(brain, happy, reason, served, accepted, grade, job)
         });
+    }
+
+    // The same verdict SaveManager counts, worked out here from the same facts
+    // so the log never depends on the save system.
+    private static string ReviewLabel(CustomerBrain brain, bool happy, LostReason reason,
+                                      bool served, bool accepted, JobGrade grade, Job job)
+    {
+        Review review = ReputationRules.Verdict(new ReviewFacts
+        {
+            happy = happy,
+            served = served,
+            accepted = accepted,
+            repairVisit = job != null && job.kind == JobKind.Repair,
+            repairReturned = brain.HasReturnedRepair,
+            grade = grade,
+            reason = reason,
+            patienceAtExit = brain.PatienceFraction
+        });
+        return review == Review.None ? "" : ReputationRules.Label(review);
     }
 
     // ---------- writing ----------
@@ -250,7 +271,7 @@ public class DayLog : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.AppendLine("name,regular,character,kind,subject,fault,fault_family,drink_wish," +
                       "arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade," +
-                      "patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant");
+                      "patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant,review");
 
         foreach (Visit v in visits)
         {
@@ -268,7 +289,7 @@ public class DayLog : MonoBehaviour
                 v.tip.ToString(CultureInfo.InvariantCulture),
                 v.storyLines.ToString(CultureInfo.InvariantCulture),
                 v.focusRequested ? "yes" : "no", v.rememberedFocus ? "yes" : "no",
-                Q(v.storyEpisode), Q(v.cameraGrade), Q(v.photoVariant)));
+                Q(v.storyEpisode), Q(v.cameraGrade), Q(v.photoVariant), Q(v.review)));
         }
 
         return sb.ToString();
@@ -331,6 +352,23 @@ public class DayLog : MonoBehaviour
         sb.AppendLine($"  Perfect              {c.Perfect}");
         sb.AppendLine($"  Good                 {c.Good}");
         sb.AppendLine($"  Passable             {c.Passable}");
+        sb.AppendLine();
+        int[] reviews = new int[6];
+        foreach (Visit v in visits)
+            for (int r = 1; r <= 5; r++)
+                if (v.review == ReputationRules.Label((Review)r)) reviews[r]++;
+        int reviewTotal = 0;
+        for (int r = 1; r <= 5; r++) reviewTotal += ReputationRules.Points((Review)r) * reviews[r];
+        sb.AppendLine("REVIEWS                (reputation-spec.md)");
+        sb.AppendLine($"  Loved it             {reviews[5]}");
+        sb.AppendLine($"  Liked it             {reviews[4]}");
+        sb.AppendLine($"  Fine                 {reviews[3]}");
+        sb.AppendLine($"  Let down             {reviews[2]}");
+        sb.AppendLine($"  Never again          {reviews[1]}");
+        sb.AppendLine($"  Reputation today     {(reviewTotal >= 0 ? "+" : "")}{reviewTotal}");
+        ReputationLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Reputation : null;
+        if (ledger != null && ledger.Settled)
+            sb.AppendLine($"  Café reputation      {ledger.Reputation} ({ledger.StarsEarned} of 5 stars)");
         sb.AppendLine();
         sb.AppendLine("MONEY");
         sb.AppendLine($"  Earned               ${c.Earned}   (${c.Tips} of it tips)");

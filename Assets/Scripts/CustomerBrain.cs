@@ -1892,6 +1892,21 @@ public class CustomerBrain : MonoBehaviour
         DayLog.Record(this, happy, lossReason, wasServed, wasAccepted,
                       paidBase, paidTip, lastGrade, repairStartedAt);
 
+        // The same facts, as a review for the café's reputation. Reviews only
+        // count at closing (claude/reputation-spec.md).
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.RecordReview(this, new ReviewFacts
+            {
+                happy = happy,
+                served = wasServed,
+                accepted = wasAccepted,
+                repairVisit = record != null && record.kind == JobKind.Repair,
+                repairReturned = repairReturned,
+                grade = lastGrade,
+                reason = lossReason,
+                patienceAtExit = PatienceFraction
+            });
+
         hasPendingDestination = false;
         if (agent.isOnNavMesh)
         {

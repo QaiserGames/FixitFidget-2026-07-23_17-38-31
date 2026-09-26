@@ -255,6 +255,9 @@ public class DayClock : MonoBehaviour
         closingTill = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
         Time.timeScale = 0f;
         SettleClosingCups();
+        // Reviews are posted at closing: count today's into the café's
+        // reputation first, so the checkpoint below includes them.
+        if (SaveManager.Instance != null) SaveManager.Instance.SettleReputation(Day);
         // Commit before UI/log listeners, so a failing listener cannot prevent
         // the completed day from being checkpointed.
         if (SaveManager.Instance != null) SaveManager.Instance.TrySaveRecap();

@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0474932010b1cc14b98f54e639e438df, type: 3}
+  m_Name: ReviewLines
+  m_EditorClassIdentifier: Assembly-CSharp::ReviewLines
+  lovedRepair:
+  - My {thing} works again. I could cry.
+  - Fixed my {thing} while I sat there. Magic.
+  - In broken, out working. Ten out of ten.
+  lovedDrink:
+  - Best {thing} on the street. Don't tell anyone.
+  - Perfect {thing}. Back tomorrow.
+  - Came for a {thing}, stayed for the vibes.
+  waitedLong:
+  - Took a while, but my {thing} is sorted.
+  - Worth the wait. Just about.
+  - Slow, but they got there.
+  passableRepair:
+  - My {thing} mostly works. Mostly.
+  - Fixed-ish. I'll take it.
+  - It works if I hold it at an angle.
+  waitedAndPassable:
+  - Long wait, and my {thing} still rattles.
+  - It's fine. It's... fine.
+  - Half an afternoon for half a repair.
+  helpedButUnhappy:
+  - Nice coffee. Still no {thing}.
+  - Got half of what I came for.
+  - Lovely place. Shame about my {thing}.
+  walkedOutInQueue:
+  - Stood in line forever. Nobody noticed me.
+  - The queue didn't move, so I did.
+  - Waited, waved, gave up.
+  unservedAtClose:
+  - They closed before they got to me.
+  - Still waiting when the lights went off.
+  walkedOutAfterAccepting:
+  - Took my {thing}, then forgot I existed.
+  - Handed over my {thing}. Waited. And waited.
+  - Never again. I'm taking my {thing} elsewhere.
+  rejectedRepair:
+  - Gave me my {thing} back, still broken.
+  - Still broken. At least it was free.

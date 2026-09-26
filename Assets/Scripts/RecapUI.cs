@@ -13,6 +13,16 @@ public class RecapUI : MonoBehaviour
     [SerializeField] private PlayerInteractor player;
     [SerializeField] private UpgradeShopUI upgradeShop;
 
+    [Header("Reputation (optional: Fixit Fidget > Reputation > Add stars and reviews to the recap)")]
+    [SerializeField] private TMP_Text reputationText;
+    [SerializeField] private Image[] reputationStars;
+    [Tooltip("Sprites for earned stars and for the empty places (an outline, so a " +
+             "café with no stars never reads as five). Leave either empty to keep the images' own sprite.")]
+    [SerializeField] private Sprite starEarnedSprite;
+    [SerializeField] private Sprite starEmptySprite;
+    [SerializeField] private Color starEarnedColor = new Color(1f, 0.78f, 0.34f, 1f);
+    [SerializeField] private Color starEmptyColor = new Color(1f, 1f, 1f, 0.35f);
+
     private SaveManager saveManager;
     private readonly List<CinemachineInputAxisController> pausedCameraInputs = new();
  
@@ -127,6 +137,30 @@ public class RecapUI : MonoBehaviour
 
         if (saveManager != null && !string.IsNullOrEmpty(saveManager.LastSaveError))
             text.text += $"\n\n<color=#FFB3A7>SAVE FAILED: {saveManager.LastSaveError}</color>";
+
+        RefreshReputation();
+    }
+
+    // Stars and today's reviews (claude/reputation-spec.md). Scenes without
+    // the reputation block simply show the recap as before.
+    private void RefreshReputation()
+    {
+        ReputationLedger rep = saveManager != null ? saveManager.Reputation : null;
+        if (reputationStars != null)
+            for (int i = 0; i < reputationStars.Length; i++)
+            {
+                Image star = reputationStars[i];
+                if (star == null) continue;
+                star.gameObject.SetActive(rep != null);
+                if (rep == null) continue;
+                bool earned = i < rep.StarsEarned;
+                star.color = earned ? starEarnedColor : starEmptyColor;
+                Sprite sprite = earned ? starEarnedSprite : starEmptySprite;
+                if (sprite != null) star.sprite = sprite;
+            }
+        if (reputationText == null) return;
+        reputationText.gameObject.SetActive(rep != null);
+        reputationText.text = rep != null ? ReputationRecap.Build(rep) : "";
     }
  
     private void OnNextDay()

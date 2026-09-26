@@ -13,6 +13,10 @@ public class SaveManager : MonoBehaviour
     [Tooltip("Separate playtest checkpoint filename. Only used when playtest saving is enabled.")]
     [SerializeField] private string interactionPlaytestSaveName = "interaction-playtest.json";
 
+    [Tooltip("What customers write in their reviews (Assets/Data/Reputation/ReviewLines). " +
+             "Optional: without it, the draft lines built into ReviewLines are used.")]
+    [SerializeField] private ReviewLines reviewLines;
+
     // Filled during Awake so other systems can read it in their Start.
     public SaveData Loaded { get; private set; }
     public bool HasSave { get; private set; }
@@ -22,6 +26,16 @@ public class SaveManager : MonoBehaviour
     private bool writesBlocked;
 
     private readonly CustomerMemoryService regularMemory = new();
+
+    // The café's reputation (claude/reputation-spec.md). Reviews are collected
+    // as people leave and counted into stars once, at closing. Saved with the
+    // rest of the checkpoint, like regulars' memory.
+    private readonly ReputationLedger reputation = new();
+    // Everyone already reviewed today, so nobody counts twice.
+    private readonly HashSet<CustomerBrain> reviewedToday = new();
+    // The draft lines from ReviewLines.cs, for scenes without a lines asset.
+    // One shared copy per editor/game session.
+    private static ReviewLines fallbackLines;
 
     private string PathToFile => Path.Combine(Application.persistentDataPath,
         useInteractionPlaytestSave ? PlaytestFileName : "save.json");
@@ -40,6 +54,7 @@ public class SaveManager : MonoBehaviour
         Instance = this;
         LoadFromDisk();
         RebuildRegularMemory();
+        RebuildReputation();
     }
 
     private void OnDestroy()
@@ -95,11 +110,21 @@ public class SaveManager : MonoBehaviour
 
         // Commit tomorrow BEFORE opening it. Failure leaves today's recap
         // active, with a visible error and a safe opportunity to retry.
-        return Commit(next);
+        if (!Commit(next)) return false;
+
+        // Tomorrow is safely on disk: start collecting its reviews.
+        reputation.BeginDay(next.day);
+        reviewedToday.Clear();
+        return true;
     }
 
     private SaveData CaptureState(DayClock clock)
     {
+        // A closed day's checkpoint always includes its settled reviews.
+        // DayClock.EndDay settles first; this is only a safety net, and
+        // settling is once per day, so later saves never count it twice.
+        if (clock.DayOver) SettleReputation(clock.Day);
+
         SaveData data = new SaveData
         {
             day = clock.Day,
@@ -130,6 +155,9 @@ public class SaveManager : MonoBehaviour
         }
 
         data.regularMemories = SnapshotRegularMemory();
+        data.reputation = reputation.Reputation;
+        data.starsEarned = reputation.StarsEarned;
+        if (data.recap != null) reputation.WriteRecap(data.recap);
         return data;
     }
 
@@ -210,6 +238,101 @@ public class SaveManager : MonoBehaviour
     }
 
     private RegularMemoryData[] SnapshotRegularMemory() => regularMemory.Snapshot();
+
+    // ---------- reputation (claude/reputation-spec.md) ----------
+
+    /// <summary>The café's reputation, for the recap and the day log. Read it; don't change it.</summary>
+    public ReputationLedger Reputation => reputation;
+
+    /// <summary>Called by CustomerBrain.Depart with the same facts DayLog gets:
+    /// one review per visit, counted into stars at closing.</summary>
+    public void RecordReview(CustomerBrain customer, ReviewFacts facts)
+    {
+        if (customer == null || !reviewedToday.Add(customer)) return;
+        Judgement judgement = ReputationRules.Judge(facts);
+        if (judgement.review != Review.None) reputation.Record(ReviewOf(customer, judgement));
+    }
+
+    /// <summary>Reviews are posted at closing. Counts today's reviews into the
+    /// café's reputation, once per day: resuming a recap, or saving it again
+    /// after a purchase, never counts the day twice.</summary>
+    public void SettleReputation(int day)
+    {
+        if (reputation.Settled) return;
+
+        // Anyone still waiting when the day closes never reaches Depart.
+        // Same rule as DayLog's sweep: they leave "still waiting at closing".
+        foreach (CustomerBrain customer in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude))
+        {
+            if (customer == null || !customer.isActiveAndEnabled || customer.IsLeaving) continue;
+            if (!reviewedToday.Add(customer)) continue;
+            Judgement judgement = ReputationRules.Judge(new ReviewFacts
+            {
+                reason = LostReason.StillInShopAtClose,
+                accepted = customer.WasAccepted,
+                patienceAtExit = customer.PatienceFraction
+            });
+            if (judgement.review != Review.None) reputation.Record(ReviewOf(customer, judgement));
+        }
+
+        reputation.Settle(day, WriteQuote);
+    }
+
+    private void RebuildReputation()
+    {
+        reviewedToday.Clear();
+        SaveData data = Loaded ?? new SaveData();
+        reputation.Restore(data.reputation, data.starsEarned, data.day, data.dayCompleted, data.recap);
+    }
+
+    private static ReviewEntry ReviewOf(CustomerBrain customer, Judgement judgement)
+    {
+        Job job = customer.Record;
+        DrinkDefinition wish = customer.WantedDrink;
+        return new ReviewEntry
+        {
+            review = judgement.review,
+            reason = judgement.reason,
+            name = customer.CustomerName,
+            thing = job != null ? job.Subject : "",
+            drink = wish != null ? wish.drinkName : "",
+            regular = customer.Identity != null && customer.Identity.IsRegular
+        };
+    }
+
+    // The quoted line: one of the writers' lines for this kind of visit,
+    // always the same one for the same day and customer.
+    private string WriteQuote(ReviewEntry entry, int position)
+    {
+        ReviewLines lines = reviewLines != null ? reviewLines : FallbackLines();
+        string[] pool = lines.For(entry.reason);
+        if (pool == null || pool.Length == 0) return null;
+        string line = ReputationRules.Fill(pool[StableIndex(reputation.Day, entry.name, position, pool.Length)],
+            entry.name, entry.thing, entry.drink);
+        return ReputationRules.Quote(line, entry.name);
+    }
+
+    private static ReviewLines FallbackLines()
+    {
+        if (fallbackLines == null)
+        {
+            fallbackLines = ScriptableObject.CreateInstance<ReviewLines>();
+            fallbackLines.hideFlags = HideFlags.HideAndDontSave;
+        }
+        return fallbackLines;
+    }
+
+    // Not string.GetHashCode, which is allowed to change between runs.
+    private static int StableIndex(int day, string name, int position, int count)
+    {
+        unchecked
+        {
+            uint h = 2166136261u ^ (uint)day;
+            foreach (char c in name ?? "") h = (h ^ c) * 16777619u;
+            h = (h ^ (uint)position) * 16777619u;
+            return (int)(h % (uint)count);
+        }
+    }
 
     // Right-click the component header in the Inspector for these.
     [ContextMenu("Delete Save (New Game)")]
