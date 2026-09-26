@@ -1,5 +1,21 @@
 # Current handoff — September 12, 2026
 
+## September 26 (night) — café NPC Pass 1b: the first feel layer, on `npc-polish`; STOP-and-report point
+
+**Read this entry first.** Mansoor asked to continue straight from the movement pass into a small layer of visible life, then stop and report. Done and committed on `npc-polish` (not merged, not pushed). The next NPC pass (conversations between customers, groups, movement personalities, extra walk sets, sofa/banquette, richer idles) is **not** started. The Day 2 Grace/reputation playtest is still an open manual milestone; the playtest save is untouched (every session was a lab session).
+
+- **What Pass 1b added** (results and numbers in the project doc `claude/npc-pass1-movement-results-2026-09-26.md`, top section):
+  - `Assets/Scripts/NpcLookAt.cs` — head/neck look-at (world-space turn of the rig's Neck and Head after the Animator, before `PolygonNpcVisual` copies the bones; yaw ±72°, fades out past ~105°). Brains decide the target; the component only turns the head.
+  - `CustomerBrain`: queued customers look at Ace near the counter; the conversation partner squares up once when the panel opens; waiting customers follow Ace when he carries *their* order (device or matching cup), standing ones turn to meet him inside 2.6 m, seated ones move only the head, the gaze holds through the hand-over; queue variation (personal offset ±0.18 m / depth / yaw ±14° per customer, small weight shifts every 7–14 s) — queue order and slot logic unchanged.
+  - `NpcLocomotion`: turn-then-walk when a leg starts > 60° off the heading (≤ 0.5 s at 360°/s); `DriveWalk(speed)` so a hand-moved body keeps a matched stride.
+  - `NpcSeating`: eased steps round the chair, turn to the table over the last 40 % at 360°/s, walk clip from real speed, turn away over the first 40 % of the return.
+  - `Assets/Editor/NpcAttentionCheck.cs` — `Fixit Fidget > NPC > Attention check (Play Mode)`; run it in a Day 5 "I serve" lab. 8/8 today.
+  - `CafeLifeProbe` writes `look=<yaw>` while a head is turned; `Tools/CafeLifeAnalysis/compare.py` takes any number of recording sets (`compare.py rec after final`) and reports head-look and queue-variation columns.
+- **Measured (same four scenarios):** stuck 37 → 4 → 4 episodes; person-seconds 500 → 11 → 12; worst stall 44.7 → 4.3 → 4.0 s; spins 11 → 2 → 0; flicker 18 → 0 → 0; head-look episodes 0 → 0 → 27 (154 s); queue yaw p90 0° → 0° → 9–16°. Ace shoved in the doorway 4.0 → 0.2 → 1.2 m (varies with how many squeeze past; physics, not navigation — see the doc).
+- **Checks:** all 25 edit-mode checks pass; live sit check 14/14; controller 26/26; attention 8/8; no console errors across the four recordings. One check (`Customer delivery from either hand`) failed once mid-work because the cached `PlayerCarry` ignored a `player` injected by the check; fixed (`DeliveryCarry` derives the carry from whoever `player` is).
+- **Recordings kept:** Pass 1b: `Logs/CafeLife/2026-09-26_164855` (R1), `_165301` (R2 stress), `_165902` (R3 counter), `_170112` (R4 tables and door); `_161548` is a counter-camera look-at test with Ace put in front of the counter (he was behind the queue, so nobody looked — that is the design working). Clips `Logs/CafeLife/clips/final-0*.mp4`; maps `analysis/hotspots_before_pass1_final.png`; tables `analysis/compare_before_pass1_final.txt`. All git-ignored.
+- **Watch for:** a standing customer turning to meet Ace on a delivery has been exercised by the check's logic path but the check's random target was seated both times — one manual hand-over to someone at a loiter spot is worth a look. Regulars wear the original rig body; walk-ins wear city bodies; both follow the head look.
+
 ## September 26 (evening) — café NPC movement, Pass 1 done on branch `npc-polish`; STOP here and report
 
 **Read this entry first.** The movement foundation pass (Pass 1 of the NPC plan) is built, measured and committed on the branch `npc-polish` (main is untouched since `fc0b670`). The next NPC phase (seating variety, conversations, social groups, personality profiles, animation variation, look-at) has **not** been started: Mansoor asked for the before/after report first. The Day 2 Grace/reputation playtest is still an open manual milestone; the playtest save was not touched (every session here was a lab session on `playtest-cafe-lab.json`).
