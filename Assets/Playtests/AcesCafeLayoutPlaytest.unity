@@ -114755,6 +114755,7 @@ GameObject:
   - component: {fileID: 1039162929}
   - component: {fileID: 1039162930}
   - component: {fileID: 1039162931}
+  - component: {fileID: 1039162932}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -115046,6 +115047,22 @@ MonoBehaviour:
   padOrbitSpeed: 110
   padTiltSpeed: 45
   padZoomSpeed: 22
+--- !u!208 &1039162932
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1039162918}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 0
+  m_Extents: {x: 0.3, y: 1, z: 0.3}
+  m_MoveThreshold: 0.1
+  m_Carve: 0
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0, y: 0, z: 0}
+  m_TimeToStationary: 0.5
 --- !u!1 &1040058976
 GameObject:
   m_ObjectHideFlags: 0
@@ -191533,6 +191550,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CafeArrivals
   door: {fileID: 387075154}
   doorScatter: 0.55
+  laneOffset: 0.3
+  exitRadius: 0.7
   footRoutes:
   - name: From the Saffron house (west street)
     points:
@@ -194884,7 +194903,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
   m_SerializedVersion: 0
-  m_AgentTypeID: 0
+  m_AgentTypeID: -1372625422
   m_CollectObjects: 0
   m_Size: {x: 10, y: 10, z: 10}
   m_Center: {x: 0, y: 2, z: 0}

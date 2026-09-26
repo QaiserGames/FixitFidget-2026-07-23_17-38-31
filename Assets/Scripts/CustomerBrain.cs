@@ -20,7 +20,6 @@ public class CustomerBrain : MonoBehaviour
     [SerializeField] private float queuePatience = 40f;
     [SerializeField] private float servicePatience = 45f;
     [SerializeField] private float maxTipFraction = 0.6f;
-    [SerializeField] private float turnSpeed = 240f;
 
     [Header("Dialogue pacing")]
     [SerializeField] private float wordsPerSecond = 3f;
@@ -53,6 +52,10 @@ public class CustomerBrain : MonoBehaviour
     //
     // Unity's convention is backwards from what you'd guess: LOWER number =
     // HIGHER priority. 0 barges through everyone, 99 gets barged.
+    //
+    // HOW they walk (turning, the walk clip, stalls and how to recover from
+    // them) lives in NpcLocomotion since pass 1; this brain only says where
+    // to go, how close counts, and how pushy to be on the way.
     [Tooltip("Each customer rolls an avoidance priority in this range so two " +
              "of them never mirror each other into a standoff. Lower = pushier.")]
     [SerializeField] private int movingPriorityMin = 30;
@@ -64,18 +67,6 @@ public class CustomerBrain : MonoBehaviour
              "waiting instead of shouldering through them.")]
     [SerializeField] private int leavingCounterPriority = 95;
 
-    [Tooltip("Last resort. A customer who has made no measurable progress for " +
-             "two full stuckTimeouts escalates to this. Low number = pushy, so " +
-             "they will shoulder through rather than stand there forever. " +
-             "Normal movement NEVER uses it.")]
-    [SerializeField] private int forcePriority = 15;
-
-    [Tooltip("How far counts as 'they moved'. Below this over a whole " +
-             "stuckTimeout and they're treated as wedged. Small enough that a " +
-             "slow walker never trips it, big enough that avoidance jitter on " +
-             "a body pinned against another doesn't read as walking.")]
-    [SerializeField] private float progressStep = 0.15f;
-
     [Tooltip("How far they back away from the counter before turning for their " +
              "seat.\n\nWithout this their route to a table runs ALONG the " +
              "counter, straight through everyone else still queueing — which is " +
@@ -86,10 +77,6 @@ public class CustomerBrain : MonoBehaviour
     [Tooltip("How close counts as arrived. The prefab ships at 1 m, which " +
              "parks people a metre from their own chair.")]
     [SerializeField] private float arriveDistance = 0.3f;
-
-    [Tooltip("If they get no closer to their spot for this long, they're " +
-             "jammed. Give up on it and take a different one.")]
-    [SerializeField] private float stuckTimeout = 3f;
 
     [Header("Arrival")]
 
@@ -105,11 +92,6 @@ public class CustomerBrain : MonoBehaviour
     [Tooltip("How long they stand and look around before heading to the counter.")]
     [SerializeField] private float driftPauseMin = 1f;
     [SerializeField] private float driftPauseMax = 3f;
-
-    [Tooltip("Per-customer walk speed variation. 0.15 = ±15%. Identical pace " +
-             "reads as a conveyor belt however good the models are.")]
-    [Range(0f, 0.5f)]
-    [SerializeField] private float walkSpeedJitter = 0.15f;
 
     [Header("The drink track")]
 
@@ -179,6 +161,8 @@ public class CustomerBrain : MonoBehaviour
     private State state;
     private NavMeshAgent agent;
     private Animator animator;
+    // How the body gets where this brain sends it (turning, walk clip, stalls).
+    private NpcLocomotion locomotion;
     // Sits them on a chair when their waiting spot is a table seat (optional).
     private NpcSeating seating;
     private CounterQueue queue;
@@ -198,6 +182,7 @@ public class CustomerBrain : MonoBehaviour
 
     // Movement is deferred by reactionTime so they react before they turn away.
     private Vector3 pendingDestination;
+    private NpcLocomotion.Move pendingMove;
     private bool hasPendingDestination;
     private float moveAllowedAt;
 
@@ -256,8 +241,6 @@ public class CustomerBrain : MonoBehaviour
     // they walked away mid-sentence with the conversation camera chasing them.
 
     private ConversationController conversation;
-    private bool conversationStoppedAgent;
-    private bool stoppedBeforeConversation;
     private System.Action pendingHandoff;
 
     // Accepted or refused. Guards against a second decision landing during the
@@ -277,25 +260,11 @@ public class CustomerBrain : MonoBehaviour
     private Vector3 stepBackTo;
     private bool hasStepBack;
 
-    // How far up the unwedging ladder this customer currently is. 0 = moving
-    // normally. Reset the moment they make progress.
-    private int stuckStage;
-
     // Set on accept, cleared the moment they actually leave the counter slot.
     private bool releaseSlotOnMove;
 
-    // Jam detection while walking to a spot.
-    private float stuckDeadline;
-    // Progress is measured as DISTANCE ACTUALLY TRAVELLED, not as
-    // remainingDistance shrinking.
-    //
-    // remainingDistance was the obvious choice and it's the wrong one: every
-    // re-path changes it discontinuously, so a customer sent the long way round
-    // reads as "no progress" while walking perfectly well, and a customer whose
-    // baseline was just reset reads as "progress" while standing still. Body
-    // moved / body didn't move has neither failure mode.
-    private Vector3 lastProgressPos;
-    private bool hasProgressPos;
+    // How many spots they have given up on this visit (NpcLocomotion reports
+    // the give-up; this brain decides what to do with it).
     private int   settleAttempts;
 
     // Backstop for the walk to the door.
@@ -676,9 +645,8 @@ public class CustomerBrain : MonoBehaviour
         // in as a child later still works without touching this again.
         animator = GetComponentInChildren<Animator>();
         seating = GetComponent<NpcSeating>();
-
-        RollMovingPriority();
-        agent.stoppingDistance = arriveDistance;
+        locomotion = GetComponent<NpcLocomotion>();
+        if (locomotion == null) locomotion = gameObject.AddComponent<NpcLocomotion>();
 
         // Two multipliers, and they mean different things. The identity's is WHO
         // this person is — an Impatient customer is impatient on every day. The
@@ -722,13 +690,9 @@ public class CustomerBrain : MonoBehaviour
 
             state = State.Leaving;
             leaveDeadline = Time.time + leaveTimeout;
-            agent.SetDestination(exitPoint.position);
+            WalkToExit();
             return;
         }
-
-        // Nobody walks the same speed. Identical pace is most of why arrivals
-        // read as a school dinner queue rather than people coming into a shop.
-        agent.speed *= Random.Range(1f - walkSpeedJitter, 1f + walkSpeedJitter);
 
         state = State.WalkingToCounter;
 
@@ -738,13 +702,35 @@ public class CustomerBrain : MonoBehaviour
         Vector3 drift;
         if (PickDriftPoint(out drift))
         {
-            agent.SetDestination(drift);
+            locomotion.MoveTo(drift, Walk("drift"));
         }
         else
         {
             driftDone = true;
-            agent.SetDestination(queue.SlotPoint(slotIndex).position);
+            locomotion.MoveTo(queue.SlotPoint(slotIndex).position, Walk("slot"));
         }
+    }
+
+    // ---------- how to walk each leg ----------
+    //
+    // The brain says where and how pushy; NpcLocomotion does the walking.
+
+    // Into the room and to the counter: an ordinary walker.
+    private NpcLocomotion.Move Walk(string purpose) =>
+        NpcLocomotion.Move.To(arriveDistance, RollMovingPriority(), purpose);
+
+    // Away from the counter to a spot: yield to the people still queueing (see
+    // TryTakeWaitingSpot); the locomotion's ladder still pushes through if
+    // politeness costs them too long.
+    private NpcLocomotion.Move LeaveCounter(string purpose) =>
+        NpcLocomotion.Move.To(arriveDistance, leavingCounterPriority, purpose);
+
+    // The door is an area, not a point (CafeArrivals.DepartureRadius), so
+    // several people can leave at once without fighting over one coordinate.
+    private void WalkToExit()
+    {
+        if (exitPoint == null) return;
+        locomotion.MoveTo(CafeArrivals.DepartureTarget(exitPoint.position), NpcLocomotion.Move.Exit(RollMovingPriority()));
     }
 
     // Somewhere INTO the shop, but off the direct line. Takes the bearing to
@@ -778,29 +764,18 @@ public class CustomerBrain : MonoBehaviour
         slotIndex = newIndex;
         driftDone = true;   // the line moved — stop sightseeing and get in it
 
-        // Queued customers park themselves on arrival (see StopSteering), so
-        // shuffling up the line has to wake the agent back up first.
-        if (agent.isOnNavMesh)
-        {
-            agent.isStopped = false;
-            RollMovingPriority();
-            agent.SetDestination(queue.SlotPoint(slotIndex).position);
-        }
+        locomotion.MoveTo(queue.SlotPoint(slotIndex).position, Walk("slot"));
     }
 
     private void Update()
     {
         if (agent == null) return;
 
-        if (animator != null) animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f);
-
         if (InConversation)
         {
             // Follow-up diagnosis can begin while settling, not just at intake.
-            // Keep normal conversation patience drain, but suspend movement and
-            // movement watchdogs until the camera gives this customer back.
-            if (agent.isOnNavMesh) agent.isStopped = true;
-            FaceTarget();
+            // Keep normal conversation patience drain; the locomotion is paused
+            // (OnConversationOpened) until the camera gives this customer back.
             patienceLeft -= Time.deltaTime * DrainRate;
             UpdateBar(CurrentMax, Color.green);
             if (patienceLeft <= 0f) StormOut();
@@ -811,17 +786,7 @@ public class CustomerBrain : MonoBehaviour
         if (hasPendingDestination && Time.time >= moveAllowedAt)
         {
             hasPendingDestination = false;
-
-            // A new move means a new baseline. Without this the watchdog can
-            // inherit an anchor from wherever they were standing before the
-            // pause and immediately think they're wedged.
-            ResetProgressWatch();
-
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = false;
-                agent.SetDestination(pendingDestination);
-            }
+            locomotion.MoveTo(pendingDestination, pendingMove);
 
             // THE COUNTER SLOT IS RELEASED HERE, NOT ON ACCEPT.
             //
@@ -862,7 +827,7 @@ public class CustomerBrain : MonoBehaviour
             case State.WalkingToCounter:
                 if (!hasPendingDestination)
                 {
-                    if (Arrived())
+                    if (locomotion.HasArrived)
                     {
                         if (!driftDone)
                         {
@@ -871,7 +836,8 @@ public class CustomerBrain : MonoBehaviour
                             // walking through a curve at constant speed still
                             // reads as a conveyor belt.
                             driftDone = true;
-                            MoveAfter(queue.SlotPoint(slotIndex).position,
+                            locomotion.Park(null);
+                            MoveAfter(queue.SlotPoint(slotIndex).position, Walk("slot"),
                                       Random.Range(driftPauseMin, driftPauseMax));
                             break;
                         }
@@ -880,35 +846,29 @@ public class CustomerBrain : MonoBehaviour
                         patienceLeft = queueMax;
                         StopSteering();     // stop shoving whoever's in front
                     }
-                    else if (ProgressStalled())
+                    else if (!driftDone && locomotion.StuckStage >= 1)
                     {
-                        // Wedged on the way IN. This state had no watchdog at
-                        // all before, which meant someone blocked in the
-                        // doorway stood there until closing time.
-                        //
-                        // Abandoning the sightseeing detour is free, so do that
-                        // first and aim straight at the counter.
+                        // The look-around detour is not worth fighting for:
+                        // aim straight at the counter instead.
                         driftDone = true;
-
-                        if (!TryUnwedge(queue.SlotPoint(slotIndex).position))
-                        {
-                            // Re-pathing didn't help and neither did barging.
-                            // Nine seconds of zero progress means the room is
-                            // genuinely impassable for them — let them give up
-                            // and walk out, which at least ENDS, and say so
-                            // loudly enough to be fixable.
-                            Debug.LogWarning($"[{CustomerName}] couldn't reach the " +
-                                             $"counter and gave up. Check for a " +
-                                             $"gap narrower than the agent radius " +
-                                             $"between the door and the counter.", this);
-                            StormOut();
-                        }
+                        locomotion.MoveTo(queue.SlotPoint(slotIndex).position, Walk("slot"));
+                    }
+                    else if (locomotion.GaveUp)
+                    {
+                        // Re-pathing, stepping aside and pushing all failed.
+                        // The room is genuinely impassable for them — let them
+                        // give up and walk out, which at least ENDS, and say so
+                        // loudly enough to be fixable.
+                        Debug.LogWarning($"[{CustomerName}] couldn't reach the " +
+                                         $"counter and gave up. Check for a " +
+                                         $"gap narrower than the agent radius " +
+                                         $"between the door and the counter.", this);
+                        StormOut();
                     }
                 }
                 break;
 
             case State.WaitingInQueue:
-                FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(CurrentMax, Color.green);
                 if (patienceLeft <= 0f) StormOut();
@@ -916,45 +876,25 @@ public class CustomerBrain : MonoBehaviour
 
             case State.Settling:
                 // Walking to their spot. Still waiting on you, so still draining.
-                //
-                // FaceTarget() is safe to call here: its first line bails out
-                // while the agent has velocity, so we still never fight the
-                // path for the rotation. It only does anything during the
-                // reactionTime pause — which is precisely the beat where
-                // nothing was driving the body and they stood frozen.
-                FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) { StormOut(); break; }
 
                 if (!hasPendingDestination)
                 {
-                    if (Arrived())
+                    if (locomotion.HasArrived)
                     {
                         if (hasStepBack)
                         {
-                            // Clear of the counter. NOW turn for the seat.
+                            // Clear of the counter. NOW turn for the seat, back
+                            // at the polite priority whatever it took to get
+                            // out of the slot.
                             hasStepBack = false;
-                            ResetProgressWatch();
-
-                            if (agent.isOnNavMesh)
-                            {
-                                agent.isStopped = false;
-
-                                // Drop back to polite. If they escalated to
-                                // forcePriority getting out of the slot, that
-                                // must not follow them across the room.
-                                agent.avoidancePriority = leavingCounterPriority;
-                                agent.SetDestination(settleDestination);
-                            }
+                            locomotion.MoveTo(settleDestination, LeaveCounter("spot"));
                         }
                         else SettleHere();
                     }
-                    else if (ProgressStalled())
-                    {
-                        if (!TryUnwedge(hasStepBack ? stepBackTo : settleDestination))
-                            GiveUpOnSpot();
-                    }
+                    else if (locomotion.GaveUp) GiveUpOnSpot();
                 }
                 break;
 
@@ -968,14 +908,12 @@ public class CustomerBrain : MonoBehaviour
 
                 TickDrinkWish();
 
-                FaceTarget();
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) StormOut();
                 break;
 
             case State.Speaking:
-                FaceTarget();
                 speakTimer -= Time.deltaTime;
                 if (speakTimer <= 0f) Depart(departHappy);
                 break;
@@ -997,17 +935,17 @@ public class CustomerBrain : MonoBehaviour
                 // Out of the door they walk back to their car or home (CafeArrivals
                 // strips this brain there, so from here on nothing counts them);
                 // without CafeArrivals they vanish at the door as before.
-                if (Arrived())
+                if (locomotion.HasArrived)
                 {
                     if (bubbleTimer <= 0f && !CafeArrivals.TryDepart(gameObject)) Destroy(gameObject);
                 }
-                else if (exitPoint != null && ProgressStalled())
+                else if (locomotion.GaveUp && bubbleTimer <= 0f && exitPoint != null
+                         && locomotion.DistanceToGoal <= CafeArrivals.DepartureRadius + 2f)
                 {
-                    // Same ladder on the way out. leaveDeadline above is still
-                    // the hard floor, but re-pathing usually beats it by
-                    // fifteen seconds and nobody has to watch a customer stand
-                    // motionless in the doorway until it fires.
-                    TryUnwedge(exitPoint.position);
+                    // Boxed in within a couple of metres of the door: hand the
+                    // walk over to the street from here. NpcJourney steers by
+                    // itself and does not need the last metre of NavMesh.
+                    if (!CafeArrivals.TryDepart(gameObject)) Destroy(gameObject);
                 }
                 break;
         }
@@ -1020,12 +958,7 @@ public class CustomerBrain : MonoBehaviour
     public void OnConversationOpened(ConversationController controller)
     {
         conversation = controller;
-        conversationStoppedAgent = agent != null && agent.isOnNavMesh;
-        if (conversationStoppedAgent)
-        {
-            stoppedBeforeConversation = agent.isStopped;
-            agent.isStopped = true;
-        }
+        if (locomotion != null) locomotion.Pause();
     }
 
     // Called by ConversationController.End(), which fires only after the
@@ -1034,12 +967,7 @@ public class CustomerBrain : MonoBehaviour
     public void OnConversationClosed()
     {
         conversation = null;
-        if (conversationStoppedAgent && agent != null && agent.isOnNavMesh)
-        {
-            agent.isStopped = stoppedBeforeConversation;
-            ResetProgressWatch();
-        }
-        conversationStoppedAgent = false;
+        if (locomotion != null) locomotion.Resume();
 
         System.Action change = pendingHandoff;
         pendingHandoff = null;
@@ -1222,8 +1150,6 @@ public class CustomerBrain : MonoBehaviour
         settleDestination = destination;
         hasStepBack = false;
 
-        ResetProgressWatch();
-
         // STEP BACK BEFORE YOU TURN.
         //
         // The seat is out in the room, but the straight line to it from a
@@ -1237,9 +1163,9 @@ public class CustomerBrain : MonoBehaviour
         // So take one step backwards into open floor first. From there the
         // route to any table is clear and nobody is in it.
         //
-        // The direction comes from the SLOT, not from the customer: FaceTarget
-        // copies the slot's rotation, so the slot's forward is "at the counter"
-        // by definition. Rotate a slot in the scene and the step-back follows
+        // The direction comes from the SLOT, not from the customer: queued
+        // customers are parked facing the slot's rotation, so the slot's
+        // forward is "at the counter" by definition. Rotate a slot in the scene and the step-back follows
         // it. If the point isn't on the NavMesh we silently do exactly what we
         // did before — this can't introduce a new way to fail.
         if (counterStepBack > 0f && slotIndex >= 0 && queue != null)
@@ -1258,33 +1184,23 @@ public class CustomerBrain : MonoBehaviour
 
         // Yield, don't barge.
         //
-        // This used to call RollMovingPriority(), which rolls 30-60. Customers
-        // parked at the counter sit at settledPriority (90), and Unity's scale
-        // runs backwards: LOWER number = HIGHER priority. So the one person who
-        // was moving outranked the three standing still, and avoidance decided
-        // THEY should get out of HIS way. Being isStopped, they couldn't step
-        // aside properly — they just got shoved. Serving the customer on the
-        // right visibly barged the middle and left ones out of the way.
-        //
-        // 95 puts the leaver below everyone he passes, so he steers around the
-        // queue instead of through it. Yielding is only safe because the
-        // unwedging ladder (see ProgressStalled / TryUnwedge) escalates him
-        // back to forcePriority if politeness ever costs him six seconds.
-        if (agent != null) agent.avoidancePriority = leavingCounterPriority;
-
-        MoveAfterReacting(destination);
+        // Customers parked at the counter stand at priority 0, and Unity's
+        // scale runs backwards: LOWER number = HIGHER priority. A leaver at an
+        // ordinary walking priority would outrank the three standing still,
+        // and avoidance would decide THEY should get out of HIS way — being
+        // stopped, they'd just get shoved. 95 puts the leaver below everyone
+        // he passes, so he steers around the queue instead of through it.
+        // Yielding is only safe because the locomotion's recovery ladder still
+        // steps aside and pushes through if politeness costs him too long.
+        MoveAfterReacting(destination, LeaveCounter(hasStepBack ? "step back" : "spot"));
         return true;
     }
 
     // ---------- crowding ----------
 
-    private void RollMovingPriority()
-    {
-        if (agent == null) return;
-        agent.avoidancePriority = Random.Range(movingPriorityMin, movingPriorityMax + 1);
-    }
+    private int RollMovingPriority() => Random.Range(movingPriorityMin, movingPriorityMax + 1);
 
-    // Drop the path and stand still.
+    // Drop the path and stand still, facing the way the slot or spot points.
     //
     // THE OTHER HALF OF THE STANDOFF: an agent that has "arrived" but still
     // holds a path keeps applying steering toward it every frame. Two of them
@@ -1292,12 +1208,10 @@ public class CustomerBrain : MonoBehaviour
     // because neither is ever quite done. Once you're there, you're scenery.
     private void StopSteering()
     {
-        if (agent == null || !agent.isOnNavMesh) return;
-
-        agent.ResetPath();
-        agent.isStopped = true;
-        agent.velocity = Vector3.zero;
-        agent.avoidancePriority = 0; // A stationary body cannot yield to a walker.
+        Transform target = null;
+        if (slotIndex >= 0 && queue != null) target = queue.SlotPoint(slotIndex);
+        else if (waitingSpot != null) target = waitingSpot.StandPoint;
+        locomotion.Park(target != null ? target.rotation : (Quaternion?)null);
     }
 
     private void SettleHere()
@@ -1355,109 +1269,7 @@ public class CustomerBrain : MonoBehaviour
         return line.Replace("{drink}", drinkName);
     }
 
-    // ---------- the unwedging ladder ----------
-    //
-    // THE RULE THIS ENFORCES: a customer who is supposed to be moving either
-    // makes measurable progress, or is resolved within a bounded number of
-    // seconds. No state may end in a body standing still forever.
-    //
-    // Progress is measured as remainingDistance shrinking. Flat for
-    // stuckTimeout means something is wrong, and the ladder escalates rather
-    // than jumping straight to a drastic fix — because the cheap causes are by
-    // far the most common and the drastic fixes are the ones that look bad.
-    //
-    //   stage 1  (3s)  re-path          — the path went stale; ask for a new one
-    //   stage 2  (6s)  barge            — someone really is in the way
-    //   stage 3  (9s)  caller's bail-out — give up gracefully, but GIVE UP
-    //
-    // Any real progress at any point resets the whole thing to stage 0, so a
-    // customer who is merely slow is never punished for it.
-
-    // True on the tick where the customer just escalated a stage.
-    private bool ProgressStalled()
-    {
-        if (agent == null || !agent.isOnNavMesh || agent.pathPending) return false;
-
-        // First look at this move: take the anchor and start the clock.
-        if (!hasProgressPos)
-        {
-            hasProgressPos = true;
-            lastProgressPos = transform.position;
-            stuckDeadline = Time.time + stuckTimeout;
-            return false;
-        }
-
-        // Covered real ground since the anchor? Then they're fine. Re-anchor,
-        // restart the clock, and forget any stage they'd climbed to.
-        //
-        // A normal walk clears progressStep within a handful of frames, and
-        // even someone crawling at 0.1 m/s clears it inside the window. Only a
-        // body that is genuinely not moving fails this.
-        if ((transform.position - lastProgressPos).sqrMagnitude
-            > progressStep * progressStep)
-        {
-            lastProgressPos = transform.position;
-            stuckDeadline = Time.time + stuckTimeout;
-            stuckStage = 0;
-            return false;
-        }
-
-        if (Time.time < stuckDeadline) return false;
-
-        lastProgressPos = transform.position;
-        stuckDeadline = Time.time + stuckTimeout;
-        stuckStage++;
-        return true;
-    }
-
-    private void ResetProgressWatch()
-    {
-        hasProgressPos = false;
-        stuckDeadline = 0f;
-        stuckStage = 0;
-    }
-
-    // Handles stages 1 and 2. Returns false at stage 3+, which means "I'm out
-    // of generic ideas, do whatever your state does to end this."
-    private bool TryUnwedge(Vector3 goal)
-    {
-        if (agent == null || !agent.isOnNavMesh) return false;
-
-        switch (stuckStage)
-        {
-            case 1:
-                // Much the most common cause: a path that was valid when it was
-                // set and isn't any more — someone parked across it, or it came
-                // back partial. Cheap to fix and invisible when it works.
-                agent.isStopped = false;
-                agent.ResetPath();
-                agent.SetDestination(goal);
-                return true;
-
-            case 2:
-                // A fresh path didn't help, so a body is genuinely in the way
-                // and politeness has now cost this customer six seconds.
-                // Barge — briefly, and only from here. This is the escape valve
-                // that makes "yield by default" safe to have at all.
-                Debug.Log($"[{CustomerName}] wedged for {stuckTimeout * 2f}s — " +
-                          $"pushing through.", this);
-                agent.isStopped = false;
-
-                // Jittered, for the same reason RollMovingPriority is: two
-                // customers who both escalate would otherwise land on the
-                // IDENTICAL priority and mirror each other into a fresh
-                // standoff. Somebody has to be the one who yields.
-                agent.avoidancePriority =
-                    Mathf.Clamp(forcePriority + Random.Range(-5, 6), 0, 99);
-                agent.SetDestination(goal);
-                return true;
-
-            default:
-                return false;
-        }
-    }
-
-    // Settling's stage-3 bail-out: this seat isn't happening.
+    // The locomotion gave up on the way to a spot: this seat isn't happening.
     private void GiveUpOnSpot()
     {
         settleAttempts++;
@@ -1465,7 +1277,6 @@ public class CustomerBrain : MonoBehaviour
         if (WaitingArea.Instance != null) WaitingArea.Instance.Release(this);
         waitingSpot = null;
         hasStepBack = false;
-        ResetProgressWatch();
 
         // Try somewhere else, twice. After that stop fighting the room and
         // wait where you are — someone standing slightly wrong is far better
@@ -1487,15 +1298,15 @@ public class CustomerBrain : MonoBehaviour
 
     // Stand still for a moment, then walk. Without the pause they slide off
     // mid-"Interact" animation, which reads as moonwalking.
-    private void MoveAfterReacting(Vector3 destination) => MoveAfter(destination, reactionTime);
+    private void MoveAfterReacting(Vector3 destination, NpcLocomotion.Move how) => MoveAfter(destination, how, reactionTime);
 
-    private void MoveAfter(Vector3 destination, float delay)
+    private void MoveAfter(Vector3 destination, NpcLocomotion.Move how, float delay)
     {
         pendingDestination = destination;
+        pendingMove = how;
         hasPendingDestination = true;
         moveAllowedAt = Time.time + delay;
-
-        if (agent.isOnNavMesh) agent.isStopped = true;
+        locomotion.Pause();
     }
 
     // Tell them we can't make it. The order clears and they go.
@@ -1820,6 +1631,8 @@ public class CustomerBrain : MonoBehaviour
     private void LeaveAfterSpeaking(string line, bool happy)
     {
         departHappy = happy;
+        // Say it standing still; Depart sends them to the door afterwards.
+        if (locomotion != null && !(seating != null && seating.Busy)) locomotion.Park(null);
 
         // Match the bubble's own lifetime, so they never walk off mid-sentence.
         speakTimer = Mathf.Max(RevealTime(line) + lineHoldTime, 1.8f);
@@ -1908,15 +1721,10 @@ public class CustomerBrain : MonoBehaviour
             });
 
         hasPendingDestination = false;
-        if (agent.isOnNavMesh)
-        {
-            // They were parked at settled priority, which would let everyone
-            // else pin them against a table on the way out.
-            RollMovingPriority();
-            ResetProgressWatch();
-            agent.isStopped = false;
-            agent.SetDestination(exitPoint.position);
-        }
+        // Seated customers stand up first (NpcLocomotion asks NpcSeating), and
+        // the walk uses an ordinary priority again: parked at 0, everyone else
+        // would pin them against a table on the way out.
+        WalkToExit();
     }
 
     private void OnDestroy()
@@ -2042,28 +1850,6 @@ public class CustomerBrain : MonoBehaviour
         if (animator != null) animator.SetTrigger("Interact");
     }
 
-    // Face the counter while queueing, face however the waiting spot points
-    // once they've settled.
-    private void FaceTarget()
-    {
-        // Sitting (or getting up) faces the table; NpcSeating owns the body then.
-        if (seating != null && seating.Busy) return;
-
-        // Never steer rotation while the agent is moving us. Turning the body
-        // one way while the path drags it another IS the moonwalk.
-        if (agent.velocity.sqrMagnitude > 0.01f) return;
-
-        Transform target = null;
-
-        if (slotIndex >= 0 && queue != null) target = queue.SlotPoint(slotIndex);
-        else if (waitingSpot != null) target = waitingSpot.StandPoint;
-
-        if (target == null) return;
-
-        transform.rotation = Quaternion.RotateTowards(
-            transform.rotation, target.rotation, turnSpeed * Time.deltaTime);
-    }
-
     // Visible whenever they're actively waiting on you — queue or service.
     // Hidden only while walking in, and once they've been dealt with.
     private bool ShowFloatingBar =>
@@ -2085,18 +1871,5 @@ public class CustomerBrain : MonoBehaviour
             patienceBar.gameObject.SetActive(show);
 
         if (show) patienceBar.SetFraction(fraction, fullColor);
-    }
-
-    // The naive version — !pathPending && remainingDistance <= stoppingDistance —
-    // reports TRUE on the first frame after SetDestination, because the path
-    // hasn't been built yet so remainingDistance is still 0. That made customers
-    // switch to "standing still" logic while they were visibly still walking.
-    private bool Arrived()
-    {
-        // Still getting up from a chair: the walk hasn't started yet.
-        if (seating != null && seating.Busy) return false;
-        if (agent.pathPending) return false;
-        if (agent.remainingDistance > agent.stoppingDistance) return false;
-        return !agent.hasPath || agent.velocity.sqrMagnitude < 0.01f;
     }
 }

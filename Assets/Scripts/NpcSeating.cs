@@ -10,15 +10,24 @@ using UnityEngine.AI;
 /// The brains still decide everything. They walk the NPC to the seat's stand
 /// point exactly as before and then call TrySit. From there this component owns
 /// the visible body: it steps round the side of the chair to the spot in front
-/// of it, turns to the table and plays the sit-down clip. The navigation body
-/// (the NavMeshAgent) stays parked on the stand point the whole time, so crowd
-/// avoidance and the brains' own checks keep seeing a person standing there.
+/// of it, turns to the table and plays the sit-down clip.
 ///
-/// Standing up needs no call. The moment a brain gives the agent somewhere to
-/// walk (leaving, storming out, re-pathing), this component notices, holds the
-/// agent still, plays the stand-up clip, walks back round the chair to the
-/// stand point and only then lets the agent go. While getting up it keeps the
-/// chair reserved, so nobody heads for a chair that is still occupied.
+/// THE NAVIGATION BODY LEAVES THE FLOOR WHILE SEATED (pass 1, 26 Sept 2026).
+/// It used to stay parked on the stand point in the aisle - stopped, at the
+/// highest avoidance priority - for the whole sit. Stand points sit on the
+/// corners everyone else has to walk round, so a seated person was an
+/// invisible wall on the corner: the cause of most of the stalls and the
+/// orbiting seen in the observation recordings. Now the NavMeshAgent is
+/// switched off from the first step towards the chair until the NPC is back
+/// on the stand point. The visible body is inside the table's Not Walkable
+/// footprint, so nobody can path through it; the seat itself stays claimed
+/// (WaitingSpot.Occupant) so nobody targets it.
+///
+/// Standing up is an explicit handshake: NpcLocomotion.MoveTo asks
+/// <see cref="RequestStand"/>, this component plays the stand-up clip, walks
+/// back round the chair to the stand point, switches the agent on there and
+/// then runs the caller's continuation. While getting up it keeps the chair
+/// reserved, so nobody heads for a chair that is still occupied.
 ///
 /// Needs the "Seated" and "Talking" animator parameters and the sit states that
 /// Fixit Fidget > NPC > Sit 2 - Wire sitting adds, plus a TableSeat with Snap
@@ -55,10 +64,6 @@ public sealed class NpcSeating : MonoBehaviour
     [Tooltip("Largest height change allowed to meet the chair. Beyond it the feet would visibly float or sink, " +
              "so the rest of the difference is left to the chair.")]
     [SerializeField, Range(0f, .25f)] private float maxHeightCorrection = .12f;
-    [Tooltip("While the NPC sits, its navigation body waits on the stand point in the aisle beside the chair. It " +
-             "shrinks to this radius there, so people can walk past the chair; the full radius comes back when " +
-             "the NPC stands up.")]
-    [SerializeField, Range(.05f, .35f)] private float seatedAgentRadius = .15f;
     [Tooltip("Chance that a seated NPC with company at the same table is talking, re-rolled every few seconds.")]
     [SerializeField, Range(0f, 1f)] private float chatWithCompany = .55f;
     [Tooltip("Chance that a seated NPC alone at a table is talking (on the phone, to themselves).")]
@@ -80,11 +85,12 @@ public sealed class NpcSeating : MonoBehaviour
     private float phaseStarted, phaseLength, nextChat;
     private bool reserved;
     private bool? hasSitParameters;
-    private float standingRadius = -1f;
     // Patience bar and speech bubble ride lower while seated, over the seated head.
     private Transform[] overheads = System.Array.Empty<Transform>();
     private Vector3[] overheadRest = System.Array.Empty<Vector3>();
     private float overheadDrop;
+    // Who asked us to stand up, to be told when the agent is back on the floor.
+    private System.Action whenStanding;
 
     public Phase Current => phase;
     /// <summary>True from the first step towards the chair until the agent has been handed back.</summary>
@@ -140,14 +146,12 @@ public sealed class NpcSeating : MonoBehaviour
         path[2] = feet;
         overheadDrop = Mathf.Max(0f, data.standingHipHeight - data.seatedHip.y);
 
-        // Park the navigation body on the stand point; the visible body moves by hand from here.
+        // The navigation body leaves the floor: from here the visible body moves
+        // by hand, and nobody else's avoidance sees a person on the stand point.
         agent.ResetPath();
         agent.isStopped = true;
         agent.velocity = Vector3.zero;
-        agent.updatePosition = false;
-        agent.updateRotation = false;
-        standingRadius = agent.radius;
-        agent.radius = Mathf.Min(agent.radius, seatedAgentRadius);
+        agent.enabled = false;
         active.Add(this);
         // A city body fits itself to the chair while the rig's hips are down.
         if (visual != null) visual.Seated = true;
@@ -178,7 +182,20 @@ public sealed class NpcSeating : MonoBehaviour
         feet.y = floor + Mathf.Clamp(feet.y - floor, -maxHeightCorrection, maxHeightCorrection);
     }
 
-    /// <summary>Gets up and walks back to the stand point. Called automatically when the agent is given a path.</summary>
+    /// <summary>
+    /// Get up and walk back to the stand point, then run <paramref name="whenBack"/>
+    /// once the agent is on the floor again. False when the NPC is not in a chair
+    /// (nothing to wait for; the caller can move at once).
+    /// </summary>
+    public bool RequestStand(System.Action whenBack)
+    {
+        if (phase == Phase.Standing) return false;
+        whenStanding = whenBack;
+        StandUp();
+        return true;
+    }
+
+    /// <summary>Gets up and walks back to the stand point.</summary>
     public void StandUp()
     {
         switch (phase)
@@ -200,17 +217,7 @@ public sealed class NpcSeating : MonoBehaviour
     private void Update()
     {
         if (phase == Phase.Standing) return;
-        if (agent == null || !agent.isActiveAndEnabled || animator == null) { HandBack(); return; }
-
-        // A brain that gives the agent somewhere to go wants the NPC on their feet.
-        // Hold the navigation body still until it is handed back.
-        bool wantsToWalk = agent.isOnNavMesh && (agent.hasPath || agent.pathPending);
-        if (agent.isOnNavMesh)
-        {
-            agent.isStopped = true;
-            agent.velocity = Vector3.zero;
-        }
-        if (wantsToWalk) StandUp();
+        if (agent == null || animator == null) { HandBack(); return; }
         KeepSeatReserved();
 
         float t = phaseLength <= 1e-4f ? 1f : Mathf.Clamp01((Time.time - phaseStarted) / phaseLength);
@@ -343,20 +350,22 @@ public sealed class NpcSeating : MonoBehaviour
                 overheads[i].localPosition = overheadRest[i] + Vector3.down * drop;
     }
 
-    // Returns the body to the navigation agent, which never left the stand point.
+    // Back on the stand point: the navigation agent returns to the floor there,
+    // stopped, and whoever asked for the stand-up is told.
     private void HandBack()
     {
         if (phase == Phase.Standing) return;
         phase = Phase.Standing;
         transform.position = path[0];
-        if (agent != null && standingRadius > 0f) agent.radius = standingRadius;
-        standingRadius = -1f;
-        if (agent != null && agent.isActiveAndEnabled)
+        if (agent != null && agent.gameObject.activeInHierarchy)
         {
-            if (agent.isOnNavMesh) agent.nextPosition = transform.position;
-            agent.updatePosition = true;
-            agent.updateRotation = true;
-            if (agent.isOnNavMesh) agent.isStopped = !(agent.hasPath || agent.pathPending);
+            agent.enabled = true;
+            if (agent.isOnNavMesh)
+            {
+                agent.Warp(path[0]);
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
         }
         if (animator != null)
         {
@@ -368,6 +377,9 @@ public sealed class NpcSeating : MonoBehaviour
         seat = null;
         if (visual != null) visual.Seated = false;
         PlaceOverheads();
+        System.Action back = whenStanding;
+        whenStanding = null;
+        back?.Invoke();
     }
 
     private bool HasParameter(int hash)

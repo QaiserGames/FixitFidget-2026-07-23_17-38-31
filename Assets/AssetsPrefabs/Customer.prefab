@@ -3783,6 +3783,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4114404396870388384}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5659032224619172909}
   m_SourcePrefab: {fileID: 100100000, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
 --- !u!4 &48647379052613872 stripped
 Transform:
@@ -3862,13 +3865,13 @@ NavMeshAgent:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 748166504614202525}
   m_Enabled: 1
-  m_AgentTypeID: 0
+  m_AgentTypeID: -1372625422
   m_Radius: 0.35
-  m_Speed: 2
-  m_Acceleration: 8
+  m_Speed: 1.6
+  m_Acceleration: 6
   avoidancePriority: 50
   m_AngularSpeed: 300
-  m_StoppingDistance: 1
+  m_StoppingDistance: 0.3
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
@@ -3891,7 +3894,6 @@ MonoBehaviour:
   queuePatience: 40
   servicePatience: 45
   maxTipFraction: 0.6
-  turnSpeed: 240
   wordsPerSecond: 6
   charactersPerSecond: 45
   lineHoldTime: 1.5
@@ -3905,17 +3907,13 @@ MonoBehaviour:
   movingPriorityMin: 30
   movingPriorityMax: 60
   leavingCounterPriority: 95
-  forcePriority: 15
-  progressStep: 0.15
   counterStepBack: 1.2
   arriveDistance: 0.3
-  stuckTimeout: 3
   driftDistanceMin: 2
   driftDistanceMax: 5
   driftSpreadDegrees: 70
   driftPauseMin: 1
   driftPauseMax: 3
-  walkSpeedJitter: 0.15
   orderDelayMin: 4
   orderDelayMax: 8
   orderTopUp: 0.1
@@ -4068,6 +4066,7 @@ MonoBehaviour:
   fitWhileSeated: 1
   restingWristAboveThigh: 0.14
   seatedHipLift: 0.025
+  seatedShoulderSettle: 0.9
 --- !u!114 &5979114650565750167
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4087,7 +4086,6 @@ MonoBehaviour:
   hipBehindSeatCentre: -0.01
   maxStartDistance: 0.75
   maxHeightCorrection: 0.12
-  seatedAgentRadius: 0.15
   chatWithCompany: 0.55
   chatAlone: 0.12
 --- !u!114 &4114404396870388384
@@ -4105,6 +4103,36 @@ MonoBehaviour:
   bodyRadius: 0.28
   maxSlideSpeed: 1.6
   stillSpeed: 0.12
+--- !u!114 &5659032224619172909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 748166504614202525}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cba00de41de646e40b4bd7cdd94c1b63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcLocomotion
+  baseSpeed: 1.6
+  speedJitter: 0.12
+  acceleration: 6
+  walkClipSpeed: 1.4502532
+  turnSpeed: 400
+  turnSmoothing: 0.15
+  headingDeadZone: 0.3
+  detourAngle: 70
+  detourHold: 0.35
+  walkStart: 0.35
+  walkStop: 0.12
+  walkHold: 0.12
+  stallSeconds: 2.5
+  progressStep: 0.2
+  stepAsideDistance: 0.8
+  stepAsideSeconds: 2
+  pushPriority: 15
+  passThroughSeconds: 1.5
 --- !u!4 &793446380249059059 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8241147589211340993, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}

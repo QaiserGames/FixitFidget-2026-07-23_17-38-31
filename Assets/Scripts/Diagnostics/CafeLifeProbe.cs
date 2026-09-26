@@ -62,12 +62,10 @@ public sealed class CafeLifeProbe : MonoBehaviour
     // Private state read for the trace only.
     private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
     private static readonly FieldInfo CState = typeof(CustomerBrain).GetField("state", Any);
-    private static readonly FieldInfo CStuck = typeof(CustomerBrain).GetField("stuckStage", Any);
     private static readonly FieldInfo CPending = typeof(CustomerBrain).GetField("hasPendingDestination", Any);
     private static readonly FieldInfo CSpot = typeof(CustomerBrain).GetField("waitingSpot", Any);
     private static readonly FieldInfo PState = typeof(PatronBrain).GetField("state", Any);
     private static readonly FieldInfo PSeat = typeof(PatronBrain).GetField("seat", Any);
-    private static readonly FieldInfo PUnwedge = typeof(PatronBrain).GetField("unwedgeAttempts", Any);
 
     private static readonly Dictionary<int, string> AnimNames = new();
     private static readonly int IsWalkingHash = Animator.StringToHash("IsWalking");
@@ -92,7 +90,7 @@ public sealed class CafeLifeProbe : MonoBehaviour
         Directory.CreateDirectory(folder);
         writer = new StreamWriter(Path.Combine(folder, "trace.csv"), false, new UTF8Encoding(false));
         writer.WriteLine("t,f,kind,id,name,state,sub,x,y,z,yaw,en,mesh,stop,path,pend,pstat,vx,vz,dvx,dvz," +
-                         "destx,destz,rem,sd,prio,spd,rad,urot,upos,walk,anim,stuck,info");
+                         "destx,destz,rem,sd,prio,spd,rad,urot,upos,walk,anim,stuck,info,floor");
         startedAt = Time.time;
         nextSample = nextFrame = Time.time;
         Instance = this;
@@ -175,7 +173,7 @@ public sealed class CafeLifeProbe : MonoBehaviour
 
         // One row per frame-time sample: how smoothly the game is running.
         Begin(t, f, "F", 0, "frame", "", "");
-        row.Append(',').Append(Num(Time.unscaledDeltaTime * 1000f)).Append(",,,,,,,,,,,,,,,,,,,,,,,,,,");
+        row.Append(',').Append(Num(Time.unscaledDeltaTime * 1000f)).Append(",,,,,,,,,,,,,,,,,,,,,,,,,,,");
         Commit();
 
         foreach (CustomerBrain c in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude))
@@ -185,9 +183,8 @@ public sealed class CafeLifeProbe : MonoBehaviour
             NpcSeating seating = c.GetComponent<NpcSeating>();
             var spot = CSpot?.GetValue(c) as WaitingSpot;
             string info = $"slot={c.SlotIndex};spot={(spot != null ? spot.Kind + "@" + Pos(spot.StandPoint.position) : "-")}" +
-                          $";pend={(CPending != null && (bool)CPending.GetValue(c) ? 1 : 0)};acc={(c.WasAccepted ? 1 : 0)}";
-            int stuck = CStuck != null ? (int)CStuck.GetValue(c) : 0;
-            Person(t, f, "C", c.gameObject, c.CustomerName, state, seating, stuck, info);
+                          $";pend={(CPending != null && (bool)CPending.GetValue(c) ? 1 : 0)};acc={(c.WasAccepted ? 1 : 0)}" + Loco(c.gameObject);
+            Person(t, f, "C", c.gameObject, c.CustomerName, state, seating, StuckStage(c.gameObject), info, c.enabled);
         }
 
         foreach (PatronBrain p in FindObjectsByType<PatronBrain>(FindObjectsInactive.Exclude))
@@ -196,9 +193,8 @@ public sealed class CafeLifeProbe : MonoBehaviour
             string state = PState != null ? PState.GetValue(p)?.ToString() ?? "" : "";
             NpcSeating seating = p.GetComponent<NpcSeating>();
             var seat = PSeat?.GetValue(p) as WaitingSpot;
-            string info = $"seat={(seat != null ? Pos(seat.StandPoint.position) : "-")}";
-            int stuck = PUnwedge != null ? (int)PUnwedge.GetValue(p) : 0;
-            Person(t, f, "P", p.gameObject, NameOf(p.gameObject), state, seating, stuck, info);
+            string info = $"seat={(seat != null ? Pos(seat.StandPoint.position) : "-")}" + Loco(p.gameObject);
+            Person(t, f, "P", p.gameObject, NameOf(p.gameObject), state, seating, StuckStage(p.gameObject), info, p.enabled);
         }
 
         // People walking to or from the door (off the NavMesh), near the café only.
@@ -216,7 +212,7 @@ public sealed class CafeLifeProbe : MonoBehaviour
                .Append(',').Append(Num(w.NextTarget.x)).Append(',').Append(Num(w.NextTarget.z))
                .Append(",,,,,").Append(Num(w.Radius)).Append(",,");
             AppendAnimator(w.GetComponentInChildren<Animator>());
-            row.Append(',').Append(w.Unstuck).Append(',').Append(Csv("held=" + w.HeldBy));
+            row.Append(',').Append(w.Unstuck).Append(',').Append(Csv("held=" + w.HeldBy)).Append(',');
             Commit();
         }
 
@@ -230,12 +226,26 @@ public sealed class CafeLifeProbe : MonoBehaviour
             row.Append(',').Append(Num(p.x)).Append(',').Append(Num(p.y)).Append(',').Append(Num(p.z))
                .Append(',').Append(Num(ace.transform.eulerAngles.y))
                .Append(",,,,,,,").Append(Num(v.x)).Append(',').Append(Num(v.z))
-               .Append(",,,,,,,,,,,,,,,");
+               .Append(",,,,,,,,,,,,,,,,");
             Commit();
         }
     }
 
-    private void Person(float t, int f, string kind, GameObject go, string name, string state, NpcSeating seating, int stuck, string info)
+    // The shared locomotion's view of the walk (pass 1): what leg, and the last recovery step.
+    private static string Loco(GameObject go)
+    {
+        NpcLocomotion loco = go.GetComponent<NpcLocomotion>();
+        if (loco == null) return "";
+        return $";leg={loco.Purpose};rec={loco.LastRecovery}{(loco.GaveUp ? ";gaveup" : "")}";
+    }
+
+    private static int StuckStage(GameObject go)
+    {
+        NpcLocomotion loco = go.GetComponent<NpcLocomotion>();
+        return loco != null ? loco.StuckStage : 0;
+    }
+
+    private void Person(float t, int f, string kind, GameObject go, string name, string state, NpcSeating seating, int stuck, string info, bool onFloor)
     {
         Begin(t, f, kind, Id(go), name, state, seating != null ? seating.Current.ToString() : "");
         Transform tr = go.transform;
@@ -260,7 +270,7 @@ public sealed class CafeLifeProbe : MonoBehaviour
         }
         else row.Append(",0,,,,,,,,,,,,,,,,,,");
         AppendAnimator(go.GetComponentInChildren<Animator>());
-        row.Append(',').Append(stuck).Append(',').Append(Csv(info));
+        row.Append(',').Append(stuck).Append(',').Append(Csv(info)).Append(',').Append(onFloor ? 1 : 0);
         Commit();
     }
 

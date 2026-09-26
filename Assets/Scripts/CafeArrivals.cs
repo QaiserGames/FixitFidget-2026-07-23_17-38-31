@@ -91,7 +91,14 @@ public sealed class CafeArrivals : MonoBehaviour
 
     [Header("The café door")]
     [SerializeField] private Transform door;
-    [SerializeField, Min(0f)] private float doorScatter = 0.55f;
+    [SerializeField, Min(0f)] private float doorScatter = 0.35f;
+    [Tooltip("People coming in aim this far to the right of the door's centre (as they face into the café) and " +
+             "people going out this far to the left, so the two streams keep to their own side of the doorway. " +
+             "0 puts everyone on the centre line, as before pass 1.")]
+    [SerializeField, Range(0f, .6f)] private float laneOffset = .3f;
+    [Tooltip("Someone leaving has left once they are within this of the exit point. An area rather than a point, " +
+             "so several people can go out at once without queueing for one coordinate.")]
+    [SerializeField, Range(.3f, 1.5f)] private float exitRadius = .7f;
 
     [Header("On foot")]
     [SerializeField] private Route[] footRoutes = Array.Empty<Route>();
@@ -126,6 +133,47 @@ public sealed class CafeArrivals : MonoBehaviour
     public static CafeArrivals Instance { get; private set; }
     /// <summary>The player's body, for cars that give way to people.</summary>
     public static readonly List<CharacterController> Players = new List<CharacterController>();
+
+    // ------------------------------------------------------------ the doorway's two streams
+
+    /// <summary>How close to the exit point counts as out (see exitRadius). 0.5 m without an arrivals system.</summary>
+    public static float DepartureRadius => Instance != null && Instance.isActiveAndEnabled ? Instance.exitRadius : .5f;
+
+    /// <summary>
+    /// Where someone leaving should aim: the exit point shifted to the leaving
+    /// stream's side of the doorway. Arrivals aim at the other side
+    /// (<see cref="DoorPoint"/>), so people coming in and going out pass each
+    /// other instead of meeting head-on in the middle.
+    /// </summary>
+    public static Vector3 DepartureTarget(Vector3 exitPoint)
+    {
+        if (Instance == null || !Instance.isActiveAndEnabled || Instance.laneOffset <= 0f) return exitPoint;
+        return exitPoint - Instance.DoorRight() * Instance.laneOffset;
+    }
+
+    // "Right" for someone walking in: the door's inward direction (towards the
+    // counter, or the café's own forward) turned clockwise. Worked out from the
+    // scene rather than the door transform's rotation, which nothing else relies on.
+    private Vector3 doorRight;
+    private bool doorRightKnown;
+
+    private Vector3 DoorRight()
+    {
+        if (doorRightKnown) return doorRight;
+        Vector3 at = door != null ? door.position : transform.position;
+        Vector3 inward = Vector3.forward;
+        CounterQueue queue = FindAnyObjectByType<CounterQueue>();
+        if (queue != null && queue.SlotCount > 0 && queue.SlotPoint(queue.SlotCount / 2) != null)
+        {
+            inward = queue.SlotPoint(queue.SlotCount / 2).position - at;
+            inward.y = 0f;
+            if (inward.sqrMagnitude < 1e-4f) inward = Vector3.forward;
+            inward.Normalize();
+        }
+        doorRight = Vector3.Cross(Vector3.up, inward);
+        doorRightKnown = true;
+        return doorRight;
+    }
 
     /// <summary>
     /// Who came to the café today, from where, and where they went afterwards. For
@@ -432,9 +480,12 @@ public sealed class CafeArrivals : MonoBehaviour
         start?.Invoke();
     }
 
+    // Where a walk in ends and the brain starts: the arriving stream's side of
+    // the doorway, a little scattered so two arrivals never share a point.
     private Vector3 DoorPoint()
     {
         Vector3 at = door != null ? door.position : transform.position;
+        at += DoorRight() * laneOffset;
         Vector2 scatter = UnityEngine.Random.insideUnitCircle * doorScatter;
         Vector3 probe = at + new Vector3(scatter.x, 0f, scatter.y * 0.5f);
         return NavMesh.SamplePosition(probe, out NavMeshHit hit, 1.5f, NavMesh.AllAreas) ? hit.position : at;
