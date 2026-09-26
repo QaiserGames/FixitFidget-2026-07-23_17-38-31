@@ -104,7 +104,7 @@ public static class CafeMomentsSetup
         if (bookcase == null) report.AppendLine("- Bookcase \"Oak neighborhood bookcase\" not found: no bookshelf spot.");
         else shelf = PlaceBookshelf(bookcase, root.transform, door, taken, report);
 
-        foreach (WaitingSpot spot in Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (WaitingSpot spot in Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
         {
             if (spot is TableSeat || spot.Kind != WaitingSpot.SpotKind.Loiter) continue;
             if (PlaceLoiterLean(spot, root.transform, report)) leans++;
@@ -160,7 +160,7 @@ public static class CafeMomentsSetup
         var props = new List<Vector3>();
         Bounds grown = bounds;
         grown.Expand(new Vector3(.1f, .3f, .1f));
-        foreach (Renderer r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (Renderer r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Exclude))
         {
             if (r.transform.IsChildOf(sofa) || !grown.Contains(r.bounds.center)) continue;
             if (r.bounds.size.x > .7f || r.bounds.size.z > .7f) continue;
@@ -530,12 +530,12 @@ public static class CafeMomentsSetup
     // Everywhere somebody already has a place: waiting spots, seats, queue slots, station stand points.
     static IEnumerable<Vector3> PlacesPeopleStand()
     {
-        foreach (WaitingSpot s in Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (WaitingSpot s in Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
             yield return s.StandPoint.position;
         CounterQueue queue = Object.FindAnyObjectByType<CounterQueue>();
         if (queue != null)
             for (int i = 0; i < queue.SlotCount; i++) yield return queue.SlotPoint(i).position;
-        foreach (Transform t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (Transform t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude))
             if (t.name == "StandPoint" || t.name == "CounterStandPoint") yield return t.position;
     }
 

@@ -851,7 +851,10 @@ public class CustomerBrain : MonoBehaviour
 
         if (queue != null)
             for (int i = 0; i < queue.SlotCount; i++)
-                if (FlatDistance(point, queue.SlotPoint(i).position) < driftClearance) return false;
+            {
+                Transform slot = queue.SlotPoint(i);
+                if (slot != null && FlatDistance(point, slot.position) < driftClearance) return false;
+            }
 
         foreach (WaitingSpot spot in WaitingArea.Spots)
             if (spot != null && FlatDistance(point, spot.StandPoint.position) < driftClearance) return false;
