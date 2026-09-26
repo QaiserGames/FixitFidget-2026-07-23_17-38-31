@@ -127,8 +127,10 @@ public class WaitingArea : MonoBehaviour
         float radius = agent != null ? agent.radius + agent.stoppingDistance : 0.35f;
         foreach (WaitingSpot spot in registry)
         {
-            if (spot == null || spot == candidate || !spot.IsOccupied || spot.Occupant == occupant) continue;
-            NavMeshAgent other = spot.Occupant.GetComponent<NavMeshAgent>();
+            if (spot == null || spot == candidate) continue;
+            Component holder = Holder(spot);
+            if (holder == null || holder == occupant) continue;
+            NavMeshAgent other = holder.GetComponent<NavMeshAgent>();
             float otherRadius = other != null ? other.radius + other.stoppingDistance : 0.35f;
             Vector3 delta = candidate.StandPoint.position - spot.StandPoint.position;
             if (Mathf.Abs(delta.y) > 1.5f) continue;
@@ -137,6 +139,14 @@ public class WaitingArea : MonoBehaviour
             if (delta.sqrMagnitude < clearance * clearance) return false;
         }
         return true;
+    }
+
+    // Who is on a spot: its claim, or - for a chair whose occupant has let go
+    // but is still getting up out of it - the body in it (TableSeat.Sitter).
+    private static Component Holder(WaitingSpot spot)
+    {
+        if (spot.Occupant != null) return spot.Occupant;
+        return spot is TableSeat seat ? seat.Sitter : null;
     }
 
     // How full the room looks right now. Used by PatronSpawner so patrons stop

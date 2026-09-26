@@ -301,7 +301,8 @@ public sealed class NpcSeating : MonoBehaviour
         int right = 0, left = 0;
         foreach (TableSeat other in FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude))
         {
-            if (other == seat || !other.IsOccupied) continue;
+            // Someone still getting up from a chair counts as sitting in it.
+            if (other == seat || (!other.IsOccupied && other.Sitter == null)) continue;
             Vector3 d = other.SeatPose.position - centre;
             d.y = 0f;
             if (d.sqrMagnitude > 1.8f * 1.8f || d.sqrMagnitude < 1e-4f) continue;
