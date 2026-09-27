@@ -1,5 +1,69 @@
 # Current handoff — September 12, 2026
 
+## September 27 (night) — the street's front doors really open; 36 Mixamo clips downloaded; on `night-notebook`
+
+**Read this entry first.** One code commit on `night-notebook`: `1131eb7` (front doors). This entry and the project docs come in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+Mansoor's request: "no the house is fine but lets now add doors for these houses. so we can see them leave and enter more believably, also i saw some animations of sitting in maxiamo like sitting and laughing and sitting and talking, can we find some more sitting and idle standing or leaning and frustrations and happy animations, all kinds when they come in".
+
+His answers:
+
+- a real doorway, with a door that swings in;
+- all six houses and the courtyard shop;
+- the first batch of 36 clips;
+- doors first, then clips.
+
+**Grace's house:** she stays in the saffron house ("the house is fine"). The open call in the entry below is closed.
+
+**Front doors (`1131eb7`)**
+
+Full notes are in `claude/night-homes-spec.md` in the project, under "Front doors that open".
+
+- **What you see.** All six bay-window houses and the courtyard shop have a real doorway.
+  - The house's own door swings inwards 88° on a hinge, opening in 0.35 s and closing in 0.6 s.
+  - Behind it is a short dark hall (1.6 m), with no interior.
+  - **Coming out:** people wait in the hall until their door is open, step out, and the door closes behind them.
+  - **Going in:** the door opens as they reach it. They stand in the hall while it closes, and only then leave the game.
+- **Code:**
+  - `StreetDoor` (new) swings the door, and anyone can hold it open;
+  - `CafeArrivals` holds a route's door for the walker and adds the hall to the walk;
+  - `NpcJourney` gained gates: a walker waits until the door is open, and goes anyway after 4 s.
+- **Tools** (`Fixit Fidget > Night`):
+  - `Doors 1 - Survey the front doors (read-only)`;
+  - `Doors 2 - Give the houses real front doors` (already run). It cuts the doorways into copies of the merged meshes;
+  - `Doors 3 - Check the front doors (read-only)`;
+  - `Doors - Put the old doors back`, which undoes Doors 2.
+  - Assets: `Assets/Playtests/AcesCafeLayout/Street doors.asset` and `Street doors - dark hall.mat`.
+- **Checks:**
+  - `Doors 3`: all clear;
+  - `Checks > Street doors (Play Mode, lab session)`: **25/25**. Grace, a dusty rose walk-in and a courtyard walk-in each come out and go back in. The door is open before they pass, closed behind them, and shut before they vanish;
+  - `Checks > Grace's home`: 20/20. She now starts in her hall;
+  - `Checks > Night notebook`: 16/16;
+  - `Night > Check homes`: all clear.
+  - The scene diff was read line by line: only 43 mesh references changed (to the "(doorway)" copies), plus the new door objects.
+- **Left alone:** the bay houses' carved bracket dips to 2.28 m inside the door head. It was already there, and it is above head height.
+- **Left over:** one unused mesh from a first run in `Street doors.asset`. It is harmless.
+
+**Mixamo clips, batch 1 (downloaded and in the project; not baked or wired)**
+
+Full notes are in `claude/mixamo-clips-batch1.md` in the project. They cover the list with lengths, the checks, the suggested moments and the proposed next step.
+
+- **36 clips** on the X Bot rig: without skin, FBX for Unity, 30 fps, no keyframe reduction. Each was downloaded with Mansoor's account through Mixamo's own Download button.
+  - **24 standing** in `Assets/Art/Mixamo/Standing/`: idles, phone, leaning, frustration, happy, greeting, nod.
+  - **12 seated** in `Assets/Art/Mixamo/Sitting/`: idles, chats, laughing, impatience, thumbs up, beckoning.
+  - **Git-ignored** with the rest of `Assets/Art/Mixamo/`, 31.3 MB. The originals are still in his Downloads.
+- **Renamed:** the two duplicate names became `Sitting Idle - Breathing` / `Sitting Idle - Hands On Thighs` and `Sitting - Looking Side To Side` / `Sitting - Impatiently Waiting`, and Mixamo's "Dice Idle" became `Sitting - Tapping Fingers`.
+- **Checked** (every file read back):
+  - all use the same 65-bone `mixamorig` skeleton, with no mesh;
+  - the hips end where they start, so every clip loops;
+  - two seated clips put the pelvis well off the origin (up to 31 cm), and two sit higher (hips at 75–79 cm), so the bake has to line each seated clip up with the seat.
+- **Next (proposed, waiting for Mansoor):**
+  - **Step A:** bake onto the café rig the same way as the Quaternius clips, and photograph them. Nothing is wired.
+  - **Step B:** wiring, through a clip library that lives in the ignored folder, so a fresh clone of the public repo still works with today's clips.
+  - **Step C:** a phone, lean spots, and the gadget in hand.
+
 ## September 27 (evening) — café walls slide down, the painting wall is glazed, night step 3: Grace's home; on `night-notebook`
 
 **Read this entry first.** Two commits on `night-notebook`: `7188a0a` (walls) and `4030b8f` (Grace's home). Nothing is pushed.
