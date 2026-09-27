@@ -177899,6 +177899,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90c842f30012a704aaa7f99e8bd8861a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WaitingArea
+  nearlyAsNear: 0.6
+  onTheirWayPenalty: 2.5
   spots: []
 --- !u!4 &1628537623
 Transform:
