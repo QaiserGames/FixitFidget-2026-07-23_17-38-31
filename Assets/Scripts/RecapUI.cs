@@ -23,6 +23,9 @@ public class RecapUI : MonoBehaviour
     [SerializeField] private Color starEarnedColor = new Color(1f, 0.78f, 0.34f, 1f);
     [SerializeField] private Color starEmptyColor = new Color(1f, 1f, 1f, 0.35f);
 
+    [Header("Notebook (optional: Fixit Fidget > Night > Add the notebook to the recap)")]
+    [SerializeField] private TMP_Text notebookText;
+
     private SaveManager saveManager;
     private readonly List<CinemachineInputAxisController> pausedCameraInputs = new();
  
@@ -139,6 +142,19 @@ public class RecapUI : MonoBehaviour
             text.text += $"\n\n<color=#FFB3A7>SAVE FAILED: {saveManager.LastSaveError}</color>";
 
         RefreshReputation();
+        RefreshNotebook();
+    }
+
+    // What Ace noted today (claude/night-notebook-spec.md). Hidden on a day
+    // nothing was learned, and in scenes without the notebook block.
+    private void RefreshNotebook()
+    {
+        if (notebookText == null) return;
+        Notebook notebook = saveManager != null ? saveManager.Notebook : null;
+        int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
+        string block = notebook != null ? NotebookRecap.Build(notebook, day) : "";
+        notebookText.gameObject.SetActive(!string.IsNullOrEmpty(block));
+        notebookText.text = block;
     }
 
     // Stars and today's reviews (claude/reputation-spec.md). Scenes without

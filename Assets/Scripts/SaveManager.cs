@@ -33,6 +33,11 @@ public class SaveManager : MonoBehaviour
     private readonly ReputationLedger reputation = new();
     // Everyone already reviewed today, so nobody counts twice.
     private readonly HashSet<CustomerBrain> reviewedToday = new();
+
+    // Ace's notebook (claude/night-notebook-spec.md): what Ace has learned about
+    // the regulars. Filled by NotebookHooks during the day, shown in the
+    // recap, saved with the checkpoint like the regulars' memory.
+    private readonly Notebook notebook = new();
     // The draft lines from ReviewLines.cs, for scenes without a lines asset.
     // One shared copy per editor/game session.
     private static ReviewLines fallbackLines;
@@ -58,6 +63,7 @@ public class SaveManager : MonoBehaviour
         LoadFromDisk();
         RebuildRegularMemory();
         RebuildReputation();
+        RebuildNotebook();
     }
 
     private void OnDestroy()
@@ -158,6 +164,7 @@ public class SaveManager : MonoBehaviour
         }
 
         data.regularMemories = SnapshotRegularMemory();
+        data.notebook = notebook.Snapshot();
         data.reputation = reputation.Reputation;
         data.starsEarned = reputation.StarsEarned;
         if (data.recap != null) reputation.WriteRecap(data.recap);
@@ -246,6 +253,18 @@ public class SaveManager : MonoBehaviour
 
     /// <summary>The café's reputation, for the recap and the day log. Read it; don't change it.</summary>
     public ReputationLedger Reputation => reputation;
+
+    /// <summary>Ace's notebook: what Ace has learned about the regulars so far.</summary>
+    public Notebook Notebook => notebook;
+
+    // The saved notebook, plus anything an older save's memories already imply
+    // (Grace's camera visit before the notebook existed). Idempotent.
+    private void RebuildNotebook()
+    {
+        notebook.Restore(Loaded != null ? Loaded.notebook : null);
+        foreach ((NotebookFactData fact, int day) in NotebookEntries.Backfill(Loaded != null ? Loaded.regularMemories : null))
+            notebook.Learn(fact, day);
+    }
 
     /// <summary>Called by CustomerBrain.Depart with the same facts DayLog gets:
     /// one review per visit, counted into stars at closing.</summary>

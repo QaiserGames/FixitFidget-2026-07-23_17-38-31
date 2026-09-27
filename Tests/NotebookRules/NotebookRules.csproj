@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/Scripts/Notebook.cs" Link="Notebook.cs" />
+    <Compile Include="../../Assets/Scripts/NotebookEntries.cs" Link="NotebookEntries.cs" />
+    <Compile Include="../../Assets/Scripts/NotebookRecap.cs" Link="NotebookRecap.cs" />
+    <Compile Include="../../Assets/Scripts/GraceCameraEpisode.cs" Link="GraceCameraEpisode.cs" />
+    <Compile Include="../../Assets/Scripts/SaveData.cs" Link="SaveData.cs" />
+    <Compile Include="../../Assets/Editor/NotebookRuleChecks.cs" Link="NotebookRuleChecks.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+</Project>

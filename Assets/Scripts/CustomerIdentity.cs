@@ -17,6 +17,8 @@ public class CustomerIdentity : MonoBehaviour
     public int Relationship { get; private set; }
     public bool HasMetBefore { get; private set; }
     public bool RemembersFocusBoundary => previousVisit != null && previousVisit.focusBoundarySet;
+    /// <summary>This visit is Grace's camera episode (her intake is the authored story).</summary>
+    public bool IsGraceCameraRequest => isGraceCameraRequest;
     public CustomerReturnOutcome ReturnOutcome => CustomerReturnPolicy.Classify(previousVisit);
     public PortraitExpression Expression { get; private set; } = PortraitExpression.Neutral;
     // Regulars have faces. Walk-ins fall back to a silhouette in the UI.
@@ -102,6 +104,7 @@ public class CustomerIdentity : MonoBehaviour
             || !SaveManager.Instance.AcknowledgeGraceReturn(profile, out GracePhotoOutcome outcome))
             return acceptedLine;
         previousVisit = SaveManager.Instance.MemoryFor(profile);
+        NotebookHooks.GraceReturned(DisplayName, outcome);
         return acceptedLine + "\n\n" + GraceCameraEpisode.HandoffLine(outcome);
     }
 

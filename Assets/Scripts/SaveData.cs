@@ -36,6 +36,26 @@ public class RegularMemoryData
     public RegularMemoryData Copy() => (RegularMemoryData)MemberwiseClone();
 }
 
+// One thing Ace has learned about a regular (claude/night-notebook-spec.md).
+// Kind, source and certainty are stored as text, so their lists can grow
+// without breaking saves. Owned at runtime by Notebook.
+[Serializable]
+public class NotebookFactData
+{
+    public string id = "";            // stable key: the same fact heard twice is one entry
+    public string who = "";           // the regular's stable profile id, never display text
+    public string name = "";          // what Ace calls them, for the recap
+    public string kind = "";          // address, possession, schedule, claim, relationship, secret
+    public string text = "";          // what the notebook says
+    public string source = "";        // told, overheard, seen, read, found
+    public string sure = "";          // hunch, likely, sure
+    public int day;                   // the day it was learned
+    public int confirmedDay;          // the last later day it was heard or seen again (0 = never)
+    public string conflictsWith = ""; // the id of a fact it contradicts (a question), or ""
+
+    public NotebookFactData Copy() => (NotebookFactData)MemberwiseClone();
+}
+
 // A completed day's figures are a snapshot, not a replay of payouts/events.
 [Serializable]
 public class RecapSaveData
@@ -106,6 +126,12 @@ public class SaveData
     // because JsonUtility cannot serialize dictionaries.
     public RegularMemoryData[] regularMemories = new RegularMemoryData[0];
 
+    // Additive (the night notebook, 27 Sept 2026). No version bump on purpose:
+    // older builds skip a field they do not know, so this save still loads on
+    // a branch without the notebook (which drops it when it saves). Absent
+    // means an empty notebook; SaveManager backfills what the memories imply.
+    public NotebookFactData[] notebook = new NotebookFactData[0];
+
     public void ValidateAndMigrate()
     {
         if (version > CurrentVersion)
@@ -115,6 +141,8 @@ public class SaveData
         upgradeNames ??= new string[0];
         upgradeLevels ??= new int[0];
         regularMemories ??= new RegularMemoryData[0];
+        notebook = notebook == null ? new NotebookFactData[0]
+            : Array.FindAll(notebook, fact => fact != null && !string.IsNullOrEmpty(fact.id));
         reputation = Math.Max(0, reputation);
         starsEarned = Math.Max(0, Math.Min(5, starsEarned));
         if (recap != null)

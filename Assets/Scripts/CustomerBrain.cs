@@ -1318,6 +1318,8 @@ public class CustomerBrain : MonoBehaviour
         intakeGiven = true;
         React();
         intakeLine = identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
+        // Ace has just been told this: a regular's story goes in the notebook.
+        NotebookHooks.HeardIntake(identity, record);
         return intakeLine;
     }
 
