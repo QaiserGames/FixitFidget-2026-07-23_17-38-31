@@ -46,6 +46,13 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     private const float HelpAfter = 14f;         // seconds with no progress before a walk is helped on
     private const float SqueezeAfter = 5f;       // ... before squeezing past people who won't move
 
+    // Segments that may not be started until something says go: a front door that
+    // must be open before someone walks through it (StreetDoor). Index = segment
+    // (points[i] -> points[i + 1]); cleared by Begin.
+    private Func<bool>[] gates = Array.Empty<Func<bool>>();
+    private string[] gateWhat = Array.Empty<string>();
+    private float gateSince = -1f;
+    private const float GateGiveUp = 4f;         // seconds: a gate that never opens is walked through
     private Vector3[] points = Array.Empty<Vector3>();
     private StreetCrossing[] crossings = Array.Empty<StreetCrossing>();
     private float[] roomLeft = Array.Empty<float>(), roomRight = Array.Empty<float>();
@@ -145,6 +152,9 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         Kind = kind;
         whenDone = done;
         next = points.Length > 1 ? 1 : points.Length;
+        gates = Array.Empty<Func<bool>>();
+        gateWhat = Array.Empty<string>();
+        gateSince = -1f;
         // Everyone walks their own line: a little left or right of the path, kept for the whole walk.
         preference = UnityEngine.Random.Range(-0.34f, 0.34f);
         lateral = 0f;
@@ -169,6 +179,25 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         velocity = Vector3.zero;
         enabled = true;
         ShowToNavigation(true);
+    }
+
+    /// <summary>
+    /// Segment <paramref name="segment"/> (points[segment] -> points[segment + 1]) is not
+    /// started until <paramref name="open"/> says so: the walker waits where they are
+    /// (a front door that has to open first). Never longer than a few seconds.
+    /// Set after <see cref="Begin(Vector3[], StreetCrossing[], float[], float[], float, bool, CafeArrivals.Kind, Action)"/>, which clears every gate.
+    /// </summary>
+    public void Gate(int segment, Func<bool> open, string what)
+    {
+        int segments = Mathf.Max(0, points.Length - 1);
+        if (segment < 0 || segment >= segments || open == null) return;
+        if (gates.Length != segments)
+        {
+            gates = new Func<bool>[segments];
+            gateWhat = new string[segments];
+        }
+        gates[segment] = open;
+        gateWhat[segment] = what ?? "";
     }
 
     /// <summary>
@@ -286,6 +315,25 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
 
         Band(seg, out float allowLeft, out float allowRight);
         float wantedLateral = Mathf.Clamp(preference, -allowLeft, allowRight);
+
+        // ---- a gate on this segment (a front door): stand where they are until it opens ----
+        if (seg < gates.Length && gates[seg] != null)
+        {
+            bool open;
+            try { open = gates[seg](); }
+            catch (Exception) { open = true; }
+            if (!open && (gateSince < 0f || Time.time - gateSince < GateGiveUp))
+            {
+                if (gateSince < 0f) gateSince = Time.time;
+                waiting = true;
+                waitingFor = gateWhat[seg];
+                lastProgressAt = Time.time;   // waiting for a door is not being stuck
+                Steer(here, here, true, from, to, from, right, allowLeft, allowRight, dt, dir);
+                return;
+            }
+            gates[seg] = null;                // open (or given up on): walk on, and don't stop for it again
+            gateSince = -1f;
+        }
 
         if (kerbCrossing != null)
         {

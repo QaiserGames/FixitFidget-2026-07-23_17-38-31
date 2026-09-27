@@ -277,7 +277,8 @@ public static class HomeSetup
             foreach (HomeDoor d in doors)
             {
                 var seen = new List<string>();
-                Vector3 target = d.DoorPoint + Vector3.up * 1.2f;
+                // Half a metre out on the landing, chest high (the door itself is solid).
+                Vector3 target = d.DoorPoint + Flat(d.transform.forward).normalized * .5f + Vector3.up * 1.2f;
                 foreach ((float yaw, float dist, string label) in new[] { (home.y, distance, "the usual overhead view"), (home.y, 48f, "zoomed right out"),
                                                                            (home.y - 25f, distance, "turned 25° left"), (home.y + 25f, distance, "turned 25° right") })
                 {

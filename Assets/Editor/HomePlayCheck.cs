@@ -111,7 +111,10 @@ public static class HomePlayCheck
         // round, at the zoom it was left at and zoomed right out; the same for the
         // dusty rose house next door (the walk-ins' door) to compare. Information
         // for playtesting; the two walks below use the angles found here.
-        Vector3 doorstep = door.DoorPoint + Vector3.up * 1.2f;
+        // Half a metre out on the landing, chest high: where she is seen (the door itself is
+        // solid now, a real hinged door, so a point on its face would count as behind it).
+        Vector3 outward = Flat(door.transform.forward).normalized;
+        Vector3 doorstep = door.DoorPoint + outward * .5f + Vector3.up * 1.2f;
         float usualZoom = angleBefore.z, farZoom = 48f;
         Sight now = Look(doorstep, angleBefore.x, angleBefore.z);
         Note($"From the view as it was (turn {angleBefore.x:0}°, tilt {angleBefore.y:0}°, {angleBefore.z:0} m): her doorstep is {now.Describe()}.");
@@ -126,7 +129,7 @@ public static class HomePlayCheck
         if (neighbours != null && hers != null)
         {
             // Same house model: the same step from the doorway out to the door's face.
-            Vector3 roseDoorstep = neighbours.points[0] + (door.DoorPoint - hers.points[0]) + Vector3.up * 1.2f;
+            Vector3 roseDoorstep = neighbours.points[0] + (door.DoorPoint - hers.points[0]) + outward * .5f + Vector3.up * 1.2f;
             var roseUsual = new List<Sight>();
             var roseFar = new List<Sight>();
             for (IEnumerator s = Sweep(view, roseDoorstep, usualZoom, roseUsual); s.MoveNext();) yield return s.Current;
@@ -154,10 +157,15 @@ public static class HomePlayCheck
         CafeArrivals.Comings came = arrivals.Today.LastOrDefault();
         Check(came != null && came.cameFrom == HomeSetup.GraceRouteName && came.car.Length == 0,
             $"…from her own front door, never by car (\"{came?.cameFrom}\")");
-        Check(Flat(her.transform.position - door.DoorPoint).magnitude < 1f, "…starting in her doorway");
-        yield return .8f;
+        // With a real front door (StreetDoor) she starts inside, in the dark hall behind it.
+        StreetDoor front = StreetDoor.Near(door.DoorPoint, 1f);
+        if (front != null)
+            Check(Flat(her.transform.position - front.HallPoint).magnitude < .3f && front.Outside(her.transform.position) < -1f,
+                "…starting inside her house, in the hall behind her front door");
+        else Check(Flat(her.transform.position - door.DoorPoint).magnitude < 1f, "…starting in her doorway");
+        yield return front != null ? 1.6f : .8f;
         Photo("1-watching-grace-come-out.png");
-        yield return 2.2f;
+        yield return 2.4f;
         NotebookFactData seen = notebook.Find(HomeFact);
         Check(seen != null && seen.sure == Notebook.Sureness.Hunch && seen.source == Notebook.Sources.Seen && seen.day == NotebookHooks.Today
               && seen.text.StartsWith("Came out of " + door.looks, StringComparison.Ordinal),
