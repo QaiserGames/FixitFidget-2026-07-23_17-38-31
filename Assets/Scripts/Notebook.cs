@@ -64,7 +64,8 @@ public sealed class Notebook
     /// <summary>
     /// Learn <paramref name="fact"/> on <paramref name="day"/>. True when it is
     /// new. The same id is the same fact: hearing it again on a later day only
-    /// marks it confirmed, and can make Ace surer of it, never less sure.
+    /// marks it confirmed, and can make Ace surer of it, never less sure (the
+    /// day that happens is kept, so the recap can say so).
     /// </summary>
     public bool Learn(NotebookFactData fact, int day)
     {
@@ -72,12 +73,17 @@ public sealed class Notebook
         if (byId.TryGetValue(fact.id, out NotebookFactData known))
         {
             if (day > known.day) known.confirmedDay = Math.Max(known.confirmedDay, day);
-            if (Rank(fact.sure) > Rank(known.sure)) known.sure = fact.sure;
+            if (Rank(fact.sure) > Rank(known.sure))
+            {
+                known.sure = fact.sure;
+                known.surerDay = Math.Max(known.surerDay, day);
+            }
             return false;
         }
         NotebookFactData copy = fact.Copy();
         copy.day = Math.Max(0, day);
         copy.confirmedDay = 0;
+        copy.surerDay = 0;
         facts.Add(copy);
         byId[copy.id] = copy;
         return true;
@@ -95,6 +101,18 @@ public sealed class Notebook
         var list = new List<NotebookFactData>();
         foreach (NotebookFactData fact in facts)
             if (fact.day == day) list.Add(fact);
+        return list;
+    }
+
+    /// <summary>
+    /// Facts Ace became surer of on <paramref name="day"/> that were learned on an
+    /// earlier day (a new fact is listed as new, not as surer).
+    /// </summary>
+    public List<NotebookFactData> SurerOn(int day)
+    {
+        var list = new List<NotebookFactData>();
+        foreach (NotebookFactData fact in facts)
+            if (fact.surerDay == day && fact.day < day) list.Add(fact);
         return list;
     }
 

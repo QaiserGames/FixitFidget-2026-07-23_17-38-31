@@ -9,7 +9,12 @@ using System.Text;
 // Styled like the reviews above it (ReputationRecap): a bold heading at the
 // block's size, the lines a little smaller, the running total small and grey.
 //
-// No Unity types: Tests/NotebookRules compiles this file.
+// Night step 3 (claude/night-homes-spec.md §3.4): a fact Ace isn't sure of
+// says so ("(hunch)", "(likely)"), and a fact Ace became surer of today is
+// listed after the new ones ("(likely now)"). Street names are filled in as
+// the block is built (StreetNames), so a renamed street reads renamed.
+//
+// No Unity types: Tests/NotebookRules and Tests/HomeRules compile this file.
 // ---------------------------------------------------------------------------
 public static class NotebookRecap
 {
@@ -23,15 +28,22 @@ public static class NotebookRecap
     {
         if (notebook == null) return "";
         List<NotebookFactData> today = notebook.LearnedOn(day);
-        if (today.Count == 0) return "";
+        List<NotebookFactData> surer = notebook.SurerOn(day);
+        if (today.Count == 0 && surer.Count == 0) return "";
 
         var text = new StringBuilder();
-        text.Append("<b>Notebook</b>   ").Append(today.Count).Append(" new");
-        for (int i = 0; i < today.Count && i < MaxLines; i++)
+        text.Append("<b>Notebook</b>   ");
+        if (today.Count > 0) text.Append(today.Count).Append(" new");
+        if (surer.Count > 0) text.Append(today.Count > 0 ? ", " : "").Append(surer.Count).Append(" surer");
+        int shown = 0;
+        for (int i = 0; i < today.Count && shown < MaxLines; i++, shown++)
             text.Append('\n').Append(Small).Append(Line(today[i])).Append("</size>");
-        if (today.Count > MaxLines)
+        for (int i = 0; i < surer.Count && shown < MaxLines; i++, shown++)
+            text.Append('\n').Append(Small).Append(SurerLine(surer[i])).Append("</size>");
+        int rest = today.Count + surer.Count - shown;
+        if (rest > 0)
             text.Append('\n').Append(Small).Append("<color=").Append(Grey).Append(">+")
-                .Append(today.Count - MaxLines).Append(" more</color></size>");
+                .Append(rest).Append(" more</color></size>");
 
         int facts = notebook.Count, people = notebook.PeopleCount;
         text.Append("\n<size=80%><color=").Append(Grey).Append(">(")
@@ -41,14 +53,25 @@ public static class NotebookRecap
         return text.ToString();
     }
 
-    /// <summary>"Grace: a camera with a scratched strap. …"</summary>
-    public static string Line(NotebookFactData fact)
+    /// <summary>"Grace: a camera with a scratched strap. …", and "(hunch)" or "(likely)" when Ace isn't sure.</summary>
+    public static string Line(NotebookFactData fact) => Said(fact) + Marker(fact.sure, "");
+
+    /// <summary>A fact Ace became surer of today: "… (likely now)".</summary>
+    public static string SurerLine(NotebookFactData fact) => Said(fact) + Marker(fact.sure, " now");
+
+    private static string Said(NotebookFactData fact)
     {
         string name = string.IsNullOrWhiteSpace(fact.name) ? fact.who : fact.name;
-        string said = fact.text ?? "";
+        string said = StreetNames.Resolve(fact.text ?? "");
         // Mid-sentence after the name: "Grace: her husband…", not "Grace: Her husband…".
         if (said.Length > 1 && char.IsUpper(said[0]) && !char.IsUpper(said[1]))
             said = char.ToLowerInvariant(said[0]) + said.Substring(1);
         return name + ": " + said;
     }
+
+    // Sure facts (everything Ace is told) carry no mark; guesses say so, in grey.
+    private static string Marker(string sure, string suffix) =>
+        sure == Notebook.Sureness.Hunch || sure == Notebook.Sureness.Likely
+            ? " <color=" + Grey + ">(" + sure + suffix + ")</color>"
+            : suffix.Length > 0 && sure == Notebook.Sureness.Sure ? " <color=" + Grey + ">(sure now)</color>" : "";
 }

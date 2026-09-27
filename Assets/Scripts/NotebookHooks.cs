@@ -1,8 +1,10 @@
 // ---------------------------------------------------------------------------
 // Where the café's day feeds Ace's notebook (claude/night-notebook-spec.md).
-// Two moments, both things Ace has just been told at the counter:
+// Things Ace has just been told at the counter:
 //   * a regular's intake: Grace's camera story, or any other regular's repair;
 //   * Grace's return, once her job is accepted and she leaves the print.
+// And, since night step 3, one thing Ace has seen: a regular coming out of or
+// going into their own front door (claude/night-homes-spec.md).
 // Walk-ins are anonymous by design and never get entries. Without a
 // SaveManager (a bare test scene) nothing is recorded.
 // ---------------------------------------------------------------------------
@@ -29,6 +31,24 @@ public static class NotebookHooks
             if (fact != null && notebook.Learn(fact, Today)) learned++;
         }
         return learned;
+    }
+
+    /// <summary>
+    /// Ace has just seen <paramref name="identity"/> come out of (or go into)
+    /// their own front door (night step 3; CafeArrivals watches for it). True when
+    /// the notebook changed: a new fact, or Ace became surer of the old one.
+    /// </summary>
+    public static bool SawAtHome(CustomerIdentity identity, HomeDoor home, bool cameOut)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        if (notebook == null || home == null || identity == null || !identity.IsRegular || identity.Profile == null) return false;
+        string who = identity.Profile.PersistentId;
+        NotebookFactData known = notebook.Find(who + ".home");
+        string before = known?.sure;
+        NotebookFactData fact = NotebookEntries.HomeSeen(who, identity.DisplayName, home.looks, home.houseNumber, home.streetId,
+            cameOut, HomeRules.SightingSureness(known, Today));
+        if (fact == null) return false;
+        return notebook.Learn(fact, Today) || known != null && known.sure != before;
     }
 
     /// <summary>Grace's return has been accepted and her photo outcome settled.</summary>

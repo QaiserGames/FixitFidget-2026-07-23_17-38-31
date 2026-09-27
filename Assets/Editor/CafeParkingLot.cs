@@ -34,9 +34,11 @@ using Object = UnityEngine.Object;
 //    back and an asphalt crossover ramps from the road up to the car park.
 //  * A zebra crossing joins the car park's pedestrian gate to the café door. Drivers
 //    give way at it, and traffic never queues across it.
-//  * People on foot come from two neighbours' front doors (the Saffron house on the
-//    west street and the first courtyard shop on the east street) and use the
-//    junction crossings with the walk signal.
+//  * People on foot come from two neighbours' front doors (the dusty rose house on
+//    the west street and the first courtyard shop on the east street) and use the
+//    junction crossings with the walk signal. The saffron house next door is
+//    Grace's home (night step 3): only she walks that route (Night > Give Grace
+//    her home, which set these routes up without rebuilding the car park).
 //  * Every junction box, with its crossings, is kept clear: cars only drive in when
 //    they can get all the way across.
 //
@@ -462,7 +464,7 @@ public static class CafeParkingLot
     {
         new CafeArrivals.Route
         {
-            name = "From the Saffron house (west street)", weight = 1f,
+            name = "From the saffron house (Grace's home, west street)", weight = 1f, homeId = "home.grace",
             points = new[]
             {
                 new Vector3(-17.45f, .15f, -3.6f), new Vector3(-16.45f, Pavement, -3.6f),
@@ -471,6 +473,19 @@ public static class CafeParkingLot
                 new Vector3(-8f, Pavement, -3.95f), new Vector3(-2.2f, Surface, -2.75f), new Vector3(-.7f, Surface, -2.1f),
             },
             crossingAtSegment = new[] { -1, -1, 1, 1, 1, -1, -1, -1 },
+        },
+        new CafeArrivals.Route
+        {
+            name = "From the dusty rose house (west street)", weight = 1f,
+            points = new[]
+            {
+                new Vector3(-17.45f, .15f, 2.4f), new Vector3(-16.45f, Pavement, 2.4f),
+                new Vector3(-15.7f, Pavement, 2.4f), new Vector3(-15.7f, Pavement, -2.9f),
+                new Vector3(-15.2f, Pavement, -3.85f), new Vector3(-14.95f, Road, -3.85f),
+                new Vector3(-9.65f, Road, -3.85f), new Vector3(-9.4f, Pavement, -3.85f),
+                new Vector3(-8f, Pavement, -3.95f), new Vector3(-2.2f, Surface, -2.75f), new Vector3(-.7f, Surface, -2.1f),
+            },
+            crossingAtSegment = new[] { -1, -1, -1, -1, 1, 1, 1, -1, -1, -1 },
         },
         new CafeArrivals.Route
         {

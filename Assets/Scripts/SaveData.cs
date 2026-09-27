@@ -51,6 +51,7 @@ public class NotebookFactData
     public string sure = "";          // hunch, likely, sure
     public int day;                   // the day it was learned
     public int confirmedDay;          // the last later day it was heard or seen again (0 = never)
+    public int surerDay;              // the last day Ace became surer of it (0 = never); additive, night step 3
     public string conflictsWith = ""; // the id of a fact it contradicts (a question), or ""
 
     public NotebookFactData Copy() => (NotebookFactData)MemberwiseClone();

@@ -51,6 +51,14 @@ public class CustomerProfile : ScriptableObject
         ? name
         : persistentId.Trim();
 
+    [Header("Home (night track)")]
+    [Tooltip("Their front door: the Home Id of a HomeDoor in the café scene (e.g. home.grace). They always walk " +
+             "out of it to the café and back into it afterwards, and Ace can notice where they live. " +
+             "Empty = no home yet: they arrive like anyone else.")]
+    [SerializeField] private string homeId = "";
+
+    public string HomeId => string.IsNullOrWhiteSpace(homeId) ? "" : homeId.Trim();
+
     [Header("Portrait expressions (regulars)")]
     public Sprite portraitNeutral;
     public Sprite portraitHappy;

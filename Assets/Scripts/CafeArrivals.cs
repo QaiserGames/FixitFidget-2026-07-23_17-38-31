@@ -49,6 +49,9 @@ public sealed class CafeArrivals : MonoBehaviour
         [Tooltip("One per segment: the same to the right.")]
         public float[] roomRight = Array.Empty<float>();
         [Min(0f)] public float weight = 1f;
+        [Tooltip("A regular's home: a HomeDoor's id (e.g. home.grace). Only that regular walks this route, and always " +
+                 "does; walk-ins never use it. Empty: a neighbour's door anyone may come from.")]
+        public string homeId = "";
     }
 
     [Serializable]
@@ -190,6 +193,7 @@ public sealed class CafeArrivals : MonoBehaviour
         public string wentTo = "";
         public float arrivedHour = -1f;  // café clock hours (DayClock.CurrentHour)
         public float leftHour = -1f;
+        public bool seenAtHome;          // Ace saw them at their own front door (either way)
     }
 
     private sealed class Visit
@@ -203,6 +207,11 @@ public sealed class CafeArrivals : MonoBehaviour
         public NpcJourney journey;
         public bool rootMotion;
         public readonly List<Collider> switchedOff = new List<Collider>();
+        // A regular walking to or from their own front door (night step 3), and
+        // whether Ace has already noticed them there on this leg of the walk.
+        public HomeDoor home;
+        public CustomerIdentity who;
+        public bool seenAtHome;
     }
 
     private StreetCrossing[] live = Array.Empty<StreetCrossing>();
@@ -376,6 +385,7 @@ public sealed class CafeArrivals : MonoBehaviour
         if (open) LaunchCars();
 
         WatchWalks();
+        WatchHomes();
     }
 
     private void ResolveLanes()
@@ -437,7 +447,9 @@ public sealed class CafeArrivals : MonoBehaviour
         var right = new List<float>();
         var visit = new Visit { kind = kind, atDoor = atDoor, record = new Comings { kind = kind, who = kind == Kind.Patron ? "a patron" : "a customer" } };
 
-        CafeCar car = ReadyCar();
+        // A regular with a home comes out of their own front door; they live across the street.
+        int home = HomeRouteFor(npc);
+        CafeCar car = home < 0 ? ReadyCar() : null;
         if (car != null && car.Stall >= 0 && car.Stall < stalls.Length && stalls[car.Stall].walk.points.Length > 0 && lotToDoor.points.Length > 0)
         {
             Append(stalls[car.Stall].walk, false, path, cross, left, right);
@@ -450,11 +462,12 @@ public sealed class CafeArrivals : MonoBehaviour
         }
         else
         {
-            int route = PickFootRoute();
+            int route = home >= 0 ? home : PickFootRoute();
             if (route < 0) return false;
             Append(footRoutes[route], false, path, cross, left, right);
             visit.footRoute = route;
             visit.record.cameFrom = footRoutes[route].name;
+            if (home >= 0) SetHome(npc, visit, footRoutes[route]);
         }
         AppendPoint(DoorPoint(), path, cross, left, right);
 
@@ -572,9 +585,13 @@ public sealed class CafeArrivals : MonoBehaviour
         {
             if (car != null && car.Owner == npc) car.Owner = null; // their car is gone: walk home
             visit.car = null;
-            int route = visit.footRoute >= 0 ? visit.footRoute : PickFootRoute();
+            int home = HomeRouteFor(npc);
+            int route = home >= 0 ? home : visit.footRoute >= 0 ? visit.footRoute : PickFootRoute();
             if (route < 0) return false;
             Append(footRoutes[route], true, path, cross, left, right);
+            visit.footRoute = route;
+            visit.home = null;
+            if (home >= 0) SetHome(npc, visit, footRoutes[route]);
             done = () => Vanish(npc);
             visit.record.wentTo = footRoutes[route].name.Replace("From the ", "back to the ");
             LeftOnFoot++;
@@ -757,20 +774,73 @@ public sealed class CafeArrivals : MonoBehaviour
 
     // ------------------------------------------------------------ paths
 
+    // A public route, by weight. A regular's home route is never a stranger's (HomeRules).
     private int PickFootRoute()
     {
-        float total = 0f;
-        foreach (Route route in footRoutes) if (route != null && route.points.Length > 1) total += route.weight;
-        if (total <= 0f) return -1;
-        float roll = UnityEngine.Random.value * total;
+        var homes = new string[footRoutes.Length];
+        var weights = new float[footRoutes.Length];
+        var points = new int[footRoutes.Length];
         for (int i = 0; i < footRoutes.Length; i++)
         {
             Route route = footRoutes[i];
-            if (route == null || route.points.Length < 2) continue;
-            roll -= route.weight;
-            if (roll <= 0f) return i;
+            homes[i] = route?.homeId ?? "home";
+            weights[i] = route?.weight ?? 0f;
+            points[i] = route?.points?.Length ?? 0;
         }
-        return footRoutes.Length - 1;
+        return HomeRules.PublicRoute(homes, weights, points, UnityEngine.Random.value);
+    }
+
+    // The walking route from this visitor's own front door, or -1: a regular
+    // whose profile names a home that has a route of its own.
+    private int HomeRouteFor(GameObject npc)
+    {
+        CustomerIdentity identity = npc != null ? npc.GetComponent<CustomerIdentity>() : null;
+        if (identity == null || !identity.IsRegular || identity.Profile == null) return -1;
+        var homes = new string[footRoutes.Length];
+        var points = new int[footRoutes.Length];
+        for (int i = 0; i < footRoutes.Length; i++)
+        {
+            homes[i] = footRoutes[i]?.homeId ?? "";
+            points[i] = footRoutes[i]?.points?.Length ?? 0;
+        }
+        return HomeRules.HomeRoute(identity.Profile.HomeId, homes, points);
+    }
+
+    private static void SetHome(GameObject npc, Visit visit, Route route)
+    {
+        visit.home = HomeDoor.Find(route.homeId);
+        visit.who = npc.GetComponent<CustomerIdentity>();
+        visit.seenAtHome = false;
+    }
+
+    // ------------------------------------------------------------ homes
+
+    // Ace notices where a regular lives by seeing them at their own front door:
+    // coming out on the way here, or going in on the way back. Looked for a few
+    // times a second, only while someone is that close to their door.
+    private float nextHomeLook;
+
+    private void WatchHomes()
+    {
+        if (visits.Count == 0 || Time.unscaledTime < nextHomeLook) return;
+        nextHomeLook = Time.unscaledTime + .1f;
+        Camera view = null;
+        foreach (var pair in visits)
+        {
+            GameObject npc = pair.Key;
+            Visit visit = pair.Value;
+            if (npc == null || visit.home == null || visit.seenAtHome || visit.inside) continue;
+            if (visit.journey == null || !visit.journey.isActiveAndEnabled) continue;
+            Vector3 offset = npc.transform.position - visit.home.DoorPoint;
+            offset.y = 0f;
+            if (offset.magnitude > HomeRules.WatchRadius) continue;
+            if (view == null) view = Camera.main;
+            if (view == null) return;
+            if (!HomeSightings.CanSee(view, npc.transform)) continue;
+            visit.seenAtHome = true;
+            if (visit.record != null) visit.record.seenAtHome = true;
+            NotebookHooks.SawAtHome(visit.who, visit.home, !visit.leaving);
+        }
     }
 
     private float RandomWalkSpeed() => UnityEngine.Random.Range(Mathf.Min(walkSpeed.x, walkSpeed.y), Mathf.Max(walkSpeed.x, walkSpeed.y));
@@ -846,6 +916,9 @@ public sealed class CafeArrivals : MonoBehaviour
         crossings = crossingSetup ?? Array.Empty<Crossing>();
         keepClearBoxes = boxes ?? Array.Empty<KeepClearBox>();
     }
+
+    /// <summary>Replaces only the walking routes (Fixit Fidget > Night > Give Grace her home).</summary>
+    public void EditorSetFootRoutes(Route[] foot) => footRoutes = foot ?? Array.Empty<Route>();
 
     public Route[] EditorFootRoutes => footRoutes;
     public Stall[] EditorStalls => stalls;

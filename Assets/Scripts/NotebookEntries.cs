@@ -62,6 +62,34 @@ public static class NotebookEntries
     }
 
     /// <summary>
+    /// Ace saw a regular come out of, or go into, their own front door (night
+    /// step 3, claude/night-homes-spec.md §3.3). One fact per person,
+    /// "{who}.home": the first sighting is what gets written down; a sighting on
+    /// a later day confirms it and can make Ace surer (HomeRules.SightingSureness).
+    /// <paramref name="looks"/> is the house as seen ("the saffron house"); the
+    /// street goes in as a token, so renaming the street renames it here too.
+    /// </summary>
+    public static NotebookFactData HomeSeen(string who, string name, string looks, string number, string streetId,
+                                            bool cameOut, string sure)
+    {
+        if (string.IsNullOrWhiteSpace(who)) return null;
+        string house = string.IsNullOrWhiteSpace(looks) ? "a house" : looks.Trim();
+        string where = string.IsNullOrWhiteSpace(streetId) ? ""
+            : string.IsNullOrWhiteSpace(number) ? " on " + StreetNames.Token(streetId)
+            : " at " + number.Trim() + " " + StreetNames.Token(streetId);
+        return new NotebookFactData
+        {
+            id = who + ".home",
+            who = who,
+            name = string.IsNullOrWhiteSpace(name) ? who : name,
+            kind = Notebook.Kinds.Address,
+            text = (cameOut ? "Came out of " : "Went into ") + house + where + ".",
+            source = Notebook.Sources.Seen,
+            sure = string.IsNullOrWhiteSpace(sure) ? Notebook.Sureness.Hunch : sure
+        };
+    }
+
+    /// <summary>
     /// Facts an existing save already implies, with the day each happened: a
     /// save made before the notebook existed, whose regulars' memory says Grace
     /// has been in with her camera, gets what she said that day. Learning is

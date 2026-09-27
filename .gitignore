@@ -118,3 +118,8 @@ InitTestScene*.unity*
 
 # Cafe lab sessions (Fixit Fidget > Cafe life > Lab) log beside the real days; keep them out of the repo.
 /DayLogs/CafeLab/
+
+# Mixamo animations (downloaded with Mansoor's Adobe account). Fine to use in the game,
+# but Adobe's terms don't allow sharing the raw files, so they stay out of this public repository.
+/Assets/Art/Mixamo/
+/Assets/Art/Mixamo.meta

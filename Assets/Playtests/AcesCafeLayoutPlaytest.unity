@@ -52765,6 +52765,7 @@ Transform:
   - {fileID: 1779482055}
   - {fileID: 1718754586}
   - {fileID: 1380958695}
+  - {fileID: 1552613606}
   m_Father: {fileID: 1563862148}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &458778481
@@ -170131,6 +170132,54 @@ Transform:
   - {fileID: 586922481}
   m_Father: {fileID: 991522308}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1552613605
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1552613606}
+  - component: {fileID: 1552613607}
+  m_Layer: 0
+  m_Name: Grace's front door (home.grace)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1552613606
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1552613605}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.00000008940697, z: -0, w: 1}
+  m_LocalPosition: {x: 1.6000006, y: 0.15, z: 0.28999925}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 457857471}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1552613607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1552613605}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 557dabe82b8bfb144821086dd9923091, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HomeDoor
+  homeId: home.grace
+  looks: the saffron house
+  houseNumber: 12
+  streetId: west
 --- !u!1001 &1553152018
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -192507,7 +192556,7 @@ MonoBehaviour:
   laneOffset: 0.3
   exitRadius: 0.7
   footRoutes:
-  - name: From the Saffron house (west street)
+  - name: From the saffron house (Grace's home, west street)
     points:
     - {x: -17.45, y: 0.15, z: -3.6}
     - {x: -16.45, y: -0.02, z: -3.6}
@@ -192527,7 +192576,7 @@ MonoBehaviour:
     - 0.7
     - 1
     - 0.45000002
-    - 0.7
+    - 0.75
     roomRight:
     - 0
     - 0.45000002
@@ -192538,6 +192587,7 @@ MonoBehaviour:
     - 0.95
     - 1
     weight: 1
+    homeId: home.grace
   - name: From the courtyard shop (east street)
     points:
     - {x: 19.2, y: 0, z: 1.77}
@@ -192570,8 +192620,47 @@ MonoBehaviour:
     - -0.1
     - -0.05
     - 0.2
-    - 0.7
+    - 0.75
     weight: 1
+    homeId: 
+  - name: From the dusty rose house (west street)
+    points:
+    - {x: -17.449999, y: 0.15, z: 2.3999996}
+    - {x: -16.449999, y: -0.02, z: 2.3999996}
+    - {x: -15.7, y: -0.02, z: 2.3999996}
+    - {x: -15.7, y: -0.02, z: -2.8999999}
+    - {x: -15.2, y: -0.02, z: -3.85}
+    - {x: -14.95, y: -0.18, z: -3.85}
+    - {x: -9.65, y: -0.18, z: -3.85}
+    - {x: -9.4, y: -0.02, z: -3.85}
+    - {x: -8, y: -0.02, z: -3.95}
+    - {x: -2.2, y: 0, z: -2.75}
+    - {x: -0.7, y: 0, z: -2.1}
+    crossingAtSegment: ffffffffffffffffffffffffffffffff010000000100000001000000ffffffffffffffffffffffff
+    roomLeft:
+    - 0
+    - 0.45000002
+    - 0.35
+    - 0.2
+    - 0.7
+    - 0.7
+    - 0.7
+    - 1
+    - 0.45000002
+    - 0.75
+    roomRight:
+    - 0
+    - 0.45000002
+    - 0.4
+    - 1
+    - 0.7
+    - 0.7
+    - 0.7
+    - 0.90000004
+    - 0.95
+    - 1
+    weight: 1
+    homeId: 
   stalls:
   - name: Stall 1
     entry:
@@ -192890,6 +192979,7 @@ MonoBehaviour:
       - 0.4
       - 1
       weight: 1
+      homeId: 
   - name: Stall 2
     entry:
     - {x: 8.126112, y: 0.005, z: -19.66, w: 270}
@@ -193206,6 +193296,7 @@ MonoBehaviour:
       - 0.4
       - 0.45000002
       weight: 1
+      homeId: 
   - name: Stall 3
     entry:
     - {x: 8.126112, y: 0.005, z: -19.66, w: 270}
@@ -193525,6 +193616,7 @@ MonoBehaviour:
       - 0.35
       - 0.4
       weight: 1
+      homeId: 
   lotToDoor:
     name: "Car park gate to the caf\xE9 door"
     points:
@@ -193551,6 +193643,7 @@ MonoBehaviour:
     - 1
     - 1
     weight: 1
+    homeId: 
   entryLane: Through lane 3
   turnInPath:
   - {x: 11.5, y: -0.17, z: -16.033888, w: 180}
