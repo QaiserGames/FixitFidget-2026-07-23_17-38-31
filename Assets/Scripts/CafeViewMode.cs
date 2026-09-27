@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
@@ -13,7 +14,7 @@ public sealed class CafeViewMode : MonoBehaviour
     public CinemachineCamera firstPersonCamera;
     public Vector3 isometricFocus = new Vector3(0, .6f, 9);
     public Renderer bodyRenderer;
-    [Tooltip("Only these authored wall pieces can disappear in an overhead view.")]
+    [Tooltip("Only these authored wall pieces are cut away in an overhead view: they slide down to sill height.")]
     public Renderer[] cutawayWalls = System.Array.Empty<Renderer>();
     [Tooltip("Hanging fixture meshes hidden in the overhead view. Assign renderers, not lights.")]
     public Renderer[] overheadFixtures = System.Array.Empty<Renderer>();
@@ -35,6 +36,16 @@ public sealed class CafeViewMode : MonoBehaviour
     [Tooltip("Overhead zoom speed on the triggers, metres per second.")]
     [SerializeField, Range(4, 60)] private float padZoomSpeed = 22f;
 
+    [Header("Cut-away walls")]
+    [Tooltip("How much of a cut-away wall stays up in the overhead view, in metres: the window-sill height.")]
+    [SerializeField, Range(.3f, 1.6f)] private float cutawayHeight = .78f;
+    [Tooltip("Seconds a wall takes to slide down, or back up.")]
+    [SerializeField, Range(0, 1)] private float cutawaySlideSeconds = .25f;
+    [Tooltip("Seconds a wall waits, clearly out of the way, before it comes back up. Stops it flickering at the edge.")]
+    [SerializeField, Range(0, 2)] private float cutawayRiseDelay = .35f;
+    [Tooltip("How much taller a lowered wall is treated when deciding whether it is clearly out of the way, in metres.")]
+    [SerializeField, Range(0, 1.5f)] private float cutawayRiseMargin = .3f;
+
     PlayerInteractor interactor;
     ConversationController conversation;
     ItemInspector inspector;
@@ -43,6 +54,8 @@ public sealed class CafeViewMode : MonoBehaviour
     CinemachineBrain brain;
     bool firstPerson, pointerReleased, acceptingLook, bodyWasVisible;
     bool[] wallVisibility, fixtureVisibility;
+    CutawayWall[] cuts;
+    readonly HashSet<Renderer> cutawaySkip = new();
     float yaw, pitch = 8, isoYaw = 45, isoPitch = 50, isoDistance = 34;
     float homeIsoYaw = 45, homeIsoPitch = 50, homeIsoDistance = 34;
     int resumedAtFrame = -1;
@@ -61,6 +74,10 @@ public sealed class CafeViewMode : MonoBehaviour
         && (pointerReleased || Time.frameCount <= resumedAtFrame || brain != null && brain.IsBlending);
     public bool SuppressWalkingMovement => WalkingFirstPerson && pointerReleased;
     public float MovementYaw => WalkingFirstPerson ? yaw : isoYaw;
+    /// <summary>The overhead camera's turn, tilt and distance.</summary>
+    public Vector3 OverheadAngle => new Vector3(isoYaw, isoPitch, isoDistance);
+    /// <summary>The cut-away walls (null entries: walls that are never drawn).</summary>
+    public IReadOnlyList<CutawayWall> CutawayWalls => cuts ?? System.Array.Empty<CutawayWall>();
     bool AtStation => interactor != null && interactor.IsAtStation;
     bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver
         || conversation != null && conversation.InConversation || inspector != null && inspector.IsHoldingItem
@@ -86,6 +103,18 @@ public sealed class CafeViewMode : MonoBehaviour
         wallVisibility = new bool[cutawayWalls.Length];
         for (int i = 0; i < cutawayWalls.Length; i++)
             wallVisibility[i] = cutawayWalls[i] != null && cutawayWalls[i].enabled;
+        // Each drawn cut-away wall gets its low stand-in (see CutawayWall).
+        cuts = new CutawayWall[cutawayWalls.Length];
+        for (int i = 0; i < cutawayWalls.Length; i++)
+        {
+            if (cutawayWalls[i] == null) continue;
+            cutawaySkip.Add(cutawayWalls[i]);
+            if (!wallVisibility[i]) continue;
+            cuts[i] = new CutawayWall(cutawayWalls[i], cutawayHeight);
+            if (cuts[i].Stub != null) cutawaySkip.Add(cuts[i].Stub);
+            else Debug.Log($"[View] {cutawayWalls[i].name} can't slide down ({cuts[i].Problem}), so it hides in the overhead view instead.", cutawayWalls[i]);
+        }
+        foreach (Renderer fixture in overheadFixtures) if (fixture != null) cutawaySkip.Add(fixture);
         fixtureVisibility = new bool[overheadFixtures.Length];
         for (int i = 0; i < overheadFixtures.Length; i++)
             fixtureVisibility[i] = overheadFixtures[i] != null && overheadFixtures[i].enabled;
@@ -182,6 +211,19 @@ public sealed class CafeViewMode : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Turns the overhead camera to a given angle (the same limits as orbiting by
+    /// hand). For play-mode checks and scripted views; the player's own orbit
+    /// simply continues from here.
+    /// </summary>
+    public void OrbitTo(float yawDegrees, float pitchDegrees, float distance)
+    {
+        isoYaw = Mathf.Repeat(yawDegrees, 360);
+        isoPitch = Mathf.Clamp(pitchDegrees, 38, 68);
+        isoDistance = Mathf.Clamp(distance, minimumDistance, maximumDistance);
+        RefreshCameraPose();
+    }
+
     // Public so the existing scene recipe and play-mode validation can use the
     // same transition as V; this never forces an exit from a repair or dialog.
     public bool SetFirstPerson(bool enabled)
@@ -234,18 +276,29 @@ public sealed class CafeViewMode : MonoBehaviour
         Cursor.visible = !locked && !PadInput.UsingPad;
     }
 
+    // A wall that hides the room from the overhead camera slides down to sill
+    // height instead of vanishing (CutawayWall). It goes down as soon as it is in
+    // the way, and only comes back up once it has been clearly out of the way
+    // (with a margin) for a moment, so it never flickers at the edge.
     void RefreshCutawayWalls()
     {
-        if (wallVisibility == null || isometricCamera == null) return;
+        if (cuts == null || isometricCamera == null) return;
         Vector3 origin = isometricCamera.transform.position;
         bool overhead = OverheadPresentation;
-        for (int i = 0; i < Mathf.Min(cutawayWalls.Length, wallVisibility.Length); i++)
+        float dt = Time.unscaledDeltaTime;
+        foreach (CutawayWall cut in cuts)
         {
-            var wall = cutawayWalls[i];
-            if (wall == null) continue;
-            Bounds bounds = wall.bounds;
-            bool obscures = overhead && BlocksInterior(bounds, origin);
-            wall.enabled = wallVisibility[i] && !obscures;
+            if (cut == null || cut.Wall == null) continue;
+            Bounds full = cut.FullBounds;
+            bool blocks = overhead && BlocksInterior(full, origin);
+            bool nearly = blocks;
+            if (!nearly && overhead && cut.GoingDown)
+            {
+                Bounds taller = full;
+                taller.SetMinMax(full.min, full.max + Vector3.up * cutawayRiseMargin);
+                nearly = BlocksInterior(taller, origin);
+            }
+            cut.Step(overhead, blocks, nearly, dt, cutawaySlideSeconds, cutawayRiseDelay, transform, cutawaySkip);
         }
     }
 
@@ -300,6 +353,8 @@ public sealed class CafeViewMode : MonoBehaviour
     {
         if (firstPersonCamera != null) firstPersonCamera.Priority = 0;
         if (bodyRenderer != null) bodyRenderer.enabled = bodyWasVisible;
+        if (cuts != null)
+            foreach (CutawayWall cut in cuts) cut?.Restore();
         if (wallVisibility != null)
             for (int i = 0; i < Mathf.Min(cutawayWalls.Length, wallVisibility.Length); i++)
                 if (cutawayWalls[i] != null) cutawayWalls[i].enabled = wallVisibility[i];
@@ -308,5 +363,12 @@ public sealed class CafeViewMode : MonoBehaviour
                 if (overheadFixtures[i] != null) overheadFixtures[i].enabled = fixtureVisibility[i];
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+    }
+
+    void OnDestroy()
+    {
+        if (cuts == null) return;
+        foreach (CutawayWall cut in cuts) cut?.Dispose();
+        cuts = null;
     }
 }
