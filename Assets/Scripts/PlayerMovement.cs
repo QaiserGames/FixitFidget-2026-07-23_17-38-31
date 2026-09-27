@@ -33,6 +33,11 @@ public class PlayerMovement : MonoBehaviour
 
     private CharacterController controller;
     private Vector2 moveInput;
+
+    // Diagnostics only (the café lab walks Ace along the aisle for footage and
+    // stress runs). While set, it stands in for the stick/WASD input and goes
+    // through exactly the same path as a real key press, so nothing is skipped.
+    public Vector2? ScriptedInput { get; set; }
     private Vector2 walkInput;
     private ConversationController conversation;
     private CafeViewMode viewMode;
@@ -114,7 +119,7 @@ public class PlayerMovement : MonoBehaviour
         // the control scheme it last switched to, and walking must never wait
         // for that switch. The larger of the two wins, so nothing doubles.
         Vector2 stick = PadInput.LeftStick;
-        Vector2 input = stick.sqrMagnitude > moveInput.sqrMagnitude ? stick : moveInput;
+        Vector2 input = ScriptedInput ?? (stick.sqrMagnitude > moveInput.sqrMagnitude ? stick : moveInput);
 
         // A stick can report slightly more than 1 on its diagonals.
         Vector2 target = Vector2.ClampMagnitude(input, 1f);

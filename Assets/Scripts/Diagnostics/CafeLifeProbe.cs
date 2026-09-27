@@ -142,6 +142,9 @@ public sealed class CafeLifeProbe : MonoBehaviour
             writer.Flush();
             writer.Dispose();
             writer = null;
+            // What the life layer did while the tape ran (pass 2).
+            try { File.WriteAllText(Path.Combine(Folder, "life.txt"), $"after {Elapsed:0.0} s: {NpcAttentionDirector.Summary()}\n"); }
+            catch (Exception e) { Debug.LogWarning("[Café life probe] life.txt: " + e.Message, this); }
         }
         captureFrames = false;
         if (frameLog != null) { frameLog.Flush(); frameLog.Dispose(); frameLog = null; }
@@ -238,7 +241,20 @@ public sealed class CafeLifeProbe : MonoBehaviour
         if (loco == null) return "";
         NpcLookAt look = go.GetComponent<NpcLookAt>();
         string looking = look != null && look.Looking ? $";look={look.TargetYaw:0}" : "";
-        return $";leg={loco.Purpose};rec={loco.LastRecovery}{(loco.GaveUp ? ";gaveup" : "")}{looking}";
+        PersonalSpace space = go.GetComponent<PersonalSpace>();
+        string gaveWay = space != null && space.GaveWayToPlayer > .005f ? $";gave={space.GaveWayToPlayer:0.00}" : "";
+        // The life layer (pass 2): who they are as a mover, and what they are doing with themselves.
+        NpcSocial social = go.GetComponent<NpcSocial>();
+        string life = "";
+        if (social != null)
+        {
+            NpcSocial.Beat beat = social.CurrentBeat;
+            life = $";prof={social.ProfileName};gait={loco.WalkStyle};sit={social.Current}" +
+                   (beat != NpcSocial.Beat.None ? $";beat={beat}" : "") + (social.InChat ? ";chat" : "");
+            NpcSeating seating = go.GetComponent<NpcSeating>();
+            if (seating != null && seating.Seat != null) life += $";chair={seating.Seat.Style}";
+        }
+        return $";leg={loco.Purpose};rec={loco.LastRecovery}{(loco.GaveUp ? ";gaveup" : "")}{looking}{gaveWay}{life}";
     }
 
     private static int StuckStage(GameObject go)

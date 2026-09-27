@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -48,8 +49,12 @@ using UnityEngine.AI;
 /// <see cref="DriveWalk"/> while it moves the body by hand.
 ///
 /// SETTING OFF: a leg that starts more than <c>turnFirstBeyond</c> degrees off
-/// the body's heading turns on the spot first (up to half a second), then
-/// walks, instead of sliding sideways while the body catches up.
+/// the body's heading turns on the spot first, then walks, instead of sliding
+/// sideways while the body catches up. The turn eases in and out at a human
+/// pace and the feet step round while it happens (the walk clip at a slow
+/// rate), so it reads as someone turning round, not a turret. A leg that
+/// starts while the body is already walking is not stopped for a turn at all:
+/// the walk curves onto the new route (pass 2b, 27 Sept 2026).
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NavMeshAgent))]
@@ -101,6 +106,9 @@ public sealed class NpcLocomotion : MonoBehaviour
     [Tooltip("The speed the walk clip was made for (metres per second at playback 1). The WalkRate animator parameter " +
              "is speed / this, so feet stop sliding. Measured by Fixit Fidget > Café life > Pass 1 - 3.")]
     [SerializeField, Min(.3f)] private float walkClipSpeed = 1.35f;
+    [Tooltip("The walk styles (clips and their natural speeds) the animator's Walk blend tree offers (pass 2). " +
+             "Without it every person uses the one walk clip above.")]
+    [SerializeField] private NpcGaitData gait;
 
     [Header("Turning")]
     [Tooltip("Fastest the body turns, degrees per second.")]
@@ -118,6 +126,17 @@ public sealed class NpcLocomotion : MonoBehaviour
     [SerializeField, Range(20f, 150f)] private float turnFirstBeyond = 60f;
     [Tooltip("Longest the body turns before it starts walking anyway, seconds.")]
     [SerializeField, Range(.1f, 1f)] private float turnFirstMax = .5f;
+    [Tooltip("Fastest the body turns on the spot (setting off, or turning to a slot or a seat's facing), degrees per " +
+             "second. The turn eases in and out, and the feet step round meanwhile.")]
+    [SerializeField, Min(30f)] private float turnOnSpotSpeed = 230f;
+    [Tooltip("Longest an on-the-spot turn before setting off may take, seconds (a relaxed person takes the longest).")]
+    [SerializeField, Range(.3f, 2f)] private float turnOnSpotMax = 1.1f;
+    [Tooltip("Set off once the route is within this many degrees of the heading; the rest of the turn is walked.")]
+    [SerializeField, Range(10f, 90f)] private float setOffWithin = 50f;
+    [Tooltip("Already walking faster than this (m/s) when a new leg starts: curve onto it instead of stopping to turn.")]
+    [SerializeField, Range(.2f, 1.5f)] private float keepWalkingAbove = .6f;
+    [Tooltip("Turning on the spot faster than this (degrees per second) plays the walk clip slowly, so the feet step round.")]
+    [SerializeField, Range(20f, 200f)] private float stepRoundAbove = 70f;
 
     [Header("Walk animation")]
     [Tooltip("Speed above which the walk starts (m/s).")]
@@ -146,12 +165,16 @@ public sealed class NpcLocomotion : MonoBehaviour
 
     private static readonly int IsWalkingHash = Animator.StringToHash("IsWalking");
     private static readonly int WalkRateHash = Animator.StringToHash("WalkRate");
+    private static readonly int WalkStyleHash = Animator.StringToHash("WalkStyle");
 
     private NavMeshAgent agent;
     private Animator animator;
     private NpcSeating seating;
-    private bool hasWalkRate, animatorChecked;
+    private bool hasWalkRate, hasWalkStyle, animatorChecked;
     private float speedMultiplier = 1f;
+    // The movement profile's share of the numbers above (pass 2): 1 = the prefab's values.
+    private float profileSpeed = 1f, profileAcceleration = 1f, profileTurn = 1f, profileUrgency = .5f;
+    private int walkStyle;
 
     // The current leg.
     private bool hasGoal;
@@ -182,6 +205,16 @@ public sealed class NpcLocomotion : MonoBehaviour
     // Setting off: turn towards the route before the first step.
     private bool turningFirst;
     private float turnFirstUntil;
+    // Turning on the spot: eased yaw, and the feet stepping round while it lasts.
+    private float spotYawVelocity, lastYaw, stepRoundUntil, stepRoundRate;
+    private bool haveLastYaw, crowdedTurn;
+    // How fast the body is really moving, whatever moves it (the agent, the
+    // street walk, the seating): a new leg started by someone already walking
+    // curves on instead of stopping to turn.
+    private Vector3 lastBodyPosition;
+    private bool haveBodyPosition;
+    private float bodySpeed;
+    private static readonly List<NpcLocomotion> everyone = new();
 
     // Heading.
     private float headingVelocity;
@@ -205,7 +238,39 @@ public sealed class NpcLocomotion : MonoBehaviour
     public bool HasGoal => hasGoal;
     public Vector3 Goal => goal;
     public string Purpose => hasGoal ? move.purpose : "";
-    public float WalkSpeed => baseSpeed * speedMultiplier;
+    public float WalkSpeed => baseSpeed * speedMultiplier * profileSpeed;
+    /// <summary>The walk clip in use (NpcMovementProfile.WalkStyle), for traces.</summary>
+    public int WalkStyle => walkStyle;
+    /// <summary>The natural speed of the walk clip in use at this body's scale, m/s.</summary>
+    public float ClipSpeed => gait != null && gait.HasWalk(walkStyle)
+        ? gait.ClipSpeed(walkStyle, walkClipSpeed / Mathf.Max(.1f, transform.lossyScale.y)) * transform.lossyScale.y
+        : walkClipSpeed;
+
+    /// <summary>
+    /// Take on a movement profile (pass 2): speed, acceleration, turning and
+    /// the walk clip. Presentation only; where the person goes is unchanged.
+    /// </summary>
+    public void ApplyProfile(NpcMovementProfile profile)
+    {
+        if (profile == null) return;
+        profileSpeed = profile.walkSpeed;
+        profileAcceleration = profile.acceleration;
+        profileTurn = profile.turnSpeed;
+        profileUrgency = profile.urgency;
+        walkStyle = gait != null && gait.HasWalk((int)profile.walkStyle) ? (int)profile.walkStyle : 0;
+        ApplyAgentSettings();
+        if (animator != null && animator.runtimeAnimatorController != null)
+        {
+            CheckAnimator();
+            if (hasWalkStyle) animator.SetFloat(WalkStyleHash, walkStyle);
+        }
+    }
+
+    private float TurnSpeed => turnSpeed * profileTurn;
+    private float TurnSmoothing => Mathf.Clamp(turnSmoothing / Mathf.Max(.5f, profileTurn), .02f, .6f);
+    // A hurried person steps off sooner; a relaxed one finishes the turn first.
+    private float TurnFirstMax => Mathf.Max(turnFirstMax, turnOnSpotMax) * (1.2f - .5f * profileUrgency);
+    private float SpotTurnSpeed => turnOnSpotSpeed * profileTurn;
 
     private void Awake()
     {
@@ -217,15 +282,37 @@ public sealed class NpcLocomotion : MonoBehaviour
         ApplyAgentSettings();
     }
 
-    private void OnEnable() => ApplyAgentSettings();
+    private void OnEnable()
+    {
+        ApplyAgentSettings();
+        if (!everyone.Contains(this)) everyone.Add(this);
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => everyone.Clear();
+
+    // Someone else within arm's reach: a doorway or a busy aisle. Turning on the
+    // spot there is brisk, and the walk sets off sooner - nobody holds the door.
+    private bool Crowded()
+    {
+        Vector3 me = transform.position;
+        foreach (NpcLocomotion other in everyone)
+        {
+            if (other == null || other == this || !other.isActiveAndEnabled) continue;
+            Vector3 d = other.transform.position - me;
+            d.y = 0f;
+            if (d.sqrMagnitude < 1.1f * 1.1f) return true;
+        }
+        return false;
+    }
 
     private void ApplyAgentSettings()
     {
         if (agent == null) return;
         agent.updateRotation = false;   // the body's heading is this component's
         agent.autoBraking = true;
-        agent.speed = baseSpeed * speedMultiplier;
-        agent.acceleration = acceleration;
+        agent.speed = baseSpeed * speedMultiplier * profileSpeed;
+        agent.acceleration = acceleration * profileAcceleration;
     }
 
     // ------------------------------------------------------------ requests
@@ -243,7 +330,9 @@ public sealed class NpcLocomotion : MonoBehaviour
             Vector3 where = destination;
             Move how = options;
             afterStanding = () => MoveTo(where, how);
-            if (!seating.RequestStand(() => { Action go = afterStanding; afterStanding = null; go?.Invoke(); }))
+            // The seating turns the body towards the destination on the way
+            // back from the chair, so the walk carries straight on from there.
+            if (!seating.RequestStand(() => { Action go = afterStanding; afterStanding = null; go?.Invoke(); }, destination))
             {
                 afterStanding = null;
                 return StartLeg(destination, options);
@@ -291,8 +380,22 @@ public sealed class NpcLocomotion : MonoBehaviour
         Vector3 route = Flat(goal - transform.position);
         float angle = route.sqrMagnitude > 1e-4f ? Vector3.Angle(Flat(transform.forward), route) : 0f;
         if (angle < turnFirstBeyond) { turningFirst = false; return; }
+        // Already on the move (a step back from the counter handing over to the
+        // walk to a seat, the street walk handing over at the door, the walk out
+        // of a chair): stopping dead to turn would be a stop-and-spin in the
+        // middle of one walk. The walk curves onto the new route instead - only a
+        // real about-turn still stops.
+        float moving = Mathf.Max(Speed, bodySpeed);
+        if (moving > keepWalkingAbove && angle < 120f)
+        {
+            turningFirst = false;
+            if (Speed < moving * .5f) agent.velocity = Flat(transform.forward) * Mathf.Min(moving, agent.speed);
+            return;
+        }
+        crowdedTurn = Crowded();
         turningFirst = true;
-        turnFirstUntil = Time.time + turnFirstMax;
+        turnFirstUntil = Time.time + TurnFirstMax;
+        spotYawVelocity = 0f;
         agent.isStopped = true;
     }
 
@@ -301,16 +404,25 @@ public sealed class NpcLocomotion : MonoBehaviour
         Vector3 route = agent.hasPath && !agent.pathPending ? Flat(agent.steeringTarget - transform.position) : Flat(goal - transform.position);
         if (route.sqrMagnitude < 1e-4f) route = Flat(goal - transform.position);
         float angle = route.sqrMagnitude > 1e-4f ? Vector3.Angle(Flat(transform.forward), route) : 0f;
-        if ((angle <= 25f && !agent.pathPending) || Time.time >= turnFirstUntil)
+        if ((angle <= (crowdedTurn ? 75f : setOffWithin) && !agent.pathPending) || Time.time >= turnFirstUntil)
         {
             turningFirst = false;
             agent.isStopped = false;
             stalledSince = Time.time;
+            // The walk picks the turn up where the spot turn left it.
+            headingVelocity = spotYawVelocity;
             return;
         }
         agent.isStopped = true;
         if (route.sqrMagnitude > 1e-4f)
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(route.normalized, Vector3.up), turnSpeed * .9f * dt);
+        {
+            // Eased in and out, at a human pace: a person turning round, not a turret.
+            float targetYaw = Mathf.Atan2(route.x, route.z) * Mathf.Rad2Deg;
+            float yaw = crowdedTurn
+                ? Mathf.SmoothDampAngle(transform.eulerAngles.y, targetYaw, ref spotYawVelocity, .08f, TurnSpeed * .9f, dt)
+                : Mathf.SmoothDampAngle(transform.eulerAngles.y, targetYaw, ref spotYawVelocity, .16f, SpotTurnSpeed, dt);
+            transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        }
     }
 
     /// <summary>
@@ -373,27 +485,75 @@ public sealed class NpcLocomotion : MonoBehaviour
 
     private void Update()
     {
+        TrackBodySpeed(Time.deltaTime);
+        // NpcSeating moves the body by hand round the chair (agent off) and feeds
+        // the clip through DriveWalk. It has to come before the agent check:
+        // that branch used to reset the walk flag every frame while the agent
+        // was off, so the steps to and from the seat played in Idle (a slide).
+        if (seating != null && seating.Busy) return;
         if (agent == null || !agent.enabled || !agent.isOnNavMesh)
         {
-            // Off the floor (street walk) or sitting: NpcJourney / NpcSeating drive the clip.
+            // Off the floor (street walk): NpcJourney drives the clip.
             walkingAnimation = false;
             walkChangeTimer = 0f;
             return;
         }
-        if (seating != null && seating.Busy) return;   // NpcSeating moves the body and calls DriveWalk
 
         float dt = Time.deltaTime;
         if (hasGoal && !paused && turningFirst) TurnFirst(dt);
         if (hasGoal && !paused) { WatchProgress(); WatchStall(); }
         UpdateHeading(dt);
-        Animate(Speed, hasGoal && !paused && !agent.isStopped, agent.isStopped, dt);
+
+        // Turning on the spot faster than a weight shift: the feet step round
+        // (the walk clip, slowly) instead of the body swivelling on still legs.
+        float yawNow = transform.eulerAngles.y;
+        float yawRate = haveLastYaw && dt > 0f ? Mathf.Abs(Mathf.DeltaAngle(lastYaw, yawNow)) / dt : 0f;
+        lastYaw = yawNow;
+        haveLastYaw = true;
+        bool onSpot = Speed < .25f;
+        if (onSpot && yawRate > stepRoundAbove)
+        {
+            stepRoundUntil = Time.time + .15f;
+            stepRoundRate = Mathf.Clamp(yawRate / 330f, .5f, .85f);
+        }
+        bool steppingRound = onSpot && Time.time < stepRoundUntil;
+        Animate(Speed, hasGoal && !paused && !agent.isStopped, agent.isStopped, dt, steppingRound);
     }
+
+    private void TrackBodySpeed(float dt)
+    {
+        Vector3 p = transform.position;
+        if (haveBodyPosition && dt > 1e-5f)
+        {
+            float v = Mathf.Min(3f, Flat(p - lastBodyPosition).magnitude / dt);   // a warp is not a walk
+            bodySpeed = Mathf.Lerp(bodySpeed, v, 1f - Mathf.Exp(-dt / .12f));
+        }
+        lastBodyPosition = p;
+        haveBodyPosition = true;
+    }
+
+    /// <summary>True while the body is turning on the spot with its feet stepping round (for checks and traces).</summary>
+    public bool SteppingRound => Time.time < stepRoundUntil && Speed < .25f;
 
     /// <summary>
     /// For a body that is moved by hand (NpcSeating's steps round a chair):
     /// feed the walk clip from this speed so the stride still matches the floor.
     /// </summary>
-    public void DriveWalk(float speed, float dt) => Animate(speed, true, speed < .05f, dt);
+    public void DriveWalk(float speed, float dt)
+    {
+        // A hand-walked speed is smooth (no agent jitter), so the clip follows it
+        // at once rather than through the hold timer that filters agent noise.
+        walkingAnimation = speed > (walkingAnimation ? .08f : .2f);
+        walkChangeTimer = 0f;
+        if (animator == null) return;
+        CheckAnimator();
+        animator.SetBool(IsWalkingHash, walkingAnimation);
+        if (hasWalkRate)
+            animator.SetFloat(WalkRateHash, walkingAnimation ? Mathf.Clamp(speed / Mathf.Max(.3f, ClipSpeed), .5f, 1.7f) : 1f);
+    }
+
+    /// <summary>True while the walk clip is on (the agent's walk, a hand-walked step, or stepping round).</summary>
+    public bool WalkClipOn => walkingAnimation || SteppingRound;
 
     private float RemainingToGoal()
     {
@@ -619,7 +779,7 @@ public sealed class NpcLocomotion : MonoBehaviour
             if (want.sqrMagnitude > 1e-6f)
             {
                 float targetYaw = Mathf.Atan2(want.x, want.z) * Mathf.Rad2Deg;
-                float yaw = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetYaw, ref headingVelocity, turnSmoothing, turnSpeed, dt);
+                float yaw = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetYaw, ref headingVelocity, TurnSmoothing, TurnSpeed, dt);
                 transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             }
         }
@@ -627,24 +787,37 @@ public sealed class NpcLocomotion : MonoBehaviour
         {
             detourSince = -1f;
             followingDetour = false;
-            headingVelocity = 0f;
-            if (facing.HasValue)
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, facing.Value, turnSpeed * .6f * dt);
+            if (!turningFirst) headingVelocity = 0f;
+            if (facing.HasValue && !turningFirst)
+            {
+                // Eased, and the feet step round (Update) - not a constant-rate swivel.
+                float targetYaw = facing.Value.eulerAngles.y;
+                float yaw = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetYaw, ref spotYawVelocity, .18f, SpotTurnSpeed, dt);
+                transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            }
+            else if (!turningFirst) spotYawVelocity = 0f;
         }
     }
 
     // ------------------------------------------------------------ animation
 
-    private void Animate(float speed, bool mayWalk, bool stoppedNow, float dt)
+    private void CheckAnimator()
+    {
+        if (animatorChecked || animator == null) return;
+        animatorChecked = true;
+        if (animator.runtimeAnimatorController == null) return;
+        foreach (AnimatorControllerParameter p in animator.parameters)
+        {
+            if (p.nameHash == WalkRateHash && p.type == AnimatorControllerParameterType.Float) hasWalkRate = true;
+            if (p.nameHash == WalkStyleHash && p.type == AnimatorControllerParameterType.Float) hasWalkStyle = true;
+        }
+        if (hasWalkStyle) animator.SetFloat(WalkStyleHash, walkStyle);
+    }
+
+    private void Animate(float speed, bool mayWalk, bool stoppedNow, float dt, bool steppingRound = false)
     {
         if (animator == null) return;
-        if (!animatorChecked)
-        {
-            animatorChecked = true;
-            if (animator.runtimeAnimatorController != null)
-                foreach (AnimatorControllerParameter p in animator.parameters)
-                    if (p.nameHash == WalkRateHash && p.type == AnimatorControllerParameterType.Float) hasWalkRate = true;
-        }
+        CheckAnimator();
         bool wants = mayWalk && speed > (walkingAnimation ? walkStop : walkStart);
         if (wants == walkingAnimation) walkChangeTimer = 0f;
         else
@@ -656,13 +829,20 @@ public sealed class NpcLocomotion : MonoBehaviour
                 walkChangeTimer = 0f;
             }
         }
+        if (steppingRound && !walkingAnimation)
+        {
+            animator.SetBool(IsWalkingHash, true);
+            if (hasWalkRate) animator.SetFloat(WalkRateHash, stepRoundRate);
+            return;
+        }
         animator.SetBool(IsWalkingHash, walkingAnimation);
         if (hasWalkRate)
-            animator.SetFloat(WalkRateHash, walkingAnimation ? Mathf.Clamp(speed / Mathf.Max(.3f, walkClipSpeed), .6f, 1.5f) : 1f);
+            animator.SetFloat(WalkRateHash, walkingAnimation ? Mathf.Clamp(speed / Mathf.Max(.3f, ClipSpeed), .6f, 1.7f) : 1f);
     }
 
     private void OnDisable()
     {
+        everyone.Remove(this);
         EndPassThrough();
         if (animator != null && animator.isActiveAndEnabled) animator.SetBool(IsWalkingHash, false);
         walkingAnimation = false;

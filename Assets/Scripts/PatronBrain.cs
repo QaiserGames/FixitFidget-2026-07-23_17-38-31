@@ -55,12 +55,19 @@ public class PatronBrain : MonoBehaviour
     [Tooltip("Patrons must reach their own chair marker. A large stopping distance lets adjacent seats settle in the same aisle.")]
     [SerializeField, Range(0.01f, 0.2f)] private float seatStoppingDistance = 0.08f;
 
+    [Tooltip("Within this of the stand point, still walking, the seating takes over and the walk carries on into " +
+             "the chair (no stop, no idle, no hover). Pass 2.")]
+    [SerializeField, Range(0.3f, 1f)] private float sitHandoverDistance = 0.7f;
+
     private NavMeshAgent agent;
     // How the body gets where this brain sends it (turning, walk clip, stalls
     // and their recovery). Shared with CustomerBrain since pass 1.
     private NpcLocomotion locomotion;
     // Sits them on the chair (optional; see NpcSeating).
     private NpcSeating seating;
+    // Who they are as a mover, and what they do with their eyes and hands while
+    // they sit (pass 2). Presentation only.
+    private NpcSocial social;
     private Transform exitPoint;
 
     private State state = State.Entering;
@@ -78,6 +85,8 @@ public class PatronBrain : MonoBehaviour
         seating = GetComponent<NpcSeating>();
         locomotion = GetComponent<NpcLocomotion>();
         if (locomotion == null) locomotion = gameObject.AddComponent<NpcLocomotion>();
+        social = GetComponent<NpcSocial>();
+        if (social == null) social = gameObject.AddComponent<NpcSocial>();
         priority = Random.Range(96, 100);
     }
 
@@ -85,6 +94,10 @@ public class PatronBrain : MonoBehaviour
     {
         exitPoint = exit;
         bornAt = Time.time;
+
+        // A patron is nobody in particular: roll how they move and carry themselves.
+        if (social != null && social.Profile == null) social.AssignProfile(GetComponent<CustomerIdentity>());
+        NpcAttentionDirector.NotifyArrival(transform);
 
         TryTakeSeat();
     }
@@ -126,6 +139,7 @@ public class PatronBrain : MonoBehaviour
         switch (state)
         {
             case State.Settling:
+                if (social != null) social.Current = seat == null ? NpcSocial.Situation.StandingWait : NpcSocial.Situation.Walking;
                 if (seat == null)
                 {
                     if (Time.time >= leaveAt) Leave();
@@ -133,6 +147,24 @@ public class PatronBrain : MonoBehaviour
                 }
 
                 if (locomotion.GaveUp) { Leave(); break; }
+
+                // Close to the chair and still walking: hand the walk to the
+                // seating now, so the last steps, the turn and the sit are one
+                // movement rather than walk - stop - idle - hover - sit.
+                if (seating != null && seat is TableSeat early && seating.CanSit(early) && locomotion.IsMoving
+                    && locomotion.DistanceToGoal < sitHandoverDistance && !locomotion.HasArrived)
+                {
+                    float carried = locomotion.Speed;
+                    locomotion.Park(null);
+                    if (seating.TrySit(early, carried))
+                    {
+                        state = State.Sitting;
+                        leaveAt = Time.time + Random.Range(minStay, maxStay);
+                        break;
+                    }
+                    // Could not sit from here: finish the walk to the stand point as before.
+                    locomotion.MoveTo(seat.StandPoint.position, NpcLocomotion.Move.To(seatStoppingDistance, priority, "seat"));
+                }
 
                 if (locomotion.HasArrived)
                 {
@@ -149,6 +181,9 @@ public class PatronBrain : MonoBehaviour
                 break;
 
             case State.Sitting:
+                if (social != null)
+                    social.Current = seating != null && seating.IsSeated ? NpcSocial.Situation.Seated
+                        : seating != null && seating.Busy ? NpcSocial.Situation.Walking : NpcSocial.Situation.StandingWait;
                 // Seats can be switched off in the Inspector mid-run, and a
                 // disabled spot clears its occupant — so re-check rather than
                 // trusting the reference to still mean anything.
@@ -157,6 +192,7 @@ public class PatronBrain : MonoBehaviour
                 break;
 
             case State.Leaving:
+                if (social != null) social.Current = NpcSocial.Situation.Leaving;
                 // Out of the door they walk back to their car or home (CafeArrivals
                 // removes this brain there); without it they vanish at the door as
                 // before. The lifetime backstop still removes one who can't get out.

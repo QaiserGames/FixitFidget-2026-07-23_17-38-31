@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 832f39977260c5f46beadd24fe8c1520, type: 3}
+  m_Name: NpcProfileLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::NpcProfileLibrary
+  profiles:
+  - {fileID: 11400000, guid: 9f2df0a80345eac4cad5a97127771b19, type: 2}
+  - {fileID: 11400000, guid: ec1baf59b616c4441a2d68edc6ffbd72, type: 2}
+  - {fileID: 11400000, guid: db86a8cf7c78ad94fbd6f71bc4456d49, type: 2}
+  - {fileID: 11400000, guid: 2de404e163b9eb649a7510ed5f3158f9, type: 2}
+  - {fileID: 11400000, guid: f8199c86992a94a42b3e26ff8c572b4c, type: 2}

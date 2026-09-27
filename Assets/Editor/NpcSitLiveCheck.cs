@@ -295,7 +295,19 @@ public static class NpcSitLiveCheck
         target.y = seatCentre.y + above * w.body.lossyScale.y;
         w.hipError = Vector3.Distance(hip, target);
         w.hipHeight = hip.y - seatCentre.y;
+        // The floor: where the seat object stands - except for seats whose object sits
+        // at cushion height (the pass 2 lounge seats), where the stand point is the floor.
         float floor = w.seat.transform.position.y;
+        if (floor > w.seat.StandPoint.position.y + .15f)
+        {
+            floor = w.seat.StandPoint.position.y;
+            int npc = LayerMask.NameToLayer("NPC"), player = LayerMask.NameToLayer("Player");
+            int mask = Physics.DefaultRaycastLayers;
+            if (npc >= 0) mask &= ~(1 << npc);
+            if (player >= 0) mask &= ~(1 << player);
+            if (Physics.Raycast(w.seat.StandPoint.position + Vector3.up * .5f, Vector3.down, out RaycastHit hit, 2f, mask, QueryTriggerInteraction.Ignore))
+                floor = hit.point.y;
+        }
         w.feetGap = Mathf.Min(w.footL.position.y, w.footR.position.y) - floor;
         Vector3 facing = w.body.forward;
         facing.y = 0f;

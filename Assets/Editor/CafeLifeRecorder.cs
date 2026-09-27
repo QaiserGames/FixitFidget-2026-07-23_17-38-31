@@ -292,6 +292,17 @@ public static class CafeLifeRecorder
     [MenuItem(LabMenu + "Autopilot on or off")]
     static void ToggleAutopilot() => Lab.Autopilot = !Lab.Autopilot;
 
+    // Down the centre aisle to just inside the door, back up to short of the
+    // queue, and down to the door again - through whoever is in the way.
+    [MenuItem(LabMenu + "Walk Ace - counter to door and back")]
+    static void WalkAce()
+    {
+        PlayerMovement ace = Object.FindAnyObjectByType<PlayerMovement>();
+        if (ace != null && Vector3.Distance(ace.transform.position, new Vector3(0f, 0.05f, 9.6f)) > 4f)
+            Lab.MoveAce(new Vector3(0f, 0.05f, 9.6f), 180f);
+        Lab.WalkAce(new[] { new Vector3(0f, 0f, 1.3f), new Vector3(0f, 0f, 9.6f), new Vector3(0f, 0f, 1.3f) }, 2f);
+    }
+
     [MenuItem(LabMenu + "Send 3 customers in at once", true)]
     [MenuItem(LabMenu + "Send 6 patrons in at once", true)]
     [MenuItem(LabMenu + "Fill every free seat with patrons", true)]
@@ -302,6 +313,7 @@ public static class CafeLifeRecorder
     [MenuItem(LabMenu + "Put Ace in the doorway", true)]
     [MenuItem(LabMenu + "Put Ace in front of the counter", true)]
     [MenuItem(LabMenu + "Autopilot on or off", true)]
+    [MenuItem(LabMenu + "Walk Ace - counter to door and back", true)]
     static bool LabRunning() => EditorApplication.isPlaying && CafeLabDirector.Instance != null;
 }
 #endif

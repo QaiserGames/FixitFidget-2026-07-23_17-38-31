@@ -18,6 +18,13 @@ using UnityEngine;
 // defaults to Seat — so people start sitting down the moment seats exist.
 public class TableSeat : WaitingSpot
 {
+    /// <summary>
+    /// How a person gets onto this seat. A Chair is stepped round (beside it,
+    /// then in front, then turn and sit). A Bench - a sofa or banquette - is
+    /// walked up to from the front: step in, turn round, sit back.
+    /// </summary>
+    public enum SitStyle { Chair, Bench }
+
     [Header("Table seat")]
 
     [Tooltip("Where a drink is set down on the table for this seat. Used by " +
@@ -37,6 +44,19 @@ public class TableSeat : WaitingSpot
              "come down here; which way they face comes from the Cup Spot.")]
     [SerializeField] private Transform seatPose;
 
+    [Tooltip("Chair: stepped round from the side. Bench (sofa, banquette): walked up to from the front, " +
+             "turn, sit back. Pass 2.")]
+    [SerializeField] private SitStyle sitStyle = SitStyle.Chair;
+
+    [Tooltip("Optional. Which way the seated person faces (a point in the room). Empty = towards the Cup Spot, " +
+             "which is wrong for a sofa whose cup goes down beside the sitter.")]
+    [SerializeField] private Transform faceTowards;
+
+    [Tooltip("Optional. Room reserved round the stand point when other people claim nearby spots, metres. " +
+             "0 = the agent's own radius plus stopping distance (chairs). Bench seats sit 0.7 m apart, so they " +
+             "use a smaller footprint - the body leaves the stand point as soon as it sits.")]
+    [SerializeField, Min(0f)] private float clearanceRadius = 0f;
+
     // What's sitting on the table for this seat. A GameObject rather than a
     // DrinkJob on purpose: step 7 hasn't decided what a dirty cup IS yet, and
     // this shouldn't need rewriting when it does.
@@ -45,6 +65,11 @@ public class TableSeat : WaitingSpot
     public Transform CupSpot => cupSpot != null ? cupSpot : transform;
     public Transform SeatPose => seatPose != null ? seatPose : StandPoint;
     public bool SnapToSeat => snapToSeat;
+    public SitStyle Style => sitStyle;
+    /// <summary>What the seated person faces: the Face Towards point if set, else the cup spot.</summary>
+    public Vector3 FacingPoint => faceTowards != null ? faceTowards.position : CupSpot.position;
+    /// <summary>Footprint kept clear round the stand point for other claims; 0 = default (see WaitingArea).</summary>
+    public override float ClearanceRadius => clearanceRadius;
 
     public bool IsDirty => dirtyCup != null;
 

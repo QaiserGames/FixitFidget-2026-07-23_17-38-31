@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7fd9e4eb312e984688f7e671a736f08, type: 3}
+  m_Name: NpcProfile_Shy
+  m_EditorClassIdentifier: Assembly-CSharp::NpcMovementProfile
+  displayName: Shy
+  weight: 1
+  walkSpeed: 0.95
+  acceleration: 0.9
+  turnSpeed: 0.95
+  walkStyle: 0
+  urgency: 0.5
+  personalSpace: 0.06
+  idleStyle: 0
+  facingLooseness: 0.9
+  standingSway: 1
+  idleFrequency: 0.9
+  idleDuration: 0.9
+  lookTendency: 0.3
+  gestureLikelihood: 0.15
+  sociability: 0.15
+  shyness: 0.8
+  reactionDelay: 0.3

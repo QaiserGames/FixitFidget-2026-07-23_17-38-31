@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4548f5ee9cf651843b6621a6d220f565, type: 3}
+  m_Name: NpcGaitData
+  m_EditorClassIdentifier: Assembly-CSharp::NpcGaitData
+  walks:
+  - name: Normal (Beach walk)
+    clip: {fileID: -5599002979973759676, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+    clipSpeed: 1.3184121
+  - name: Relaxed (UAL Walk_Loop)
+    clip: {fileID: 7400000, guid: 2ca2c96f457e4bb4ebf45501d0726aa6, type: 2}
+    clipSpeed: 1.009343
+  - name: Brisk (UAL Walk_Formal_Loop)
+    clip: {fileID: 7400000, guid: 88bbc6bd610071c43adf97a2e33272fb, type: 2}
+    clipSpeed: 1.0575457
+  idles:
+  - {fileID: 9061338213343248790, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+  - {fileID: 7400000, guid: 7008d294a0656c54b947cb064acc1004, type: 2}
+  standingTalk: {fileID: 7400000, guid: 39e979118c574ac4fb4417642e6b228f, type: 2}

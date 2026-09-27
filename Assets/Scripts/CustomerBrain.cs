@@ -74,9 +74,21 @@ public class CustomerBrain : MonoBehaviour
              "Set to 0 to walk straight at the seat like before.")]
     [SerializeField] private float counterStepBack = 1.2f;
 
+    [Tooltip("Leaving the counter they hand over their device first (the Interact gesture) and only then turn " +
+             "away: seconds after the job is taken. Turning while the arm is still out read as a spin.")]
+    [SerializeField, Range(0f, 2f)] private float counterTurnAwayAfter = .95f;
+
+    [Tooltip("Stepping back from the counter, this close to the step-back point (and still walking) the walk " +
+             "carries straight on towards their spot instead of stopping there first, metres.")]
+    [SerializeField, Range(0f, 1f)] private float stepBackCarryOn = .45f;
+
     [Tooltip("How close counts as arrived. The prefab ships at 1 m, which " +
              "parks people a metre from their own chair.")]
     [SerializeField] private float arriveDistance = 0.3f;
+
+    [Tooltip("Within this of a chair's stand point, still walking, the seating takes over and the walk carries " +
+             "on into the chair (no stop, no idle, no hover). Pass 2.")]
+    [SerializeField, Range(0.3f, 1f)] private float sitHandoverDistance = 0.7f;
 
     [Header("Arrival")]
 
@@ -189,6 +201,9 @@ public class CustomerBrain : MonoBehaviour
     private CustomerStoryteller storyteller;
     // Head look (counter, delivery) and the personal way of standing in the queue.
     private NpcLookAt lookAt;
+    // The life layer (pass 2): movement profile, ambient glances and gestures.
+    // The brain's own attention to Ace goes through it too, and always wins.
+    private NpcSocial social;
     private float queueSide, queueDepth, queueYaw, nextQueueShift;
     // Delivery acknowledgement: is Ace bringing my order, and have I turned to him for it.
     private bool orderComing, turnedForDelivery;
@@ -200,6 +215,8 @@ public class CustomerBrain : MonoBehaviour
     private float reassureReadyAt;
     private int reassureUses;
     private int slotIndex = -1;
+    private bool aceAtMyCounter, aceServingMe, attentiveLooking;
+    private float aceDistanceSample, aceDistanceSampleAt, queueLookFrom, queueLookUntil, queueLookCooldownUntil, attentiveSwitchAt;
 
     // Where they went once you took their job.
     private WaitingSpot waitingSpot;
@@ -685,11 +702,16 @@ public class CustomerBrain : MonoBehaviour
         if (locomotion == null) locomotion = gameObject.AddComponent<NpcLocomotion>();
         lookAt = GetComponent<NpcLookAt>();
         if (lookAt == null) lookAt = gameObject.AddComponent<NpcLookAt>();
+        social = GetComponent<NpcSocial>();
+        if (social == null) social = gameObject.AddComponent<NpcSocial>();
+        // Who they are as a mover: a regular's own profile, else a roll. Presentation only.
+        NpcMovementProfile profile = social.Profile != null ? social.Profile : social.AssignProfile(identity);
+        float looseness = profile != null ? profile.facingLooseness : 1f;
 
         // Nobody stands on the exact same centimetre facing the exact same way.
         queueSide = Random.Range(-queueSideVariation, queueSideVariation);
         queueDepth = Random.Range(-queueDepthVariation, queueDepthVariation * .35f);
-        queueYaw = Random.Range(-queueYawVariation, queueYawVariation);
+        queueYaw = Random.Range(-queueYawVariation, queueYawVariation) * looseness;
         nextQueueShift = Time.time + Random.Range(6f, 12f);
 
         // Two multipliers, and they mean different things. The identity's is WHO
@@ -739,6 +761,8 @@ public class CustomerBrain : MonoBehaviour
         }
 
         state = State.WalkingToCounter;
+        if (social != null) social.Current = NpcSocial.Situation.Walking;
+        NpcAttentionDirector.NotifyArrival(transform);
 
         // Veer into the room before heading for the counter. Not the full
         // Drifting state from GDD §4.5 — just enough that six arrivals don't
@@ -899,8 +923,10 @@ public class CustomerBrain : MonoBehaviour
                             // reads as a conveyor belt.
                             driftDone = true;
                             locomotion.Park(null);
+                            // A hurried person barely pauses; a relaxed one has a proper look round.
+                            float urgency = social != null && social.Profile != null ? social.Profile.urgency : .5f;
                             MoveAfter(QueuePoint(slotIndex), Walk("slot"),
-                                      Random.Range(driftPauseMin, driftPauseMax));
+                                      Random.Range(driftPauseMin, driftPauseMax) * (1.35f - .7f * urgency));
                             break;
                         }
 
@@ -944,7 +970,15 @@ public class CustomerBrain : MonoBehaviour
 
                 if (!hasPendingDestination)
                 {
-                    if (locomotion.HasArrived)
+                    if (hasStepBack && locomotion.IsMoving && locomotion.DistanceToGoal < stepBackCarryOn)
+                    {
+                        // Clear of the counter and still walking: carry straight on
+                        // towards the seat. Stopping on the step-back point and
+                        // turning there read as walk back - stop - spin - walk.
+                        hasStepBack = false;
+                        locomotion.MoveTo(settleDestination, LeaveCounter("spot"));
+                    }
+                    else if (locomotion.HasArrived)
                     {
                         if (hasStepBack)
                         {
@@ -957,6 +991,13 @@ public class CustomerBrain : MonoBehaviour
                         else SettleHere();
                     }
                     else if (locomotion.GaveUp) GiveUpOnSpot();
+                    else if (!hasStepBack && waitingSpot is TableSeat early && seating != null && seating.CanSit(early)
+                             && locomotion.IsMoving && locomotion.DistanceToGoal < sitHandoverDistance)
+                    {
+                        // Close to the chair and still walking: the seating takes
+                        // the last steps, so walk, turn and sit are one movement.
+                        SettleHere(locomotion.Speed);
+                    }
                 }
                 break;
 
@@ -1042,25 +1083,25 @@ public class CustomerBrain : MonoBehaviour
     {
         if (lookAt == null) return;
         PlayerInteractor ace = Player;
-        if (ace == null) { lookAt.Clear(); return; }
+        bool seated = seating != null && seating.Busy;
+        if (social != null) social.Current = SituationNow(seated);
+        if (ace == null) { ClearAttention(); return; }
         Vector3 eyes = Vector3.up * aceEyeOffset;
         Vector3 toAce = ace.transform.position - transform.position;
         toAce.y = 0f;
         float distance = toAce.magnitude;
         float bearing = distance > .05f ? Vector3.Angle(transform.forward, toAce) : 0f;
-        bool seated = seating != null && seating.Busy;
 
         if (InConversation)
         {
-            lookAt.LookAt(ace.transform, eyes, 1f);
+            Attend(ace.transform, eyes, 1f);
             return;
         }
 
         switch (state)
         {
             case State.WaitingInQueue:
-                if (distance < counterLookRange && bearing < 110f) lookAt.LookAt(ace.transform, eyes, .9f);
-                else lookAt.Clear();
+                QueueAttention(ace.transform, eyes, distance, bearing);
                 ShiftWeightInQueue();
                 break;
 
@@ -1075,7 +1116,7 @@ public class CustomerBrain : MonoBehaviour
                 }
                 if (orderComing || Time.time < attentionUntil)
                 {
-                    lookAt.LookAt(ace.transform, eyes, 1f);
+                    Attend(ace.transform, eyes, 1f);
                     // Standing: turn to meet him once he is close. Seated: the head is enough.
                     if (orderComing && !seated && !turnedForDelivery && distance < deliveryTurnRange && state == State.Waiting)
                     {
@@ -1083,18 +1124,106 @@ public class CustomerBrain : MonoBehaviour
                         locomotion.Face(FacingTowards(ace.transform.position));
                     }
                 }
-                else if (distance < 2.2f && bearing < 100f) lookAt.LookAt(ace.transform, eyes, .5f);   // someone walked up
-                else lookAt.Clear();
+                else if (distance < 2.2f && bearing < 100f) Attend(ace.transform, eyes, .5f);   // someone walked up
+                else ClearAttention();
                 break;
 
             case State.Speaking:
-                if (Time.time < attentionUntil || (distance < 3f && bearing < 110f)) lookAt.LookAt(ace.transform, eyes, 1f);
-                else lookAt.Clear();
+                if (Time.time < attentionUntil || (distance < 3f && bearing < 110f)) Attend(ace.transform, eyes, 1f);
+                else ClearAttention();
                 break;
 
             default:
-                lookAt.Clear();
+                ClearAttention();
                 break;
+        }
+    }
+
+    // Waiting at the counter to be heard. The one he is talking to has his
+    // full attention (InConversation, above). The others give him a look when
+    // he comes over to their part of the counter or steps up right in front of
+    // them - a second or two, then back to their own thoughts, and NpcSocial's
+    // queue beats take over (the menu board, the room, a neighbour, the odd
+    // glance his way). Behind the counter all day, he used to be stared at by
+    // the whole line for as long as they stood there.
+    private void QueueAttention(Transform ace, Vector3 eyes, float distance, float bearing)
+    {
+        float now = Time.time;
+        bool atMyCounter = distance < 1.7f && bearing < 100f;
+        bool arrived = atMyCounter && !aceAtMyCounter;
+        aceAtMyCounter = atMyCounter;
+
+        // Next to be served, with him standing right across the counter: the
+        // strongest attention in the line - eyes on him, with a short look away
+        // now and then (the menu, the room) so it never becomes a stare.
+        // Across the counter from the serving spot is ~1.5-1.9 m; the neighbouring
+        // slot is ~42 degrees off, so it never counts as "me".
+        bool servingMe = CanHearIntake && distance < 2.4f && bearing < 35f;
+        if (servingMe)
+        {
+            if (!aceServingMe || now >= attentiveSwitchAt)
+            {
+                attentiveLooking = !aceServingMe || !attentiveLooking;
+                attentiveSwitchAt = now + (attentiveLooking ? Random.Range(3f, 6f) : Random.Range(.8f, 1.6f));
+            }
+            aceServingMe = true;
+            if (attentiveLooking) Attend(ace, eyes, .9f);
+            else ClearAttention();
+            return;
+        }
+        aceServingMe = false;
+
+        // A slow sample of his distance: is he coming this way?
+        bool comingOver = false;
+        if (now >= aceDistanceSampleAt)
+        {
+            comingOver = distance < counterLookRange && bearing < 110f && aceDistanceSample - distance > .6f;
+            aceDistanceSample = distance;
+            aceDistanceSampleAt = now + .5f;
+        }
+
+        if ((arrived || comingOver) && now >= queueLookCooldownUntil)
+        {
+            NpcMovementProfile profile = social != null ? social.Profile : null;
+            float tendency = profile != null ? profile.lookTendency : .5f;
+            float delay = profile != null ? profile.reactionDelay * .4f : 0f;
+            queueLookFrom = now + delay;
+            queueLookUntil = queueLookFrom + Random.Range(1.4f, 2.6f) * (.75f + .5f * tendency);
+            queueLookCooldownUntil = queueLookUntil + Random.Range(3f, 7f);
+        }
+
+        if (now >= queueLookFrom && now < queueLookUntil) Attend(ace, eyes, .85f);
+        else ClearAttention();
+    }
+
+    // The brain's attention goes through NpcSocial when there is one (it wins
+    // over anything ambient there); straight to the head otherwise.
+    private void Attend(Transform target, Vector3 offset, float weight)
+    {
+        if (social != null) social.Focus(target, offset, weight);
+        else lookAt.LookAt(target, offset, weight);
+    }
+
+    private void ClearAttention()
+    {
+        if (social != null) social.ClearFocus();
+        else lookAt.Clear();
+    }
+
+    private NpcSocial.Situation SituationNow(bool seated)
+    {
+        if (InConversation) return NpcSocial.Situation.Ordering;
+        switch (state)
+        {
+            case State.WaitingInQueue: return hasPendingDestination || (locomotion != null && locomotion.HasGoal) ? NpcSocial.Situation.Walking : NpcSocial.Situation.Queue;
+            case State.Settling: return NpcSocial.Situation.Walking;
+            case State.Waiting:
+                if (seating != null && seating.IsSeated) return NpcSocial.Situation.Seated;
+                if (seated) return NpcSocial.Situation.Walking;   // stepping to or from the chair
+                return hasPendingDestination || (locomotion != null && locomotion.HasGoal) ? NpcSocial.Situation.Walking : NpcSocial.Situation.StandingWait;
+            case State.Speaking:
+            case State.Leaving: return NpcSocial.Situation.Leaving;
+            default: return NpcSocial.Situation.Walking;
         }
     }
 
@@ -1368,7 +1497,9 @@ public class CustomerBrain : MonoBehaviour
         // he passes, so he steers around the queue instead of through it.
         // Yielding is only safe because the locomotion's recovery ladder still
         // steps aside and pushes through if politeness costs him too long.
-        MoveAfterReacting(destination, LeaveCounter(hasStepBack ? "step back" : "spot"));
+        // From the counter: hand the device over first, then turn away.
+        if (hasStepBack) MoveAfter(destination, LeaveCounter("step back"), Mathf.Max(reactionTime, counterTurnAwayAfter));
+        else MoveAfterReacting(destination, LeaveCounter("spot"));
         return true;
     }
 
@@ -1390,7 +1521,9 @@ public class CustomerBrain : MonoBehaviour
         locomotion.Park(facing);
     }
 
-    private void SettleHere()
+    private void SettleHere() => SettleHere(0f);
+
+    private void SettleHere(float carriedSpeed)
     {
         state = State.Waiting;
         StopSteering();
@@ -1400,7 +1533,15 @@ public class CustomerBrain : MonoBehaviour
         // round the chair, sits, and stands them up again by itself the moment
         // they're given somewhere else to go. Without it (or with Snap To Seat
         // off) they wait standing beside the chair, as they always have.
-        if (seating != null && waitingSpot is TableSeat tableSeat) seating.TrySit(tableSeat);
+        if (seating != null && waitingSpot is TableSeat tableSeat)
+        {
+            if (!seating.TrySit(tableSeat, carriedSpeed) && carriedSpeed > 0f)
+            {
+                // Handed over early but the seating declined: finish the walk to the stand point.
+                state = State.Settling;
+                locomotion.MoveTo(settleDestination, LeaveCounter("spot"));
+            }
+        }
     }
 
     // ---------- the drink wish ----------

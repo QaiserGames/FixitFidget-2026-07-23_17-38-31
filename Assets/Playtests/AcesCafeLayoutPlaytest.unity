@@ -6485,6 +6485,9 @@ MonoBehaviour:
   cupSpot: {fileID: 76268703}
   snapToSeat: 1
   seatPose: {fileID: 400660265}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &46456864
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -8559,6 +8562,42 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 62121111}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &62976569
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 62976570}
+  m_Layer: 0
+  m_Name: Lounge seats (pass 2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &62976570
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 62976569}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1525571891}
+  - {fileID: 2059611687}
+  - {fileID: 571880578}
+  - {fileID: 2041636539}
+  - {fileID: 660556934}
+  m_Father: {fileID: 347312904}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &63167774
 GameObject:
   m_ObjectHideFlags: 0
@@ -10389,6 +10428,9 @@ MonoBehaviour:
   cupSpot: {fileID: 840171891}
   snapToSeat: 1
   seatPose: {fileID: 639964892}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &78529612
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -12079,6 +12121,9 @@ MonoBehaviour:
   cupSpot: {fileID: 872997982}
   snapToSeat: 1
   seatPose: {fileID: 1269418643}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &88148487
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -16981,6 +17026,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 451858, guid: e97c4383dd13fb54fb98ecc4e4be2ec3, type: 3}
   m_PrefabInstance: {fileID: 147529382}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &151791673
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 151791674}
+  m_Layer: 0
+  m_Name: CupSpot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &151791674
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 151791673}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.7190136, z: -0, w: 0.694996}
+  m_LocalPosition: {x: -0.37910166, y: 0.03700003, z: -0.032893658}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 571880578}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &152185107
 GameObject:
   m_ObjectHideFlags: 0
@@ -19997,6 +20073,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 177761397}
+  - component: {fileID: 177761398}
   m_Layer: 0
   m_Name: Window banquette - future seated animation
   m_TagString: Untagged
@@ -20026,6 +20103,26 @@ Transform:
   - {fileID: 1251852646}
   m_Father: {fileID: 1113811400}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &177761398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 177761396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
+  m_SerializedVersion: 0
+  m_OverrideArea: 1
+  m_Area: 1
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 0
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
 --- !u!1 &177788624
 GameObject:
   m_ObjectHideFlags: 0
@@ -23560,6 +23657,9 @@ MonoBehaviour:
   cupSpot: {fileID: 1792845157}
   snapToSeat: 1
   seatPose: {fileID: 842486593}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &200154349
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -25796,6 +25896,9 @@ MonoBehaviour:
   cupSpot: {fileID: 790762799}
   snapToSeat: 1
   seatPose: {fileID: 172215520}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &220266144
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -39037,6 +39140,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 347312904}
+  - component: {fileID: 347312905}
   m_Layer: 0
   m_Name: Window upholstered seating
   m_TagString: Untagged
@@ -39059,8 +39163,29 @@ Transform:
   m_Children:
   - {fileID: 1493267783}
   - {fileID: 2123204616}
+  - {fileID: 62976570}
   m_Father: {fileID: 1909994166}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &347312905
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 347312903}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
+  m_SerializedVersion: 0
+  m_OverrideArea: 1
+  m_Area: 1
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 0
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
 --- !u!1 &347505257
 GameObject:
   m_ObjectHideFlags: 0
@@ -39758,6 +39883,37 @@ MonoBehaviour:
   tool: 1
   displayName: Cleaning Brush
   tint: {r: 0.7882353, g: 0.63529414, b: 0.15294118, a: 1}
+--- !u!1 &353498104
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 353498105}
+  m_Layer: 0
+  m_Name: SeatPose
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &353498105
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 353498104}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 571880578}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &353614292
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -61690,6 +61846,9 @@ MonoBehaviour:
   cupSpot: {fileID: 411713737}
   snapToSeat: 1
   seatPose: {fileID: 1328738360}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &538586546
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -63754,6 +63913,37 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 130278, guid: 94469aeaca2d49442af381840b70bb6c, type: 3}
   m_PrefabInstance: {fileID: 560759489}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &561662053
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 561662054}
+  m_Layer: 0
+  m_Name: SeatPose
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &561662054
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 561662053}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2041636539}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &562016773
 GameObject:
   m_ObjectHideFlags: 0
@@ -65226,6 +65416,63 @@ Transform:
   - {fileID: 29516930}
   m_Father: {fileID: 247523666}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &571880577
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 571880578}
+  - component: {fileID: 571880579}
+  m_Layer: 0
+  m_Name: Reading sofa - seat A
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &571880578
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 571880577}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.7190136, z: -0, w: 0.694996}
+  m_LocalPosition: {x: -6.66, y: 0.47, z: 6.17}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1802126039}
+  - {fileID: 353498105}
+  - {fileID: 151791674}
+  - {fileID: 2059828837}
+  m_Father: {fileID: 62976570}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &571880579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 571880577}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2126225e3a88a1a43853921bb6d4692f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TableSeat
+  kind: 1
+  standPoint: {fileID: 1802126039}
+  drainMultiplier: 0.55
+  cupSpot: {fileID: 151791674}
+  snapToSeat: 1
+  seatPose: {fileID: 353498105}
+  sitStyle: 1
+  faceTowards: {fileID: 2059828837}
+  clearanceRadius: 0.3
 --- !u!1 &574562013
 GameObject:
   m_ObjectHideFlags: 0
@@ -66738,6 +66985,9 @@ MonoBehaviour:
   cupSpot: {fileID: 1820092182}
   snapToSeat: 1
   seatPose: {fileID: 69250}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &583641252
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -72866,6 +73116,9 @@ MonoBehaviour:
   cupSpot: {fileID: 1240088995}
   snapToSeat: 1
   seatPose: {fileID: 2012406831}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &640032814
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -75292,6 +75545,62 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 430828, guid: ade248290e90bae40b4a349101c343c8, type: 3}
   m_PrefabInstance: {fileID: 658736608}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &660556933
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 660556934}
+  - component: {fileID: 660556935}
+  m_Layer: 0
+  m_Name: Tub chair
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &660556934
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 660556933}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: -5.1, y: 0.423, z: 3.3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2079231965}
+  - {fileID: 2028813785}
+  - {fileID: 2125255581}
+  m_Father: {fileID: 62976570}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &660556935
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 660556933}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2126225e3a88a1a43853921bb6d4692f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TableSeat
+  kind: 1
+  standPoint: {fileID: 2079231965}
+  drainMultiplier: 0.55
+  cupSpot: {fileID: 2125255581}
+  snapToSeat: 1
+  seatPose: {fileID: 2028813785}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0.3
 --- !u!1 &660783508
 GameObject:
   m_ObjectHideFlags: 0
@@ -77147,6 +77456,9 @@ MonoBehaviour:
   cupSpot: {fileID: 1981299966}
   snapToSeat: 1
   seatPose: {fileID: 1935705591}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &676063583
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -82025,6 +82337,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 46456862}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &751740729
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 751740730}
+  m_Layer: 0
+  m_Name: CupSpot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &751740730
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 751740729}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.67433834, z: -0, w: 0.7384225}
+  m_LocalPosition: {x: -0.000000059604645, y: -0.034999996, z: 0.6627215}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1525571891}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &751812079
 PrefabInstance:
@@ -87266,6 +87609,37 @@ SkinnedMeshRenderer:
     m_Center: {x: -0.0010162037, y: 0.0007548472, z: 0.00062246365}
     m_Extent: {x: 0.002479353, y: 0.0010814833, z: 0.0034283495}
   m_DirtyAABB: 0
+--- !u!1 &786805258
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 786805259}
+  m_Layer: 0
+  m_Name: CupSpot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &786805259
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 786805258}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.69325113, z: -0, w: 0.7206961}
+  m_LocalPosition: {x: -0.41124326, y: 0.06500003, z: -0.024059504}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2041636539}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &789595720
 GameObject:
   m_ObjectHideFlags: 0
@@ -90688,6 +91062,9 @@ MonoBehaviour:
   cupSpot: {fileID: 1933661191}
   snapToSeat: 1
   seatPose: {fileID: 79123004}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &812827345
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -106331,6 +106708,37 @@ Transform:
   - {fileID: 532192315}
   m_Father: {fileID: 280586296}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &960481837
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 960481838}
+  m_Layer: 0
+  m_Name: StandPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &960481838
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 960481837}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.9466057, z: -0, w: 0.3223937}
+  m_LocalPosition: {x: 0.5350664, y: -0.41952503, z: 0.694409}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1525571891}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &961082354
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -113102,6 +113510,9 @@ MonoBehaviour:
   cupSpot: {fileID: 461203176}
   snapToSeat: 1
   seatPose: {fileID: 823854891}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &1023353844
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -115057,7 +115468,7 @@ NavMeshObstacle:
   m_Enabled: 1
   serializedVersion: 3
   m_Shape: 0
-  m_Extents: {x: 0.3, y: 1, z: 0.3}
+  m_Extents: {x: 0.4, y: 1, z: 0.4}
   m_MoveThreshold: 0.1
   m_Carve: 0
   m_CarveOnlyStationary: 1
@@ -117423,6 +117834,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1158466522}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1064786881
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1064786882}
+  m_Layer: 0
+  m_Name: FaceTowards
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1064786882
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1064786881}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.00000017881393, y: -0.47, z: 2.0615528}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2041636539}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1064958712
 GameObject:
@@ -128120,6 +128562,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1161866752}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1162663974
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1162663975}
+  m_Layer: 0
+  m_Name: SeatPose
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1162663975
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1162663974}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1525571891}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1162740792
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -138184,6 +138657,37 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.14, y: 0.90000004, z: 0.48999998}
   m_Center: {x: 0, y: 0.45000002, z: 0}
+--- !u!1 &1253281050
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1253281051}
+  m_Layer: 0
+  m_Name: CupSpot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1253281051
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1253281050}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.7384227, z: -0, w: 0.67433816}
+  m_LocalPosition: {x: -0.000000063329935, y: -0.034999996, z: 0.6627215}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2059611687}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1254355319
 GameObject:
   m_ObjectHideFlags: 0
@@ -148002,6 +148506,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 296477611}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1353136519
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1353136520}
+  m_Layer: 0
+  m_Name: SeatPose
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1353136520
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1353136519}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2059611687}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1354773578 stripped
 Transform:
@@ -165985,6 +166520,62 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 422430, guid: b59c8a025baab13498254afa5eb8b18d, type: 3}
   m_PrefabInstance: {fileID: 1524087908}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1525571890
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1525571891}
+  - component: {fileID: 1525571892}
+  m_Layer: 0
+  m_Name: Front sofa - seat A
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1525571891
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1525571890}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.67433834, z: -0, w: 0.7384225}
+  m_LocalPosition: {x: -6.66, y: 0.47, z: 2.92}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 960481838}
+  - {fileID: 1162663975}
+  - {fileID: 751740730}
+  m_Father: {fileID: 62976570}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1525571892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1525571890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2126225e3a88a1a43853921bb6d4692f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TableSeat
+  kind: 1
+  standPoint: {fileID: 960481838}
+  drainMultiplier: 0.55
+  cupSpot: {fileID: 751740730}
+  snapToSeat: 1
+  seatPose: {fileID: 1162663975}
+  sitStyle: 1
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0.3
 --- !u!1001 &1526075540
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -174867,7 +175458,7 @@ Transform:
   m_GameObject: {fileID: 1607097730}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.601815, z: -0, w: 0.79863554}
-  m_LocalPosition: {x: -6.7, y: 0.47, z: 6.35}
+  m_LocalPosition: {x: -6.7, y: 0.47, z: 6.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -185075,6 +185666,9 @@ MonoBehaviour:
   cupSpot: {fileID: 371448384}
   snapToSeat: 1
   seatPose: {fileID: 415139311}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &1686551451
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -193042,6 +193636,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: ae58995261322c2468d15ab9281b5b31, type: 3}
   m_PrefabInstance: {fileID: 1767370628}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1768074679
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1768074680}
+  m_Layer: 0
+  m_Name: StandPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1768074680
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1768074679}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.90558934, z: -0, w: 0.42415565}
+  m_LocalPosition: {x: -0.80395764, y: -0.43, z: 0.6699639}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2059611687}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1769722329
 GameObject:
   m_ObjectHideFlags: 0
@@ -198050,6 +198675,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1802066062}
   m_Mesh: {fileID: 8532326687215004556, guid: ab36ef4a9b00cc84aadc5f134e433c0d, type: 2}
+--- !u!1 &1802126038
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1802126039}
+  m_Layer: 0
+  m_Name: StandPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1802126039
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1802126038}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.9998558, z: -0, w: -0.016982973}
+  m_LocalPosition: {x: -0.025131166, y: -0.43, z: 0.7395729}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 571880578}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1802336260
 GameObject:
   m_ObjectHideFlags: 0
@@ -199282,6 +199938,9 @@ MonoBehaviour:
   cupSpot: {fileID: 929737702}
   snapToSeat: 1
   seatPose: {fileID: 1285093551}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &1810811173
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -201282,6 +201941,9 @@ MonoBehaviour:
   cupSpot: {fileID: 1037730333}
   snapToSeat: 1
   seatPose: {fileID: 1575604766}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &1831366984
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -212691,6 +213353,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1933040188}
+  - component: {fileID: 1933040189}
   m_Layer: 0
   m_Name: 18 - cafe furnishing
   m_TagString: Untagged
@@ -212720,6 +213383,26 @@ Transform:
   - {fileID: 487924166}
   m_Father: {fileID: 991522308}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1933040189
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1933040187}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
+  m_SerializedVersion: 0
+  m_OverrideArea: 1
+  m_Area: 1
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 0
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
 --- !u!1 &1933661190
 GameObject:
   m_ObjectHideFlags: 0
@@ -221792,6 +222475,9 @@ MonoBehaviour:
   cupSpot: {fileID: 154755642}
   snapToSeat: 1
   seatPose: {fileID: 49264185}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &1994553365
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -225333,6 +226019,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 478286, guid: 64b839200fb1c394abe8b5e1693c5cf4, type: 3}
   m_PrefabInstance: {fileID: 2028763185}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2028813784
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2028813785}
+  m_Layer: 0
+  m_Name: SeatPose
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2028813785
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2028813784}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 660556934}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2028989102
 GameObject:
   m_ObjectHideFlags: 0
@@ -226888,6 +227605,63 @@ MonoBehaviour:
   restingWristAboveThigh: 0.14
   seatedHipLift: 0.025
   seatedShoulderSettle: 0.9
+--- !u!1 &2041636538
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2041636539}
+  - component: {fileID: 2041636540}
+  m_Layer: 0
+  m_Name: Reading sofa - seat B
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2041636539
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2041636538}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.69325113, z: -0, w: 0.7206961}
+  m_LocalPosition: {x: -6.66, y: 0.47, z: 6.92}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2082214828}
+  - {fileID: 561662054}
+  - {fileID: 786805259}
+  - {fileID: 1064786882}
+  m_Father: {fileID: 62976570}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2041636540
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2041636538}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2126225e3a88a1a43853921bb6d4692f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TableSeat
+  kind: 1
+  standPoint: {fileID: 2082214828}
+  drainMultiplier: 0.55
+  cupSpot: {fileID: 786805259}
+  snapToSeat: 1
+  seatPose: {fileID: 561662054}
+  sitStyle: 1
+  faceTowards: {fileID: 1064786882}
+  clearanceRadius: 0.3
 --- !u!1 &2043193725
 GameObject:
   m_ObjectHideFlags: 0
@@ -228734,6 +229508,93 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 066e2c10b7b9b984eaef23a8553c15be, type: 3}
+--- !u!1 &2059611686
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2059611687}
+  - component: {fileID: 2059611688}
+  m_Layer: 0
+  m_Name: Front sofa - seat B
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2059611687
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059611686}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.7384227, z: -0, w: 0.67433816}
+  m_LocalPosition: {x: -6.66, y: 0.47, z: 3.68}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1768074680}
+  - {fileID: 1353136520}
+  - {fileID: 1253281051}
+  m_Father: {fileID: 62976570}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2059611688
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059611686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2126225e3a88a1a43853921bb6d4692f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TableSeat
+  kind: 1
+  standPoint: {fileID: 1768074680}
+  drainMultiplier: 0.55
+  cupSpot: {fileID: 1253281051}
+  snapToSeat: 1
+  seatPose: {fileID: 1353136520}
+  sitStyle: 1
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0.3
+--- !u!1 &2059828836
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2059828837}
+  m_Layer: 0
+  m_Name: FaceTowards
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2059828837
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059828836}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.00000008940697, y: -0.47, z: 2.0611887}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 571880578}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2060151617
 GameObject:
   m_ObjectHideFlags: 0
@@ -231615,6 +232476,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 487096, guid: b307a3e7dc3e3ec409ff68b9cb1080ed, type: 3}
   m_PrefabInstance: {fileID: 2078201820}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2079231964
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2079231965}
+  m_Layer: 0
+  m_Name: StandPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2079231965
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2079231964}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.68765277, z: -0, w: 0.7260398}
+  m_LocalPosition: {x: -0.91999996, y: -0.38300002, z: -0.049999595}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 660556934}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2079281292
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -231849,6 +232741,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2082010837}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &2082214827
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2082214828}
+  m_Layer: 0
+  m_Name: StandPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2082214828
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2082214827}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.9998117, z: -0, w: 0.019406497}
+  m_LocalPosition: {x: 0.028716207, y: -0.43, z: 0.7394424}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2041636539}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2082789384
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -233779,6 +234702,9 @@ MonoBehaviour:
   cupSpot: {fileID: 1287991512}
   snapToSeat: 1
   seatPose: {fileID: 621694003}
+  sitStyle: 0
+  faceTowards: {fileID: 0}
+  clearanceRadius: 0
 --- !u!65 &2108458021
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -236451,6 +237377,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1612372012}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2125255580
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2125255581}
+  m_Layer: 0
+  m_Name: CupSpot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2125255581
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2125255580}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 0.000000059604645, y: 0.0119999945, z: 0.58}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 660556934}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2125463948
 PrefabInstance:

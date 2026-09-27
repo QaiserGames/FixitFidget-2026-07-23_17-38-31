@@ -42,6 +42,9 @@ public sealed class NpcLookAt : MonoBehaviour
     private bool hasPoint;
     private float wantedWeight;
     private float yaw, pitch, yawVelocity, pitchVelocity, weight, weightVelocity;
+    // A nod: a short dip of the head and back, on top of whatever the look is doing.
+    private float nodAmplitude, nodPeriod = .55f, nodStart = -10f;
+    private int nodCount;
 
     /// <summary>Signed angle from the body's forward to the target, degrees (0 without one). The brain reads this to decide on a body turn.</summary>
     public float TargetYaw { get; private set; }
@@ -68,6 +71,17 @@ public sealed class NpcLookAt : MonoBehaviour
         hasPoint = true;
         wantedWeight = Mathf.Clamp01(w);
     }
+
+    /// <summary>A small nod (down and back up), <paramref name="count"/> times; works with or without a look target.</summary>
+    public void Nod(float amplitudeDegrees = 9f, int count = 1, float periodSeconds = .55f)
+    {
+        nodAmplitude = Mathf.Clamp(amplitudeDegrees, 1f, 20f);
+        nodCount = Mathf.Clamp(count, 1, 3);
+        nodPeriod = Mathf.Clamp(periodSeconds, .25f, 1.2f);
+        nodStart = Time.time;
+    }
+
+    public bool Nodding => Time.time - nodStart < nodPeriod * nodCount;
 
     /// <summary>Let the head return to the animation.</summary>
     public void Clear()
@@ -106,6 +120,12 @@ public sealed class NpcLookAt : MonoBehaviour
         else TargetYaw = 0f;
 
         weight = Mathf.SmoothDamp(weight, have ? wantedWeight * reach : 0f, ref weightVelocity, blendSmoothing, 8f, dt);
+        // The nod: a half sine per dip, so it starts and ends at rest.
+        float nod = 0f;
+        float sinceNod = Time.time - nodStart;
+        if (sinceNod >= 0f && sinceNod < nodPeriod * nodCount)
+            nod = nodAmplitude * Mathf.Sin(Mathf.PI * (sinceNod % nodPeriod) / nodPeriod);
+
         if (weight > .001f && have)
         {
             yaw = Mathf.SmoothDampAngle(yaw, wantYaw, ref yawVelocity, turnSmoothing, 400f, dt);
@@ -115,7 +135,7 @@ public sealed class NpcLookAt : MonoBehaviour
         {
             yaw = pitch = 0f;
             yawVelocity = pitchVelocity = 0f;
-            return;
+            if (Mathf.Abs(nod) < .01f) return;
         }
 
         // A world-space turn about the head's own pivot: yaw about up, then
@@ -128,6 +148,13 @@ public sealed class NpcLookAt : MonoBehaviour
         if (neck != null && neckShare > .001f)
             neck.rotation = Quaternion.Slerp(Quaternion.identity, turn, neckShare) * neck.rotation;
         head.rotation = Quaternion.Slerp(Quaternion.identity, turn, weight * headShare) * head.rotation;
+        if (Mathf.Abs(nod) >= .01f)
+        {
+            // Split like a look: a little neck, mostly head, about the head's right.
+            Quaternion dip = Quaternion.AngleAxis(nod, axis);
+            if (neck != null) neck.rotation = Quaternion.Slerp(Quaternion.identity, dip, .35f) * neck.rotation;
+            head.rotation = Quaternion.Slerp(Quaternion.identity, dip, .65f) * head.rotation;
+        }
     }
 
     // The rig's own Neck and Head, never the city look's copies (they are

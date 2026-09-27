@@ -75,6 +75,10 @@ public class CustomerProfile : ScriptableObject
     public float patienceMultiplier = 1f;
     public float tipMultiplier = 1f;
 
+    [Tooltip("How this regular moves and carries themselves (pass 2). Empty = a stable pick from the profile " +
+             "library, the same one every visit. Presentation only: patience and orders are unaffected.")]
+    public NpcMovementProfile movementProfile;
+
     [Tooltip("Where they wait once you've taken their job.")]
     public WaitingSpot.SpotKind preferredWaitKind = WaitingSpot.SpotKind.Seat;
 

@@ -110,40 +110,89 @@ public static class NpcAttentionCheck
 
         Transform slot = queue.SlotPoint(queued[0].SlotIndex);
         Vector3 standPoint = CounterStandPoint(queue, slot);
-        MoveAce(ace, standPoint, Quaternion.LookRotation(-slot.forward, Vector3.up));
+        // Ace first stands well along the counter, away from this customer (he
+        // may start right behind it), then comes over to serve them. Pass 2b:
+        // the one he is about to serve looks up and stays attentive (eyes on him
+        // with short look-aways); the rest of the line look up now and then but
+        // never stare.
+        MoveAce(ace, standPoint + slot.right * 4.5f, Quaternion.LookRotation(-slot.forward, Vector3.up));
         aceMoved = true;
-        yield return Wait(1.8f);
-
+        yield return Wait(2.5f);
         queued = Queued();
+        if (queued.Count == 0) { Check(false, "Somebody was still queueing when Ace came over"); yield break; }
+        slot = queue.SlotPoint(queued[0].SlotIndex);
+        standPoint = CounterStandPoint(queue, slot);
+        CustomerBrain served = queued[0];
+        MoveAce(ace, standPoint, Quaternion.LookRotation(-slot.forward, Vector3.up));
         var bodyYaw = new Dictionary<CustomerBrain, float>();
-        int looked = 0, shouldLook = 0;
+        foreach (CustomerBrain c in queued) bodyYaw[c] = c.transform.eulerAngles.y;
+        bool lookedUp = false;
+        float t0 = Time.time;
+        while (Time.time - t0 < 2f && served != null)
+        {
+            NpcSocial social = served.GetComponent<NpcSocial>();
+            NpcLookAt look = served.GetComponent<NpcLookAt>();
+            if (social != null && look != null && social.LookingAtPlayer && look.Weight > .3f) lookedUp = true;
+            yield return null;
+        }
+        if (served != null)
+        {
+            Vector3 across = ace.transform.position - served.transform.position; across.y = 0f;
+            Note($"{served.CustomerName}: Ace across the counter at {across.magnitude:0.00} m, {Mathf.Abs(Bearing(served.transform, ace.transform.position)):0}° off their facing.");
+        }
+        Check(served != null && lookedUp, $"The customer Ace comes over to serve looks up at him within 2 s ({(served != null ? served.CustomerName : "-")})");
+
+        // He stands there for 10 s: the one he is serving keeps most of their
+        // attention on him but looks away at least once; nobody else stares.
+        var onHim = new Dictionary<CustomerBrain, float>();
+        int samples = 0;
+        t0 = Time.time;
+        while (Time.time - t0 < 10f)
+        {
+            samples++;
+            foreach (CustomerBrain c in queued)
+            {
+                if (c == null || State(c) != "WaitingInQueue") continue;
+                NpcSocial social = c.GetComponent<NpcSocial>();
+                if (social != null && social.LookingAtPlayer) onHim[c] = onHim.GetValueOrDefault(c) + 1f;
+            }
+            yield return null;
+        }
+        int starers = 0, others = 0;
+        float servedShare = -1f;
         foreach (CustomerBrain c in queued)
         {
-            NpcLookAt look = c.GetComponent<NpcLookAt>();
-            float bearing = Bearing(c.transform, ace.transform.position);
-            bodyYaw[c] = c.transform.eulerAngles.y;
-            if (look == null) { Check(false, $"{c.CustomerName} has an NpcLookAt"); continue; }
-            if (Mathf.Abs(bearing) > 100f) continue;
-            shouldLook++;
-            bool ok = look.Looking && (Mathf.Abs(bearing) < 8f || Mathf.Abs(look.AppliedYaw) >= .4f * Mathf.Min(Mathf.Abs(bearing), 60f));
-            if (ok) looked++;
-            Note($"{c.CustomerName} in slot {c.SlotIndex}: Ace at {bearing:0}°, head turned {look.AppliedYaw:0}° (weight {look.Weight:0.00}).");
+            if (c == null || State(c) != "WaitingInQueue") continue;
+            float share = onHim.GetValueOrDefault(c) / Mathf.Max(1, samples);
+            if (c == served) servedShare = share;
+            else { others++; if (share > .6f) starers++; }
+            Note($"{c.CustomerName} in slot {c.SlotIndex}{(c == served ? " (being served)" : "")}: eyes on Ace {share * 100f:0}% of the 10 s.");
         }
-        Check(shouldLook > 0 && looked == shouldLook, $"Queued customers look at Ace at the counter ({looked} of {shouldLook})");
+        Check(servedShare < 0f || servedShare >= .4f && servedShare <= .97f,
+              $"The customer being served is attentive but not a statue ({(servedShare >= 0f ? servedShare * 100f : 0f):0}% eyes on Ace, want 40-97%)");
+        Check(starers == 0, $"Nobody else in the queue stares at Ace ({starers} of {others} on him more than 60% of 10 s)");
 
         // Queue variation: not all on the slot centre, not all the same yaw.
-        int offSlot = 0, yaws = 0;
+        int offSlot = 0, yaws = 0, varied = 0, stillThere = 0;
         foreach (CustomerBrain c in queued)
         {
+            if (c == null || State(c) != "WaitingInQueue") continue;
+            stillThere++;
             Transform s = queue.SlotPoint(c.SlotIndex);
             Vector3 d = c.transform.position - s.position; d.y = 0f;
-            if (d.magnitude > .04f) offSlot++;
-            if (Mathf.Abs(Mathf.DeltaAngle(c.transform.eulerAngles.y, s.eulerAngles.y)) > 2f) yaws++;
+            bool off = d.magnitude > .04f, turned = Mathf.Abs(Mathf.DeltaAngle(c.transform.eulerAngles.y, s.eulerAngles.y)) > 2f;
+            if (off) offSlot++;
+            if (turned) yaws++;
+            if (off || turned) varied++;
+            Note($"{c.CustomerName}: {d.magnitude * 100f:0} cm from the slot centre, turned {Mathf.DeltaAngle(s.eulerAngles.y, c.transform.eulerAngles.y):0}°.");
         }
-        Check(offSlot == queued.Count && yaws == queued.Count,
-              $"The queue does not stand on the exact slot points at the exact slot yaw ({offSlot} off-centre, {yaws} turned, of {queued.Count})");
+        // Each person differs from the slot's exact spot-and-yaw in some way (the
+        // navmesh can snap a small offset back onto the centre line).
+        Check(varied == stillThere,
+              $"Nobody in the queue stands on the exact slot point at the exact slot yaw ({offSlot} off-centre, {yaws} turned, {varied} of {stillThere} varied)");
 
         // Ace moves a metre along the counter: heads follow, bodies stay.
+        foreach (CustomerBrain c in queued) if (c != null) bodyYaw[c] = c.transform.eulerAngles.y;
         MoveAce(ace, standPoint + slot.right * 1.0f, Quaternion.LookRotation(-slot.forward, Vector3.up));
         yield return Wait(2f);
         int bodiesStill = 0, heads = 0;

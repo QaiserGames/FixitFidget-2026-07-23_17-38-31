@@ -21,3 +21,17 @@ Needs: python3 with pandas, numpy, matplotlib, pillow; ffmpeg on the PATH for fr
 - `project.py <whole|counter|tables|lounge> x,y,z` — where a world point lands on one of the recorder's fixed cameras.
 
 Run from a folder containing `map.json` and the recording folders (`rec1..4`, `after1..4`).
+
+Pass 2 / 2b (27 Sept, `claude/npc-pass2-life-results-2026-09-27.md`):
+
+- `life.py <recording dir> [label]` — the life layer from the trace's info column: movement profiles and walk
+  styles seen, who sat where (chair / bench), idle beats, ambient chats, head-look episodes, the queue's
+  eyes-on-Ace share, and the attention director's own totals (`life.txt`).
+- `seatmotion.py <recording dir> [label] [--detail]` — every walk into a seat (NpcSeating Approaching) and out of
+  one (Returning): share of moving time with the Walk clip playing, longest slide without it (the "hover"),
+  degrees turned and worst turn rate; the swivel while sitting down; and every customer leaving the counter:
+  fastest turn on the spot, stops before the seat, seconds walking backwards.
+- `sheet.py <recording dir> <whole|counter|tables|lounge> x z t0 t1 step out.jpg [w h]` — contact sheet of
+  video frames cropped around a world point.
+- `cut.py <recording dir> t0 t1 out.mp4 [cx cy zoom] [speed]` — a clip by trace time (optionally a zoomed crop,
+  optionally faster).

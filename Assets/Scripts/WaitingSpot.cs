@@ -35,6 +35,8 @@ public class WaitingSpot : MonoBehaviour
     public SpotKind Kind => kind;
     public float DrainMultiplier => drainMultiplier;
     public Transform StandPoint => standPoint != null ? standPoint : transform;
+    /// <summary>Room kept round the stand point when others claim nearby spots, metres; 0 = the body's own (see WaitingArea).</summary>
+    public virtual float ClearanceRadius => 0f;
 
     // A Component rather than a CustomerBrain, so PATRONS can sit here too.
     //

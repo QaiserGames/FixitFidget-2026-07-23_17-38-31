@@ -6261,7 +6261,9 @@ GameObject:
   - component: {fileID: 6224756885650047934}
   - component: {fileID: 4315566200852983925}
   - component: {fileID: 1239435702285799321}
-  m_Layer: 0
+  - component: {fileID: 7460408505704992946}
+  - component: {fileID: 947159123046423460}
+  m_Layer: 8
   m_Name: Patron
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6376,6 +6378,7 @@ MonoBehaviour:
   noSeatLingerSeconds: 6
   maxLifetime: 240
   seatStoppingDistance: 0.08
+  sitHandoverDistance: 0.7
 --- !u!114 &8045482184892936230
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6476,6 +6479,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NpcSeating
   data: {fileID: 11400000, guid: 29023ce813b1f2e4f95a9f1273073ddd, type: 2}
   stepSpeed: 1.15
+  settleSpeed: 0.5
+  settleDistance: 0.38
   sideClearance: 0.62
   hipAboveSeat: 0.085
   hipBehindSeatCentre: -0.01
@@ -6498,6 +6503,8 @@ MonoBehaviour:
   bodyRadius: 0.28
   maxSlideSpeed: 1.6
   stillSpeed: 0.12
+  playerRadius: 0.45
+  stillGiveWaySpeed: 0.9
 --- !u!114 &1239435702285799321
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6514,11 +6521,14 @@ MonoBehaviour:
   speedJitter: 0.12
   acceleration: 6
   walkClipSpeed: 1.4502532
+  gait: {fileID: 11400000, guid: bc669a1d62ad0cb40a9492756158a806, type: 2}
   turnSpeed: 400
   turnSmoothing: 0.15
   headingDeadZone: 0.3
   detourAngle: 70
   detourHold: 0.35
+  turnFirstBeyond: 60
+  turnFirstMax: 0.5
   walkStart: 0.35
   walkStop: 0.12
   walkHold: 0.12
@@ -6528,6 +6538,37 @@ MonoBehaviour:
   stepAsideSeconds: 2
   pushPriority: 15
   passThroughSeconds: 1.5
+  pushedBackSeconds: 0.4
+  yieldSeconds: 0.9
+--- !u!114 &7460408505704992946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8691143923126116028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdc16983832520f49ab6e7301c817607, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSocial
+  library: {fileID: 11400000, guid: 113e719a5c806464ea51962fffe90151, type: 2}
+  ambient: 1
+  aceEyeOffset: 0.65
+--- !u!114 &947159123046423460
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8691143923126116028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79defe6e78b5f634aad68d76bff446a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcPosture
+  maxAngle: 8
+  smoothing: 0.7
 --- !u!1 &8704201694931179259
 GameObject:
   m_ObjectHideFlags: 0

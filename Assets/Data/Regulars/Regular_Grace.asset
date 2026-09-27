@@ -24,6 +24,7 @@ MonoBehaviour:
   portraitSurprised: {fileID: 0}
   patienceMultiplier: 1.15
   tipMultiplier: 1.1
+  movementProfile: {fileID: 11400000, guid: 9f2df0a80345eac4cad5a97127771b19, type: 2}
   preferredWaitKind: 1
   drinkWishChance: 1
   primaryVisitKind: 2

@@ -301,6 +301,53 @@ public sealed class CafeLabDirector : MonoBehaviour
     }
 
     /// <summary>Puts Ace somewhere (a doorway, the middle of a queue) to see how people cope.</summary>
+    /// <summary>
+    /// Ace walks through the given points in order with his own controller and
+    /// input path (a scripted stick, not a teleport), pausing briefly at each.
+    /// Used for the "Ace through a populated café" footage and stress runs.
+    /// </summary>
+    public void WalkAce(Vector3[] points, float pauseSeconds = 1.5f)
+    {
+        if (walk != null) StopCoroutine(walk);
+        walk = StartCoroutine(WalkAceRoutine(points, pauseSeconds));
+    }
+
+    private Coroutine walk;
+
+    private System.Collections.IEnumerator WalkAceRoutine(Vector3[] points, float pause)
+    {
+        PlayerMovement ace = FindAnyObjectByType<PlayerMovement>();
+        if (ace == null) yield break;
+        CafeViewMode view = ace.GetComponent<CafeViewMode>();
+        Note($"Ace walks {points.Length} legs");
+        foreach (Vector3 p in points)
+        {
+            float deadline = Time.time + 25f;
+            while (Time.time < deadline)
+            {
+                Vector3 to = p - ace.transform.position;
+                to.y = 0f;
+                if (to.magnitude < 0.3f) break;
+                // Same yaw the keys are read against, so the walk is honest.
+                float yaw = view != null && view.isActiveAndEnabled ? view.MovementYaw : 45f;
+                Vector3 local = Quaternion.Euler(0f, -yaw, 0f) * to.normalized;
+                ace.ScriptedInput = new Vector2(local.x, local.z);
+                yield return null;
+            }
+            ace.ScriptedInput = null;
+            Vector3 at = ace.transform.position;
+            Note($"Ace at {at.x:0.0},{at.z:0.0} (leg to {p.x:0.0},{p.z:0.0})");
+            yield return new WaitForSeconds(pause);
+        }
+        walk = null;
+    }
+
+    private void OnDisable()
+    {
+        PlayerMovement ace = FindAnyObjectByType<PlayerMovement>();
+        if (ace != null) ace.ScriptedInput = null;
+    }
+
     public void MoveAce(Vector3 at, float yaw)
     {
         PlayerMovement ace = FindAnyObjectByType<PlayerMovement>();

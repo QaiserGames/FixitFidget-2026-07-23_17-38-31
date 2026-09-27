@@ -3732,6 +3732,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Customer
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
       propertyPath: m_Controller
       value: 
@@ -3786,6 +3790,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5659032224619172909}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1804585217778416493}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5858817926912027566}
   m_SourcePrefab: {fileID: 100100000, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
 --- !u!4 &48647379052613872 stripped
 Transform:
@@ -3909,6 +3919,7 @@ MonoBehaviour:
   leavingCounterPriority: 95
   counterStepBack: 1.2
   arriveDistance: 0.3
+  sitHandoverDistance: 0.7
   driftDistanceMin: 2
   driftDistanceMax: 5
   driftSpreadDegrees: 70
@@ -3928,6 +3939,13 @@ MonoBehaviour:
   shelfOffsetJitter: 0.02
   conversationDrainMultiplier: 0.1
   presenceDrainMultiplier: 0.2
+  counterLookRange: 4
+  deliveryNoticeRange: 5
+  deliveryTurnRange: 2.6
+  aceEyeOffset: 0.65
+  queueSideVariation: 0.18
+  queueDepthVariation: 0.14
+  queueYawVariation: 14
   patienceBar: {fileID: 3382181744524018593}
   speechBubble: {fileID: 6256992342730178411}
   identity: {fileID: 5221819417326784668}
@@ -4081,6 +4099,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NpcSeating
   data: {fileID: 11400000, guid: 29023ce813b1f2e4f95a9f1273073ddd, type: 2}
   stepSpeed: 1.15
+  settleSpeed: 0.5
+  settleDistance: 0.38
   sideClearance: 0.62
   hipAboveSeat: 0.085
   hipBehindSeatCentre: -0.01
@@ -4103,6 +4123,8 @@ MonoBehaviour:
   bodyRadius: 0.28
   maxSlideSpeed: 1.6
   stillSpeed: 0.12
+  playerRadius: 0.45
+  stillGiveWaySpeed: 0.9
 --- !u!114 &5659032224619172909
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4119,11 +4141,14 @@ MonoBehaviour:
   speedJitter: 0.12
   acceleration: 6
   walkClipSpeed: 1.4502532
+  gait: {fileID: 11400000, guid: bc669a1d62ad0cb40a9492756158a806, type: 2}
   turnSpeed: 400
   turnSmoothing: 0.15
   headingDeadZone: 0.3
   detourAngle: 70
   detourHold: 0.35
+  turnFirstBeyond: 60
+  turnFirstMax: 0.5
   walkStart: 0.35
   walkStop: 0.12
   walkHold: 0.12
@@ -4133,6 +4158,37 @@ MonoBehaviour:
   stepAsideSeconds: 2
   pushPriority: 15
   passThroughSeconds: 1.5
+  pushedBackSeconds: 0.4
+  yieldSeconds: 0.9
+--- !u!114 &1804585217778416493
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 748166504614202525}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdc16983832520f49ab6e7301c817607, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSocial
+  library: {fileID: 11400000, guid: 113e719a5c806464ea51962fffe90151, type: 2}
+  ambient: 1
+  aceEyeOffset: 0.65
+--- !u!114 &5858817926912027566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 748166504614202525}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79defe6e78b5f634aad68d76bff446a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcPosture
+  maxAngle: 8
+  smoothing: 0.7
 --- !u!4 &793446380249059059 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8241147589211340993, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
