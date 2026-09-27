@@ -59,10 +59,29 @@ Full notes are in `claude/mixamo-clips-batch1.md` in the project. They cover the
   - all use the same 65-bone `mixamorig` skeleton, with no mesh;
   - the hips end where they start, so every clip loops;
   - two seated clips put the pelvis well off the origin (up to 31 cm), and two sit higher (hips at 75–79 cm), so the bake has to line each seated clip up with the seat.
-- **Next (proposed, waiting for Mansoor):**
-  - **Step A:** bake onto the café rig the same way as the Quaternius clips, and photograph them. Nothing is wired.
-  - **Step B:** wiring, through a clip library that lives in the ignored folder, so a fresh clone of the public repo still works with today's clips.
-  - **Step C:** a phone, lean spots, and the gadget in hand.
+- **His answers:** bake and photos first, nothing wired; the phone is POLYGON City's `SM_Prop_SmartPhone_01`; once wired, all four kinds of moment matter (waiting idles, frustration, happy reactions, greetings and chats).
+
+**Mixamo Step A: baked onto the café rig and photographed (nothing wired)**
+
+- **New editor tool `Assets/Editor/NpcMixamoClips.cs`** (tracked):
+  - `Fixit Fidget > NPC > Mixamo 1 - Bake the Mixamo clips onto the cafe rig` writes 36 `Npc Mx …` clips to `Assets/Art/Mixamo/Baked/` (git-ignored);
+  - `… > Mixamo 2 - Photograph the baked Mixamo clips (contact sheet)` writes `Logs/NpcMixamo/photos-<time>/`.
+- **Same retargeting as the Quaternius sit and gait clips:** limbs copy Mixamo's directions, the pelvis is scaled by hip height, the feet use leg IK, and the clips stay in place.
+  - **Collarbones** take Mixamo's turn from its own rest, dropping or pulling back at most 4° (the Pass 2b lesson).
+  - **Seated clips** are lined up on `NpcSitData.seatedHip`, so `NpcSeating` places them like today's sit clips.
+- **Watch out: Unity leaves Mixamo's bones in each clip's first frame, not the T-pose.** The first bake was wrong because of it. The X Bot's T-pose is now a table read from the FBX files, checked against Unity's own import before every bake (agrees within 0.00°), with every file's bone lengths checked too.
+- **Photos** are in `Logs/NpcMixamo/photos-2026-09-27_184151`; the contact sheets went to Mansoor.
+  - 32 of the 36 look right.
+  - **Talking On A Cell Phone** needs the hand pulled to the ear: the city bodies' longer arms put the phone in front of the mouth.
+  - **Sitting Laughing, Sitting Thumbs Up and Seated Idle** don't suit a table: they bend into it, or the hands don't reach it.
+- **Found: `PolygonNpcVisual` copies no fingers**, so a thumbs-up or a point shows as an open hand on the city bodies.
+- **Next, to agree with Mansoor first (Step B):**
+  - wire in the clips that look right;
+  - fingers for the city bodies;
+  - the ear IK for the call;
+  - the table-shy seated clips on sofas only, or dropped.
+
+  Full notes are in `claude/mixamo-clips-batch1.md` (project).
 
 ## September 27 (evening) — café walls slide down, the painting wall is glazed, night step 3: Grace's home; on `night-notebook`
 
