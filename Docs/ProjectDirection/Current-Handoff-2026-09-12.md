@@ -1,8 +1,61 @@
 # Current handoff — September 12, 2026
 
+## September 27 (evening) — café walls slide down, the painting wall is glazed, night step 3: Grace's home; on `night-notebook`
+
+**Read this entry first.** Two commits on `night-notebook`: `7188a0a` (walls) and `4030b8f` (Grace's home). Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+Mansoor's request: "the wall with the painting doesnt have a glass side, and also theres a wall that disappears when we rotate the camera a little the back wall and the wall that has the tan concrete wall dissapear … also theres street address just put a placeholder for now and have it where i can always edit the street names. also pick wherever house would suit grace".
+
+**Walls (`7188a0a`)**
+
+- **They slide down instead of vanishing.** Mansoor chose "slide down to sill height". A wall that hides the room from the overhead camera now slides down to 0.78 m in 0.25 s, and comes back up once it is clearly out of the way (a margin plus a short delay, so it never flickers).
+  - Its full-height shadow stays.
+  - Anything fixed high on it hides with it, and nothing floats.
+  - Code: `CutawayWall` and `CafeViewMode`, "Cut-away walls" section.
+  - The back bar's cup shelf got its own mesh so it can hide with the back wall: `Fixit Fidget > Neighborhood refresh > Second pass > Give the back-bar cup shelf its own mesh`, undo `… > Put the cup shelf back into the merged meshes`.
+  - Check: `Fixit Fidget > Checks > Wall cut-away (Play Mode, lab session)`, 31/31.
+- **The painting wall (east, courtyard side) is glazed.** `… > Second pass > Glaze the painting wall (courtyard windows)` adds one pane of the café's own window glass across its open bays, with no collider. The paintings stay on their piers. Undo: `… > Take the glass out of the painting wall`.
+
+**Night step 3: Grace's home (`4030b8f`)**
+
+Full notes are in `claude/night-homes-spec.md` in the project, under "As built".
+
+- **Where she lives.** Mansoor asked me to pick. It is house 1, the saffron house, the closest to the café door. Walk-ins now come from the dusty rose house next door (a new route, measured; the car park check says "all paths clear").
+- **Her address is a placeholder: 12 West Street.**
+  - Street names live in one asset: `Assets/Data/Resources/District streets.asset` (West, East, Front and Back Street). Rename freely; keep the ids.
+  - Notebook lines store the street's id, so a rename reaches older lines too.
+  - The house number is on the Home Door component of "Grace's front door (home.grace)", under the saffron house.
+- **Coming and going.** Grace always walks out of her own front door to the café and back in afterwards, never by car.
+- **What Ace notices.** When Ace sees her within 3 m of her door, the notebook gets "Came out of / Went into the saffron house at 12 West Street." as a hunch; it becomes likely when seen there on a later day.
+  - Seen means in the camera's frame with nothing solid in between. Clear glass and cut-away walls see through.
+  - The recap marks unsure facts "(hunch)" or "(likely)" and lists facts that became surer today as "(likely now)".
+  - The save gains `surerDay`, additive and still version 5.
+- **Tools:**
+  - `Fixit Fidget > Night > Give Grace her home (the saffron house, 12 West Street)` (already run; safe to re-run);
+  - `Fixit Fidget > Night > Check homes (read-only)`.
+- **Checks:**
+  - `Checks > Home rules`: 40 assertions, also `Tests/HomeRules`;
+  - `Checks > Night notebook rules`: 42;
+  - `Night > Check homes`: all clear;
+  - `Checks > Grace's home (Play Mode, lab session)`: **20/20**. She walks out, to the café door and back in, twice: watched, then with the camera away. About 1½ minutes.
+  - `Checks > Night notebook (Play Mode, lab session)`: 16/16.
+- **Open call for Mansoor: her door is just out of the usual overhead view.**
+  - In the view a session starts with, her doorstep is just below the bottom edge of the screen.
+  - It is seen at 23 of 36 camera turns at the usual zoom, at 30 of 36 zoomed out, and from the café sofas in first person.
+  - The dusty rose house's door is seen from the default view.
+  - Keep her where she is (spotting her takes a little curiosity), or move her next door. Moving her is a small change, not made unless he asks.
+
+**Mixamo animations (Mansoor approved: "download whichever we need for the game")**
+
+- Four clips from Mixamo on the X Bot rig, without skin: `Left Turn 90`, `Right Turn 90`, `Left Strafe Walking` and `Right Strafe Walking` (the strafes In Place). They are for NPCs turning on the spot and side-stepping.
+- They are in `Assets/Art/Mixamo/`, which is **git-ignored** (downloaded with Mansoor's Adobe account; the repo is public). The originals are still in his Downloads.
+- They are not wired into any animator yet; that belongs to the NPC passes.
+
 ## September 27 (later) — night track step 2: Ace's notebook (data only), on `night-notebook`
 
-**Read this entry first.** Mansoor asked to start Ace's night-time life "only if you think we are ready". Together we picked the smallest first piece: the notebook, data only. Every later night step reads from it, and it changes nothing about how a day plays. The spec was signed off as written (`claude/night-notebook-spec.md` in the project). It is built and committed on `night-notebook` (`0fde3d8`), which was made from `main` after `npc-polish` was fast-forwarded into it (`main` = `b36878e`). Nothing is pushed. The Day 2 Grace/reputation playtest is still Mansoor's open milestone: the playtest save was never opened (lab sessions only, and the play check confirms the file was not written).
+Mansoor asked to start Ace's night-time life "only if you think we are ready". Together we picked the smallest first piece: the notebook, data only. Every later night step reads from it, and it changes nothing about how a day plays. The spec was signed off as written (`claude/night-notebook-spec.md` in the project). It is built and committed on `night-notebook` (`0fde3d8`), which was made from `main` after `npc-polish` was fast-forwarded into it (`main` = `b36878e`). Nothing is pushed. The Day 2 Grace/reputation playtest is still Mansoor's open milestone: the playtest save was never opened (lab sessions only, and the play check confirms the file was not written).
 
 - **What the player sees:** at closing, a **Notebook** block under the reviews in the recap, but only on a day something was learned. It shows up to five of today's facts as "Name: fact", then "+N more", then the running total ("6 facts about 3 people so far"). Resuming a saved recap shows the same block.
 - **Where facts come from (only what is already in the game):** Grace's camera intake gives four facts (the strap, her husband, the reunion tomorrow, "usually stays behind the camera"). Her return gives one photo fact per outcome (clear, smudged, missed). Any other regular's repair gives "Brought in a {device}: {fault}.", and walk-ins give nothing. A save that already has Grace's Day 1 visit is backfilled with her four facts, dated Day 1. So on the Day 2 playtest the recap should show 1 new (her photo) and 5 facts in total.
@@ -15,8 +68,8 @@
 - **Next on the night track** (`claude/ace-after-dark.md` §8) is step 3, homes for regulars. It needs Mansoor first: which front door is Grace's, and the `home` text is his to write. Small open wording point: the generic line reads "Name: brought in a phone: cracked screen." (two colons); a bracketed version is a one-line change if he prefers.
 - **Two older requests (the 23 Sept second-pass list) turned out never to have been done; checked today:**
   - **Floating door pulls: fixed** (`cf25fc8`). In GPT Astra's `EntranceRefresh.fbx` each open door leaf was built at two angles. The stiles, hinges and pulls hang together and meet the frame, but the glass, rails, bottom panel, beads and kick plate were turned 24° the other way, so from above each door was an X and the pulls sat up to 0.2 m off the glass. `Fixit Fidget > Neighborhood refresh > Second pass > Line up the entrance door leaves` turns that infill (12 pieces per door) onto the stiles' line in copies of the meshes (`Assets/Art/CC0Neighborhood/Authored/EntranceRefresh aligned/`). The FBX is untouched, and `Put the original entrance doors back` reverts it. Before/after photos: `Logs/NeighborhoodRefresh/entrance-2026-09-27_110747` and `_111533`.
-  - **"The café's left side has no windows": needs Mansoor.** The 23 Sept wall photos (`Logs/NeighborhoodRefresh/walls-2026-09-23_130547`) show the west wall (the sofa side, on the left from the default camera and from the street) is glazed end to end. The east wall has two solid bays between its windows, the ones carrying the two paintings; from behind the counter, facing the room, that wall is on Ace's left. The back wall is solid behind the counter. Which wall he means decides the fix, and glazing the east bays would move the paintings.
-- **Night step 3 (homes for regulars): spec written, waiting for Mansoor** (`claude/night-homes-spec.md` in the project; nothing built). Grace gets one front door she always comes out of and goes back into; when Ace can actually see her at that door, the notebook gets a *seen* fact (hunch, then likely on a later day; sure is left for the night). His decisions: which of the six bay-window houses across the west street is hers (recommended: 2 dusty rose or 3 sea green, directly opposite the café's west windows), her address line (unused for now), whether Ace must be watching (recommended), and whether sightings stop at likely (recommended). Read-only survey: `Fixit Fidget > Night > Survey the bay-window houses (read-only)`, photos in `Logs/Night/homes-2026-09-27_142041`.
+  - **"The café's left side has no windows": needs Mansoor.** *(Answered and done the same evening: it was the painting wall; see the entry above.)* The 23 Sept wall photos (`Logs/NeighborhoodRefresh/walls-2026-09-23_130547`) show the west wall (the sofa side, on the left from the default camera and from the street) is glazed end to end. The east wall has two solid bays between its windows, the ones carrying the two paintings; from behind the counter, facing the room, that wall is on Ace's left. The back wall is solid behind the counter. Which wall he means decides the fix, and glazing the east bays would move the paintings.
+- **Night step 3 (homes for regulars): spec written, waiting for Mansoor** *(built the same evening; see the entry above)* (`claude/night-homes-spec.md` in the project; nothing built). Grace gets one front door she always comes out of and goes back into; when Ace can actually see her at that door, the notebook gets a *seen* fact (hunch, then likely on a later day; sure is left for the night). His decisions: which of the six bay-window houses across the west street is hers (recommended: 2 dusty rose or 3 sea green, directly opposite the café's west windows), her address line (unused for now), whether Ace must be watching (recommended), and whether sightings stop at likely (recommended). Read-only survey: `Fixit Fidget > Night > Survey the bay-window houses (read-only)`, photos in `Logs/Night/homes-2026-09-27_142041`.
 
 ## September 27 — café NPC Pass 2 (life layer), 2b and 2c (walk up and sit), on `npc-polish`; STOP-and-report point
 
