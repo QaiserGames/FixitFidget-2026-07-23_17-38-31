@@ -15,8 +15,12 @@ using Debug = UnityEngine.Debug;
 // output kept.
 //
 // Only a small set of git commands is allowed (status, add, commit, branch,
-// checkout -b, switch -c, log, diff, show, rev-parse, config reads). Nothing
-// here can push, reset, clean, stash, delete branches or discard changes.
+// checkout -b, switch -c, log, diff, show, rev-parse, config reads), plus one
+// shape of fetch: "fetch . <branch>:<branch>", which fast-forwards a local
+// branch to another local branch without switching to it (git refuses it
+// unless it is a pure fast-forward, and refuses the checked-out branch) - how
+// a finished branch is merged into main here. Nothing here can push, reset,
+// clean, stash, delete branches or discard changes.
 //
 // plan.json:
 //   { "steps": [ { "args": "add -- \"Assets/Scripts/Foo.cs\"" },
@@ -27,7 +31,11 @@ public static class GitPlanRunner
     const string Tag = "[Git] ";
 
     static readonly string[] AllowedFirstWords =
-        { "status", "add", "commit", "branch", "checkout", "switch", "log", "diff", "show", "rev-parse", "config", "ls-files", "check-ignore" };
+        { "status", "add", "commit", "branch", "checkout", "switch", "log", "diff", "show", "rev-parse", "config", "ls-files", "check-ignore", "fetch" };
+
+    // "fetch . src:dst" with plain local branch names only: no '+' (force), no remote.
+    static readonly System.Text.RegularExpressions.Regex LocalFastForward =
+        new System.Text.RegularExpressions.Regex(@"^fetch \. [A-Za-z0-9._/-]+:[A-Za-z0-9._/-]+$");
 
     static string Root => Directory.GetParent(Application.dataPath).FullName;
     static string LogFolder => Path.Combine(Root, "Logs", "Git");
@@ -79,6 +87,7 @@ public static class GitPlanRunner
                 && !(first == "switch" && !args.StartsWith("switch -c "))
                 && !(first == "branch" && (args.Contains(" -d") || args.Contains(" -D") || args.Contains(" -m") || args.Contains(" -f")))
                 && !(first == "config" && args.Split(' ').Length > 2)
+                && !(first == "fetch" && !LocalFastForward.IsMatch(args))
                 && !args.Contains(" -i");
             if (!allowed)
             {
