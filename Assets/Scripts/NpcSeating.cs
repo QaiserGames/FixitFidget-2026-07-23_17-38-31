@@ -45,6 +45,32 @@ using UnityEngine.AI;
 ///  * standing up turns a little towards the way out while rising, and the walk
 ///    out turns the rest of the way over its first half metre.
 ///
+/// OUT OF THE CHAIR TOWARDS WHERE THEY GO NEXT (pass 2c, 27 Sept 2026). The
+/// pass 2b walk out always went round to the stand point behind the chair and
+/// only then towards the door or the counter: measured, it turned 185-300
+/// degrees more than the way out needed (a loop round the back of the chair)
+/// and, when the loop ended facing away, the next leg stopped and spun round.
+/// Now the way out is weighed: out on either side of the chair, joining the
+/// floor beside the chair, behind it on that side, or at the stand point -
+/// whichever gives the shortest walk to where they are going next, with every
+/// quarter turn counted as extra distance and a seated neighbour in the way
+/// counted heavily. The walk out ends heading along the route the agent then
+/// follows, so it carries straight on. The hand-walk also slows for tight
+/// bends (<see cref="bendTurnRate"/>), the way people slow down to turn.
+///
+/// STRAIGHT UP TO THE CHAIR, NOT ROUND THE BACK OF IT (pass 2c). The brains
+/// walk people to the seat's stand point, behind the chair, and hand over
+/// 0.7 m before it. Someone coming along the table (from in front of the
+/// chair) therefore walked past their seat to its back corner and was handed
+/// over there, walking away from the table: the way in then reversed at once,
+/// and for a moment they slid backwards/sideways while turning round (10-25 %
+/// of sits; the body up to 140 degrees off the way it moved). Now
+/// <see cref="ReadyToTakeOver"/> hands over as soon as someone walking along
+/// the table reaches their chair's side, and they step straight in; someone
+/// walking along the aisle behind the chairs is handed over further out, so
+/// the walk curves round the corner. Whenever the body still faces well away
+/// from the way the route goes, it slows right down until it has turned.
+///
 /// BENCHES (pass 2): a sofa or banquette seat (TableSeat.Style Bench) is
 /// approached along its front from whichever side is free, so the last steps
 /// run along the cushions and the turn to sit is a quarter turn, not an about-turn.
@@ -80,7 +106,13 @@ public sealed class NpcSeating : MonoBehaviour
     [Tooltip("How far along a sofa's front the last steps start from, metres.")]
     [SerializeField, Range(.25f, .9f)] private float benchSideStep = .45f;
     [Tooltip("Fastest the body turns while stepping in or out, degrees per second (turns are eased).")]
-    [SerializeField, Range(90f, 720f)] private float maxTurnRate = 300f;
+    [SerializeField, Range(90f, 720f)] private float maxTurnRate = 260f;
+    [Tooltip("Walking along the aisle behind a chair (sideways to it), the brains hand the walk over this far from " +
+             "the stand point, so the way in curves round the chair's corner instead of turning sharply at it, metres.")]
+    [SerializeField, Range(.7f, 2f)] private float earlyHandover = 1.3f;
+    [Tooltip("Walking along the table (level with the seat or in front of it), the walk is handed over this close to " +
+             "the chair's side, and they step straight in rather than walking round to the stand point behind it, metres.")]
+    [SerializeField, Range(.4f, 1.5f)] private float sideEntryReach = 1f;
     [Tooltip("Over this last stretch of the way in, the body turns towards the table, metres.")]
     [SerializeField, Range(.2f, 1.5f)] private float turnInDistance = .85f;
     [Tooltip("Near the chair the body faces the table as far as it can while walking at most this many degrees off " +
@@ -92,6 +124,17 @@ public sealed class NpcSeating : MonoBehaviour
     [SerializeField, Range(.1f, 1.2f)] private float turnOutDistance = .5f;
     [Tooltip("While rising, the body already turns this many degrees towards the way out.")]
     [SerializeField, Range(0f, 90f)] private float turnWhileRising = 35f;
+    [Tooltip("Round a tight bend the hand-walked steps slow down so the body never has to turn faster than this, " +
+             "degrees per second (people slow down to turn rather than whip round a chair's corner).")]
+    [SerializeField, Range(90f, 360f)] private float bendTurnRate = 170f;
+    [Tooltip("Pace increase of the hand-walked steps, m/s per second (the first steps out of a chair build up).")]
+    [SerializeField, Range(.8f, 6f)] private float stepAcceleration = 2.2f;
+    [Tooltip("Out of a chair, walk towards where the person goes next: weigh the ways out on both sides of the chair " +
+             "(joining the floor beside it, behind it, or at the stand point) by the walk to the destination plus " +
+             "turning. Off: always round to the stand point, as before pass 2c.")]
+    [SerializeField] private bool exitTowardsDestination = true;
+    [Tooltip("Weighing the ways out of a chair, every 90 degrees of turning counts as this many metres of walking.")]
+    [SerializeField, Range(0f, 2f)] private float exitTurnCost = .6f;
     [Tooltip("The hip joints sit this far above the seat surface (thigh thickness), metres at scale 1.")]
     [SerializeField, Range(0f, .2f)] private float hipAboveSeat = DefaultHipAboveSeat;
     [Tooltip("The hip joints sit this far behind the seat's centre, metres.")]
@@ -136,6 +179,11 @@ public sealed class NpcSeating : MonoBehaviour
     // Where the person heads once standing (NpcLocomotion's destination): the
     // walk out turns towards it so it carries straight on.
     private Vector3? standHeading;
+    // The direction the walk out ends in: the first leg of the route the agent follows next.
+    private Vector3? exitOnward;
+    private NavMeshPath exitPath;
+    private readonly Vector3[] exitCorners = new Vector3[32];
+    private static readonly List<TableSeat> seatsNearby = new(16);
     private float phaseStarted, phaseLength, nextChat;
     private bool reserved;
     private bool? hasSitParameters;
@@ -208,7 +256,16 @@ public sealed class NpcSeating : MonoBehaviour
         if (phase != Phase.Standing || !CanSit(target)) return false;
         Vector3 fromStandPoint = transform.position - target.StandPoint.position;
         fromStandPoint.y = 0f;
-        if (fromStandPoint.sqrMagnitude > maxStartDistance * maxStartDistance) return false;
+        // A walk handed over early (see ReadyToTakeOver) starts further out; a
+        // standing start never does (someone a crowd stopped short stays put).
+        float allowed = maxStartDistance;
+        float entrySide = 0f;
+        if (target.Style == TableSeat.SitStyle.Chair && startSpeed > .3f)
+        {
+            allowed = Mathf.Max(allowed, earlyHandover + .1f);
+            entrySide = SideEntry(target, transform.position, .1f);
+        }
+        if (fromStandPoint.sqrMagnitude > allowed * allowed && entrySide == 0f) return false;
         seat = target;
         float floor = transform.position.y;
         Placement(seat, floor, out Vector3 feet, out seatRotation);
@@ -221,7 +278,9 @@ public sealed class NpcSeating : MonoBehaviour
         path[0] = transform.position;
         path[2] = feet;
         handBackPoint = path[0];
-        sideIn = ChooseSide(seatCentre, side, transform.position);
+        // Stepping in from the side they are already on (walking along the table), or
+        // round the freer side.
+        sideIn = entrySide != 0f ? entrySide : ChooseSide(seatCentre, side, transform.position);
         float step = bench ? benchSideStep : sideClearance;
 
         waypoints.Clear();
@@ -262,6 +321,54 @@ public sealed class NpcSeating : MonoBehaviour
         if (visual != null) visual.Seated = true;
         Begin(Phase.Approaching, 0f);
         return true;
+    }
+
+    /// <summary>
+    /// Should the brain hand the walk over to this component now (pass 2c)?
+    /// As before when the NPC is within <paramref name="usual"/> of the seat's
+    /// stand point. For a chair, while walking, also: along the aisle behind the
+    /// chair (sideways to it) within <see cref="earlyHandover"/> of the stand
+    /// point, so the walk curves round the corner; and along the table - level
+    /// with the seat or in front of it - within <see cref="sideEntryReach"/> of
+    /// the chair's side, so they step straight in instead of walking past the
+    /// seat to the stand point behind it and turning back.
+    /// </summary>
+    public bool ReadyToTakeOver(TableSeat target, float usual)
+    {
+        if (target == null || phase != Phase.Standing) return false;
+        Vector3 position = transform.position;
+        float toStand = Flat(target.StandPoint.position - position).magnitude;
+        if (toStand < usual) return true;
+        if (target.Style == TableSeat.SitStyle.Bench) return false;
+        Vector3 velocity = agent != null && agent.enabled ? Flat(agent.velocity) : Vector3.zero;
+        if (velocity.sqrMagnitude < .09f) return false;
+        Vector3 forward = SeatForward(target);
+        float relF = Vector3.Dot(Flat(position - target.SeatPose.position), forward);
+        if (relF < -.3f && Mathf.Abs(Vector3.Dot(velocity.normalized, forward)) < .6f && toStand < earlyHandover) return true;
+        return SideEntry(target, position, 0f) != 0f;
+    }
+
+    // +1 / -1: the NPC is level with the seat (or in front of it) within reach of
+    // the chair's side on that side, so the way in can step straight in from
+    // there; 0 otherwise.
+    private float SideEntry(TableSeat target, Vector3 position, float slack)
+    {
+        if (data == null || target == null) return 0f;
+        Vector3 forward = SeatForward(target), side = Vector3.Cross(Vector3.up, forward);
+        Vector3 rel = Flat(position - target.SeatPose.position);
+        float relF = Vector3.Dot(rel, forward), relS = Vector3.Dot(rel, side);
+        if (relF < -.45f || relF > 1.2f) return 0f;
+        float s = relS >= 0f ? 1f : -1f;
+        Placement(target, position.y, out Vector3 feet, out _);
+        Vector3 entry = feet + side * (s * sideClearance) - forward * .05f;
+        return Flat(position - entry).magnitude < sideEntryReach + slack ? s : 0f;
+    }
+
+    private static Vector3 SeatForward(TableSeat target)
+    {
+        Vector3 toTable = Flat(target.FacingPoint - target.SeatPose.position);
+        if (toTable.sqrMagnitude < 1e-4f) toTable = Flat(target.SeatPose.position - target.StandPoint.position);
+        return toTable.sqrMagnitude > 1e-6f ? toTable.normalized : Vector3.forward;
     }
 
     /// <summary>
@@ -403,12 +510,14 @@ public sealed class NpcSeating : MonoBehaviour
         Begin(Phase.Returning, 0f);
     }
 
-    // The way out: round the chair on the freer side (the side they came in by
-    // when both are free), back to the stand point, the last steps turning
-    // towards wherever they are going next.
+    // The way out: towards where they go next when that is known (pass 2c, see
+    // PlanExitTowards); otherwise round the chair on the freer side (the side
+    // they came in by when both are free) back to the stand point, the last
+    // steps turning towards wherever they are going next.
     private void PlanWayOut(bool fromSeat)
     {
         waypoints.Clear();
+        exitOnward = null;
         Vector3 from = fromSeat ? path[2] : transform.position;
         waypoints.Add(from);
         Vector3 end = fromSeat && seat != null ? seat.StandPoint.position : path[0];
@@ -422,6 +531,10 @@ public sealed class NpcSeating : MonoBehaviour
             if (seat.Style == TableSeat.SitStyle.Bench)
             {
                 // Off a sofa: straight out into the room, towards the stand point.
+            }
+            else if (exitTowardsDestination && standHeading.HasValue && PlanExitTowards(from, seatCentre, forward, side, standHeading.Value, ref end))
+            {
+                // Waypoints added: out on the side facing the way they go, joining the floor where the walk is shortest.
             }
             else
             {
@@ -446,7 +559,15 @@ public sealed class NpcSeating : MonoBehaviour
         Vector3 last = waypoints[waypoints.Count - 2];
         Vector3 endDir = Flat(end - last);
         routeEndRotation = null;
-        if (standHeading.HasValue)
+        if (exitOnward.HasValue && exitOnward.Value.sqrMagnitude > 1e-4f)
+        {
+            // Arrive walking along the route the agent follows next, so the walk carries straight on.
+            Vector3 onward = exitOnward.Value.normalized;
+            routeEndRotation = Quaternion.LookRotation(onward);
+            Vector3 blend = endDir.normalized + onward * 1.5f;
+            endDir = blend.sqrMagnitude > 1e-3f ? blend : endDir;
+        }
+        else if (standHeading.HasValue)
         {
             Vector3 onward = Flat(standHeading.Value - end);
             if (onward.sqrMagnitude > .04f)
@@ -457,6 +578,117 @@ public sealed class NpcSeating : MonoBehaviour
             }
         }
         BuildRoute(startDir, endDir);
+    }
+
+    // The ways out of a chair, weighed: out on either side (the first steps
+    // beside the chair), then joining the floor (a) beside the chair, (b)
+    // behind it on that side, or (c) at the stand point. Cost = hand-walked
+    // distance + NavMesh distance on to the destination + turning + a heavy
+    // charge for a seated neighbour in the way. False when nothing works (the
+    // caller falls back to the stand point).
+    private bool PlanExitTowards(Vector3 from, Vector3 seatCentre, Vector3 forward, Vector3 side, Vector3 destination, ref Vector3 end)
+    {
+        exitPath ??= new NavMeshPath();
+        float floorY = path[0].y;
+        CollectSeatsNearby(seatCentre);
+        float best = float.PositiveInfinity;
+        Vector3 bestBeside = default, bestBack = default, bestEnd = default, bestOnward = default;
+        bool bestViaBack = false, found = false;
+        for (int s = -1; s <= 1; s += 2)
+        {
+            Vector3 beside = from + side * (s * sideClearance) - forward * .05f;
+            beside.y = from.y;
+            Vector3 besideBack = seatCentre + side * (s * sideClearance) - forward * .35f;
+            besideBack.y = from.y;
+            for (int c = 0; c < 3; c++)
+            {
+                Vector3 probe = c switch
+                {
+                    0 => seatCentre + side * (s * (sideClearance + .3f)) - forward * .1f,
+                    1 => seatCentre + side * (s * (sideClearance + .1f)) - forward * .75f,
+                    _ => seat.StandPoint.position,
+                };
+                probe.y = floorY;
+                if (!NavMesh.SamplePosition(probe, out NavMeshHit hit, .3f, NavMesh.AllAreas)) continue;
+                if (Flat(hit.position - probe).magnitude > .22f) continue;
+                Vector3 join = hit.position;
+                join.y = floorY;
+                if (!NavMesh.CalculatePath(hit.position, destination, NavMesh.AllAreas, exitPath)
+                    || exitPath.status != NavMeshPathStatus.PathComplete) continue;
+                int n = exitPath.GetCornersNonAlloc(exitCorners);
+                float onward = 0f;
+                for (int i = 1; i < n; i++) onward += Flat(exitCorners[i] - exitCorners[i - 1]).magnitude;
+                Vector3 onwardDir = Vector3.zero;
+                for (int i = 1; i < n && onwardDir.sqrMagnitude < .04f; i++) onwardDir = Flat(exitCorners[i] - hit.position);
+                if (onwardDir.sqrMagnitude < .04f) onwardDir = Flat(destination - hit.position);
+                // Round the back of the chair only for the stand point behind it.
+                bool viaBack = c == 2 && Vector3.Dot(Flat(join - seatCentre), forward) < -.3f
+                               && Vector3.Dot(Flat(join - besideBack), forward) < 0f;
+                float walk = Flat(beside - from).magnitude;
+                float turn = Vector3.Angle(forward, Flat(beside - from));
+                Vector3 legFrom = beside, lastLeg = Flat(beside - from);
+                float crowd = Blocking(from, beside);
+                if (viaBack)
+                {
+                    walk += Flat(besideBack - beside).magnitude;
+                    turn += Vector3.Angle(lastLeg, Flat(besideBack - beside));
+                    lastLeg = Flat(besideBack - beside);
+                    crowd += Blocking(beside, besideBack);
+                    legFrom = besideBack;
+                }
+                Vector3 joinLeg = Flat(join - legFrom);
+                if (joinLeg.sqrMagnitude > .01f)
+                {
+                    walk += joinLeg.magnitude;
+                    turn += Vector3.Angle(lastLeg, joinLeg);
+                    lastLeg = joinLeg;
+                    crowd += Blocking(legFrom, join);
+                }
+                turn += Vector3.Angle(lastLeg, onwardDir);
+                float cost = walk + onward + exitTurnCost * turn / 90f + 3f * crowd;
+                if (cost >= best) continue;
+                best = cost;
+                found = true;
+                bestBeside = beside;
+                bestBack = besideBack;
+                bestViaBack = viaBack;
+                bestEnd = join;
+                bestOnward = onwardDir;
+            }
+        }
+        if (!found) return false;
+        waypoints.Add(bestBeside);
+        if (bestViaBack) waypoints.Add(bestBack);
+        end = bestEnd;
+        exitOnward = bestOnward;
+        return true;
+    }
+
+    private void CollectSeatsNearby(Vector3 centre)
+    {
+        seatsNearby.Clear();
+        foreach (TableSeat other in FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude))
+        {
+            if (other == seat || !other.IsOccupied) continue;
+            if (Flat(other.SeatPose.position - centre).sqrMagnitude > 2.5f * 2.5f) continue;
+            seatsNearby.Add(other);
+        }
+    }
+
+    // How many occupied seats (someone sitting, or on their way to sit) the
+    // straight step from a to b would brush past: within half a metre of the seat.
+    private static int Blocking(Vector3 a, Vector3 b)
+    {
+        int count = 0;
+        Vector3 ab = Flat(b - a);
+        float len2 = ab.sqrMagnitude;
+        foreach (TableSeat other in seatsNearby)
+        {
+            Vector3 p = Flat(other.SeatPose.position - a);
+            float u = len2 > 1e-6f ? Mathf.Clamp01(Vector3.Dot(p, ab) / len2) : 0f;
+            if ((p - ab * u).sqrMagnitude < .5f * .5f) count++;
+        }
+        return count;
     }
 
     private void Hold() => transform.SetPositionAndRotation(path[2], seatRotation);
@@ -563,7 +795,26 @@ public sealed class NpcSeating : MonoBehaviour
         bool carryOn = !routeIn && whenStanding != null;   // the agent continues the walk from the stand point
         float target = cruiseSpeed;
         if (!carryOn && remaining < slowDownDistance) target = Mathf.Lerp(arriveSpeed, cruiseSpeed, remaining / slowDownDistance);
-        walkSpeed = Mathf.MoveTowards(walkSpeed, target, (target > walkSpeed ? 3f : 2.5f) * dt);
+        // Slow for a tight bend just ahead, so the body never whips round.
+        float bend = BendAhead(walked);
+        if (bend > 1e-3f) target = Mathf.Min(target, Mathf.Max(.45f, bendTurnRate * Mathf.Deg2Rad / bend));
+        // On the way in, a body facing well away from the way the route goes
+        // (handed over at a sharp corner) slows right down until it has turned,
+        // instead of gliding sideways. (Near the chair the body is meant to be up
+        // to travelMismatch off the route, so only beyond that.)
+        float decelerate = 2.5f;
+        if (routeIn)
+        {
+            Vector3 heading = TangentAt(walked);
+            float mismatch = heading.sqrMagnitude > 1e-6f ? Vector3.Angle(Flat(transform.forward), heading) : 0f;
+            float beyond = travelMismatch + 10f;
+            if (mismatch > beyond)
+            {
+                target = Mathf.Min(target, Mathf.Lerp(cruiseSpeed, .3f, Mathf.InverseLerp(beyond, beyond + 50f, mismatch)));
+                decelerate = 5f;
+            }
+        }
+        walkSpeed = Mathf.MoveTowards(walkSpeed, target, (target > walkSpeed ? stepAcceleration : decelerate) * dt);
         if (routeIn) walkSpeed = Mathf.Max(walkSpeed, .25f);
         walked = Mathf.Min(routeLength, walked + Mathf.Max(walkSpeed, .05f) * dt);
 
@@ -595,6 +846,22 @@ public sealed class NpcSeating : MonoBehaviour
         if (locomotion != null) locomotion.DriveWalk(walkSpeed, dt);
         else animator.SetBool(IsWalkingHash, walkSpeed > .1f);
         return walked >= routeLength - 1e-4f;
+    }
+
+    // Sharpest bend on the next half metre of the route, radians per metre.
+    private float BendAhead(float s)
+    {
+        float worst = 0f;
+        Vector3 before = TangentAt(s);
+        for (float ahead = .15f; ahead <= .6f; ahead += .15f)
+        {
+            Vector3 after = TangentAt(s + ahead);
+            if (before.sqrMagnitude > 1e-6f && after.sqrMagnitude > 1e-6f)
+                worst = Mathf.Max(worst, Vector3.Angle(before, after) * Mathf.Deg2Rad / .15f);
+            before = after;
+            if (s + ahead >= routeLength) break;
+        }
+        return worst;
     }
 
     private bool StillRising()
@@ -717,6 +984,7 @@ public sealed class NpcSeating : MonoBehaviour
         active.Remove(this);
         seat = null;
         standHeading = null;
+        exitOnward = null;
         if (visual != null) visual.Seated = false;
         PlaceOverheads();
         System.Action back = whenStanding;

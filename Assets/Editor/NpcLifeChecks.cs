@@ -286,6 +286,12 @@ public static class NpcLifeChecks
         float closestWalkerToSeated = float.MaxValue;
         string closestNote = "";
         steps.Clear();
+        exits.Clear();
+        exitResults.Clear();
+        flicker.Clear();
+        flickers = 0;
+        walkingSeconds = 0f;
+        flickerNotes.Clear();
         while (Time.time < deadline)
         {
             var seatedNow = SeatedIn(lounge);
@@ -391,7 +397,28 @@ public static class NpcLifeChecks
         Check(NpcAttentionDirector.ArrivalLooks >= 1 || NpcAttentionDirector.People.Count < 4, $"Someone looked up when people came in ({NpcAttentionDirector.ArrivalLooks} arrival looks)");
         Note("Director: " + NpcAttentionDirector.Summary());
 
+        // ---------- 7. out of the chairs and on their way (pass 2c) ----------
+        // The sofa patrons leave; then the table chairs are opened up, a group
+        // sits at them and is sent home: every walk out is followed onto its
+        // next leg (turning against the shortest turn), and every set-off is
+        // watched for the walk clip flickering.
         lab.PatronsLeaveNow();
+        float exitsUntil = Time.time + 6f;
+        while (Time.time < exitsUntil) { WatchSteps(); yield return null; }
+        foreach (Component h in holders) WaitingArea.Instance.Release(h);
+        holders.Clear();
+        lab.SendPatronsNow(6);
+        float sitUntil = Time.time + 45f;
+        while (Time.time < sitUntil && SeatedIn(tables).Count < 4) { WatchSteps(); yield return null; }
+        int atTables = SeatedIn(tables).Count;
+        Note($"{atTables} patrons sat at the tables for the walk-out check.");
+        exitsUntil = Time.time + 3f;
+        while (Time.time < exitsUntil) { WatchSteps(); yield return null; }
+        lab.PatronsLeaveNow();
+        exitsUntil = Time.time + 14f;
+        while (Time.time < exitsUntil) { WatchSteps(); yield return null; }
+        FinishExits(true);
+        ReportExits();
         lab.CustomersLeaveNow();
         foreach (Component h in holders) WaitingArea.Instance.Release(h);
     }
@@ -412,11 +439,14 @@ public static class NpcLifeChecks
     private static void WatchSteps()
     {
         float dt = Time.deltaTime;
+        WatchFlicker(dt);
+        FinishExits(false);
         foreach (NpcSeating s in Object.FindObjectsByType<NpcSeating>(FindObjectsInactive.Exclude))
         {
             if (!steps.TryGetValue(s, out StepWatch w)) steps[s] = w = new StepWatch { phase = s.Current };
             NpcSeating.Phase now = s.Current;
             bool stepping = now == NpcSeating.Phase.Approaching || now == NpcSeating.Phase.Returning;
+            WatchExit(s, w.phase, now, dt);
             if (w.phase != now)
             {
                 // A walk in or out just ended: keep how it turned.
@@ -453,6 +483,126 @@ public static class NpcLifeChecks
         Check(worstSlide <= .35f, $"Nobody slides without walking for more than a moment on the way in or out (longest {worstSlide:0.00} s)");
         Check(worstRate <= 340f, $"No snap turns stepping in or out (fastest {worstRate:0} deg/s; the old steps turned at 360 deg/s on the spot)");
         Note($"Average turning on the way into a seat: {turnedIn:0} deg (walk plus the swivel into the seat comes after).");
+    }
+
+    // ---------- out of the seat towards where they go, and set-offs (pass 2c) ----------
+    // From the first moment of standing up to 1.5 s after the seating hands the
+    // body back to the agent: every degree turned, and the largest turn one way
+    // (a loop shows as more than a turn-round). The pass 2b walk out went round
+    // the back of the chair to the stand point first: in the recordings its
+    // largest one-way turn was 243 degrees at the median and up to 440 (loops),
+    // 340 degrees turned in all at the median.
+    private sealed class ExitWatch
+    {
+        public float startYaw, lastYaw, turned, signed, oneWay, handedBackAt = -1f, speed;
+        public Vector3 lastPosition, heading;
+        public bool bench;
+    }
+    private static readonly Dictionary<NpcSeating, ExitWatch> exits = new();
+    private static readonly List<(float oneWay, float total, bool bench)> exitResults = new();
+
+    private static void WatchExit(NpcSeating s, NpcSeating.Phase before, NpcSeating.Phase now, float dt)
+    {
+        float yaw = s.transform.eulerAngles.y;
+        Vector3 position = s.transform.position;
+        if (before != now && now == NpcSeating.Phase.StandingUp)
+            exits[s] = new ExitWatch
+            {
+                startYaw = yaw, lastYaw = yaw, lastPosition = position,
+                bench = s.Seat != null && s.Seat.Style == TableSeat.SitStyle.Bench
+            };
+        if (!exits.TryGetValue(s, out ExitWatch e)) return;
+        if (before != now && now == NpcSeating.Phase.Standing) e.handedBackAt = Time.time;
+        if (dt <= 0f) return;
+        float turn = Mathf.DeltaAngle(e.lastYaw, yaw);
+        e.turned += Mathf.Abs(turn);
+        e.signed += turn;
+        e.oneWay = Mathf.Max(e.oneWay, Mathf.Abs(e.signed));
+        e.lastYaw = yaw;
+        Vector3 step = Flat(position - e.lastPosition);
+        e.lastPosition = position;
+        e.speed = Mathf.Lerp(e.speed, step.magnitude / dt, 1f - Mathf.Exp(-dt / .1f));
+        if (e.speed > .4f && step.sqrMagnitude > 1e-8f) e.heading = Vector3.Lerp(e.heading, step.normalized, 1f - Mathf.Exp(-dt / .15f));
+    }
+
+    private static void FinishExits(bool all)
+    {
+        foreach (NpcSeating s in exits.Keys.ToList())
+        {
+            ExitWatch e = exits[s];
+            bool gone = s == null || !s.isActiveAndEnabled;
+            bool done = e.handedBackAt >= 0f && Time.time - e.handedBackAt >= 1.5f;
+            if (!done && !gone && !all) continue;
+            if (e.handedBackAt >= 0f) exitResults.Add((e.oneWay, e.turned, e.bench));
+            exits.Remove(s);
+        }
+    }
+
+    private static void ReportExits()
+    {
+        var chairs = exitResults.Where(r => !r.bench).ToList();
+        var all = exitResults;
+        Check(all.Count >= 4 && chairs.Count >= 2, $"Walks out of seats were followed onto their next leg ({all.Count}: {chairs.Count} from chairs, {all.Count - chairs.Count} from sofas)");
+        if (all.Count == 0) return;
+        float[] oneWay = all.Select(r => r.oneWay).OrderBy(x => x).ToArray();
+        float[] total = all.Select(r => r.total).OrderBy(x => x).ToArray();
+        Check(oneWay[oneWay.Length - 1] <= 220f,
+              $"No loops on the way out of a seat: the largest turn one way is {oneWay[oneWay.Length - 1]:0} deg (median {oneWay[oneWay.Length / 2]:0}; " +
+              "the pass 2b walk round the back of the chair: 243 median, up to 440)");
+        Check(total[total.Length / 2] <= 240f,
+              $"Out of a seat they turn about as much as the way out needs: {total[total.Length / 2]:0} deg in all at the median, stand-up to 1.5 s on (pass 2b: 340)");
+        if (chairs.Count > 0)
+        {
+            float[] co = chairs.Select(r => r.oneWay).OrderBy(x => x).ToArray();
+            float[] ct = chairs.Select(r => r.total).OrderBy(x => x).ToArray();
+            Note($"From chairs only ({chairs.Count}): largest one-way turn median {co[co.Length / 2]:0}, worst {co[co.Length - 1]:0}; turned in all median {ct[ct.Length / 2]:0}.");
+        }
+        Check(walkingSeconds < 20f || flickers / (walkingSeconds / 60f) <= .5f,
+              $"The walk clip does not flicker off and on while people set off or carry on ({flickers} in {walkingSeconds / 60f:0.0} min of walking; pass 2b had about 3 a minute)"
+              + (flickerNotes.Count > 0 ? " - " + string.Join("; ", flickerNotes.Take(4)) : ""));
+    }
+
+    // Walk clip off and back on within 0.6 s while the body kept moving: the
+    // stutter every set-off after a turn used to have.
+    private sealed class FlickerWatch { public bool walk; public float offAt = -1f, speed; public Vector3 lastPosition; public bool seen; }
+    private static readonly Dictionary<NpcLocomotion, FlickerWatch> flicker = new();
+    private static readonly List<string> flickerNotes = new();
+    private static int flickers;
+    private static float walkingSeconds;
+
+    private static void WatchFlicker(float dt)
+    {
+        if (dt <= 0f) return;
+        foreach (NpcLocomotion loco in NpcLocomotion.All)
+        {
+            if (loco == null || !loco.isActiveAndEnabled) continue;
+            Animator animator = loco.GetComponentInChildren<Animator>();
+            if (animator == null || !animator.isActiveAndEnabled) continue;
+            if (!flicker.TryGetValue(loco, out FlickerWatch f)) flicker[loco] = f = new FlickerWatch();
+            Vector3 position = loco.transform.position;
+            if (f.seen)
+            {
+                float v = Flat(position - f.lastPosition).magnitude / dt;
+                f.speed = Mathf.Lerp(f.speed, Mathf.Min(v, 3f), 1f - Mathf.Exp(-dt / .1f));
+            }
+            f.lastPosition = position;
+            f.seen = true;
+            bool walk = animator.IsInTransition(0)
+                ? animator.GetNextAnimatorStateInfo(0).shortNameHash == WalkState
+                : animator.GetCurrentAnimatorStateInfo(0).shortNameHash == WalkState;
+            if (f.speed > .3f) walkingSeconds += dt;
+            if (f.walk && !walk && f.speed > .3f) f.offAt = Time.time;
+            if (!f.walk && walk && f.offAt >= 0f)
+            {
+                if (Time.time - f.offAt < .6f)
+                {
+                    flickers++;
+                    if (flickerNotes.Count < 8) flickerNotes.Add($"{loco.name.Replace("(Clone)", "")} at t={Time.time:0.0} ({loco.Purpose})");
+                }
+                f.offAt = -1f;
+            }
+            f.walk = walk;
+        }
     }
 
     private static void WatchWalkPast(ref float closest, ref string note)

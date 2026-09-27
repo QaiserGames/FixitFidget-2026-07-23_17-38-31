@@ -80,7 +80,20 @@ public class CustomerBrain : MonoBehaviour
 
     [Tooltip("Stepping back from the counter, this close to the step-back point (and still walking) the walk " +
              "carries straight on towards their spot instead of stopping there first, metres.")]
-    [SerializeField, Range(0f, 1f)] private float stepBackCarryOn = .45f;
+    [SerializeField, Range(0f, 1f)] private float stepBackCarryOn = .6f;
+
+    [Tooltip("The step back goes this far to the side of straight back, towards the side their spot is on, metres. " +
+             "Straight back was an about-turn that could go either way round, then a second turn for the seat " +
+             "(pass 2c: the \"circle\" after ordering).")]
+    [SerializeField, Range(0f, 1.2f)] private float counterStepAside = .8f;
+
+    [Tooltip("Only step back when somebody is standing within this distance of the direct way to their spot " +
+             "(over its first couple of metres); otherwise they walk straight there, metres.")]
+    [SerializeField, Range(.3f, 1.2f)] private float counterWayClearance = .65f;
+
+    [Tooltip("Longest they wait for the hand-over gesture (Interact) to finish before turning away anyway, seconds " +
+             "past the usual reaction beat.")]
+    [SerializeField, Range(0f, 2f)] private float gestureWaitMax = .8f;
 
     [Tooltip("How close counts as arrived. The prefab ships at 1 m, which " +
              "parks people a metre from their own chair.")]
@@ -868,8 +881,11 @@ public class CustomerBrain : MonoBehaviour
             return;
         }
 
-        // Held still for a beat after accepting, then released.
-        if (hasPendingDestination && Time.time >= moveAllowedAt)
+        // Held still for a beat after accepting, then released - but never
+        // while the hand-over gesture is still playing: turning with the arm
+        // still out was a swivel on still legs (pass 2c).
+        if (hasPendingDestination && Time.time >= moveAllowedAt
+            && (!GestureStillPlaying() || Time.time >= moveAllowedAt + gestureWaitMax))
         {
             hasPendingDestination = false;
             locomotion.MoveTo(pendingDestination, pendingMove);
@@ -992,7 +1008,7 @@ public class CustomerBrain : MonoBehaviour
                     }
                     else if (locomotion.GaveUp) GiveUpOnSpot();
                     else if (!hasStepBack && waitingSpot is TableSeat early && seating != null && seating.CanSit(early)
-                             && locomotion.IsMoving && locomotion.DistanceToGoal < sitHandoverDistance)
+                             && locomotion.IsMoving && seating.ReadyToTakeOver(early, sitHandoverDistance))
                     {
                         // Close to the chair and still walking: the seating takes
                         // the last steps, so walk, turn and sit are one movement.
@@ -1473,17 +1489,39 @@ public class CustomerBrain : MonoBehaviour
         // forward is "at the counter" by definition. Rotate a slot in the scene and the step-back follows
         // it. If the point isn't on the NavMesh we silently do exactly what we
         // did before — this can't introduce a new way to fail.
+        //
+        // Pass 2c: only when it is needed, and towards the spot's side. Measured
+        // in the pass 2b recordings, the straight-back step was an about-turn
+        // that went either way round (the long way for 1-5 people in 5-7), then
+        // a second turn at walking pace for the seat: 40-170 degrees more
+        // turning than the way to the seat needed - the "circle" after
+        // ordering. Now: if nobody is standing along the first couple of metres
+        // of the direct way, they turn the short way and walk straight there.
+        // If somebody is, the step goes back AND to the side the spot is on, so
+        // the turn away is the short way round and the walk curves on behind
+        // the person at the counter.
         if (counterStepBack > 0f && slotIndex >= 0 && queue != null)
         {
             Transform slot = queue.SlotPoint(slotIndex);
-            Vector3 probe = slot.position - slot.forward * counterStepBack;
+            Vector3 back = -slot.forward;
+            back.y = 0f;
+            if (back.sqrMagnitude < 1e-4f) back = -transform.forward;
+            back.Normalize();
+            Vector3 right = Vector3.Cross(Vector3.up, -back);
+            Vector3 toSpot = destination - transform.position;
+            toSpot.y = 0f;
 
-            if (NavMesh.SamplePosition(probe, out NavMeshHit backHit, 1f, NavMesh.AllAreas)
-                && CanReach(backHit.position))
+            if (DirectWayBlocked(destination, back))
             {
-                stepBackTo = backHit.position;
-                hasStepBack = true;
-                destination = stepBackTo;
+                float aside = Vector3.Dot(toSpot, right) >= 0f ? counterStepAside : -counterStepAside;
+                Vector3 probe = slot.position + back * counterStepBack + right * aside;
+                if (NavMesh.SamplePosition(probe, out NavMeshHit backHit, 1f, NavMesh.AllAreas)
+                    && CanReach(backHit.position))
+                {
+                    stepBackTo = backHit.position;
+                    hasStepBack = true;
+                    destination = stepBackTo;
+                }
             }
         }
 
@@ -1604,6 +1642,62 @@ public class CustomerBrain : MonoBehaviour
                          $"waiting where they stand. Usually means the seats " +
                          $"are unreachable, not that the floor is full.", this);
         SettleHere();
+    }
+
+    // Is somebody standing (not walking past) close to the first couple of
+    // metres of the direct way from here to the spot? A way that already heads
+    // away from the counter (within 50 degrees of straight back) never runs
+    // along it, so it counts as clear.
+    private bool DirectWayBlocked(Vector3 destination, Vector3 back)
+    {
+        var way = new NavMeshPath();
+        if (!agent.CalculatePath(destination, way) || way.status != NavMeshPathStatus.PathComplete) return true;
+        Vector3[] corners = way.corners;
+        if (corners.Length < 2) return false;
+        Vector3 first = corners[1] - corners[0];
+        first.y = 0f;
+        if (first.sqrMagnitude > 1e-4f && Vector3.Angle(first, back) < 50f) return false;
+        const float look = 2.2f;
+        float along = 0f;
+        for (int i = 1; i < corners.Length && along < look; i++)
+        {
+            Vector3 a = corners[i - 1], b = corners[i];
+            a.y = b.y = 0f;
+            float len = (b - a).magnitude;
+            if (len < 1e-4f) continue;
+            if (along + len > look) { b = a + (b - a) * ((look - along) / len); len = look - along; }
+            foreach (NpcLocomotion other in NpcLocomotion.All)
+            {
+                if (other == null || other == locomotion || !other.isActiveAndEnabled) continue;
+                if (other.Speed > .4f) continue;   // walking past: gone by the time we get there
+                Vector3 p = other.transform.position;
+                p.y = 0f;
+                Vector3 ab = b - a;
+                float u = Mathf.Clamp01(Vector3.Dot(p - a, ab) / ab.sqrMagnitude);
+                if (((a + ab * u) - p).sqrMagnitude < counterWayClearance * counterWayClearance) return true;
+            }
+            along += len;
+        }
+        return false;
+    }
+
+    // The café animator's states are named after the library's clips.
+    private static readonly int InteractStateHash = Animator.StringToHash("CharacterArmature|Interact");
+    private static readonly int InteractShortHash = Animator.StringToHash("Interact");
+    private static bool IsInteract(AnimatorStateInfo state) =>
+        state.shortNameHash == InteractStateHash || state.shortNameHash == InteractShortHash;
+
+    // The hand-over gesture is still up (or just starting): not yet time to turn away.
+    private bool GestureStillPlaying()
+    {
+        if (animator == null || !animator.isActiveAndEnabled || animator.runtimeAnimatorController == null) return false;
+        if (animator.IsInTransition(0))
+        {
+            if (IsInteract(animator.GetNextAnimatorStateInfo(0))) return true;
+            return IsInteract(animator.GetCurrentAnimatorStateInfo(0))
+                   && animator.GetAnimatorTransitionInfo(0).normalizedTime < .4f;
+        }
+        return IsInteract(animator.GetCurrentAnimatorStateInfo(0));
     }
 
     private bool CanReach(Vector3 destination)

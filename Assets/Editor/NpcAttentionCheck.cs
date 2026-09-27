@@ -290,8 +290,10 @@ public static class NpcAttentionCheck
         float until = Time.time + 1.2f;
         while (Time.time < until)
         {
+            // The café animator's states are named after the library clips
+            // ("CharacterArmature|Interact"); IsName("Interact") never matched.
             if (!seated && animator != null &&
-                (animator.GetCurrentAnimatorStateInfo(0).IsName("Interact") || animator.GetNextAnimatorStateInfo(0).IsName("Interact")))
+                (IsInteract(animator.GetCurrentAnimatorStateInfo(0)) || IsInteract(animator.GetNextAnimatorStateInfo(0))))
                 gesture = true;
             yield return null;
         }
@@ -301,6 +303,10 @@ public static class NpcAttentionCheck
     }
 
     // ---------- helpers ----------
+
+    private static readonly int InteractState = Animator.StringToHash("CharacterArmature|Interact");
+    private static readonly int InteractShort = Animator.StringToHash("Interact");
+    private static bool IsInteract(AnimatorStateInfo state) => state.shortNameHash == InteractState || state.shortNameHash == InteractShort;
 
     private static List<CustomerBrain> Queued() =>
         Object.FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude)

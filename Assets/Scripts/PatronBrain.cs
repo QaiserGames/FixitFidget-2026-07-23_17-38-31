@@ -152,7 +152,7 @@ public class PatronBrain : MonoBehaviour
                 // seating now, so the last steps, the turn and the sit are one
                 // movement rather than walk - stop - idle - hover - sit.
                 if (seating != null && seat is TableSeat early && seating.CanSit(early) && locomotion.IsMoving
-                    && locomotion.DistanceToGoal < sitHandoverDistance && !locomotion.HasArrived)
+                    && seating.ReadyToTakeOver(early, sitHandoverDistance) && !locomotion.HasArrived)
                 {
                     float carried = locomotion.Speed;
                     locomotion.Park(null);

@@ -35,3 +35,13 @@ Pass 2 / 2b (27 Sept, `claude/npc-pass2-life-results-2026-09-27.md`):
   video frames cropped around a world point.
 - `cut.py <recording dir> t0 t1 out.mp4 [cx cy zoom] [speed]` — a clip by trace time (optionally a zoomed crop,
   optionally faster).
+
+Pass 2c (27 Sept, same doc, section "Pass 2c"):
+
+- `turns.py <recording dir> [label] [--detail]` — leaving the counter: shortest turn needed vs every degree turned
+  (the "circle"), long-way-round turns, fastest walking turn, walk-clip flicker, hardest speed-up; out of a chair:
+  turning from facing the table to the way they walk off; walk-clip flickers per minute of walking.
+- `pass2c.py <dir> [<dir> …]` — one row per recording with the numbers Mansoor's complaints map to: slides into
+  the seat, the direction kink and sideways walking at the hand-over into a chair, fastest turn on the way in,
+  loops on the way out (largest one-way turn, > 240 = a loop), counter turning beyond the need, long-way turns,
+  spin rate and set-off acceleration, walk-clip flickers per walking minute.
