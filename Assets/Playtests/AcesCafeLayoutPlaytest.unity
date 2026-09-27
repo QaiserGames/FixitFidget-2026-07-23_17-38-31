@@ -206877,6 +206877,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -3357183871874776788, guid: 31f1586b39df16c448f0ff06101ada0f, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 791051dc1ea18be4791b2d509ceb0808, type: 2}
     - target: {fileID: -2762985935859178072, guid: 31f1586b39df16c448f0ff06101ada0f, type: 3}
       propertyPath: m_CastShadows
       value: 0
@@ -206889,10 +206893,22 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: -7264836026538401731, guid: b261d9b8278d9484ba1c2d167f8e42f5, type: 2}
+    - target: {fileID: -692163340345946856, guid: 31f1586b39df16c448f0ff06101ada0f, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 7538ca13937184f4fa76c2d0ae4cf927, type: 2}
     - target: {fileID: 919132149155446097, guid: 31f1586b39df16c448f0ff06101ada0f, type: 3}
       propertyPath: m_Name
       value: Entrance with rounded brass pulls
       objectReference: {fileID: 0}
+    - target: {fileID: 2882318795014207613, guid: 31f1586b39df16c448f0ff06101ada0f, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 3ead0e9fc03aaae47aea7e1fc0ceed91, type: 2}
+    - target: {fileID: 4134205809783521485, guid: 31f1586b39df16c448f0ff06101ada0f, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: bd22af44db173254db2a31ad3fc51ddf, type: 2}
     - target: {fileID: 5352431009665364819, guid: 31f1586b39df16c448f0ff06101ada0f, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
