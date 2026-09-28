@@ -1,5 +1,76 @@
 # Current handoff — September 12, 2026
 
+## September 28 (morning) — night walk part 2: the edges closed (road works by night, the corners for good); on `night-walk`
+
+**Read this entry first.** One code commit, `f4528eb`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+His answer on the corners (28 Sept, the question in the entry below): "Fence + building site (Recommended)". So the corners close for good, day and night.
+
+**What this step builds** (`Fixit Fidget > Night > Night walk 2 - Build the edges (road works at night, the corners for good)`, Edit Mode; editor script `NightEdges`, new):
+
+- **Road works at the 8 street ends, night only.** They sit under `20 - Night walk/Road works (night only)`, on `NightWalk.nightOnly`, inactive by day. Each street end has a different job:
+  1. West Street, south end (z −43): a burst water main: a van, pipes, a manhole with steam, cones;
+  2. East Street, south end (z −43): resurfacing: road patches, a pallet of sacks, drums;
+  3. West Street, north end (z 35.6): a timber delivery: beams, barrels, cones;
+  4. East Street, north end (z 34.9): a blocked drain: a manhole, barrels, a crate, cones;
+  5. Front Street, west end (x −44.6): a new cable box: a power box, boxes, planks, cones;
+  6. Back Street, west end (x −45): a trench: sacks, planks, a ladder lying down, drums;
+  7. Front Street, east end (x 43.3): a lane closure: a taper of drums, crates, a pallet with a crate;
+  8. Back Street, east end (x 46.3): a skip and rubble: a skip, a pallet, bags, cones.
+  - Every site has a line of barriers (`Barrier_01`, stretched to fit), warning signs at the quarter points, three amber lamps on the barriers and an amber point light (range 5.5, intensity 1.6). The lamps are spheres that keep their sphere colliders, in the material `Night walk - works lamp`.
+  - 78 barriers and 84 other pieces. Their packs' convex colliders are off, and each mesh gets an exact, non-convex `MeshCollider` of its own.
+  - The set-up (`Night walk 1`) now builds them too, so a fresh set-up gives the same night.
+- **The corners, for good** (day and night), under `21 - Edges of the 9 blocks`:
+  - **A1, the city car park's open west side** (x −41.5, z −41..−24): fence panels and piers, with a locked iron gate (material `Night walk - iron gate`);
+  - **A2, behind the car park** (z −42.8): a fence between the two buildings;
+  - **B1 and B2, a fenced building site** behind the south-east hotel. Each fence has a warning sign, and there are 16 pieces inside: a skip, a pallet of sacks, beams, barrels, crates, planks and cones;
+  - **NW and NE, two more gaps behind the north corners** (z 31.6 and 31). They led up onto the hill. The first plan had counted the hill as inside, and told Mansoor there were only two corners to close. They are fenced like A2, under his fence answer, and flagged to him in the report.
+  - In all: 9 fence panels, 4 piers, the gate and 18 other pieces.
+  - **Nothing is solid by day**, as everywhere outside the café: their prefab colliders are off. At night the list of what is solid makes them solid. The list was rebuilt: 732 meshes, 352,740 triangles.
+  - **The day's routes are checked before building.** Every StreetLife walker's and car's route, and CafeArrivals' foot routes, lot-to-door routes, stalls and turn-in and turn-out, are checked against the permanent fences. Result: 64 routes, none closer than 0.75 m. The build refuses if one is.
+- **The patio's two small air walls** (the A-frame's box and an outdoor chair's box) stay.
+  - `FitPatioBoxes` found all 3 patio boxes already fitted to their objects' bounds; the air is the empty space inside those bounds.
+  - Exact shapes would change the café's day collision. What's left is 2 spots and 1 spot of air, at the patio.
+- **The sweep:**
+  - it now says whether all the ground Ace can reach is enclosed, meaning none of it reaches the edge of the swept area;
+  - its "ways out" are now the reachable ground beyond the 9 blocks' box, each to be checked against the closing lines just beyond.
+- **`Night walk 2 - Take the edges out again`** removes both groups (Edit > Undo puts them back) and rebuilds the list without them.
+
+**Checks** (lab sessions; the playtest save was never written):
+
+- **The sweep, the night simulated** (`Logs/Night/edges-night-2026-09-28_045028`):
+  - Ace can reach 4487 m², **all of it enclosed** within x −44.9..45.6, z −42.9..34.9.
+  - Outside the café room: 0 walk-throughs, 0 high spots, and the 2 small patio air walls.
+  - The only holes are roofs above 2.4 m and one part-1 lamp bulb over the pavement at (41.1, −10.4), all out of Ace's reach.
+- **A night lab session:** 732 meshes made solid (0.01 s), 3 day-only colliders off, 0 warnings, 0 errors.
+- **The day:**
+  - The 15 standard day photos, before (`day-photos-with-night-group-2026-09-28_042523`) and after (`..._050450`): 6 identical. The other 9 differ only where the new fences are in view (the parking lot view by 2.1%, the rest under 0.1%). No road works by day.
+  - A day lab session (Day 5, autopilot serves): served as usual, 0 warnings, 0 errors.
+- **Scene diff against `d6aa026`:**
+  - 962 objects added, all under the two new groups;
+  - the layout root and `20 - Night walk` each gain a child, and `NightWalk.nightOnly` gains the road works;
+  - nothing removed, nothing else changed.
+- **Photos:** 24 views, by day and at night, from `Logs/Night/views.json`: `views-day-2026-09-28_050538` and `views-night-2026-09-28_050338`.
+- **One slip, no harm:** while opening the Night menu, a click ran `Add the notebook to the recap (open scene)`. It found the block, re-wired the same reference and saved; the scene file came out byte-identical.
+  - The safe menu path: click `Fixit Fidget`, *hover* along `Night` into its submenu, then click the item. `Add the notebook...` is the submenu's first item, level with `Night`.
+- After the photos and lab sessions, Unity marked the scene as changed. Saved, the file was byte-identical to the commit.
+- That save also rewrote `Night walk - works lamp.mat`: Unity brought its unused legacy `_Color` in step with `_BaseColor` (2.6, 0.8, 0.05); it had kept the first, brighter colour. URP's Unlit shader draws with `_BaseColor`, so nothing looks different. It is committed on its own, right after this entry.
+
+**Left open:**
+
+- Mansoor's look at the photos: the jobs at the 8 street ends, and the NW/NE fences, which weren't in the question he answered.
+- The two small patio air walls, as above.
+- **Part 3:** the overhead camera follows Ace at night.
+- **Part 4:** night owls and local cars. With CafeArrivals resting, `CafeArrivals.Players` isn't refreshed at night, and `NpcJourney` uses it to steer round Ace.
+- **Part 5:** lab entry, Call it a night, dawn, checks and recording, and the HUD's day clock and counter prompt at night.
+- As before:
+  - the east street's lantern lights a tree green-yellow;
+  - one tower has every window lit;
+  - hardening the Café life check waits for Mansoor's say-so.
+- **Next:** Mansoor's OK on part 2's photos, then part 3.
+
 ## September 28 (early morning) — night walk part 2, first step: solid by night, and the edges surveyed; on `night-walk`
 
 **Read this entry first.** One code commit, `d6aa026`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
