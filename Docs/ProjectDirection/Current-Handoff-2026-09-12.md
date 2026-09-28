@@ -1,5 +1,114 @@
 # Current handoff — September 12, 2026
 
+## September 28 (midday) — night walk part 4a: the lived-in street (the clock moves, windows go to bed, neighbours come home, a torch and the notebook); on `night-walk`
+
+**Read this entry first.** One code commit, `10e65c4`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+Mansoor asked to start the next part, to assess what's done and improve it, to make it feel more alive, and to stick with the game's premise. He hasn't played parts 3 or 4 yet. His answers (28 Sept):
+
+- Direction: "Asleep but lived-in (Recommended)".
+- Hooks: "House numbers + street signs", "Notebook at night", "A pocket torch for Ace", "People glance at Ace". Glances need people about, so they're in 4b.
+- Sound: he asked whether Higgsfield would do. It only makes speech, so the plan is the free Sonniss GDC bundles, kept out of git and planned with him first. When: "Right after part 4 (Recommended)".
+- Night pressure: "Choose your risk (Recommended)". That belongs to part 5.
+- Then: "Yes, start 4a (Recommended)".
+
+**What this step builds:**
+
+- **The night's clock moves** (`NightWalk`):
+  - 11 PM to 4 AM over 4 real minutes (`nightMinutes`; a game hour is 48 s), then it holds at 4:00 AM (`nightEndsAt` 28) until part 5 decides how a night ends;
+  - the HUD shows the moving time (`ShopUI`, from `NightWalk.ClockHour`);
+  - `CafeDaylight` is given the hour every quarter hour.
+- **The city's windows go to bed** (the 432 lit POLYGON building parts from part 1):
+  - 30% lit at 11 PM (`cityLitAtStart`), each with its own bedtime, dark one by one by 3 AM (`cityLastLightsOut`), except 4% night owls (`cityNightOwls`);
+  - 4 of them flicker blue like a TV (`cityTvWindows`);
+  - a bedtime waits while its building is see-through (`NightSeeThrough.IsWorn`, new), so the fade can't undo it.
+- **The houses round the café are lit room by room** (`NightHomes`, new; the rooms list is `NightRooms`, new):
+  - each house keeps its window panes in one merged `Window glass` mesh and its curtains in one `Curtain glow`. The Edit Mode tool below splits them into rooms: 100 rooms in 17 houses (the 6 bay-window houses and 11 shop houses), numbered floor by floor. A bay's three panes are one room;
+  - 45% of the rooms are lit at 11 PM (`homeHours.litAtStart`); downstairs goes out by 12:45 AM, and often a room upstairs comes on as it does (going up to bed); every room is out by 2 AM;
+  - one night owl upstairs until 3:45 AM; 2 TV rooms (a blue flicker); 3 rooms where someone gets up later for a few minutes; the shop fronts stay dark;
+  - a lit room is a copy of the house's glass material with a warm gradient glow, on a quad 4 mm in front of each pane. Its own curtains show lit or dark with it, and the merged evening curtains are hidden while the night runs. All made at run time, never saved;
+  - **Grace's house:** one warm room on the first floor until midnight (`graceRoom`, `graceBedtime`). Nothing marks it.
+- **Neighbours come home** (`NightNeighbours`, new). Three anonymous neighbours, set in `NightWalk.neighbours`:
+  - the dusty rose house's at 11:36 PM, the lavender house's at 12:33 AM, the courtyard shop's at 1:40 AM;
+  - each appears where the camera can't see, walks the pavement, goes up the step and in through their own front door (the doors open and close for them, as by day), and a downstairs room lights, later one upstairs;
+  - their houses stay dark until they're home;
+  - if their corner stays in view for 90 s they "come in the back way": no walk, but the light still comes on;
+  - the bodies are the patron prefab (`PatronSpawner.PatronPrefab`, new) with its brain and interactions taken off. `NightNeighbours` refreshes `CafeArrivals.Players` itself (part 3's open point).
+- **Broken things** (`NightFlicker`, new):
+  - the old lamp at the back (`Old lamp (-17.1, 30.0)`) buzzes and blinks, and its glass goes dark with it (a dark cap kept in the rooms list);
+  - a street lamp (`Lamp (-35.3, 26.9)`) stutters off and back on;
+  - the donut shop's sign (`SM_Prop_LargeSign_Donut_01`, the south-west corner shops) cuts out now and then.
+- **House numbers and street signs** (`HouseNumber`, `StreetNameSign`, new). Ordinary scene objects, seen by day too:
+  - a small navy plaque with a cream number beside each bay-window house's front door, 12 to 22 up West Street. A regular's door shows its own number, so Grace's reads 12 (from `HomeDoor.houseNumber`); the others are placeholders;
+  - at each of the 4 corners of the café's block, two green street-name blades on top of the signal post, e.g. `West Street / Front Street`. They read `District streets`, so renaming a street there renames the signs;
+  - the lettering is lit (`Night walk - lit lettering.mat`, TextMesh Pro's URP Lit shader), so it takes the lamps' light at night.
+- **Ace's pocket torch** (`NightTorch`, new): F, or the pad's West button (the day's station button, free at night):
+  - a small warm spot light (12 m, 50°, no shadows);
+  - from above it points the way Ace last walked, held at hand height and angled down, so the pool runs ahead on the pavement. In first person it points where Ace looks;
+  - it's off when the night begins.
+- **The notebook at night** (`NightNotebook`, new; `NotebookRecap.Page`, new): N, or the pad's D-pad up:
+  - a page on the right of the screen, person by person in the order Ace met them, where they live first, then the rest. Guesses say "(likely)" or "(hunch)";
+  - a dark page with cream writing. A paper-coloured first version washed out when the game view was small;
+  - Ace can keep walking with it open, and the same key closes it;
+  - it only reads the notebook. Nothing is written at night yet.
+- **The café's entrance never fades** (`NightSeeThrough.NeverFade` gains `12 - authored cafe interior`). Part 3's "the entrance frame fades as Ace walks through the door" is fixed.
+- **The HUD's hint** adds `F Torch    N Notebook` at night (`ControlHints.Torch` and `ControlHints.NotebookPage`, new).
+- **The lab's notebook:** `Play the night walk (lab)` now writes the lab save with Grace's day-3 intake facts and her house ("likely"), so N has something to show. The playtest save is never used.
+
+**Tools** (`Fixit Fidget > Night`; editor scripts `NightLivedIn`, new, and `NightWalkSteps`):
+
+- `Night walk 4a - Build the lived-in windows (rooms list, Edit Mode)`:
+  - writes `Assets/Playtests/AcesCafeLayout/Night walk - rooms.asset`: 133 meshes (panes, curtains, the lamp's dark cap);
+  - made from the café's own `Street geometry` and `Street doors` assets, which are in git. No Synty file;
+  - Edit Mode only: in Play, static batching has merged the meshes;
+  - report: `Logs/Night/night-rooms-*`.
+- `Night walk 4a - Put up house numbers and street signs (day and night, Edit Mode)` and `… Take the house numbers and street signs down again`: both undoable. Putting them up again replaces the old ones.
+- `Night walk 4a - Check the lived-in street (read-only)`: the rooms list, Grace's room, the timetables, the neighbours' walks, the broken things, the plaques and signs. In Play it adds tonight's state. Report: `Logs/Night/lived-in-check-*`.
+- In Play, in a night lab session:
+  - `Photograph the night over the hours`: 3 views at 6 hours, then the hour is put back;
+  - `Move the clock on an hour`;
+  - `Send the neighbours home now`;
+  - `Watch a neighbour come home`: a photo every 1.5 s until the light is on.
+
+**Checks** (lab sessions; the playtest save was never written):
+
+- **The night** (`Logs/Night/lived-in-check-2026-09-28_122411`, `night-hours-2026-09-28_121251`):
+  - the clock ran from 11:00 PM to 4:00 AM and held there;
+  - the city: 124 building parts lit at 11 PM, 12 (the night owls) at the end, 4 TVs;
+  - the houses: 33 rooms lit at 11 PM, 0 at 4 AM. Grace's room went out at midnight. The 2 TV rooms, the night owl and the 3 wake-ups are in the timetable, and the photos over the hours show the street going to bed;
+  - the broken things kept breaking (the sign cut out 20 times in one night);
+  - the torch and the notebook opened and closed; the page showed Grace's 5 facts, her house "(likely)";
+  - 0 warnings, 0 errors.
+- **A neighbour coming home** (`Logs/Night/neighbour-watch-2026-09-28_122024`): the dusty rose neighbour walked 17 m of pavement; the door opened, they went in, the door closed, and the downstairs room lit. 24 game minutes (19 s) from setting off. Each of the three walked in through the door in at least one run. When the hours photos held the dusty rose corner in view, that neighbour came in the back way, as designed.
+- **The tour** (`Logs/Night/night-tour-2026-09-28_120932`): 342 m in 70 s, 0 stuck spots; frames average 4.2 ms, 95% under 4.4 ms.
+- **The day:**
+  - the day photos differ from before only where the plaques and signs are: `views-day-2026-09-28_120349` (plaque 12, the plaques up West Street, two corner signs, the follow camera's corners) and the 15 standard views, `day-photos-with-night-group-2026-09-28_120501`;
+  - a day lab session (Day 5, autopilot serves): 0 warnings, 0 errors.
+- **The scene** was saved once, in Edit Mode, after the two tools: 6 plaques, 4 corner signs, the `NightWalk`'s new settings and its rooms list. Part 3's `CafeViewMode` fields are now written too, at their defaults. After later lab sessions Unity marks it changed again (Cinemachine's "Save During Play", as in part 3). It wasn't saved again.
+- **Unity's asset database:** after the last day lab, Unity logged 48 errors from its own asset database, 16 each of `MDB_READERS_FULL`, "Asset database transaction committed twice!" and an LMDB assertion. The last was at 12:28. They come from the editor, not the project's code. Restarting Unity clears them.
+
+**Seen, for Mansoor's test:**
+
+- From the overhead camera the plaques are mostly hidden by the bays and the signs are small. Both read well close up and in first person. Painted kerb numbers would read from above; not built, his call.
+- The lab's `CAFÉ LAB` label overlaps the HUD hint.
+- 10 curtain pieces sit at no window; they're hidden at night.
+- Nobody else is out yet, and there are no cars and no sound (4b and the sound step).
+
+**Left open:**
+
+- **Mansoor's test** of parts 3 and 4a: what he liked and didn't.
+- **4b:** people out and about (a patrol officer, a shopkeeper, someone at the bus stop who leaves by taxi), a taxi and a patrol car with their headlights on, glances at Ace (`NpcLookAt`), moths at the lamps, steam and leaves.
+- **The sound step,** after part 4: the Sonniss list, planned with him first, the files kept out of git.
+- **Part 5:** getting to the night, calling it a night, dawn, "Choose your risk", the checks and the recording.
+- As before:
+  - the east street's lantern lights a tree green-yellow;
+  - one tower has every window lit;
+  - the two small patio air walls;
+  - hardening the Café life check waits for his say-so.
+- **Next:** 4a goes to Mansoor with photos and a short guide for his test.
+
 ## September 28 (later morning) — night walk part 3: getting about (the camera follows Ace, see-through buildings, the café closed); on `night-walk`
 
 **Read this entry first.** One code commit, `9680c9e`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
