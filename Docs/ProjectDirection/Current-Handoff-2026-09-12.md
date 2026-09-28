@@ -1,5 +1,61 @@
 # Current handoff — September 12, 2026
 
+## September 28 (small hours) — night walk part 1: the night's lighting; on `night-walk`
+
+**Read this entry first.** One code commit, `f2788e2`, on a new branch `night-walk`, made from `npc-mixamo` at `3d6d05f`. This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+His request (27 Sept): "lets build out an actual small city that can be explored inside at night for the night life for ace".
+
+His answers (28 Sept):
+
+- **The 9 blocks (Recommended)**: the café's block and the eight round it. They measure about **80 × 75 m** (the street grid runs from x −38 to 39 and z −34 to 37). An earlier note said "about 115 × 120 m"; that was wrong and has been corrected in the project docs.
+- **Sleepy + night owls (Recommended)**, **outside first (Recommended)**, and **"both first person and isometric"**.
+- For this step: **a Lab menu for now (Recommended)**; buildings in the overhead view: **"both 1 and 2"** (a steeper camera outside, and buildings fade when they hide Ace); Ace's look outside: **the placeholder for now (Recommended)**.
+
+The plan is in `claude/night-city-proposal.md` in the project: night step 4, "Night walk", in five parts with photos after each. **This is part 1: the lighting only.** There is nothing to do at night yet, and Ace can't walk out into it yet (that needs parts 2, 3 and 5).
+
+- **What the night does** (`NightWalk`, new). Only `Begin()` switches anything on. `End()`, or leaving Play Mode, puts it all back.
+  - `CafeDaylight` is held at 23:00, with a moon. The café's own lights inside the room drop to 15%: it is closed for the night.
+  - The **39 POLYGON street lamps** light up. Each head gets a spot light and a small bulb that you can see from the street. The **4 older lamp heads** along the west street each get a point light; their glass already glows by evening. All of these are inactive in the scene by day.
+  - **Windows:** 346 of 432 POLYGON building parts get lit windows from the pack's five window masks (`Emissive_01–05`). The mask is chosen per building and is the same every night. About one part in six stays dark.
+  - **12 signs** glow in their own colours.
+  - **The late spot** is the south-west corner shop (`SM_Bld_Shop_Corner_01`, pivot −18, −14.8). Its window glows warm, and two lights spill onto the pavement outside it.
+  - **A night look** on its own Volume: more bloom, a touch brighter and cooler. It is at weight 0 by day.
+  - **The street goes quiet:** no customers or patrons, the day clock stops, and the day's 46 walkers and cars go home. Part 4 brings the night owls.
+  - The glowing materials are run-time copies and are never saved. The scene keeps its originals.
+- **Code:**
+  - `NightWalk` (new, `Assets/Scripts`);
+  - `CafeDaylight`: `SetNight(hour, moon, interior lamps)`. It is neutral by default (no hour held, no moon, lamps ×1), so the day plays exactly as before. The café's own lights are the ones inside the room (`CafeInside`, x −7.4..7.4, z 0.1..18);
+  - editor: `NightWalkSteps` and `NightWalkSurvey`.
+- **Scene:** the `20 - Night walk` group under `ACE'S CAFE - layout study 02`: inactive lamps, lights and bulbs, the late spot's lights, and the night look's Volume at weight 0. Also the four `CafeDaylight` moon fields.
+- **Assets:** `Assets/Playtests/AcesCafeLayout/Night walk - night look.asset` (the Volume profile) and `Night walk - lamp bulb.mat` (URP Unlit, no textures). Neither is from a purchased pack.
+- **Tools** (`Fixit Fidget > Night`):
+  - `Night walk 0 - Survey the night lighting (read-only)`: lamps, lights and materials in the 9 blocks, written to `Logs/Night/night-survey-*`;
+  - `Night walk 1 - Set up the night lighting (lamps, windows, signs, late spot)`: builds the group. It is undoable and safe to run again (it rebuilds). Its report goes to `Logs/Night/night-setup-*`;
+  - `Night walk - Take the night lighting out again`;
+  - `Play the night walk (lab)`: a Day 5 lab session that starts at night;
+  - `Night walk - Photograph the night (Play Mode, night walk)`: the 15 standard views, with post-processing, plus `night-state.txt`;
+  - `Night walk - Photograph the day (Edit Mode, before-and-after check)`: the same views by day, for comparing with and without the night group.
+- **Checks** (lab sessions):
+  - **The day is unchanged.** The Edit Mode day photos with and without the night group match in **15 of 15 views, pixel for pixel**. A Day 5 lab session at 10 AM looked as usual: daylight, traffic and walkers, and nothing of the night.
+  - **The scene diff against `3d6d05f` is additions only**: 10,865 lines added and none removed (`git diff --patience`). That is 87 new objects with 45 lights and 39 bulbs, the `NightWalk` and Volume components, and 444 references to existing building and sign renderers (Unity writes those so the list can point into the prefab instances). The only existing things touched are the layout root's list of children and the new `CafeDaylight` fields. The plain `git diff --stat` shows 777 "deletions"; those are lines it counts as moved, not removed.
+  - **Night state** in Play Mode: 45 of 45 night-only objects on, 43 lamp lights, 346 of 432 building parts lit, 12 of 12 signs, 8 material copies, 46 street actors sent home.
+  - **Photos:** `Logs/Night/night-photos-2026-09-28_020033` (night) and `day-photos-with-night-group-2026-09-28_020615` / `day-photos-without-night-group-2026-09-28_020712` (the day check). A contact sheet and day-and-night pairs went to Mansoor.
+- **How it got there** (for whoever tunes it next):
+  - POLYGON's material (`Synty/Generic_Basic`) only glows with `_Enable_Emission` set to 1. The window masks are drawn for the `PolygonCity_0x` atlas, so only atlas materials get them.
+  - The first bulbs were dark: a URP Lit material asset had lost its `_EMISSION` keyword. The bulbs now use URP Unlit with an HDR colour (6, 4.6, 3), which blooms.
+  - The lamps went from 9 to 22 to 40 (spot 116°, inner 60°, range 14 m) before their pools showed at street level. Windows (1.2, 0.84, 0.46) and the late spot (1.5, 1.05, 0.6) were softened once the bloom went up.
+  - The night look's profile is rebuilt each set-up with only its own overrides (bloom 0.85 / 0.9 / 0.72, post-exposure 0.35, saturation −6, white balance −10), so it doesn't override anything else.
+  - Leaving Play Mode used to log "GameObjects can not be made active when they are being destroyed" ×46. `NightWalk.OnDestroy` now only destroys the material copies.
+- **Left open:**
+  - The HUD still shows the day's clock and money during the night walk. The café's prompt ("[F] Serve at counter") still shows too. Part 5 deals with both.
+  - The six "V3 warm lantern" lights near the café light the tree canopies beside them. On the east street one canopy glows green-yellow. It does the same in the day's evening, where it is less noticeable. It was not touched, to keep the day unchanged.
+  - One office tower's mask lights every window. It reads as people working late.
+  - Hardening the Café life check is still waiting for Mansoor's say-so (see the previous entry).
+- **Next:** part 2, edges and collisions. One question for Mansoor first: the day's cars drive out through the 8 street exits, and part 4's odd car will need to as well. So should the roadworks at the exits close the whole street at night, or only the pavements (with a wall only Ace bumps into across the road)? Nothing of part 2 is built.
+
 ## September 27 (just before midnight) — front doors take turns; on `npc-mixamo`
 
 **Read this entry first.** One code commit on `npc-mixamo`: `0e7877c`. This entry comes in the commit after it. Nothing is pushed.
