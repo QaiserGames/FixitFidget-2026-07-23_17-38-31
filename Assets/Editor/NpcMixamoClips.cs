@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -45,7 +46,10 @@ using Object = UnityEngine.Object;
 //    position over the clip lands exactly where the café's own seated clips put
 //    them (NpcSitData.seatedHip, fitted to the chairs by Sit 1), so NpcSeating's
 //    placement works for them unchanged. The feet move sideways and forwards
-//    with the hips and stay on the floor. Mixamo's seated hips sit anywhere from
+//    with the hips, and the resting foot is raised onto the height the café's
+//    own sit clip rests its ankles at (NpcSitData.seatedFeet; Mixamo's came out
+//    5-10 cm under our floor on the city bodies), no foot going lower than that
+//    (27 Sept, Step B). Mixamo's seated hips sit anywhere from
 //    57 to 79 cm up, and two clips sit 20-31 cm off the character's origin, so
 //    every clip gets its own offset (the log lists them). As in Sit 1, hanging
 //    upper arms are kept from swinging behind the back, where the city bodies'
@@ -59,7 +63,28 @@ using Object = UnityEngine.Object;
 // it: the hand nearest the head on a call, the steadier hand when texting. It
 // is placed for the photos only; the phone in the game comes with the wiring.
 //
-// Menu: Fixit Fidget > NPC > Mixamo 1 (bake), Mixamo 2 (photos). Re-running is safe.
+// WIRE (Mixamo 3, Step B, 27 Sept 2026). Mansoor chose "32 clips + fingers + ear
+// fix" and "Sofas only, drop Seated Idle". The clips play as whole-body beats
+// through NpcBeats (see there for when). This step builds what it needs:
+//  * the customer animator (tracked) gets a second layer, "Beats", weight 0,
+//    with one state per clip. Each state holds an EMPTY placeholder clip
+//    ("Beat slot - Thankful") kept inside the animator asset, so the public
+//    repository never contains Mixamo's motion;
+//  * NpcBeatLibrary (git-ignored, in Assets/Art/Mixamo/Baked/Resources) says which
+//    baked clip fills which placeholder, which hand holds the phone in the two
+//    phone clips, and which phone (POLYGON City's smartphone); at run time a
+//    shared override controller swaps the clips in;
+//  * the Customer and Patron prefabs get the NpcBeats component.
+// "Seated Idle" is left out (Mansoor, 27 Sept). A copy of the project without the
+// Mixamo folder keeps the layer and the placeholders but no library: NpcBeats does
+// nothing there and everyone uses the café's own clips.
+//
+// PHOTOS OF THE WIRING (Mixamo 4): before and after pictures of the fingers and of
+// the hand at the face (the phone call), the sofa-only clips on a sofa, and the
+// café's own clips with fingers, for Mansoor to judge before he plays.
+//
+// Menu: Fixit Fidget > NPC > Mixamo 1 (bake), Mixamo 2 (photos), Mixamo 3 (wire),
+// Mixamo 4 (photos of the wiring). Re-running is safe.
 public static class NpcMixamoClips
 {
     const string Menu = "Fixit Fidget/NPC/";
@@ -76,6 +101,7 @@ public static class NpcMixamoClips
     const float ShoulderSlack = 4f;
     // Seated upper arms point at least this far forward (as NpcSitAnimations).
     const float ElbowForward = .02f;
+
 
     // Declared before Map: static fields are initialised in the order they are written.
     static readonly (string side, string s)[] Sides = { ("Left", "L"), ("Right", "R") };
@@ -330,6 +356,12 @@ public static class NpcMixamoClips
                     if (drift.magnitude > hipU * .02f && clip.length > .1f) driftPerSecond = drift / clip.length;
 
                     Vector3 anchor = Vector3.zero;
+                    // Seated clips: how far the feet are raised so the resting foot stands where the
+                    // café's own sit clip puts its ankles (NpcSitData.seatedFeet), and from then on
+                    // no foot goes lower than that. Mixamo's seated feet came out 5-10 cm under our
+                    // floor on the city bodies (Mixamo 2 photos; Sit 4 and Mixamo 5 in play).
+                    float feetLift = 0f;
+                    bool feetFitted = false;
                     float worstReach = 0f, worstSlack = 0f;
                     int settled = 0, armFixes = 0;
 
@@ -353,7 +385,8 @@ public static class NpcMixamoClips
                         foreach (var (side, s) in Sides)
                         {
                             Vector3 footMoved = align * (P(mx, U[side + "Foot"]) - uRest[side + "Foot"].p) - driftPerSecond * time;
-                            Vector3 target = bind["Foot." + s].p + footMoved * ratio + new Vector3(anchor.x, 0f, anchor.z);
+                            Vector3 target = bind["Foot." + s].p + footMoved * ratio + new Vector3(anchor.x, feetLift, anchor.z);
+                            if (feetFitted) target.y = Mathf.Max(target.y, sitData.seatedFeet.y - SeatedFootSlack);
                             Vector3 world = beach.transform.TransformPoint(target);
                             SolveLeg(B["UpperLeg." + s], B["LowerLeg." + s], ankle[s], world, beach.transform);
                             Vector3 reached = B["LowerLeg." + s].TransformPoint(ankle[s]);
@@ -367,16 +400,22 @@ public static class NpcMixamoClips
                     string seat = "";
                     if (seated)
                     {
-                        // Where this clip's hip joints sit on average, then move them onto the café's seat point.
+                        // Where this clip's hip joints sit on average, then move them onto the café's seat point;
+                        // and how high its lower ankle rests, then raise (or lower) the feet onto the café's own.
                         Vector3 sum = Vector3.zero;
+                        float lowerAnkle = 0f;
                         for (int f = 0; f < frames; f++)
                         {
                             Pose(Mathf.Min(clip.length, f / FrameRate));
                             sum += Mid(beach, B["UpperLeg.L"], B["UpperLeg.R"]);
+                            lowerAnkle += Mathf.Min(beach.transform.InverseTransformPoint(B["Foot.L"].position).y,
+                                                    beach.transform.InverseTransformPoint(B["Foot.R"].position).y);
                         }
                         Vector3 natural = sum / frames;
                         anchor = sitData.seatedHip - natural;
-                        seat = $", hip joints {V(natural)} moved by {Cm(anchor)} onto the seat point";
+                        feetLift = Mathf.Clamp(sitData.seatedFeet.y - lowerAnkle / frames, -.15f, .15f);
+                        feetFitted = true;
+                        seat = $", hip joints {V(natural)} moved by {Cm(anchor)} onto the seat point, feet {(feetLift >= 0f ? "raised" : "lowered")} {Mathf.Abs(feetLift) * 100f:0.0} cm onto the café's resting height";
                         worstReach = worstSlack = 0f;
                         settled = armFixes = 0;
                     }
@@ -845,6 +884,558 @@ public static class NpcMixamoClips
         AnimationMode.EndSampling();
     }
 
+    // ------------------------------------------------------------------ wire (Step B)
+
+    const string ControllerPath = "Assets/CustomerAnimator(.controller";
+    const string PatronPrefab = "Assets/AssetsPrefabs/Patron.prefab";
+    public const string LibraryPath = BakedRoot + "/Resources/" + NpcBeatLibrary.ResourceName + ".asset";
+    const string LoungeGroup = "Lounge seats (pass 2)";
+    // Mansoor, 27 Sept: "Seated Idle is dropped, since its hands are made for a table closer than ours."
+    static readonly string[] Dropped = { "Seated Idle" };
+
+    [MenuItem(Menu + "Mixamo 3 - Wire the clip beats (animator layer, library, prefabs)")]
+    static void WireMenu() => Run("Wire", Wire);
+
+    [MenuItem(Menu + "Mixamo 4 - Photograph the wiring (fingers, phone call, sofa)")]
+    static void WirePhotoMenu() => Run("Wiring photos", PhotographWiring);
+
+    public static string Wire()
+    {
+        RequireStopped();
+        var notes = new StringBuilder();
+        var baked = Groups.SelectMany(g => LoadBaked(g).Select(c => (group: g, clip: c))).ToList();
+        Require(baked.Count > 0, "Run Mixamo 1 first: nothing baked in " + BakedRoot + ". That folder is git-ignored, so it only " +
+                                 "exists on the computer the clips were downloaded to.");
+        var wired = baked.Where(b => !Dropped.Contains(Label(b.clip))).ToList();
+        notes.AppendLine($"{wired.Count} clips wired ({wired.Count(w => w.group == "Standing")} standing, {wired.Count(w => w.group == "Sitting")} seated); " +
+                         $"left out: {string.Join(", ", baked.Where(b => Dropped.Contains(Label(b.clip))).Select(b => Label(b.clip)))}.");
+
+        // 1. The animator: empty placeholder clips inside the (tracked) controller asset,
+        //    and the Beats layer with one state per clip.
+        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        Require(controller != null, "Missing " + ControllerPath);
+        var existing = AssetDatabase.LoadAllAssetsAtPath(ControllerPath).OfType<AnimationClip>()
+            .Where(c => c.name.StartsWith(NpcBeatLibrary.SlotPrefix, StringComparison.Ordinal))
+            .GroupBy(c => c.name).ToDictionary(g => g.Key, g => g.First());
+        var slots = new Dictionary<string, AnimationClip>(StringComparer.Ordinal);
+        int newSlots = 0;
+        foreach (var (_, clip) in wired)
+        {
+            string label = Label(clip);
+            if (!existing.TryGetValue(NpcBeatLibrary.SlotPrefix + label, out AnimationClip slot))
+            {
+                slot = new AnimationClip { name = NpcBeatLibrary.SlotPrefix + label, frameRate = FrameRate };
+                AssetDatabase.AddObjectToAsset(slot, controller);
+                newSlots++;
+            }
+            slots[label] = slot;
+        }
+        int removedSlots = 0;
+        foreach (var kv in existing)
+            if (!slots.ContainsValue(kv.Value)) { AssetDatabase.RemoveObjectFromAsset(kv.Value); Object.DestroyImmediate(kv.Value, true); removedSlots++; }
+
+        int layerIndex = Array.FindIndex(controller.layers, l => l.name == NpcBeatLibrary.LayerName);
+        bool newLayer = layerIndex < 0;
+        if (newLayer)
+        {
+            controller.AddLayer(NpcBeatLibrary.LayerName);
+            layerIndex = controller.layers.Length - 1;
+        }
+        var layers = controller.layers;
+        layers[layerIndex].defaultWeight = 0f;
+        layers[layerIndex].blendingMode = AnimatorLayerBlendingMode.Override;
+        layers[layerIndex].avatarMask = null;
+        layers[layerIndex].iKPass = false;
+        layers[layerIndex].syncedLayerIndex = -1;
+        controller.layers = layers;
+        AnimatorStateMachine machine = controller.layers[layerIndex].stateMachine;
+        AnimatorState rest = FindState(machine, NpcBeatLibrary.RestState) ?? machine.AddState(NpcBeatLibrary.RestState, new Vector3(300f, 40f));
+        rest.motion = null;
+        rest.writeDefaultValues = false;
+        machine.defaultState = rest;
+        int standingRow = 0, seatedRow = 0;
+        foreach (var (group, clip) in wired)
+        {
+            string label = Label(clip);
+            bool seated = group == "Sitting";
+            var position = new Vector3(seated ? 620f : 300f, 120f + 50f * (seated ? seatedRow++ : standingRow++));
+            AnimatorState state = FindState(machine, label) ?? machine.AddState(label, position);
+            state.motion = slots[label];
+            state.writeDefaultValues = false;
+            state.speed = 1f;
+            foreach (var t in state.transitions.ToArray()) state.RemoveTransition(t);
+        }
+        var names = new HashSet<string>(wired.Select(w => Label(w.clip)), StringComparer.Ordinal);
+        foreach (var child in machine.states.ToArray())
+            if (child.state != rest && !names.Contains(child.state.name)) machine.RemoveState(child.state);
+        EditorUtility.SetDirty(controller);
+        AssetDatabase.SaveAssets();
+        notes.AppendLine($"Animator: layer '{NpcBeatLibrary.LayerName}' {(newLayer ? "added" : "updated")} (index {layerIndex}, weight 0, override), " +
+                         $"{wired.Count} beat states + '{NpcBeatLibrary.RestState}'; placeholders: {newSlots} new, {slots.Count - newSlots} kept, {removedSlots} removed. " +
+                         "The placeholders are empty clips inside the animator asset: no Mixamo motion is in the tracked file.");
+
+        // 2. The library (git-ignored).
+        EnsureFolder(BakedRoot + "/Resources");
+        var library = AssetDatabase.LoadAssetAtPath<NpcBeatLibrary>(LibraryPath);
+        bool created = library == null;
+        if (created)
+        {
+            library = ScriptableObject.CreateInstance<NpcBeatLibrary>();
+            AssetDatabase.CreateAsset(library, LibraryPath);
+        }
+        var entries = new List<NpcBeatLibrary.Entry>();
+        foreach (var (group, clip) in wired)
+        {
+            string hand = PhoneHand(clip, out string why);
+            entries.Add(new NpcBeatLibrary.Entry
+            {
+                name = Label(clip),
+                clip = clip,
+                seated = group == "Sitting",
+                phoneHand = hand == "L" ? NpcBeatLibrary.Hand.Left : hand == "R" ? NpcBeatLibrary.Hand.Right : NpcBeatLibrary.Hand.None,
+            });
+            if (hand != null) notes.AppendLine($"  {Label(clip)}: phone in the {(hand == "L" ? "left" : "right")} hand ({why}).");
+        }
+        library.entries = entries.ToArray();
+        library.phone = AssetDatabase.LoadAssetAtPath<GameObject>(PhonePrefab);
+        // Every city look's ears (for the phone on a call), measured on its head mesh.
+        var ears = new List<NpcBeatLibrary.Ears>();
+        string looks = DescribeLooks(ears);
+        library.ears = ears.ToArray();
+        EditorUtility.SetDirty(library);
+        AssetDatabase.SaveAssets();
+        notes.AppendLine($"Library: {LibraryPath} {(created ? "created" : "updated")}, {entries.Count} entries, phone " +
+                         (library.phone != null ? library.phone.name : "MISSING (" + PhonePrefab + ")") + ". Git-ignored with the Mixamo folder.");
+        var unusedByCode = entries.Select(e => e.name).Where(n => !BeatNamesInCode.Contains(n)).ToList();
+        var missingForCode = BeatNamesInCode.Where(n => !entries.Any(e => e.name == n)).ToList();
+        if (missingForCode.Count > 0) notes.AppendLine("NOTE: NpcBeats uses clips the library does not have: " + string.Join(", ", missingForCode));
+        notes.AppendLine("Wired but not used yet (waiting for lean spots, Step C): " + (unusedByCode.Count > 0 ? string.Join(", ", unusedByCode) : "none"));
+
+        // 3. The prefabs get NpcBeats.
+        foreach (string path in new[] { CustomerPrefab, PatronPrefab })
+        {
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                if (root.GetComponent<NpcBeats>() != null) { notes.AppendLine(Path.GetFileName(path) + ": NpcBeats already there"); continue; }
+                root.AddComponent<NpcBeats>();
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+                notes.AppendLine(Path.GetFileName(path) + ": NpcBeats added");
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        // 4. Seats: where the sofa-only and table-only clips may play.
+        var seats = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Include);
+        if (seats.Length == 0) notes.AppendLine("Seats: none in the open scene (open AcesCafeLayoutPlaytest to see which have a table in front).");
+        else
+        {
+            var noTable = seats.Where(s => !NpcBeats.TableInFront(s)).ToList();
+            var lounge = seats.Where(s => s.transform.parent != null && s.transform.parent.name == LoungeGroup).ToList();
+            notes.AppendLine($"Seats: {seats.Length}; {seats.Length - noTable.Count} with a table in front (Tapping Fingers there), " +
+                             $"{noTable.Count} without (Sitting Laughing and Sitting Thumbs Up there): " +
+                             string.Join(", ", noTable.Select(s => (s.transform.parent != null ? s.transform.parent.name + "/" : "") + s.name)));
+            bool matches = lounge.Count == noTable.Count && lounge.All(noTable.Contains);
+            notes.AppendLine(matches ? $"  That is exactly the {lounge.Count} lounge seats (sofas and tub chair)."
+                                     : $"  NOTE: the lounge group has {lounge.Count} seats; the table test differs from it.");
+        }
+
+        // 5. Fingers and ears on every city look.
+        notes.AppendLine(looks);
+        string report = notes.ToString();
+        WriteLog("wire.txt", report);
+        return "\n" + report;
+    }
+
+    // The clips NpcBeats picks by name (kept here so the wiring can say if one is missing).
+    static readonly string[] BeatNamesInCode =
+    {
+        NpcBeats.Clip.BreathingIdle, NpcBeats.Clip.WeightShift, NpcBeats.Clip.LookingAround, NpcBeats.Clip.Bored, NpcBeats.Clip.Thinking,
+        NpcBeats.Clip.HoldingIdle, NpcBeats.Clip.Texting, NpcBeats.Clip.PhoneCall, NpcBeats.Clip.HeadShake, NpcBeats.Clip.Pouting,
+        NpcBeats.Clip.AngryGesture, NpcBeats.Clip.Dismissing, NpcBeats.Clip.Disappointed, NpcBeats.Clip.Shrugging, NpcBeats.Clip.Thankful,
+        NpcBeats.Clip.RelievedSigh, NpcBeats.Clip.HappyIdle, NpcBeats.Clip.HappyHand, NpcBeats.Clip.Excited, NpcBeats.Clip.Laughing,
+        NpcBeats.Clip.Greeting, NpcBeats.Clip.NodYes,
+        NpcBeats.Clip.SitBreathing, NpcBeats.Clip.SitHandsOnThighs, NpcBeats.Clip.SitLookAround, NpcBeats.Clip.SitTalking,
+        NpcBeats.Clip.SitTalkShort, NpcBeats.Clip.SitLaughing, NpcBeats.Clip.SitImpatient, NpcBeats.Clip.SitTapping,
+        NpcBeats.Clip.SitAngry, NpcBeats.Clip.SitThumbsUp, NpcBeats.Clip.Beckoning,
+    };
+
+    // Where a city look's ears are, in its head bone's own space. On the head mesh (the vertices
+    // the head bone mostly moves, in the T-pose): at the height of the Eyes bone, the furthest-out
+    // points on each side, halfway between the front and the back of the head at that height.
+    static bool MeasureEars(PolygonNpcVisual visual, out Vector3 left, out Vector3 right, out string note)
+    {
+        left = right = Vector3.zero;
+        Transform body = visual.VisualInstance.transform;
+        var bones = Index(body);
+        if (!bones.TryGetValue("Head", out Transform head)) { note = "not measured (no Head bone)"; return false; }
+        bones.TryGetValue("Eyes", out Transform eyesBone);
+        Matrix4x4? headBind = null;
+        Vector3? eyes = null;
+        var points = new List<Vector3>();
+        foreach (var skin in body.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            Mesh mesh = skin.sharedMesh;
+            if (mesh == null) continue;
+            Transform[] skinBones = skin.bones;
+            Matrix4x4[] poses = mesh.bindposes;
+            int h = Array.IndexOf(skinBones, head);
+            if (h < 0 || h >= poses.Length) continue;
+            Matrix4x4 toRoot = body.worldToLocalMatrix * skin.transform.localToWorldMatrix;
+            if (headBind == null) headBind = toRoot * poses[h].inverse;
+            int e = eyesBone != null ? Array.IndexOf(skinBones, eyesBone) : -1;
+            if (eyes == null && e >= 0 && e < poses.Length) eyes = (toRoot * poses[e].inverse).GetColumn(3);
+            Vector3[] vertices = mesh.vertices;
+            BoneWeight[] weights = mesh.boneWeights;
+            if (weights.Length != vertices.Length) continue;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                BoneWeight w = weights[i];
+                float onHead = (w.boneIndex0 == h ? w.weight0 : 0f) + (w.boneIndex1 == h ? w.weight1 : 0f)
+                             + (w.boneIndex2 == h ? w.weight2 : 0f) + (w.boneIndex3 == h ? w.weight3 : 0f);
+                if (onHead >= .5f) points.Add(toRoot.MultiplyPoint3x4(vertices[i]));
+            }
+        }
+        if (headBind == null || points.Count < 20) { note = $"not measured ({points.Count} head vertices)"; return false; }
+        Vector3 headAt = headBind.Value.GetColumn(3);
+        float top = points.Max(p => p.y);
+        float eyeY = eyes.HasValue ? eyes.Value.y : headAt.y + (top - headAt.y) * .4f;
+        float band = Mathf.Max(.015f, (top - headAt.y) * .06f);
+        var ring = points.Where(p => Mathf.Abs(p.y - eyeY) < band).ToList();
+        if (ring.Count < 8) { note = $"not measured ({ring.Count} vertices at eye height)"; return false; }
+        float minX = ring.Min(p => p.x), maxX = ring.Max(p => p.x), z = (ring.Min(p => p.z) + ring.Max(p => p.z)) * .5f;
+        Matrix4x4 intoHead = headBind.Value.inverse;
+        right = intoHead.MultiplyPoint3x4(new Vector3(maxX, eyeY, z));
+        left = intoHead.MultiplyPoint3x4(new Vector3(minX, eyeY, z));
+        float scale = body.localScale.x;
+        note = $"at eye height ({(eyes.HasValue ? "Eyes bone" : "estimated")}), {(eyeY - headAt.y) * scale * 100f:0} cm above the head bone, " +
+               $"head {(maxX - minX) * scale * 100f:0} cm wide there";
+        return true;
+    }
+
+    // Left hand, T-pose: how far each finger bone is from the wrist (hand) bone, in the actor's
+    // units, for the rig and for this body (scaled as it is fitted to the rig).
+    static string FingerReach(GameObject actor, PolygonNpcVisual visual)
+    {
+        Transform body = visual.VisualInstance.transform;
+        var rigSkins = actor.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => !r.transform.IsChildOf(body)).ToList();
+        var bodySkins = body.GetComponentsInChildren<SkinnedMeshRenderer>(true).ToList();
+        var rig = BindPositions(actor.transform, rigSkins);
+        var own = BindPositions(body, bodySkins);
+        float scale = body.localScale.x;
+        string Reach(Dictionary<string, Vector3> bones, string hand, IEnumerable<string> names, float k) =>
+            bones.TryGetValue(hand, out Vector3 h)
+                ? string.Join(" ", names.Where(bones.ContainsKey).Select(n => $"{n} {Vector3.Distance(bones[n], h) * k * 100f:0.0}"))
+                : "(no " + hand + ")";
+        var rigNames = new[] { "Thumb1.L", "Thumb2.L", "Thumb3.L", "Index1.L", "Index2.L", "Index3.L", "Index4.L", "Middle1.L", "Middle2.L", "Middle3.L", "Middle4.L" };
+        var bodyNames = new[] { "Thumb_01", "Thumb_02", "Thumb_03", "IndexFinger_01", "IndexFinger_02", "IndexFinger_03", "IndexFinger_04",
+                                "Finger_01", "Finger_02", "Finger_03", "Finger_04" };
+        var bodyNamesL = bodyNames.Select(n => n + "_L");
+        return "left-hand bones from the wrist, cm: rig " + Reach(rig, "Wrist.L", rigNames, 1f)
+             + " | body " + Reach(own, "Hand_L", own.ContainsKey("Thumb_01") ? bodyNames : bodyNamesL, scale);
+    }
+
+    // Every skinned bone's T-pose position in <root>'s space (first skinned mesh that uses it).
+    static Dictionary<string, Vector3> BindPositions(Transform root, List<SkinnedMeshRenderer> skins)
+    {
+        var map = new Dictionary<string, Vector3>(StringComparer.Ordinal);
+        foreach (var skin in skins)
+        {
+            if (skin == null || skin.sharedMesh == null) continue;
+            Transform[] bones = skin.bones;
+            Matrix4x4[] poses = skin.sharedMesh.bindposes;
+            for (int i = 0; i < bones.Length && i < poses.Length; i++)
+            {
+                if (bones[i] == null || map.ContainsKey(bones[i].name)) continue;
+                map[bones[i].name] = (root.worldToLocalMatrix * skin.transform.localToWorldMatrix * poses[i].inverse).GetColumn(3);
+            }
+        }
+        return map;
+    }
+
+    // A bone's children a few levels down, as "A(B(C) D)".
+    static string Tree(Transform t, int depth)
+    {
+        if (depth <= 0 || t.childCount == 0) return "";
+        var parts = new List<string>();
+        for (int i = 0; i < t.childCount; i++)
+        {
+            Transform c = t.GetChild(i);
+            string inner = Tree(c, depth - 1);
+            parts.Add(c.name + (inner.Length > 0 ? "(" + inner + ")" : ""));
+        }
+        return string.Join(" ", parts);
+    }
+
+    static AnimatorState FindState(AnimatorStateMachine machine, string name) =>
+        machine.states.Select(s => s.state).FirstOrDefault(s => s.name == name);
+
+    // Every city look on the customer prefab: how many finger bones it copies, and for a look
+    // that copies fewer than 18, what its hands hold (so a different naming can be mapped).
+    static string DescribeLooks(List<NpcBeatLibrary.Ears> ears)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CustomerPrefab);
+        if (prefab == null) return "Looks: no " + CustomerPrefab;
+        var actor = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        actor.hideFlags = HideFlags.HideAndDontSave;
+        try
+        {
+            var visual = actor.GetComponent<PolygonNpcVisual>();
+            if (visual == null || visual.AppearanceCount == 0) return "Looks: the customer prefab has no city looks.";
+            var lines = new List<string>();
+            var fingers = new List<int>();
+            var described = new HashSet<string>();
+            for (int i = 0; i < visual.AppearanceCount; i++)
+            {
+                if (!visual.ApplyAppearance(i)) { lines.Add($"{i}: could not be applied"); continue; }
+                fingers.Add(visual.FingerCount);
+                string line = $"{visual.ActiveAppearanceName}: {visual.FingerCount} finger bones";
+                if (MeasureEars(visual, out Vector3 earL, out Vector3 earR, out string earNote))
+                    ears.Add(new NpcBeatLibrary.Ears { look = visual.ActiveAppearanceName, left = earL, right = earR });
+                line += "; ears " + earNote;
+                // What the hands hold, once per kind of look that copies fewer than all 22;
+                // and once per kind, how far along the hand each finger bone sits (to check which
+                // rig bone each one follows).
+                string family = visual.ActiveAppearanceName.Split('_').Take(3).Aggregate((a, b) => a + "_" + b);
+                if (described.Add("reach " + family.Split('_')[0]))
+                {
+                    line += "; " + FingerReach(actor, visual);
+                    var own = Index(visual.VisualInstance.transform);
+                    if (own.TryGetValue("Head", out Transform bodyHead)) line += "; under its Head: " + Tree(bodyHead, 2);
+                }
+                if (visual.FingerCount < 22 && described.Add(family + visual.FingerCount))
+                {
+                    var bones = Index(visual.VisualInstance.transform);
+                    foreach (string hand in new[] { "Hand_L", "Hand_R" })
+                        line += $"; under {hand}: " + (bones.TryGetValue(hand, out Transform h) ? Tree(h, 3) : "(no such bone)");
+                    if (bones.TryGetValue("Hand_L", out Transform left))
+                    {
+                        var skin = visual.VisualInstance.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                        var skinned = skin.SelectMany(r => r.bones).Where(b => b != null && b != left && b.IsChildOf(left)).Select(b => b.name).Distinct().ToList();
+                        line += $"; skinned bones under Hand_L: {skinned.Count} ({string.Join(", ", skinned.Take(12))})";
+                    }
+                }
+                lines.Add(line);
+            }
+            visual.RemoveAppearance();
+            var rig = Index(actor.transform);
+            string rigHands = string.Join("; ", new[] { "Wrist.L", "Wrist.R", "Head" }.Select(w => w + ": " + (rig.TryGetValue(w, out Transform t) ? Tree(t, 3) : "(none)")));
+            return $"Looks: {fingers.Count} city looks; finger bones copied {fingers.Min()}-{fingers.Max()} (22 = thumb, index finger and the three-finger chain, " +
+                   $"joint for joint on both hands).\n  Rig hands: {rigHands}\n  " + string.Join("\n  ", lines);
+        }
+        finally { Object.DestroyImmediate(actor); }
+    }
+
+    // ------------------------------------------------------------------ photos of the wiring
+
+    static readonly Vector3 WiringSpot = new Vector3(40f, 0f, -44f);   // beside the Step A photo spot, out of the café
+
+    public static string PhotographWiring()
+    {
+        RequireStopped();
+        var library = AssetDatabase.LoadAssetAtPath<NpcBeatLibrary>(LibraryPath);
+        Require(library != null && library.entries.Length > 0, "Run Mixamo 3 first: " + LibraryPath + " is missing.");
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CustomerPrefab);
+        Require(prefab != null, "Missing " + CustomerPrefab);
+        string folder = Path.Combine(LogRoot, "wiring-" + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture));
+        Directory.CreateDirectory(folder);
+        var notes = new StringBuilder();
+        notes.AppendLine("Each pair: left BEFORE (open hands, copied turns only), right AFTER (fingers copied, hands at the face placed on the face).");
+        AnimationClip Beat(string n) => library.Find(n)?.clip;
+        int shot = 0;
+
+        // Standing clips where the hands matter.
+        foreach (var (clipName, moments) in new (string, float[])[]
+                 {
+                     (NpcBeats.Clip.PhoneCall, new[] { .2f, .5f, .8f }),
+                     (NpcBeats.Clip.Texting, new[] { .5f }),
+                     (NpcBeats.Clip.Greeting, null),
+                     (NpcBeats.Clip.Thinking, null),
+                     (NpcBeats.Clip.Dismissing, null),
+                     (NpcBeats.Clip.Thankful, null),
+                     (NpcBeats.Clip.Excited, null),
+                     (NpcBeats.Clip.HeadShake, null),
+                 })
+        {
+            AnimationClip clip = Beat(clipName);
+            if (clip == null) { notes.AppendLine(clipName + ": not in the library"); continue; }
+            float[] at = moments ?? PickMoments(clip).Skip(1).Take(1).ToArray();
+            foreach (float m in at)
+                notes.AppendLine(PhotographPair(clip, clipName, m, prefab, library, folder, ++shot, clipName == NpcBeats.Clip.PhoneCall));
+        }
+
+        // The café's own clips with fingers (every NPC shows this change).
+        foreach (string own in new[] { "Npc Idle Relaxed", "Npc Walk Brisk", "Npc Standing Talk" })
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Art/NpcAnimations/" + own + ".anim");
+            if (clip != null) notes.AppendLine(PhotographPair(clip, own, .35f, prefab, library, folder, ++shot, false));
+        }
+        var beachIdle = AssetDatabase.LoadAllAssetsAtPath(BeachPath).OfType<AnimationClip>().FirstOrDefault(c => c.name == "CharacterArmature|Idle");
+        if (beachIdle != null) notes.AppendLine(PhotographPair(beachIdle, "CharacterArmature Idle", .5f, prefab, library, folder, ++shot, false));
+
+        // Seated: the sofa-only clips on a lounge seat, and table clips at a café chair.
+        var seats = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude);
+        TableSeat sofa = seats.Where(s => !NpcBeats.TableInFront(s)).OrderBy(s => s.Style == TableSeat.SitStyle.Bench ? 0 : 1).ThenBy(s => s.name).FirstOrDefault();
+        TableSeat chair = seats.Where(s => NpcBeats.TableInFront(s) && s.Style == TableSeat.SitStyle.Chair && s.SeatPose != s.StandPoint)
+                               .OrderBy(s => s.name, StringComparer.Ordinal).FirstOrDefault();
+        if (sofa == null || chair == null) notes.AppendLine("Seated photos skipped: open AcesCafeLayoutPlaytest (no lounge seat or café chair found).");
+        else
+        {
+            foreach (string clipName in new[] { NpcBeats.Clip.SitLaughing, NpcBeats.Clip.SitThumbsUp, NpcBeats.Clip.SitTalking, NpcBeats.Clip.SitHandsOnThighs })
+            {
+                AnimationClip clip = Beat(clipName);
+                if (clip != null) notes.AppendLine(PhotographSeatedWiring(clip, clipName, prefab, sofa, folder, ++shot, true));
+            }
+            foreach (string clipName in new[] { NpcBeats.Clip.SitTapping, NpcBeats.Clip.Beckoning, NpcBeats.Clip.SitTalkShort, NpcBeats.Clip.SitImpatient })
+            {
+                AnimationClip clip = Beat(clipName);
+                if (clip != null) notes.AppendLine(PhotographSeatedWiring(clip, clipName, prefab, chair, folder, ++shot, false));
+            }
+        }
+        File.WriteAllText(Path.Combine(folder, "photos.txt"), notes.ToString());
+        return "Wiring photos: " + folder + "\n" + notes;
+    }
+
+    // Two customers side by side in the same city look and pose: without and with the Step B
+    // fingers and hands-at-the-face, close up on the upper body (the head, for the phone call).
+    static string PhotographPair(AnimationClip clip, string label, float moment, GameObject prefab, NpcBeatLibrary library, string folder, int number, bool faceCloseUp)
+    {
+        var actors = new List<GameObject>();
+        var props = new List<GameObject>();
+        var baked = new List<(SkinnedMeshRenderer, GameObject, Mesh)>();
+        string line = $"{number:00} {label} at {moment:0.00}";
+        try
+        {
+            var entry = library.entries.FirstOrDefault(e => e.clip == clip);
+            string hand = entry == null || entry.phoneHand == NpcBeatLibrary.Hand.None ? null : entry.phoneHand == NpcBeatLibrary.Hand.Left ? "L" : "R";
+            var faces = new float[3];
+            float fromEar = -1f;
+            int count = faceCloseUp ? 3 : 2;
+            for (int k = 0; k < count; k++)
+            {
+                var actor = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                actor.hideFlags = HideFlags.HideAndDontSave;
+                actors.Add(actor);
+                // The camera looks back at them from the front, so -X is its right: BEFORE left, AFTER right.
+                actor.transform.SetPositionAndRotation(WiringSpot + Vector3.left * (k * .95f), Quaternion.identity);
+                var visual = actor.GetComponent<PolygonNpcVisual>();
+                // The third one (the call only) is the café rig itself, in its own body (as Grace is).
+                if (k == 2) visual = null;
+                if (visual != null)
+                {
+                    var so = new SerializedObject(visual);
+                    so.FindProperty("copyFingers").boolValue = k == 1;
+                    so.FindProperty("handsToFace").boolValue = k == 1;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                    if (visual.AppearanceCount > 0) visual.ApplyAppearance(Look(number, visual.AppearanceCount));
+                }
+                Sample(actor, clip, moment * clip.length);
+                if (visual != null)
+                {
+                    visual.Follow();
+                    if (k == 1) line += $", {visual.ActiveAppearanceName} ({visual.FingerCount} finger bones)";
+                }
+                if (hand != null && library.phone != null)
+                {
+                    GameObject phoneGo = PlacePhone(actor, visual, library.phone, hand);
+                    props.Add(phoneGo);
+                    // On the call, the AFTER body holds the phone against its own ear (as NpcBeats does in play).
+                    Transform cityHand = visual != null ? visual.CityHand(hand == "L") : null;
+                    var filter = phoneGo.GetComponentInChildren<MeshFilter>();
+                    if (label == NpcBeats.Clip.PhoneCall && k == 1 && cityHand != null && filter != null && filter.sharedMesh != null
+                        && library.TryGetEars(visual.ActiveAppearanceName, out Vector3 earL, out Vector3 earR))
+                    {
+                        phoneGo.transform.SetParent(cityHand, true);
+                        Bounds b = filter.sharedMesh.bounds;
+                        float thin = Mathf.Min(b.size.x, Mathf.Min(b.size.y, b.size.z)) * filter.transform.lossyScale.x;
+                        float length = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z)) * filter.transform.lossyScale.x;
+                        // The speaker, as NpcBeats: most of the way from the centre to the end towards the fingertips.
+                        var rigBones = Index(actor.transform);
+                        Vector3 along = (rigBones["Middle2." + hand].position - rigBones["Wrist." + hand].position).normalized;
+                        Vector3 speaker = cityHand.InverseTransformPoint(filter.transform.TransformPoint(b.center) + along * (length * .5f * .65f));
+                        visual.HoldPhoneToEar(hand == "L", 1f, hand == "L" ? earL : earR, speaker, thin * .5f);
+                        visual.Follow();
+                        faces[k] = Mathf.Max(visual.HandsAtFace.x, visual.HandsAtFace.y);
+                        fromEar = visual.PhoneFromEar;
+                    }
+                }
+                baked.AddRange(PolygonNpcSetup.BakePose(actor));
+            }
+            if (AnimationMode.InAnimationMode()) AnimationMode.StopAnimationMode();
+            if (faceCloseUp)
+            {
+                var head = Index(actors[0].transform)["Head"];
+                Vector3 centre = WiringSpot + Vector3.left * .95f + Vector3.up * (head.position.y + .02f);
+                CafeSecondPassSteps.Capture(Path.Combine(folder, $"{number:00} {label} {moment:0.00}.png"), centre + new Vector3(.2f, .05f, 2.8f), centre, 36f, false);
+                line += $"; left to right: BEFORE, AFTER (phone at the ear: {faces[1]:0.00}, phone {(fromEar >= 0f ? $"{fromEar * 100f:0.0} cm from its spot by the ear" : "not moved")}), the café rig's own body";
+            }
+            else
+            {
+                Vector3 centre = WiringSpot + Vector3.left * .475f + Vector3.up * 1.2f;
+                CafeSecondPassSteps.Capture(Path.Combine(folder, $"{number:00} {label} {moment:0.00}.png"), centre + new Vector3(.25f, .15f, 2.9f), centre, 34f, false);
+            }
+        }
+        finally
+        {
+            if (AnimationMode.InAnimationMode()) AnimationMode.StopAnimationMode();
+            PolygonNpcSetup.UnbakePose(baked);
+            foreach (var p in props) if (p != null) Object.DestroyImmediate(p);
+            foreach (var a in actors) if (a != null) Object.DestroyImmediate(a);
+        }
+        return line;
+    }
+
+    // A seated clip on a real seat at three moments, fingers on, from in front of the seat.
+    static string PhotographSeatedWiring(AnimationClip clip, string label, GameObject prefab, TableSeat seat, string folder, int number, bool lounge)
+    {
+        float[] moments = PickMoments(clip);
+        var line = new StringBuilder($"{number:00} {label} on {(seat.transform.parent != null ? seat.transform.parent.name + "/" : "")}{seat.name} " +
+                                     $"({(lounge ? "no table" : "table")}), at {Fractions(moments)}");
+        for (int m = 0; m < moments.Length; m++)
+        {
+            GameObject actor = null;
+            var baked = new List<(SkinnedMeshRenderer, GameObject, Mesh)>();
+            try
+            {
+                actor = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                actor.hideFlags = HideFlags.HideAndDontSave;
+                var seating = actor.GetComponent<NpcSeating>();
+                Require(seating != null, CustomerPrefab + " has no NpcSeating.");
+                float floor = FloorBelow(seat.StandPoint.position);
+                seating.Placement(seat, floor, out Vector3 feet, out Quaternion facing);
+                actor.transform.SetPositionAndRotation(feet, facing);
+                var visual = actor.GetComponent<PolygonNpcVisual>();
+                if (visual != null && visual.AppearanceCount > 0) visual.ApplyAppearance(Look(number, visual.AppearanceCount));
+                if (visual != null) visual.Seated = true;
+                Sample(actor, clip, moments[m] * clip.length);
+                if (visual != null) visual.Follow();
+                baked.AddRange(PolygonNpcSetup.BakePose(actor));
+                if (AnimationMode.InAnimationMode()) AnimationMode.StopAnimationMode();
+                Vector3 a = seat.SeatPose.position;
+                Vector3 forward = facing * Vector3.forward;
+                Vector3 across = Vector3.Cross(Vector3.up, forward).normalized;
+                Vector3 camera = lounge ? a + forward * 2.1f + across * .7f + Vector3.up * 1.2f
+                                        : a + (across * 1.5f + forward * 1.3f).normalized * 2.3f + Vector3.up * 1.45f;
+                CafeSecondPassSteps.Capture(Path.Combine(folder, $"{number:00} {label} {m + 1}.png"), camera, a + Vector3.up * .5f + forward * .15f, 40f, true);
+            }
+            finally
+            {
+                if (AnimationMode.InAnimationMode()) AnimationMode.StopAnimationMode();
+                PolygonNpcSetup.UnbakePose(baked);
+                if (actor != null) Object.DestroyImmediate(actor);
+            }
+        }
+        return line.ToString();
+    }
+
+    // The floor under a point (the lounge seats keep their object at cushion height).
+    static float FloorBelow(Vector3 p)
+    {
+        foreach (var hit in Physics.RaycastAll(p + Vector3.up * .3f, Vector3.down, 3f).OrderBy(h => h.distance))
+            if (hit.normal.y > .7f && hit.point.y < p.y + .05f) return hit.point.y;
+        return p.y;
+    }
+
     // ------------------------------------------------------------------ rig maps
 
     // Mixamo bone (without its "mixamorig:" prefix) -> café rig bone, parents before children.
@@ -952,6 +1543,9 @@ public static class NpcMixamoClips
         }
         return new AnimationCurve(k);
     }
+
+    // A seated clip's foot may dip this much below the café's resting ankle height (a shuffle), no more.
+    const float SeatedFootSlack = .01f;
 
     static AnimationClip SaveClip(AnimationClip clip, string path)
     {

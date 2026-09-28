@@ -10,7 +10,9 @@ using UnityEngine;
 ///
 /// NpcSocial decides when (it asks for a shift, then for neutral again);
 /// this component only eases between the asked-for angles so nothing snaps.
-/// Angles are a few degrees at most: posture, not choreography.
+/// Angles are a few degrees at most: posture, not choreography. While a
+/// whole-body beat is showing (NpcBeats sets <see cref="Hush"/>) the clip has
+/// its own weight shifts, so these are mostly held back.
 /// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(118)]
@@ -31,6 +33,8 @@ public sealed class NpcPosture : MonoBehaviour
 
     /// <summary>The lean/twist/tilt applied right now, degrees (for checks and traces).</summary>
     public Vector3 Applied => current;
+    /// <summary>0-1: how much of a whole-body beat is showing (NpcBeats). Posture is scaled down by up to 80 % meanwhile.</summary>
+    public float Hush { get; set; }
     public bool Neutral => wanted.sqrMagnitude < 1e-4f && swayAmplitude <= 0f;
 
     /// <summary>Ease to this posture: lean forward (+) / back (-), twist left (+) / right (-), tilt right (+) / left (-), degrees.</summary>
@@ -63,6 +67,7 @@ public sealed class NpcPosture : MonoBehaviour
             apply.z += Mathf.Sin(swayPhase) * swayAmplitude;
             apply.x += Mathf.Sin(swayPhase * .5f + 1.3f) * swayAmplitude * .25f;
         }
+        apply *= 1f - .8f * Mathf.Clamp01(Hush);
         if (apply.sqrMagnitude < 1e-6f) return;
 
         Vector3 right = Flat(transform.right), forward = Flat(transform.forward);

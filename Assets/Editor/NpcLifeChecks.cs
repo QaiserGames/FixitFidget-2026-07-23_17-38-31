@@ -349,12 +349,15 @@ public static class NpcLifeChecks
             bool aLooks = la != null && la.Looking && Mathf.Sign(la.AppliedYaw) == Mathf.Sign(Bearing(a.transform, b.EyePoint)) || bearingA < 6f;
             bool bLooks = lb != null && lb.Looking && Mathf.Sign(lb.AppliedYaw) == Mathf.Sign(Bearing(b.transform, a.EyePoint)) || bearingB < 6f;
             var animA = a.GetComponentInChildren<Animator>(); var animB = b.GetComponentInChildren<Animator>();
-            bool someoneTalks = (animA != null && animA.GetBool("Talking")) || (animB != null && animB.GetBool("Talking"));
+            // Since the Mixamo beats (27 Sept) a seated speaker talks with the "Sitting Talking" or
+            // "Talking" clip on the Beats layer instead of the Talking flag, when the clips are there.
+            bool someoneTalks = (animA != null && animA.GetBool("Talking")) || (animB != null && animB.GetBool("Talking"))
+                                || TalkBeat(a) || TalkBeat(b);
             // They may already be chatting on their own (the director got there first): that counts.
             bool together = a.InChat && b.InChat && a.Chat != null && a.Chat == b.Chat;
             Check(together, $"A chat runs between {a.name} and {b.name} ({(started ? "forced" : "they were already chatting on their own")})");
             Check(aLooks && bLooks, $"Both sitters look at each other during the chat (heads {(la != null ? la.AppliedYaw : 0f):0}° / {(lb != null ? lb.AppliedYaw : 0f):0}°, bearings {bearingA:0}° / {bearingB:0}°)");
-            Check(someoneTalks, "One of them is talking (Talking flag / seated talk clip)");
+            Check(someoneTalks, "One of them is talking (Talking flag / seated talk clip / Mixamo talking beat)");
             deadline = Time.time + 16f;
             while (Time.time < deadline && (a.InChat || b.InChat)) yield return null;
             yield return Wait(.6f);
@@ -633,6 +636,13 @@ public static class NpcLifeChecks
         var go = new GameObject("Café life check - " + name);
         temporary.Add(go);
         return go.transform;
+    }
+
+    // A seated talking turn played by the Mixamo beats (NpcBeats), when the clips are there.
+    private static bool TalkBeat(NpcSocial s)
+    {
+        NpcBeats beats = s != null ? s.GetComponent<NpcBeats>() : null;
+        return beats != null && beats.CurrentKind == NpcBeats.Kind.Talk;
     }
 
     private static float Bearing(Transform from, Vector3 to)

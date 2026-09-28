@@ -6263,6 +6263,7 @@ GameObject:
   - component: {fileID: 1239435702285799321}
   - component: {fileID: 7460408505704992946}
   - component: {fileID: 947159123046423460}
+  - component: {fileID: 8917093151449142312}
   m_Layer: 8
   m_Name: Patron
   m_TagString: Untagged
@@ -6465,6 +6466,8 @@ MonoBehaviour:
   restingWristAboveThigh: 0.14
   seatedHipLift: 0.025
   seatedShoulderSettle: 0.9
+  copyFingers: 1
+  handsToFace: 1
 --- !u!114 &6224756885650047934
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6479,9 +6482,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NpcSeating
   data: {fileID: 11400000, guid: 29023ce813b1f2e4f95a9f1273073ddd, type: 2}
   stepSpeed: 1.15
-  settleSpeed: 0.5
-  settleDistance: 0.38
+  arriveSpeed: 0.6
+  slowDownDistance: 0.55
   sideClearance: 0.62
+  benchSideStep: 0.45
+  maxTurnRate: 260
+  earlyHandover: 1.3
+  sideEntryReach: 1
+  turnInDistance: 0.85
+  travelMismatch: 50
+  finishTurnSeconds: 0.45
+  turnOutDistance: 0.5
+  turnWhileRising: 35
+  bendTurnRate: 170
+  stepAcceleration: 2.2
+  exitTowardsDestination: 1
+  exitTurnCost: 0.6
   hipAboveSeat: 0.085
   hipBehindSeatCentre: -0.01
   maxStartDistance: 0.75
@@ -6529,6 +6545,14 @@ MonoBehaviour:
   detourHold: 0.35
   turnFirstBeyond: 60
   turnFirstMax: 0.5
+  turnOnSpotSpeed: 230
+  turnOnSpotMax: 1.1
+  setOffWithin: 50
+  keepWalkingAbove: 0.6
+  stepRoundAbove: 70
+  walkOnHold: 0.45
+  setOffAcceleration: 2.2
+  setOffSeconds: 0.8
   walkStart: 0.35
   walkStop: 0.12
   walkHold: 0.12
@@ -6569,6 +6593,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NpcPosture
   maxAngle: 8
   smoothing: 0.7
+--- !u!114 &8917093151449142312
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8691143923126116028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c43d034b9735b743bc688bbbb5e922a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcBeats
+  beats: 1
+  idleFade: 0.45
+  reactionFade: 0.25
+  interruptFade: 0.15
 --- !u!1 &8704201694931179259
 GameObject:
   m_ObjectHideFlags: 0

@@ -18,6 +18,10 @@ using UnityEngine;
 ///    seated talk clip), the listener nods, and after ten seconds or so they
 ///    return to their own idles. No dialogue UI, no text: body language only.
 ///    At most two chats at a time, so most of the room stays ambient.
+///    With the Mixamo clips (NpcBeats) the speaker uses the seated talking
+///    clips, and on a sofa or the tub chair the listener now and then laughs;
+///    two sociable people standing near each other sometimes turn an exchange
+///    into a friendly remark and a laugh.
 /// It also answers the small questions NpcSocial asks ("who is nearest in
 /// front of me?", "who is walking past?") from the same list, holds the
 /// shared points of interest (the counter, the menu board, Ace), and counts
@@ -57,6 +61,11 @@ public sealed class NpcAttentionDirector : MonoBehaviour
     [SerializeField, Range(1f, 4f)] private float tableRange = 2.2f;
     [Tooltip("How long a pair leaves each other alone after an exchange or chat, seconds (a range).")]
     [SerializeField] private Vector2 pairCooldown = new Vector2(45f, 100f);
+    [Tooltip("With the Mixamo clips: chance that two people standing near each other turn an exchange into a friendly " +
+             "remark and a laugh, scaled by both their sociability.")]
+    [SerializeField, Range(0f, 1f)] private float sharedLaugh = .25f;
+    [Tooltip("With the Mixamo clips: chance per turn that the listener in a chat on a sofa or the tub chair laughs.")]
+    [SerializeField, Range(0f, 1f)] private float chatLaugh = .2f;
 
     private static NpcAttentionDirector instance;
     private static readonly List<NpcSocial> people = new();
@@ -404,13 +413,27 @@ public sealed class NpcAttentionDirector : MonoBehaviour
             else if (e.step == 2 && t >= bDelay + .7f)
             {
                 e.step = 3;
-                if (Random.value < Gesture(e.b)) e.b.Nod(7f);
+                // Two sociable people standing close: now and then a friendly remark and a
+                // laugh instead of the nod (NpcBeats; nothing happens without the clips).
+                if (StandingPair(e.a, e.b) && Random.value < sharedLaugh * Sociability(e.a) * Sociability(e.b) * 2f && e.a.Friendly())
+                    e.b.Laugh();
+                else if (Random.value < Gesture(e.b)) e.b.Nod(7f);
             }
             else if (e.step >= 3 && t >= bDelay + 2.6f) exchanges.RemoveAt(i);
         }
     }
 
     private static float Gesture(NpcSocial p) => p.Profile != null ? .3f + p.Profile.gestureLikelihood * .6f : .5f;
+
+    private static bool StandingPair(NpcSocial a, NpcSocial b)
+    {
+        bool standing(NpcSocial p) => (p.Current == NpcSocial.Situation.Queue || p.Current == NpcSocial.Situation.StandingWait)
+                                      && !p.BrainHasFocus && !p.InChat;
+        if (!standing(a) || !standing(b)) return false;
+        Vector3 d = a.transform.position - b.transform.position;
+        d.y = 0f;
+        return d.magnitude < 2.2f;
+    }
     private static Transform Head(NpcSocial p) => p.HeadTransform != null ? p.HeadTransform : p.transform;
     private static Vector3 HeadOffset(NpcSocial p) => p.HeadTransform != null ? Vector3.zero : Vector3.up * 1.55f;
 
@@ -470,7 +493,9 @@ public sealed class NpcAttentionDirector : MonoBehaviour
                 NpcSocial speaker = c.aSpeaking ? c.a : c.b, listener = c.aSpeaking ? c.b : c.a;
                 listener.StopGesture();
                 if (Random.value < .75f) speaker.Gesture(Mathf.Min(c.nextSwapAt, c.endsAt) - Time.time);
-                if (Random.value < Gesture(listener) * .8f) listener.Nod(6f, Random.value < .3f ? 2 : 1);
+                // On a sofa (no table to hit) the listener sometimes laughs at what was said.
+                bool laughed = Random.value < chatLaugh && listener.Laugh();
+                if (!laughed && Random.value < Gesture(listener) * .8f) listener.Nod(6f, Random.value < .3f ? 2 : 1);
             }
         }
     }

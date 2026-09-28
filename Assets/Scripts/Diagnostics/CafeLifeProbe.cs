@@ -254,6 +254,9 @@ public sealed class CafeLifeProbe : MonoBehaviour
             NpcSeating seating = go.GetComponent<NpcSeating>();
             if (seating != null && seating.Seat != null) life += $";chair={seating.Seat.Style}";
         }
+        // The Mixamo clip showing on the Beats layer, if any, and how much of it, 0-1 (Step B, 27 Sept).
+        NpcBeats mixamo = go.GetComponent<NpcBeats>();
+        if (mixamo != null && mixamo.Playing) life += ";mx=" + mixamo.CurrentName + "@" + Num(mixamo.Shown);
         return $";leg={loco.Purpose};rec={loco.LastRecovery}{(loco.GaveUp ? ";gaveup" : "")}{looking}{gaveWay}{life}";
     }
 

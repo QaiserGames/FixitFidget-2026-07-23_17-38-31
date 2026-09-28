@@ -217,6 +217,9 @@ public class CustomerBrain : MonoBehaviour
     // The life layer (pass 2): movement profile, ambient glances and gestures.
     // The brain's own attention to Ace goes through it too, and always wins.
     private NpcSocial social;
+    // Body language from the Mixamo clips (greetings, thanks, frustration...), when
+    // they are in the project; see ReactOr. Optional.
+    private NpcBeats beats;
     private float queueSide, queueDepth, queueYaw, nextQueueShift;
     // Delivery acknowledgement: is Ace bringing my order, and have I turned to him for it.
     private bool orderComing, turnedForDelivery;
@@ -379,6 +382,11 @@ public class CustomerBrain : MonoBehaviour
     public bool HasJob => activeJob != null || drinkOrdered;
     public string JobCardText => record != null ? record.Detail : "";
     public float PatienceFraction => Mathf.Clamp01(patienceLeft / CurrentMax);
+    /// <summary>
+    /// Waiting on Ace with the patience bar showing (queueing, walking to a spot,
+    /// waiting there), and not talking to him: when the body may show impatience (NpcBeats).
+    /// </summary>
+    public bool ShowsPatience => (state == State.WaitingInQueue || IsWaiting) && !InConversation;
     public int SlotIndex => slotIndex;
 
     // Anywhere between "you took the job" and "you finished it" — walking to
@@ -717,6 +725,7 @@ public class CustomerBrain : MonoBehaviour
         if (lookAt == null) lookAt = gameObject.AddComponent<NpcLookAt>();
         social = GetComponent<NpcSocial>();
         if (social == null) social = gameObject.AddComponent<NpcSocial>();
+        beats = GetComponent<NpcBeats>();
         // Who they are as a mover: a regular's own profile, else a roll. Presentation only.
         NpcMovementProfile profile = social.Profile != null ? social.Profile : social.AssignProfile(identity);
         float looseness = profile != null ? profile.facingLooseness : 1f;
@@ -941,8 +950,10 @@ public class CustomerBrain : MonoBehaviour
                             locomotion.Park(null);
                             // A hurried person barely pauses; a relaxed one has a proper look round.
                             float urgency = social != null && social.Profile != null ? social.Profile.urgency : .5f;
-                            MoveAfter(QueuePoint(slotIndex), Walk("slot"),
-                                      Random.Range(driftPauseMin, driftPauseMax) * (1.35f - .7f * urgency));
+                            float pause = Random.Range(driftPauseMin, driftPauseMax) * (1.35f - .7f * urgency);
+                            MoveAfter(QueuePoint(slotIndex), Walk("slot"), pause);
+                            // Taking the room in, with the whole body when the clips are there.
+                            if (beats != null) beats.React(NpcBeats.Moment.LookAround, seconds: pause + .3f);
                             break;
                         }
 
@@ -1128,6 +1139,8 @@ public class CustomerBrain : MonoBehaviour
                     orderCheckAt = Time.time + .2f;
                     bool coming = jobAccepted && distance < deliveryNoticeRange && (JobReady || CanReceiveDrink);
                     if (!coming) turnedForDelivery = false;
+                    // Ace is bringing their order: the phone goes away, eyes up.
+                    else if (!orderComing && beats != null) beats.StopIdle();
                     orderComing = coming;
                 }
                 if (orderComing || Time.time < attentionUntil)
@@ -1177,6 +1190,13 @@ public class CustomerBrain : MonoBehaviour
         bool servingMe = CanHearIntake && distance < 2.4f && bearing < 35f;
         if (servingMe)
         {
+            // Ace has come over to serve them: whatever they were doing stops, and they
+            // say hello (once a visit), unless they are past pleasantries.
+            if (!aceServingMe && beats != null)
+            {
+                beats.StopIdle();
+                if (PatienceFraction >= .3f) beats.React(NpcBeats.Moment.Greet);
+            }
             if (!aceServingMe || now >= attentiveSwitchAt)
             {
                 attentiveLooking = !aceServingMe || !attentiveLooking;
@@ -1271,6 +1291,7 @@ public class CustomerBrain : MonoBehaviour
     public void OnConversationOpened(ConversationController controller)
     {
         conversation = controller;
+        if (beats != null) beats.StopIdle();   // the phone goes away when Ace talks to them
         if (locomotion != null)
         {
             locomotion.Pause();
@@ -1316,8 +1337,10 @@ public class CustomerBrain : MonoBehaviour
         if (!CanHearIntake) return "";
 
         intakeGiven = true;
-        React();
         intakeLine = identity != null ? identity.Say(CustomerIdentity.Beat.Intake) : "";
+        // A hello if they have not greeted Ace yet, a head shake if they have waited
+        // too long; otherwise the usual gesture. The body follows the portrait's face.
+        ReactOr(NpcBeats.Moment.Intake, PanelFace());
         // Ace has just been told this: a regular's story goes in the notebook.
         NotebookHooks.HeardIntake(identity, record);
         return intakeLine;
@@ -1366,7 +1389,13 @@ public class CustomerBrain : MonoBehaviour
         else
             RunOrDefer(BeginWaiting);
 
-        React();
+        // A repair is handed over (the Interact gesture); a drink order gets a nod.
+        if (record.kind == JobKind.Drink) ReactOr(NpcBeats.Moment.AcceptedDrink);
+        else
+        {
+            React();
+            if (social != null) social.Nod(7f);
+        }
         string acceptedLine = identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
         return identity != null ? identity.AcceptReturnMemento(acceptedLine) : acceptedLine;
     }
@@ -1611,7 +1640,17 @@ public class CustomerBrain : MonoBehaviour
         // which is punishment dressed up as a feature.
         patienceLeft = Mathf.Min(patienceLeft + serviceMax * orderTopUp, serviceMax);
 
-        React();
+        // Calling across the room: a wave from a chair or on foot. With the Mixamo clips
+        // they also look his way, and on foot turn to him first - a wave at the window
+        // they were facing read wrong (27 Sept recording).
+        if (beats != null && beats.Ready)
+        {
+            HoldAttention(3f);
+            PlayerInteractor ace = Player;
+            if (ace != null && state == State.Waiting && !(seating != null && seating.Busy))
+                locomotion.Face(FacingTowards(ace.transform.position));
+        }
+        ReactOr(NpcBeats.Moment.CallForDrink);
         Say(OrderLine(), broadcast: true);      // they're calling across the room
     }
 
@@ -1692,6 +1731,8 @@ public class CustomerBrain : MonoBehaviour
     // The hand-over gesture is still up (or just starting): not yet time to turn away.
     private bool GestureStillPlaying()
     {
+        // A reaction from the Mixamo clips (a nod, thanks) counts as the gesture too.
+        if (beats != null && beats.Reacting) return true;
         if (animator == null || !animator.isActiveAndEnabled || animator.runtimeAnimatorController == null) return false;
         if (animator.IsInTransition(0))
         {
@@ -1747,6 +1788,7 @@ public class CustomerBrain : MonoBehaviour
         paidTip = Mathf.Max(0, paidTip - 1);
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "";
+        if (beats != null) beats.React(NpcBeats.Moment.LetDown);
 
         if (conversation == null) Say(line);
         FinishAndLeave(line, alreadyServed);
@@ -1766,6 +1808,7 @@ public class CustomerBrain : MonoBehaviour
         decided = true;
 
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.Declined) : "";
+        if (beats != null) beats.React(NpcBeats.Moment.LetDown);
         FinishAndLeave(line, false);
         return line;
     }
@@ -1817,7 +1860,7 @@ public class CustomerBrain : MonoBehaviour
         // something anyone notices mid-panic.
         patienceLeft = Mathf.Min(patienceLeft + serviceMax * serveBump, serviceMax);
 
-        React();
+        ReactOr(NpcBeats.Moment.Served);
         HoldAttention(2.5f);
 
         // THE SPLIT THAT MAKES THE WHOLE PASS WORK.
@@ -1896,7 +1939,9 @@ public class CustomerBrain : MonoBehaviour
         else Destroy(activeJob.gameObject);
         activeJob = null;
 
-        React();
+        // Excited for a perfect repair, thanks for a good one, a shrug for a passable
+        // one, disappointment when it comes back unfixed.
+        bool reacted = ReactOr(NpcBeats.Moment.Returned, PortraitExpression.Neutral, grade);
         HoldAttention(2.5f);
 
         string line = physicalEnding ?? (identity != null ? identity.SayRepairCompleted(grade) : "");
@@ -1937,7 +1982,7 @@ public class CustomerBrain : MonoBehaviour
             // and make dawdling profitable.
             patienceLeft = Mathf.Min(patienceLeft + serviceMax * handbackBump, serviceMax);
 
-            React();
+            if (!reacted) React();
             Say(line);
             return line;
         }
@@ -1956,7 +2001,7 @@ public class CustomerBrain : MonoBehaviour
         reassureUses++;
         reassureReadyAt = Time.time + reassureCooldown;
 
-        React();
+        ReactOr(NpcBeats.Moment.Reassured);
         Say(identity != null ? identity.Say(CustomerIdentity.Beat.Reassured) : "");
     }
 
@@ -2001,6 +2046,8 @@ public class CustomerBrain : MonoBehaviour
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.StormedOut) : "";
         Say(line, broadcast: true);   // shouting at the room, not talking to you
         LeaveAfterSpeaking(line, false);
+        // The angry gesture (or a dismissive wave) before they go; in a chair, an angry one there.
+        if (beats != null) beats.React(NpcBeats.Moment.StormOut);
     }
 
     // Remove them immediately, with no goodbye and no walk to the door.
@@ -2264,6 +2311,20 @@ public class CustomerBrain : MonoBehaviour
         if (seating != null && seating.Busy) return;
         if (animator != null) animator.SetTrigger("Interact");
     }
+
+    // The body language for this moment (NpcBeats: a nod, thanks, a greeting...);
+    // when that can't play - no Mixamo clips in the project, or the body is busy -
+    // the one gesture every moment used to share. True when a beat played.
+    private bool ReactOr(NpcBeats.Moment moment, PortraitExpression face = PortraitExpression.Neutral, JobGrade grade = JobGrade.Good)
+    {
+        if (beats != null && beats.React(moment, face, grade)) return true;
+        React();
+        return false;
+    }
+
+    // The face the conversation panel shows right now.
+    private PortraitExpression PanelFace() =>
+        identity != null ? identity.PanelExpressionAt(PatienceFraction) : PortraitExpression.Neutral;
 
     // Visible whenever they're actively waiting on you — queue or service.
     // Hidden only while walking in, and once they've been dealt with.

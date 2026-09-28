@@ -617,6 +617,9 @@ public sealed class NpcLocomotion : MonoBehaviour
     /// <summary>True while the body is turning on the spot with its feet stepping round (for checks and traces).</summary>
     public bool SteppingRound => Time.time < stepRoundUntil && Speed < .25f;
 
+    /// <summary>How far the body still has to turn to the facing it was given (Park, Face), degrees; 0 without one.</summary>
+    public float FacingLeft => facing.HasValue ? Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, facing.Value.eulerAngles.y)) : 0f;
+
     /// <summary>
     /// For a body that is moved by hand (NpcSeating's steps round a chair):
     /// feed the walk clip from this speed so the stride still matches the floor.

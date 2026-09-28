@@ -22,6 +22,10 @@ using UnityEngine.AI;
 ///    NpcLookAt (head), NpcPosture (spine), the Animator's Talking flag
 ///    (a seated hand gesture / the standing talk loop), NpcLocomotion (walk
 ///    speed and style) and PersonalSpace (body room). Nothing here moves feet.
+///  * Whole-body beats (the Mixamo clips: idles, frustration, seated talk) are
+///    NpcBeats'. Among its idle beats this component now and then asks it for
+///    one (<see cref="Beat.Body"/>); a seated gesture uses its talking clips.
+///    Without the clip library NpcBeats says no and everything is as before.
 ///
 /// PACING. Everything ambient is timer-driven with random gaps, so people are
 /// still most of the time and never move in unison: a beat every 5-14 seconds
@@ -32,7 +36,7 @@ using UnityEngine.AI;
 public sealed class NpcSocial : MonoBehaviour
 {
     public enum Situation { None, Walking, Queue, Ordering, StandingWait, Seated, Leaving }
-    public enum Beat { None, Still, Posture, LookAround, LookCounter, LookMenu, LookPlayer, LookNeighbour, LookPasser, Gesture, Exchange, Chat, ArrivalLook, PassingGlance }
+    public enum Beat { None, Still, Posture, LookAround, LookCounter, LookMenu, LookPlayer, LookNeighbour, LookPasser, Gesture, Exchange, Chat, ArrivalLook, PassingGlance, Body }
 
     [Tooltip("Where profiles come from when a spawner does not hand one over.")]
     [SerializeField] private NpcProfileLibrary library;
@@ -52,6 +56,7 @@ public sealed class NpcSocial : MonoBehaviour
     private PersonalSpace space;
     private Animator animator;
     private NavMeshAgent agent;
+    private NpcBeats beats;
     private Transform head;
     private bool hasStandingTalk, hasTalking, animatorChecked;
 
@@ -105,9 +110,11 @@ public sealed class NpcSocial : MonoBehaviour
             situation = value;
             situationSince = Time.time;
             // A new situation starts quiet: no beat straight away, no glance carried over.
+            // An idle body beat stops too (a reaction carries on: thanks as they get up to go).
             beat = Beat.None;
             beatUntil = 0f;
             glanceUntil = 0f;
+            if (beats != null) beats.StopIdle();
             nextBeatAt = Time.time + FirstGap();
             if (talkingSet && value != Situation.Ordering && value != Situation.Seated) SetTalking(false);
             if (posture != null)
@@ -134,6 +141,7 @@ public sealed class NpcSocial : MonoBehaviour
         space = GetComponent<PersonalSpace>();
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponentInChildren<Animator>();
+        beats = GetComponent<NpcBeats>();
         if (seating != null) seating.ExternalChat = true;   // this component and the director own the seated talk flag
         nextBeatAt = Time.time + FirstGap();
     }
@@ -272,9 +280,20 @@ public sealed class NpcSocial : MonoBehaviour
     /// <summary>A short animated gesture: the seated talk loop on a chair, the standing talk loop on foot (when wired).</summary>
     public bool Gesture(float seconds)
     {
+        bool seated = seating != null && seating.IsSeated;
+        // In a chair, the Mixamo talking clips when they are there (NpcBeats). While
+        // another of its beats is showing (a laugh), no gesture this time.
+        if (seated && beats != null && beats.Ready)
+        {
+            if (beats.PlayTalk(seconds))
+            {
+                NpcAttentionDirector.Count(Beat.Gesture);
+                return true;
+            }
+            if (beats.Playing) return false;
+        }
         CheckAnimator();
         if (!hasTalking) return false;
-        bool seated = seating != null && seating.IsSeated;
         if (!seated && !hasStandingTalk) return false;
         if (!seated && locomotion != null && locomotion.IsMoving) return false;
         SetTalking(true);
@@ -285,7 +304,34 @@ public sealed class NpcSocial : MonoBehaviour
 
     public void StopGesture()
     {
+        if (beats != null) beats.StopTalk();
         if (talkingSet) SetTalking(false);
+    }
+
+    /// <summary>Only the animator's talk loop off (NpcBeats, as a beat starts on top of it).</summary>
+    public void StopTalkLoop()
+    {
+        if (talkingSet) SetTalking(false);
+    }
+
+    /// <summary>A laugh (NpcBeats): standing anywhere, seated only where there is no table in front. False without the clips.</summary>
+    public bool Laugh()
+    {
+        if (beats == null || !beats.PlayLaugh()) return false;
+        beat = Beat.Body;
+        beatUntil = Time.time + beats.Remaining;
+        NpcAttentionDirector.Count(Beat.Body);
+        return true;
+    }
+
+    /// <summary>A friendly hand gesture while standing (NpcBeats). False without the clips.</summary>
+    public bool Friendly()
+    {
+        if (beats == null || !beats.PlayFriendly()) return false;
+        beat = Beat.Body;
+        beatUntil = Time.time + beats.Remaining;
+        NpcAttentionDirector.Count(Beat.Body);
+        return true;
     }
 
     public void Nod(float amplitude = 8f, int count = 1)
@@ -401,14 +447,23 @@ public sealed class NpcSocial : MonoBehaviour
         float wPlayer = (queue ? 26f : 12f) * (.4f + look);
         float wNeighbour = 14f * (1f - shy * .7f) * (.5f + look);
         float wGesture = seated ? 9f * gesture : 0f;
+        // A whole-body beat (NpcBeats): an idle clip, or frustration when patience is low.
+        float wBody = beats != null && beats.Ready ? (seated ? 18f : 22f) * BodyUrge() : 0f;
         float wStill = 10f;
-        float total = wPosture + wAround + wCounter + wMenu + wPlayer + wNeighbour + wGesture + wStill;
+        float total = wPosture + wAround + wCounter + wMenu + wPlayer + wNeighbour + wGesture + wBody + wStill;
         float r = Random.value * total;
         bool done;
-        if ((r -= wPosture) <= 0f) done = PostureBeat(seated);
+        if ((r -= wBody) <= 0f) done = BodyBeat();
+        else if ((r -= wPosture) <= 0f) done = PostureBeat(seated);
         else if ((r -= wAround) <= 0f) done = LookAroundBeat();
         else if ((r -= wCounter) <= 0f) done = LookPointBeat(NpcAttentionDirector.CounterPoint, Beat.LookCounter, 1.4f, 3f, .8f);
-        else if ((r -= wMenu) <= 0f) done = LookPointBeat(NpcAttentionDirector.MenuPoint, Beat.LookMenu, 2f, 4.5f, .85f);
+        else if ((r -= wMenu) <= 0f)
+        {
+            done = LookPointBeat(NpcAttentionDirector.MenuPoint, Beat.LookMenu, 2f, 4.5f, .85f);
+            // Reading the menu board, sometimes with a hand to the chin (NpcBeats).
+            if (done && beats != null && Random.value < .35f && beats.TryThinking())
+                beatUntil = glanceUntil = Mathf.Max(glanceUntil, Time.time + beats.Remaining);
+        }
         else if ((r -= wPlayer) <= 0f) done = LookPlayerBeat(queue);
         else if ((r -= wNeighbour) <= 0f) done = LookNeighbourBeat();
         else if ((r -= wGesture) <= 0f) done = seated && Gesture(Dur(1.6f, 2.8f));
@@ -419,6 +474,26 @@ public sealed class NpcSocial : MonoBehaviour
         beat = Beat.Still;
         NpcAttentionDirector.Count(Beat.Still);
         nextBeatAt = Time.time + Gap() * .6f;
+    }
+
+    // Low patience shows more often in the body; a calm person mostly stays still.
+    private float BodyUrge()
+    {
+        switch (beats.CurrentMood())
+        {
+            case NpcBeats.Mood.Frustrated: return 1.6f;
+            case NpcBeats.Mood.Furious: return 2f;
+            default: return 1f;
+        }
+    }
+
+    private bool BodyBeat()
+    {
+        if (beats == null || !beats.TryIdle(situation)) return false;
+        beat = Beat.Body;
+        beatUntil = Time.time + beats.Remaining;
+        NpcAttentionDirector.Count(Beat.Body);
+        return true;
     }
 
     private bool PostureBeat(bool seated)
@@ -537,6 +612,7 @@ public sealed class NpcSocial : MonoBehaviour
     {
         if (Time.time < nextTalkAt) return;
         if (talkingSet) return;
+        if (beats != null && beats.Playing) { nextTalkAt = Time.time + 1f; return; }   // a greeting or a reaction first
         float gesture = Profile != null ? Profile.gestureLikelihood : .4f;
         nextTalkAt = Time.time + Random.Range(4f, 8f);
         if (Time.time - situationSince < .4f) { nextTalkAt = Time.time + .4f; return; }

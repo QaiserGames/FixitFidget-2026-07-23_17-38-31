@@ -64,6 +64,9 @@ public static class CafeLifeRecorder
         ("counter", new Vector3(4.2f, 5.2f, 4.6f), new Vector3(0f, .8f, 12f), 52f),
         ("tables and door", new Vector3(6.5f, 6.5f, -3.5f), new Vector3(-.5f, .4f, 4.5f), 55f),
         ("lounge", new Vector3(-.8f, 4.4f, .8f), new Vector3(-6.4f, .5f, 5f), 58f),
+        // From above Ace's side of the counter, facing the queue: their faces and hands
+        // (greetings, nods, the phone, frustration - the Mixamo beats, 27 Sept 2026).
+        ("queue", new Vector3(0f, 2.6f, 14.7f), new Vector3(0f, 1.2f, 10.8f), 60f),
     };
 
     [MenuItem(Menu + "Record 3 minutes (Game view)")]
@@ -87,6 +90,9 @@ public static class CafeLifeRecorder
     [MenuItem(Menu + "Record 8 minutes - lounge camera")]
     static void RecordLounge() => Start(480f, true, 3);
 
+    [MenuItem(Menu + "Record 8 minutes - queue camera (from behind the counter)")]
+    static void RecordQueue() => Start(480f, true, 4);
+
     [MenuItem(Menu + "Stop recording")]
     static void StopMenu() => Stop("stopped from the menu");
 
@@ -97,6 +103,7 @@ public static class CafeLifeRecorder
     [MenuItem(Menu + "Record 8 minutes - counter camera", true)]
     [MenuItem(Menu + "Record 8 minutes - tables and door camera", true)]
     [MenuItem(Menu + "Record 8 minutes - lounge camera", true)]
+    [MenuItem(Menu + "Record 8 minutes - queue camera (from behind the counter)", true)]
     static bool CanRecord() => EditorApplication.isPlaying && probe == null;
 
     [MenuItem(Menu + "Stop recording", true)]
@@ -292,6 +299,17 @@ public static class CafeLifeRecorder
     [MenuItem(LabMenu + "Autopilot on or off")]
     static void ToggleAutopilot() => Lab.Autopilot = !Lab.Autopilot;
 
+    // A lab day is only a few minutes long; a recording often wants more of it. The
+    // same top-up the Play Mode checks use (the café clock's face may stop moving).
+    [MenuItem(LabMenu + "Keep the day open 5 more minutes")]
+    static void KeepDayOpen()
+    {
+        DayClock clock = DayClock.Instance;
+        if (clock == null || clock.DayOver) { Debug.LogWarning(Tag + "No open day to keep open."); return; }
+        typeof(DayClock).GetProperty(nameof(DayClock.TimeRemaining))?.SetValue(clock, clock.TimeRemaining + 300f);
+        Debug.Log(Tag + $"Day kept open: {clock.TimeRemaining:0} s left.");
+    }
+
     // Down the centre aisle to just inside the door, back up to short of the
     // queue, and down to the door again - through whoever is in the way.
     [MenuItem(LabMenu + "Walk Ace - counter to door and back")]
@@ -313,6 +331,7 @@ public static class CafeLifeRecorder
     [MenuItem(LabMenu + "Put Ace in the doorway", true)]
     [MenuItem(LabMenu + "Put Ace in front of the counter", true)]
     [MenuItem(LabMenu + "Autopilot on or off", true)]
+    [MenuItem(LabMenu + "Keep the day open 5 more minutes", true)]
     [MenuItem(LabMenu + "Walk Ace - counter to door and back", true)]
     static bool LabRunning() => EditorApplication.isPlaying && CafeLabDirector.Instance != null;
 }

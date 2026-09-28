@@ -41,6 +41,23 @@ using UnityEngine;
 ///    its shoulder joint keeps the direction it has in the body's own T-pose
 ///    (relative to the chest), and the arm IK then reaches the lap from there.
 ///
+/// FINGERS AND FACES (27 Sept 2026, with the Mixamo clips)
+///  * The body's fingers copy the rig's the same way as the rest: thumb, index
+///    finger, and the other three as one chain (the city bodies have one bone
+///    chain for middle, ring and little finger; it follows the rig's middle
+///    finger). Without it a thumbs-up, a point or a hand round a phone showed as
+///    an open hand. Each is looked up under its own hand, whichever way the look
+///    names them: "Thumb_01" on both hands (Unity calls the second one
+///    "Thumb_01 1"), or "Thumb_01_L" / "Thumb_01_R".
+///  * The phone at the ear: while someone is on a call (NpcBeats calls
+///    <see cref="HoldPhoneToEar"/> every frame), the arm reaches so that the
+///    phone in the hand lies against this body's own ear (measured on each look's
+///    head mesh by Fixit Fidget > NPC > Mixamo 3). These bodies' heads are much
+///    wider than the rig's and their arms longer, so neither copied turns (the
+///    phone in front of the mouth) nor the rig's hand-to-head distance (the
+///    phone across the face) put it there. A two-bone arm reach, as for the hands
+///    on the thighs; the hand keeps its turn and nothing else moves.
+///
 /// Named regulars keep their authored appearance. When the purchased art is
 /// missing (for example a fresh clone of the public repository, which never
 /// contains Synty files) nothing changes and the original body stays visible.
@@ -69,6 +86,11 @@ public sealed class PolygonNpcVisual : MonoBehaviour
              "(0 = copy the rig's collarbones, 1 = square shoulders). The rig's sit clips roll the collarbones back, " +
              "which on these bodies pulls the shoulders into the torso.")]
     [SerializeField, Range(0f, 1f)] private float seatedShoulderSettle = .9f;
+    [Tooltip("Copy the rig's fingers (thumb, index finger, and the other three as one chain). Off: open hands, as before.")]
+    [SerializeField] private bool copyFingers = true;
+    [Tooltip("On a phone call, reach so that the phone lies against this body's ear. Off: copy the turns only, which " +
+             "carries the phone in front of the mouth on these longer arms.")]
+    [SerializeField] private bool handsToFace = true;
 
     // Source (Quaternius rig) bone -> POLYGON bone, parents before children.
     public static readonly string[] SourceBones =
@@ -88,8 +110,20 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         "UpperLeg_R", "LowerLeg_R", "Ankle_R",
     };
 
+    // Rig finger bone (plus ".L"/".R") -> city body finger bone. Joint for joint, measured in
+    // the T-poses (Mixamo 3 prints them): the palm bone (1 / _01) and the three finger joints,
+    // e.g. the rig's knuckle Index2 is 15.2 cm from the wrist and the body's IndexFinger_02
+    // 15.1 cm. The city bodies' middle, ring and little fingers are one chain ("Finger"); it
+    // follows the rig's middle finger.
+    public static readonly (string rig, string body)[] FingerBones =
+    {
+        ("Thumb1", "Thumb_01"), ("Thumb2", "Thumb_02"), ("Thumb3", "Thumb_03"),
+        ("Index1", "IndexFinger_01"), ("Index2", "IndexFinger_02"), ("Index3", "IndexFinger_03"), ("Index4", "IndexFinger_04"),
+        ("Middle1", "Finger_01"), ("Middle2", "Finger_02"), ("Middle3", "Finger_03"), ("Middle4", "Finger_04"),
+    };
+
     // Indexes into SourceBones / TargetBones.
-    private const int Hips = 0, Chest = 3, ClavicleL = 6, UpperArmL = 7, LowerArmL = 8, WristL = 9,
+    private const int Hips = 0, Chest = 3, Head = 5, ClavicleL = 6, UpperArmL = 7, LowerArmL = 8, WristL = 9,
         ClavicleR = 10, UpperArmR = 11, LowerArmR = 12, WristR = 13,
         UpperLegL = 14, LowerLegL = 15, FootL = 16, UpperLegR = 17, LowerLegR = 18, FootR = 19;
 
@@ -104,6 +138,9 @@ public sealed class PolygonNpcVisual : MonoBehaviour
     // T-pose positions: the actor's rig in the actor's space, the new body in its own (unscaled) space.
     private Vector3[] sourceBindPosition, targetBindPosition;
     private float hipsScale = 1f, bodyScale = 1f;
+    // Fingers (optional: skipped where a body or the rig lacks them).
+    private Transform[] fingerSource = Array.Empty<Transform>(), fingerTarget = Array.Empty<Transform>();
+    private Quaternion[] fingerSourceBind = Array.Empty<Quaternion>(), fingerTargetBind = Array.Empty<Quaternion>();
 
     public int AppearanceCount => appearancePrefabs.Length;
     public int FixedAppearance => fixedAppearance;
@@ -118,6 +155,37 @@ public sealed class PolygonNpcVisual : MonoBehaviour
     public bool Seated { get; set; }
     /// <summary>How much higher the body's hips sit than they would from copying alone, metres (0 standing).</summary>
     public float SeatedLift { get; private set; }
+    /// <summary>Finger bones this body copies from the rig (0 without fingers), for checks.</summary>
+    public int FingerCount => fingerTarget.Length;
+    /// <summary>How far each hand was moved to put the phone at the ear in the last frame, 0-1 (left, right), for checks.</summary>
+    public Vector2 HandsAtFace { get; private set; }
+    /// <summary>After that reach, how far the phone's speaker is from its spot at the ear, metres (for checks).</summary>
+    public float PhoneFromEar { get; private set; }
+
+    // The phone at the ear, per hand (left, right): how much, where the ear is in the
+    // head bone's space, where the phone's speaker is in the hand bone's space, and
+    // half the phone's thickness in metres.
+    private readonly float[] earWeight = new float[2];
+    private readonly Vector3[] earInHead = new Vector3[2], phoneInHand = new Vector3[2];
+    private readonly float[] phoneHalf = new float[2];
+
+    /// <summary>
+    /// For this frame: reach with the <paramref name="left"/> (or right) hand so that the phone's
+    /// speaker (at <paramref name="speakerInHand"/> in the hand bone's space) lies against the ear
+    /// at <paramref name="earInHeadBone"/> (in the head bone's space). NpcBeats calls it every
+    /// frame of a call; it lapses when not called.
+    /// </summary>
+    public void HoldPhoneToEar(bool left, float weight, Vector3 earInHeadBone, Vector3 speakerInHand, float phoneHalfThickness)
+    {
+        int side = left ? 0 : 1;
+        earWeight[side] = Mathf.Clamp01(weight);
+        earInHead[side] = earInHeadBone;
+        phoneInHand[side] = speakerInHand;
+        phoneHalf[side] = Mathf.Max(0f, phoneHalfThickness);
+    }
+
+    /// <summary>This body's hand bone (Hand_L / Hand_R), or null without a city look. NpcBeats puts the phone in it.</summary>
+    public Transform CityHand(bool left) => instance != null && target != null ? target[left ? WristL : WristR] : null;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetSequence() => anonymousSequence = 0;
@@ -176,6 +244,7 @@ public sealed class PolygonNpcVisual : MonoBehaviour
             DestroyInstance();
             return false;
         }
+        BindFingers(renderers, visualRenderers);
         // Bind poses are in each root's own units, so sizing the body afterwards
         // leaves them valid; hipsScale converts the actor's hip sway into them.
         float scale = visualScale > 0f ? visualScale : sourceBindPosition[Hips].y / targetBindPosition[Hips].y;
@@ -227,6 +296,38 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         }
         float seated = SeatedWeight();
         if (seated > 0f) FitToChair(seated);
+        HandsAtFace = handsToFace ? new Vector2(PhoneToEar(0), PhoneToEar(1)) : Vector2.zero;
+        earWeight[0] = earWeight[1] = 0f;   // asked for again next frame while the call lasts
+        // Fingers last: world turns, so whatever moved the hands above they end up right.
+        for (int i = 0; i < fingerTarget.Length; i++)
+        {
+            if (fingerSource[i] == null || fingerTarget[i] == null) continue;
+            Quaternion turned = inverseRoot * fingerSource[i].rotation * Quaternion.Inverse(fingerSourceBind[i]);
+            fingerTarget[i].rotation = visualRoot * turned * fingerTargetBind[i];
+        }
+    }
+
+    // The arm reaches so that the phone in the hand lies against the ear, just
+    // outside it (half the phone's thickness out from the side of the head).
+    // Returns the weight used.
+    private float PhoneToEar(int side)
+    {
+        float w = earWeight[side];
+        if (w <= 0f) return 0f;
+        Transform shoulder = target[side == 0 ? UpperArmL : UpperArmR], elbow = target[side == 0 ? LowerArmL : LowerArmR];
+        Transform hand = target[side == 0 ? WristL : WristR], head = target[Head];
+        if (shoulder == null || elbow == null || hand == null || head == null) return 0f;
+        Vector3 ear = head.TransformPoint(earInHead[side]);
+        // The head's own right, from its turn away from the T-pose.
+        Vector3 right = head.rotation * Quaternion.Inverse(instance.transform.rotation * targetBind[Head]) * instance.transform.right;
+        Vector3 outward = side == 1 ? right : -right;
+        Vector3 phoneGoal = ear + outward * (phoneHalf[side] + .004f * transform.lossyScale.y);
+        Vector3 goal = hand.position + (phoneGoal - hand.TransformPoint(phoneInHand[side]));
+        Quaternion handTurn = hand.rotation;
+        SolveTwoBone(shoulder, elbow, hand, Vector3.Lerp(hand.position, goal, w), -transform.forward);
+        hand.rotation = handTurn;
+        PhoneFromEar = Vector3.Distance(hand.TransformPoint(phoneInHand[side]), phoneGoal);
+        return w;
     }
 
     // 0 while standing or walking, rising to 1 as the rig's hip joints come
@@ -365,6 +466,73 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         middle.rotation = Quaternion.FromToRotation(reached - middle.position, a + n * d - middle.position) * middle.rotation;
     }
 
+    // The fingers: each rig finger bone and the body's, looked up under their own hand
+    // (the body's finger names are the same on both hands), with their T-poses.
+    private void BindFingers(List<SkinnedMeshRenderer> sourceRenderers, List<SkinnedMeshRenderer> targetRenderers)
+    {
+        var from = new List<Transform>();
+        var to = new List<Transform>();
+        var fromBind = new List<Quaternion>();
+        var toBind = new List<Quaternion>();
+        if (copyFingers)
+            for (int side = 0; side < 2; side++)
+            {
+                Transform rigHand = source[side == 0 ? WristL : WristR], bodyHand = target[side == 0 ? WristL : WristR];
+                if (rigHand == null || bodyHand == null) continue;
+                string suffix = side == 0 ? ".L" : ".R";
+                foreach (var (rig, body) in FingerBones)
+                {
+                    Transform a = FindUnder(rigHand, rig + suffix), b = FindFinger(bodyHand, body, side == 0 ? "L" : "R");
+                    if (a == null || b == null) continue;
+                    if (!BindOne(transform, sourceRenderers, a, out Quaternion aBind) || !BindOne(instance.transform, targetRenderers, b, out Quaternion bBind)) continue;
+                    from.Add(a); to.Add(b); fromBind.Add(aBind); toBind.Add(bBind);
+                }
+            }
+        fingerSource = from.ToArray();
+        fingerTarget = to.ToArray();
+        fingerSourceBind = fromBind.ToArray();
+        fingerTargetBind = toBind.ToArray();
+    }
+
+    // A body's finger bone under its hand: "Thumb_01", "Thumb_01 1" (Unity's name for a
+    // repeated name) or "Thumb_01_L" / "Thumb_01_R".
+    private static Transform FindFinger(Transform hand, string boneName, string side)
+    {
+        Transform exact = FindUnder(hand, boneName);
+        if (exact != null) return exact;
+        Transform sided = FindUnder(hand, boneName + "_" + side);
+        if (sided != null) return sided;
+        return FindUnder(hand, boneName + " 1");
+    }
+
+    private static Transform FindUnder(Transform node, string boneName)
+    {
+        for (int i = 0; i < node.childCount; i++)
+        {
+            Transform child = node.GetChild(i);
+            if (child.name == boneName) return child;
+            Transform hit = FindUnder(child, boneName);
+            if (hit != null) return hit;
+        }
+        return null;
+    }
+
+    // One bone's T-pose turn in <root>'s space, from the first skinned mesh that uses it.
+    private static bool BindOne(Transform root, List<SkinnedMeshRenderer> renderers, Transform bone, out Quaternion bind)
+    {
+        foreach (SkinnedMeshRenderer renderer in renderers)
+        {
+            if (renderer == null || renderer.sharedMesh == null) continue;
+            int b = Array.IndexOf(renderer.bones, bone);
+            Matrix4x4[] poses = renderer.sharedMesh.bindposes;
+            if (b < 0 || b >= poses.Length) continue;
+            bind = (root.worldToLocalMatrix * renderer.transform.localToWorldMatrix * poses[b].inverse).rotation;
+            return true;
+        }
+        bind = Quaternion.identity;
+        return false;
+    }
+
     public void RemoveAppearance()
     {
         if (hiddenRenderers != null)
@@ -375,6 +543,8 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         sourceAnimator = null;
         DestroyInstance();
         source = target = null;
+        fingerSource = fingerTarget = Array.Empty<Transform>();
+        fingerSourceBind = fingerTargetBind = Array.Empty<Quaternion>();
         ActiveAppearance = -1;
     }
 

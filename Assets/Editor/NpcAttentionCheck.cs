@@ -286,7 +286,9 @@ public static class NpcAttentionCheck
         Animator animator = target.GetComponentInChildren<Animator>();
         string line = target.ServeDrink(carry);
         Check(!string.IsNullOrEmpty(line) && !carry.Contains(drink), $"The drink changes hands (\"{line}\")");
+        NpcBeats beats = target.GetComponent<NpcBeats>();
         bool gesture = false;
+        string how = "";
         float until = Time.time + 1.2f;
         while (Time.time < until)
         {
@@ -294,11 +296,15 @@ public static class NpcAttentionCheck
             // ("CharacterArmature|Interact"); IsName("Interact") never matched.
             if (!seated && animator != null &&
                 (IsInteract(animator.GetCurrentAnimatorStateInfo(0)) || IsInteract(animator.GetNextAnimatorStateInfo(0))))
-                gesture = true;
+            { gesture = true; how = "Interact"; }
+            // Since the Mixamo beats (27 Sept) the thanks is a clip of its own when the
+            // clips are there ("Thankful" or "Happy Hand Gesture"), played on the Beats layer.
+            if (!seated && beats != null && beats.CurrentKind == NpcBeats.Kind.Reaction)
+            { gesture = true; how = beats.CurrentName; }
             yield return null;
         }
         Check(eyes != null && eyes.Looking, $"{target.CustomerName} keeps looking at Ace through the hand-over");
-        if (!seated) Check(gesture, $"{target.CustomerName} makes the hand-over gesture");
+        if (!seated) Check(gesture, $"{target.CustomerName} makes the hand-over gesture{(how.Length > 0 ? " (" + how + ")" : "")}");
         else Note("Seated: the standing gesture is not expected.");
     }
 
