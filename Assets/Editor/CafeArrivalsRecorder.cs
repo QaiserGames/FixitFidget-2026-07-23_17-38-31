@@ -63,6 +63,7 @@ public static class CafeArrivalsRecorder
         public Vector3 position, velocity;
         public float radius;
         public Object key;
+        public bool unseen;      // inside a house waiting for their turn at its door: not on the street
     }
 
     struct Car
@@ -175,11 +176,12 @@ public static class CafeArrivalsRecorder
             string info = $"{(j.Arriving ? "in" : "out")}|{j.Kind}|next {j.NextPoint}/{j.PointCount}" +
                           $"|to {F(to.x)} {F(to.z)}|kerb {(waiting != null ? waiting.Name : "-")}" +
                           $"|on {(j.CurrentCrossing != null ? j.CurrentCrossing.Name : "-")}|held {(j.HeldBy.Length > 0 ? j.HeldBy : "-")}" +
-                          $"|stuck {F(j.StuckFor)}|pref {F(j.Preference)}|unstuck {j.Unstuck}";
+                          $"|stuck {F(j.StuckFor)}|pref {F(j.Preference)}|unstuck {j.Unstuck}" +
+                          (j.DoorTurn.Length > 0 ? $"|door {j.DoorTurn}" : "") + (j.Waiting ? $"|waiting {j.WaitingFor}" : "");
             people.Add(new Body
             {
                 type = "visitor", id = "J" + Id(j), name = j.name, info = info,
-                position = j.transform.position, velocity = j.Velocity, radius = PersonRadius, key = j
+                position = j.transform.position, velocity = j.Velocity, radius = PersonRadius, key = j, unseen = j.Unseen
             });
         }
 
@@ -270,6 +272,7 @@ public static class CafeArrivalsRecorder
             {
                 Body a = people[i], b = people[k];
                 if (a.type == "street" && b.type == "street") continue;
+                if (a.unseen || b.unseen) continue;   // waiting inside a house: nobody sees them there
                 Vector3 d = a.position - b.position;
                 if (Mathf.Abs(d.y) > 1.2f) continue;
                 d.y = 0f;

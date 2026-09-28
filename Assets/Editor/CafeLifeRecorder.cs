@@ -67,7 +67,20 @@ public static class CafeLifeRecorder
         // From above Ace's side of the counter, facing the queue: their faces and hands
         // (greetings, nods, the phone, frustration - the Mixamo beats, 27 Sept 2026).
         ("queue", new Vector3(0f, 2.6f, 14.7f), new Vector3(0f, 1.2f, 10.8f), 60f),
+        // The two front doors walk-ins use (27 Sept, the door jams): from across the
+        // street, the door, its stoop and the pavement where people come and go.
+        ("shop door", new Vector3(12.4f, 5.2f, 3.6f), new Vector3(17.4f, .5f, -.2f), 55f),
+        ("dusty rose door", new Vector3(-11.4f, 5.2f, 5.6f), new Vector3(-16.4f, .5f, .5f), 55f),
     };
+
+    /// <summary>Records <paramref name="seconds"/> of video from the named observer camera (a play check's film).</summary>
+    public static bool StartView(string view, float seconds)
+    {
+        int index = Array.FindIndex(Views, v => v.name == view);
+        if (index < 0 || !EditorApplication.isPlaying) return false;
+        Start(seconds, true, index);
+        return probe != null;
+    }
 
     [MenuItem(Menu + "Record 3 minutes (Game view)")]
     static void Record3() => Start(180f, true);
@@ -93,6 +106,12 @@ public static class CafeLifeRecorder
     [MenuItem(Menu + "Record 8 minutes - queue camera (from behind the counter)")]
     static void RecordQueue() => Start(480f, true, 4);
 
+    [MenuItem(Menu + "Record 8 minutes - shop door camera (east street)")]
+    static void RecordShopDoor() => Start(480f, true, 5);
+
+    [MenuItem(Menu + "Record 8 minutes - dusty rose door camera (west street)")]
+    static void RecordRoseDoor() => Start(480f, true, 6);
+
     [MenuItem(Menu + "Stop recording")]
     static void StopMenu() => Stop("stopped from the menu");
 
@@ -104,6 +123,8 @@ public static class CafeLifeRecorder
     [MenuItem(Menu + "Record 8 minutes - tables and door camera", true)]
     [MenuItem(Menu + "Record 8 minutes - lounge camera", true)]
     [MenuItem(Menu + "Record 8 minutes - queue camera (from behind the counter)", true)]
+    [MenuItem(Menu + "Record 8 minutes - shop door camera (east street)", true)]
+    [MenuItem(Menu + "Record 8 minutes - dusty rose door camera (west street)", true)]
     static bool CanRecord() => EditorApplication.isPlaying && probe == null;
 
     [MenuItem(Menu + "Stop recording", true)]

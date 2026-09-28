@@ -38,8 +38,10 @@ using Object = UnityEngine.Object;
 // it all. New faces take their texture mapping from the faces they continue.
 //
 // Menus (Fixit Fidget > Night): Doors 1 (survey, read-only), Doors 2 (build),
+// Doors 4 (mark where people wait for their turn at each door walk-ins use),
 // Doors - Put the old doors back. The checks are in StreetDoorCheck (Doors 3,
-// and Checks > Street doors (Play Mode, lab session)).
+// and Checks > Street doors (Play Mode, lab session)) and StreetDoorRushCheck
+// (Checks > Street doors - rush hour at ...).
 // ---------------------------------------------------------------------------
 public static class StreetDoorSteps
 {
@@ -175,6 +177,7 @@ public static class StreetDoorSteps
 
     [MenuItem(Menu + "Doors 1 - Survey the front doors (read-only)", true)]
     [MenuItem(Menu + "Doors 2 - Give the houses real front doors", true)]
+    [MenuItem(Menu + "Doors 4 - Mark where people wait for their turn at the door", true)]
     [MenuItem(Menu + "Doors - Put the old doors back", true)]
     static bool NotPlaying() => !EditorApplication.isPlayingOrWillChangePlaymode;
 
@@ -930,6 +933,266 @@ public static class StreetDoorSteps
         if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", .06f);
         AssetDatabase.CreateAsset(material, HallMaterialPath);
         return material;
+    }
+
+    // ================================================================== waiting spots (Doors 4)
+    //
+    // A doorway fits one person, so people take turns at a front door (StreetDoor, 27
+    // Sept). Someone on their way in whose turn it isn't yet needs somewhere to stand:
+    // on the pavement near where the door's single-file stretch starts, out of the way of
+    // whoever is coming out, and clear of everything standing there (railings, bike racks,
+    // benches, bins, lamps, trees), of the road and of the crossings, with a clear straight
+    // walk from there to the stretch and from the way in to there. Measured with the car
+    // park's own survey of standing things (a person 0.28 m round, 5 cm to spare). Up to
+    // four spots per door, best first: markers "Wait here 1..4" under the door, which
+    // StreetDoor hands out (the first free one) and NpcJourney walks people to. Only doors
+    // a walking route starts at get spots; the others have none (and need none).
+
+    public const string WaitName = "Wait here ";
+    const int MostSpots = 4;
+    const float SpotClear = .05f;       // beyond a person's own radius
+    const float OutOfTheWay = .7f;      // from the stretch and from the way on from it
+    const float SpotApart = .75f;
+
+    [MenuItem(Menu + "Doors 4 - Mark where people wait for their turn at the door")]
+    static void WaitSpotsMenu()
+    {
+        var report = new StringBuilder();
+        try
+        {
+            RequireScene();
+            CafeArrivals arrivals = Object.FindAnyObjectByType<CafeArrivals>(FindObjectsInactive.Include)
+                                    ?? throw new InvalidOperationException("No CafeArrivals in the scene (Cafe parking lot > 1 - Build).");
+            List<CafeParkingLot.Obstacle> obstacles = CafeParkingLot.Obstacles(arrivals.transform);
+            var lanes = CafeParkingLot.LaneSegments();
+            string folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night",
+                "door-waiting-spots-" + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture)));
+            Directory.CreateDirectory(folder);
+            int doors = 0, spots = 0, short_ = 0;
+            foreach (string name in Buildings)
+            {
+                Transform building = FindOptional(name);
+                StreetDoor door = building != null && building.Find(DoorName) != null ? building.Find(DoorName).GetComponent<StreetDoor>() : null;
+                if (door == null) continue;
+                CafeArrivals.Route route = RouteFrom(door, arrivals);
+                if (route == null)
+                {
+                    SetSpots(door, Array.Empty<Vector3>());
+                    report.AppendLine($"-     {name}: no walking route starts at this door; no waiting spots needed.");
+                    continue;
+                }
+                Vector3[] found = FindSpots(door, route, arrivals, obstacles, lanes, out string how);
+                SetSpots(door, found);
+                doors++;
+                spots += found.Length;
+                if (found.Length < 2) short_++;
+                report.AppendLine($"{(found.Length >= 2 ? "ok    " : "FEW   ")}{name} (\"{route.name}\"): {found.Length} spot(s) " +
+                                  string.Join(", ", found.Select(f => $"({f.x:0.00}, {f.z:0.00})")) + ". " + how);
+                PhotoSpots(Path.Combine(folder, name + ".png"), door, route, found);
+            }
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            string head = $"Doors 4: {spots} waiting spot(s) at {doors} door(s) walk-ins use. Save the scene (Ctrl+S). Photos: {folder}";
+            File.WriteAllText(Path.Combine(folder, "report.txt"), head + "\n\n" + report);
+            if (short_ > 0) Debug.LogWarning(Tag + head + $"\n{short_} door(s) got fewer than two spots:\n" + report);
+            else Debug.Log(Tag + head + "\n" + report);
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Doors 4 FAILED (nothing after the failure was changed): " + e.Message + "\n" + report + "\n" + e); }
+    }
+
+    /// <summary>The walking route that starts at this door's doorway, or null.</summary>
+    public static CafeArrivals.Route RouteFrom(StreetDoor door, CafeArrivals arrivals) =>
+        door == null || arrivals == null ? null
+        : arrivals.EditorFootRoutes.FirstOrDefault(r => r != null && r.points.Length > 1 && Flat2(r.points[0] - door.DoorwayPoint).magnitude < .7f);
+
+    /// <summary>
+    /// Free spots to wait at near where the door's single-file stretch starts, best first.
+    /// Public for Doors 3, which checks the marked ones with the same tests.
+    /// </summary>
+    internal static Vector3[] FindSpots(StreetDoor door, CafeArrivals.Route route, CafeArrivals arrivals,
+                                      List<CafeParkingLot.Obstacle> obstacles, List<(Vector3 a, Vector3 b)> lanes, out string how)
+    {
+        int end = CafeArrivals.SingleFileEnd(route);
+        Vector3 start = route.points[end];
+        var stretch = Stretch(door, route, end);
+        var wayOn = WayOn(route, end, 3.5f);
+        int tried = 0, free = 0;
+        var candidates = new List<(Vector3 p, float score)>();
+        for (float dx = -3f; dx <= 3.001f; dx += .25f)
+            for (float dz = -3f; dz <= 3.001f; dz += .25f)
+            {
+                var p = new Vector3(start.x + dx, start.y, start.z + dz);
+                float fromStart = Flat2(p - start).magnitude;
+                if (fromStart < .6f || fromStart > 3f) continue;
+                tried++;
+                if (!SpotProblem(p, door, route, arrivals, obstacles, lanes, stretch, wayOn, out _)) free++;
+                else continue;
+                float offTheWay = PathDistance(wayOn, p);
+                candidates.Add((p, fromStart + .5f * Mathf.Max(0f, 1.3f - offTheWay)));
+            }
+        var chosen = new List<Vector3>();
+        foreach (var c in candidates.OrderBy(c => c.score))
+        {
+            if (chosen.Any(o => Flat2(o - c.p).magnitude < SpotApart)) continue;
+            chosen.Add(c.p);
+            if (chosen.Count >= MostSpots) break;
+        }
+        how = $"The stretch starts at ({start.x:0.00}, {start.z:0.00}); {free} of {tried} places within 3 m are free and out of the way.";
+        return chosen.ToArray();
+    }
+
+    /// <summary>Why a person couldn't wait at <paramref name="p"/> (null: they can). For Doors 3 and 4.</summary>
+    internal static string SpotProblem(Vector3 p, StreetDoor door, CafeArrivals.Route route, CafeArrivals arrivals,
+                                     List<CafeParkingLot.Obstacle> obstacles, List<(Vector3 a, Vector3 b)> lanes)
+    {
+        int end = CafeArrivals.SingleFileEnd(route);
+        return SpotProblem(p, door, route, arrivals, obstacles, lanes, Stretch(door, route, end), WayOn(route, end, 3.5f), out string why) ? why : null;
+    }
+
+    static bool SpotProblem(Vector3 p, StreetDoor door, CafeArrivals.Route route, CafeArrivals arrivals,
+                            List<CafeParkingLot.Obstacle> obstacles, List<(Vector3 a, Vector3 b)> lanes,
+                            List<Vector3> stretch, List<Vector3> wayOn, out string why)
+    {
+        Vector3 start = stretch[stretch.Count - 1];
+        why = null;
+        if (door.Outside(p) < .9f) why = "up against the house";
+        else if (PathDistance(stretch, p) < OutOfTheWay) why = "on the door's single-file stretch";
+        else if (PathDistance(wayOn, p) < OutOfTheWay) why = "in the way of people coming out";
+        else if (Blocked(p, p, obstacles, out string thing)) why = "something stands there: " + thing;
+        else if (Blocked(p, start, obstacles, out thing)) why = "no clear walk from there to the stretch: " + thing;
+        else if (Blocked(NearestOn(wayOn, p), p, obstacles, out thing)) why = "no clear walk to there from the way in: " + thing;
+        else if (lanes.Any(l => CafeParkingLot.SegmentSegmentDistance(p, p, l.a, l.b) - CafeParkingLot.LaneHalfWidth - CafeParkingLot.WalkerRadius < SpotClear)) why = "on or by the road";
+        else if (arrivals.EditorCrossings.Any(c => OnCrossing(p, c))) why = "on a crossing";
+        return why != null;
+    }
+
+    // The single-file stretch: the dark hall, the doorway and the route out to where it widens.
+    static List<Vector3> Stretch(StreetDoor door, CafeArrivals.Route route, int end)
+    {
+        var list = new List<Vector3> { door.HallPoint };
+        for (int i = 0; i <= end; i++) list.Add(route.points[i]);
+        return list;
+    }
+
+    // The first metres of the way on from the stretch (where people coming out walk), up to a crossing.
+    static List<Vector3> WayOn(CafeArrivals.Route route, int end, float metres)
+    {
+        var list = new List<Vector3> { route.points[end] };
+        for (int i = end + 1; i < route.points.Length && metres > 0f; i++)
+        {
+            if (i - 1 < route.crossingAtSegment.Length && route.crossingAtSegment[i - 1] >= 0) break;
+            Vector3 a = route.points[i - 1], b = route.points[i];
+            float length = Flat2(b - a).magnitude;
+            list.Add(length <= metres ? b : a + (b - a) * (metres / Mathf.Max(length, 1e-4f)));
+            metres -= length;
+        }
+        return list;
+    }
+
+    static bool Blocked(Vector3 a, Vector3 b, List<CafeParkingLot.Obstacle> obstacles, out string what)
+    {
+        foreach (CafeParkingLot.Obstacle o in obstacles)
+        {
+            if (o.top < Mathf.Min(a.y, b.y) + CafeParkingLot.StepHeight) continue;   // a kerb, a step: walked over
+            if (CafeParkingLot.SegmentRectDistance(a, b, o.footprint) - CafeParkingLot.WalkerRadius < SpotClear) { what = o.name; return true; }
+        }
+        what = null;
+        return false;
+    }
+
+    static bool OnCrossing(Vector3 p, CafeArrivals.Crossing c)
+    {
+        Quaternion turn = Quaternion.Euler(0f, c.yaw, 0f);
+        Vector3 local = Quaternion.Inverse(turn) * (p - c.center);
+        return Mathf.Abs(local.x) < c.halfSize.x + .3f && Mathf.Abs(local.z) < c.halfSize.y + .3f;
+    }
+
+    static float PathDistance(List<Vector3> path, Vector3 p)
+    {
+        if (path.Count == 1) return Flat2(p - path[0]).magnitude;
+        float best = float.PositiveInfinity;
+        for (int i = 1; i < path.Count; i++) best = Mathf.Min(best, Flat2(p - Nearest(path[i - 1], path[i], p)).magnitude);
+        return best;
+    }
+
+    static Vector3 NearestOn(List<Vector3> path, Vector3 p)
+    {
+        if (path.Count == 1) return path[0];
+        Vector3 best = path[0];
+        float bestDistance = float.PositiveInfinity;
+        for (int i = 1; i < path.Count; i++)
+        {
+            Vector3 q = Nearest(path[i - 1], path[i], p);
+            float d = Flat2(p - q).magnitude;
+            if (d < bestDistance) { bestDistance = d; best = q; }
+        }
+        return best;
+    }
+
+    static Vector3 Nearest(Vector3 a, Vector3 b, Vector3 p)
+    {
+        Vector3 e = Flat2(b - a);
+        float t = e.sqrMagnitude > 1e-8f ? Mathf.Clamp01(Vector3.Dot(Flat2(p - a), e) / e.sqrMagnitude) : 0f;
+        return a + (b - a) * t;
+    }
+
+    static Vector3 Flat2(Vector3 v) => new(v.x, 0f, v.z);
+
+    // Replaces the door's "Wait here" markers with these (undoable).
+    static void SetSpots(StreetDoor door, Vector3[] spots)
+    {
+        var old = new List<GameObject>();
+        foreach (Transform child in door.transform) if (child.name.StartsWith(WaitName, StringComparison.Ordinal)) old.Add(child.gameObject);
+        foreach (GameObject g in old) Undo.DestroyObjectImmediate(g);
+        var marks = new Transform[spots.Length];
+        for (int i = 0; i < spots.Length; i++)
+        {
+            var g = new GameObject(WaitName + (i + 1)) { layer = door.gameObject.layer };
+            Undo.RegisterCreatedObjectUndo(g, "Mark where people wait");
+            g.transform.SetParent(door.transform, false);
+            g.transform.position = spots[i];
+            Vector3 face = Flat2(door.DoorwayPoint - spots[i]);
+            if (face.sqrMagnitude > 1e-6f) g.transform.rotation = Quaternion.LookRotation(face.normalized, Vector3.up);
+            marks[i] = g.transform;
+        }
+        Undo.RecordObject(door, "Mark where people wait");
+        door.waitSpots = marks;
+        EditorUtility.SetDirty(door);
+    }
+
+    // From above and in front: the door, its stretch (blue) and the waiting spots (orange discs).
+    static void PhotoSpots(string path, StreetDoor door, CafeArrivals.Route route, Vector3[] spots)
+    {
+        var temporary = new List<Object>();
+        try
+        {
+            Material Mat(Color c)
+            {
+                var m = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color")) { hideFlags = HideFlags.HideAndDontSave };
+                if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+                if (m.HasProperty("_Color")) m.SetColor("_Color", c);
+                temporary.Add(m);
+                return m;
+            }
+            GameObject Disc(Vector3 at, float size, Material m)
+            {
+                GameObject g = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                g.hideFlags = HideFlags.HideAndDontSave;
+                Object.DestroyImmediate(g.GetComponent<Collider>());
+                g.transform.position = at + Vector3.up * .03f;
+                g.transform.localScale = new Vector3(size, .01f, size);
+                g.GetComponent<Renderer>().sharedMaterial = m;
+                temporary.Add(g);
+                return g;
+            }
+            Material orange = Mat(new Color(1f, .55f, .1f)), blue = Mat(new Color(.2f, .6f, 1f));
+            foreach (Vector3 s in spots) Disc(s, .56f, orange);
+            var stretch = Stretch(door, route, CafeArrivals.SingleFileEnd(route));
+            foreach (Vector3 p in stretch) Disc(p, .18f, blue);
+            Vector3 centre = stretch[stretch.Count - 1];
+            Vector3 o = door.Outward;
+            CafeSecondPassSteps.Capture(path, centre + o * 3.5f + Vector3.up * 7.5f, centre + o * .6f, 55f, false);
+        }
+        finally { foreach (Object g in temporary) if (g != null) Object.DestroyImmediate(g); }
     }
 
     // ================================================================== scene helpers

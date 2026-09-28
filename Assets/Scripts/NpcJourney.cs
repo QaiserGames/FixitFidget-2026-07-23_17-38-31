@@ -23,6 +23,10 @@ using UnityEngine.AI;
 ///  * at a crossing people gather at the kerb in a loose group, each on their own spot
 ///    along it, and wait for the crossing to say go (the walk signal at junctions, a
 ///    safe gap at the café's zebra); then they cross side by side;
+///  * at a front door (StreetDoor) people take turns through its single-file stretch:
+///    someone coming out waits inside the house, unseen, until it is their turn;
+///    someone going in waits on one of the door's waiting spots, then walks from
+///    there to the stoop when it is theirs;
 ///  * the walking animation plays while moving and idles while waiting.
 /// Street walkers and cars see these walkers too (StreetLife bodies), and café NPCs'
 /// navigation steers round them (a non-carving NavMeshObstacle while they walk).
@@ -45,6 +49,16 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     private const float CrossingSpread = 1.8f;   // over the road people spread across the crossing
     private const float HelpAfter = 14f;         // seconds with no progress before a walk is helped on
     private const float SqueezeAfter = 5f;       // ... before squeezing past people who won't move
+
+    // A front door's single-file stretch on this walk (StreetDoor, taking turns): segments
+    // doorFirst..doorLast, walked only when the door says it is their turn. Cleared by Begin.
+    private StreetDoor turnDoor;
+    private StreetDoor.Way turnWay;
+    private int doorFirst = -1, doorLast = -1;
+    private bool turnAsked, turnGiven, turnDone, unseen, offPath;
+    private Vector3 offFrom;
+    private const float AskAhead = 4.5f;      // metres before the stretch someone going in asks for their turn
+    private const float ClearBeyond = .8f;    // coming out: through once this far past the stretch's outer end
 
     // Segments that may not be started until something says go: a front door that
     // must be open before someone walks through it (StreetDoor). Index = segment
@@ -100,6 +114,12 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     public bool Waiting => waiting;
     /// <summary>What they are waiting for while <see cref="Waiting"/> (for checks).</summary>
     public string WaitingFor => waiting ? waitingFor : "";
+    /// <summary>Waiting inside a house, unseen and in nobody's way, for their turn to come out of its front door.</summary>
+    public bool Unseen => unseen;
+    /// <summary>How they stand with the front door on this walk, for traces: "" (none, or through), "on the way",
+    /// "waiting inside", "waiting outside", or "their turn".</summary>
+    public string DoorTurn => turnDoor == null || turnDone ? "" : turnGiven ? "their turn" : !turnAsked ? "on the way"
+                            : unseen ? "waiting inside" : "waiting outside";
 
     public Vector3 Position => transform.position;
     public Vector3 Velocity => velocity;
@@ -142,6 +162,7 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
                       float walkSpeed, bool arriving, CafeArrivals.Kind kind, Action done)
     {
         ReleaseCrossings();
+        ForgetDoor();
         points = path ?? Array.Empty<Vector3>();
         int segments = Mathf.Max(0, points.Length - 1);
         crossings = segmentCrossings != null && segmentCrossings.Length >= segments ? segmentCrossings : new StreetCrossing[segments];
@@ -201,6 +222,61 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     }
 
     /// <summary>
+    /// Segments <paramref name="first"/>..<paramref name="last"/> of this walk are
+    /// <paramref name="door"/>'s single-file stretch (its hall, doorway, stoop, and any path
+    /// after them too narrow for two people to pass). They are walked only when the door
+    /// says it is this walker's turn. Coming out (<see cref="StreetDoor.Way.Out"/>), the
+    /// stretch starts the walk: until their turn they wait inside, unseen. Going in, they
+    /// ask a few metres before it and, if it is not their turn yet, wait on one of the
+    /// door's waiting spots. Set after Begin, which forgets it.
+    /// </summary>
+    public void DoorPassage(StreetDoor door, StreetDoor.Way way, int first, int last)
+    {
+        int segments = Mathf.Max(0, points.Length - 1);
+        if (door == null || first < 0 || last < first || last >= segments) return;
+        ForgetDoor();
+        turnDoor = door;
+        turnWay = way;
+        doorFirst = first;
+        doorLast = last;
+        // Coming out of a door someone else is already using or waiting for: they wait inside
+        // from the start, rather than appearing in the hall first.
+        if (way == StreetDoor.Way.Out && first == 0)
+        {
+            turnAsked = true;
+            door.Ask(this, way);
+            if (door.OthersUsing(this))
+            {
+                SetUnseen(true);
+                transform.position = door.InsidePoint;
+            }
+        }
+    }
+
+    /// <summary>Gives up this walk's turn at its front door (or its place in line), if any.</summary>
+    public void ForgetDoor()
+    {
+        if (turnDoor != null) turnDoor.Leave(this);
+        turnDoor = null;
+        doorFirst = doorLast = -1;
+        turnAsked = turnGiven = turnDone = offPath = false;
+        SetUnseen(false);
+    }
+
+    /// <summary>The front door this walk goes through, while it still needs it (else null).</summary>
+    public StreetDoor TurnDoor => turnDone ? null : turnDoor;
+    /// <summary>It is this walker's turn at <see cref="TurnDoor"/>: they are on the way through it.</summary>
+    public bool HasTurn => turnDoor != null && !turnDone && turnGiven;
+
+    /// <summary>The first point of this walk within <paramref name="within"/> metres (flat) of <paramref name="point"/>, or -1.</summary>
+    public int FindPoint(Vector3 point, float within)
+    {
+        for (int i = 0; i < points.Length; i++)
+            if (Flat(points[i] - point).sqrMagnitude <= within * within) return i;
+        return -1;
+    }
+
+    /// <summary>
     /// Turns round where it stands and walks back the way it came (the café closed
     /// before they got there). Someone half way over a crossing goes back to the kerb
     /// they came from, still covered by the crossing.
@@ -234,7 +310,34 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     private void OnEnable()
     {
         if (!active.Contains(this)) active.Add(this);
-        StreetLife.RegisterBody(this);
+        if (!unseen) StreetLife.RegisterBody(this);
+    }
+
+    private void OnDestroy()
+    {
+        if (turnDoor != null) turnDoor.Leave(this);
+    }
+
+    // Inside the house waiting for their turn: not on the street at all - nobody steers
+    // round them, the café's navigation doesn't see them, and they stand behind the
+    // hall's back wall. Back on the hall floor when it is their turn.
+    private void SetUnseen(bool on)
+    {
+        if (unseen == on) return;
+        unseen = on;
+        if (on)
+        {
+            StreetLife.UnregisterBody(this);
+            ShowToNavigation(false);
+            velocity = Vector3.zero;
+            if (animator != null && hasWalkingParameter) animator.SetBool(IsWalkingHash, false);
+            walkingShown = false;
+        }
+        else if (isActiveAndEnabled)
+        {
+            StreetLife.RegisterBody(this);
+            ShowToNavigation(true);
+        }
     }
 
     private void OnDisable()
@@ -316,6 +419,9 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         Band(seg, out float allowLeft, out float allowRight);
         float wantedLateral = Mathf.Clamp(preference, -allowLeft, allowRight);
 
+        // ---- a front door's single-file stretch: only on their turn ----
+        if (turnDoor != null && !turnDone && TakeTurn(here, seg, dir, dt)) return;
+
         // ---- a gate on this segment (a front door): stand where they are until it opens ----
         if (seg < gates.Length && gates[seg] != null)
         {
@@ -392,7 +498,11 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
             waiting = true;
             waitingFor = "someone coming out of a narrow bit";
             lastProgressAt = Time.time;
-            Vector3 aside = to - dir * 0.9f + right * Mathf.Clamp(0.4f, -allowLeft, allowRight);
+            // Each on their own spot: whoever stood aside first is nearest, the rest a step
+            // further back each (everyone on one spot made a clump, 27 Sept).
+            float back = 0.9f + 0.7f * GivingWayPlace(to);
+            Vector3 aside = to - dir * Mathf.Min(back, Mathf.Max(0.9f, Flat(to - from).magnitude))
+                          + right * Mathf.Clamp(0.4f, -allowLeft, allowRight);
             Steer(here, aside, true, from, to, from, right, allowLeft, allowRight, dt, dir);
             return;
         }
@@ -408,7 +518,9 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     {
         int narrow = next;
         bool wait = false;
-        if (narrow < points.Length - 1 && Flat(to - here).sqrMagnitude < 1.4f * 1.4f)
+        // A front door's stretch is the door's business: people there take turns (TakeTurn).
+        bool doorsOwn = turnDoor != null && !turnDone && narrow >= doorFirst && narrow <= doorLast;
+        if (!doorsOwn && narrow < points.Length - 1 && Flat(to - here).sqrMagnitude < 1.4f * 1.4f)
         {
             Band(narrow, out float left, out float right);
             if (left + right < 0.3f)
@@ -422,7 +534,7 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
                     Vector3 side = new Vector3(d.z, 0f, -d.x);
                     foreach (NpcJourney other in active)
                     {
-                        if (other == null || other == this || !other.isActiveAndEnabled) continue;
+                        if (other == null || other == this || !other.isActiveAndEnabled || other.unseen) continue;
                         Vector3 p = Flat(other.transform.position - a);
                         float along = Vector3.Dot(p, d);
                         if (along < -0.3f || along > length + 0.3f || Mathf.Abs(Vector3.Dot(p, side)) > 0.5f) continue;
@@ -436,10 +548,174 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         return Time.time - givingWaySince < 8f;
     }
 
+    // How many others stood aside before this walker for the same narrow bit.
+    private int GivingWayPlace(Vector3 to)
+    {
+        int place = 0;
+        foreach (NpcJourney other in active)
+        {
+            if (other == null || other == this || !other.isActiveAndEnabled || other.givingWaySince < 0f) continue;
+            if (other.next >= other.points.Length || Flat(other.points[other.next] - to).sqrMagnitude > 0.3f * 0.3f) continue;
+            if (other.givingWaySince < givingWaySince || (other.givingWaySince == givingWaySince && active.IndexOf(other) < active.IndexOf(this))) place++;
+        }
+        return place;
+    }
+
+    // ------------------------------------------------------------------ front doors: taking turns
+
+    private const float SpotReach = 2.4f;     // going in: head for their waiting spot once it is this close
+    private const float OffPathRoom = 0.35f;  // sideways room on the way to and from a waiting spot
+
+    // A front door's stretch (StreetDoor, taking turns). True when this frame went on waiting
+    // for their turn, or on walking between a waiting spot and the start of the stretch.
+    private bool TakeTurn(Vector3 here, int seg, Vector3 dir, float dt)
+    {
+        if (turnGiven)
+        {
+            // Coming out: through once a little past the stretch's outer end.
+            if (turnWay == StreetDoor.Way.Out && seg > doorLast && Flat(here - points[doorLast + 1]).magnitude > ClearBeyond)
+            {
+                turnDoor.Leave(this);
+                turnDone = true;
+                return false;
+            }
+            turnDoor.Ask(this, turnWay);              // on the way through: keep the turn
+            return offPath && Rejoin(here, dt);
+        }
+        bool there = seg >= doorFirst;
+        if (!turnAsked)
+        {
+            if (!there && DistanceAlongTo(doorFirst, here) > AskAhead) return false;
+            turnAsked = true;
+        }
+        turnDoor.Ask(this, turnWay);
+        if (turnDoor.MayGo(this))
+        {
+            if (unseen)
+            {
+                // Out onto the hall floor - once nobody is standing on it - and on from there
+                // next frame (this frame's position is the one inside).
+                if (!FreeOfBodies(points[0], BodyRadius * 2f + Personal))
+                {
+                    waiting = true;
+                    waitingFor = "their turn at the front door (inside)";
+                    lastProgressAt = Time.time;
+                    return true;
+                }
+                transform.position = points[0];
+                if (points.Length > 1) Face(points[1] - points[0], 1f);
+                velocity = Vector3.zero;
+                SetUnseen(false);
+                turnGiven = true;
+                lastProgressAt = Time.time;
+                return true;
+            }
+            turnGiven = true;
+            if (offPath) offFrom = here;               // from the waiting spot back to the stretch
+            return offPath && Rejoin(here, dt);
+        }
+
+        waiting = true;
+        lastProgressAt = Time.time;                    // waiting for a turn is not being stuck
+        if (turnWay == StreetDoor.Way.Out)
+        {
+            waitingFor = "their turn at the front door (inside)";
+            if (!unseen)
+            {
+                SetUnseen(true);
+                transform.position = turnDoor.InsidePoint;
+            }
+            return true;
+        }
+
+        waitingFor = "their turn at the front door";
+        Vector3 start = points[doorFirst];
+        int spotIndex = turnDoor.WaitSpotFor(this);
+        Vector3 spot = spotIndex >= 0 ? turnDoor.WaitSpotPoint(spotIndex)
+                     : LineSpot(Mathf.Max(0, turnDoor.PlaceInLine(this) - turnDoor.MarkedSpots));   // every marked spot taken: in line on the pavement
+        spot.y = start.y;
+        // Not there yet: carry on along the path until the spot is near.
+        if (!offPath && !there && Flat(spot - here).magnitude > SpotReach
+            && DistanceAlongTo(doorFirst, here) > Flat(spot - start).magnitude + .5f)
+        {
+            waiting = false;
+            return false;
+        }
+        if (!offPath) { offPath = true; offFrom = here; }
+        Vector3 line = Flat(spot - offFrom);
+        Vector3 lineDir = line.sqrMagnitude > 1e-4f ? line.normalized : dir;
+        Vector3 lineRight = new Vector3(lineDir.z, 0f, -lineDir.x);
+        Vector3 face = Flat(start - here);
+        Steer(here, spot, true, offFrom, spot, offFrom, lineRight, OffPathRoom, OffPathRoom, dt,
+              face.sqrMagnitude > 1e-4f ? face : dir, false);
+        return true;
+    }
+
+    // From a waiting spot straight back to where the door's stretch starts (Doors 4 checked
+    // that way is clear), then on along the path as usual.
+    private bool Rejoin(Vector3 here, float dt)
+    {
+        Vector3 start = points[doorFirst];
+        Vector3 toStart = Flat(start - here);
+        if (toStart.magnitude < .2f)
+        {
+            offPath = false;
+            if (next < doorFirst + 1) next = doorFirst + 1;
+            bestRemaining = float.PositiveInfinity;
+            lastProgressAt = Time.time;
+            return false;
+        }
+        Vector3 line = Flat(start - offFrom);
+        Vector3 lineDir = line.sqrMagnitude > 1e-4f ? line.normalized : toStart.normalized;
+        Vector3 lineRight = new Vector3(lineDir.z, 0f, -lineDir.x);
+        lastProgressAt = Time.time;
+        Steer(here, start, false, offFrom, start, offFrom, lineRight, OffPathRoom, OffPathRoom, dt, toStart, false);
+        return true;
+    }
+
+    // No waiting spot free (or none marked at this door): wait in line beside the path itself,
+    // back from the stretch, each a good step behind the one before - on their own right where
+    // there is room, since people coming the other way keep to theirs.
+    private Vector3 LineSpot(int place)
+    {
+        float back = 1.6f + .95f * Mathf.Max(0, place);
+        int i = doorFirst;
+        Vector3 at = points[i];
+        int along = Mathf.Max(0, i - 1);
+        while (i > 0 && back > 0f)
+        {
+            int s = i - 1;
+            if (s < crossings.Length && crossings[s] != null) break;   // never out on a crossing
+            Vector3 a = points[s], b = points[i];
+            float length = Flat(b - a).magnitude;
+            along = s;
+            if (length >= back) { at = b + (a - b) * (back / Mathf.Max(length, 1e-4f)); break; }
+            back -= length;
+            at = a;
+            i--;
+        }
+        Band(along, out float l, out float r);
+        Vector3 d = Flat(points[Mathf.Min(along + 1, points.Length - 1)] - points[along]);
+        d = d.sqrMagnitude > 1e-6f ? d.normalized : FlatForward();
+        Vector3 side = new Vector3(d.z, 0f, -d.x);
+        float lateral = r >= .25f || r >= l ? Mathf.Min(.6f, r - .05f) : -Mathf.Min(.6f, l - .05f);
+        return at + side * lateral;
+    }
+
+    // Metres along the path from here to points[index] (straight, if already past it).
+    private float DistanceAlongTo(int index, Vector3 here)
+    {
+        index = Mathf.Clamp(index, 0, points.Length - 1);
+        if (index < next) return Flat(points[index] - here).magnitude;
+        float sum = Flat(points[next] - here).magnitude;
+        for (int k = next; k < index; k++) sum += Flat(points[k + 1] - points[k]).magnitude;
+        return sum;
+    }
+
     // Picks this frame's velocity, moves, animates and advances along the path.
     private void Steer(Vector3 here, Vector3 goal, bool arrive, Vector3 from, Vector3 to,
                        Vector3 lineFrom, Vector3 lineRight, float allowLeft, float allowRight,
-                       float dt, Vector3 restFacing)
+                       float dt, Vector3 restFacing, bool advance = true)
     {
         Vector3 toGoal = Flat(goal - here);
         float distance = toGoal.magnitude;
@@ -463,7 +739,7 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         else if (waiting) Face(restFacing, dt);
         SetWalking(moved / dt > 0.2f, dt);
 
-        if (!waiting) Advance(from, to, goal);
+        if (!waiting && advance) Advance(from, to, goal);
     }
 
     // ---- progress along the path ----
@@ -575,7 +851,7 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         bodiesFrame = Time.frameCount;
         bodies.Clear();
         foreach (NpcJourney j in active)
-            if (j != null && j.isActiveAndEnabled)
+            if (j != null && j.isActiveAndEnabled && !j.unseen)   // unseen: inside a house, waiting for their turn
                 bodies.Add(new Body { position = j.transform.position, velocity = j.velocity, radius = BodyRadius, owner = j });
 
         StreetLife life = StreetLife.Main;

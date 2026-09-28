@@ -1060,7 +1060,8 @@ public static class CafeParkingLot
         return report + "Not saved yet: Ctrl+S keeps it.";
     }
 
-    const float WalkerRadius = .28f, WalkerMargin = .03f, RoomStep = .05f, RoomMax = 1f, LaneHalfWidth = 1.4f, StepHeight = .18f;
+    // internal: the front doors' waiting spots are measured the same way (StreetDoorSteps, Doors 4).
+    internal const float WalkerRadius = .28f, WalkerMargin = .03f, RoomStep = .05f, RoomMax = 1f, LaneHalfWidth = 1.4f, StepHeight = .18f;
 
     static string MeasureWalkingRoom(CafeArrivals arrivals, Transform group)
     {
@@ -1181,7 +1182,7 @@ public static class CafeParkingLot
     }
 
     // Every traffic lane's centre line, piece by piece (from the street's waypoints).
-    static List<(Vector3 a, Vector3 b)> LaneSegments()
+    internal static List<(Vector3 a, Vector3 b)> LaneSegments()
     {
         var result = new List<(Vector3, Vector3)>();
         var life = Object.FindAnyObjectByType<StreetLife>();
@@ -1197,7 +1198,7 @@ public static class CafeParkingLot
         return result;
     }
 
-    static float SegmentSegmentDistance(Vector3 a3, Vector3 b3, Vector3 c3, Vector3 d3)
+    internal static float SegmentSegmentDistance(Vector3 a3, Vector3 b3, Vector3 c3, Vector3 d3)
     {
         Vector2 a = new Vector2(a3.x, a3.z), b = new Vector2(b3.x, b3.z), c = new Vector2(c3.x, c3.z), d = new Vector2(d3.x, d3.z);
         if (SegmentsIntersect(a, b, c, d)) return 0f;
@@ -1220,12 +1221,12 @@ public static class CafeParkingLot
 
     static string Fmt(float v) => float.IsInfinity(v) ? "none" : v.ToString("0.00", CultureInfo.InvariantCulture) + " m";
 
-    struct Obstacle { public string name; public Vector2[] footprint; public float top; }
+    internal struct Obstacle { public string name; public Vector2[] footprint; public float top; }
 
     // Everything standing (taller than a kerb) in the area of the car park and the walks,
     // except ground, roads, paint, people and the cars themselves. The footprint is that
     // of the object's vertices below 1.9 m, so a tree is its trunk and a lamp its post.
-    static List<Obstacle> Obstacles(Transform group)
+    internal static List<Obstacle> Obstacles(Transform group)
     {
         var list = new List<Obstacle>();
         var area = new Bounds(new Vector3(0f, 1f, -9f), new Vector3(42f, 4f, 30f));
@@ -1402,7 +1403,7 @@ public static class CafeParkingLot
         return best;
     }
 
-    static float PointRectGap(Vector3 p, Vector2[] rect)
+    internal static float PointRectGap(Vector3 p, Vector2[] rect)
     {
         var q = new Vector2(p.x, p.z);
         if (InsidePoly(q, rect)) return 0f;
@@ -1411,7 +1412,7 @@ public static class CafeParkingLot
         return best;
     }
 
-    static float SegmentRectDistance(Vector3 a3, Vector3 b3, Vector2[] rect)
+    internal static float SegmentRectDistance(Vector3 a3, Vector3 b3, Vector2[] rect)
     {
         Vector2 a = new Vector2(a3.x, a3.z), b = new Vector2(b3.x, b3.z);
         if (SegmentCrosses(a, b, rect)) return 0f;

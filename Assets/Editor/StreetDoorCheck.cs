@@ -24,7 +24,13 @@ using Object = UnityEngine.Object;
 // from the courtyard shop each come out of their door and, at the café's door,
 // turn straight back and go in again. For every door: it is open before anyone
 // passes through it, it closes behind them once they are clear, and on the way
-// in they stay in the hall until it has shut. Photos in Logs/Night/doors-<time>/.
+// in they stay in the hall until it has shut - or, when someone else is waiting
+// to use the door, go straight on in (taking turns, 27 Sept). Photos in
+// Logs/Night/doors-<time>/.
+//
+// Doors 3 also checks the waiting spots Doors 4 marked at each door walk-ins
+// use: at least two, each free of everything and out of the way. The rush-hour
+// checks (a crowd at one door) are in StreetDoorRushCheck.
 // ---------------------------------------------------------------------------
 public static class StreetDoorCheck
 {
@@ -45,6 +51,9 @@ public static class StreetDoorCheck
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Stop Play Mode first.");
             var doors = new List<StreetDoor>();
+            CafeArrivals routesOwner = Object.FindAnyObjectByType<CafeArrivals>(FindObjectsInactive.Include);
+            List<CafeParkingLot.Obstacle> standing = routesOwner != null ? CafeParkingLot.Obstacles(routesOwner.transform) : null;
+            var lanes = CafeParkingLot.LaneSegments();
             foreach (string name in StreetDoorSteps.Buildings)
             {
                 Transform building = StreetDoorSteps.FindOptional(name);
@@ -93,6 +102,19 @@ public static class StreetDoorCheck
 
                 float hallIn = Vector3.Dot(door.hall.position - door.doorway.position, door.transform.forward);
                 Line(hallIn < -1f, $"{name}: people wait {-hallIn:0.00} m inside the doorway");
+
+                // Where people on their way in wait for their turn (Doors 4), if walk-ins use this door.
+                CafeArrivals.Route used = StreetDoorSteps.RouteFrom(door, routesOwner);
+                if (used != null && standing != null)
+                {
+                    Transform[] marks = (door.waitSpots ?? Array.Empty<Transform>()).Where(t => t != null).ToArray();
+                    Line(marks.Length >= 2, $"{name}: {marks.Length} waiting spot(s) for people on their way in (Doors 4 marks them)");
+                    foreach (Transform mark in marks)
+                    {
+                        string why = StreetDoorSteps.SpotProblem(mark.position, door, used, routesOwner, standing, lanes);
+                        Line(why == null, $"{name}: {mark.name} is free and out of the way{(why != null ? " — " + why : "")}");
+                    }
+                }
 
                 Vector3 d = door.DoorwayPoint, o = door.Outward;
                 CafeSecondPassSteps.Capture(Path.Combine(folder, Safe(name) + ".png"), d + o * 4.2f + Vector3.up * 1.7f, d + Vector3.up * 1.1f, 50f, false);
@@ -220,6 +242,7 @@ public static class StreetDoorCheck
         public float lastInside = -1f;
         public float closedWhenGone = -1f;
         public bool wasOutside;
+        public bool othersNow, othersWhenGone;   // someone else waiting for or using the door (taking turns)
     }
 
     [MenuItem(PlayMenu)]
@@ -285,11 +308,17 @@ public static class StreetDoorCheck
                 ? CafeArrivals.TryArrive(npc, CafeArrivals.Kind.Customer, () => CafeArrivals.TryDepart(npc))
                 : arrivals.EditorArriveOnFoot(npc, CafeArrivals.Kind.Customer, route, () => CafeArrivals.TryDepart(npc));
             w.came = arrivals.Today.LastOrDefault();
-            w.door = ok ? StreetDoor.Near(npc.transform.position, 2.5f) : null;
+            w.door = ok ? StreetDoor.Near(npc.transform.position, 3f) : null;
             Check(ok && w.door != null, $"{who} sets off from a front door ({w.door?.transform.parent.name ?? "none"})");
             if (w.door != null)
-                Check(Vector3.Distance(Flat(npc.transform.position), Flat(w.door.HallPoint)) < .3f && w.door.Outside(npc.transform.position) < -1f,
-                    $"…starting inside, in the dark hall ({-w.door.Outside(npc.transform.position):0.00} m in)");
+            {
+                // In the dark hall - or, when someone else is using the door, further in, waiting
+                // unseen for their turn (taking turns, 27 Sept).
+                NpcJourney walk = npc.GetComponent<NpcJourney>();
+                bool waitingInside = walk != null && walk.Unseen;
+                Check((waitingInside || Vector3.Distance(Flat(npc.transform.position), Flat(w.door.HallPoint)) < .3f) && w.door.Outside(npc.transform.position) < -1f,
+                    $"…starting inside, {(waitingInside ? "waiting unseen for their turn at the door" : "in the dark hall")} ({-w.door.Outside(npc.transform.position):0.00} m in)");
+            }
             watches.Add(w);
             return w;
         }
@@ -320,7 +349,9 @@ public static class StreetDoorCheck
             Check(w.worstPassAmount >= .85f, $"…and was open ({w.worstPassAmount:0%} at worst) whenever they were in the doorway");
             Check(w.closedAfterOut, "…and closed behind them once they were clear");
             Check(w.wentBackIn && w.goneAt > 0f, "…they came back and went in");
-            Check(w.closedWhenGone >= 0f && w.closedWhenGone < .01f, $"…and only left the game once it had shut behind them (door {Mathf.Max(0f, w.closedWhenGone):0%} open then)");
+            Check(w.closedWhenGone >= 0f && (w.closedWhenGone < .01f || w.othersWhenGone),
+                w.othersWhenGone ? $"…and went straight on in, as someone else was waiting for the door (door {Mathf.Max(0f, w.closedWhenGone):0%} open then)"
+                                 : $"…and only left the game once it had shut behind them (door {Mathf.Max(0f, w.closedWhenGone):0%} open then)");
         }
         // The lab's own visitors keep walking in and out of these doors meanwhile, so a door may
         // be open (or just closing) for one of them; what must never happen is a door left open
@@ -348,12 +379,15 @@ public static class StreetDoorCheck
             {
                 w.goneAt = Time.time;
                 w.wentBackIn = w.wasOutside;
-                w.closedWhenGone = door.OpenAmount;   // they may only leave the game once it has shut
+                w.closedWhenGone = door.OpenAmount;   // they may only leave the game once it has shut ...
+                w.othersWhenGone = w.othersNow;       // ... unless someone else was waiting for the door
             }
             return;
         }
         Vector3 at = w.npc.transform.position;
         float outside = door.Outside(at);
+        NpcJourney journey = w.npc.GetComponent<NpcJourney>();
+        w.othersNow = journey != null && door.OthersUsing(journey);
         if (door.OpenAmount > .5f) w.opened = true;
         // In the door's plane (where the closed leaf would be): the door must be open.
         if (outside > -.05f && outside < .25f && Vector3.Distance(Flat(at), Flat(door.DoorwayPoint)) < .8f)

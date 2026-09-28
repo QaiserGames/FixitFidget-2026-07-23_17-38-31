@@ -494,8 +494,10 @@ public sealed class CafeArrivals : MonoBehaviour
         journey.Begin(path.ToArray(), cross.ToArray(), left.ToArray(), right.ToArray(), RandomWalkSpeed(), true, kind, () => ReachedTheDoor(npc));
         if (visit.door != null)
         {
+            // Out through the door's single-file stretch on their turn (until then they wait
+            // inside, unseen); the door opens for them once it is (WatchDoors).
             StreetDoor frontDoor = visit.door;
-            frontDoor.Hold(npc, .5f);
+            journey.DoorPassage(frontDoor, StreetDoor.Way.Out, 0, SingleFileEnd(footRoutes[visit.footRoute]));
             journey.Gate(0, () => frontDoor == null || frontDoor.IsOpen, "their front door to open");
         }
         if (visit.car != null) ArrivedByCar++; else ArrivedOnFoot++;
@@ -606,9 +608,13 @@ public sealed class CafeArrivals : MonoBehaviour
             if (car != null && car.Owner == npc) car.Owner = null; // their car is gone: walk home
             visit.car = null;
             int home = HomeRouteFor(npc);
-            int route = home >= 0 ? home : visit.footRoute >= 0 ? visit.footRoute : PickFootRoute();
+            int route = home >= 0 ? home
+                      : forcedFootRoute >= 0 && forcedFootRoute < footRoutes.Length ? forcedFootRoute
+                      : visit.footRoute >= 0 ? visit.footRoute : PickFootRoute();
             if (route < 0) return false;
-            Append(footRoutes[route], true, path, cross, left, right);
+            if (forcedFromPoint > 0 && forcedFromPoint < footRoutes[route].points.Length)
+                AppendHomeFrom(footRoutes[route], forcedFromPoint, path, cross, left, right);   // play checks: part way home already
+            else Append(footRoutes[route], true, path, cross, left, right);
             // In at a front door: on through the doorway into the dark hall behind it.
             StreetDoor frontDoor = DoorAt(footRoutes[route]);
             if (frontDoor != null)
@@ -638,6 +644,7 @@ public sealed class CafeArrivals : MonoBehaviour
         if (visit.door != null && path.Count >= 3)
         {
             StreetDoor frontDoor = visit.door;
+            InThroughTheDoor(journey, frontDoor, footRoutes[visit.footRoute]);
             journey.Gate(path.Count - 3, () => frontDoor == null || frontDoor.IsOpen, "their front door to open");
         }
         return true;
@@ -709,6 +716,34 @@ public sealed class CafeArrivals : MonoBehaviour
         right[segment] = Mathf.Min(right[segment], DoorRoom);
     }
 
+    /// <summary>A path narrower than this (its walking room left and right together) is single file.</summary>
+    public const float PassingRoom = .65f;
+
+    /// <summary>
+    /// How far out from its front door a walking route is single file: the doorway and the
+    /// stoop (its first segment), and on for as long as the path stays too narrow for two
+    /// people to pass - never over a crossing. The index of the route point where the way
+    /// widens (at least 1); the door's stretch is its dark hall and the route up to there.
+    /// </summary>
+    public static int SingleFileEnd(Route route)
+    {
+        if (route == null || route.points.Length < 2) return 0;
+        int end = 1;
+        while (end < route.points.Length - 1
+               && RoomOf(route.roomLeft, end) + RoomOf(route.roomRight, end) < PassingRoom
+               && (end >= route.crossingAtSegment.Length || route.crossingAtSegment[end] < 0)) end++;
+        return end;
+    }
+
+    // Home through a front door: the last stretch of the walk, from where the route widens
+    // out to the hall, is taken on their turn (NpcJourney waits on a spot beside it until then).
+    private static void InThroughTheDoor(NpcJourney journey, StreetDoor door, Route route)
+    {
+        if (journey == null || door == null || route == null || journey.PointCount < 2) return;
+        int start = journey.FindPoint(route.points[SingleFileEnd(route)], .05f);
+        journey.DoorPassage(door, StreetDoor.Way.In, Mathf.Max(0, start), journey.PointCount - 2);
+    }
+
     // Home: they stand in the dark hall while the door closes behind them, and only
     // then leave the game (WatchDoors).
     private void GoInside(GameObject npc)
@@ -723,7 +758,8 @@ public sealed class CafeArrivals : MonoBehaviour
     // on the street side; once they are out and clear (or inside and it has shut),
     // it is theirs no longer.
     private readonly List<GameObject> doorsDone = new List<GameObject>();
-    private int forcedFootRoute = -1;   // play checks only (EditorArriveOnFoot)
+    private int forcedFootRoute = -1;   // play checks only (EditorArriveOnFoot, EditorDepartOnFoot)
+    private int forcedFromPoint = -1;   // play checks only (EditorDepartOnFoot)
 
     private void WatchDoors()
     {
@@ -737,10 +773,16 @@ public sealed class CafeArrivals : MonoBehaviour
             if (npc == null || door == null || visit.doorDone) continue;
             if (visit.closingBehind)
             {
-                if (door.IsClosed || Time.time - visit.closingSince > 3f) doorsDone.Add(npc);
+                // Home, in the hall: the way through is still theirs until they are gone - when
+                // the door has shut, or straight away if someone else is waiting to use it.
+                if (visit.journey != null) door.Ask(visit.journey, StreetDoor.Way.In);
+                if (door.IsClosed || Time.time - visit.closingSince > 3f || (visit.journey != null && door.OthersUsing(visit.journey)))
+                    doorsDone.Add(npc);
                 continue;
             }
             if (visit.inside || visit.journey == null || !visit.journey.isActiveAndEnabled) continue;
+            // Taking turns: the door opens for whoever's turn it is, not for those still waiting.
+            if (visit.journey.TurnDoor == door && !visit.journey.HasTurn) continue;
             Vector3 at = npc.transform.position;
             float outside = door.Outside(at);
             Vector3 flat = at - door.DoorwayPoint;
@@ -752,7 +794,11 @@ public sealed class CafeArrivals : MonoBehaviour
                 visit.doorDone = true;
             }
         }
-        foreach (GameObject npc in doorsDone) Vanish(npc);
+        foreach (GameObject npc in doorsDone)
+        {
+            if (visits.TryGetValue(npc, out Visit gone) && gone.door != null && gone.journey != null) gone.door.Leave(gone.journey);
+            Vanish(npc);
+        }
     }
 
     // ------------------------------------------------------------ the day
@@ -766,6 +812,15 @@ public sealed class CafeArrivals : MonoBehaviour
         {
             if (npc == null || !visits.TryGetValue(npc, out Visit visit)) continue;
             if (visit.inside || visit.leaving || visit.journey == null || !visit.journey.isActiveAndEnabled) continue;
+            if (visit.journey.Unseen)
+            {
+                // Still inside waiting for their turn at the door: they simply stay home.
+                if (visit.record != null) { visit.record.wentTo = "stayed home (the café closed)"; visit.record.leftHour = ClockHour(); }
+                TurnedBack++;
+                visit.journey.ForgetDoor();
+                Vanish(npc);
+                continue;
+            }
             Retire(npc, visit);
             visit.leaving = true;
             if (visit.record != null) { visit.record.wentTo = "turned back (the café closed)"; visit.record.leftHour = ClockHour(); }
@@ -774,8 +829,10 @@ public sealed class CafeArrivals : MonoBehaviour
             if (car != null && car.Owner == npc) visit.journey.TurnBack(false, () => GetIn(npc, car));
             else if (visit.door != null)
             {
-                visit.doorDone = visit.closingBehind = false;   // back through their front door
+                visit.doorDone = visit.closingBehind = false;   // back through their front door, on their turn
                 visit.journey.TurnBack(false, () => GoInside(npc));
+                if (visit.footRoute >= 0 && visit.footRoute < footRoutes.Length)
+                    InThroughTheDoor(visit.journey, visit.door, footRoutes[visit.footRoute]);
             }
             else visit.journey.TurnBack(false, () => Vanish(npc));
         }
@@ -816,6 +873,7 @@ public sealed class CafeArrivals : MonoBehaviour
             WalksCutShort++;
             Debug.LogWarning($"[CafeArrivals] {npc.name} took over {longestWalkSeconds:0}s to walk " +
                              (visit.leaving ? "away" : "to the door") + "; finishing the walk at once.", npc);
+            visit.journey.ForgetDoor();
             visit.journey.enabled = false;
             if (visit.leaving)
             {
@@ -984,6 +1042,19 @@ public sealed class CafeArrivals : MonoBehaviour
         }
     }
 
+    // The way home from a route's point `from` (they are standing on it): its points back to
+    // the front door, each segment walked backwards (so its left and right swap).
+    private void AppendHomeFrom(Route route, int from, List<Vector3> path, List<StreetCrossing> cross, List<float> left, List<float> right)
+    {
+        for (int k = from - 1; k >= 0; k--)
+        {
+            cross.Add(CrossingFor(route, k));
+            left.Add(RoomOf(route.roomRight, k));
+            right.Add(RoomOf(route.roomLeft, k));
+            path.Add(route.points[k]);
+        }
+    }
+
     private static void AppendPoint(Vector3 point, List<Vector3> path, List<StreetCrossing> cross, List<float> left, List<float> right)
     {
         if (path.Count > 0) { cross.Add(null); left.Add(JointRoom); right.Add(JointRoom); }
@@ -1037,6 +1108,30 @@ public sealed class CafeArrivals : MonoBehaviour
         forcedFootRoute = route;
         try { return npc != null && BeginArrival(npc, kind, atDoor); }
         finally { forcedFootRoute = -1; }
+    }
+
+    /// <summary>
+    /// For play checks: someone on their way home who has got as far as point
+    /// <paramref name="fromPoint"/> of walking route <paramref name="route"/> (placed there
+    /// now) walks the rest of it back to its front door and goes in - as if they had left
+    /// the café and just crossed the road.
+    /// </summary>
+    public bool EditorDepartOnFoot(GameObject npc, Kind kind, int route, int fromPoint)
+    {
+        if (npc == null || route < 0 || route >= footRoutes.Length || footRoutes[route] == null) return false;
+        Vector3[] points = footRoutes[route].points;
+        if (fromPoint <= 0 || fromPoint >= points.Length) return false;
+        npc.transform.position = points[fromPoint];
+        if (!visits.ContainsKey(npc))
+        {
+            var record = new Comings { kind = kind, cameFrom = "a play check (part way home)" };
+            Record(record);
+            visits[npc] = new Visit { kind = kind, inside = true, record = record };
+        }
+        forcedFootRoute = route;
+        forcedFromPoint = fromPoint;
+        try { return BeginDeparture(npc); }
+        finally { forcedFootRoute = forcedFromPoint = -1; }
     }
 
     public Route[] EditorFootRoutes => footRoutes;
