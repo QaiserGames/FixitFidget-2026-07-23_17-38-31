@@ -1,5 +1,93 @@
 # Current handoff — September 12, 2026
 
+## September 27 (just before midnight) — front doors take turns; on `npc-mixamo`
+
+**Read this entry first.** One code commit on `npc-mixamo`: `0e7877c`. This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+His request: "they are congesting on the right side of the house", then "i see alot of congestion whenever some npcs try to go through doors, they just get stuck and then that causes everyother npc to also get stuck, but after that lets build out an actual small city that can be explored inside at night for the night life for ace".
+
+His answers:
+
+- **"Doors take turns (Recommended)"**: one direction at a time through each front door.
+- **Walk-ins from the other bay-window houses: "Not now"**. Walk-ins still come only from the dusty rose house and the courtyard shop.
+
+Full notes are in `claude/night-homes-spec.md` in the project, under "Door jams: the doors take turns".
+
+- **What jammed** (from the traces, before the fix):
+  - people used the one-person doorway both ways at once;
+  - two walkers could each give way to the other for good;
+  - new arrivals were spawned onto the same point in the hall;
+  - everyone who stepped aside picked the same spot.
+  - In lab bursts, passing a door took 22 s at the median at the shop (64 s in a second burst, worst 108 s) and 28 s at the dusty rose door (worst 67 s). In normal flow it takes 4–5 s.
+- **How it works now.**
+  - Each door keeps turns for its **single-file stretch**: the hall, the doorway and the path out to where two people can pass. That is 6.6 m at the shop and 2.4 m at the dusty rose house.
+  - One direction at a time. People going the same way follow 1 s apart. When both sides are waiting, the sides swap after 3 people.
+  - **Coming out**, people wait inside the house, unseen, until it is their turn. While waiting they have no body and are not on the street.
+  - **Going in**, people wait on a marked **"Wait here"** spot beside the path (and after those, further back along the path). They step back onto the path when their turn comes.
+  - Someone who has gone in stands in the hall until the door shuts, as before. If other people need the door, they go straight on in instead.
+  - Walkers ask for their turn every frame, and a ticket that nobody asks for in 0.75 s is dropped. A walker who vanishes can't block a door.
+- **Code:**
+  - `StreetDoor`: the turns (`Ask`, `MayGo`, `Leave`, `WaitSpotFor`) and the new fields `waitSpots`, `turnBatch` (3) and `followGap` (1 s);
+  - `NpcJourney`: `DoorPassage`, `TakeTurn` and the unseen waiting. Giving way now ignores people waiting inside and the door's own stretch, and people who give way spread out instead of sharing one spot;
+  - `CafeArrivals`: hands each walk its door (arrivals going out; departures and turned-back visits going in) and works out where the single-file stretch ends (`SingleFileEnd`). The first door hold on arrival is gone;
+  - editor:
+    - `StreetDoorSteps` (Doors 4);
+    - `StreetDoorCheck` (Doors 3 checks the spots; the play check accepts a walker waiting inside);
+    - `StreetDoorRushCheck` (new);
+    - `CafeLifeRecorder` (two door cameras);
+    - `CafeArrivalsRecorder` (the trace shows each walker's door state);
+    - `CafeParkingLot` (its lane and obstacle helpers are now shared).
+- **Scene:**
+  - 9 waiting spots, as `Wait here N` children of their doors: saffron 3, dusty rose 2, shop 4;
+  - the new door fields;
+  - Step B's `copyFingers`/`handsToFace` defaults on 20 bodies (value 1, as in the code).
+  - After later Play sessions the title bar showed an unsaved `*` again. The committed scene is the one saved right after Doors 4. Don't save the scene without diffing it first.
+- **Tools:**
+  - `Fixit Fidget > Night > Doors 4 - Mark where people wait for their turn at the door`. It is already run and safe to run again. It writes photos and a report to `Logs/Night/door-waiting-spots-*`;
+  - `Fixit Fidget > Checks > Street doors - rush hour at the shop door (Play Mode, lab session)` and `… at the dusty rose door`. Each sends five walk-ins out of the door and five people home into it, all at once. It pauses the café's spawners and waits for a clear door, so every run is the same test;
+  - `Fixit Fidget > Café life > Record 8 minutes - shop door camera (east street)` and `… dusty rose door camera (west street)`.
+- **Checks** (lab sessions):
+  - **Rush, shop door:**
+    - before: 7/11;
+    - after: 12/12 (`232412`) and 12/12 (`233332`).
+    - The longest anyone stood at the door was 12.3 s, then 8.1 s, both on a waiting spot for their turn.
+  - **Rush, dusty rose door:**
+    - before: 8/11;
+    - after: 12/12 (`233048`).
+    - The longest anyone stood in view was 9.0 s, at the crossing. At the door it was 3.6 s or less.
+  - **The same yardstick for before and after.** The rush check itself was tightened between the first run and the last, so the before and after runs were measured again the same way, from the arrivals traces:
+
+    | | shop before | shop after (2 runs) | rose before | rose after |
+    |---|---|---|---|---|
+    | doorway used both ways at once | 64 s | 0 / 0 | 39 s | 0 |
+    | people walking into each other (< 0.4 m) | 12 times | 0 / 0 | 11 times | 0 |
+    | three or more standing shoulder to shoulder (0.7 m) | 12 s | 0 / 0 | 9.5 s | 0 |
+    | …within 1 m | 12 s | 0.1 s / 0 | 14 s | 5.2 s |
+    | longest standing still by the door | 19 s (and 2 teleports) | 12 s / 8 s | 7 s | 4 s |
+
+    The before runs still had the café's own traffic running. One extra patron got caught in the shop jam.
+  - Street doors **25/25**, Grace's home **20/20**, Doors 3 all clear.
+  - **Café life check** (it doesn't use the door code): 29/32, 29/32, 30/31. It failed on a different timing race each time:
+    - a chat the director had already started ended during the check's 2.2 s wait;
+    - a run started in a lab that was already busy. The table seat next to the tub chair was taken, which blocks the tub chair (their stand points are 0.8 m apart), and one sitter didn't turn to the other in time;
+    - in a fresh lab, two of the five sofa patrons had already got up before the check looked at them. The likely reason is their own 40–90 s stay.
+    - Before the doors work it was 32/32 twice (plus 31/32 once, fixed in Step B).
+    - The door turns can move the moment a patron arrives by a second or so per person at a shared door. That is exactly the kind of thing this check is touchy about. A proposal to harden the check (hold the sofa patrons' stay while it runs; wait out a chat that's already going; start only in a fresh lab) is **waiting for Mansoor's say-so**.
+- **Recordings** (`Logs/`, git-ignored):
+  - door cameras in `Logs/CafeLife/`: `2026-09-27_223719` (shop, before) and `_223953` (dusty rose, before); `_232424` and `_233332` (shop, after) and `_233048` (dusty rose, after);
+  - arrivals traces under the same times in `Logs/ArrivalsTrace/` (the shop's after runs are `_232424` and `_233333`);
+  - the side-by-side clips `Logs/CafeLife/clips/door-turns-shop-door-before-after.mp4` and `door-turns-dusty-rose-door-before-after.mp4` went to Mansoor.
+- **Left open:**
+  - the dusty rose door is tight. Its two waiting spots are 0.8 m apart, so two people waiting and one passer-by make a "three within a metre" moment of about 5 s;
+  - when ten people reach one small door at once, there is still an orderly queue in front of it for about 8 s;
+  - hardening the Café life check (above);
+  - no `took over 120s to walk away` warning showed in any of these runs;
+  - walk-ins from the other bay-window houses (his "Not now");
+  - step C of the Mixamo clips: lean spots, and a gadget in hand for Holding Idle.
+- **Next:** Ace's night city, which Mansoor asked for after the doors. It is to be talked through with him before anything is built.
+
 ## September 27 (late night) — Mixamo step B: the clips wired into the café's people; on `npc-mixamo`
 
 **Read this entry first.** One code commit on the new branch `npc-mixamo`, made from `night-notebook`: `aa37d48`. This entry comes in the commit after it. Nothing is pushed.
