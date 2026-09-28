@@ -238,6 +238,14 @@ internal static class NightWalkSteps
             walk.lateSpotGlass = lateGlass.ToArray();
             walk.lateSpotLights = lateLights.ToArray();
             walk.nightLook = volume;
+
+            // ---- part 2: the edges (so far: the patio's day fence; the night's collision is made at run time)
+            var fence = PatioFence();
+            walk.dayOnlyColliders = fence.ToArray();
+            report.AppendLine($"The patio's invisible day fence (it keeps Ace in the café by day): {fence.Count} box collider(s) under " +
+                              "'Window collision boundaries', switched off while the night runs: " +
+                              string.Join("; ", fence.Select(c => { var p = c.transform.TransformPoint(((BoxCollider)c).center); return $"centre ({p.x:0.0}, {p.z:0.0})"; })) + ".");
+            walk.nightCollision = NightCollisionList.Build(group.transform, report);
             EditorUtility.SetDirty(walk);
             Undo.CollapseUndoOperations(undoGroup);
             EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
@@ -250,6 +258,56 @@ internal static class NightWalkSteps
         catch (Exception e)
         {
             Debug.LogError(Tag + "Set-up FAILED: " + e.Message + "\n" + report + "\n" + e);
+        }
+    }
+
+    // The café's invisible fence round its patio keeps Ace in the café by day. The same object's other
+    // boxes are the café room's own glass walls; they stay.
+    static List<Collider> PatioFence()
+    {
+        var result = new List<Collider>();
+        var holder = SceneManager.GetActiveScene().GetRootGameObjects()
+            .SelectMany(g => g.GetComponentsInChildren<Transform>(true))
+            .FirstOrDefault(t => t.name == "Window collision boundaries");
+        if (holder == null) return result;
+        foreach (var box in holder.GetComponents<BoxCollider>())
+            if (box.enabled && !box.isTrigger && box.transform.TransformPoint(box.center).z < -.5f) result.Add(box);
+        return result;
+    }
+
+    // Writes the list of what is solid by night again, and nothing else: the night group, its lamps and
+    // its references stay exactly as they are (the NightWalk already points at the list asset, which is
+    // rewritten in place). For after a change to the city, or to the rules of the list.
+    [MenuItem(Menu + "Night walk 2 - Rebuild the list of what is solid by night (Edit Mode)")]
+    static void RebuildSolidList()
+    {
+        var report = new StringBuilder();
+        try
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+                throw new InvalidOperationException("Edit Mode only: in Play Mode, static batching has merged the city's meshes.");
+            CityPackChecks.RequireScene();
+            var layout = SceneManager.GetActiveScene().GetRootGameObjects().FirstOrDefault(g => g.name == LayoutRoot);
+            var group = layout != null ? layout.transform.Find(GroupName) : null;
+            var walk = group != null ? group.GetComponent<NightWalk>() : null;
+            if (walk == null) throw new InvalidOperationException("No night group with a NightWalk: run Night walk 1 (the set-up) first.");
+            var list = NightCollisionList.Build(group, report);
+            if (walk.nightCollision != list)
+            {
+                Undo.RecordObject(walk, "Night walk - point at the list of what is solid by night");
+                walk.nightCollision = list;
+                EditorUtility.SetDirty(walk);
+                EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+                report.AppendLine("The NightWalk now points at the list (the scene changed: save it).");
+            }
+            else report.AppendLine("The NightWalk already points at the list: the scene is unchanged.");
+            string folder = LogFolder("night-solid-list");
+            File.WriteAllText(Path.Combine(folder, "report.txt"), "Night walk 2 - rebuild the list of what is solid by night\n\n" + report);
+            Debug.Log(Tag + "Rebuilt the list of what is solid by night.\n" + report);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(Tag + "Rebuilding the list FAILED: " + e.Message + "\n" + report + "\n" + e);
         }
     }
 
@@ -355,6 +413,36 @@ internal static class NightWalkSteps
             Debug.Log(Tag + $"Day photos ({CityPackChecks.Views.Length}, night group {(withNight ? "in" : "out")}) in {folder}");
         }
         catch (Exception e) { Debug.LogError(Tag + "Day photos FAILED: " + e.Message + "\n" + e); }
+    }
+
+    // Any views, from a file: Logs/Night/views.json. By day in Edit Mode, at night in a night walk.
+    // { "views": [ { "name": "front-street-west-end", "position": {"x":-24,"y":1.7,"z":-7.7},
+    //                "target": {"x":-45,"y":1.5,"z":-7.7}, "fov": 62, "isometric": false, "noFog": false } ] }
+    [Serializable] class ViewList { public ViewSpec[] views = Array.Empty<ViewSpec>(); }
+    [Serializable] class ViewSpec { public string name = "view"; public Vector3 position; public Vector3 target; public float fov = 60f; public bool isometric; public bool noFog; }
+
+    [MenuItem(Menu + "Night walk - Photograph the views in Logs - Night - views.json")]
+    static void PhotographViews()
+    {
+        try
+        {
+            string file = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night", "views.json"));
+            if (!File.Exists(file)) throw new FileNotFoundException("There is no Logs/Night/views.json.");
+            var list = JsonUtility.FromJson<ViewList>(File.ReadAllText(file));
+            bool night = EditorApplication.isPlaying && NightWalk.Instance != null && NightWalk.Instance.Active;
+            string folder = LogFolder(night ? "views-night" : "views-day");
+            foreach (var v in list.views)
+            {
+                bool fog = RenderSettings.fog;
+                if (v.noFog) RenderSettings.fog = false;
+                try { Capture(Path.Combine(folder, v.name + ".png"), v.position, v.target, v.fov, v.isometric); }
+                finally { RenderSettings.fog = fog; }
+            }
+            File.Copy(file, Path.Combine(folder, "views.json"));
+            if (night) File.WriteAllText(Path.Combine(folder, "night-state.txt"), NightWalk.Instance.Describe());
+            Debug.Log(Tag + $"{list.views.Length} views ({(night ? "night" : "day")}) in {folder}");
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Views FAILED: " + e.Message + "\n" + e); }
     }
 
     /// <summary>

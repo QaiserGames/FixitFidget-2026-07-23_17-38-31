@@ -25,6 +25,13 @@ using UnityEngine.Rendering;
 //     * the street is quiet: the café sends nobody, the day's clock stops, and
 //       the day's walkers and traffic go home (part 4 brings a few night owls).
 //
+//   Part 2, the night's edges and collision (in progress):
+//     * solid by night: by day the streets have no collision at all (only the
+//       café's people walk there, on their own routes), so while the night runs
+//       every fixed mesh Ace could touch gets exact collision: solid exactly where
+//       it looks solid, no invisible walls, nothing to walk through;
+//     * the patio's invisible day fence (it keeps Ace in the café by day) is off.
+//
 // Nothing here runs by day. Only Begin() switches anything on, and End() (or
 // leaving Play Mode) puts it all back. Material copies are made at run time and
 // never saved: the scene keeps its originals. For now a night walk is only ever
@@ -72,10 +79,22 @@ public sealed class NightWalk : MonoBehaviour
     [Header("Night look")]
     public Volume nightLook;
 
+    [Header("Solid by night (part 2)")]
+    [Tooltip("While the night runs, every fixed mesh Ace could touch gets exact collision, so the neighbourhood is solid exactly " +
+             "where it looks solid. By day the streets have none (only the café's people walk there, on their own routes), and " +
+             "nothing here changes that. The list is written by the set-up (Fixit Fidget > Night > Night walk 1).")]
+    public bool solidNight = true;
+    public NightCollision nightCollision;
+    [Tooltip("Colliders that only keep Ace inside the café by day (the patio's invisible fence). Off while the night runs.")]
+    public Collider[] dayOnlyColliders = Array.Empty<Collider>();
+
     public bool Active { get; private set; }
     public int LitBuildings { get; private set; }
     public int GlowingSigns { get; private set; }
     public int QuietedActors { get; private set; }
+    public int SolidMeshes { get; private set; }
+    public long SolidTriangles { get; private set; }
+    public float SolidSeconds { get; private set; }
 
     // Synty's POLYGON shaders (Generic_Basic / Generic_Standard) name their glow like this.
     static readonly int SyntyEmissionMap = Shader.PropertyToID("_Emission_Map");
@@ -91,6 +110,8 @@ public sealed class NightWalk : MonoBehaviour
     readonly Dictionary<(Material, int), Material> copies = new();
     readonly List<Behaviour> paused = new();
     readonly List<GameObject> hiddenActors = new();
+    GameObject solidRoot;
+    readonly List<Collider> dayOnlyOff = new();
     List<StreetLife.Actor> streetActors;
     StreetLife street;
     CafeDaylight daylight;
@@ -101,6 +122,7 @@ public sealed class NightWalk : MonoBehaviour
     // switched on again), only the run-time material copies to free.
     void OnDestroy()
     {
+        if (solidRoot != null) Destroy(solidRoot);
         foreach (var copy in copies.Values) if (copy != null) Destroy(copy);
         copies.Clear();
         if (Instance == this) Instance = null;
@@ -119,7 +141,7 @@ public sealed class NightWalk : MonoBehaviour
             Debug.LogWarning("[Night walk] A night walk was asked for outside a lab session; it only runs in the lab for now.");
             return;
         }
-        var walk = Instance != null ? Instance : FindFirstObjectByType<NightWalk>();
+        var walk = Instance != null ? Instance : FindAnyObjectByType<NightWalk>();
         if (walk == null)
         {
             Debug.LogWarning("[Night walk] No NightWalk in this scene: run Fixit Fidget > Night > Night walk 1 first.");
@@ -135,16 +157,20 @@ public sealed class NightWalk : MonoBehaviour
     {
         if (Active) return;
         Active = true;
-        daylight = FindFirstObjectByType<CafeDaylight>();
+        daylight = FindAnyObjectByType<CafeDaylight>();
         if (daylight != null) daylight.SetNight(nightHour, moon, cafeInsideLights);
         foreach (var go in nightOnly) if (go != null) go.SetActive(true);
         LightTheWindows();
         LightTheSigns();
         LightTheLateSpot();
         if (nightLook != null) nightLook.weight = 1f;
+        MakeTheNightSolid();
+        foreach (var c in dayOnlyColliders)
+            if (c != null && c.enabled) { c.enabled = false; dayOnlyOff.Add(c); }
         Debug.Log($"[Night walk] Night at {nightHour:0.0}h: {Count(lampLights)} street lamps, {LitBuildings} building parts with lit windows, " +
                   $"{GlowingSigns} signs glowing, the late spot {(lateSpotGlass.Length > 0 ? "lit" : "not set")}; " +
-                  $"{QuietedActors} of the day's walkers and cars sent home.", this);
+                  $"{QuietedActors} of the day's walkers and cars sent home; {SolidMeshes} meshes made solid ({SolidTriangles:N0} triangles, " +
+                  $"{SolidSeconds:0.00} s); {dayOnlyOff.Count} day-only colliders off.", this);
     }
 
     /// <summary>Put the day back exactly as it was.</summary>
@@ -161,6 +187,12 @@ public sealed class NightWalk : MonoBehaviour
         foreach (var copy in copies.Values) if (copy != null) Destroy(copy);
         copies.Clear();
         if (nightLook != null) nightLook.weight = 0f;
+        if (solidRoot != null) Destroy(solidRoot);
+        solidRoot = null;
+        SolidMeshes = 0;
+        SolidTriangles = 0;
+        foreach (var c in dayOnlyOff) if (c != null) c.enabled = true;
+        dayOnlyOff.Clear();
         foreach (var b in paused) if (b != null) b.enabled = true;
         paused.Clear();
         foreach (var go in hiddenActors) if (go != null) go.SetActive(true);
@@ -177,12 +209,19 @@ public sealed class NightWalk : MonoBehaviour
     /// <summary>
     /// The café is closed and the street has gone to bed: the café sends nobody, the day's clock
     /// stops, and StreetLife's walkers and cars leave (part 4 brings a few night owls back).
+    /// CafeArrivals (the café's visitors arriving by car or on foot) rests with the spawners: with
+    /// the street's routes gone it would find no lanes, warn, and send its cars away for the rest
+    /// of the session. Paused, it finds the lanes again when End() brings the street back.
     /// </summary>
     public void QuietTheStreet()
     {
-        foreach (Behaviour b in new Behaviour[] { FindFirstObjectByType<CustomerSpawner>(), FindFirstObjectByType<PatronSpawner>(), FindFirstObjectByType<DayClock>() })
+        foreach (Behaviour b in new Behaviour[]
+                 {
+                     FindAnyObjectByType<CustomerSpawner>(), FindAnyObjectByType<PatronSpawner>(), FindAnyObjectByType<CafeArrivals>(),
+                     FindAnyObjectByType<DayClock>(),
+                 })
             if (b != null && b.enabled) { b.enabled = false; paused.Add(b); }
-        street = StreetLife.Main != null ? StreetLife.Main : FindFirstObjectByType<StreetLife>();
+        street = StreetLife.Main != null ? StreetLife.Main : FindAnyObjectByType<StreetLife>();
         if (street == null) return;
         streetActors = street.actors;
         var kept = new List<StreetLife.Actor>();
@@ -198,6 +237,37 @@ public sealed class NightWalk : MonoBehaviour
         }
         street.actors = kept;
         street.RebuildRoutes();
+    }
+
+    // ---------- solid by night ----------
+
+    /// <summary>
+    /// Exact collision, for the night only, on every fixed mesh Ace could touch (the set-up's list):
+    /// the neighbourhood is solid exactly where it looks solid, no more (no invisible walls) and no
+    /// less (nothing to walk through, no ground to fall through). POLYGON's own rough convex collision
+    /// stays off. Plain objects in the Play scene, so they go with it; End() removes them sooner.
+    /// </summary>
+    void MakeTheNightSolid()
+    {
+        SolidMeshes = 0;
+        SolidTriangles = 0;
+        SolidSeconds = 0f;
+        if (!solidNight || nightCollision == null) return;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        // At the scene's root, so each piece's scale is its world scale.
+        solidRoot = new GameObject("Solid by night (while the night runs)");
+        foreach (var piece in nightCollision.pieces)
+        {
+            if (piece.mesh == null) continue;
+            var go = new GameObject(piece.from);
+            go.transform.SetParent(solidRoot.transform, false);
+            go.transform.SetPositionAndRotation(piece.position, piece.rotation);
+            go.transform.localScale = piece.scale;
+            go.AddComponent<MeshCollider>().sharedMesh = piece.mesh;
+            SolidMeshes++;
+            for (int s = 0; s < piece.mesh.subMeshCount; s++) SolidTriangles += piece.mesh.GetSubMesh(s).indexCount / 3;
+        }
+        SolidSeconds = (float)watch.Elapsed.TotalSeconds;
     }
 
     // ---------- windows, signs, the late spot ----------
@@ -303,6 +373,8 @@ public sealed class NightWalk : MonoBehaviour
         sb.AppendLine($"Night-only objects active: {active} of {nightOnly.Length}; street lamp lights {Count(lampLights)}.");
         sb.AppendLine($"Building parts lit: {LitBuildings} of {buildingRenderers.Length}; signs glowing: {GlowingSigns} of {signRenderers.Length}; " +
                       $"material copies: {copies.Count}; renderers swapped: {swapped.Count}; street actors sent home: {QuietedActors}.");
+        sb.AppendLine($"Solid by night: {SolidMeshes} meshes with exact collision ({SolidTriangles:N0} triangles, made in {SolidSeconds:0.00} s); " +
+                      $"day-only colliders off: {dayOnlyOff.Count} of {dayOnlyColliders.Length}.");
         foreach (var kv in copies)
         {
             var m = kv.Value;

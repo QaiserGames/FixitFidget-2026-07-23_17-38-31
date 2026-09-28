@@ -209,7 +209,7 @@ internal static class NightWalkSurvey
     static void Daylight(StringBuilder report)
     {
         report.AppendLine("== DAYLIGHT AND HOURS ==");
-        var daylight = UnityEngine.Object.FindFirstObjectByType<CafeDaylight>(FindObjectsInactive.Include);
+        var daylight = UnityEngine.Object.FindAnyObjectByType<CafeDaylight>(FindObjectsInactive.Include);
         if (daylight == null) report.AppendLine("  No CafeDaylight in the scene.");
         else
         {
@@ -224,7 +224,7 @@ internal static class NightWalkSurvey
                 report.AppendLine($"    {hour,5:0.0}h: night {s.night:0.00}, dusk {s.dusk:0.00}, sun altitude {s.altitude,6:0.0} deg, sun strength {s.sunStrength:0.00}, sky exposure {s.skyExposure:0.00}, ambient sky {s.ambientSky}");
             }
         }
-        var clock = UnityEngine.Object.FindFirstObjectByType<DayClock>(FindObjectsInactive.Include);
+        var clock = UnityEngine.Object.FindAnyObjectByType<DayClock>(FindObjectsInactive.Include);
         if (clock != null)
             report.AppendLine($"  DayClock: opens {clock.OpeningHour:0.00}h, closes {clock.ClosingHour:0.00}h.");
         report.AppendLine($"  RenderSettings: ambient {RenderSettings.ambientMode}, fog {(RenderSettings.fog ? "on" : "off")}, skybox {(RenderSettings.skybox != null ? RenderSettings.skybox.name : "-")}, sun {(RenderSettings.sun != null ? RenderSettings.sun.name : "-")}");
