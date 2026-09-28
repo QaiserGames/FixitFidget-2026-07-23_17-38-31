@@ -17,6 +17,7 @@ public sealed class HoldCallPresentation : MonoBehaviour
         speaker = gameObject.AddComponent<AudioSource>();
         speaker.playOnAwake = false; speaker.loop = true; speaker.spatialBlend = 1f;
         speaker.minDistance = 1f; speaker.maxDistance = 16f; speaker.rolloffMode = AudioRolloffMode.Linear;
+        Sfx.Route(speaker, SoundBus.World);
         music = RepairAudio.MakeTone("Support hold music", true);
         ring = RepairAudio.MakeTone("Support answer ring", false);
     }
@@ -41,6 +42,13 @@ public sealed class HoldCallPresentation : MonoBehaviour
             speaker.Stop();
             speaker.clip = previous == HoldCallRun.State.OnHold ? music : previous == HoldCallRun.State.Ringing ? ring : null;
             speaker.volume = previous == HoldCallRun.State.OnHold ? .10f : .65f;
+            // The sound bank's hold music and ring, once chosen (claude/sound-plan.md); until then these tones.
+            if (speaker.clip != null)
+            {
+                float volume = speaker.volume;
+                speaker.clip = Sfx.Choose(previous == HoldCallRun.State.OnHold ? "phone.hold" : "phone.ring", speaker, speaker.clip, ref volume);
+                speaker.volume = volume;
+            }
             if (speaker.clip != null) speaker.Play();
         }
     }

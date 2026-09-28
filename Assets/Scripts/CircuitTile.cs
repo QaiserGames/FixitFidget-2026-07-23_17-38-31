@@ -29,6 +29,7 @@ public sealed class CircuitTile : BenchInteractable
     public override void Activate()
     {
         if (!CanInteract || !owner.Run.Turn(index)) return;
+        Sfx.Play("circuit.turn", transform.position);
         Refresh();
         owner.Refresh();
     }

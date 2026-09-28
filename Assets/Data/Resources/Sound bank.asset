@@ -1,0 +1,665 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52fbfb595635f3c4c8f092068bb04eec, type: 3}
+  m_Name: Sound bank
+  m_EditorClassIdentifier: Assembly-CSharp::SoundBank
+  mixer: {fileID: 0}
+  earHeight: 1.6
+  stride: 0.72
+  cues:
+  - name: drink.pour
+    when: 'The drinks dispenser pouring (a loop). Replaces SoftPour.wav, which the
+      roadmap review heard as "a buzz": soft liquid, modest splashes.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 9
+    minGap: 0
+    maxAtOnce: 6
+    bus: 0
+  - name: drink.ready
+    when: "A cup has finished filling: a gentle chime (the caf\xE9's signature family)."
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: drink.machine
+    when: 'The dispenser working under the pour: a soft hum or a little steam (a
+      loop).'
+    clips: []
+    volume: 0.22
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0
+    maxAtOnce: 6
+    bus: 0
+  - name: phone.confirm
+    when: The phone at the counter shows it works again (seen close up).
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 2
+  - name: phone.ring
+    when: The support line ringing, waiting to be answered (a loop).
+    clips: []
+    volume: 0.55
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 2
+    far: 20
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: phone.hold
+    when: Hold music from the support line's handset while Ace waits (a loop, quiet
+      and a bit tinny).
+    clips: []
+    volume: 0.22
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: door.bell
+    when: "Someone comes in or goes out of the caf\xE9's door: the caf\xE9's own
+      little bell (signature). A group rings once."
+    clips: []
+    volume: 0.5
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 2.5
+    far: 24
+    minGap: 1.5
+    maxAtOnce: 2
+    bus: 0
+  - name: cafe.room
+    when: "The caf\xE9's own quiet: fridge, machine idle, air (a flat loop, 1-3 minutes)."
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 3
+  - name: cafe.murmur
+    when: "People chatting with no words you can follow (a flat loop); louder as
+      the caf\xE9 fills."
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 3
+  - name: street.day
+    when: 'The street by day: traffic and the city, muffled while Ace is inside (a
+      flat loop).'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 4
+  - name: ace.step.cafe
+    when: "Ace's steps on the caf\xE9 floor."
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.12
+    maxAtOnce: 2
+    bus: 1
+  - name: ace.step.pavement
+    when: Ace's steps on the pavement (at night).
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.12
+    maxAtOnce: 2
+    bus: 1
+  - name: ace.step.road
+    when: Ace's steps on the road (at night).
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.12
+    maxAtOnce: 2
+    bus: 1
+  - name: item.pickup
+    when: Ace picks up a device or an item.
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.08
+    maxAtOnce: 4
+    bus: 0
+  - name: item.putdown
+    when: 'Ace puts a device or an item down: shelf, bench, counter.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.08
+    maxAtOnce: 4
+    bus: 0
+  - name: cup.pickup
+    when: 'Ace picks up a cup: from the stack, the dispenser or a table.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.08
+    maxAtOnce: 4
+    bus: 0
+  - name: cup.set
+    when: 'A cup set down: ceramic on wood (dispenser, counter, table).'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.08
+    maxAtOnce: 4
+    bus: 0
+  - name: cup.return
+    when: An unwanted cup back on the stack, or a drink poured away.
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 4
+    bus: 0
+  - name: tool.pick
+    when: 'Ace switches tool at the bench: hand, brush, screwdriver, pry, tweezers.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.1
+    maxAtOnce: 4
+    bus: 0
+  - name: screw.turn
+    when: A screw turning out or in (half a second to a second).
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 3
+    bus: 0
+  - name: screw.drop
+    when: 'A screw landing in the bin: a small tink.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.1
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: screw.seat
+    when: 'A screw tightened home: a small final click.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: part.off
+    when: A cover or panel lifted off with the pry tool.
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: part.on
+    when: 'A cover put back on: a snap.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: part.replace
+    when: 'A new part fitted with the tweezers: "pull-out click, then magnetic snap".'
+    clips: []
+    volume: 0.45
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: camera.shutter
+    when: 'Grace''s camera fires once its new shutter is in: an old film camera''s
+      shutter, not a phone''s.'
+    clips: []
+    volume: 0.55
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: grime.scrub
+    when: Scrubbing grime with the brush (asked for every frame, heard every so often).
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.22
+    maxAtOnce: 2
+    bus: 0
+  - name: grime.clean
+    when: 'The last of the grime gone: a small bright chime.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: circuit.turn
+    when: 'A circuit tile turned: a small click.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: circuit.step
+    when: The charge reaches the next tile.
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: circuit.fizzle
+    when: 'The charge stops at a bad joint: a soft fizzle, never an alarm.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: circuit.done
+    when: 'The circuit is complete: the signal is back.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 0
+  - name: handover.drink
+    when: A drink handed over to a customer.
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 4
+    bus: 0
+  - name: handover.repair
+    when: A repaired device handed back.
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 4
+    bus: 0
+  - name: repair.returned
+    when: "The caf\xE9's little \"job done\" when a repair goes back (signature family)."
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: money.paid
+    when: 'Paid: coins into the till drawer, soft (no "cha-ching").'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1.5
+    far: 12
+    minGap: 0.15
+    maxAtOnce: 2
+    bus: 0
+  - name: money.tip
+    when: 'A tip: a coin into the tip jar.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1.5
+    far: 12
+    minGap: 0.15
+    maxAtOnce: 2
+    bus: 0
+  - name: ticket.new
+    when: A new repair ticket slides onto the rail.
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.25
+    maxAtOnce: 2
+    bus: 2
+  - name: chair.sit
+    when: 'Someone sits down: a chair scrape and settle.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 3
+    bus: 0
+  - name: chair.stand
+    when: 'Someone stands up: a chair scrape.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 3
+    bus: 0
+  - name: day.open
+    when: "The caf\xE9 opens for the day (signature: the caf\xE9's bell)."
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 2
+    maxAtOnce: 1
+    bus: 2
+  - name: day.lastorders
+    when: 'Last orders: no new customers from now (signature, a softer bell).'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 2
+    maxAtOnce: 1
+    bus: 2
+  - name: day.closed
+    when: The last customer has gone and the day is over (signature).
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 2
+    maxAtOnce: 1
+    bus: 2
+  - name: recap.open
+    when: 'The day''s recap appears: paper.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 1
+    maxAtOnce: 1
+    bus: 2
+  - name: ui.confirm
+    when: A confirming click in the menus (Open Tomorrow).
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.1
+    maxAtOnce: 2
+    bus: 2
+  - name: night.city
+    when: The city at night, earlier and busier (a flat loop); cross-fades into night.city.late
+      by 2 am.
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 4
+  - name: night.city.late
+    when: 'The city late at night: sparse and distant (a flat loop).'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 4
+  - name: night.far
+    when: 'Now and then at night: a siren streets away, a dog, a car on the ring
+      road (one-offs, panned).'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 8
+    maxAtOnce: 1
+    bus: 4
+  - name: cafe.night
+    when: "Inside the closed caf\xE9 at night: a fridge hum, a ticking clock (a flat
+      loop)."
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 4
+    bus: 3

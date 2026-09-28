@@ -34,6 +34,9 @@ public class ReplaceablePart : BenchInteractable
         if (brokenVisual != null) brokenVisual.SetActive(false);
         if (freshVisual != null) freshVisual.SetActive(true);
         IsReplaced = true;
-        // TODO audio: pull-out click, then magnetic snap
+        Sfx.Play("part.replace", transform.position);   // "pull-out click, then magnetic snap"
+        // Grace's camera: its new shutter fires once, so you hear the camera work again.
+        GraceCameraRepairJob camera = GetComponentInParent<GraceCameraRepairJob>();
+        if (camera != null && camera.Shutter == this) Sfx.PlayLater("camera.shutter", transform.position, .45f);
     }
 }

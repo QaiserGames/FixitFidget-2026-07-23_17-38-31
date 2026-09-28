@@ -488,6 +488,9 @@ public sealed class NpcSeating : MonoBehaviour
 
     private void Begin(Phase next, float length)
     {
+        // A chair scrape as the body goes down into the seat, and again as it rises.
+        if (next == Phase.SittingDown && phase != Phase.SittingDown) Sfx.Play("chair.sit", transform.position);
+        else if (next == Phase.StandingUp && phase != Phase.StandingUp) Sfx.Play("chair.stand", transform.position);
         phase = next;
         phaseStarted = Time.time;
         phaseLength = Mathf.Max(0f, length);

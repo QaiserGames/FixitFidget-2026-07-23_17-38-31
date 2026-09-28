@@ -47,6 +47,7 @@ public class Screw : MonoBehaviour
     private IEnumerator UnscrewRoutine(Transform bin)
     {
         IsBusy = true;
+        Sfx.Play("screw.turn", transform.position);
 
         float turn = TurnTime;
 
@@ -95,7 +96,7 @@ public class Screw : MonoBehaviour
         transform.position = to;
         IsOut = true;
         IsBusy = false;
-        // TODO audio: tink, pitch varied ±10%
+        Sfx.Play("screw.drop", to);   // the tink (the bank's cue varies its pitch ±10%)
     }
 
     private IEnumerator RescrewRoutine()
@@ -123,6 +124,7 @@ public class Screw : MonoBehaviour
         }
 
         // Then screw down into the hole.
+        Sfx.Play("screw.turn", transform.position);
         t = 0f;
         while (t < 1f)
         {
@@ -137,5 +139,6 @@ public class Screw : MonoBehaviour
         transform.localRotation = homeLocalRot;
         IsOut = false;
         IsBusy = false;
+        Sfx.Play("screw.seat", transform.position);
     }
 }

@@ -123,3 +123,8 @@ InitTestScene*.unity*
 # but Adobe's terms don't allow sharing the raw files, so they stay out of this public repository.
 /Assets/Art/Mixamo/
 /Assets/Art/Mixamo.meta
+
+# Sonniss GDC bundle sounds (claude/sound-plan.md). Free to use and ship in the game, but the licence
+# forbids sharing the files themselves, so they stay out of this public repository.
+/Assets/Audio/Licensed/
+/Assets/Audio/Licensed.meta

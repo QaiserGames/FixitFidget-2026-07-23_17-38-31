@@ -1842,6 +1842,9 @@ public class CustomerBrain : MonoBehaviour
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, false);
+        Sfx.Play("handover.drink", transform.position);
+        Sfx.PlayLater("money.paid", transform.position, .25f);
+        if (tip > 0) Sfx.PlayLater("money.tip", transform.position, .55f);
 
         // Accumulated, not assigned — a repair customer who also bought a
         // coffee gets paid twice in one visit, and the log should show the
@@ -1924,6 +1927,10 @@ public class CustomerBrain : MonoBehaviour
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, true, grade);
+        Sfx.Play("handover.repair", transform.position);
+        Sfx.Play2DLater("repair.returned", .15f);
+        Sfx.PlayLater("money.paid", transform.position, .3f);
+        if (tip > 0) Sfx.PlayLater("money.tip", transform.position, .6f);
 
         paidBase += basePay;
         paidTip  += tip;

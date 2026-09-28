@@ -14,6 +14,7 @@ public class ToolPickup : MonoBehaviour
 
     private Vector3 baseScale;
     private Renderer rend;
+    private bool selected;
 
     private void Awake()
     {
@@ -24,6 +25,8 @@ public class ToolPickup : MonoBehaviour
 
     public void SetSelected(bool on)
     {
+        if (on && !selected) Sfx.Play("tool.pick", transform.position);
+        selected = on;
         transform.localScale = on ? baseScale * 1.25f : baseScale;
         if (rend != null)
             rend.material.color = on ? Color.Lerp(tint, Color.white, 0.5f) : tint;

@@ -43,6 +43,8 @@ public class DayClock : MonoBehaviour
     private float closedAt;
     private int closingTill;
     private bool advancingDay;
+    // The opening bell waits for the day's first frame (see Update).
+    private bool announceOpen;
 
     public int Day { get; private set; }
     public float TimeRemaining { get; private set; }
@@ -127,8 +129,13 @@ public class DayClock : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
+    // A clock stopped before its day's first frame (the night walk stops it as the scene loads)
+    // never rings that day's opening bell later.
+    private void OnDisable() => announceOpen = false;
+
     public void StartDay()
     {
+        announceOpen = true;   // the opening bell rings a beat into the day (Update)
         // A new day always begins with an empty shop.
         //
         // Stated as a rule here rather than as cleanup buried in an error path,
@@ -185,6 +192,15 @@ public class DayClock : MonoBehaviour
 
     private void Update()
     {
+        // The opening bell, a beat into the day rather than inside StartDay: StartDay also runs while the
+        // scene loads, before a restored recap closes the day again or the night walk stops this clock,
+        // and neither should ring it (claude/sound-plan.md §5).
+        if (announceOpen)
+        {
+            announceOpen = false;
+            if (IsOpen && !DayOver) Sfx.Play2DLater("day.open", .4f);
+        }
+
         if (DayOver) return;
 
         if (IsOpen)
@@ -194,6 +210,7 @@ public class DayClock : MonoBehaviour
             {
                 TimeRemaining = 0f;
                 IsOpen = false;      // last orders — stop accepting new arrivals
+                Sfx.Play2D("day.lastorders");
                 closedAt = Time.time;
             }
             return;
@@ -254,6 +271,7 @@ public class DayClock : MonoBehaviour
         TimeRemaining = 0f;
         closingTill = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
         Time.timeScale = 0f;
+        Sfx.Play2D("day.closed");
         SettleClosingCups();
         // Reviews are posted at closing: count today's into the café's
         // reputation first, so the checkpoint below includes them.

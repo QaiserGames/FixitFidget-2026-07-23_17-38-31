@@ -56,6 +56,7 @@ public class RecapUI : MonoBehaviour
  
     private void Show()
     {
+        Sfx.Play2D("recap.open");
         // Return camera-reader ownership before the recap takes its snapshot.
         if (player != null) player.GetComponent<CounterRepairView>()?.Close();
         SuspendCameraInput(FindObjectsByType<CinemachineInputAxisController>(
@@ -187,6 +188,7 @@ public class RecapUI : MonoBehaviour
         if (nextDayButton != null) nextDayButton.interactable = false;
         if (clock.TryNextDay())
         {
+            Sfx.Play2D("ui.confirm");
             panel.SetActive(false);
             ResumeCameraInput();
         }

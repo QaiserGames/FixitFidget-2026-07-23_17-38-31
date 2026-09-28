@@ -18,6 +18,7 @@ public class GrimeSpot : MonoBehaviour
     public void Scrub(float amount)
     {
         scrubHealth -= amount;
+        Sfx.Play("grime.scrub", transform.position);   // asked for every frame; heard every so often (the cue's gap)
 
         // Shrink toward 30% size as it gets cleaner — visible progress.
         float t = Mathf.Clamp01(scrubHealth / maxHealth);
@@ -26,6 +27,7 @@ public class GrimeSpot : MonoBehaviour
         if (scrubHealth <= 0f)
         {
             Debug.Log("Sparkling clean!");   // placeholder for sparkle particles + chime
+            Sfx.Play("grime.clean", transform.position);
             Destroy(gameObject);
         }
     }

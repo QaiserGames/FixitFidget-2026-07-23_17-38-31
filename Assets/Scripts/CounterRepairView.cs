@@ -78,6 +78,8 @@ public sealed class CounterRepairView : MonoBehaviour
         BuildOverlay(owner);
         speaker = display.AddComponent<AudioSource>(); speaker.playOnAwake = false; speaker.volume = .16f;
         ringtone = RepairAudio.MakeTone("Phone confirmation", false); speaker.clip = ringtone;
+        float confirmVolume = speaker.volume;   // the sound bank's confirmation, once chosen; until then the tone
+        speaker.clip = Sfx.Choose("phone.confirm", speaker, ringtone, ref confirmVolume); speaker.volume = confirmVolume;
         openedAt = Time.time; readyAt = Time.time + .25f;
         returnAt = fault.Finished ? Time.time + .2f : float.PositiveInfinity;
         PositionDisplay();

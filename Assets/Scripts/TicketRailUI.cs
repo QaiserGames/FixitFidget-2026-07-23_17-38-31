@@ -54,6 +54,7 @@ public class TicketRailUI : MonoBehaviour
 
             JobTicket t = Instantiate(ticketPrefab, rail);
             t.Bind(b);
+            Sfx.Play2D("ticket.new");
             tickets.Add(b, t);
             ordered.Add(t);
         }

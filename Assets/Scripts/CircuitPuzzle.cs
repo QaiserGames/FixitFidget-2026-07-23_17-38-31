@@ -94,6 +94,9 @@ public sealed class CircuitPuzzle : MonoBehaviour
         UpdateBoost(BoostHeld);
         if (run.Halted && PadInput.Pressed(PadButton.North)) RetryFromButton();
         run.Tick(Time.deltaTime, true, IsBoosting ? fastForwardMultiplier : 1f);
+        // The charge moving on, stopping at a bad joint, or getting through (before Refresh notes the change).
+        if (lastReached >= 0 && run.Reached > lastReached) Sfx.Play(run.Finished ? "circuit.done" : "circuit.step", transform.position);
+        if (run.Halted && !lastHalted) Sfx.Play("circuit.fizzle", transform.position);
         if (run.Halted || run.Finished) ResetBoost();
         if (run.Reached != lastReached || run.Halted != lastHalted) Refresh();
         UpdateMarker();

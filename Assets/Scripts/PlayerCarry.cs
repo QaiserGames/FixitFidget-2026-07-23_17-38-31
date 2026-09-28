@@ -222,6 +222,7 @@ public class PlayerCarry : MonoBehaviour
         held.collision = new bool[held.colliders.Length];
         for (int i = 0; i < held.colliders.Length; i++) { held.collision[i] = held.colliders[i].enabled; held.colliders[i].enabled = false; }
         hands.Add(held); selected = hands.Count - 1; preferredPickupHand = -1;
+        Sfx.Play(item is DrinkJob ? "cup.pickup" : "item.pickup", item.transform.position);
         return true;
     }
     public void PlaceAt(Transform spot)
@@ -231,6 +232,7 @@ public class PlayerCarry : MonoBehaviour
         held.item.transform.position = spot.position + Vector3.up * held.item.restHeight;
         held.item.transform.rotation = spot.rotation;
         hands.Remove(held); preferredPickupHand = -1; Prune();
+        Sfx.Play(held.item is DrinkJob ? "cup.set" : "item.putdown", spot.position);
     }
     public void Consume()
     {

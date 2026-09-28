@@ -74,6 +74,7 @@ public class CupStack : Interactable
         {
             bool returnStock = HeldCup(carry).IsEmpty;
             carry.Consume();
+            Sfx.Play("cup.return", transform.position);
             if (returnStock && ShopInventory.Instance != null) ShopInventory.Instance.ReturnCup();
             return;
         }

@@ -99,6 +99,7 @@ public class RemovablePart : BenchInteractable
     private IEnumerator LiftOff()
     {
         busy = true;
+        Sfx.Play("part.off", transform.position);
         Transform slot = rig != null ? rig.TraySlot(traySlot) : null;
 
         // Detach so rotating the item doesn't drag us out of the tray,
@@ -154,6 +155,7 @@ public class RemovablePart : BenchInteractable
         transform.localRotation = homeLocalRot;
         IsRemoved = false;
         busy = false;
+        Sfx.Play("part.on", transform.position);
 
         // Screws are NOT auto-returned — the player rescrews each one by hand.
     }
