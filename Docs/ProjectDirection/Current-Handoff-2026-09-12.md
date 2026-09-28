@@ -1,5 +1,92 @@
 # Current handoff — September 12, 2026
 
+## September 28 (later morning) — night walk part 3: getting about (the camera follows Ace, see-through buildings, the café closed); on `night-walk`
+
+**Read this entry first.** One code commit, `9680c9e`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+His answers (28 Sept):
+
+- Scope: "Part 3 + night HUD (Recommended)". That covers the follow camera, see-through buildings, the night HUD and closed stations. The streets stay empty until part 4.
+- Framing: "Close: 20 m, zoom 12–34 (Recommended)", tilt 55–80°.
+- For the feel he pointed at Schedule I's town at night. Asked which parts, he said "all of the above": darkness between the lamps, asleep but lived-in, alleys and shortcuts, and night pressure. These steer the tuning after his test. Nothing in this step is built for them yet.
+- He asked for part 3 to be playable, so he can test it and say what he liked and didn't.
+
+**What this step builds** (all at run time; nothing in the scene changes):
+
+- **The overhead camera follows Ace at night** (`CafeViewMode.FollowAce`, called by `NightWalk.Begin` and `End`):
+  - it starts 20 m from Ace at a 62° tilt and keeps the heading the day's view had;
+  - the controls are the same (middle-drag orbits and tilts, scroll zooms; the pad's right stick and triggers), within 12–34 m and 55–80°. R3 returns to the start;
+  - by day nothing changes: 38–68°, and the café's own Minimum/Maximum Distance;
+  - it trails 0.2 s behind Ace (`SmoothDamp`), which hides the capsule's instant starts and stops;
+  - the café's cut-away walls: with Ace outside, a wall only lowers when it hides Ace (sightlines to knees, middle and head). Inside, the day's rule applies;
+  - `FollowAce(false)` restores the day's view exactly;
+  - the settings are new serialized fields on `CafeViewMode`, under "Following Ace (the night walk)". They are still at the code's defaults, because the scene hasn't been saved with them;
+  - a new `LookTo(yaw, pitch)` turns the first-person view, for scripted views.
+- **Buildings in the way turn see-through** (`NightSeeThrough`, new, added to the night group at run time):
+  - the shader is `Fixit Fidget/Night see-through`, file `Assets/Playtests/AcesCafeLayout/Night walk - see-through.shader`;
+  - a building or big tree between the camera and Ace fades to a quarter of its dots in 0.2 s. It comes back 0.3 s after it's clear. The whole building fades, never single pieces;
+  - "in the way" means any of five sightlines (knees, middle, head, and either side) crosses one of the building's pieces, tested against their bounding boxes;
+  - a building is the nearest `Building …` or `… house` above a piece. Anything else groups its pieces up to 8 m wide (a tree, a shelter);
+  - these never fade: tops under 2.3 m, anything thinner than 1 m, the café room, the ground, the hill, the skyline band, people and cars;
+  - 78 buildings and trees can fade, 485 pieces in all;
+  - the fade is a screen-door dither (a 4×4 Bayer pattern) in a copy of URP Lit. Every surface of a building drops the same dots, so what's behind shows through the gaps;
+  - each material gets a copy with that shader the first time its building fades (27 after the tour). The copy keeps the albedo, colour, cut-out and glow; Synty's `_Albedo_Map` and `_Emission_Map` are carried across. Glass keeps its own material;
+  - shadows aren't dithered, so the street's shadows stay put;
+  - the first version was a blended fade. It looked murky (stacked transparent layers) and was dropped. Without the shader, a blended copy still stands in;
+  - **for a build later:** the shader is found by name (`Shader.Find`). A player build only finds it if it's included: in Always Included Shaders, or used by a material. In the editor this doesn't matter.
+- **The café is closed at night** (`ShopUI`, `PlayerInteractor`):
+  - the HUD shows `Night 11:00 PM` in place of the day's clock;
+  - money and stock are hidden, and there are no prompts;
+  - the crosshair shows only in first person;
+  - nothing in the café offers anything or can be used;
+  - this takes over part 5's "the HUD's day clock and counter prompt at night".
+- **Tool:** `Fixit Fidget > Night > Night walk 3 - Walk the tour (Play Mode, night walk)` (`NightTour`, in Diagnostics), for a night lab session:
+  - Ace walks out of the café and round the 9 blocks by itself. The waypoints were found by A* over the night sweep's grid;
+  - the camera is turned so buildings stand in the way. It zooms out and in, then Ace walks a stretch in first person;
+  - photos every 2.5 s, `trail.csv` and `report.txt` go to `Logs/Night/night-tour-*`;
+  - hands off the mouse while it runs (about a minute and a half).
+
+**Checks** (lab sessions; the playtest save was never written):
+
+- **The tour** (`Logs/Night/night-tour-2026-09-28_061038`):
+  - 342 m in 70 s, 0 stuck spots;
+  - frames: average 4.2 ms, 95% under 4.4 ms, worst 25.9 ms;
+  - 11 different buildings and trees turned see-through, at most 2 at once;
+  - no café wall went down while Ace was outside;
+  - 0 warnings and 0 errors, also on leaving Play;
+  - an earlier build destroyed the glass materials it had passed through unchanged, which gave 2 errors on leaving Play. Fixed;
+  - earlier tours: `_055549` (the blended fade) and `_060500` (the dither at 0.3).
+- **The day:**
+  - the 15 standard day photos (`day-photos-with-night-group-2026-09-28_061538`) are byte-identical to the committed state's (`..._050450`);
+  - one retake: the first set's top-down map (`_061304`) came out without the ground, most likely because a shader was still compiling after the reload. The retake was byte-identical;
+  - a day lab session (Day 5, autopilot serves): the overhead view, HUD and service as usual, 0 warnings, 0 errors.
+- **The scene:** not saved and not changed. After lab sessions Unity marks it as changed, and this step found why:
+  - Cinemachine's "Save During Play" is on (see `CmShopCam`). On leaving Play it registers an undo step ("SaveDuringPlay") for every Cinemachine camera, even when nothing changed;
+  - when a value really did change, it asks with a dialog. None did;
+  - that explains part 2's changed-but-byte-identical scene;
+  - a save now would also write the new `CafeViewMode` fields, at their defaults.
+
+**Seen on the tour, for Mansoor's test:**
+
+- Ace's grey capsule is hard to see in a building's shadow at night.
+- The café's entrance frame counts as a building, and fades as Ace walks through the door.
+- No sound yet; nobody about (part 4); the night's hour holds at 11 PM.
+- The LAB banner overlaps the view hint (as before).
+
+**Left open:**
+
+- **Mansoor's test of part 3:** what he liked and didn't. The Schedule I aspects steer what follows.
+- **Part 4:** night owls and local cars. With CafeArrivals resting, `CafeArrivals.Players` isn't refreshed at night, and `NpcJourney` uses it to steer round Ace.
+- **Part 5:** lab entry, Call it a night, dawn, checks and recording.
+- As before:
+  - the east street's lantern lights a tree green-yellow;
+  - one tower has every window lit;
+  - the two small patio air walls;
+  - hardening the Café life check waits for Mansoor's say-so.
+- **Next:** Mansoor's test and feedback on part 3.
+
 ## September 28 (morning) — night walk part 2: the edges closed (road works by night, the corners for good); on `night-walk`
 
 **Read this entry first.** One code commit, `f4528eb`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
