@@ -72,7 +72,9 @@ public sealed class NightSeeThrough : MonoBehaviour
     static readonly int SyntyEmissionColorId = Shader.PropertyToID("_Emission_Color");
     static readonly int SyntyEnableEmissionId = Shader.PropertyToID("_Enable_Emission");
     static readonly int SyntyClipId = Shader.PropertyToID("_Alpha_Clip_Threshold");
-    static readonly string[] NeverFade = { "Hill", "City pavement", "Hazy skyline band" };
+    // The café's own dressing (its entrance frame and brass pulls sit just outside the room) never fades:
+    // Ace walks through that door, and the café has its own cut-away walls.
+    static readonly string[] NeverFade = { "Hill", "City pavement", "Hazy skyline band", "12 - authored cafe interior" };
 
     sealed class Group
     {
@@ -102,6 +104,13 @@ public sealed class NightSeeThrough : MonoBehaviour
     public int FadedNow { get; private set; }
     public int MostAtOnce { get; private set; }
     public IReadOnlyCollection<string> EverFaded => everFaded;
+    /// <summary>
+    /// True while this renderer wears a see-through copy. Anything that would change its materials
+    /// (a window going dark at bedtime) waits until it is back to its own: taking the copy off puts
+    /// back what it wore when the fade began.
+    /// </summary>
+    public bool IsWorn(Renderer r) => r != null && wornRenderers.Contains(r);
+    readonly HashSet<Renderer> wornRenderers = new();
     /// <summary>True when the dither shader was found (the see-through is dotted, not blended).</summary>
     public bool Dithered => dither != null;
 
@@ -114,6 +123,7 @@ public sealed class NightSeeThrough : MonoBehaviour
         // the shader kept, in Always Included Shaders or on a material in the build.)
         dither = Shader.Find(DitherShaderName);
         groups.Clear();
+        wornRenderers.Clear();
         Renderers = HideInstead = 0;
 
         // Never: Ace, anyone or anything that moves, the night's own objects (lamps, road works),
@@ -270,6 +280,7 @@ public sealed class NightSeeThrough : MonoBehaviour
                 colours[m] = own[m] != null && own[m].HasProperty(BaseColorId) ? own[m].GetColor(BaseColorId) : Color.white;
             }
             g.colours[i] = colours;
+            wornRenderers.Add(r);
             if (hide) { r.forceRenderingOff = true; continue; }   // a shader with no see-through: it hides instead
             r.sharedMaterials = wear;
         }
@@ -307,6 +318,7 @@ public sealed class NightSeeThrough : MonoBehaviour
         {
             Renderer r = g.renderers[i];
             if (r == null || g.own == null || g.own[i] == null) continue;
+            wornRenderers.Remove(r);
             if (r.forceRenderingOff) { r.forceRenderingOff = false; continue; }
             r.sharedMaterials = g.own[i];   // its own materials first: nothing below can leave it see-through
             r.SetPropertyBlock(null);

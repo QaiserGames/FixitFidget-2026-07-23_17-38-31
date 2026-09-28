@@ -33,6 +33,14 @@ using Object = UnityEngine.Object;
 //   ... > Play the night walk (lab): a café lab session (test save, Day 5) that starts at night.
 //   ... > Night walk - Photograph the night (Play Mode, night walk): the city photo views, at night,
 //         with post-processing, to Logs/Night/night-photos-<time>/.
+//
+// NIGHT WALK, PART 4a: ASLEEP BUT LIVED-IN (claude/night-city-proposal.md §9)
+//   ... > Night walk 4a - Build the lived-in windows: the houses' rooms, window by window (NightLivedIn).
+//   ... > Night walk 4a - Put up house numbers and street signs / Take them down again (day and night).
+//   ... > Night walk 4a - Check the lived-in street (read-only): what is set up, and at night the rooms' timetable.
+//   ... > Night walk 4a - Photograph the night over the hours (Play Mode): the clock moved on, photos at each hour.
+//   ... > Night walk 4a - Send the neighbours home now / Move the clock on an hour (Play Mode): for checks.
+//   ... > Night walk 4a - Watch a neighbour come home (Play Mode): photos of one walking home and letting themselves in.
 internal static class NightWalkSteps
 {
     const string Tag = "[Night walk] ";
@@ -338,7 +346,7 @@ internal static class NightWalkSteps
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         string path = Path.Combine(Application.persistentDataPath, CafeLab.SaveFileName);
-        SaveCheckpointStorage.Write(path, new SaveData { day = 5, money = 600, cups = 40, beans = 40, dayCompleted = false });
+        SaveCheckpointStorage.Write(path, new SaveData { day = 5, money = 600, cups = 40, beans = 40, dayCompleted = false, notebook = LabNotebook() });
         PlayerPrefs.SetInt(CafeLab.PendingKey, 1);
         PlayerPrefs.SetInt(CafeLab.AutopilotKey, 0);
         PlayerPrefs.SetInt(NightWalk.PendingKey, 1);
@@ -350,6 +358,27 @@ internal static class NightWalkSteps
     [MenuItem(Menu + "Play the night walk (lab)", true)]
     static bool CanPlayNight() => !EditorApplication.isPlayingOrWillChangePlaymode;
 
+    // Test data for the lab only (the playtest save is never touched): what Grace told Ace on her camera
+    // visit, and her house, seen twice, so "likely". The notebook page at night (N) shows it.
+    static NotebookFactData[] LabNotebook()
+    {
+        var facts = new List<NotebookFactData>();
+        foreach (NotebookFactData fact in NotebookEntries.GraceIntake(NotebookEntries.GraceName))
+        {
+            fact.day = 3;
+            facts.Add(fact);
+        }
+        HomeDoor door = SceneManager.GetActiveScene().IsValid()
+            ? CityPackChecks.InScene<HomeDoor>().FirstOrDefault(d => d.homeId == "home.grace") : null;
+        NotebookFactData home = NotebookEntries.HomeSeen(NotebookEntries.GraceId, NotebookEntries.GraceName,
+            door != null ? door.looks : "the saffron house", door != null ? door.houseNumber : "12", door != null ? door.streetId : "west",
+            true, Notebook.Sureness.Likely);
+        home.day = 3;
+        home.surerDay = 4;
+        facts.Add(home);
+        return facts.ToArray();
+    }
+
     // A night request that never became a Play session must not make the next lab session a night.
     [InitializeOnLoadMethod]
     static void ClearStaleNightRequest()
@@ -360,6 +389,313 @@ internal static class NightWalkSteps
             PlayerPrefs.Save();
         }
     }
+
+    // ------------------------------------------------------------------ part 4a: the lived-in street
+
+    [MenuItem(Menu + "Night walk 4a - Build the lived-in windows (rooms list, Edit Mode)")]
+    static void BuildLivedInWindows()
+    {
+        var report = new StringBuilder();
+        try
+        {
+            CityPackChecks.RequireScene();
+            NightWalk walk = TheNightWalk();
+            NightRooms rooms = NightLivedIn.BuildRooms(walk, report);
+            if (walk.rooms != rooms)
+            {
+                Undo.RecordObject(walk, "Night walk 4a - point at the rooms list");
+                walk.rooms = rooms;
+                EditorUtility.SetDirty(walk);
+                EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+                report.AppendLine("The NightWalk now points at the rooms list (the scene changed: save it).");
+            }
+            else report.AppendLine("The NightWalk already points at the rooms list: the scene is unchanged.");
+            string folder = LogFolder("night-rooms");
+            File.WriteAllText(Path.Combine(folder, "report.txt"), "Night walk 4a - build the lived-in windows\n\n" + report);
+            Debug.Log(Tag + "Built the rooms list. Nothing changes by day; at night the houses are lit room by room.\n" + report);
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Building the rooms list FAILED: " + e.Message + "\n" + report + "\n" + e); }
+    }
+
+    [MenuItem(Menu + "Night walk 4a - Put up house numbers and street signs (day and night, Edit Mode)")]
+    static void PutUpNumbersAndSigns()
+    {
+        var report = new StringBuilder();
+        try
+        {
+            CityPackChecks.RequireScene();
+            Undo.SetCurrentGroupName("Night walk 4a - house numbers and street signs");
+            int undoGroup = Undo.GetCurrentGroup();
+            NightLivedIn.PutUp(report);
+            Undo.CollapseUndoOperations(undoGroup);
+            string folder = LogFolder("night-numbers-and-signs");
+            File.WriteAllText(Path.Combine(folder, "report.txt"), "Night walk 4a - house numbers and street signs\n\n" + report);
+            Debug.Log(Tag + "Put up house numbers and street signs (seen by day too; Edit > Undo takes them down). Save the scene once the diff is read.\n" + report);
+        }
+        catch (Exception e) { Debug.LogError(Tag + "House numbers and street signs FAILED: " + e.Message + "\n" + report + "\n" + e); }
+    }
+
+    [MenuItem(Menu + "Night walk 4a - Take the house numbers and street signs down again")]
+    static void TakeDownNumbersAndSigns()
+    {
+        try
+        {
+            CityPackChecks.RequireScene();
+            var report = new StringBuilder();
+            NightLivedIn.TakeDown(report);
+            Debug.Log(Tag + report + " (Edit > Undo puts them back; the three materials stay, they are harmless.)");
+        }
+        catch (Exception e) { Debug.LogError(Tag + "FAILED: " + e.Message); }
+    }
+
+    [MenuItem(Menu + "Night walk 4a - Check the lived-in street (read-only)")]
+    static void CheckLivedIn()
+    {
+        var report = new StringBuilder();
+        try
+        {
+            NightWalk walk = CityPackChecks.InScene<NightWalk>().FirstOrDefault();
+            if (walk == null) throw new InvalidOperationException("No NightWalk in the scene: run Night walk 1 first.");
+            NightRooms rooms = walk.rooms;
+            if (rooms == null) report.AppendLine("Rooms list: NOT SET (run Night walk 4a - Build the lived-in windows).");
+            else
+            {
+                report.AppendLine($"Rooms list '{AssetDatabase.GetAssetPath(rooms)}': {rooms.rooms.Length} rooms in {rooms.houses} houses, " +
+                                  $"{rooms.caps.Length} dark caps, {rooms.curtainPaths.Length} merged curtains to hide at night.");
+                foreach (var house in rooms.rooms.Where(r => r != null).GroupBy(r => r.housePath))
+                {
+                    var list = house.ToList();
+                    bool found = NightHomes.FindByPath(house.Key) != null;
+                    report.AppendLine($"  {list[0].house}: {list.Count} rooms on {list.Select(r => r.floor).Distinct().Count()} floors, " +
+                                      $"{list.Count(r => r.shopFront)} shop fronts, {list.Count(r => r.curtains != null)} with curtains, " +
+                                      $"{list.Count(r => r.panes == null)} without a pane mesh{(found ? "" : "; THE HOUSE IS NOT IN THE SCENE")}");
+                }
+            }
+            NightWalk.HomeHours hours = walk.homeHours;
+            HomeDoor grace = CityPackChecks.InScene<HomeDoor>().FirstOrDefault(d => d.homeId == hours.graceHomeId);
+            if (grace == null) report.AppendLine($"Grace's door '{hours.graceHomeId}': NOT FOUND (her house stays dark).");
+            else
+            {
+                Transform house = grace.transform.parent;
+                bool listed = rooms != null && rooms.rooms.Any(r => r != null && house != null && r.housePath == NightLivedIn.PathOf(house) && r.index == hours.graceRoom);
+                report.AppendLine($"Grace's door '{grace.name}' ({grace.Address}) on '{(house != null ? house.name : "?")}': room {hours.graceRoom} lit until " +
+                                  $"{NightHomes.Clock(hours.graceBedtime)}, {(listed ? "in the rooms list" : "NOT in the rooms list")}.");
+            }
+            report.AppendLine($"Houses: {hours.litAtStart:P0} of the rooms lit at {NightHomes.Clock(walk.nightHour)}, downstairs out by {NightHomes.Clock(hours.downstairsOutBy)}, " +
+                              $"all by {NightHomes.Clock(hours.lastLightsOut)}; {hours.tvRooms} TV rooms; {hours.wakes} rooms where someone gets up later.");
+            report.AppendLine($"City: {walk.cityLitAtStart:P0} of {walk.buildingRenderers.Length} building parts lit at the start, {walk.cityNightOwls:P0} night owls, " +
+                              $"the rest dark by {NightHomes.Clock(walk.cityLastLightsOut)}; {walk.cityTvWindows} TVs. Clock: {NightHomes.Clock(walk.nightHour)} to " +
+                              $"{NightHomes.Clock(walk.nightEndsAt)} in {walk.nightMinutes:0.#} minutes.");
+            foreach (NightWalk.Neighbour n in walk.neighbours)
+            {
+                Transform house = CityPackChecks.InScene<StreetDoor>().Select(d => d.transform.parent).FirstOrDefault(h => h != null && h.name == n.house);
+                StreetDoor door = house != null ? house.GetComponentInChildren<StreetDoor>(true) : null;
+                string walkText = n.walk.Length == 0 ? "NO WALK" : $"{n.walk.Length} points, {Length(n.walk):0.0} m";
+                if (door != null && n.walk.Length > 0)
+                {
+                    Vector3 stoop = door.DoorwayPoint + door.Outward * n.stoop;
+                    Vector3 last = n.walk[n.walk.Length - 1];
+                    walkText += $", then {Flat2(stoop - last).magnitude:0.0} m to the step and {n.stoop:0.0} m up to the door";
+                }
+                report.AppendLine($"Neighbour: {n.name}, home at {NightHomes.Clock(n.comesHomeAt)} to '{n.house}' " +
+                                  $"({(house == null ? "HOUSE NOT FOUND" : door == null ? "NO FRONT DOOR" : "door at " + Vector(door.DoorwayPoint))}); walk {walkText}; " +
+                                  $"lights {n.downstairsFor:0.00} h, then upstairs {n.upstairsFor:0.00} h.");
+            }
+            GameObject lamp = walk.nightOnly.FirstOrDefault(g => g != null && g.name == walk.flickeringLamp);
+            bool cap = rooms != null && rooms.caps.Any(c => c != null && c.name == walk.flickeringLamp && c.mesh != null);
+            report.AppendLine($"Broken: the failing bulb '{walk.flickeringLamp}': {(lamp != null ? "found" : "NOT FOUND")}, dark cap {(cap ? "in the rooms list" : "none")}.");
+            GameObject stutter = walk.nightOnly.FirstOrDefault(g => g != null && g.name == walk.stutteringLamp);
+            report.AppendLine($"Broken: the stuttering street lamp '{walk.stutteringLamp}': " +
+                              (stutter != null ? $"found, {stutter.GetComponentsInChildren<Light>(true).Length} light, {stutter.GetComponentsInChildren<Renderer>(true).Length} bulb" : "NOT FOUND") + ".");
+            Renderer sign = walk.signRenderers.Where(r => r != null).OrderBy(r => Flat2(r.bounds.center - walk.brokenSignNear).sqrMagnitude).FirstOrDefault();
+            report.AppendLine(sign != null
+                ? $"Broken: the sign that cuts out: '{NightLivedIn.PathOf(sign.transform)}', {Flat2(sign.bounds.center - walk.brokenSignNear).magnitude:0.0} m from the point given."
+                : "Broken: no glowing signs.");
+            var numbers = CityPackChecks.InScene<HouseNumber>();
+            report.AppendLine($"House numbers: {numbers.Length}" + string.Concat(numbers.Select(h =>
+                $"\n  '{h.Shown}' on {(h.transform.parent != null ? h.transform.parent.name : "?")}{(h.home != null ? " (" + h.home.Address + ")" : "")}")));
+            var signs = CityPackChecks.InScene<StreetNameSign>();
+            report.AppendLine($"Street signs: {signs.Length}" + string.Concat(signs.Select(s =>
+                $"\n  '{s.Says()}' at ({s.transform.position.x:0.0}, {s.transform.position.z:0.0})")));
+            if (EditorApplication.isPlaying && NightWalk.Instance != null && NightWalk.Instance.Active)
+            {
+                report.AppendLine().AppendLine("Tonight so far:").AppendLine(NightWalk.Instance.Describe());
+                if (NightWalk.Instance.Homes != null) report.AppendLine("The rooms' timetable:").Append(NightWalk.Instance.Homes.Timetable());
+            }
+            string folder = LogFolder("lived-in-check");
+            File.WriteAllText(Path.Combine(folder, "report.txt"), "Night walk 4a - check the lived-in street\n\n" + report);
+            Debug.Log(Tag + "Lived-in street check (" + folder + "):\n" + report);
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Check FAILED: " + e.Message + "\n" + report + "\n" + e); }
+    }
+
+    // Three views of how the night changes: the bay-window houses across the west street, the courtyard
+    // shops across the east street, and the whole city.
+    static readonly (string name, Vector3 position, Vector3 target, float fov)[] HourViews =
+    {
+        ("west-street-houses", new Vector3(-4.5f, 12.5f, 7f), new Vector3(-17.5f, 3.5f, 7f), 62f),
+        ("courtyard-shops", new Vector3(7.5f, 11f, -1.5f), new Vector3(19.5f, 3.5f, 1.5f), 62f),
+        ("city-overview", new Vector3(-55f, 48f, -60f), new Vector3(0f, 0f, 10f), 55f),
+    };
+    static readonly float[] PhotoHours = { 23.1f, 23.9f, 24.6f, 25.4f, 26.3f, 27.9f };
+
+    [MenuItem(Menu + "Night walk 4a - Photograph the night over the hours (Play Mode, night walk)")]
+    static void PhotographTheHours()
+    {
+        NightWalk walk = NightWalk.Instance;
+        float before = walk != null ? walk.Hour : 0f;
+        try
+        {
+            if (!EditorApplication.isPlaying || walk == null || !walk.Active)
+                throw new InvalidOperationException("Start Fixit Fidget > Night > Play the night walk (lab) first.");
+            string folder = LogFolder("night-hours");
+            var notes = new StringBuilder();
+            foreach (float hour in PhotoHours)
+            {
+                walk.SetHour(hour);
+                string stamp = TwentyFour(hour);
+                foreach (var view in HourViews)
+                    Capture(Path.Combine(folder, $"{stamp}-{view.name}.png"), view.position, view.target, view.fov, false);
+                notes.AppendLine($"==== {NightHomes.Clock(hour)} ====").AppendLine(walk.Describe());
+            }
+            notes.AppendLine("Neighbours due before the last photo's hour were counted home (they skip their walk this session).");
+            File.WriteAllText(Path.Combine(folder, "night-state.txt"), notes.ToString());
+            Debug.Log(Tag + $"Night over the hours: {PhotoHours.Length} hours x {HourViews.Length} views in {folder}");
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Photos over the hours FAILED: " + e.Message + "\n" + e); }
+        finally { if (walk != null && walk.Active) walk.SetHour(before); }
+    }
+
+    [MenuItem(Menu + "Night walk 4a - Send the neighbours home now (Play Mode, night walk)")]
+    static void SendNeighboursHome()
+    {
+        NightWalk walk = NightWalk.Instance;
+        if (!EditorApplication.isPlaying || walk == null || !walk.Active || walk.NeighbourWalks == null)
+        { Debug.LogError(Tag + "Start Fixit Fidget > Night > Play the night walk (lab) first."); return; }
+        walk.NeighbourWalks.SendHomeNow(walk.Hour);
+        Debug.Log(Tag + "The neighbours still out set off now (each appears once the camera can't see their corner).");
+    }
+
+    // The core moment, photographed: the next neighbour still out (one whose corner the game camera can't
+    // see, if there is one) sets off now, and a camera across the street from their house takes a photo
+    // every second and a half until they are in and their light is on. Photos and notes go to
+    // Logs/Night/neighbour-watch-*/. Only neighbours still out can be watched: in a new lab session all are.
+    static bool watching;
+    static int watchIndex, watchShots;
+    static double watchNext, watchUntil, watchHomeAt;
+    static string watchFolder;
+    static Vector3 watchCamera, watchTarget;
+    static StringBuilder watchNotes;
+
+    [MenuItem(Menu + "Night walk 4a - Watch a neighbour come home (Play Mode, night walk)")]
+    static void WatchANeighbour()
+    {
+        NightWalk walk = NightWalk.Instance;
+        try
+        {
+            if (!EditorApplication.isPlaying || walk == null || !walk.Active || walk.NeighbourWalks == null)
+                throw new InvalidOperationException("Start Fixit Fidget > Night > Play the night walk (lab) first.");
+            if (watching) throw new InvalidOperationException("Already watching one.");
+            NightNeighbours walks = walk.NeighbourWalks;
+            int which = walks.NextOut(true);
+            bool inView = which < 0;
+            if (inView) which = walks.NextOut();
+            if (which < 0) throw new InvalidOperationException("Everyone is home already: start a new lab session to watch one.");
+            NightWalk.Neighbour n = walk.neighbours[which];
+            Transform house = CityPackChecks.InScene<StreetDoor>().Select(d => d.transform.parent).FirstOrDefault(h => h != null && h.name == n.house);
+            StreetDoor door = house != null ? house.GetComponentInChildren<StreetDoor>(true) : null;
+            Vector3 from = n.walk[0], to = door != null ? door.DoorwayPoint : n.walk[n.walk.Length - 1];
+            Vector3 mid = (from + to) * .5f;
+            Vector3 outward = door != null ? door.Outward : Vector3.right;
+            Vector3 along = to - from;
+            along.y = 0f;
+            along = along.sqrMagnitude > 1e-4f ? along.normalized : Vector3.forward;
+            // Across the street from their house, raised, looking back at the pavement and the front door.
+            watchCamera = mid + outward * 10f + Vector3.up * 7.5f - along * 3f;
+            watchTarget = mid + outward * .8f + Vector3.up * 1.2f + along * 1.5f;
+            walks.SendHome(which, walk.Hour);
+            watchFolder = LogFolder("neighbour-watch");
+            watchIndex = which;
+            watchShots = 0;
+            watchNext = EditorApplication.timeSinceStartup + .3;
+            watchUntil = EditorApplication.timeSinceStartup + 110;
+            watchHomeAt = -1;
+            watchNotes = new StringBuilder().AppendLine($"Watching {n.name} ({n.house}) come home from {NightHomes.Clock(walk.Hour)}.");
+            if (inView) watchNotes.AppendLine("Every neighbour's corner was in the game camera's view: they set off once it isn't (walk Ace away).");
+            watching = true;
+            EditorApplication.update += Watch;
+            Debug.Log(Tag + $"Watching {n.name} come home: a photo every 1.5 s to {watchFolder}" +
+                      (inView ? " (their corner is in view: they set off once it isn't)." : "."));
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Watch FAILED: " + e.Message); }
+    }
+
+    static void Watch()
+    {
+        NightWalk walk = NightWalk.Instance;
+        double now = EditorApplication.timeSinceStartup;
+        if (!EditorApplication.isPlaying || walk == null || !walk.Active || walk.NeighbourWalks == null) { StopWatching("the night ended first"); return; }
+        if (now < watchNext) return;
+        watchNext = now + 1.5;
+        string state = walk.NeighbourWalks.StateOf(watchIndex);
+        bool home = state.StartsWith("home", StringComparison.Ordinal) || state.StartsWith("came", StringComparison.Ordinal);
+        if (home && watchHomeAt < 0) watchHomeAt = now;
+        try { Capture(Path.Combine(watchFolder, $"{watchShots:00}-{TwentyFour(walk.Hour)}.png"), watchCamera, watchTarget, 55f, false); }
+        catch (Exception e) { watchNotes.AppendLine("photo failed: " + e.Message); }
+        Vector3? at = walk.NeighbourWalks.BodyOf(watchIndex);
+        watchNotes.AppendLine($"{watchShots:00} {NightHomes.Clock(walk.Hour)}: {state}" + (at.HasValue ? $" at ({at.Value.x:0.00}, {at.Value.z:0.00})" : ""));
+        watchShots++;
+        if (watchHomeAt >= 0 && now - watchHomeAt > 3.5) StopWatching("in, and their light is on");
+        else if (now > watchUntil) StopWatching("stopped after 110 s");
+    }
+
+    static void StopWatching(string why)
+    {
+        EditorApplication.update -= Watch;
+        watching = false;
+        try
+        {
+            watchNotes?.AppendLine($"Stopped: {why}.");
+            if (NightWalk.Instance != null && NightWalk.Instance.Active) watchNotes?.AppendLine().AppendLine(NightWalk.Instance.Describe());
+            if (watchFolder != null) File.WriteAllText(Path.Combine(watchFolder, "notes.txt"), watchNotes?.ToString() ?? "");
+            Debug.Log(Tag + $"Neighbour watch: {why}; {watchShots} photos in {watchFolder}");
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Neighbour watch notes FAILED: " + e.Message); }
+    }
+
+    [MenuItem(Menu + "Night walk 4a - Move the clock on an hour (Play Mode, night walk)")]
+    static void MoveTheClockOn()
+    {
+        NightWalk walk = NightWalk.Instance;
+        if (!EditorApplication.isPlaying || walk == null || !walk.Active)
+        { Debug.LogError(Tag + "Start Fixit Fidget > Night > Play the night walk (lab) first."); return; }
+        walk.SetHour(walk.Hour + 1f);
+        Debug.Log(Tag + $"The clock now reads {NightHomes.Clock(walk.Hour)}.");
+    }
+
+    static NightWalk TheNightWalk()
+    {
+        var layout = SceneManager.GetActiveScene().GetRootGameObjects().FirstOrDefault(g => g.name == LayoutRoot);
+        var group = layout != null ? layout.transform.Find(GroupName) : null;
+        var walk = group != null ? group.GetComponent<NightWalk>() : null;
+        if (walk == null) throw new InvalidOperationException("No night group with a NightWalk: run Night walk 1 (the set-up) first.");
+        return walk;
+    }
+
+    static string TwentyFour(float hour)
+    {
+        int minutes = Mathf.FloorToInt(Mathf.Repeat(hour, 24f) * 60f + .001f);
+        return $"{minutes / 60:00}{minutes % 60:00}";
+    }
+
+    static float Length(Vector3[] points)
+    {
+        float sum = 0f;
+        for (int i = 1; i < points.Length; i++) sum += Flat2(points[i] - points[i - 1]).magnitude;
+        return sum;
+    }
+
+    static string Vector(Vector3 v) => $"({v.x:0.00}, {v.y:0.00}, {v.z:0.00})";
 
     // ------------------------------------------------------------------ photos
 

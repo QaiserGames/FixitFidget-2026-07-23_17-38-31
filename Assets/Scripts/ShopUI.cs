@@ -36,7 +36,9 @@ public class ShopUI : MonoBehaviour
         if (viewHintText != null)
         {
             viewHintText.gameObject.SetActive(!recapOpen && viewMode != null && viewMode.CanChangeView);
-            if (viewMode != null) viewHintText.text = viewMode.ControlsHint;
+            // At night the torch and the notebook join the view's own controls.
+            if (viewMode != null) viewHintText.text = viewMode.ControlsHint
+                + (night != null ? $"    {ControlHints.Torch}  Torch    {ControlHints.NotebookPage}  Notebook" : "");
         }
         if (moneyText != null) moneyText.gameObject.SetActive(!recapOpen && night == null);
         if (clockText != null) clockText.gameObject.SetActive(!recapOpen);
@@ -49,7 +51,8 @@ public class ShopUI : MonoBehaviour
         }
         if (night != null)
         {
-            if (clockText != null) clockText.text = $"Night   {FormatHour(night.nightHour)}";
+            // The night's own clock (it moves: 11 PM to about 4 AM), shown as it reads.
+            if (clockText != null) clockText.text = $"Night   {FormatHour(night.ClockHour)}";
             if (promptText != null) promptText.text = "";
             if (crosshair != null)
                 crosshair.SetActive(viewMode != null && viewMode.WalkingFirstPerson && !viewMode.PointerReleased && Time.timeScale > 0);

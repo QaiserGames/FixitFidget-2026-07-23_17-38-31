@@ -27,6 +27,9 @@ public class PatronSpawner : MonoBehaviour
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private Transform exitPoint;
 
+    /// <summary>The body patrons are made from. The night walk borrows it for the neighbours coming home (NightNeighbours).</summary>
+    public GameObject PatronPrefab => patronPrefab;
+
     [Header("How many")]
     [Tooltip("Ceiling on patrons alive at once. occupancy-and-pacing.md sets " +
              "total occupancy at 20: ~6 customers plus ~14 patrons.")]

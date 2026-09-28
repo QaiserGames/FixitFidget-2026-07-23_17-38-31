@@ -53,6 +53,51 @@ public static class NotebookRecap
         return text.ToString();
     }
 
+    /// <summary>
+    /// The whole notebook as one page (the night walk opens it with a key; NightNotebook):
+    /// person by person, in the order Ace first learned about them, where they live first,
+    /// then everything else in the order it was learned. Guesses say so, as in the recap.
+    /// Empty when there is nothing yet.
+    /// </summary>
+    public static string Page(Notebook notebook)
+    {
+        if (notebook == null || notebook.Count == 0) return "";
+        var people = new List<string>();
+        var names = new Dictionary<string, string>();
+        foreach (NotebookFactData fact in notebook.Facts)
+        {
+            string who = fact.who ?? "";
+            if (names.ContainsKey(who)) continue;
+            people.Add(who);
+            names[who] = string.IsNullOrWhiteSpace(fact.name) ? who : fact.name;
+        }
+        var text = new StringBuilder();
+        foreach (string who in people)
+        {
+            if (text.Length > 0) text.Append('\n');
+            text.Append("<b>").Append(names[who]).Append("</b>");
+            // Where they live first: that is what the night is for.
+            for (int pass = 0; pass < 2; pass++)
+                foreach (NotebookFactData fact in notebook.Facts)
+                {
+                    if ((fact.who ?? "") != who) continue;
+                    bool address = fact.kind == Notebook.Kinds.Address;
+                    if (address != (pass == 0)) continue;
+                    text.Append('\n').Append(Small).Append("<indent=4%>").Append(Sentence(fact.text)).Append(Marker(fact.sure, ""))
+                        .Append("</indent></size>");
+                }
+        }
+        return text.ToString();
+    }
+
+    // A fact on its own line: street names filled in, and a capital to start.
+    private static string Sentence(string text)
+    {
+        string said = StreetNames.Resolve(text ?? "");
+        if (said.Length > 0 && char.IsLower(said[0])) said = char.ToUpperInvariant(said[0]) + said.Substring(1);
+        return said;
+    }
+
     /// <summary>"Grace: a camera with a scratched strap. …", and "(hunch)" or "(likely)" when Ace isn't sure.</summary>
     public static string Line(NotebookFactData fact) => Said(fact) + Marker(fact.sure, "");
 
