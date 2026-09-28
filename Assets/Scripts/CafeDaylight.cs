@@ -6,6 +6,9 @@ using UnityEngine.Rendering;
 /// <summary>
 /// A scene-bound lighting pass driven by the existing shop clock. It owns no
 /// timers or closing rules; the same day progression drives work and sunset.
+/// A night walk (night step 4, <see cref="NightWalk"/>) can hold the hour at night,
+/// add a moon and dim the café's own lights through <see cref="SetNight"/>; by
+/// default all three are neutral, so the day plays exactly as before.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class CafeDaylight : MonoBehaviour
@@ -31,6 +34,20 @@ public sealed class CafeDaylight : MonoBehaviour
     [Min(1f)] public float hazeStart = 55f;
     [Min(2f)] public float hazeEnd = 160f;
 
+    [Header("Night walk: the moon (only while a night walk runs)")]
+    [Range(10f, 80f)] public float moonAltitude = 42f;
+    [Range(0f, 360f)] public float moonAzimuth = 215f;
+    public Color moonColor = new Color(.62f, .72f, 1f);
+    [Min(0f)] public float moonIntensity = .32f;
+
+    /// <summary>The café room: lights inside it are the café's own, dimmed while it is closed for the night.</summary>
+    public static readonly Rect CafeInside = Rect.MinMaxRect(-7.4f, .1f, 7.4f, 18f);
+
+    /// <summary>Night walk: the hour held (null: the clock's), the moon (0-1) and the café's own lights (1: as by day).</summary>
+    public float? HourOverride { get; private set; }
+    public float MoonStrength { get; private set; }
+    public float InteriorLampScale { get; private set; } = 1f;
+
     public struct LightingSample
     {
         public float hour, altitude, sunStrength, dusk, night, skyExposure;
@@ -38,7 +55,7 @@ public sealed class CafeDaylight : MonoBehaviour
     }
 
     struct RendererState { public Renderer renderer; public Material[] materials; }
-    struct LightState { public Light light; public float intensity; }
+    struct LightState { public Light light; public float intensity; public bool inside; }
 
     readonly List<RendererState> rendererStates = new();
     readonly List<LightState> lightStates = new();
@@ -64,17 +81,30 @@ public sealed class CafeDaylight : MonoBehaviour
     {
         if (clock == null) clock = DayClock.Instance;
         Capture();
-        ApplyAtHour(clock != null ? clock.CurrentHour : 9f);
+        ApplyAtHour(HourOverride ?? (clock != null ? clock.CurrentHour : 9f));
     }
 
     void Update()
     {
         // Unscaled scheduling lets the final closing light reach a paused recap,
         // while CurrentHour itself remains frozen when the player pauses.
-        if (clock == null || Time.unscaledTime < nextUpdate) return;
+        if ((clock == null && !HourOverride.HasValue) || Time.unscaledTime < nextUpdate) return;
         nextUpdate = Time.unscaledTime + .1f;
-        if (!captured || Mathf.Abs(clock.CurrentHour - lastAppliedHour) > .0001f)
-            ApplyAtHour(clock.CurrentHour);
+        float hour = HourOverride ?? clock.CurrentHour;
+        if (!captured || Mathf.Abs(hour - lastAppliedHour) > .0001f)
+            ApplyAtHour(hour);
+    }
+
+    /// <summary>
+    /// Night walk: hold the hour (null hands it back to the clock), add a moon (0-1)
+    /// and scale the café's own lights inside the room (1 = as by day). Applied at once.
+    /// </summary>
+    public void SetNight(float? hour, float moon, float interiorLamps)
+    {
+        HourOverride = hour.HasValue ? Mathf.Clamp(hour.Value, 0f, 24f) : (float?)null;
+        MoonStrength = Mathf.Clamp01(moon);
+        InteriorLampScale = Mathf.Max(0f, interiorLamps);
+        if (Application.isPlaying) ApplyAtHour(HourOverride ?? (clock != null ? clock.CurrentHour : 9f));
     }
 
     /// <summary>Pure sampling for editor previews/checks; does not advance the day or change the scene.</summary>
@@ -121,6 +151,14 @@ public sealed class CafeDaylight : MonoBehaviour
                 Mathf.LerpAngle(morningSunAzimuth, eveningSunAzimuth, Mathf.InverseLerp(9f, 20f, sample.hour)), 0f);
             sun.color = sample.sunColor;
             sun.intensity = daylightIntensity * sample.sunStrength;
+            // Night walk only: once the sun is down, the same light becomes the moon.
+            float moon = MoonStrength * sample.night * Mathf.Clamp01(1f - sample.sunStrength * 4f);
+            if (moon > 0f)
+            {
+                sun.transform.rotation = Quaternion.Euler(moonAltitude, moonAzimuth, 0f);
+                sun.color = moonColor;
+                sun.intensity = moonIntensity * moon;
+            }
         }
         RenderSettings.ambientMode = AmbientMode.Trilight;
         RenderSettings.ambientSkyColor = sample.ambientSky;
@@ -145,7 +183,7 @@ public sealed class CafeDaylight : MonoBehaviour
         float evening = Mathf.Max(sample.night, Smooth(17f, 19.3f, sample.hour));
         float lamps = Mathf.Lerp(daytimeLampStrength, 1f, evening);
         foreach (var state in lightStates)
-            if (state.light != null) state.light.intensity = state.intensity * lamps;
+            if (state.light != null) state.light.intensity = state.intensity * lamps * (state.inside ? InteriorLampScale : 1f);
         foreach (var copy in glowCopies.Values)
             copy.SetColor(Emission, eveningGlow * Mathf.Lerp(.035f, 1f, evening));
     }
@@ -180,7 +218,11 @@ public sealed class CafeDaylight : MonoBehaviour
             RenderSettings.skybox = skyCopy;
         }
         foreach (var light in warmLights)
-            if (light != null && light != sun) lightStates.Add(new LightState { light = light, intensity = light.intensity });
+            if (light != null && light != sun)
+            {
+                Vector3 p = light.transform.position;
+                lightStates.Add(new LightState { light = light, intensity = light.intensity, inside = CafeInside.Contains(new Vector2(p.x, p.z)) });
+            }
         foreach (var material in emissiveMaterials)
         {
             if (material == null || glowCopies.ContainsKey(material) || !material.HasProperty(Emission)) continue;
