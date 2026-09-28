@@ -1,5 +1,89 @@
 # Current handoff — September 12, 2026
 
+## September 28 (afternoon) — sound, the plumbing: a sound bank, the ears at Ace, steps and a soundscape (silent until the files are chosen); on `sound`
+
+**Read this entry first.** One code commit, `737c85a`, on a new branch `sound`, made from `night-walk` (`e965ee9`). This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone, and he hasn't played night walk parts 3 and 4a yet. Every check here ran in lab sessions, and the playtest save was never written.
+
+The plan is the project doc `claude/sound-plan.md`. Mansoor's answers (28 Sept):
+
+- Next thing to prepare: "Draft the sound plan (Recommended)".
+- Order: "cafe first then night but remember the sounds have to sound and feel cozy and nice and unique".
+- Download: "2018 + 2020, ~80 GB (Recommended)". He downloads the Sonniss GDC bundles himself, in his browser, to `D:\SoundLibrary\`, outside the project.
+- Ears: "At Ace, turned with camera (Recommended)".
+- When: "Now, before 4b (Recommended)". 4b gets its sounds as it's built.
+- Plumbing: "Yes, build it (Recommended)".
+
+**What this step builds.** Game code names a cue, and one asset holds everything else about it. Every cue stays silent until it has files, but each request is counted, so a check can show the hooks fire before any sound exists. A fresh clone of the public repository has no sound files at all and simply stays quiet.
+
+- **The sound bank** (`SoundBank`, the asset `Assets/Data/Resources/Sound bank.asset`):
+  - 49 cues for the café and the night, each with a note on when it plays;
+  - per cue: its files, volume and pitch with a small wobble, placed or flat, how far it carries, the shortest gap between repeats, how many can play at once, and its bus;
+  - the buses are World, Ace, UI, Ambience, Outside and Music. They're found by name in `Assets/Audio/Game.mixer`, which doesn't exist yet: Mansoor makes it by hand (see Next). Until then everything plays straight to the speakers;
+  - `earHeight` 1.6 m and `stride` 0.72 m.
+- **The player** (`SoundPlayer`, `Sfx`):
+  - 24 pooled voices, made once;
+  - its own random numbers, never `UnityEngine.Random`, so a sound can't change who walks in;
+  - never the same file twice running; a soft roll-off from "near" to silence at "far";
+  - loops fade in and out, follow what they belong to, and can be muffled;
+  - while the game is paused (the recap) the world holds, the beds duck to 40% and the UI plays on;
+  - game code calls `Sfx.Play("cup.set", position)`, `Sfx.Play2D(...)`, `Sfx.PlayLater(...)` or `Sfx.Loop(...)`. Components with their own AudioSource (the dispenser, the phones) use `Sfx.Choose`, which keeps their own sound until the bank has a file.
+- **The ears** (`ListenerRig`):
+  - overhead, the listener sits at Ace's head, turned with the camera's heading. Loudness goes by the distance from Ace, not from a camera 20–48 m up;
+  - in first person, at a station, in a close-up or a conversation, it sits at the camera, as before;
+  - there's always exactly one listener: the Main Camera's rests while the rig hears.
+- **Ace's steps** (`AceFootsteps`): a step every stride walked (Ace is a capsule with no walk cycle). Inside the café it's the café floor. Outside, a short ray down reads the ground: road if its name or its parent's has a road word as a whole word (road, asphalt, crossing, lane, zebra, driveway, stall, aisle…), otherwise pavement.
+- **The soundscape** (`CafeSoundscape`):
+  - by day: the room, the murmur (it grows with the people in the café's room) and the street, muffled while Ace is inside;
+  - at night: the city, busy at 11 PM and cross-fading to its late bed by 2 AM, and the closed café inside;
+  - far-off one-offs at night every 20–60 s, fewer after 2 AM;
+  - the door bell when anyone crosses the café's doorway, softer for Ace at night.
+- **`SoundRig`** adds the ears and the steps to Ace and starts the soundscape while playing. All of it is made at run time; nothing is saved in the scene.
+- **Hooks**, a line or two each: `BeveragePourAudio` (the pour, the machine under it, cup ready), `HoldCallPresentation` and `CounterRepairView` (the phones), `PlayerCarry`, `CupStack`, `ToolPickup`, `Screw`, `RemovablePart`, `ReplaceablePart` (Grace's camera shutter after its new part), `GrimeSpot` (its "Sparkling clean!" log is kept), `CircuitTile`, `CircuitPuzzle`, `CustomerBrain` (hand-overs, pay and tips), `TicketRailUI`, `NpcSeating`, `DayClock` and `RecapUI`.
+- **`.gitignore`**: `/Assets/Audio/Licensed/` and its `.meta`. The Sonniss licence lets the game ship the sounds but forbids sharing the files.
+
+**Tools** (`Fixit Fidget > Sound`; editor script `SoundSetup`, new):
+
+- `Create or update the sound bank`: makes the bank with every cue, or adds only the missing ones. A cue already in the bank is never changed. It links `Assets/Audio/Game.mixer` once it exists.
+- `Check the sound setup (read-only)`: the bank (cues with and without files, import advice for each file), the mixer's groups, the licensed folder, the ignore rule and the listeners. In Play it adds where the ears are, how far the dispensers and the phone are from them, Ace's steps and what was underfoot, the soundscape, and every cue asked for and heard. Report: `Logs/Sound/sound-check-*`.
+
+**Checks** (lab sessions):
+
+- **Compile:** no errors, and no new warnings.
+- **A day** (`Play a lab session - Day 5, autopilot serves`, the whole day; `Logs/Sound/sound-check-2026-09-28_135223`):
+  - the ears at Ace; the nearest dispenser 3.9 m from them, against 40.8 m from the camera where the old listener was;
+  - asked for: the room, murmur and street beds; the bell 33 times; chairs 18 sits and 17 stands; 7 tickets; day open, last orders and closed once each; the recap.
+- **The night** (`Night walk 3 - Walk the tour`; `Logs/Sound/sound-check-2026-09-28_140915`):
+  - 473 steps over the tour's 342 m: café 46, pavement 21 (the entry apron, the sidewalk), road 406 (asphalt, crossing paint, the zebra);
+  - the bell on each of Ace's 3 crossings of the doorway;
+  - the night beds and 3 far-off sounds asked for; no opening bell;
+  - frames unchanged: 4.2 ms on average, 95% under 4.4 ms (as in part 4a).
+- **15 gameplay checks PASS** (`Fixit Fidget > Checks`): circuit integration, circuit rules, compact portrait tickets, customer delivery from either hand, Day 1 onboarding, dispenser interaction and visible filling, dispenser stock and two-hand transfers, every device's grime can be brushed, Grace camera tweezers interaction, human counter integration, recap input isolation, recap save checkpoint, support call rules, two-hand bench placement and carry state, waiting space reservations.
+- **Not reached yet:** the autopilot skips the hands-on steps, so the pickups, tools, parts, hand-overs, money and phones haven't been counted in play. The check lists them once someone plays.
+
+**Found and fixed while checking:**
+
+- Unity's `FindObjectsByType` and `FindAnyObjectByType` never return objects marked `HideFlags.DontSave`. The first check said "Soundscape: not running" and counted no listener hearing, while both were running. Worse, `SoundRig.Fit` would have made a second soundscape on every scene load. Both are now found through `CafeSoundscape.Instance` and `ListenerRig.Ears`.
+- The opening bell was asked for inside `DayClock.StartDay`, which also runs while the scene loads. It would have rung at the start of every night lab and before a restored recap. It now waits for the day's first frame (`DayClock.Update`) and rings only if the day is really open.
+- The zebra's stripes counted as pavement. The road words are now whole words (so "Plane" isn't a lane) and cover the zebra, the driveways, the car park's stall lines and arrows.
+
+**For the café's listening test:**
+
+- The bell was asked for 33 times in one day, about every 9 seconds. Ringing on every coming and going may grate by the 50th time. The options: ring on the way in only, with a quieter door on the way out, or keep both at a lower level.
+- Something to listen for now: today's pour (`SoftPour.wav`, 85% placed, silent past 4.5 m) now goes by Ace's distance in the overhead view. It's faint where the lab puts Ace (3.9 m away) and full with Ace at the dispenser. Before, from above, only its small flat share was heard, wherever Ace stood.
+
+**Next:**
+
+1. Mansoor makes the mixer (steps in `claude/sound-plan.md` §4.2), then `Create or update the sound bank` links it. The mixer and the bank go in one small commit.
+2. When the download is done, he connects `D:\SoundLibrary` (reading is enough) and Claude shortlists 2–3 files per café cue for him to listen to (§7).
+3. Then the café pass, the night pass, and 4b with its sounds.
+
+**Known:**
+
+- The TextMesh Pro fallback font asset shows as modified after Play sessions (it gathers glyphs as they're used). It was left out of the commit, as before.
+- The scene shows as modified (`*`) after lab sessions. It wasn't saved, and git shows the scene file unchanged.
+
 ## September 28 (midday) — night walk part 4a: the lived-in street (the clock moves, windows go to bed, neighbours come home, a torch and the notebook); on `night-walk`
 
 **Read this entry first.** One code commit, `10e65c4`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
