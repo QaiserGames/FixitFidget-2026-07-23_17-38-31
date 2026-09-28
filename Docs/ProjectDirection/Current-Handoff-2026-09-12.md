@@ -1,5 +1,57 @@
 # Current handoff — September 12, 2026
 
+## September 27 (late night) — Mixamo step B: the clips wired into the café's people; on `npc-mixamo`
+
+**Read this entry first.** One code commit on the new branch `npc-mixamo`, made from `night-notebook`: `aa37d48`. This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+His answers after the step A photos:
+
+- **"32 clips + fingers + ear fix"**: wire the good clips into waiting idles, frustration, happy reactions, greetings and seated chats; the city bodies copy their fingers; the phone goes to the ear. Photos and a recording come to him before he plays it.
+- **"Sofas only, drop Seated Idle"**: Sitting Laughing and Sitting Thumbs Up only on the sofas and the tub chair; Seated Idle is not used.
+
+Full notes, with the table of which clip plays when, are in `claude/mixamo-clips-batch1.md` in the project, under "Step B, as built".
+
+- **Only how people look changes.** Queue order, patience, orders, money and the day are untouched.
+- **How it plays.**
+  - The customer animator has a second layer, **Beats**, with one state per clip (35). Its weight is 0 unless a beat is showing, and the café's own animation keeps running underneath.
+  - **No Mixamo motion is in the public repo.** The animator holds empty placeholder clips. The baked clips are listed in `NpcBeatLibrary.asset` inside the git-ignored `Assets/Art/Mixamo/`, and `NpcBeats` swaps them in at run time. Without that folder, people use the café's own clips exactly as before.
+  - A beat only shows while the body holds still. A walk, a step round, a turn on the spot or standing up fades it out in 0.15 s.
+  - When a beat can't play, the brain falls back to the old "Interact" gesture.
+- **When.**
+  - Reactions where the one "Interact" gesture used to play: a greeting when Ace comes over, a nod for an order, thanks, excitement, a shrug, disappointment, relief, the angry walk-out.
+  - Idle variety, chosen by standing or seated, the movement profile and the patience bar.
+  - Frustration a step at a time: a sulk under 30% patience, a head shake under 12%, and the angry gesture only as they walk out.
+  - Calling for a drink: they look at Ace and, on foot, turn to him before they wave.
+  - Seated chats use the two talking clips, and the sofas laugh.
+- **Seats:** exactly the five lounge seats have no table in front (`NpcBeats.TableInFront`). Sitting Laughing and Thumbs Up play only there, Tapping Fingers only at tables.
+- **Seated feet:** `Mixamo 1` now rests the seated clips' feet where the café's own sit clip rests its ankles. They had been 2–10 cm into the floor on the city bodies (already visible in the step A photo report).
+- **Fingers:** `PolygonNpcVisual` copies 22 finger bones per city body, joint for joint (measured). All 17 looks.
+- **The phone:** POLYGON City's smartphone in the right hand for Texting and the call. On a call the arm brings the phone's speaker to the ear, measured per look. Only city bodies take calls: the rig's own body can't reach its ear convincingly.
+- **Code:**
+  - new: `NpcBeats`, `NpcBeatLibrary` (`Assets/Scripts`), `NpcBeatChecks` (`Assets/Editor`);
+  - changed: `CustomerBrain` (reactions, the drink call), `NpcSocial` (idle and talking beats), `NpcAttentionDirector` (laughs), `NpcPosture` (quiet while a beat shows), `PolygonNpcVisual` (fingers, phone at the ear), `NpcLocomotion` (a read-only `FacingLeft`), `NpcMixamoClips` (Mixamo 3 and 4; seated feet in Mixamo 1), `CafeLifeRecorder` (queue camera, keep the day open), `CafeLifeProbe` (the trace names the clip: `;mx=`);
+  - `CustomerAnimator(.controller` (the Beats layer), `Customer.prefab` and `Patron.prefab` (`NpcBeats`);
+  - two checks taught the beats: `NpcLifeChecks` (a seated talker may use the talking clip) and `NpcAttentionCheck` (the thanks may be a clip).
+- **Tools:**
+  - `Fixit Fidget > NPC > Mixamo 3 - Wire the clip beats (animator layer, library, prefabs)` (already run; safe to re-run);
+  - `… > Mixamo 4 - Photograph the wiring (fingers, phone call, sofa)`;
+  - `… > Mixamo 5 - Beat check (Play Mode, lab session)`;
+  - `Fixit Fidget > Café life > Record 8 minutes - queue camera (from behind the counter)` and `… > Lab > Keep the day open 5 more minutes`.
+- **Checks** (lab sessions):
+  - `Mixamo 5` (beat check): **51/51** in all five runs. Every clip plays on the right body and fades out cleanly; the body never moves; seated hips move 0.1–3.8 cm at a table and 5.8–10 cm on a sofa (Thumbs Up, Laughing); seated feet now 0.0–0.7 cm above the floor at a table (the café's own sit clip: 0.7) and 0.6–2.7 cm on a sofa (own: 2.7); on a call the phone is 0.0 cm from its spot at the ear; rising or walking off mid-beat clears it at once; in 75 s of the café by itself no beat showed while a body moved;
+  - `Café life check`: **32/32**, once taught the talking clip;
+  - `Attention check`: **10/10**, once taught that the thanks may be a clip (two runs stopped short when none of its three customers wanted a drink, which is random);
+  - `Sit 4`: **14/14** after the feet fix (the run before it caught the feet; it also had two walkers pass 0.35 m apart once, random crowding).
+- **Photos and recordings:**
+  - recordings in `Logs/CafeLife/` (git-ignored): `2026-09-27_203833` (counter camera: showed the angry gesture twice in a row and the wave at the window, both fixed), `_205216` (queue camera, the beat check), `_205821` (queue camera, a hello, nods, then nobody serves), `_210652` and `_213713` (lounge, before and after the feet fix), `_214620` (lounge, the beat check's sofa clips);
+  - captioned clips in `Logs/CafeLife/clips/mx-0*.mp4` and the wiring photos went to Mansoor.
+- **Left open:**
+  - step C: lean spots for the two leaning clips (wired, never picked yet), and the gadget in hand for Holding Idle (empty hands meanwhile);
+  - the lab's Day 5 patience is short (40–60 s), so there the three frustration steps come within about 10 s;
+  - seen while checking, not from the beats: `[CafeArrivals] ... took over 120s to walk away` warnings in a long "I serve" lab session (the backstop for walks that never end). To look at with the street doors.
+
 ## September 27 (night) — the street's front doors really open; 36 Mixamo clips downloaded; on `night-notebook`
 
 **Read this entry first.** One code commit on `night-notebook`: `1131eb7` (front doors). This entry and the project docs come in the commit after it. Nothing is pushed.
