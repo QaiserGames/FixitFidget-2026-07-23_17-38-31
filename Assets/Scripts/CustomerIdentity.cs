@@ -108,6 +108,23 @@ public class CustomerIdentity : MonoBehaviour
         return acceptedLine + "\n\n" + GraceCameraEpisode.HandoffLine(outcome);
     }
 
+    // The Night 1 slice: when Ace takes Grace's camera job (her first visit), she mentions her
+    // garden gnome (NightThings: placeholder words) and Ace notes it down. Not once the gnome is
+    // already on Ace's shelf.
+    public string WithNightMention(string acceptedLine)
+    {
+        if (!isGraceCameraRequest || profile == null) return acceptedLine;
+        NightThing thing = NightThings.OwnedBy(profile.PersistentId);
+        if (thing == null || string.IsNullOrWhiteSpace(thing.mention)) return acceptedLine;
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        if (night != null && night.HasTrophy(thing.id)) return acceptedLine;
+        NotebookHooks.HeardMention(DisplayName, thing);
+        return string.IsNullOrWhiteSpace(acceptedLine) ? thing.mention : acceptedLine + "\n\n" + thing.mention;
+    }
+
+    /// <summary>The face for a line said outside the usual beats (the morning after a night: MorningFace).</summary>
+    public void Feel(PortraitExpression expression) => Expression = expression;
+
     public float PatienceMultiplier
     {
         get

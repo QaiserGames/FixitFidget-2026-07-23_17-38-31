@@ -77,7 +77,8 @@ public class PlayerMovement : MonoBehaviour
     // The name matters: "On" + the action's name.
     private void OnMove(InputValue value)
     {
-        moveInput = DayClock.Instance != null && DayClock.Instance.DayOver
+        // The recap stops Ace; the night after it (the Night 1 slice) doesn't.
+        moveInput = DayClock.Instance != null && DayClock.Instance.RecapOwnsInput
             ? Vector2.zero : value.Get<Vector2>();
     }
 
@@ -99,7 +100,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        if (Time.timeScale <= 0 || (DayClock.Instance != null && DayClock.Instance.DayOver)
+        if (Time.timeScale <= 0 || (DayClock.Instance != null && DayClock.Instance.RecapOwnsInput)
             || (conversation != null && conversation.InConversation))
         {
             ClearInput();

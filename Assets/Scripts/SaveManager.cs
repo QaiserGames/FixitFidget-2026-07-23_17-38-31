@@ -38,6 +38,9 @@ public class SaveManager : MonoBehaviour
     // the regulars. Filled by NotebookHooks during the day, shown in the
     // recap, saved with the checkpoint like the regulars' memory.
     private readonly Notebook notebook = new();
+    // What Ace's nights have done (the Night 1 slice): trophies, the mornings still to
+    // come, suspicion. Saved with the next morning's checkpoint, like the notebook.
+    private readonly NightLedger night = new();
     // The draft lines from ReviewLines.cs, for scenes without a lines asset.
     // One shared copy per editor/game session.
     private static ReviewLines fallbackLines;
@@ -64,6 +67,7 @@ public class SaveManager : MonoBehaviour
         RebuildRegularMemory();
         RebuildReputation();
         RebuildNotebook();
+        night.Restore(Loaded != null ? Loaded.night : null);
     }
 
     private void OnDestroy()
@@ -165,6 +169,7 @@ public class SaveManager : MonoBehaviour
 
         data.regularMemories = SnapshotRegularMemory();
         data.notebook = notebook.Snapshot();
+        data.night = night.Snapshot();
         data.reputation = reputation.Reputation;
         data.starsEarned = reputation.StarsEarned;
         if (data.recap != null) reputation.WriteRecap(data.recap);
@@ -256,6 +261,9 @@ public class SaveManager : MonoBehaviour
 
     /// <summary>Ace's notebook: what Ace has learned about the regulars so far.</summary>
     public Notebook Notebook => notebook;
+
+    /// <summary>What Ace's nights have done: the trophies, the mornings still to come, who suspects Ace.</summary>
+    public NightLedger Night => night;
 
     // The saved notebook, plus anything an older save's memories already imply
     // (Grace's camera visit before the notebook existed). Idempotent.

@@ -57,6 +57,40 @@ public class NotebookFactData
     public NotebookFactData Copy() => (NotebookFactData)MemberwiseClone();
 }
 
+// What Ace's nights have done (claude/ace-after-dark.md §3.2, the Night 1 slice).
+// Owned at runtime by NightLedger. Additive: absent in older saves means no nights yet.
+[Serializable]
+public class NightDeedData
+{
+    public string thing = "";   // what was taken: a stable id from NightThings ("grace.gnome")
+    public string owner = "";   // whose it was: a regular's profile id
+    public int night;           // the night it happened: the night after this day
+    public bool faced;          // the owner has told Ace about it (the straight-face scene ran)
+    public bool cracked;        // ...and Ace's face gave something away
+    public int facedDay;
+
+    public NightDeedData Copy() => (NightDeedData)MemberwiseClone();
+}
+
+// Someone who suspects Ace (a cracked straight face). Never touches stars.
+[Serializable]
+public class SuspicionData
+{
+    public string who = "";
+    public int level;
+
+    public SuspicionData Copy() => (SuspicionData)MemberwiseClone();
+}
+
+[Serializable]
+public class NightSaveData
+{
+    public int nights;                                        // nights Ace has come home from
+    public string[] trophies = new string[0];                  // on Ace's shelf, in the order taken
+    public NightDeedData[] deeds = new NightDeedData[0];
+    public SuspicionData[] suspicion = new SuspicionData[0];
+}
+
 // A completed day's figures are a snapshot, not a replay of payouts/events.
 [Serializable]
 public class RecapSaveData
@@ -133,6 +167,10 @@ public class SaveData
     // means an empty notebook; SaveManager backfills what the memories imply.
     public NotebookFactData[] notebook = new NotebookFactData[0];
 
+    // Additive (the Night 1 slice, 28 Sept 2026), the same way as the notebook: no
+    // version bump. Written by the morning's checkpoint; nothing is saved during a night.
+    public NightSaveData night = new NightSaveData();
+
     public void ValidateAndMigrate()
     {
         if (version > CurrentVersion)
@@ -144,6 +182,13 @@ public class SaveData
         regularMemories ??= new RegularMemoryData[0];
         notebook = notebook == null ? new NotebookFactData[0]
             : Array.FindAll(notebook, fact => fact != null && !string.IsNullOrEmpty(fact.id));
+        night ??= new NightSaveData();
+        night.nights = Math.Max(0, night.nights);
+        night.trophies = night.trophies == null ? new string[0] : Array.FindAll(night.trophies, thing => !string.IsNullOrEmpty(thing));
+        night.deeds = night.deeds == null ? new NightDeedData[0]
+            : Array.FindAll(night.deeds, deed => deed != null && !string.IsNullOrEmpty(deed.thing));
+        night.suspicion = night.suspicion == null ? new SuspicionData[0]
+            : Array.FindAll(night.suspicion, who => who != null && !string.IsNullOrEmpty(who.who));
         reputation = Math.Max(0, reputation);
         starsEarned = Math.Max(0, Math.Min(5, starsEarned));
         if (recap != null)

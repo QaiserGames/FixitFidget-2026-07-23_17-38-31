@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/Scripts/NightLedger.cs" Link="NightLedger.cs" />
+    <Compile Include="../../Assets/Scripts/StraightFaceMeter.cs" Link="StraightFaceMeter.cs" />
+    <Compile Include="../../Assets/Scripts/NightThings.cs" Link="NightThings.cs" />
+    <Compile Include="../../Assets/Scripts/Notebook.cs" Link="Notebook.cs" />
+    <Compile Include="../../Assets/Scripts/GraceCameraEpisode.cs" Link="GraceCameraEpisode.cs" />
+    <Compile Include="../../Assets/Scripts/SaveData.cs" Link="SaveData.cs" />
+    <Compile Include="../../Assets/Editor/NightRuleChecks.cs" Link="NightRuleChecks.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+</Project>

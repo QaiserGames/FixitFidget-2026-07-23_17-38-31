@@ -58,9 +58,12 @@ public class PlayerInteractor : MonoBehaviour
 
     private void Update()
     {
-        // Paused, the day over, or a night walk (the café is closed and there is
-        // nothing to do yet): nothing is offered and nothing can be used.
-        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver || NightIsOn)
+        // A night walk: the café is closed, and only the night's own things are
+        // offered (NightInteractable: the Night 1 slice).
+        if (NightIsOn) { NightUpdate(); return; }
+
+        // Paused or the day over: nothing is offered and nothing can be used.
+        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver)
         {
             if (focused != null) focused.SetFocused(false);
             focused = null;
@@ -269,7 +272,8 @@ public class PlayerInteractor : MonoBehaviour
     private void OnInteract() => PerformInteraction(-1);
     private void PerformInteraction(int hand)
     {
-        if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0 || NightIsOn) return;
+        if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0) return;
+        if (NightIsOn) { NightInteract(); return; }
         if (viewMode != null && viewMode.SuppressWalkingInteraction) return;
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
@@ -299,6 +303,69 @@ public class PlayerInteractor : MonoBehaviour
         focused.SetFocused(true);
         focused.Interact(this);
         ClearFocus();
+    }
+
+    // ---------- at night (the Night 1 slice) ----------
+
+    // Only the night's own things, with the day's reach and rules: the nearest from
+    // above, what the crosshair is on in first person. E, or A on a controller.
+    private void NightUpdate()
+    {
+        nearbyStation = null;
+        if (Time.timeScale <= 0 || viewMode != null && viewMode.SuppressWalkingInteraction)
+        {
+            ClearFocus();
+            return;
+        }
+        Interactable next = FindNightTarget();
+        if (next != focused)
+        {
+            if (focused != null) focused.SetFocused(false);
+            focused = next;
+            if (focused != null) focused.SetFocused(true);
+        }
+        CurrentPrompt = focused != null ? focused.Prompt : "";
+        if (PadInput.Pressed(PadButton.South)) PerformInteraction(-1);
+    }
+
+    private void NightInteract()
+    {
+        if (viewMode != null && viewMode.SuppressWalkingInteraction) return;
+        Interactable target = FindNightTarget();
+        if (target == null || !target.IsAvailable) { ClearFocus(); return; }
+        lastInteractionFrame = Time.frameCount;
+        ClearFocus();
+        target.Interact(this);
+    }
+
+    private Interactable FindNightTarget()
+    {
+        if (viewMode != null && viewMode.WalkingFirstPerson)
+        {
+            if (cam == null) cam = Camera.main;
+            if (cam == null) return null;
+            Ray ray = cam.ViewportPointToRay(new Vector3(.5f, .5f));
+            RaycastHit[] hits = Physics.RaycastAll(ray, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider.transform.IsChildOf(transform)) continue;
+                NightInteractable thing = hit.collider.GetComponentInParent<NightInteractable>();
+                if (thing != null && thing.IsAvailable) return thing;
+                if (!hit.collider.isTrigger) return null;
+            }
+            return null;
+        }
+        NightInteractable best = null;
+        float bestScore = float.MinValue;
+        foreach (Collider near in Physics.OverlapSphere(transform.position, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide))
+        {
+            NightInteractable thing = near.GetComponentInParent<NightInteractable>();
+            if (thing == null || !thing.IsAvailable) continue;
+            float score = thing.Priority * 100f - Vector3.Distance(transform.position, thing.transform.position);
+            if (score > bestScore) { bestScore = score; best = thing; }
+        }
+        return best;
     }
 
     private void ClearFocus()

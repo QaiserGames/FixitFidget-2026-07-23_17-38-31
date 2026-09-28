@@ -120,7 +120,7 @@ public sealed class CafeViewMode : MonoBehaviour
     float DistanceMax => following ? followDistanceMax : maximumDistance;
     Vector3 AceFocus => AceFeet + Vector3.up * followHeight;
     bool AtStation => interactor != null && interactor.IsAtStation;
-    bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver
+    bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.RecapOwnsInput
         || conversation != null && conversation.InConversation || inspector != null && inspector.IsHoldingItem
         || counterRepair != null && counterRepair.OwnsInput;
     // Pausing or opening the end-of-day recap does not change the camera's

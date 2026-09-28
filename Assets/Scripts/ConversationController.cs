@@ -26,6 +26,12 @@ public class ConversationController : MonoBehaviour
     private CustomerBrain counterAfterClose;
     private bool conversationOpen;
     private int closedAtFrame = -1;
+    // The Night 1 slice: the morning after a night, the straight-face scene runs
+    // first (MorningFace), then the usual request.
+    private MorningFace morningFace;
+
+    /// <summary>The straight-face scene running in this conversation, or null.</summary>
+    public MorningFace Face => morningFace;
 
     public void Begin(CustomerBrain brain)
     {
@@ -53,8 +59,11 @@ public class ConversationController : MonoBehaviour
         Color tint = brain.Identity != null ? brain.Identity.ThemeColor : Color.white;
         ui.Show(brain.CustomerName, tint, face);
 
-        // First beat: whatever they came here to say.
-        ui.SetLine(brain.HearIntake());
+        // First beat: whatever they came here to say. The morning after a night,
+        // what they have to say about it comes first (the Night 1 slice).
+        morningFace = MorningFace.For(brain, ui);
+        if (morningFace != null) morningFace.Begin();
+        else ui.SetLine(brain.HearIntake());
         RefreshPortrait();
     }
 
@@ -73,6 +82,7 @@ public class ConversationController : MonoBehaviour
         counterAfterClose = null;
         conversationOpen = false;
         closing = false;
+        if (morningFace != null) { morningFace.Abandon(); morningFace = null; }
 
         if (conversationCam != null)
         {
@@ -106,6 +116,19 @@ public class ConversationController : MonoBehaviour
         if (closing)
         {
             if (ui.LineFinished && Time.time >= closeAt) End();
+            return;
+        }
+
+        // The straight-face scene owns the conversation until it's done; then on
+        // to what they came in for, as usual.
+        if (morningFace != null)
+        {
+            morningFace.Tick(Time.deltaTime, Time.time >= inputReadyAt);
+            if (morningFace.Now != MorningFace.Step.Done) return;
+            morningFace = null;
+            ui.SetLine(partner.HearIntake());
+            RefreshPortrait();
+            inputReadyAt = Time.time + inputDelay;
             return;
         }
 

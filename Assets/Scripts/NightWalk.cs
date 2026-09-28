@@ -62,9 +62,13 @@ using UnityEngine.Rendering;
 //
 // Nothing here runs by day. Only Begin() switches anything on, and End() (or
 // leaving Play Mode) puts it all back. Material copies are made at run time and
-// never saved: the scene keeps its originals. For now a night walk is only ever
-// started from the editor, in a café lab session (Fixit Fidget > Night > Play
-// the night walk (lab)), so the real playtest save is never used.
+// never saved: the scene keeps its originals.
+//
+// The Night 1 slice: the night now follows the day. The recap's button leads into
+// it, and Ace calls it a night inside the café's door, or dawn ends it
+// (NightCycle); the next morning is saved with what the night did (NightLedger).
+// Night Follows The Day (below) switches that off. The editor's lab (Fixit Fidget >
+// Night > Play the night walk (lab)) still starts a night as the scene loads.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightWalk : MonoBehaviour
@@ -122,13 +126,18 @@ public sealed class NightWalk : MonoBehaviour
         public float upstairsFor = .45f;
     }
 
+    [Header("After the day (the Night 1 slice)")]
+    [Tooltip("The recap's button leads into the night, and the next day opens when Ace calls it a night (NightCycle). " +
+             "Off: the recap opens the next day straight away, as before the night existed.")]
+    public bool followsTheDay = true;
+
     [Header("The hour")]
     [Tooltip("The clock hour the night begins at (0-24).")]
     [Range(0f, 24f)] public float nightHour = 23f;
     [Range(0f, 1f)] public float moon = 1f;
     [Tooltip("The café's own lights inside the room, closed for the night (1 = as by day).")]
     [Range(0f, 1f)] public float cafeInsideLights = .15f;
-    [Tooltip("Part 4: the hour the clock stops at (28 is 4 AM). Part 5 will end the night there.")]
+    [Tooltip("The hour the night ends at (28 is 4 AM): dawn, and Ace hurries home (NightCycle).")]
     public float nightEndsAt = 28f;
     [Tooltip("Part 4: real minutes from the start to the end (4: an hour every 48 seconds).")]
     [Min(.1f)] public float nightMinutes = 4f;

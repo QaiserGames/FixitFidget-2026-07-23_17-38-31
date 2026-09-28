@@ -164,5 +164,12 @@ public sealed class SoundBank : ScriptableObject
         C("night.city.late", SoundBus.Outside, false, .25f, "The city late at night: sparse and distant (a flat loop)."),
         C("night.far", SoundBus.Outside, false, .25f, "Now and then at night: a siren streets away, a dog, a car on the ring road (one-offs, panned).", 1.5f, 12f, 8f, 1),
         C("cafe.night", SoundBus.Ambience, false, .25f, "Inside the closed café at night: a fridge hum, a ticking clock (a flat loop)."),
+
+        // The Night 1 slice: a trophy, going home, and the straight face the morning after.
+        C("night.take", SoundBus.Ace, true, .4f, "Ace pockets something at night (Grace's gnome): a soft scrape and a rustle, quiet on purpose.", 1f, 10f, .5f, 1),
+        C("night.home", SoundBus.UI, false, .3f, "Ace calls it a night inside the café's door: the door closing softly behind.", 1.5f, 12f, 1f, 1),
+        C("night.dawn", SoundBus.UI, false, .3f, "Dawn ends the night: the first bird, Ace hurrying home.", 1.5f, 12f, 1f, 1),
+        C("face.held", SoundBus.UI, false, .3f, "Ace keeps a straight face: a small relieved breath or a soft tick of the needle (never a fanfare).", 1.5f, 12f, .5f, 1),
+        C("face.cracked", SoundBus.UI, false, .3f, "Ace cracks: a stifled snort, comic but small.", 1.5f, 12f, .5f, 1),
     };
 }

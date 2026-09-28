@@ -663,3 +663,71 @@ MonoBehaviour:
     minGap: 0.05
     maxAtOnce: 4
     bus: 3
+  - name: night.take
+    when: 'Ace pockets something at night (Grace''s gnome): a soft scrape and a rustle,
+      quiet on purpose.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 1
+  - name: night.home
+    when: "Ace calls it a night inside the caf\xE9's door: the door closing softly
+      behind."
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 1
+    maxAtOnce: 1
+    bus: 2
+  - name: night.dawn
+    when: 'Dawn ends the night: the first bird, Ace hurrying home.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 1
+    maxAtOnce: 1
+    bus: 2
+  - name: face.held
+    when: 'Ace keeps a straight face: a small relieved breath or a soft tick of the
+      needle (never a fanfare).'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: face.cracked
+    when: 'Ace cracks: a stifled snort, comic but small.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2

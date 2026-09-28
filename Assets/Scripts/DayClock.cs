@@ -73,6 +73,11 @@ public class DayClock : MonoBehaviour
     public float PatienceMultiplier { get; set; } = 1f;
     public bool IsOpen { get; private set; }
     public bool DayOver { get; private set; }
+    /// <summary>
+    /// The day is over and its recap owns the screen. Not while the night after it runs (the Night 1
+    /// slice): the day is still over then, but Ace walks the streets.
+    /// </summary>
+    public bool RecapOwnsInput => DayOver && !(NightWalk.Instance != null && NightWalk.Instance.Active);
 
     // Stats for the recap.
     //
@@ -145,11 +150,7 @@ public class DayClock : MonoBehaviour
         // ForceRemove rather than Destroy — a customer's device is a separate
         // object holding an intake shelf slot, and only ForceRemove gives it
         // back. See the comment on CustomerBrain.ForceRemove.
-        CustomerBrain[] leftovers = FindObjectsByType<CustomerBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-        foreach (CustomerBrain c in leftovers)
-            if (c != null) c.ForceRemove();
+        ClearCustomers();
 
         // Patrons too, and they need saying separately.
         //
@@ -163,11 +164,7 @@ public class DayClock : MonoBehaviour
         // yesterday's seats, with the remainder of yesterday's stay to run.
         // Plain Destroy is right here — a patron owns nothing but its chair,
         // and PatronBrain.OnDestroy releases that.
-        PatronBrain[] stragglers = FindObjectsByType<PatronBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-        foreach (PatronBrain p in stragglers)
-            if (p != null) Destroy(p.gameObject);
+        ClearPatrons();
 
         TimeRemaining = dayLengthSeconds;
         dayStartedAt = Time.time;
@@ -313,6 +310,34 @@ public class DayClock : MonoBehaviour
             if (Application.isPlaying) Destroy(cup.gameObject);
             else DestroyImmediate(cup.gameObject);
         }
+    }
+
+    /// <summary>
+    /// Empty the shop, as every morning does (see StartDay): also at nightfall (the Night 1 slice),
+    /// so the night's café is closed and empty. Stats, save and recap are untouched.
+    /// </summary>
+    public void ClearTheShop()
+    {
+        ClearCustomers();
+        ClearPatrons();
+    }
+
+    private void ClearCustomers()
+    {
+        CustomerBrain[] leftovers = FindObjectsByType<CustomerBrain>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        foreach (CustomerBrain c in leftovers)
+            if (c != null) c.ForceRemove();
+    }
+
+    private void ClearPatrons()
+    {
+        PatronBrain[] stragglers = FindObjectsByType<PatronBrain>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        foreach (PatronBrain p in stragglers)
+            if (p != null) Destroy(p.gameObject);
     }
 
     public void NextDay() => TryNextDay();

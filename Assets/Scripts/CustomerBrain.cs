@@ -1397,7 +1397,8 @@ public class CustomerBrain : MonoBehaviour
             if (social != null) social.Nod(7f);
         }
         string acceptedLine = identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
-        return identity != null ? identity.AcceptReturnMemento(acceptedLine) : acceptedLine;
+        // Grace's camera job also brings the mention of her gnome (the Night 1 slice).
+        return identity != null ? identity.WithNightMention(identity.AcceptReturnMemento(acceptedLine)) : acceptedLine;
     }
 
     // The device goes on the intake shelf, not in front of the customer —

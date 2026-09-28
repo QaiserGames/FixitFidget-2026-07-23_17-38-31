@@ -28,14 +28,23 @@ public class RecapUI : MonoBehaviour
 
     private SaveManager saveManager;
     private readonly List<CinemachineInputAxisController> pausedCameraInputs = new();
+
+    // The Night 1 slice: the recap's button leads into the night first (NightCycle), then
+    // tomorrow. Once this recap's night has been walked it goes straight to tomorrow.
+    private bool nightDone;
+    private TMP_Text buttonLabel;
+    private string openLabel = "";
+    public const string NightLabel = "Close up for the night";
  
     private void Start()
     {
         panel.SetActive(false);
         nextDayButton.onClick.AddListener(OnNextDay);
+        buttonLabel = nextDayButton.GetComponentInChildren<TMP_Text>(true);
+        if (buttonLabel != null) openLabel = buttonLabel.text;
  
         if (DayClock.Instance != null)
-            DayClock.Instance.OnDayEnded += Show;
+            DayClock.Instance.OnDayEnded += DayEnded;
 
         saveManager = SaveManager.Instance;
         if (saveManager != null) saveManager.SaveStatusChanged += RefreshText;
@@ -49,14 +58,23 @@ public class RecapUI : MonoBehaviour
     {
         ResumeCameraInput();
         if (DayClock.Instance != null)
-            DayClock.Instance.OnDayEnded -= Show;
+            DayClock.Instance.OnDayEnded -= DayEnded;
         if (saveManager != null) saveManager.SaveStatusChanged -= RefreshText;
         if (nextDayButton != null) nextDayButton.onClick.RemoveListener(OnNextDay);
     }
  
+    // A new day's recap: its night hasn't been walked yet.
+    private void DayEnded()
+    {
+        nightDone = false;
+        Show();
+    }
+
     private void Show()
     {
         Sfx.Play2D("recap.open");
+        if (buttonLabel != null)
+            buttonLabel.text = !nightDone && NightCycle.FollowsTheDay ? NightLabel : openLabel;
         // Return camera-reader ownership before the recap takes its snapshot.
         if (player != null) player.GetComponent<CounterRepairView>()?.Close();
         SuspendCameraInput(FindObjectsByType<CinemachineInputAxisController>(
@@ -185,17 +203,51 @@ public class RecapUI : MonoBehaviour
         DayClock clock = DayClock.Instance;
         if (clock == null || !clock.DayOver) return;
 
+        // The Night 1 slice: the night comes first (NightCycle), then tomorrow.
+        if (!nightDone && NightCycle.FollowsTheDay)
+        {
+            if (nextDayButton != null) nextDayButton.interactable = false;
+            if (NightCycle.BeginAfterRecap(this))
+            {
+                nightDone = true;
+                Sfx.Play2D("ui.confirm");
+                panel.SetActive(false);
+                ResumeCameraInput();
+                return;
+            }
+            if (nextDayButton != null) nextDayButton.interactable = true;
+        }
+        OpenTomorrow(true);
+    }
+
+    /// <summary>
+    /// Called by NightCycle once Ace is home: this recap's Open Tomorrow. False when the morning
+    /// couldn't be saved: the recap comes back with the error, and its button goes straight to tomorrow.
+    /// </summary>
+    public bool ContinueAfterNight()
+    {
+        DayClock clock = DayClock.Instance;
+        if (clock == null || !clock.DayOver) return false;
+        nightDone = true;
+        if (OpenTomorrow(false)) return true;
+        Time.timeScale = 0f;   // the recap holds the world still, as at closing
+        Show();
+        return false;
+    }
+
+    private bool OpenTomorrow(bool confirmSound)
+    {
+        DayClock clock = DayClock.Instance;
         if (nextDayButton != null) nextDayButton.interactable = false;
         if (clock.TryNextDay())
         {
-            Sfx.Play2D("ui.confirm");
+            if (confirmSound) Sfx.Play2D("ui.confirm");
             panel.SetActive(false);
             ResumeCameraInput();
+            return true;
         }
-        else
-        {
-            if (nextDayButton != null) nextDayButton.interactable = true;
-            RefreshText();
-        }
+        if (nextDayButton != null) nextDayButton.interactable = true;
+        RefreshText();
+        return false;
     }
 }

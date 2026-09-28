@@ -96,6 +96,10 @@ public class CustomerSpawner : MonoBehaviour
     // changed" and gets its opening grace like every other morning.
     private int lastSeenDay = -1;
     private bool featuredRegularSpawned;
+    // The Night 1 slice: someone whose thing Ace took last night comes in first
+    // thing to tell Ace about it (MorningFace runs at the counter).
+    private CustomerProfile morningVisitor;
+    private bool morningVisitorSpawned;
     private readonly CustomerVisitRoster roster = new();
 
     private readonly DayOneOpening opening = new();
@@ -196,6 +200,8 @@ public class CustomerSpawner : MonoBehaviour
             ResetRoster();
             featuredRegularSpawned = false;
             featuredCustomer = null;
+            morningVisitor = ResolveMorningVisitor(lastSeenDay);
+            morningVisitorSpawned = false;
             openingCustomer = null;
             openingDrink = ResolveOpeningDrink();
             bool guide = today != null && today.GuidesOpeningOn(lastSeenDay);
@@ -305,10 +311,18 @@ public class CustomerSpawner : MonoBehaviour
                         && roster.CanVisit(today.featuredRegular.PersistentId)
                         && opening.AllowsFeatured(DayFraction, today.featuredRegularArrivesAt);
 
+        bool morningDue = !featuredDue && morningVisitor != null && !morningVisitorSpawned
+                          && !opening.IsActive && roster.CanVisit(morningVisitor.PersistentId);
+
         if (featuredDue)
         {
             profile = today.featuredRegular;
             featuredRegularSpawned = true;
+        }
+        else if (morningDue)
+        {
+            profile = morningVisitor;
+            morningVisitorSpawned = true;
         }
         else if (!opening.IsActive)
         {
@@ -362,6 +376,31 @@ public class CustomerSpawner : MonoBehaviour
         if (profile != null) roster.RecordArrival(profile.PersistentId);
         if (opening.TryStartVisit()) openingCustomer = brain;
     }
+
+    // The Night 1 slice: the first regular with something to tell Ace this morning (NightLedger),
+    // found among the regulars or the schedule's featured ones. Today's featured regular is left
+    // out: their authored visit brings them anyway.
+    private CustomerProfile ResolveMorningVisitor(int day)
+    {
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        if (night == null) return null;
+        string featuredId = today != null && today.featuredRegular != null ? today.featuredRegular.PersistentId : null;
+        foreach (string owner in night.OwnersDue(day))
+        {
+            if (owner == featuredId) continue;
+            if (regulars != null)
+                foreach (CustomerProfile profile in regulars)
+                    if (profile != null && profile.PersistentId == owner) return profile;
+            if (schedule != null)
+                foreach (DayDefinition authored in schedule)
+                    if (authored != null && authored.featuredRegular != null && authored.featuredRegular.PersistentId == owner)
+                        return authored.featuredRegular;
+        }
+        return null;
+    }
+
+    /// <summary>Who is coming in this morning to tell Ace about last night, or null (reports).</summary>
+    public CustomerProfile MorningVisitor => morningVisitorSpawned ? null : morningVisitor;
 
     private void ResetRoster()
     {

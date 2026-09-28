@@ -31,7 +31,7 @@ public class ShopUI : MonoBehaviour
         // The recap owns the screen — hide the in-game HUD behind it.
         bool recapOpen = recapPanel != null && recapPanel.activeSelf;
         // A night walk: the café is closed. The night's hour instead of the day's
-        // clock, no money or stock, and nothing to do yet, so no prompts.
+        // clock, no money or stock, and only the night's own prompts (the Night 1 slice).
         NightWalk night = NightWalk.Instance != null && NightWalk.Instance.Active ? NightWalk.Instance : null;
         if (viewHintText != null)
         {
@@ -53,7 +53,9 @@ public class ShopUI : MonoBehaviour
         {
             // The night's own clock (it moves: 11 PM to about 4 AM), shown as it reads.
             if (clockText != null) clockText.text = $"Night   {FormatHour(night.ClockHour)}";
-            if (promptText != null) promptText.text = "";
+            string nightPrompt = interactor != null ? interactor.CurrentPrompt : "";
+            if (promptText != null)
+                promptText.text = string.IsNullOrEmpty(nightPrompt) ? "" : $"[{ControlHints.Interact}]  {nightPrompt}";
             if (crosshair != null)
                 crosshair.SetActive(viewMode != null && viewMode.WalkingFirstPerson && !viewMode.PointerReleased && Time.timeScale > 0);
             return;

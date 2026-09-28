@@ -51,6 +51,41 @@ public static class NotebookHooks
         return notebook.Learn(fact, Today) || known != null && known.sure != before;
     }
 
+    // ---------- the Night 1 slice (NightThings: the words are placeholders) ----------
+
+    /// <summary>A regular has just told Ace about a thing of theirs (the day's mention).</summary>
+    public static bool HeardMention(string ownerName, NightThing thing)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        NotebookFactData fact = NightThings.Mentioned(thing, ownerName);
+        return notebook != null && fact != null && notebook.Learn(fact, Today);
+    }
+
+    /// <summary>Ace took <paramref name="thing"/> at night: Ace's own secret.</summary>
+    public static bool TookAtNight(NightThing thing)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        NotebookFactData fact = NightThings.Taken(thing, NameOf(notebook, thing != null ? thing.owner : null));
+        return notebook != null && fact != null && notebook.Learn(fact, Today);
+    }
+
+    /// <summary>Ace cracked when the owner told the story: they say they'll be watching.</summary>
+    public static bool Suspects(string ownerName, NightThing thing)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        NotebookFactData fact = NightThings.Suspects(thing, ownerName);
+        return notebook != null && fact != null && notebook.Learn(fact, Today);
+    }
+
+    // What Ace already calls this person in the notebook ("Grace"), or their id.
+    private static string NameOf(Notebook notebook, string who)
+    {
+        if (notebook != null && !string.IsNullOrEmpty(who))
+            foreach (NotebookFactData fact in notebook.Facts)
+                if (fact.who == who && !string.IsNullOrWhiteSpace(fact.name)) return fact.name;
+        return who == NotebookEntries.GraceId ? NotebookEntries.GraceName : who;
+    }
+
     /// <summary>Grace's return has been accepted and her photo outcome settled.</summary>
     public static bool GraceReturned(string name, GracePhotoOutcome outcome)
     {
