@@ -1,5 +1,46 @@
 # Current handoff — September 12, 2026
 
+## September 28 (late evening) — Night 1 fixes after the first look: the meter under Grace's line, no patience bars in conversations, a shadow behind the prompt, Grace's stand-in look; on `night-1`
+
+**Read this entry first.** One code commit, `062ea9d`, on `night-1`, after the Night 1 entry below (`2038a44`, handoff `43665f8`). This entry comes in the commit after it. Nothing is pushed.
+
+Mansoor still hasn't played Night 1. The Night 1 report raised four things from the check photos; he agreed ("on the areas you pushed back on, i agree") and asked for them to be fixed before he plays ("so go implement the changes we pushed back on"). He picked Grace's stand-in look himself: "1 Business Woman". He also agreed that nothing else is built until he has played it; his answers to three questions pick the next task (`claude/night-1-slice.md` §9). Every check ran in lab sessions, and the playtest save was never written.
+
+**What changed:**
+
+1. **The meter no longer covers Grace's face** (`StraightFaceUI`, `MorningFace`).
+   - It sat just above the conversation's text, over the lower half of the speaker's face in the close-up. It now takes the conversation's key-hint row under her line: 81 to 159 up on the 1080p reference.
+   - It gives its key itself: "[Space]  Keep a straight face", then "Straight face!" or "You cracked.", then "[E]  Go on" in the usual ink. `StraightFaceUI.Draw(meter, title)` and `Result(meter, then)`; `MorningFace` keeps the options row empty while the meter shows.
+2. **No floating patience bars while a conversation is open** (`ConversationController.AnyOpen`, `CustomerBrain.ShowFloatingBar`).
+   - The close-up showed the speaker's bar, and a bystander's, as big bars across the top of the screen.
+   - `AnyOpen` is set in `Begin` and cleared in `End` (and reset when playing starts). Every counter conversation is affected, day or morning. Patience drains as before, the portrait shows the speaker's mood, and the bars come back when the conversation closes.
+3. **A soft shadow behind the HUD prompt** (`ShopUI`, **Prompt Shadow**, on).
+   - A street lamp behind "[E]  Take Barnaby" washed the name out. The prompt now has a TextMesh Pro underlay on its own runtime copy of its material: black at 80%, offset (0, -0.3), dilate 0.5, softness 0.6. Nothing is saved, and day prompts get it too.
+   - Player builds keep the shader's `UNDERLAY_ON` variant because TMP's "LiberationSans SDF - Drop Shadow" preset, in a Resources folder, uses it.
+4. **Grace's stand-in look** (`CustomerProfile`, `PolygonNpcVisual`, `Regular_Grace.asset`).
+   - Every regular kept the actor's original body, the Quaternius "Beach" body: a young man in shorts. Grace's real look is Mansoor's girlfriend's drawing and his own Blender model (`Visual-Style-Lock-01-Character-Guide.md`), so this is a stand-in only, picked by him.
+   - `CustomerProfile` has a **Stand-in Look** name (`standInLook`, `StandInLook`, and `IsStandInLook` over a registry filled in `OnEnable` / `OnValidate`). `Regular_Grace.asset`: `standInLook: Character_BusinessWoman`. Empty it to go back to the original body.
+   - `PolygonNpcVisual.Start`: a regular wears only their own stand-in look. Walk-ins, patrons and street neighbours skip any regular's stand-in look (`SkipStandIns`: the next look along), so she stays recognisable. `ApplyAppearance` still refuses any other look for a regular.
+   - Without the purchased art (a fresh clone of the public repository) nothing changes and she keeps the original body.
+
+**Checks** (lab sessions):
+
+- **Compile:** no errors, 67 warnings (as before). No warnings or errors in the play sessions.
+- **Night 1 play checks:** keeping a straight face 60/60 (three runs), cracking 60/60, the morning after Day 2 61/61. The photos show her face clear, no bars in the close-up and her stand-in look. "[E]  Go on" was caught in a live screenshot of the meter's title.
+- **15 gameplay checks PASS** (`Fixit Fidget > Checks`): human counter integration, customer delivery from either hand, customer memory and identity, Day 1 onboarding, Grace camera content, Grace camera interaction, continuation rules, Night 1 rules (264), recap input isolation, recap save checkpoint, storyteller interaction, waiting space, ticket layout, human rules, home rules.
+
+**Seen, not changed:**
+
+- **Grace's first line on Day 3 and after reads oddly:** "Today's patient is my Latte: broken." `CustomerIdentity` gives any returning regular's intake a repair callback (`returnMemoryLines`); on her drink-only visits the {device} is the drink and the {fault} is the default "broken". It was there before these fixes (the Day 2 variant check at 15:55 logged the same callback line). Mansoor will meet it in his own save when she comes in on Day 3.
+- The lab's banner still overlaps the view hint (as before).
+
+**Next:** Mansoor plays Night 1 (the lab entry, then his own save) and answers the three questions in `claude/night-1-slice.md` §9.
+
+**Known:**
+
+- The TextMesh Pro fallback font asset shows as modified after Play sessions. It was left out of the commit, as before.
+- The scene shows as modified (`*`) after lab sessions. It wasn't saved, and git shows the scene file unchanged. `ShopUI`'s new Prompt Shadow field isn't in the scene file until the scene is next saved; its default (on) applies meanwhile.
+
 ## September 28 (evening) — Night 1: one night that changes the next morning (Grace's gnome, the straight face); on `night-1`
 
 **Read this entry first.** One code commit, `2038a44`, on a new branch `night-1`, made from `sound` (`deec8bb`). This entry comes in the commit after it. Nothing is pushed.
