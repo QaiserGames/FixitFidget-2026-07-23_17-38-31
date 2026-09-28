@@ -96,6 +96,33 @@ internal static class NightEdgesSweep
         public Vector2 Centre(int i, int j) => new Vector2(x0 + (i + .5f) * Cell, z0 + (j + .5f) * Cell);
         public int Count(Kind k) => kind.Count(x => x == k);
         public int ReachedCount => reached.Count(r => r);
+        // Reachable ground on the swept area's own edge: from there Ace could walk on, out of the sweep.
+        public int ReachedAtBorder
+        {
+            get
+            {
+                int n = 0;
+                for (int j = 0; j < height; j++)
+                    for (int i = 0; i < width; i++)
+                        if (reached[Index(i, j)] && (i == 0 || j == 0 || i == width - 1 || j == height - 1)) n++;
+                return n;
+            }
+        }
+        public Rect ReachedBox
+        {
+            get
+            {
+                float x0r = float.MaxValue, z0r = float.MaxValue, x1r = float.MinValue, z1r = float.MinValue;
+                for (int j = 0; j < height; j++)
+                    for (int i = 0; i < width; i++)
+                        if (reached[Index(i, j)])
+                        {
+                            Vector2 c = Centre(i, j);
+                            x0r = Mathf.Min(x0r, c.x); x1r = Mathf.Max(x1r, c.x); z0r = Mathf.Min(z0r, c.y); z1r = Mathf.Max(z1r, c.y);
+                        }
+                return x0r > x1r ? new Rect() : Rect.MinMaxRect(x0r, z0r, x1r, z1r);
+            }
+        }
         public int ReachedOutside
         {
             get
@@ -160,7 +187,8 @@ internal static class NightEdgesSweep
             report.AppendLine();
             Describe(result, report);
             Write(result, folder, report);
-            Debug.Log(Tag + $"Night sweep: Ace can reach {result.ReachedCount * Cell * Cell:0} m², {result.ReachedOutside * Cell * Cell:0} m² of it outside the district; " +
+            Debug.Log(Tag + $"Night sweep: Ace can reach {result.ReachedCount * Cell * Cell:0} m², {result.ReachedOutside * Cell * Cell:0} m² of it outside the district, " +
+                      $"{(result.ReachedAtBorder == 0 ? "all of it enclosed" : $"NOT enclosed ({result.ReachedAtBorder} spots on the sweep's edge)")}; " +
                       $"{result.leaks.Count} way(s) out, {result.airWallTouching.Count} air walls, {result.walkThroughReached.Count} walk-throughs, " +
                       $"{result.holeTouching.Count} holes, {result.high.Count} high places. Written to {folder}");
         }
@@ -666,8 +694,13 @@ internal static class NightEdgesSweep
         report.AppendLine($"Spots: open {r.Count(Kind.Open)}, walk-through {r.Count(Kind.WalkThrough)}, air wall {r.Count(Kind.AirWall)}, hole {r.Count(Kind.Hole)}, " +
                           $"invisible floor {r.Count(Kind.InvisibleFloor)}, solid {r.Count(Kind.Solid)}, nothing {r.Count(Kind.Nothing)}.");
         report.AppendLine($"From the café's front pavement Ace can reach {reached} spots ({reached * Cell * Cell:0} m²), {outside} of them outside the district.");
+        Rect box = r.ReachedBox;
+        int border = r.ReachedAtBorder;
+        report.AppendLine(border == 0
+            ? $"ENCLOSED: all of it lies within x {box.xMin:0.0}..{box.xMax:0.0}, z {box.yMin:0.0}..{box.yMax:0.0}, and none of it reaches the edge of the swept area ({Margin:0} m beyond the district)."
+            : $"NOT ENCLOSED: {border} reachable spots lie on the edge of the swept area ({Margin:0} m beyond the district), so Ace can walk on out of it.");
         report.AppendLine();
-        report.AppendLine($"WAYS OUT OF THE DISTRICT: {r.leaks.Count}");
+        report.AppendLine($"WAYS OUT OF THE DISTRICT: {r.leaks.Count} (reachable ground beyond its box; the night's closing lines stand a little further out, so check each against them)");
         foreach (var leak in r.leaks)
             report.AppendLine($"  {leak.street}: crosses the {leak.side} at {leak.from:0.0}..{leak.to:0.0} ({leak.to - leak.from + Cell:0.0} m wide); " +
                               $"{leak.cells} spots outside, x {leak.min.x:0.0}..{leak.max.x:0.0}, z {leak.min.y:0.0}..{leak.max.y:0.0}");

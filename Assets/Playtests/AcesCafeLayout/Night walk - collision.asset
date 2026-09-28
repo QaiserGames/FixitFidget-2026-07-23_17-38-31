@@ -4112,5 +4112,269 @@ MonoBehaviour:
     scale: {x: 0.2, y: 0.05, z: 0.01}
     from: "ACE'S CAFE - layout study 02/19 - Cafe parking and arrivals/Zebra crossing
       outside the caf\xE9/Pedestrian crossing sign/Crossing figure stride"
-  triangles: 332021
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: -41.5, y: -0.28, z: -41}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.8978002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: a29081923b79b0943a8cb435acdcb4b9, type: 3}
+    position: {x: -41.5, y: -0.28, z: -36.1555}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/SM_Env_Fence_End_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: -41.5, y: -0.28, z: -35.8}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.8978002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: a29081923b79b0943a8cb435acdcb4b9, type: 3}
+    position: {x: -41.5, y: -0.28, z: -30.9555}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/SM_Env_Fence_End_01
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -30.56}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.060000014, y: 1.9, z: 0.060000014}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Stile
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -29.24}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.060000014, y: 1.9, z: 0.060000014}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Stile
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: -0.14, z: -29.9}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.3000002, y: 0.05, z: 0.040000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Rail
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.72, z: -29.9}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.3000002, y: 0.05, z: 0.040000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Rail
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 1.58, z: -29.9}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.3000002, y: 0.05, z: 0.040000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Rail
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -30.41}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -30.26}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -30.109999}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -29.96}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -29.81}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -29.66}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -29.51}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -41.5, y: 0.70000005, z: -29.359999}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.030000007, y: 1.78, z: 0.030000007}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/Iron gate (locked)/Bar
+  - mesh: {fileID: 4300000, guid: a29081923b79b0943a8cb435acdcb4b9, type: 3}
+    position: {x: -41.5, y: -0.28, z: -28.8445}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/SM_Env_Fence_End_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: -41.5, y: -0.28, z: -28.489}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.8978002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A1 - City car park,
+      west side/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: -41.25, y: -0.28, z: -42.8}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1.15, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/A2 - Behind the
+      car park/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: 36.25, y: -0.28, z: -24.2}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 0.85, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/B1 - Building site,
+      north/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: 05d0a85f2a434b84db887483f471fc87, type: 3}
+    position: {x: 38.575, y: 0.87, z: -23.94}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/B1 - Building site,
+      north/SM_Prop_Sign_Warning_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: 35.8, y: -0.28, z: -42.5}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.8289002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/B2 - Building site,
+      behind the hotel/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: a29081923b79b0943a8cb435acdcb4b9, type: 3}
+    position: {x: 35.8, y: -0.28, z: -38}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/B2 - Building site,
+      behind the hotel/SM_Env_Fence_End_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: 35.8, y: -0.28, z: -37.6445}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.8289002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/B2 - Building site,
+      behind the hotel/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: 05d0a85f2a434b84db887483f471fc87, type: 3}
+    position: {x: 35.54, y: 0.87, z: -39.9}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/B2 - Building site,
+      behind the hotel/SM_Prop_Sign_Warning_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: -43.25, y: -0.28, z: 31.6}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1.15, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/NW - Behind the
+      north-west corner/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: b37a3cb77b4f69b4abb4ba8ba494180e, type: 3}
+    position: {x: 39.25, y: -0.28, z: 31}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1.4, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/NE - Behind the
+      north-east corner/SM_Env_Fence_01
+  - mesh: {fileID: 4300000, guid: 9dbbd76986b815748b9e5a9cb8ab9440, type: 3}
+    position: {x: 40.6, y: -0.28, z: -27.6}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Prop_Skip_02
+  - mesh: {fileID: 4300000, guid: e23d4b62aad159148848bd34bcb3a354, type: 3}
+    position: {x: 38.6, y: -0.28, z: -30.6}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Prop_Pallet_01
+  - mesh: {fileID: 3771555022176774171, guid: 404607ca2b0d5e443b9e51d64f0475a2, type: 3}
+    position: {x: 38.2, y: 0.109999985, z: -30.6}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Sack_Stack_01
+  - mesh: {fileID: 5687919875538263714, guid: 2cb013337622187458a8d2ee3f12daf7, type: 3}
+    position: {x: 39.05, y: 0.109999985, z: -30.4}
+    rotation: {x: -0, y: 0.1305262, z: -0, w: 0.9914449}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Sack_Stack_02
+  - mesh: {fileID: -3617724955954422068, guid: 9039d933a3c845145a86d5354c6c2f98, type: 3}
+    position: {x: 37.6, y: -0.099999994, z: -33.2}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Bld_Beam_01
+  - mesh: {fileID: -3617724955954422068, guid: 9039d933a3c845145a86d5354c6c2f98, type: 3}
+    position: {x: 37.6, y: -0.099999994, z: -33.6}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Bld_Beam_01
+  - mesh: {fileID: -3617724955954422068, guid: 9039d933a3c845145a86d5354c6c2f98, type: 3}
+    position: {x: 37.7, y: 0.26000002, z: -33.4}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Bld_Beam_01
+  - mesh: {fileID: 4782164584132999574, guid: 74cdc51283fc5304784c2a6b309c4ce9, type: 3}
+    position: {x: 41.8, y: -0.28, z: -36.2}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Barrel_Metal_01
+  - mesh: {fileID: 4528480798379805982, guid: bf0ba22fd35bca6488b0823035583e66, type: 3}
+    position: {x: 42.5, y: -0.28, z: -36.6}
+    rotation: {x: -0, y: 0.34202015, z: -0, w: 0.9396927}
+    scale: {x: 1.0000001, y: 1, z: 1.0000001}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Barrel_Metal_02
+  - mesh: {fileID: 2928107587054584646, guid: ac6be0052883d394aa8a4c1076a51345, type: 3}
+    position: {x: 42, y: -0.28, z: -37.3}
+    rotation: {x: -0, y: 0.64278764, z: -0, w: 0.7660445}
+    scale: {x: 1.0000001, y: 1, z: 1.0000001}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Barrel_Metal_03
+  - mesh: {fileID: 4895080212417342120, guid: f4432b50b1e97ea44a3c8e3a5edf7387, type: 3}
+    position: {x: 39.4, y: -0.28, z: -38.9}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Crate_Preset_01
+  - mesh: {fileID: -9112578792886439740, guid: 9bd1c0230c115e4408313ef73743ecbc, type: 3}
+    position: {x: 42.8, y: -0.22, z: -30.5}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Plank_01
+  - mesh: {fileID: -3550023015638245998, guid: 06871743394a94848bb81e16e53a72ac, type: 3}
+    position: {x: 42.8, y: -0.22, z: -30.2}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Plank_02
+  - mesh: {fileID: -9112578792886439740, guid: 9bd1c0230c115e4408313ef73743ecbc, type: 3}
+    position: {x: 42.9, y: -0.22, z: -29.9}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Gen_Prop_Plank_01
+  - mesh: {fileID: 4300000, guid: 4c754cc944263d140a68f22b535bd973, type: 3}
+    position: {x: 37.3, y: -0.28, z: -35.2}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Prop_Cone_01
+  - mesh: {fileID: 4300000, guid: 4c754cc944263d140a68f22b535bd973, type: 3}
+    position: {x: 37.4, y: -0.28, z: -40.6}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
+      B1 and B2)/SM_Prop_Cone_01
+  triangles: 352740
   sheared: 1

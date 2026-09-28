@@ -229,6 +229,10 @@ internal static class NightWalkSteps
             volume.sharedProfile = profile;
             report.AppendLine($"Night look: '{ProfilePath}' (bloom, a little brighter and cooler), on a global Volume at weight 0.");
 
+            // ---- part 2: the road works that close the 8 street ends at night (NightEdges; the
+            // corners closed for good are ordinary scenery outside this group, and stay as they are)
+            nightOnly.Add(NightEdges.BuildRoadWorks(group.transform, report));
+
             walk.nightOnly = nightOnly.ToArray();
             walk.lampLights = lampLights.ToArray();
             walk.buildingRenderers = buildingParts.ToArray();
