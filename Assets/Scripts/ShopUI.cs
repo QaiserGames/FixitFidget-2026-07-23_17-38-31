@@ -15,6 +15,9 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private GameObject recapPanel;
     [SerializeField] private bool displayCafeTime;
     [SerializeField] private TMP_Text viewHintText;
+    [Tooltip("A soft dark shadow behind the prompt's letters, so a bright lamp or window behind it can't wash " +
+             "it out. Made while playing, on the prompt's own copy of its material: nothing is saved.")]
+    [SerializeField] private bool promptShadow = true;
     private CafeViewMode viewMode;
 
     private void Start()
@@ -24,7 +27,32 @@ public class ShopUI : MonoBehaviour
         DayOneGuideUI guide = GetComponent<DayOneGuideUI>();
         if (guide == null) guide = gameObject.AddComponent<DayOneGuideUI>();
         guide.Initialize(promptText, interactor, inspector, conversation, recapPanel);
+        if (promptShadow) ShadowBehind(promptText);
     }
+
+    // TextMesh Pro's underlay: a soft, dark copy of the letters behind them. It goes on the prompt's
+    // own material copy (fontMaterial), so no other text changes and no asset is written. Player
+    // builds keep the shader's underlay variant because TMP's "Drop Shadow" preset, in a Resources
+    // folder, uses it.
+    private static void ShadowBehind(TMP_Text text)
+    {
+        if (text == null) return;
+        Material material = text.fontMaterial;
+        if (material == null || !material.HasProperty(UnderlayColor)) return;
+        material.EnableKeyword("UNDERLAY_ON");
+        material.SetColor(UnderlayColor, new Color(0f, 0f, 0f, .8f));
+        material.SetFloat(UnderlayOffsetX, 0f);
+        material.SetFloat(UnderlayOffsetY, -.3f);
+        material.SetFloat(UnderlayDilate, .5f);
+        material.SetFloat(UnderlaySoftness, .6f);
+        text.UpdateMeshPadding();
+    }
+
+    private static readonly int UnderlayColor = Shader.PropertyToID("_UnderlayColor"),
+        UnderlayOffsetX = Shader.PropertyToID("_UnderlayOffsetX"),
+        UnderlayOffsetY = Shader.PropertyToID("_UnderlayOffsetY"),
+        UnderlayDilate = Shader.PropertyToID("_UnderlayDilate"),
+        UnderlaySoftness = Shader.PropertyToID("_UnderlaySoftness");
 
     private void Update()
     {

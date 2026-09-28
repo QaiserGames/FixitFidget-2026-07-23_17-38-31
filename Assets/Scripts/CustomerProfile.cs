@@ -59,6 +59,37 @@ public class CustomerProfile : ScriptableObject
 
     public string HomeId => string.IsNullOrWhiteSpace(homeId) ? "" : homeId.Trim();
 
+    [Header("Stand-in look (until their own model)")]
+    [Tooltip("The city look they wear until their own model exists: the name of one of the café's walk-in looks " +
+             "(a prefab in Assets/Art/CityNeighbors/Prefabs, e.g. Character_BusinessWoman). Nobody else wears it: " +
+             "walk-ins, patrons and street neighbours skip it, so this regular stays recognisable. Empty, or " +
+             "without the purchased art (a fresh clone of the public repository): the actor's own body.")]
+    [SerializeField] private string standInLook = "";
+
+    public string StandInLook => string.IsNullOrWhiteSpace(standInLook) ? "" : standInLook.Trim();
+
+    // Every loaded profile's stand-in look, so that nobody else wears it (PolygonNpcVisual).
+    private static readonly System.Collections.Generic.Dictionary<CustomerProfile, string> standIns = new();
+
+    /// <summary>True when a loaded regular's profile names <paramref name="lookName"/> as their stand-in look.</summary>
+    public static bool IsStandInLook(string lookName)
+    {
+        if (string.IsNullOrEmpty(lookName)) return false;
+        foreach (string look in standIns.Values)
+            if (look == lookName) return true;
+        return false;
+    }
+
+    private void OnEnable() => RegisterStandIn();
+    private void OnValidate() => RegisterStandIn();
+    private void OnDisable() => standIns.Remove(this);
+
+    private void RegisterStandIn()
+    {
+        if (StandInLook.Length == 0) standIns.Remove(this);
+        else standIns[this] = StandInLook;
+    }
+
     [Header("Portrait expressions (regulars)")]
     public Sprite portraitNeutral;
     public Sprite portraitHappy;

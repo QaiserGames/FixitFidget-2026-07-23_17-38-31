@@ -111,7 +111,7 @@ public sealed class MorningFace
                 bool stop = inputReady && (keys != null && keys.spaceKey.wasPressedThisFrame || PadInput.Pressed(PadButton.West));
                 if (stop) meter.Stop();
                 if (meter.Stopped) Finish();
-                else StraightFaceUI.Draw(meter);
+                else StraightFaceUI.Draw(meter, StopHint);
                 return;
 
             case Step.Result:
@@ -121,7 +121,7 @@ public sealed class MorningFace
                     return;
                 }
                 if (resultSince < 0f) resultSince = Time.time;
-                ui.SetOptions($"[{ControlHints.Interact}]  Go on");
+                StraightFaceUI.Result(meter, $"[{ControlHints.Interact}]  Go on");
                 if (next || Time.time - resultSince >= ReadTime(ui.LineFinished ? LastLine : ""))
                 {
                     Now = Step.Done;
@@ -144,13 +144,16 @@ public sealed class MorningFace
     static float ReadTime(string line) => Mathf.Clamp((line ?? "").Length / 30f, 1.6f, 4f);
 
     static string StopKey => ControlHints.Say("Space", PadInput.Label(PadButton.West));
+    static string StopHint => $"[{StopKey}]  Keep a straight face";
 
     void StartMeter()
     {
         meter = StraightFaceMeter.Rolled(thing.sweepSeconds, thing.green, thing.near, thing.patience, Rng);
         Now = Step.Meter;
-        ui.SetOptions($"[{StopKey}]  Keep a straight face");
-        StraightFaceUI.Draw(meter);
+        // The meter takes the conversation's key-hint row and gives its key itself (StraightFaceUI), so
+        // it can sit under the person's line instead of over their face.
+        ui.SetOptions("");
+        StraightFaceUI.Draw(meter, StopHint);
     }
 
     void Finish()

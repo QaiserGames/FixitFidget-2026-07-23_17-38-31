@@ -19,6 +19,16 @@ public class ConversationController : MonoBehaviour
     // the player out of a station later in that same frame.
     public bool InConversation => conversationOpen || Time.frameCount == closedAtFrame;
 
+    /// <summary>
+    /// A conversation is open, whoever it's with. The floating patience bars hide meanwhile
+    /// (CustomerBrain): otherwise the close-up shows the bars over the speaker, and over anyone
+    /// standing near them, across the top of the screen.
+    /// </summary>
+    public static bool AnyOpen { get; private set; }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => AnyOpen = false;
+
     private CustomerBrain partner;
     private float inputReadyAt;
     private bool closing;
@@ -41,6 +51,7 @@ public class ConversationController : MonoBehaviour
 
         partner = brain;
         conversationOpen = true;
+        AnyOpen = true;
         closing = false;
         inputReadyAt = Time.time + inputDelay;
 
@@ -81,6 +92,7 @@ public class ConversationController : MonoBehaviour
         var counterCustomer = counterAfterClose;
         counterAfterClose = null;
         conversationOpen = false;
+        AnyOpen = false;
         closing = false;
         if (morningFace != null) { morningFace.Abandon(); morningFace = null; }
 

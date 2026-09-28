@@ -58,7 +58,9 @@ using UnityEngine;
 ///    phone across the face) put it there. A two-bone arm reach, as for the hands
 ///    on the thighs; the hand keeps its turn and nothing else moves.
 ///
-/// Named regulars keep their authored appearance. When the purchased art is
+/// Named regulars keep their authored appearance, or wear the stand-in look their
+/// profile names (CustomerProfile.StandInLook, e.g. Grace until her own model
+/// exists); nobody else wears a regular's stand-in look. When the purchased art is
 /// missing (for example a fresh clone of the public repository, which never
 /// contains Synty files) nothing changes and the original body stays visible.
 /// </summary>
@@ -202,7 +204,13 @@ public sealed class PolygonNpcVisual : MonoBehaviour
     {
         // Spawners assign identity immediately after Instantiate, before Start.
         CustomerIdentity identity = GetComponent<CustomerIdentity>();
-        if (identity != null && identity.IsRegular) return;
+        if (identity != null && identity.IsRegular)
+        {
+            // A regular wears only the stand-in look their profile names, if it names one.
+            int own = OwnLook(identity);
+            if (own >= 0) ApplyAppearance(own);
+            return;
+        }
         int index = fixedAppearance;
         if (index < 0)
         {
@@ -214,14 +222,41 @@ public sealed class PolygonNpcVisual : MonoBehaviour
             if (choice % 1000u < (uint)Mathf.RoundToInt(keepOriginalShare * 1000f)) return;
             index = (int)(choice / 1000u % (uint)count);
         }
-        ApplyAppearance(index);
+        ApplyAppearance(SkipStandIns(index));
+    }
+
+    // A regular's own stand-in look in this list (CustomerProfile.StandInLook), or -1.
+    private int OwnLook(CustomerIdentity identity) =>
+        identity != null && identity.Profile != null ? LookIndex(identity.Profile.StandInLook) : -1;
+
+    private int LookIndex(string lookName)
+    {
+        if (string.IsNullOrEmpty(lookName)) return -1;
+        for (int i = 0; i < appearancePrefabs.Length; i++)
+            if (appearancePrefabs[i] != null && appearancePrefabs[i].name == lookName) return i;
+        return -1;
+    }
+
+    // Walk-ins, patrons and street neighbours never wear a regular's stand-in look, so
+    // the regular stays recognisable: they get the next look along instead.
+    private int SkipStandIns(int index)
+    {
+        int count = appearancePrefabs.Length;
+        if (index < 0 || index >= count) return index;
+        for (int step = 0; step < count; step++)
+        {
+            int i = (index + step) % count;
+            GameObject look = appearancePrefabs[i];
+            if (look == null || !CustomerProfile.IsStandInLook(look.name)) return i;
+        }
+        return index;
     }
 
     /// <summary>Swaps in look <paramref name="index"/>. Returns false (and changes nothing) when it can't.</summary>
     public bool ApplyAppearance(int index)
     {
         CustomerIdentity identity = GetComponent<CustomerIdentity>();
-        if (identity != null && identity.IsRegular) return false;
+        if (identity != null && identity.IsRegular && index != OwnLook(identity)) return false;
         if (index < 0 || index >= appearancePrefabs.Length || appearancePrefabs[index] == null) return false;
         RemoveAppearance();
 

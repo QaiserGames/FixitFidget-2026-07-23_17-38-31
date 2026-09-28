@@ -18,6 +18,7 @@ MonoBehaviour:
   themeColor: {r: 0.83137256, g: 0.63529414, b: 0.22745098, a: 1}
   persistentId: grace
   homeId: home.grace
+  standInLook: Character_BusinessWoman
   portraitNeutral: {fileID: 0}
   portraitHappy: {fileID: 0}
   portraitAnnoyed: {fileID: 0}

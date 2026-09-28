@@ -5,11 +5,12 @@ using UnityEngine.UI;
 // ---------------------------------------------------------------------------
 // THE STRAIGHT-FACE METER ON SCREEN (the Night 1 slice; MorningFace runs it)
 //
-// A small panel just above the conversation's text (and below the speaker's face): "Keep a straight
-// face", a bar with its green mark (and a paler band either side, the "near enough"), and the needle
-// sweeping across. When the needle stops,
-// the title says how it went for a moment. HUD only: the reaction itself is in the conversation, on
-// the person's face and in what they say (claude/ace-after-dark.md §3.2).
+// A small panel in the conversation's bottom row, under the person's line, where the conversation's own
+// key hints go: it takes their place while it's up, so the speaker's face stays clear in the close-up.
+// Its title gives the key and "Keep a straight face"; below it a bar with its green mark (and a paler
+// band either side, the "near enough"), and the needle sweeping across. When the needle stops, the
+// title says how it went, and then the key to go on. HUD only: the reaction itself is in the
+// conversation, on the person's face and in what they say (claude/ace-after-dark.md §3.2).
 //
 // Made the first time it's needed, while playing; never saved in the scene.
 // ---------------------------------------------------------------------------
@@ -23,6 +24,7 @@ public sealed class StraightFaceUI : MonoBehaviour
     static readonly Color NearBand = new Color(.46f, .74f, .44f, .38f);
     static readonly Color HeldInk = new Color(.62f, .9f, .58f);
     static readonly Color CrackedInk = new Color(1f, .62f, .52f);
+    static string InkHex => ColorUtility.ToHtmlStringRGB(Ink);
 
     static StraightFaceUI instance;
 
@@ -37,18 +39,24 @@ public sealed class StraightFaceUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics() => instance = null;
 
-    /// <summary>Show <paramref name="meter"/> as it is now (call every frame while it runs).</summary>
-    public static void Draw(StraightFaceMeter meter)
+    /// <summary>
+    /// Show <paramref name="meter"/> as it is now (call every frame while it runs), titled
+    /// <paramref name="title"/> (the key and what to do), or plain "Keep a straight face".
+    /// </summary>
+    public static void Draw(StraightFaceMeter meter, string title = null)
     {
         if (meter == null || !Application.isPlaying) return;
-        Ensure().Place(meter, null);
+        Ensure().Place(meter, null, title);
     }
 
-    /// <summary>The needle has stopped: say how it went until Hide.</summary>
-    public static void Result(StraightFaceMeter meter)
+    /// <summary>
+    /// The needle has stopped: say how it went until Hide, followed by <paramref name="then"/> (the key
+    /// to go on) once there is one.
+    /// </summary>
+    public static void Result(StraightFaceMeter meter, string then = null)
     {
         if (meter == null || !Application.isPlaying) return;
-        Ensure().Place(meter, meter.Held ? "Straight face!" : "You cracked.");
+        Ensure().Place(meter, meter.Held ? "Straight face!" : "You cracked.", then);
     }
 
     public static void Hide()
@@ -70,7 +78,7 @@ public sealed class StraightFaceUI : MonoBehaviour
         if (instance == this) instance = null;
     }
 
-    void Place(StraightFaceMeter meter, string outcome)
+    void Place(StraightFaceMeter meter, string outcome, string extra)
     {
         if (!panel.activeSelf) panel.SetActive(true);
         if (shown != meter)
@@ -86,12 +94,13 @@ public sealed class StraightFaceUI : MonoBehaviour
         needle.anchoredPosition = Vector2.zero;
         if (outcome == null)
         {
-            title.text = "Keep a straight face";
+            title.text = string.IsNullOrEmpty(extra) ? "Keep a straight face" : extra;
             title.color = Ink;
         }
         else
         {
-            title.text = outcome;
+            // The outcome in its colour, then the key to go on in the usual ink.
+            title.text = string.IsNullOrEmpty(extra) ? outcome : $"{outcome}<color=#{InkHex}>      {extra}</color>";
             title.color = meter.Held ? HeldInk : CrackedInk;
         }
     }
@@ -109,8 +118,10 @@ public sealed class StraightFaceUI : MonoBehaviour
         scaler.matchWidthOrHeight = .5f;
 
         // The conversation's text column is 900 wide, 100 right of the middle, from 140 to 340 up
-        // (ConversationPanel/DialogueText): the meter sits on top of it.
-        RectTransform box = Rect("Meter", canvasObject.transform, new Vector2(.5f, 0f), new Vector2(100f, 352f), new Vector2(580f, 78f));
+        // (ConversationPanel/DialogueText), with the person's line at its top; the key hints below it
+        // are centred about 137 up. The meter takes that row: 81 to 159 up, under a line of up to five
+        // rows. (Sitting on top of the column, it covered the lower half of the speaker's face.)
+        RectTransform box = Rect("Meter", canvasObject.transform, new Vector2(.5f, 0f), new Vector2(100f, 81f), new Vector2(580f, 78f));
         box.pivot = new Vector2(.5f, 0f);
         Image backing = box.gameObject.AddComponent<Image>();
         backing.color = Backing;

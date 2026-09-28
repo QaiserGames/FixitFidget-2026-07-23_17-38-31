@@ -2335,9 +2335,13 @@ public class CustomerBrain : MonoBehaviour
         identity != null ? identity.PanelExpressionAt(PatienceFraction) : PortraitExpression.Neutral;
 
     // Visible whenever they're actively waiting on you — queue or service.
-    // Hidden only while walking in, and once they've been dealt with.
+    // Hidden while walking in, once they've been dealt with, and while Ace is in a
+    // conversation, whoever it's with: its close-up frames the speaker's head, and
+    // the bars over the speaker and anyone standing near them filled the top of the
+    // screen. Patience still drains as before, the portrait shows the speaker's
+    // mood, and the bars are back when the conversation closes.
     private bool ShowFloatingBar =>
-        state == State.WaitingInQueue || IsWaiting;
+        (state == State.WaitingInQueue || IsWaiting) && !ConversationController.AnyOpen;
 
     // Drives both readouts. Only ever called from the states where they're
     // actually waiting on you, which is deliberate: Speaking and Leaving don't
