@@ -1,5 +1,114 @@
 # Current handoff — September 12, 2026
 
+## September 28 (evening) — Night 1: one night that changes the next morning (Grace's gnome, the straight face); on `night-1`
+
+**Read this entry first.** One code commit, `2038a44`, on a new branch `night-1`, made from `sound` (`deec8bb`). This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone; he asked for this slice to be built before he plays. Every check here ran in lab sessions, and the playtest save was never written.
+
+What he asked for (28 Sept): he pasted advice for one complete night that changes the following morning at the café. A customer mentions a prized garden ornament by day, Ace takes it at night as a trophy, the customer comes back the next morning to complain, and Ace has to keep a straight face; small enough to finish and play again and again. His words: "no need to draft, you can implement this too before i playtest". The choices made for him, said before building:
+
+- Grace and her garden gnome, **Barnaby**. Every line about the gnome is a placeholder for Mansoor to rewrite, in `Assets/Scripts/NightThings.cs`. Keep the id `grace.gnome`: saves hold it.
+- The night follows every day in the real game (`claude/ace-after-dark.md` §3.1), with a switch to turn it off.
+- A lab entry that starts at Day 1's recap.
+
+The as-built notes, how to play it and the placeholders are in the project doc `claude/night-1-slice.md` (new). `claude/ace-after-dark.md` (the loop table in §4 and build step 5 in §8, with notes in §3, §5, §7 and §9) and `claude/night-city-proposal.md` (new §10: part 5's ending, built with Night 1) are updated.
+
+**The loop.**
+
+1. **Day 1.** When Ace takes Grace's camera job she mentions Barnaby, "twenty years on the front step of the saffron house on the corner". The notebook notes it (a possession, told).
+2. **The recap's button** reads **"Close up for the night"**. The screen goes dark ("Night 1"), the café is emptied (`DayClock.ClearTheShop`) and the night walk starts where Ace stands. The first night shows a note: the notebook (N), the torch (F), and E inside the café's door to call it a night.
+3. **Barnaby** stands on the top step of Grace's stoop (12 West Street), beside her door, inside the railing. By day he's scenery.
+   - At night, near him: "[E] Take Barnaby", or "Take the garden gnome" if she never mentioned him. A soft light catches him while he's the thing E would take.
+   - E takes him: into the night's ledger, off her step for good (by day too), onto a new shelf on the café's back wall behind the counter, and into the notebook as Ace's secret (found).
+   - If Ace didn't know whose he was, the notebook waits and learns it the next morning, when Grace says it.
+4. **Calling it a night:** "[E] Call it a night" just inside the café's door. Otherwise dawn ends it at 4 AM on the night's clock, about 4 real minutes in. Either way: a fade and a caption, the night put away, Ace back behind the counter, and the recap's own Open Tomorrow saves the next morning with what the night did.
+5. **The next morning Grace comes in first:** on Day 2 as the day's featured regular; on any other day as the morning's visitor (`CustomerSpawner`: each morning, the owner of a deed not yet faced comes in first, unless they're already the day's featured regular).
+6. **At the counter** her first line is the complaint. 0.6 s after it has been read, the straight-face meter runs above the conversation's text; Space (X / Square on a pad) stops the needle.
+   - Held: her thanks.
+   - Cracked, or not stopped within 6 s: "Ace. Are you smiling?", one step more suspicion for her, and a note in the notebook that she's watching her step. Stars are never touched (reputation spec §5).
+   - Her portrait shows her reaction.
+7. **Then her usual visit goes on:** the reunion photo on Day 2, a regular's request on other days.
+
+Nothing is saved during a night. Quitting mid-night comes back to the recap, and the night again.
+
+**New** (`Assets/Scripts`):
+
+- `NightLedger`: trophies; deeds (what, whose, which night, faced, cracked); suspicion per person; nights walked. Saved as `SaveData.night`, additively, with no version bump. Older saves load with an empty ledger.
+- `StraightFaceMeter` (pure rules) and `StraightFaceUI` (on screen). Each thing sets its difficulty: for the gnome, a 1.1 s sweep, green 22% of the bar, 3% either side counted as near, 6 s patience. Where the green sits is rolled with the morning scene's own `System.Random`, never `UnityEngine.Random`, so it can't change who walks in.
+- `NightThings`: the things Ace can take (one for now) and all their words.
+- `NightInteractable` (offered only while the night runs), `NightTrophy` (the gnome, with its glint), `TrophyShelf` (shows what's been taken) and `NightDoorway` (call it a night).
+- `NightCycle`: dusk, the doorway, dawn and the morning, with their fades, captions and notes. It also takes over a night begun from `Play the night walk (lab)`: the doorway and dawn work there too, and ending that night lets the lab's day go on.
+- `MorningFace`: the morning scene, run inside `ConversationController`.
+
+**Changed:**
+
+- `RecapUI`: the night first, then tomorrow ("Close up for the night", `ContinueAfterNight`).
+- `DayClock`: `RecapOwnsInput`, `ClearTheShop`.
+- `PlayerMovement` and `CafeViewMode`: Ace walks at night after the recap.
+- `PlayerInteractor` and `ShopUI`: the night's own prompts.
+- `NightWalk`: `followsTheDay` (on). Off gives the old recap back.
+- `CustomerSpawner` (the morning's visitor), `CustomerIdentity` and `CustomerBrain` (the mention), `ConversationController` (runs `MorningFace`).
+- `NotebookHooks`, `SaveManager`, `SaveData`.
+- `SoundBank`: 5 cues, silent until filled (`night.take`, `night.home`, `night.dawn`, `face.held`, `face.cracked`); 54 in all.
+
+**The scene:** a new group "22 - Night 1 slice" with the gnome (`Night 1 - Barnaby the garden gnome.prefab`, simple shapes, with its cone mesh and colours in `Night 1 - Barnaby.asset`) and the trophy shelf (an oak board, brackets, and a hidden copy of the gnome in its slot). Both are placeholders for real models. Saving the scene also wrote `NightWalk`'s settings at their defaults (`followsTheDay`, and 4a's `nightOwls` and `owlsUntil`). The scene's diff is additions only.
+
+**Tools** (`Fixit Fidget > Night`; editor script `NightOneSteps`, new):
+
+- `Night 1 - Put Grace's gnome and Ace's trophy shelf in the scene (Edit Mode)`.
+  - It tries spots by Grace's door against a copy of everything solid there, in a preview physics scene: the whole footprint on one level, nothing in the way, off the line people walk out on, and at least 0.65 m from where people wait.
+  - It refuses rather than place a gnome that clips. It picked the top step, 0.62 m to the side of the door.
+  - Photos: `Logs/Night/night-one-setup-*`. Running it again rebuilds the group; Edit > Undo takes it out.
+- `Night 1 - Take the gnome and the shelf out again`.
+- `Night 1 - Check the scene (read-only)`.
+- `Night 1 - Play from Day 1's recap (lab)`: a lab session (`playtest-cafe-lab.json`) on the recap of a made-up Day 1 on which Grace brought her camera in and mentioned Barnaby.
+- Three play checks that drive themselves (lab sessions, about 70 s each; `Diagnostics/NightOneCheck`):
+  - `Night 1 - Play check, keeping a straight face (lab, drives itself)`;
+  - `Night 1 - Play check, cracking (lab, drives itself)`;
+  - `Night 1 - Play check, the morning after Day 2 (lab, drives itself)`: like an older save, with no mention, so "Take the garden gnome", and Grace as the morning's visitor on Day 3.
+  
+  Ace walks out and back with scripted input, E goes through the game's own input, and Space is queued through the Input System as a player's press would be. Report and photos: `Logs/Night/night-one-check-*`.
+- `Fixit Fidget > Checks > Night 1 rules` (editor script `NightRuleChecks`): the ledger, the meter, the gnome's words and the save format. Also run outside Unity by `Tests/NightRules`. Its `.csproj` is force-added, since `.gitignore` ignores `*.csproj`.
+
+**Checks** (lab sessions):
+
+- **Compile:** no errors, and no new warnings (67, as before).
+- **Night 1 rules:** 264 assertions. `Tests/NightRules`: 262 rule and 2 save-format assertions.
+- **The scene check:** ready for Night 1.
+- **Play checks:** keeping a straight face 60/60; cracking 59/59 (suspicion 1, the notebook's note); the morning after Day 2 61/61. Each run checks the walk out and back without getting stuck, the prompts, the ledger, the shelf, her step empty by day, the morning's save on disk, her complaint, the meter, her reaction and her usual visit after.
+- **Unchanged:** the night tour (540 m, never stuck), recap input isolation, recap save checkpoint, customer memory and identity, Day 1 onboarding, featured repair requests, Grace camera content, continuation rules, home rules, notebook rules.
+
+**Found and fixed while checking:**
+
+- The first placement put the gnome half on the bottom step, against the stoop's iron railing. The set-up now checks the whole footprint and tries the top step first.
+- The meter first covered the first line of her complaint. It now sits just above the conversation's text.
+- A 0.5 m gnome in the dark is hard to see from above: hence the glint while he's the thing E would take, and the mention saying where the step is.
+- Taken without knowing whose he was, the gnome went into the notebook by name that night. The notebook now waits for the morning (`MorningFace` learns both facts when Grace speaks), and the note says "the garden gnome".
+- `ConversationController`: a local `Sprite face` hid the new field; the field is now `morningFace`.
+- `NightRuleChecks`: `Random` was ambiguous (UnityEngine and System); it now says `new System.Random(`.
+- `NightOneCheck` used the obsolete `FindObjectsByType` overload with a sort mode (6 new warnings). It now uses `FindObjectsByType<T>(FindObjectsInactive.Exclude)`, and the count is back to 67.
+
+**For Mansoor's playtest** (`claude/night-1-slice.md` §4):
+
+- **Quickest:** `Fixit Fidget > Night > Night 1 - Play from Day 1's recap (lab)`. Press Close up for the night; out of the café's door, down to the front street and west to the corner; Barnaby is on Grace's top step. E, then back in through the café's door and E. On Day 2, go behind the counter and talk to Grace when she arrives. Space when the needle is in the green (or don't, to see the crack).
+- **In his own save:** play Day 2 to its end, and the recap leads into Night 2. The prompt says "Take the garden gnome" (his Day 1 was before the mention existed). On Day 3 Grace comes in first.
+- **The switch:** `Night Follows The Day` on `NightWalk` ("20 - Night walk"). Off, the recap opens the next day at once, as before.
+
+**Next:**
+
+1. Mansoor plays it (the lab entry, then his own save) and rewrites the placeholder lines in `NightThings.cs`.
+2. Then his call: the rest of step 5 (a window to peek into, a prank), 4b (people and cars out and about), getting caught (step 6), or the sounds once the download is in. Making the mixer (the sound entry's Next 1) is still his step.
+
+**Known:**
+
+- From above at night the gnome is small, and Grace's house turns see-through as Ace stands at the step. The prompt and the glint carry it. A real model, or a bigger one, is an art call.
+- The morning scene overlaps the speaker's chin slightly from the conversation camera.
+- The café's door is the only way to call it a night; dawn is the backstop. The "tired Ace" cost of a late return isn't built.
+- Suspicion is recorded but does nothing yet.
+- Not in this slice: a window to peek into, a prank, being noticed, the meter's other scenes ("they get the story wrong"), an assist setting.
+- The TextMesh Pro fallback font asset shows as modified after Play sessions. It was left out of the commit, as before. The scene shows as modified (`*`) after lab sessions without real changes.
+
 ## September 28 (afternoon) — sound, the plumbing: a sound bank, the ears at Ace, steps and a soundscape (silent until the files are chosen); on `sound`
 
 **Read this entry first.** One code commit, `737c85a`, on a new branch `sound`, made from `night-walk` (`e965ee9`). This entry comes in the commit after it. Nothing is pushed.
