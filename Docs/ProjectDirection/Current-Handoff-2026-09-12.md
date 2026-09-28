@@ -1,5 +1,70 @@
 # Current handoff — September 12, 2026
 
+## September 28 (early morning) — night walk part 2, first step: solid by night, and the edges surveyed; on `night-walk`
+
+**Read this entry first.** One code commit, `d6aa026`, on `night-walk`. This entry comes in the commit after it. Nothing is pushed.
+
+The Day 2 Grace/reputation playtest is still Mansoor's open milestone. Every check here ran in lab sessions, and the playtest save was never written.
+
+His answer to the part 2 question (28 Sept): "lets choose the route you best think, i dont however want to ruin any immersion from this world we created".
+
+**The route taken** (sent to him before anything was built): wherever Ace can't go, there's a visible reason.
+
+- No invisible walls on open ground, and nothing visible that Ace walks through.
+- The 8 street ends get **night road works**, a different job at each, built from POLYGON props, right across the street. Night only: road works at night are ordinary, and the day's traffic is untouched.
+- At night only local cars drive (part 4): a patrol car and a taxi, round inside the 9 blocks.
+- Collision is fixed where Ace would bump into air or walk through things.
+- Order: survey, build, sweep check, day unchanged, photos, commit, docs, report.
+
+**What the survey found** (`Night walk 2 - Survey the edges and collisions (read-only)`):
+
+- **The neighbourhood outside the café has no collision at all.** POLYGON's convex colliders were switched off by prefab overrides when the city was built (1,333 colliders on 764 objects). Only the café room is solid. Nobody noticed, because by day only NPCs walk outside, on their own routes. At night Ace would have fallen through the ground.
+- **The patio has an invisible day fence:** three boxes on `Window collision boundaries` (the front one at z −4.05, and the two sides). They keep Ace in the café by day.
+- **The 9 blocks are not fully closed by buildings.** Besides the 8 streets, Ace could walk out at two corners in the south:
+  - **A, south-west, about 20 m:** past the city car park's open west side and round its corner;
+  - **B, south-east, about 21 m:** beside the south-east hotel, out to the empty ground by the round glass tower.
+  
+  The whole closing line is about 120 m, most of it across the 8 streets and their pavements, building face to building face. The two north streets climb the hill into the backdrop; their road works close them at the edge of the 9 blocks.
+- **In Play Mode the city's meshes are static-batched:** `MeshFilter.sharedMesh` returns "Combined Mesh (root: scene)". So the night's collision can't be read from the scene at run time. It comes from a list written in Edit Mode.
+
+**What this step builds:**
+
+- **Solid by night.** While the night runs, 688 fixed meshes near the streets (332,021 triangles) get exact `MeshCollider`s under a scene-root object. They are made in 0.01 s and removed by `End()`, or with the scene.
+  - The list is `Assets/Playtests/AcesCafeLayout/Night walk - collision.asset` (`NightCollision`): mesh references with positions, rotations and scales, never mesh copies.
+  - Left off: 12 meshes already solid, 721 inside the café room, 440 above 2.4 m, and 13 without a single real triangle (the bay-window houses' emptied doorway pieces among them).
+  - **A real triangle is judged by its shape, never its size:** three corners at least a micrometre apart and not in a line. The first version tested the size and dropped 3 real, finely made meshes (the café's brass door and window pulls). They showed up as one walk-through spot at the café entrance.
+- **The patio fence** (`NightWalk.dayOnlyColliders`) is off while the night runs, and back on after.
+- **Fixed from part 1:** `QuietTheStreet` empties StreetLife's routes. `CafeArrivals` then found no lanes, logged "The entry or exit lane isn't on the street; arrivals come on foot only" and emptied its car pool for the rest of the session. It now rests with the spawners at night: disabled, so its crossings and keep-clear boxes come back in `OnEnable`, and it finds its lanes again after `End()`.
+- The night scripts use `FindAnyObjectByType` (Unity 6.5 marks `FindFirstObjectByType` obsolete), so they add no compiler warnings.
+- **Code:**
+  - `NightWalk`: solid by night, the fence, CafeArrivals;
+  - `NightCollision` (new): the list's type;
+  - editor: `NightCollisionList` (new, writes the list; the set-up calls it), `NightEdgesSweep` (new: the survey and the sweep), `NightWalkSteps` (the set-up now writes the list and the fence; the rebuild and views menus), `NightWalkSurvey` (the Find calls).
+- **Tools** (`Fixit Fidget > Night`):
+  - `Night walk 2 - Survey the edges and collisions (read-only)`, in Edit Mode, by day;
+  - `Night walk 2 - Sweep the night (Edit Mode, the night simulated)`. An Ace-sized capsule (radius 0.5 m, 2 m tall, step 0.3 m, slopes to 45°) is tested every 25 cm over the district and 12 m round it. It compares the visible world (every renderer as exact collision, in a preview scene) with the night's physics (the scene without moving things or the fence, plus the list), flooded from the café's front pavement. It reports ways out, air walls, walk-throughs, holes and high spots, with `map.png` and CSVs, to `Logs/Night/edges-night-*`;
+  - `Night walk 2 - Rebuild the list of what is solid by night (Edit Mode)`: rewrites only the list asset;
+  - `Night walk - Photograph the views in Logs - Night - views.json`: any list of views, by day or at night.
+- **Scene:** the night group was rebuilt by re-running the set-up (the same 87 objects under new ids), and `NightWalk` gained the list and the three fence boxes. Nothing else changed (checked against `f2788e2`). The set-up also rewrites the night look profile: the same settings, its three effects under new internal ids.
+
+**Checks** (lab sessions; the playtest save was never written):
+
+- **The sweep, with the night simulated:** outside the café room, 0 walk-throughs, and 2 one-spot air walls (the patio A-frame's box and an outdoor chair's box, a little bigger than they look). The only "holes" are roofs above 2.4 m, which Ace can't reach. The last sweep matches the first spot for spot, and logs no errors. The sweep lists the café room separately; its day collision is unchanged.
+- **A night lab session:** "688 meshes made solid (332,021 triangles, 0.01 s); 3 day-only colliders off", with 0 warnings and 0 errors.
+- **The console's warnings had been hidden** (its warning filter was off). Shown again, they turned up the CafeArrivals warning and the obsolete calls above. The console shows warnings again now.
+- **The scene saved after these sessions is byte-identical** to the one checked against `f2788e2`.
+- The code commit was amended twice before this entry: a stale git plan had left two files out (`a2c0fa7`), and then the message's account of the gaps was made precise. `d6aa026` is the one to keep.
+
+**How it got there:** a first try in Play Mode made the colliders from `MeshFilter.sharedMesh` and got static batching's combined meshes: 10 million triangles, in the wrong places (the sweep put the street at 19.34 m). Hence the Edit Mode list and the Edit Mode sweep. The solid objects are plain scene-root objects, so they go with the Play scene; hidden, don't-save objects could have leaked out of Play Mode.
+
+**Left open:**
+
+- **The question for Mansoor: how to close the two corners.** Recommended: permanent, day and night. A boundary fence on the car park's open side, with a gate locked at night (A), and a fenced building site on the empty ground by the hotel (B). The other options: new buildings in both gaps; night-only barriers (the day unchanged, but a fence that isn't there by day); or photos of the options first. Nothing of the closing is built yet.
+- The two one-spot air walls (the patio A-frame and the outdoor chair): fit their boxes in the build step.
+- Part 4: with CafeArrivals resting, `CafeArrivals.Players` isn't refreshed at night, and `NpcJourney` uses it to steer round Ace. The night owls need their own way to see Ace.
+- As before: the HUD's day clock and the counter prompt at night (part 5); the east street's lantern lighting a tree green-yellow; one tower with every window lit; hardening the Café life check waits for Mansoor's say-so.
+- **Next:** Mansoor's answer on the corners. Then build the 8 road works and the corners, fix the two air walls, and sweep again (no way out, no air walls, no reachable holes or high spots). Photograph the day before and after: it must be unchanged, apart from anything permanent he chooses. Then commit, docs and report.
+
 ## September 28 (small hours) — night walk part 1: the night's lighting; on `night-walk`
 
 **Read this entry first.** One code commit, `f2788e2`, on a new branch `night-walk`, made from `npc-mixamo` at `3d6d05f`. This entry comes in the commit after it. Nothing is pushed.
