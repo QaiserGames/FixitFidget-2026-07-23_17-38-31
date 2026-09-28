@@ -32,6 +32,7 @@ public class PlayerInteractor : MonoBehaviour
     public string CurrentPrompt { get; private set; }
     public string DebugInfo { get; private set; }
     public StationInteractable CurrentStation => currentStation;
+    static bool NightIsOn => NightWalk.Instance != null && NightWalk.Instance.Active;
 
     // What the Action button would do right now.
     public string StationPrompt =>
@@ -57,7 +58,9 @@ public class PlayerInteractor : MonoBehaviour
 
     private void Update()
     {
-        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver)
+        // Paused, the day over, or a night walk (the café is closed and there is
+        // nothing to do yet): nothing is offered and nothing can be used.
+        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver || NightIsOn)
         {
             if (focused != null) focused.SetFocused(false);
             focused = null;
@@ -266,7 +269,7 @@ public class PlayerInteractor : MonoBehaviour
     private void OnInteract() => PerformInteraction(-1);
     private void PerformInteraction(int hand)
     {
-        if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0) return;
+        if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0 || NightIsOn) return;
         if (viewMode != null && viewMode.SuppressWalkingInteraction) return;
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
         if (conversation != null && conversation.InConversation) return;
@@ -319,7 +322,7 @@ public class PlayerInteractor : MonoBehaviour
 
     private void ToggleStation()
     {
-        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver) return;
+        if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver || NightIsOn) return;
         if (conversation != null && conversation.InConversation) return;
         if (currentStation != null) { ExitStation(); return; }
         if (nearbyStation != null) EnterStation(nearbyStation);

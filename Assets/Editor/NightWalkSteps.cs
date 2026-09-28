@@ -388,6 +388,24 @@ internal static class NightWalkSteps
         catch (Exception e) { Debug.LogError(Tag + "Photos FAILED: " + e.Message + "\n" + e); }
     }
 
+    // Part 3's check: Ace walks out of the café and round the 9 blocks by itself, overhead with the camera
+    // turned so buildings stand in the way, then a stretch in first person (NightTour). Photos, a trail and a
+    // report go to Logs/Night/night-tour-*. Hands off the mouse while it runs (about a minute and a half).
+    [MenuItem(Menu + "Night walk 3 - Walk the tour (Play Mode, night walk)")]
+    static void WalkTheTour()
+    {
+        try
+        {
+            if (!EditorApplication.isPlaying || NightWalk.Instance == null || !NightWalk.Instance.Active)
+                throw new InvalidOperationException("Start Fixit Fidget > Night > Play the night walk (lab) first.");
+            if (UnityEngine.Object.FindAnyObjectByType<NightTour>() != null)
+                throw new InvalidOperationException("A tour is already walking.");
+            var go = new GameObject("Night tour (this Play session only)");
+            go.AddComponent<NightTour>().folder = LogFolder("night-tour");
+        }
+        catch (Exception e) { Debug.LogError(Tag + "Tour FAILED: " + e.Message); }
+    }
+
     // The day must look exactly the same with the night group in the scene as without it.
     // Run this in Edit Mode twice, once with the group and once after "Take the night lighting
     // out again" (Edit > Undo puts it back): the two sets of photos should match pixel for pixel.

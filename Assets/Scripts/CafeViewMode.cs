@@ -6,6 +6,12 @@ using Unity.Cinemachine;
 
 // One optional walking-camera owner. Station, inspection and conversation
 // cameras keep their existing higher priorities and their own look controls.
+//
+// By day the overhead camera circles a fixed point in the café. On a night walk
+// (NightWalk calls FollowAce) it follows Ace instead: closer, steeper, trailing a
+// fifth of a second behind so the capsule's instant starts and stops don't jolt
+// the view. The café's cut-away walls then only give way when they hide Ace.
+// FollowAce(false) puts the day's view back exactly as it was.
 [DefaultExecutionOrder(-100)]
 [DisallowMultipleComponent]
 public sealed class CafeViewMode : MonoBehaviour
@@ -46,6 +52,21 @@ public sealed class CafeViewMode : MonoBehaviour
     [Tooltip("How much taller a lowered wall is treated when deciding whether it is clearly out of the way, in metres.")]
     [SerializeField, Range(0, 1.5f)] private float cutawayRiseMargin = .3f;
 
+    [Header("Following Ace (the night walk)")]
+    [Tooltip("Tilt limits while the overhead camera follows Ace outside, degrees. The café's own view uses 38-68.")]
+    [SerializeField, Range(30, 89)] private float followPitchMin = 55f;
+    [SerializeField, Range(30, 89)] private float followPitchMax = 80f;
+    [Tooltip("Zoom limits while following Ace, metres from Ace. The café's own view uses Minimum/Maximum Distance.")]
+    [SerializeField, Range(4, 80)] private float followDistanceMin = 12f;
+    [SerializeField, Range(4, 80)] private float followDistanceMax = 34f;
+    [Tooltip("Where following starts, and where R3 returns to: tilt in degrees, distance in metres.")]
+    [SerializeField, Range(30, 89)] private float followStartPitch = 62f;
+    [SerializeField, Range(4, 80)] private float followStartDistance = 20f;
+    [Tooltip("How far the camera trails behind Ace, in seconds. Hides the capsule's instant starts and stops.")]
+    [SerializeField, Range(0, 1)] private float followLag = .2f;
+    [Tooltip("The point on Ace the camera looks at, metres above the feet.")]
+    [SerializeField, Range(0, 2)] private float followHeight = 1f;
+
     PlayerInteractor interactor;
     ConversationController conversation;
     ItemInspector inspector;
@@ -59,6 +80,11 @@ public sealed class CafeViewMode : MonoBehaviour
     float yaw, pitch = 8, isoYaw = 45, isoPitch = 50, isoDistance = 34;
     float homeIsoYaw = 45, homeIsoPitch = 50, homeIsoDistance = 34;
     int resumedAtFrame = -1;
+    // Following Ace: the smoothed point the overhead camera looks at, and the
+    // day's view to go back to.
+    bool following;
+    Vector3 followFocus, followVelocity;
+    float dayIsoYaw, dayIsoPitch, dayIsoDistance, dayHomeYaw, dayHomePitch, dayHomeDistance;
 
     public bool FirstPersonSelected => firstPerson;
     public bool WalkingFirstPerson => isActiveAndEnabled && firstPerson && !AtStation && !OverlayOwnsInput;
@@ -78,6 +104,21 @@ public sealed class CafeViewMode : MonoBehaviour
     public Vector3 OverheadAngle => new Vector3(isoYaw, isoPitch, isoDistance);
     /// <summary>The cut-away walls (null entries: walls that are never drawn).</summary>
     public IReadOnlyList<CutawayWall> CutawayWalls => cuts ?? System.Array.Empty<CutawayWall>();
+    /// <summary>True while the overhead camera follows Ace (a night walk).</summary>
+    public bool Following => following;
+    /// <summary>The point the overhead camera looks at: the café's centre by day, Ace (trailing) when following.</summary>
+    public Vector3 OverheadFocus => following ? followFocus : isometricFocus;
+    /// <summary>The overhead view is on screen: not first person, not a close-up at a station, a dialogue or an item.</summary>
+    public bool OverheadShown => isActiveAndEnabled && OverheadPresentation;
+    /// <summary>Ace's feet: the capsule's bottom (the player's origin is the capsule's centre).</summary>
+    public Vector3 AceFeet => transform.position + Vector3.up * (capsule != null ? capsule.center.y - capsule.height * .5f : -1f);
+    /// <summary>Ace is inside the café room (by position; the same room the café's own lights belong to).</summary>
+    public bool AceInsideCafe => CafeDaylight.CafeInside.Contains(new Vector2(transform.position.x, transform.position.z));
+    float PitchMin => following ? followPitchMin : 38f;
+    float PitchMax => following ? followPitchMax : 68f;
+    float DistanceMin => following ? followDistanceMin : minimumDistance;
+    float DistanceMax => following ? followDistanceMax : maximumDistance;
+    Vector3 AceFocus => AceFeet + Vector3.up * followHeight;
     bool AtStation => interactor != null && interactor.IsAtStation;
     bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver
         || conversation != null && conversation.InConversation || inspector != null && inspector.IsHoldingItem
@@ -185,11 +226,11 @@ public sealed class CafeViewMode : MonoBehaviour
                 {
                     Vector2 delta = mouse.delta.ReadValue();
                     isoYaw = Mathf.Repeat(isoYaw + delta.x * .18f, 360);
-                    isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f, 38, 68);
+                    isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f, PitchMin, PitchMax);
                 }
                 float scroll = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > .01f)
-                    isoDistance = Mathf.Clamp(isoDistance - Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f, minimumDistance, maximumDistance);
+                    isoDistance = Mathf.Clamp(isoDistance - Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f, DistanceMin, DistanceMax);
             }
             // Controller: right stick orbits and tilts, triggers zoom (RT in,
             // LT out), R3 returns to the authored overhead angle.
@@ -197,11 +238,11 @@ public sealed class CafeViewMode : MonoBehaviour
             if (orbit != Vector2.zero)
             {
                 isoYaw = Mathf.Repeat(isoYaw + orbit.x * padOrbitSpeed * padDelta, 360);
-                isoPitch = Mathf.Clamp(isoPitch - orbit.y * padTiltSpeed * padDelta, 38, 68);
+                isoPitch = Mathf.Clamp(isoPitch - orbit.y * padTiltSpeed * padDelta, PitchMin, PitchMax);
             }
             float zoom = PadInput.RightTrigger - PadInput.LeftTrigger;
             if (Mathf.Abs(zoom) > .01f)
-                isoDistance = Mathf.Clamp(isoDistance - zoom * padZoomSpeed * padDelta, minimumDistance, maximumDistance);
+                isoDistance = Mathf.Clamp(isoDistance - zoom * padZoomSpeed * padDelta, DistanceMin, DistanceMax);
             if (PadInput.Pressed(PadButton.RightStickPress))
             {
                 isoYaw = homeIsoYaw;
@@ -219,8 +260,48 @@ public sealed class CafeViewMode : MonoBehaviour
     public void OrbitTo(float yawDegrees, float pitchDegrees, float distance)
     {
         isoYaw = Mathf.Repeat(yawDegrees, 360);
-        isoPitch = Mathf.Clamp(pitchDegrees, 38, 68);
-        isoDistance = Mathf.Clamp(distance, minimumDistance, maximumDistance);
+        isoPitch = Mathf.Clamp(pitchDegrees, PitchMin, PitchMax);
+        isoDistance = Mathf.Clamp(distance, DistanceMin, DistanceMax);
+        RefreshCameraPose();
+    }
+
+    /// <summary>
+    /// Turns the walking (first-person) view to a heading and tilt. For play-mode checks
+    /// and scripted views; the player's own mouse or stick carries on from here.
+    /// </summary>
+    public void LookTo(float yawDegrees, float pitchDegrees)
+    {
+        yaw = Mathf.Repeat(yawDegrees, 360);
+        pitch = Mathf.Clamp(pitchDegrees, -75, 75);
+        if (firstPerson) transform.rotation = Quaternion.Euler(0, yaw, 0);
+        RefreshCameraPose();
+    }
+
+    /// <summary>
+    /// The night walk's overhead camera: on, it follows Ace, closer and steeper than the
+    /// café's own view (the same orbit and zoom controls, within the follow limits); off,
+    /// the day's view comes back exactly as it was left. Safe to call twice.
+    /// </summary>
+    public void FollowAce(bool on)
+    {
+        if (on == following) return;
+        if (on)
+        {
+            dayIsoYaw = isoYaw; dayIsoPitch = isoPitch; dayIsoDistance = isoDistance;
+            dayHomeYaw = homeIsoYaw; dayHomePitch = homeIsoPitch; dayHomeDistance = homeIsoDistance;
+            following = true;
+            // Keep the heading, so the streets stay the way round they were; R3 comes back here.
+            isoPitch = homeIsoPitch = Mathf.Clamp(followStartPitch, followPitchMin, followPitchMax);
+            isoDistance = homeIsoDistance = Mathf.Clamp(followStartDistance, followDistanceMin, followDistanceMax);
+            followFocus = AceFocus;
+            followVelocity = Vector3.zero;
+        }
+        else
+        {
+            following = false;
+            isoYaw = dayIsoYaw; isoPitch = dayIsoPitch; isoDistance = dayIsoDistance;
+            homeIsoYaw = dayHomeYaw; homeIsoPitch = dayHomePitch; homeIsoDistance = dayHomeDistance;
+        }
         RefreshCameraPose();
     }
 
@@ -241,6 +322,11 @@ public sealed class CafeViewMode : MonoBehaviour
 
     void LateUpdate()
     {
+        // Following Ace: trail the capsule by followLag seconds (critically damped, so it
+        // settles without overshoot). Paused, it holds still.
+        if (following)
+            followFocus = followLag <= 0f ? AceFocus
+                : Vector3.SmoothDamp(followFocus, AceFocus, ref followVelocity, followLag, Mathf.Infinity, Time.deltaTime);
         RefreshCameraPose();
         RefreshCursor();
         if (bodyRenderer != null)
@@ -262,7 +348,7 @@ public sealed class CafeViewMode : MonoBehaviour
         if (isometricCamera != null)
         {
             Quaternion angle = Quaternion.Euler(isoPitch, isoYaw, 0);
-            isometricCamera.transform.SetPositionAndRotation(isometricFocus - angle * Vector3.forward * isoDistance, angle);
+            isometricCamera.transform.SetPositionAndRotation(OverheadFocus - angle * Vector3.forward * isoDistance, angle);
         }
     }
 
@@ -285,21 +371,33 @@ public sealed class CafeViewMode : MonoBehaviour
         if (cuts == null || isometricCamera == null) return;
         Vector3 origin = isometricCamera.transform.position;
         bool overhead = OverheadPresentation;
+        // Following Ace outside, a café wall only gives way when it hides Ace (the room
+        // behind it is closed and empty); inside, the day's rule shows the room.
+        bool aceOutside = following && !AceInsideCafe;
         float dt = Time.unscaledDeltaTime;
         foreach (CutawayWall cut in cuts)
         {
             if (cut == null || cut.Wall == null) continue;
             Bounds full = cut.FullBounds;
-            bool blocks = overhead && BlocksInterior(full, origin);
+            bool blocks = overhead && (aceOutside ? BlocksAce(full, origin) : BlocksInterior(full, origin));
             bool nearly = blocks;
             if (!nearly && overhead && cut.GoingDown)
             {
                 Bounds taller = full;
                 taller.SetMinMax(full.min, full.max + Vector3.up * cutawayRiseMargin);
-                nearly = BlocksInterior(taller, origin);
+                nearly = aceOutside ? BlocksAce(taller, origin) : BlocksInterior(taller, origin);
             }
             cut.Step(overhead, blocks, nearly, dt, cutawaySlideSeconds, cutawayRiseDelay, transform, cutawaySkip);
         }
+    }
+
+    // Sightlines to Ace's knees, middle and head.
+    bool BlocksAce(Bounds wall, Vector3 origin)
+    {
+        Vector3 feet = AceFeet;
+        return BlocksSightline(wall, origin, feet + Vector3.up * .4f)
+            || BlocksSightline(wall, origin, feet + Vector3.up * 1f)
+            || BlocksSightline(wall, origin, feet + Vector3.up * 1.7f);
     }
 
     bool BlocksInterior(Bounds wall, Vector3 origin)

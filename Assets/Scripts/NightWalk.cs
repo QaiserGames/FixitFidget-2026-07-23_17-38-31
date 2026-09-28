@@ -25,12 +25,22 @@ using UnityEngine.Rendering;
 //     * the street is quiet: the café sends nobody, the day's clock stops, and
 //       the day's walkers and traffic go home (part 4 brings a few night owls).
 //
-//   Part 2, the night's edges and collision (in progress):
+//   Part 2, the night's edges and collision:
 //     * solid by night: by day the streets have no collision at all (only the
 //       café's people walk there, on their own routes), so while the night runs
 //       every fixed mesh Ace could touch gets exact collision: solid exactly where
 //       it looks solid, no invisible walls, nothing to walk through;
-//     * the patio's invisible day fence (it keeps Ace in the café by day) is off.
+//     * the patio's invisible day fence (it keeps Ace in the café by day) is off;
+//     * the road works at the 8 street ends are night-only objects (Night Only).
+//
+//   Part 3, getting about (this step):
+//     * the overhead camera follows Ace: closer and steeper than the café's own
+//       view, trailing a fifth of a second behind (CafeViewMode.FollowAce);
+//     * a building or a big tree between the camera and Ace turns see-through
+//       (NightSeeThrough);
+//     * the café is closed: the HUD shows the night's hour instead of the day's
+//       clock, money and stock, and nothing in the café offers anything to do
+//       (ShopUI and PlayerInteractor ask NightWalk.Instance.Active).
 //
 // Nothing here runs by day. Only Begin() switches anything on, and End() (or
 // leaving Play Mode) puts it all back. Material copies are made at run time and
@@ -112,6 +122,8 @@ public sealed class NightWalk : MonoBehaviour
     readonly List<GameObject> hiddenActors = new();
     GameObject solidRoot;
     readonly List<Collider> dayOnlyOff = new();
+    CafeViewMode viewMode;
+    NightSeeThrough seeThrough;
     List<StreetLife.Actor> streetActors;
     StreetLife street;
     CafeDaylight daylight;
@@ -167,10 +179,19 @@ public sealed class NightWalk : MonoBehaviour
         MakeTheNightSolid();
         foreach (var c in dayOnlyColliders)
             if (c != null && c.enabled) { c.enabled = false; dayOnlyOff.Add(c); }
+        // Part 3: the overhead camera follows Ace, and what stands in the way turns see-through.
+        viewMode = FindAnyObjectByType<CafeViewMode>();
+        if (viewMode != null) viewMode.FollowAce(true);
+        seeThrough = GetComponent<NightSeeThrough>();
+        if (seeThrough == null) seeThrough = gameObject.AddComponent<NightSeeThrough>();
+        seeThrough.enabled = true;
+        seeThrough.Build(viewMode, transform);
         Debug.Log($"[Night walk] Night at {nightHour:0.0}h: {Count(lampLights)} street lamps, {LitBuildings} building parts with lit windows, " +
                   $"{GlowingSigns} signs glowing, the late spot {(lateSpotGlass.Length > 0 ? "lit" : "not set")}; " +
                   $"{QuietedActors} of the day's walkers and cars sent home; {SolidMeshes} meshes made solid ({SolidTriangles:N0} triangles, " +
-                  $"{SolidSeconds:0.00} s); {dayOnlyOff.Count} day-only colliders off.", this);
+                  $"{SolidSeconds:0.00} s); {dayOnlyOff.Count} day-only colliders off; the overhead camera " +
+                  $"{(viewMode != null ? "follows Ace" : "was not found")}; {seeThrough.Groups} buildings and trees can turn see-through " +
+                  $"({seeThrough.Renderers} pieces, {seeThrough.HideInstead} of them hide instead).", this);
     }
 
     /// <summary>Put the day back exactly as it was.</summary>
@@ -178,6 +199,10 @@ public sealed class NightWalk : MonoBehaviour
     {
         if (!Active) return;
         Active = false;
+        // The see-through buildings first: they wear copies of the night's materials, which come off below.
+        if (seeThrough != null) { seeThrough.Clear(); Destroy(seeThrough); seeThrough = null; }
+        if (viewMode != null) viewMode.FollowAce(false);
+        viewMode = null;
         if (daylight != null) daylight.SetNight(null, 0f, 1f);
         foreach (var go in nightOnly) if (go != null) go.SetActive(false);
         // Newest first: a renderer swapped twice (windows, then the late spot's glass) gets its own materials back last.
@@ -375,6 +400,13 @@ public sealed class NightWalk : MonoBehaviour
                       $"material copies: {copies.Count}; renderers swapped: {swapped.Count}; street actors sent home: {QuietedActors}.");
         sb.AppendLine($"Solid by night: {SolidMeshes} meshes with exact collision ({SolidTriangles:N0} triangles, made in {SolidSeconds:0.00} s); " +
                       $"day-only colliders off: {dayOnlyOff.Count} of {dayOnlyColliders.Length}.");
+        if (viewMode != null)
+        {
+            Vector3 a = viewMode.OverheadAngle;
+            sb.AppendLine($"Overhead camera: {(viewMode.Following ? "following Ace" : "the café's own view")}, turn {a.x:0}°, tilt {a.y:0}°, " +
+                          $"{a.z:0.0} m away; Ace {(viewMode.AceInsideCafe ? "inside" : "outside")} the café.");
+        }
+        if (seeThrough != null) sb.AppendLine(seeThrough.Describe());
         foreach (var kv in copies)
         {
             var m = kv.Value;

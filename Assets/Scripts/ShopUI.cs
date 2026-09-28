@@ -30,18 +30,29 @@ public class ShopUI : MonoBehaviour
     {
         // The recap owns the screen — hide the in-game HUD behind it.
         bool recapOpen = recapPanel != null && recapPanel.activeSelf;
+        // A night walk: the café is closed. The night's hour instead of the day's
+        // clock, no money or stock, and nothing to do yet, so no prompts.
+        NightWalk night = NightWalk.Instance != null && NightWalk.Instance.Active ? NightWalk.Instance : null;
         if (viewHintText != null)
         {
             viewHintText.gameObject.SetActive(!recapOpen && viewMode != null && viewMode.CanChangeView);
             if (viewMode != null) viewHintText.text = viewMode.ControlsHint;
         }
-        if (moneyText != null) moneyText.gameObject.SetActive(!recapOpen);
+        if (moneyText != null) moneyText.gameObject.SetActive(!recapOpen && night == null);
         if (clockText != null) clockText.gameObject.SetActive(!recapOpen);
-        if (stockText != null) stockText.gameObject.SetActive(!recapOpen);
+        if (stockText != null) stockText.gameObject.SetActive(!recapOpen && night == null);
         if (promptText != null) promptText.gameObject.SetActive(!recapOpen);
         if (recapOpen)
         {
             if (crosshair != null) crosshair.SetActive(false);
+            return;
+        }
+        if (night != null)
+        {
+            if (clockText != null) clockText.text = $"Night   {FormatHour(night.nightHour)}";
+            if (promptText != null) promptText.text = "";
+            if (crosshair != null)
+                crosshair.SetActive(viewMode != null && viewMode.WalkingFirstPerson && !viewMode.PointerReleased && Time.timeScale > 0);
             return;
         }
         if (clockText != null && DayClock.Instance != null)
