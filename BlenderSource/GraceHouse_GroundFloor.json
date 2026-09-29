@@ -1,0 +1,477 @@
+{
+ "pieces": [
+  {
+   "room": "Front room",
+   "what": "her armchair (seat 0.45)",
+   "tris": 488,
+   "size": [
+    0.806,
+    0.902,
+    1.02
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "GH_Velvet_Teal",
+    "GH_Lace"
+   ],
+   "islands": 14,
+   "name": "GH_Armchair",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "the sofa under the window",
+   "tris": 576,
+   "size": [
+    1.75,
+    0.948,
+    0.872
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "GH_Fabric_Rose",
+    "GH_Pillow_Sage",
+    "GH_Pillow_Mustard"
+   ],
+   "islands": 16,
+   "name": "GH_Sofa",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "the television",
+   "tris": 382,
+   "size": [
+    0.62,
+    0.525,
+    0.809
+   ],
+   "materials": [
+    "CC_Wood_Counter",
+    "GH_Plastic_Dark",
+    "GH_TV_Screen",
+    "DC_SteelDark",
+    "CC_Dark_Kick",
+    "DC_Steel"
+   ],
+   "islands": 16,
+   "name": "GH_TV",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "the low cabinet it stands on",
+   "tris": 328,
+   "size": [
+    1.05,
+    0.489,
+    0.5
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "CC_Wood_Counter",
+    "CC_Wood_Inner",
+    "T2_Brass"
+   ],
+   "islands": 10,
+   "name": "GH_TVCabinet",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "coffee table",
+   "tris": 292,
+   "size": [
+    0.95,
+    0.55,
+    0.423
+   ],
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso",
+    "CC_Wood_Inner",
+    "GH_Lace"
+   ],
+   "islands": 7,
+   "name": "GH_CoffeeTable",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "sideboard (photos on it)",
+   "tris": 672,
+   "size": [
+    1.39,
+    0.508,
+    0.865
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "CC_Wood_Counter",
+    "CC_Wood_Inner",
+    "T2_Brass"
+   ],
+   "islands": 18,
+   "name": "GH_Sideboard",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "photo frame, small, standing",
+   "tris": 68,
+   "size": [
+    0.14,
+    0.093,
+    0.178
+   ],
+   "materials": [
+    "T2_Brass",
+    "GH_Photo"
+   ],
+   "islands": 3,
+   "name": "GH_Frame_S",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "photo frame, medium, standing",
+   "tris": 68,
+   "size": [
+    0.2,
+    0.122,
+    0.247
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "GH_Photo"
+   ],
+   "islands": 3,
+   "name": "GH_Frame_M",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "photo frame, large, for a wall",
+   "tris": 68,
+   "size": [
+    0.36,
+    0.025,
+    0.44
+   ],
+   "materials": [
+    "CC_Wood_Counter",
+    "GH_Lace",
+    "GH_Photo"
+   ],
+   "islands": 3,
+   "name": "GH_Frame_L",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "photo frame, very large, for a wall",
+   "tris": 68,
+   "size": [
+    0.52,
+    0.025,
+    0.66
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "GH_Lace",
+    "GH_Photo"
+   ],
+   "islands": 3,
+   "name": "GH_Frame_XL",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "standard lamp",
+   "tris": 380,
+   "size": [
+    0.43,
+    0.419,
+    1.57
+   ],
+   "materials": [
+    "T2_Brass",
+    "GH_Lampshade",
+    "DC_Ceramic"
+   ],
+   "islands": 7,
+   "name": "GH_StandardLamp",
+   "floating": []
+  },
+  {
+   "room": "Front room",
+   "what": "rug",
+   "tris": 120,
+   "size": [
+    2.1,
+    1.4,
+    0.014
+   ],
+   "materials": [
+    "GH_Rug_Border",
+    "GH_Rug_Field",
+    "GH_Pillow_Mustard",
+    "GH_Lace"
+   ],
+   "islands": 10,
+   "name": "GH_Rug",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "counter with sink, hob and oven (worktop 0.92)",
+   "tris": 1134,
+   "size": [
+    2.61,
+    0.661,
+    1.169
+   ],
+   "materials": [
+    "CC_Dark_Kick",
+    "GH_Kitchen_Cream",
+    "CC_Wood_Counter",
+    "DC_Steel",
+    "GH_Plastic_Dark",
+    "GH_Glass_Dark",
+    "DC_SteelDark"
+   ],
+   "islands": 56,
+   "name": "GH_KitchenCounter",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "wall cupboards (hang the bottom at 1.45)",
+   "tris": 372,
+   "size": [
+    2.04,
+    0.374,
+    0.72
+   ],
+   "materials": [
+    "GH_Kitchen_Cream",
+    "CC_Wood_Counter",
+    "T2_Brass"
+   ],
+   "islands": 15,
+   "name": "GH_WallCupboards",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "fridge",
+   "tris": 388,
+   "size": [
+    0.62,
+    0.69,
+    1.62
+   ],
+   "materials": [
+    "GH_Fridge_Mint",
+    "CC_Dark_Kick",
+    "DC_Steel"
+   ],
+   "islands": 11,
+   "name": "GH_Fridge",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "kettle (on the hob)",
+   "tris": 408,
+   "size": [
+    0.294,
+    0.21,
+    0.238
+   ],
+   "materials": [
+    "GH_Enamel_Red",
+    "GH_Plastic_Dark",
+    "DC_Steel"
+   ],
+   "islands": 8,
+   "name": "GH_Kettle",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "teapot",
+   "tris": 440,
+   "size": [
+    0.286,
+    0.173,
+    0.159
+   ],
+   "materials": [
+    "DC_Ceramic",
+    "GH_Delft_Blue"
+   ],
+   "islands": 10,
+   "name": "GH_Teapot",
+   "floating": []
+  },
+  {
+   "room": "Hall",
+   "what": "coat stand with her coat",
+   "tris": 600,
+   "size": [
+    0.531,
+    0.438,
+    1.89
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "T2_Brass",
+    "GH_Wool_Camel",
+    "GH_Scarf_Red",
+    "GH_Pillow_Sage"
+   ],
+   "islands": 19,
+   "name": "GH_CoatStand",
+   "floating": []
+  },
+  {
+   "room": "Hall",
+   "what": "the stairs, with the cupboard under them",
+   "tris": 1156,
+   "size": [
+    1.043,
+    2.763,
+    3.505
+   ],
+   "materials": [
+    "GH_Paint_White",
+    "GH_Rug_Field",
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso"
+   ],
+   "islands": 72,
+   "name": "GH_Stairs",
+   "floating": []
+  },
+  {
+   "room": "Hall",
+   "what": "the cupboard door under the stairs",
+   "tris": 168,
+   "size": [
+    0.05,
+    0.644,
+    1.144
+   ],
+   "materials": [
+    "GH_Paint_White",
+    "T2_Brass"
+   ],
+   "islands": 4,
+   "name": "GH_UnderStairsDoor",
+   "floating": []
+  },
+  {
+   "room": "Hall",
+   "what": "doorway (the landing door)",
+   "tris": 312,
+   "size": [
+    0.976,
+    0.178,
+    2.108
+   ],
+   "materials": [
+    "GH_Paint_White"
+   ],
+   "islands": 10,
+   "name": "GH_InteriorDoor_Frame",
+   "floating": []
+  },
+  {
+   "room": "Hall",
+   "what": "door",
+   "tris": 404,
+   "size": [
+    0.804,
+    0.164,
+    2.01
+   ],
+   "materials": [
+    "GH_Paint_White",
+    "T2_Brass",
+    "DC_SteelDark"
+   ],
+   "islands": 17,
+   "name": "GH_InteriorDoor_Leaf",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "the reunion cups: a box of three sleeves (the stash)",
+   "tris": 528,
+   "size": [
+    0.644,
+    0.587,
+    0.175
+   ],
+   "materials": [
+    "GH_Cardboard",
+    "GH_Tape",
+    "DC_Ceramic",
+    "GH_Glass_Dark"
+   ],
+   "islands": 16,
+   "name": "GH_CupBox",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "one sleeve of twelve cups",
+   "tris": 164,
+   "size": [
+    0.382,
+    0.096,
+    0.094
+   ],
+   "materials": [
+    "DC_Ceramic",
+    "GH_Glass_Dark",
+    "GH_Tape"
+   ],
+   "islands": 3,
+   "name": "GH_CupSleeve",
+   "floating": []
+  }
+ ],
+ "materials": {
+  "CC_Wood_Counter": "#8F5B32",
+  "CC_Wood_Espresso": "#4A3422",
+  "CC_Wood_Inner": "#8A6746",
+  "CC_Dark_Kick": "#2A1E16",
+  "DC_Steel": "#93908A",
+  "DC_SteelDark": "#4E4B47",
+  "DC_Ceramic": "#F2EFE8",
+  "T2_Brass": "#B8913F",
+  "GH_Velvet_Teal": "#2F5D5A",
+  "GH_Fabric_Rose": "#B7857C",
+  "GH_Pillow_Sage": "#8FA58B",
+  "GH_Pillow_Mustard": "#C99A3E",
+  "GH_Lace": "#EFE7D6",
+  "GH_Rug_Field": "#7E3434",
+  "GH_Rug_Border": "#D8C39C",
+  "GH_Plastic_Dark": "#2B2926",
+  "GH_TV_Screen": "#1D2A2F",
+  "GH_Lampshade": "#E7D5B0",
+  "GH_Photo": "#BFA88A",
+  "GH_Kitchen_Cream": "#E6DCC3",
+  "GH_Fridge_Mint": "#BCD6C4",
+  "GH_Enamel_Red": "#B13A2F",
+  "GH_Delft_Blue": "#2F5B8F",
+  "GH_Wool_Camel": "#A57B52",
+  "GH_Scarf_Red": "#8E3130",
+  "GH_Paint_White": "#ECE6D8",
+  "GH_Cardboard": "#B78C5A",
+  "GH_Tape": "#CDB57E",
+  "GH_Glass_Dark": "#2A3438"
+ }
+}
