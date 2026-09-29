@@ -1,5 +1,97 @@
 # Current handoff — September 12, 2026
 
+## September 28 (late night) — The dialogue pass: talking like Skyrim, not a novel (subtitles, Ace's replies, one question for Grace, shorter lines); on `dialogue-pass`
+
+**Read this entry first.** One code commit, `66eacd8`, on the new branch `dialogue-pass`, made from `night-1` at `1e4d78e` (the bug-fixes handoff below). This entry comes in the commit after it. Nothing is pushed.
+
+Mansoor didn't like how much the dialogue read like a novel ("im not a fan of how the dialogue is so much that it feels like a novel, i want the dialogue or just the feel to feel like dialogue from skyrim"). The pass was discussed first in `claude/dialogue-skyrim-proposal.md`, with measurements and a mock-up. He chose all seven steps, the whole line at once with a short listening beat, a question plus a waiting fallback for Barnaby, and to keep the placeholder portrait box. Every check ran in lab sessions, and the playtest save was never written.
+
+**What changed:**
+
+1. **Subtitles, not a typewriter** (`ConversationUI`).
+   - What they say is a whole line under their face: bottom-aligned from 44 up, x 390–1250 at 1080p, with a soft shadow and a dark band along the bottom of the screen.
+   - A speech of several lines (a `\n` between them, never a blank line) plays one line after another at reading pace (`readingSpeed` 18 characters a second; each line stays 1.4–4.5 s). The earlier ones stay on screen, dimmed and smaller, three lines at most.
+   - After the last line comes a short listening beat (`listenBeat` 0.35–1 s), then Ace's replies.
+   - E while they talk shows everything at once and ends the beat. It never answers (`SkipReveal`).
+   - The placeholder portrait box and the name above it are as they were.
+2. **Ace's replies** (`ConversationController`; placeholder copy in `AceReplies`).
+   - A list on the right (x 1304–1864). Taking it comes first and is highlighted ("I'll take a look." or "Coming right up."), then any questions, then turning them away ("Not today." or "Sorry, not today.").
+   - Out of stock or a full shelf offers one reply ("Sorry, we're out." or "No room on the shelf."). A finished job: "Here you go."
+   - Keys: W/S, the arrows, the wheel, the D-pad or the left stick move the highlight. E, Enter, a left click or A chooses. 1–4 choose directly. Q or Y turns them away. Esc, F, Tab, B or X steps away. The footer reads "[W/S] Choose   [Esc] Step away".
+   - E, E still takes a job: the first E shows the whole line, the second chooses the highlighted reply.
+   - An asked question greys out, marked "noted" if Ace learned something from it.
+   - A closing line ends by itself once it's read, or at once on E.
+3. **Questions** (`CustomerIdentity.Topics`, `TopicChoice`, `CustomerProfile.topics`).
+   - A regular can have up to two things for Ace to ask about on a visit. One can come from a night thing: Grace's camera visit has "Big plans tonight?" (`NightThings.topic`). The rest come from the profile's own `topics` (for first meetings, return visits, or any visit); none are written yet.
+   - Asked, Grace answers with Barnaby in two lines, and the notebook has him.
+   - Not asked, she mentions him while she waits, in place of one of her stories (`waitingMention`, `CustomerStoryteller`, `StorytellerRun.Rest`).
+4. **Grace's Day 1** (`GraceCameraEpisode`, `NotebookEntries`, `NotebookHooks.HeardThanks`).
+   - Her request is two short lines: "My camera picked a fine time to sulk. The reunion's tomorrow." and "Jammed shutter, dirty lens. Leave the strap alone; my husband carried it everywhere."
+   - Her thanks when Ace takes it is the reveal: "Thank you. For once, I might let somebody put me in the picture."
+   - The notebook files the strap and her husband from the request, and the reunion and the photos from the thanks: the same four facts as before.
+   - Her hand-back lines are shorter.
+5. **Grace's Day 2** (`CustomerIdentity.AcceptReturnMemento` and `TakeClosingNote`, `ConversationController.End`).
+   - She orders her latte first, in her own words.
+   - Once her order is taken, she tells Ace the photo's news and gives the print, in her own voice: "The reunion photos came out! I'm right in the middle." / "Usually I'm safely behind the camera." / "I've brought a print for your shop." (Smudged: "This print is for you." Missed: no print.)
+   - What happened is a line on screen once the conversation closes ("Grace left the reunion photo for the shop.", `GraceCameraEpisode.HandoffLine`), never a narrator in her speech.
+6. **Shorter lines** (`Regular_Grace`: 11 lines; the episode's lines; Barnaby's). Across Grace's two visits, the text you have to get through went from 1,074 characters to 644, and the longest line from 268 to 84. The rewrites are placeholders for Mansoor to rewrite. Nothing new about the characters was invented.
+7. **Walk-ins** (Fixit Fidget > Dialogue > Walk-in lines, run once; the café scene is saved).
+   - Five requests that began a sentence with `{fault}` or `{device}` read naturally now ("Morning! My {device} — {fault}. Can you look?").
+   - Each personality orders a drink in its own words (`DialogueSet.drinkOrder`; placeholders).
+   - A device is said the way a sentence says it: "my pocket watch", not "my Pocket Watch" (`CustomerIdentity.SpokenName`). The ticket keeps "Pocket Watch".
+8. **Out of the subtitle's way** (found in the check photos):
+   - The straight-face meter covered Grace's complaint: it was placed for the old layout. It takes the replies' place now, bottom right, on the subtitle's baseline (`StraightFaceUI`).
+   - Grace's closing note sat on the "[F]  Serve at counter" prompt. The note box sits higher now, above the prompt, by day and at night (`NightCycle`).
+   - The lab's banner sat under the replies. It steps aside while a conversation is open (`CafeLab`).
+9. **The Day 1 guide** reads "Aim at Grace. E talks; when your replies appear, E takes the job." (`DayOneGuideUI`).
+
+**New checks:**
+
+- **Fixit Fidget > Checks > Dialogue rules** (edit mode, café scene open, read-only):
+  - every line on screen is at most 150 characters (Skyrim's own cap), and over 100 is a warning;
+  - more to say is another line, never a paragraph;
+  - a bubble in the room is one line (aim for 60–90);
+  - every `{token}` is one the game fills in, and none starts a sentence;
+  - Ace's replies are under 40 characters (aim for 30);
+  - then Grace's Day 1 as data (13 checks).
+- **Fixit Fidget > Dialogue > Conversation - play check (lab, drives itself):** a fresh Day 1 in the lab's own save.
+  - Grace's request line by line; E before the replies, which never answers; the replies; S moving the highlight; the question, and Barnaby in the notebook; the reveal and her four facts; E closing it.
+  - Then a walk-in: take it or turn away only, the device in lower case; Q; they leave.
+  - Eight photos and a report go to `Logs/Dialogue`.
+- **The Night 1 play checks** now also check that the meter is clear of her line and the note is clear of the prompt.
+
+**Checks** (lab sessions):
+
+- **Compile:** no errors; 47 warnings, none from this pass's code.
+- **Conversation play check:** 31/31.
+- **Night 1 play checks** (on the final code): keeping a straight face 76/76, cracking 76/76, the morning after Day 2 73/73.
+- **Night notebook** (Play Mode, lab): 15/15.
+- **Dialogue rules:** 138 lines and 8 replies, no problems, 1 warning. Grace's Day 1 as data: 13/13.
+- **PASS:** Night 1 rules 283, notebook rules 43, customer memory, human rules 52, human integration, continuation rules 66, featured repair, ticket layout, Day 1 onboarding, customer hands, storyteller interaction, storyteller 58.
+- **Photos:**
+  - `Logs/Dialogue/conversation-check-2026-09-28_214520`: the replies, and a walk-in;
+  - `Logs/Night/night-one-check-cracking-2026-09-28_220632`: the meter beside her line;
+  - `Logs/Night/night-one-check-straight-face-2026-09-28_215617`, photo 12: the note above the prompt.
+
+**Seen, not changed:**
+
+- **Grace's second story line is 97 characters**, the rules check's one warning (a bubble aims for 60–90). A shorter version, if wanted: "We arranged everyone by height once. Auntie Rose climbed a chair. She's eighty-three." (85)
+- **A story bubble that began just before a conversation stays up over it.** The storyteller never starts one while Ace is talking to someone, but one already up finishes. The check caught Grace's story over a walk-in's face. Hiding other people's bubbles while a conversation is open would fix it, but a story line hidden that way would count as told. That's Mansoor's call.
+- **The dark band behind the subtitle is faint** in the café's warm light; the text's shadow does most of the work. It can be darker (`ConversationUI.Band`, 0.62 at the bottom).
+- **Fixit Fidget > Content > 4 · Rebuild archetypes as personalities** (August's one-time tool) still holds the old walk-in lines and replaces the whole list. Running it would undo the walk-in fixes and drink orders, and any tuning since.
+- A conversation started from the overview camera shows the first line while the camera turns to the speaker (as before).
+
+**Next:**
+
+- Mansoor plays Days 1–2 (the lab entry or his own save) and says whether it feels like Skyrim now.
+- The placeholder copy is his to rewrite: Ace's replies, the walk-ins' drink orders, Grace's trimmed lines.
+- The three Night 1 questions in `claude/night-1-slice.md` §9 are still open.
+
+**Known:**
+
+- The TextMesh Pro fallback font asset shows as modified after Play sessions. It was left out of the commit, as before.
+- The playtest's day logs (`DayLogs/AcesCafeLayout`) show as modified or new from earlier sessions. They're never committed.
+
 ## September 28 (night) — Night 1 bug fixes before the playtest: drink orders, the door on the way out, first person at the door, the morning's notebook, a safe nightfall; on `night-1`
 
 **Read this entry first.** One code commit, `69c38b1`, on `night-1`, after the fixes entry below (`062ea9d`, handoff `7408576`). This entry comes in the commit after it. Nothing is pushed.
