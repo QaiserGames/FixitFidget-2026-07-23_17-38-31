@@ -21,8 +21,10 @@ using Object = UnityEngine.Object;
 //         they wait). By day it's scenery; at night Ace can take it (E).
 //       * "Ace's trophy shelf": a small oak shelf on the back wall behind the counter, with Barnaby's copy
 //         on it, hidden until Ace has taken him (TrophyShelf).
-//     The gnome is made of simple shapes, a placeholder to swap for a real model: the prefab
-//     "Night 1 - Barnaby the garden gnome.prefab", its cone and colours in "Night 1 - Barnaby.asset".
+//     The gnome is the prefab "Night 1 - Barnaby the garden gnome.prefab": the Blender model when it's in the
+//     project (Assets/Art/Models/Night/Barnaby.fbx, see BarnabyModelSteps), with the first placeholder's simple
+//     shapes kept beside it, off. The shapes' cone and the colours (both looks wear them) are in
+//     "Night 1 - Barnaby.asset".
 //     Running it again rebuilds the group. Photos and notes go to Logs/Night/night-one-setup-<time>/.
 //     Nothing outside the group changes; save the scene yourself once the diff is read.
 //   ... > Night 1 - Take the gnome and the shelf out again: removes the group (Edit > Undo puts it back).
@@ -46,7 +48,7 @@ internal static class NightOneSteps
     const string ShelfName = "Ace's trophy shelf";
     const string ShelfCopyName = "Barnaby (on the shelf)";
     const string Folder = "Assets/Playtests/AcesCafeLayout";
-    const string PrefabPath = Folder + "/Night 1 - Barnaby the garden gnome.prefab";
+    internal const string PrefabPath = Folder + "/Night 1 - Barnaby the garden gnome.prefab";
     const string AssetPath = Folder + "/Night 1 - Barnaby.asset";
     const string CafePalette = Folder + "/Cafe palette.asset";
     const string SoundBankPath = "Assets/Data/Resources/Sound bank.asset";
@@ -463,6 +465,7 @@ internal static class NightOneSteps
         ("nose", new Color(.92f, .6f, .53f), .4f, 0f),
         ("eyes", new Color(.08f, .08f, .1f), .6f, 0f),
         ("brass", new Color(.78f, .62f, .3f), .5f, .6f),
+        ("moss", new Color(.34f, .44f, .23f), .1f, 0f),       // the Blender model's stone
         ("shelf oak", new Color(.72f, .55f, .36f), .22f, 0f),
         ("shelf iron", new Color(.12f, .13f, .14f), .3f, .4f),
     };
@@ -472,7 +475,11 @@ internal static class NightOneSteps
         var root = new GameObject("Barnaby the garden gnome");
         try
         {
-            Transform t = root.transform;
+            // The simple shapes go under their own child; BarnabyModelSteps.Dress adds the Blender model beside
+            // them and turns it on when it's in the project.
+            var shapes = new GameObject(BarnabyModelSteps.ShapesChild);
+            shapes.transform.SetParent(root.transform, false);
+            Transform t = shapes.transform;
             // About 0.53 m tall, standing on a round stone; he faces +z.
             Part(t, "Stone base", PrimitiveType.Cylinder, new Vector3(0f, .02f, 0f), Vector3.zero, new Vector3(.22f, .02f, .22f), m["stone"]);
             Part(t, "Boot left", PrimitiveType.Sphere, new Vector3(-.042f, .062f, .018f), Vector3.zero, new Vector3(.075f, .05f, .1f), m["boots"]);
@@ -490,9 +497,10 @@ internal static class NightOneSteps
             Part(t, "Eye left", PrimitiveType.Sphere, new Vector3(-.022f, .352f, .062f), Vector3.zero, Vector3.one * .014f, m["eyes"]);
             Part(t, "Eye right", PrimitiveType.Sphere, new Vector3(.022f, .352f, .062f), Vector3.zero, Vector3.one * .014f, m["eyes"]);
             ConePart(t, "Hat", new Vector3(0f, .366f, -.004f), new Vector3(-9f, 0f, 0f), new Vector3(.132f, .16f, .132f), cone, m["hat"]);
+            BarnabyModelSteps.Dress(root, true, report);
             GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath, out bool ok);
             if (!ok || saved == null) throw new InvalidOperationException("Could not save " + PrefabPath);
-            report.AppendLine($"Barnaby: {PrefabPath} (simple shapes; its cone and colours in {AssetPath}).");
+            report.AppendLine($"Barnaby: {PrefabPath} (the simple shapes' cone and the colours in {AssetPath}).");
             return saved;
         }
         finally { Object.DestroyImmediate(root); }
@@ -524,7 +532,7 @@ internal static class NightOneSteps
     }
 
     // The colours (sub-assets of Night 1 - Barnaby.asset, after its cone), made or brought up to date.
-    static Dictionary<string, Material> Materials()
+    internal static Dictionary<string, Material> Materials()
     {
         Object[] existing = AssetDatabase.LoadAllAssetsAtPath(AssetPath);
         Shader lit = Shader.Find("Universal Render Pipeline/Lit");
