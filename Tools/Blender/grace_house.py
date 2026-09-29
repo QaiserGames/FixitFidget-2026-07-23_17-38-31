@@ -270,7 +270,8 @@ def rug():
     p.add('border', fb.zbox(-1.0, 1.0, -.70, .70, 0, .010), M('GH_Rug_Border'))
     p.add('field', fb.zbox(-.88, .88, -.58, .58, 0, .012), M('GH_Rug_Field'))
     # a thin cream line inside the field, then a diamond in the middle
-    for x0, x1, y0, y1 in ((-.80, .80, -.50, -.48), (-.80, .80, .48, .50), (-.80, -.78, -.50, .50), (.78, .80, -.50, .50)):
+    # the long sides run the full length; the short sides fit between them (no faces in the same place)
+    for x0, x1, y0, y1 in ((-.80, .80, -.50, -.48), (-.80, .80, .48, .50), (-.80, -.78, -.48, .48), (.78, .80, -.48, .48)):
         p.add('line', fb.zbox(x0, x1, y0, y1, .0115, .0132), M('GH_Rug_Border'))
     p.add('medallion', fb.loft([(0, 0, .0115, .30, .20), (0, 0, .0136, .30, .20)], sides=4, phase=0), M('GH_Rug_Border'))
     p.add('medallion heart', fb.loft([(0, 0, .0130, .15, .10), (0, 0, .0145, .15, .10)], sides=4, phase=0), M('GH_Pillow_Mustard'))

@@ -62,8 +62,9 @@ def material(name, hexstr, rough=0.5, metal=0.0):
 class Prop:
     """One prop: a bmesh that parts are added to, each with its material."""
 
-    def __init__(self, name):
+    def __init__(self, name, floor=True):
         self.name = name
+        self.floor = floor      # a piece that stands on the floor: nothing of it goes below z = 0
         self.bm = bmesh.new()
         self.mats = []          # material objects, in slot order
         self.parts = []         # (part name, set of face indices) for the audit and the report
@@ -101,10 +102,11 @@ class Prop:
         # Nothing below the floor: the end of a splayed leg is square to the leg, so its lower edge dips a
         # few millimetres under z = 0. Those points go onto the floor (the foot sits flat).
         self.floored = 0
-        for v in bm.verts:
-            if -0.02 < v.co.z < 0.0:
-                v.co.z = 0.0
-                self.floored += 1
+        if self.floor:
+            for v in bm.verts:
+                if -0.02 < v.co.z < 0.0:
+                    v.co.z = 0.0
+                    self.floored += 1
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
         box_uvs(bm)
         me = bpy.data.meshes.new(self.name)
