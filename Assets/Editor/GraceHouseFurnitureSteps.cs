@@ -13,7 +13,9 @@ using Object = UnityEngine.Object;
 //   Fixit Fidget > Night > Break-ins - Grace's furniture: import and check (the models only)
 //
 // The pieces for her ground floor, built in Blender 5.2 by Tools/Blender/grace_house.py (source:
-// BlenderSource/GraceHouse_GroundFloor.blend), one FBX each in Assets/Art/Models/GraceHouse/. This step
+// BlenderSource/GraceHouse_GroundFloor.blend), and for layout v2 (the break-ins' chunk A: the quarter-turn
+// stairs, her bedroom, the bedroom's doors, the 2.0 m counter) by Tools/Blender/grace_house_v2.py (source:
+// BlenderSource/GraceHouse_v2.blend), one FBX each in Assets/Art/Models/GraceHouse/. This step
 // sets their import settings (a still prop at its real size, no animation, cameras or lights), makes
 // Grace's own materials (Assets/Art/Materials/GraceHouse/GH_*.mat, URP Lit, colours from the table below)
 // and maps every material in the FBX files to the project's material of the same name: the café's
@@ -52,6 +54,9 @@ internal static class GraceHouseFurnitureSteps
         ("GH_Cardboard", "B78C5A", 0.05f),
         ("GH_Tape", "CDB57E", 0.3f),
         ("GH_Glass_Dark", "2A3438", 0.85f),
+        // layout v2
+        ("GH_Quilt", "8A9DC0", 0.1f),
+        ("GH_Mirror", "C9D6DE", 0.95f),
     };
 
     // The pieces as built in Blender: name, what it is, triangles, size in Unity's axes (x, y up, z).
@@ -81,6 +86,25 @@ internal static class GraceHouseFurnitureSteps
         ("GH_InteriorDoor_Leaf", "door", 404, new Vector3(0.804f, 2.01f, 0.164f)),
         ("GH_CupBox", "the reunion cups: a box of three sleeves (the stash)", 528, new Vector3(0.644f, 0.175f, 0.587f)),
         ("GH_CupSleeve", "one sleeve of twelve cups", 164, new Vector3(0.382f, 0.094f, 0.096f)),
+        // layout v2 (29 Sept): for a 1.0 m wide Ace, and her bedroom
+        ("GH_Stairs_L", "the quarter-turn stairs, 1.40 m flights, the cupboard under them", 1180, new Vector3(2.66f, 3.405f, 2.68f)),
+        ("GH_BedroomDoor_Frame", "the bedroom's doorway, 1.40 x 2.20", 312, new Vector3(1.556f, 2.278f, 0.138f)),
+        ("GH_BedroomDoor_Leaf", "one of the bedroom's pair of doors (0.70 m)", 416, new Vector3(0.699f, 2.19f, 0.164f)),
+        ("GH_Bed", "her bed, 1.35 x 1.90, mattress at 0.55", 848, new Vector3(1.464f, 1.108f, 2.014f)),
+        ("GH_Quilt_Made", "the quilt, made (it sits on the bed: its bottom is 0.30 up)", 268, new Vector3(1.41f, 0.298f, 1.4f)),
+        ("GH_Quilt_Asleep", "the quilt with her asleep under it (0.30 up, like the other)", 408, new Vector3(1.41f, 0.395f, 1.52f)),
+        ("GH_BedsideTable", "bedside table", 260, new Vector3(0.43f, 0.55f, 0.388f)),
+        ("GH_BedsideLamp", "bedside lamp", 330, new Vector3(0.26f, 0.42f, 0.26f)),
+        ("GH_Wardrobe", "the wardrobe (a place to hide)", 276, new Vector3(0.99f, 1.98f, 0.635f)),
+        ("GH_DressingTable", "the dressing table with its mirror", 816, new Vector3(1.1f, 1.46f, 0.546f)),
+        ("GH_KitchenCounter_Short", "the counter, 2.0 m: cupboard, cooker, sink (worktop 0.92)", 1026, new Vector3(2.01f, 1.169f, 0.661f)),
+    };
+
+    // Pieces whose lowest point isn't on the floor, as built: the quilts lie on the bed.
+    static readonly Dictionary<string, float> Bottoms = new Dictionary<string, float>
+    {
+        ["GH_Quilt_Made"] = .30f,
+        ["GH_Quilt_Asleep"] = .30f,
     };
 
     [MenuItem("Fixit Fidget/Night/Break-ins - Grace's furniture: import and check (the models only)")]
@@ -148,11 +172,12 @@ internal static class GraceHouseFurnitureSteps
                 bool mapped = used.Length > 0 && used.All(m => m != null && AssetDatabase.GetAssetPath(m).EndsWith(".mat", StringComparison.Ordinal));
                 bool upright = Quaternion.Angle(toRoot.rotation, Quaternion.identity) < .5f && (toRoot.lossyScale - Vector3.one).magnitude < .001f;
                 bool size = (b.size - model.size).magnitude < .012f;
-                bool standing = Mathf.Abs(b.min.y) < .005f;
+                float bottom = Bottoms.TryGetValue(model.name, out float raised) ? raised : 0f;
+                bool standing = Mathf.Abs(b.min.y - bottom) < .005f;
                 Check(mapped && upright && size && standing && tris == model.tris,
                       $"{model.name}: {model.what}; {tris} triangles{(tris == model.tris ? "" : " (built with " + model.tris + ")")}, " +
                       $"{V(b.size)}{(size ? "" : " (built " + V(model.size) + ")")}, " +
-                      $"{(upright ? "upright" : "TURNED " + V(toRoot.rotation.eulerAngles))}, {(standing ? "on its origin" : "bottom at " + b.min.y.ToString("0.000", CultureInfo.InvariantCulture))}, " +
+                      $"{(upright ? "upright" : "TURNED " + V(toRoot.rotation.eulerAngles))}, {(standing ? (bottom > 0f ? "its bottom " + bottom.ToString("0.00", CultureInfo.InvariantCulture) + " up, as built" : "on its origin") : "bottom at " + b.min.y.ToString("0.000", CultureInfo.InvariantCulture))}, " +
                       $"{used.Length} materials{(mapped ? "" : " (NOT all project materials: " + string.Join(", ", used.Select(m => m != null ? m.name : "none")) + ")")}");
             }
             report.AppendLine($"{models.Count} pieces, {totalTris} triangles in all.");
@@ -278,6 +303,18 @@ internal static class GraceHouseFurnitureSteps
         ["GH_CoatStand"] = (new Vector3(3.8f, 0f, -3.2f), 0f),
         ["GH_InteriorDoor_Frame"] = (new Vector3(5.2f, 0f, -3.2f), 0f),
         ["GH_InteriorDoor_Leaf"] = (new Vector3(5.2f + .40f, 0f, -3.2f), 30f),
+        // layout v2: the stairs, her bedroom, its doors, the 2.0 m counter
+        ["GH_Stairs_L"] = (new Vector3(-3.0f, 0f, -10.3f), 0f),
+        ["GH_BedroomDoor_Frame"] = (new Vector3(-1.4f, 0f, -7.3f), 0f),
+        ["GH_BedroomDoor_Leaf"] = (new Vector3(-.7f, 0f, -7.3f), 35f),
+        ["GH_Bed"] = (new Vector3(.4f, 0f, -8.9f), 0f),
+        ["GH_Quilt_Made"] = (new Vector3(.4f, 0f, -8.9f), 0f),
+        ["GH_Quilt_Asleep"] = (new Vector3(2.2f, -.30f, -8.9f), 0f),
+        ["GH_BedsideTable"] = (new Vector3(3.6f, 0f, -9.6f), 0f),
+        ["GH_BedsideLamp"] = (new Vector3(3.6f, .55f, -9.6f), 0f),
+        ["GH_Wardrobe"] = (new Vector3(4.7f, 0f, -9.7f), 0f),
+        ["GH_DressingTable"] = (new Vector3(6.1f, 0f, -9.6f), 0f),
+        ["GH_KitchenCounter_Short"] = (new Vector3(5.5f, 0f, -6.3f), 0f),
     };
 
     static void Photograph(List<string> paths, string folder, StringBuilder report)
@@ -303,7 +340,7 @@ internal static class GraceHouseFurnitureSteps
             // A floor to stand on: made hidden and unsaved, so the open scene is never marked changed.
             var floor = EditorUtility.CreateGameObjectWithHideFlags("Floor (photo)", HideFlags.HideAndDontSave, typeof(MeshFilter), typeof(MeshRenderer));
             floorMesh = new Mesh { name = "Floor (photo)" };
-            floorMesh.SetVertices(new[] { new Vector3(-7f, -.002f, -6.5f), new Vector3(7f, -.002f, -6.5f), new Vector3(7f, -.002f, 2.5f), new Vector3(-7f, -.002f, 2.5f) });
+            floorMesh.SetVertices(new[] { new Vector3(-7f, -.002f, -11.2f), new Vector3(7.2f, -.002f, -11.2f), new Vector3(7.2f, -.002f, 2.5f), new Vector3(-7f, -.002f, 2.5f) });
             floorMesh.SetNormals(new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up });
             floorMesh.SetTriangles(new[] { 0, 2, 1, 0, 3, 2 }, 0);
             floor.GetComponent<MeshFilter>().sharedMesh = floorMesh;
@@ -326,6 +363,7 @@ internal static class GraceHouseFurnitureSteps
                 ("1-all-of-it.png", new Vector3(-.6f, 8.2f, 6.4f), new Vector3(-.6f, .4f, -1.9f), 46f),
                 ("2-front-room.png", new Vector3(-1.2f, 3.4f, 5.2f), new Vector3(-1.2f, .5f, 0f), 44f),
                 ("3-kitchen-and-hall.png", new Vector3(.8f, 4.2f, 3.4f), new Vector3(.8f, .9f, -3.4f), 50f),
+                ("4-bedroom-and-stairs.png", new Vector3(.3f, 6.2f, -2.2f), new Vector3(.3f, .7f, -8.7f), 58f),
             })
             {
                 cam.fieldOfView = fov;
@@ -338,7 +376,7 @@ internal static class GraceHouseFurnitureSteps
                 File.WriteAllBytes(Path.Combine(folder, name), picture.EncodeToPNG());
                 Object.DestroyImmediate(picture);
             }
-            report.AppendLine($"Photos (a preview scene, {placed} pieces laid out by room; the café scene isn't touched): 1-all-of-it, 2-front-room, 3-kitchen-and-hall, in {folder}");
+            report.AppendLine($"Photos (a preview scene, {placed} pieces laid out by room; the café scene isn't touched): 1-all-of-it, 2-front-room, 3-kitchen-and-hall, 4-bedroom-and-stairs, in {folder}");
         }
         finally
         {

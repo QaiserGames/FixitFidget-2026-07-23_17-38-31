@@ -1,0 +1,240 @@
+{
+ "pieces": [
+  {
+   "room": "Entry",
+   "what": "the quarter-turn stairs, 1.40 m flights, the cupboard under them",
+   "tris": 1180,
+   "size": [
+    2.66,
+    2.68,
+    3.405
+   ],
+   "materials": [
+    "GH_Paint_White",
+    "GH_Rug_Field",
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso"
+   ],
+   "islands": 77,
+   "name": "GH_Stairs_L",
+   "floating": []
+  },
+  {
+   "room": "Landing",
+   "what": "the bedroom's doorway, 1.40 x 2.20",
+   "tris": 312,
+   "size": [
+    1.556,
+    0.138,
+    2.278
+   ],
+   "materials": [
+    "GH_Paint_White"
+   ],
+   "islands": 10,
+   "name": "GH_BedroomDoor_Frame",
+   "floating": []
+  },
+  {
+   "room": "Landing",
+   "what": "one of the bedroom's pair of doors (0.70 m)",
+   "tris": 416,
+   "size": [
+    0.699,
+    0.164,
+    2.19
+   ],
+   "materials": [
+    "GH_Paint_White",
+    "T2_Brass",
+    "DC_SteelDark"
+   ],
+   "islands": 18,
+   "name": "GH_BedroomDoor_Leaf",
+   "floating": []
+  },
+  {
+   "room": "Bedroom",
+   "what": "her bed, 1.35 x 1.90, mattress at 0.55",
+   "tris": 848,
+   "size": [
+    1.464,
+    2.014,
+    1.108
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "GH_Lace"
+   ],
+   "islands": 18,
+   "name": "GH_Bed",
+   "floating": []
+  },
+  {
+   "room": "Bedroom",
+   "what": "the quilt, made",
+   "tris": 268,
+   "size": [
+    1.41,
+    1.4,
+    0.298
+   ],
+   "materials": [
+    "GH_Quilt",
+    "GH_Lace"
+   ],
+   "islands": 9,
+   "name": "GH_Quilt_Made",
+   "floating": []
+  },
+  {
+   "room": "Bedroom",
+   "what": "the quilt with her asleep under it",
+   "tris": 408,
+   "size": [
+    1.41,
+    1.52,
+    0.395
+   ],
+   "materials": [
+    "GH_Quilt",
+    "GH_Lace"
+   ],
+   "islands": 6,
+   "name": "GH_Quilt_Asleep",
+   "floating": []
+  },
+  {
+   "room": "Bedroom",
+   "what": "bedside table",
+   "tris": 260,
+   "size": [
+    0.43,
+    0.388,
+    0.55
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "CC_Wood_Counter",
+    "CC_Wood_Inner",
+    "T2_Brass"
+   ],
+   "islands": 9,
+   "name": "GH_BedsideTable",
+   "floating": []
+  },
+  {
+   "room": "Bedroom",
+   "what": "bedside lamp",
+   "tris": 330,
+   "size": [
+    0.26,
+    0.26,
+    0.42
+   ],
+   "materials": [
+    "DC_Ceramic",
+    "T2_Brass",
+    "GH_Lampshade"
+   ],
+   "islands": 5,
+   "name": "GH_BedsideLamp",
+   "floating": []
+  },
+  {
+   "room": "Bedroom",
+   "what": "the wardrobe (a place to hide)",
+   "tris": 276,
+   "size": [
+    0.99,
+    0.635,
+    1.98
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "CC_Wood_Counter",
+    "CC_Wood_Inner",
+    "T2_Brass"
+   ],
+   "islands": 11,
+   "name": "GH_Wardrobe",
+   "floating": []
+  },
+  {
+   "room": "Bedroom",
+   "what": "the dressing table with its mirror (for the south bay)",
+   "tris": 816,
+   "size": [
+    1.1,
+    0.546,
+    1.46
+   ],
+   "materials": [
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick",
+    "CC_Wood_Inner",
+    "T2_Brass",
+    "CC_Wood_Counter",
+    "GH_Mirror"
+   ],
+   "islands": 24,
+   "name": "GH_DressingTable",
+   "floating": []
+  },
+  {
+   "room": "Kitchen",
+   "what": "the counter, 2.0 m: cupboard, cooker, sink (worktop 0.92)",
+   "tris": 1026,
+   "size": [
+    2.01,
+    0.661,
+    1.169
+   ],
+   "materials": [
+    "CC_Dark_Kick",
+    "GH_Kitchen_Cream",
+    "CC_Wood_Counter",
+    "DC_Steel",
+    "GH_Plastic_Dark",
+    "GH_Glass_Dark",
+    "DC_SteelDark"
+   ],
+   "islands": 47,
+   "name": "GH_KitchenCounter_Short",
+   "floating": []
+  }
+ ],
+ "materials": {
+  "CC_Wood_Counter": "#8F5B32",
+  "CC_Wood_Espresso": "#4A3422",
+  "CC_Wood_Inner": "#8A6746",
+  "CC_Dark_Kick": "#2A1E16",
+  "DC_Steel": "#93908A",
+  "DC_SteelDark": "#4E4B47",
+  "DC_Ceramic": "#F2EFE8",
+  "T2_Brass": "#B8913F",
+  "GH_Velvet_Teal": "#2F5D5A",
+  "GH_Fabric_Rose": "#B7857C",
+  "GH_Pillow_Sage": "#8FA58B",
+  "GH_Pillow_Mustard": "#C99A3E",
+  "GH_Lace": "#EFE7D6",
+  "GH_Rug_Field": "#7E3434",
+  "GH_Rug_Border": "#D8C39C",
+  "GH_Plastic_Dark": "#2B2926",
+  "GH_TV_Screen": "#1D2A2F",
+  "GH_Lampshade": "#E7D5B0",
+  "GH_Photo": "#BFA88A",
+  "GH_Kitchen_Cream": "#E6DCC3",
+  "GH_Fridge_Mint": "#BCD6C4",
+  "GH_Enamel_Red": "#B13A2F",
+  "GH_Delft_Blue": "#2F5B8F",
+  "GH_Wool_Camel": "#A57B52",
+  "GH_Scarf_Red": "#8E3130",
+  "GH_Paint_White": "#ECE6D8",
+  "GH_Cardboard": "#B78C5A",
+  "GH_Tape": "#CDB57E",
+  "GH_Glass_Dark": "#2A3438",
+  "GH_Quilt": "#8A9DC0",
+  "GH_Mirror": "#C9D6DE"
+ }
+}
