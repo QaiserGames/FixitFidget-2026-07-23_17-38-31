@@ -32,6 +32,25 @@ public static class NotebookEntries
             "Usually stays behind the camera.");
     }
 
+    // Since the dialogue pass her camera story comes in two halves (GraceCameraEpisode): the request
+    // (the strap, her husband) and her thanks once Ace takes the camera (the reunion, the photos she
+    // avoids). Each fact is learned when it's said; GraceIntake is still all four (backfill, checks).
+    static readonly string[] SaidInHerRequest = { "grace.camera.strap", "grace.husband.strap" };
+
+    /// <summary>What her Day 1 request tells Ace: the strap, and whose it was.</summary>
+    public static IEnumerable<NotebookFactData> GraceIntakeSaid(string name)
+    {
+        foreach (NotebookFactData fact in GraceIntake(name))
+            if (Array.IndexOf(SaidInHerRequest, fact.id) >= 0) yield return fact;
+    }
+
+    /// <summary>What her thanks tells Ace once the camera job is taken: the reunion, and that she stays behind the camera.</summary>
+    public static IEnumerable<NotebookFactData> GraceThanksSaid(string name)
+    {
+        foreach (NotebookFactData fact in GraceIntake(name))
+            if (Array.IndexOf(SaidInHerRequest, fact.id) < 0) yield return fact;
+    }
+
     /// <summary>What Grace's return visit adds, by how the reunion photo turned out (GraceCameraEpisode.ReturnLine).</summary>
     public static NotebookFactData GraceReturn(string name, GracePhotoOutcome outcome)
     {

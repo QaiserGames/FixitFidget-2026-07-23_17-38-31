@@ -35,8 +35,7 @@ MonoBehaviour:
   preferredDeviceChance: 0
   storyteller: 1
   storyLines:
-  - My brother insists on taking every family photograph. Conveniently, he's never
-    in the embarrassing ones.
+  - "My brother takes every family photograph. Funny\u2014he's never in the embarrassing ones."
   - We tried arranging everyone by height once. Auntie Rose climbed onto a chair.
     She's eighty-three.
   - The best photographs happen just after someone says the photograph is over.
@@ -47,14 +46,12 @@ MonoBehaviour:
   focusReturnLine: I was going to... Later. You need quiet. Is now a good time?
   lines:
     intake:
-    - This {device} has to make it through a family reunion. They tell me the problem
-      is {fault}. Can you help?
+    - "My {device}: {fault}. It has to survive a family reunion."
     accepted:
     - "Thank you. Everyone in my family pretends they hate photographs\u2014until
       somebody forgets to take them."
     completed:
-    - There we are. You haven't only fixed a {device}; you've rescued an argument
-      my family hasn't had yet.
+    - "There we are. You've rescued an argument my family hasn't had yet."
     declined:
     - I understand. I suppose every family reunion needs at least one disappointment.
     reassured:
@@ -63,12 +60,10 @@ MonoBehaviour:
     - I have waited long enough. The reunion will not postpone itself for either
       of us.
     orderedDrink:
-    - While you work, may I have my usual latte? No sugar. Life provides enough of
-      that.
+    - "My usual latte, please. No sugar."
   returnLines:
     intake:
-    - We have met before. I wasn't certain I would return, but this {device} has
-      {fault}, and second chances should work both ways.
+    - "We've met before. My {device}: {fault}.\nSecond chances should work both ways."
     accepted:
     - All right. Let us see what we can do differently this time.
     completed:
@@ -83,11 +78,9 @@ MonoBehaviour:
     - A latte, please. If nothing else, let us get that part right.
   warmLines:
     intake:
-    - There you are! The reunion survived, and your repair earned several compliments
-      nobody will admit giving. I have another {device}; this time the trouble is
-      {fault}.
+    - "There you are! Your repair earned compliments nobody will admit giving.\nThis time it's my {device}: {fault}."
     accepted:
-    - "I knew I came back to the right counter. Take care of it\u2014and yourself."
+    - "I knew I came back to the right counter."
     completed:
     - Wonderful. At this rate, my family will start breaking things just to visit
       you.
@@ -101,17 +94,13 @@ MonoBehaviour:
     - A latte, please. No sugar. Life provides enough of that.
   returnMemoryLines:
     successfulRepair:
-    - 'There you are! Thank you for the care you took with my last repair. Today''s
-      patient is my {device}: {fault}.'
+    - "There you are! Thank you for the care last time.\nToday's patient is my {device}: {fault}."
     imperfectRepair:
-    - The last repair had a few rough edges. Could we give this {device} a little
-      more care? The trouble is {fault}.
+    - "The last repair had rough edges. More care this time? My {device}: {fault}."
     rejectedRepair:
-    - I took the last repair home unfinished. Could we be more careful with this
-      {device}? The trouble is {fault}.
+    - "I took the last repair home unfinished. This time, my {device}: {fault}."
     incompleteService:
-    - You helped with part of my order last time, but we didn't get everything sorted.
-      Today my {device} needs help with {fault}.
+    - "We only sorted part of my order last time. Today, my {device}: {fault}."
     missedVisit:
     - 'We ran out of time last visit. I''d like to try again: this {device} has {fault}.'
     declinedVisit:

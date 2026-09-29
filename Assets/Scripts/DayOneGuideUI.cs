@@ -125,7 +125,7 @@ public class DayOneGuideUI : MonoBehaviour
             if (customer.ShelfFull)
                 return "Shelf full. Move an item to a free bench slot.";
             if (customer.CanHearIntake || customer.CanDecide)
-                return $"Aim at {customer.CustomerName}. {E} talks; {E} after their line accepts.";
+                return $"Aim at {customer.CustomerName}. {E} talks; when your replies appear, {E} takes the job.";
             return $"Wait for {customer.CustomerName} to reach the counter.";
         }
         return drinkLesson ? DrinkAction(customer) : RepairAction(customer);

@@ -1,4 +1,32 @@
+using System.Collections.Generic;
 using UnityEngine;
+
+/// <summary>
+/// One thing Ace can ask about on this visit (CustomerIdentity.Topics): a line in the conversation's reply
+/// list and the answer (the dialogue pass, claude/dialogue-skyrim-proposal.md §6.4). The same object all
+/// visit long, so a topic stays greyed once asked.
+/// </summary>
+public sealed class TopicChoice
+{
+    public readonly string Id;
+    /// <summary>What Ace says, in the reply list.</summary>
+    public readonly string Ask;
+    /// <summary>Their answer: one line per beat.</summary>
+    public readonly string Answer;
+    /// <summary>The night thing it's about (their mention of it), or null.</summary>
+    public readonly NightThing Thing;
+    public bool Asked { get; internal set; }
+    /// <summary>Asking it put something new in Ace's notebook.</summary>
+    public bool Taught { get; internal set; }
+
+    public TopicChoice(string id, string ask, string answer, NightThing thing)
+    {
+        Id = id ?? "";
+        Ask = ask ?? "";
+        Answer = answer ?? "";
+        Thing = thing;
+    }
+}
 
 public class CustomerIdentity : MonoBehaviour
 {
@@ -30,7 +58,6 @@ public class CustomerIdentity : MonoBehaviour
     private Beat lastBeat = Beat.Intake;
     private string deviceName = "thing";
     private bool isGraceCameraRequest;
-    private string returnRequestLine = "Today, I've brought my {device}: {fault}.";
     // A visit for a drink only: the intake orders it by name ({a drink}, {drink}) rather than bringing
     // a device in (the repair lines would say "my Latte: broken").
     private bool drinkVisit;
@@ -38,6 +65,12 @@ public class CustomerIdentity : MonoBehaviour
     // A face set for a line outside the usual beats (Feel: the morning after a night). The panel shows it
     // until their next line, however low their patience.
     private bool feltAside;
+    // The dialogue pass: this visit's things to ask about (built when first asked for), whether they have
+    // told Ace about their night thing yet, and a short line for the screen once the conversation closes.
+    private List<TopicChoice> topics;
+    private bool nightMentionHeard;
+    private string closingNote = "";
+    private const int MaxTopics = 2;
 
     // Lowercased on the way in, because it arrives as a ticket label
     // ("Cracked Screen") and comes out mid-sentence ("my phone, cracked
@@ -59,6 +92,7 @@ public class CustomerIdentity : MonoBehaviour
         isGraceCameraRequest = false;
         drinkVisit = false;
         feltAside = false;
+        ResetVisitTalk();
         lastBeat = Beat.Intake;
         Expression = PortraitExpression.Neutral;
     }
@@ -81,13 +115,38 @@ public class CustomerIdentity : MonoBehaviour
         isGraceCameraRequest = false;
         drinkVisit = false;
         feltAside = false;
+        ResetVisitTalk();
         lastBeat = Beat.Intake;
         Expression = PortraitExpression.Neutral;
     }
 
+    private void ResetVisitTalk()
+    {
+        topics = null;
+        nightMentionHeard = false;
+        closingNote = "";
+    }
+
+    // A ticket names it "Pocket Watch"; a sentence says "my pocket watch" (the dialogue pass: what
+    // DeviceDefinition.displayName's tooltip always asked for).
     public void SetDevice(string device)
     {
-        if (!string.IsNullOrEmpty(device)) deviceName = device;
+        if (!string.IsNullOrEmpty(device)) deviceName = SpokenName(device);
+    }
+
+    /// <summary>A device's name as a sentence says it: "Pocket Watch" is "pocket watch"; a word in capitals ("TV") keeps them.</summary>
+    public static string SpokenName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return name;
+        string[] words = name.Trim().Split(' ');
+        for (int i = 0; i < words.Length; i++)
+        {
+            string word = words[i];
+            if (word.Length < 2 || !char.IsUpper(word[0])) continue;
+            string rest = word.Substring(1);
+            if (rest == rest.ToLowerInvariant()) words[i] = char.ToLowerInvariant(word[0]) + rest;
+        }
+        return string.Join(" ", words);
     }
 
     /// <summary>What's actually wrong with it, for the {fault} token.</summary>
@@ -106,7 +165,7 @@ public class CustomerIdentity : MonoBehaviour
             string ordered = job.drink != null ? job.drink.drinkName : job.deviceName;
             drinkName = string.IsNullOrWhiteSpace(ordered) ? "drink" : ordered.Trim().ToLowerInvariant();
         }
-        returnRequestLine = drinkVisit ? "Today, I'd love {a drink}." : "Today, I've brought my {device}: {fault}.";
+        topics = null;   // the camera visit's topics depend on the request
     }
 
     private bool HasGraceReturn => GraceCameraEpisode.HasPendingReturn(previousVisit,
@@ -114,6 +173,9 @@ public class CustomerIdentity : MonoBehaviour
 
     // Called only after the player accepts the return visit. Opening/reopening
     // dialogue is read-only and cannot silently award the shop a keepsake.
+    // Since the dialogue pass the photo's news is said here, once her order is taken, in place of her
+    // usual thanks; what happened (the print left for the shop) is a line on screen once the conversation
+    // closes (TakeClosingNote), never a narrator in the speech panel.
     public string AcceptReturnMemento(string acceptedLine)
     {
         if (!HasGraceReturn || SaveManager.Instance == null
@@ -121,21 +183,93 @@ public class CustomerIdentity : MonoBehaviour
             return acceptedLine;
         previousVisit = SaveManager.Instance.MemoryFor(profile);
         NotebookHooks.GraceReturned(DisplayName, outcome);
-        return acceptedLine + "\n\n" + GraceCameraEpisode.HandoffLine(outcome);
+        Feel(outcome == GracePhotoOutcome.Missed ? PortraitExpression.Worried : PortraitExpression.Happy);
+        closingNote = GraceCameraEpisode.HandoffLine(outcome);
+        string news = GraceCameraEpisode.ReturnNews(outcome);
+        return string.IsNullOrWhiteSpace(news) ? acceptedLine : news;
     }
 
-    // The Night 1 slice: when Ace takes Grace's camera job (her first visit), she mentions her
-    // garden gnome (NightThings: placeholder words) and Ace notes it down. Not once the gnome is
-    // already on Ace's shelf.
-    public string WithNightMention(string acceptedLine)
+    /// <summary>A short line for the screen once the conversation closes (Grace's print), taken once; or "".</summary>
+    public string TakeClosingNote()
     {
-        if (!isGraceCameraRequest || profile == null) return acceptedLine;
+        string note = closingNote ?? "";
+        closingNote = "";
+        return note;
+    }
+
+    // ---------- things Ace can ask about (the dialogue pass) ----------
+
+    /// <summary>
+    /// What Ace can ask about on this visit, in the reply list's order (at most two): the regular's night
+    /// thing on Grace's camera visit (the Night 1 slice), then their profile's topics. Walk-ins have none.
+    /// </summary>
+    public IReadOnlyList<TopicChoice> Topics()
+    {
+        if (topics != null) return topics;
+        topics = new List<TopicChoice>();
+        if (profile == null) return topics;
+        NightThing thing = MentionableThing();
+        if (thing != null && !string.IsNullOrWhiteSpace(thing.topic) && !string.IsNullOrWhiteSpace(thing.mention))
+            topics.Add(new TopicChoice(thing.id, thing.topic, thing.mention, thing));
+        foreach (ConversationTopic topic in profile.topics ?? System.Array.Empty<ConversationTopic>())
+        {
+            if (topics.Count >= MaxTopics) break;
+            if (topic == null || string.IsNullOrWhiteSpace(topic.ask) || string.IsNullOrWhiteSpace(topic.answer)) continue;
+            if (topic.visits == TopicVisits.FirstMeeting && HasMetBefore) continue;
+            if (topic.visits == TopicVisits.Returning && !HasMetBefore) continue;
+            topics.Add(new TopicChoice(topic.id, topic.ask, topic.answer, null));
+        }
+        return topics;
+    }
+
+    /// <summary>Ace asks about <paramref name="topic"/>: their answer, one line per beat. The notebook learns it once.</summary>
+    public string Ask(TopicChoice topic)
+    {
+        if (topic == null) return "";
+        topic.Asked = true;
+        if (topic.Thing != null)
+        {
+            nightMentionHeard = true;
+            if (NotebookHooks.HeardMention(DisplayName, topic.Thing)) topic.Taught = true;
+        }
+        // Being asked about themselves: they take it well, whatever their patience (the panel keeps it).
+        Feel(PortraitExpression.Happy);
+        return Format(topic.Answer);
+    }
+
+    /// <summary>
+    /// A thing they meant to mention and Ace never asked about (the Night 1 slice: Grace's gnome), to say
+    /// while they wait in a story's place; false once it's been said, asked about, or is already known.
+    /// </summary>
+    public bool PeekWaitingMention(out string line)
+    {
+        line = "";
+        if (nightMentionHeard) return false;
+        NightThing thing = MentionableThing();
+        if (thing == null || string.IsNullOrWhiteSpace(thing.waitingMention)) return false;
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        if (notebook != null && notebook.Knows(thing.id)) return false;
+        line = Format(thing.waitingMention);
+        return true;
+    }
+
+    /// <summary>They've said it (PeekWaitingMention): Ace notes it down, and they won't say it again this visit.</summary>
+    public void MarkWaitingMentionSaid()
+    {
+        NightThing thing = MentionableThing();
+        nightMentionHeard = true;
+        if (thing != null) NotebookHooks.HeardMention(DisplayName, thing);
+    }
+
+    // Their night thing while it's still theirs to mention: only on Grace's camera visit (the Night 1
+    // slice), and never once it's on Ace's shelf.
+    private NightThing MentionableThing()
+    {
+        if (!isGraceCameraRequest || profile == null) return null;
         NightThing thing = NightThings.OwnedBy(profile.PersistentId);
-        if (thing == null || string.IsNullOrWhiteSpace(thing.mention)) return acceptedLine;
+        if (thing == null) return null;
         NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
-        if (night != null && night.HasTrophy(thing.id)) return acceptedLine;
-        NotebookHooks.HeardMention(DisplayName, thing);
-        return string.IsNullOrWhiteSpace(acceptedLine) ? thing.mention : acceptedLine + "\n\n" + thing.mention;
+        return night != null && night.HasTrophy(thing.id) ? null : thing;
     }
 
     /// <summary>
@@ -212,16 +346,13 @@ public class CustomerIdentity : MonoBehaviour
             _ => PortraitExpression.Neutral
         };
 
-        if (beat == Beat.Intake && HasGraceReturn)
-        {
-            GracePhotoOutcome photo = GraceCameraEpisode.PhotoOutcome(previousVisit);
-            Expression = photo == GracePhotoOutcome.Missed ? PortraitExpression.Worried : PortraitExpression.Happy;
-            string request = isGraceCameraRequest ? GraceCameraEpisode.Intake
-                : returnRequestLine;
-            return WithFocusCallback(GraceCameraEpisode.ReturnLine(photo) + "\n\n" + Format(request), beat);
-        }
+        // Her return visit asks for what she came in for first; the photo's news waits until Ace has
+        // taken it (AcceptReturnMemento), so the request is short and one clear thing.
         if (beat == Beat.Intake && isGraceCameraRequest)
             return WithFocusCallback(GraceCameraEpisode.Intake, beat);
+        // Her thanks when Ace takes the camera: the reveal, the episode's own line.
+        if (beat == Beat.Accepted && isGraceCameraRequest)
+            return GraceCameraEpisode.AcceptedLine;
 
         if (beat == Beat.Intake && profile != null && previousVisit != null)
         {
@@ -268,8 +399,9 @@ public class CustomerIdentity : MonoBehaviour
         // for a failed repair, nor a replacement for the current intake request.
         if (beat != Beat.Intake || profile == null || !profile.storyteller
             || !RemembersFocusBoundary || string.IsNullOrWhiteSpace(profile.focusReturnLine)) return line;
+        // Its own line on screen, after theirs (never a paragraph glued on).
         return string.IsNullOrWhiteSpace(line) ? Format(profile.focusReturnLine)
-            : line + "\n\n" + Format(profile.focusReturnLine);
+            : line + "\n" + Format(profile.focusReturnLine);
     }
 
     public string SayRepairCompleted(JobGrade grade)
@@ -328,17 +460,22 @@ public class CustomerIdentity : MonoBehaviour
         string.IsNullOrEmpty(noun) ? "a drink" : ("aeiou".IndexOf(char.ToLowerInvariant(noun[0])) >= 0 ? "an " : "a ") + noun;
 
     // A visit for a drink opens by ordering it. A regular orders in their own words (their lines' drink
-    // order: Grace's "A latte, please. No sugar."). A walk-in's drink lines are written as an extra while
-    // they wait ("could I get a coffee too?"), so they order with these.
-    // PLACEHOLDER COPY: Mansoor rewrites it (one pool for every personality for now).
+    // order: Grace's "A latte, please. No sugar."). A walk-in orders with their personality's drinkOrder
+    // lines (the dialogue pass); a personality without any uses these.
+    // PLACEHOLDER COPY: Mansoor rewrites it.
     private static readonly string[] DrinkOrderLines =
     {
         "Could I get {a drink}, please?",
         "Just {a drink} today, please.",
     };
 
+    /// <summary>The shared placeholder drink orders (for the Dialogue rules check).</summary>
+    public static IReadOnlyList<string> PlaceholderDrinkOrders => DrinkOrderLines;
+
     private string[] DrinkOrder(DialogueSet set) =>
-        profile != null && HasAnyLine(set.orderedDrink) ? set.orderedDrink : DrinkOrderLines;
+        profile != null && HasAnyLine(set.orderedDrink) ? set.orderedDrink
+        : profile == null && HasAnyLine(set.drinkOrder) ? set.drinkOrder
+        : DrinkOrderLines;
 
     private static bool HasAnyLine(string[] pool)
     {

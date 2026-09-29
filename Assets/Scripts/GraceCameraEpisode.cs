@@ -34,36 +34,69 @@ public static class GraceCameraEpisode
         };
     }
 
-    public static string Intake => "My family reunion is tomorrow, and this camera has picked a fine time to sulk. "
-        + "Please clean the lens and film path, and fix the shutter. Leave the scratched strap exactly as it is; "
-        + "my husband carried it everywhere. For once, I might let somebody put me in the picture.";
+    // ---------- her words (PLACEHOLDER COPY: Mansoor rewrites it) ----------
+    //
+    // The dialogue pass (claude/dialogue-skyrim-proposal.md): short lines, one idea each. A "\n" starts
+    // the next line on screen (the conversation shows them one after another, the earlier ones dimmed).
+    // Every line shortens one she already had; nothing new about her is invented here.
 
+    /// <summary>Day 1 at the counter: the joke, the reunion, the job and the strap (GDD v4.1: her intake).</summary>
+    public static string Intake => "My camera picked a fine time to sulk. The reunion's tomorrow.\n"
+        + "Jammed shutter, dirty lens. Leave the strap alone; my husband carried it everywhere.";
+
+    /// <summary>
+    /// Her thanks when Ace takes the camera: the reveal (she has avoided being in family photos). The
+    /// notebook learns the reunion and that she stays behind the camera here (NotebookHooks.HeardThanks).
+    /// </summary>
+    public static string AcceptedLine => "Thank you. For once, I might let somebody put me in the picture.";
+
+    /// <summary>Her return visit: how the reunion photo turned out. Said once Ace has taken her order.</summary>
     public static string ReturnLine(GracePhotoOutcome outcome) => outcome switch
     {
-        GracePhotoOutcome.Clear => "The reunion pictures came out! That's me, right in the middle. "
-            + "Usually I'm safely behind the camera. You even kept his old strap. I've brought a print for your shop.",
-        GracePhotoOutcome.Imperfect => "We got our reunion picture. There's a smudge, so naturally I told everyone "
-            + "it was artistic. I wish the camera had been a little cleaner, but I'm finally in the frame. This print is for you.",
-        GracePhotoOutcome.Missed => "We missed the reunion photograph. I kept thinking we'd have one more minute. "
-            + "I'm disappointed, but I haven't given up on that camera. Perhaps we can try again another day.",
+        GracePhotoOutcome.Clear => "The reunion photos came out! I'm right in the middle.\n"
+            + "Usually I'm safely behind the camera.",
+        GracePhotoOutcome.Imperfect => "We got our reunion picture. There's a smudge\u2014I told everyone it was artistic.\n"
+            + "But I'm finally in the frame.",
+        GracePhotoOutcome.Missed => "We missed the reunion photograph.\n"
+            + "I haven't given up on that camera, though.",
         _ => ""
     };
 
-    public static string CompletionLine(JobGrade grade) => grade switch
+    /// <summary>What she gives the shop with that news (a print), or nothing.</summary>
+    public static string ReturnGift(GracePhotoOutcome outcome) => outcome switch
     {
-        JobGrade.Perfect => "Look at that! Clean as a whistle, shutter moving, and his old strap still here. "
-            + "Now I have no excuse to hide behind the camera tomorrow.",
-        JobGrade.Good => "The shutter works, and you kept the strap. That'll get us our reunion photograph. Thank you, Ace.",
-        JobGrade.Passable => "The shutter works, though it could use more cleaning. We'll try for a picture anyway. "
-            + "Thank you for leaving the strap alone.",
-        _ => "The shutter still isn't right. The reunion is tomorrow. I'll take it home, but this may be a moment we miss."
+        GracePhotoOutcome.Clear => "I've brought a print for your shop.",
+        GracePhotoOutcome.Imperfect => "This print is for you.",
+        _ => ""
     };
 
+    /// <summary>The news and the gift, one after another: what she says once her order is taken.</summary>
+    public static string ReturnNews(GracePhotoOutcome outcome)
+    {
+        string news = ReturnLine(outcome);
+        string gift = ReturnGift(outcome);
+        if (string.IsNullOrEmpty(gift)) return news;
+        return string.IsNullOrEmpty(news) ? gift : news + "\n" + gift;
+    }
+
+    /// <summary>Handing the camera back (a bubble over her head: one short line).</summary>
+    public static string CompletionLine(JobGrade grade) => grade switch
+    {
+        JobGrade.Perfect => "Clean as a whistle, and his old strap's still here!",
+        JobGrade.Good => "Shutter works, strap's safe. Thank you, Ace.",
+        JobGrade.Passable => "It works. Could be cleaner, but thank you for leaving the strap alone.",
+        _ => "The shutter still isn't right, and the reunion's tomorrow. I'll take it home."
+    };
+
+    /// <summary>
+    /// What happened, as a short line on screen once the conversation closes (not speech: no narrator
+    /// talks in the speech panel).
+    /// </summary>
     public static string HandoffLine(GracePhotoOutcome outcome) => outcome switch
     {
-        GracePhotoOutcome.Clear => "Grace leaves her reunion photograph for the shop. She is finally in the frame.",
-        GracePhotoOutcome.Imperfect => "Grace leaves the smudged reunion photograph for the shop, with a joke written underneath.",
-        GracePhotoOutcome.Missed => "Grace keeps the empty frame. There is still room for another try.",
+        GracePhotoOutcome.Clear => "Grace left the reunion photo for the shop.",
+        GracePhotoOutcome.Imperfect => "Grace left the smudged reunion photo for the shop.",
+        GracePhotoOutcome.Missed => "Grace kept the empty frame, for another try.",
         _ => ""
     };
 }

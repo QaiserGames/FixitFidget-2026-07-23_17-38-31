@@ -372,12 +372,14 @@ public sealed class CafeLabDirector : MonoBehaviour
     // In the bottom right corner, sized like the HUD (its canvas is 1920 x 1080, scaled to the screen):
     // clear of the controls hint and a conversation's portrait (bottom left), the prompt, the
     // conversation's lines and the straight-face meter (bottom middle), the clock (top right) and the
-    // night's notebook page (right).
+    // night's notebook page (right). Ace's replies sit in this corner while a conversation is open (the
+    // dialogue pass), so the banner steps aside until it closes.
     private const float BannerWidth = 520f, BannerHeight = 72f, BannerMargin = 10f;
     private GUIStyle style;
 
     private void OnGUI()
     {
+        if (ConversationController.AnyOpen) return;
         style ??= new GUIStyle(GUI.skin.box) { fontSize = 15, alignment = TextAnchor.UpperLeft, richText = true };
         string text = $"<b>CAFÉ LAB</b>  test save, nothing here touches your playtest save" +
                       $"\nautopilot {(Autopilot ? "ON" : "off")}";

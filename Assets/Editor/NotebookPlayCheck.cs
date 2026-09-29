@@ -89,12 +89,16 @@ public static class NotebookPlayCheck
         Check(graceIdentity.IsGraceCameraRequest, "A camera job with Grace's episode id is her camera episode");
         string[] ids = NotebookEntries.GraceIntake("Grace").Select(f => f.id).ToArray();
         int alreadyKnown = ids.Count(notebook.Knows);
-        int learned = NotebookHooks.HeardIntake(graceIdentity, camera);
-        Check(learned == ids.Length - alreadyKnown && ids.All(notebook.Knows),
-            $"Hearing Grace's intake puts her four facts in the notebook ({learned} new, {alreadyKnown} already there)");
+        // The dialogue pass: her request tells the strap and her husband, her thanks (when Ace takes the
+        // camera) the reunion and the photos she stays out of.
+        int fromRequest = NotebookHooks.HeardIntake(graceIdentity, camera);
+        bool strapKnown = notebook.Knows("grace.camera.strap") && notebook.Knows("grace.husband.strap");
+        int learned = fromRequest + NotebookHooks.HeardThanks(graceIdentity);
+        Check(strapKnown && learned == ids.Length - alreadyKnown && ids.All(notebook.Knows),
+            $"Hearing Grace's request, then her thanks, puts her four facts in the notebook ({learned} new, {alreadyKnown} already there)");
         Check(ids.All(id => notebook.Find(id).who == "grace" && notebook.Find(id).name == grace.characterName && notebook.Find(id).day <= day),
             $"They are filed under Grace (\"{grace.characterName}\"), dated today or earlier");
-        Check(NotebookHooks.HeardIntake(graceIdentity, camera) == 0, "Hearing it again adds nothing");
+        Check(NotebookHooks.HeardIntake(graceIdentity, camera) + NotebookHooks.HeardThanks(graceIdentity) == 0, "Hearing it again adds nothing");
 
         // ---- another regular, and a walk-in ----
         var other = ScriptableObject.CreateInstance<CustomerProfile>();

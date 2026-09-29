@@ -36,6 +36,14 @@ public sealed class StorytellerRun
         remaining = interval;
     }
 
+    // Something else was said in a story's place (the dialogue pass: a thing they meant to mention and
+    // Ace never asked about). No story is used up; the next one waits the usual interval.
+    public void Rest()
+    {
+        if (!HasMore || remaining > 0f) return;
+        remaining = interval;
+    }
+
     public bool RequestFocus()
     {
         if (!CanRequestFocus) return false;

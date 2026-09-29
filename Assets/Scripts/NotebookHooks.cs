@@ -1,8 +1,10 @@
 // ---------------------------------------------------------------------------
 // Where the café's day feeds Ace's notebook (claude/night-notebook-spec.md).
 // Things Ace has just been told at the counter:
-//   * a regular's intake: Grace's camera story, or any other regular's repair;
-//   * Grace's return, once her job is accepted and she leaves the print.
+//   * a regular's intake: Grace's camera request, or any other regular's repair;
+//   * Grace's thanks when Ace takes the camera (the rest of her story, since the dialogue pass);
+//   * Grace's return, once her job is accepted and she leaves the print;
+//   * something Ace asked about (a topic in the reply list), or heard while they waited.
 // And, since night step 3, one thing Ace has seen: a regular coming out of or
 // going into their own front door (claude/night-homes-spec.md).
 // Walk-ins are anonymous by design and never get entries. Without a
@@ -21,7 +23,8 @@ public static class NotebookHooks
         int learned = 0;
         if (identity.IsGraceCameraRequest)
         {
-            foreach (NotebookFactData fact in NotebookEntries.GraceIntake(identity.DisplayName))
+            // Her request: the strap and whose it was. The rest comes with her thanks (HeardThanks).
+            foreach (NotebookFactData fact in NotebookEntries.GraceIntakeSaid(identity.DisplayName))
                 if (notebook.Learn(fact, Today)) learned++;
         }
         else if (job != null && job.kind == JobKind.Repair)
@@ -30,6 +33,21 @@ public static class NotebookHooks
                 job.deviceName, job.faultDescription);
             if (fact != null && notebook.Learn(fact, Today)) learned++;
         }
+        return learned;
+    }
+
+    /// <summary>
+    /// Ace has just taken <paramref name="identity"/>'s job and heard their thanks. For Grace's camera that
+    /// is the rest of her story: the reunion, and that she usually stays behind the camera. The number of
+    /// new facts.
+    /// </summary>
+    public static int HeardThanks(CustomerIdentity identity)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        if (notebook == null || identity == null || !identity.IsRegular || !identity.IsGraceCameraRequest) return 0;
+        int learned = 0;
+        foreach (NotebookFactData fact in NotebookEntries.GraceThanksSaid(identity.DisplayName))
+            if (notebook.Learn(fact, Today)) learned++;
         return learned;
     }
 

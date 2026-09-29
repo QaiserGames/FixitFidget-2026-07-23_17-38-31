@@ -29,7 +29,8 @@ using UnityEngine.UI;
 //      Keeping a straight face: the needle is stopped in the green (with Space, the player's key, when
 //      the Game view has the keyboard; otherwise directly). Cracking: it is left to run out. Her reaction,
 //      the ledger, suspicion and the notebook are checked, and the conversation goes on to what she
-//      came in for: her latte ("Take the order").
+//      came in for: her latte (Ace's replies: "Coming right up."). On Day 2, taking it brings the photo's
+//      news and the print, and a line on screen once the conversation closes (the dialogue pass).
 // Ace is driven like a player: PlayerMovement.ScriptedInput stands in for the keys (as in NightTour), and
 // E goes through the interactor's own input message. A photo at each step and report.txt go to the
 // check's folder. Nothing is saved in the scene; the lab save is the only file written (by the game).
@@ -309,6 +310,7 @@ public sealed class NightOneCheck : MonoBehaviour
         yield return Until(() => face.Now == MorningFace.Step.Meter, 15f, "the straight-face meter appears once she has said it");
         if (!lastWait) yield break;
         Check(StraightFaceUI.Showing, "the meter is on screen");
+        Check(MeterClearOfTheLine(), "…beside her line, clear of it (in the place of Ace's replies)");
         yield return Seconds(.35f);
         yield return Photo("08-the-meter");
 
@@ -357,11 +359,10 @@ public sealed class NightOneCheck : MonoBehaviour
         Check(conversation.InConversation && conversation.Face == null, "the conversation stays open, on to what she came in for");
         if (morning == 2)
         {
-            string opening = GraceCameraEpisode.ReturnLine(GracePhotoOutcome.Clear);
-            Check(Line().StartsWith(opening.Substring(0, 24), StringComparison.Ordinal),
-                $"her usual Day 2 visit follows: the reunion photo (\"{Short(Line())}\")");
-            Check(Line().EndsWith("Today, I'd love a latte.", StringComparison.Ordinal),
-                $"…and she orders her latte (\"...{Tail(Line())}\")");
+            // The dialogue pass: she asks for what she came in for first; the photo's news waits until it's taken.
+            Check(Line().IndexOf("latte", StringComparison.OrdinalIgnoreCase) >= 0 && !Line().Contains("{")
+                  && Line().IndexOf("reunion", StringComparison.OrdinalIgnoreCase) < 0,
+                $"her usual Day 2 visit follows: her latte first, in her own words (\"{Short(Line())}\")");
         }
         else
         {
@@ -370,10 +371,32 @@ public sealed class NightOneCheck : MonoBehaviour
             Check(Line().IndexOf("latte", StringComparison.OrdinalIgnoreCase) >= 0 && !Line().Contains("broken") && !Line().Contains("{"),
                 $"…her latte, ordered in her own words, not a repair (\"{Short(Line())}\")");
         }
-        yield return Until(() => Options().Contains("Take the order"), 8f, "the key hint reads \"Take the order\" (a drink, not a job)");
+        yield return Until(() => conversation.ReplyTexts.Contains(AceReplies.TakeDrink), 12f,
+            $"Ace's replies come up once she has said it: \"{AceReplies.TakeDrink}\" (a drink, not a job)");
+        Check(conversation.Highlighted == 0 && conversation.ReplyTexts.Count > 0 && conversation.ReplyTexts[0] == AceReplies.TakeDrink,
+            $"taking it is highlighted first, so E, E still takes it ({Options()})");
         Check(!StraightFaceUI.Showing, "the meter is put away");
         yield return Seconds(1.2f);
         yield return Photo("10-her-visit-goes-on");
+        if (morning == 2)
+        {
+            // Taking her order: the photo's news and the print (a Good repair made a clear photo), then a line
+            // on screen once the conversation closes, never a narrator in the speech panel.
+            conversation.ChooseReply(0);   // what E on "Coming right up." does
+            yield return null;
+            string news = GraceCameraEpisode.ReturnNews(GracePhotoOutcome.Clear);
+            Check(conversation.Closing && conversation.CurrentLine == news,
+                $"once her order is taken she tells Ace about the photo and gives the print (\"{Short(conversation.CurrentLine)}\")");
+            Check(saves.Notebook.Knows("grace.reunion.photo"), "the notebook has the photo");
+            yield return Seconds(2.5f);
+            yield return Photo("11-the-photo-after-the-order");
+            yield return Until(() => !conversation.InConversation, 25f, "the conversation closes by itself once she has said it");
+            yield return Seconds(.4f);
+            string note = NoteShowing();
+            Check(note == GraceCameraEpisode.HandoffLine(GracePhotoOutcome.Clear), $"a line on screen says what happened (\"{note}\")");
+            Check(NoteClearOfPrompt(), "…above the prompt at the bottom of the screen, never on it");
+            yield return Photo("12-the-print-left-for-the-shop");
+        }
         report.AppendLine();
         report.AppendLine("The night's ledger now: " + JsonUtility.ToJson(ledger.Snapshot()));
         report.AppendLine(face.Describe());
@@ -448,14 +471,41 @@ public sealed class NightOneCheck : MonoBehaviour
         return text != null && text.gameObject.activeInHierarchy ? text.text ?? "" : "";
     }
 
-    string Line() => ConversationText("dialogueText");
-    string Options() => ConversationText("optionsText");
+    // What she's saying, as plain text (all its lines), and Ace's replies as offered.
+    string Line() => conversation != null ? conversation.CurrentLine ?? "" : "";
+    string Options() => conversation != null ? string.Join(" | ", conversation.ReplyTexts) : "";
 
-    string ConversationText(string field)
+    // The short line NightCycle shows on screen, while it shows.
+    string NoteShowing()
     {
-        ConversationUI ui = Field<ConversationUI>(conversation, "ui");
-        TMP_Text text = Field<TMP_Text>(ui, field);
-        return text != null ? text.text ?? "" : "";
+        NightCycle cycle = NightCycle.Instance;
+        TMP_Text note = Field<TMP_Text>(cycle, "note");
+        RectTransform box = Field<RectTransform>(cycle, "noteBox");
+        return note != null && box != null && box.gameObject.activeInHierarchy ? note.text ?? "" : "";
+    }
+
+    // The meter's panel and the conversation's line, on screen (both canvases are overlays): apart.
+    bool MeterClearOfTheLine()
+    {
+        object meterScreen = typeof(StraightFaceUI).GetField("instance", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null);
+        GameObject panel = Field<GameObject>(meterScreen, "panel");
+        TMP_Text line = Field<TMP_Text>(FindAnyObjectByType<ConversationUI>(), "dialogueText");
+        return panel != null && line != null && !OnScreen((RectTransform)panel.transform).Overlaps(OnScreen(line.rectTransform));
+    }
+
+    // The note's box and the HUD's prompt box, on screen (both canvases are overlays): apart.
+    bool NoteClearOfPrompt()
+    {
+        RectTransform box = Field<RectTransform>(NightCycle.Instance, "noteBox");
+        TMP_Text prompt = Field<TMP_Text>(FindAnyObjectByType<ShopUI>(), "promptText");
+        return box != null && prompt != null && !OnScreen(box).Overlaps(OnScreen(prompt.rectTransform));
+    }
+
+    static Rect OnScreen(RectTransform rect)
+    {
+        var corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+        return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
     }
 
     static CustomerBrain FindGrace()

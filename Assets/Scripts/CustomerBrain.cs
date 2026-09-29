@@ -1397,9 +1397,18 @@ public class CustomerBrain : MonoBehaviour
             if (social != null) social.Nod(7f);
         }
         string acceptedLine = identity != null ? identity.Say(CustomerIdentity.Beat.Accepted) : "";
-        // Grace's camera job also brings the mention of her gnome (the Night 1 slice).
-        return identity != null ? identity.WithNightMention(identity.AcceptReturnMemento(acceptedLine)) : acceptedLine;
+        if (identity == null) return acceptedLine;
+        // Their thanks is heard too: for Grace's camera, the rest of her story (the notebook). On her
+        // return visit the photo's news and the print take the place of her usual thanks.
+        NotebookHooks.HeardThanks(identity);
+        return identity.AcceptReturnMemento(acceptedLine);
     }
+
+    /// <summary>
+    /// Ace asks them about something (a topic in the conversation's reply list): their answer, one line
+    /// per beat. Data only, like AcceptJob: the conversation shows it.
+    /// </summary>
+    public string AskTopic(TopicChoice topic) => identity != null ? identity.Ask(topic) : "";
 
     // The device goes on the intake shelf, not in front of the customer —
     // they're about to walk away from the counter.

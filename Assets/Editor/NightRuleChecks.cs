@@ -182,11 +182,20 @@ public static class NightRuleChecks
               && NightThings.Find("nope") == null && NightThings.Find(null) == null && NightThings.OwnedBy("") == null,
             "The gnome is found by its id and by its owner.");
         Check(gnome.owner == GraceCameraEpisode.ProfileId && gnome.id == "grace.gnome", "It's Grace's, and its id is the saved one.");
-        foreach (string line in new[] { gnome.name, gnome.unknownName, gnome.mention, gnome.complaint, gnome.held, gnome.cracked,
-                     gnome.takenNote, gnome.takenNoteUnknown, gnome.notebookMention, gnome.notebookComplaint, gnome.notebookTaken,
-                     gnome.notebookCracked })
+        foreach (string line in new[] { gnome.name, gnome.unknownName, gnome.topic, gnome.mention, gnome.waitingMention, gnome.complaint,
+                     gnome.held, gnome.cracked, gnome.takenNote, gnome.takenNoteUnknown, gnome.notebookMention, gnome.notebookComplaint,
+                     gnome.notebookTaken, gnome.notebookCracked })
             Check(!string.IsNullOrWhiteSpace(line), "Every line is written.");
         Check(gnome.mention.Contains(gnome.name) && gnome.complaint.Contains(gnome.name), "The day and the morning after name the same gnome.");
+        // The dialogue pass: Ace asks about it (a short reply), and if Ace never does, she mentions it while she waits.
+        Check(gnome.topic.Length <= 30 && gnome.waitingMention.Contains(gnome.name) && !gnome.waitingMention.Contains("\n"),
+            "Ace's question is a short reply; her waiting line names the gnome in one line.");
+        foreach (string line in new[] { gnome.mention, gnome.waitingMention, gnome.complaint, gnome.held, gnome.cracked })
+        {
+            Check(!line.Contains("\n\n") && !line.StartsWith("\n") && !line.EndsWith("\n"), "Separate lines, never a paragraph.");
+            foreach (string beat in line.Split('\n'))
+                Check(beat.Trim().Length > 0 && beat.Length <= 150, $"Each line is short (\"{beat}\").");
+        }
         foreach (NightThing thing in NightThings.All)
             Check(!string.IsNullOrEmpty(thing.id) && NightThings.Find(thing.id) == thing, "Every thing's id is unique and found.");
 

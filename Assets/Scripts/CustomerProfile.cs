@@ -35,6 +35,26 @@ public class CustomerReturnDialogue
     };
 }
 
+// Which of a regular's visits a topic can be asked on.
+public enum TopicVisits { Any, FirstMeeting, Returning }
+
+// Something Ace can ask a regular about at the counter: a line in the conversation's reply list, and
+// their answer (the dialogue pass, claude/dialogue-skyrim-proposal.md §6.4). Asking costs time, since
+// the queue keeps draining, and never changes what happens: only what Ace knows.
+[System.Serializable]
+public class ConversationTopic
+{
+    [Tooltip("A stable name for it (never shown). Keep it the same once saves exist.")]
+    public string id = "";
+    [Tooltip("What Ace asks, as it reads in the reply list. Under 30 characters.")]
+    public string ask = "";
+    [Tooltip("Their answer: one line per beat (Enter between them), each short (aim for 90 characters). " +
+             "{device} and {fault} are filled in.")]
+    [TextArea(2, 4)] public string answer = "";
+    [Tooltip("Which visits it can be asked on.")]
+    public TopicVisits visits = TopicVisits.Any;
+}
+
 [CreateAssetMenu(fileName = "Regular_", menuName = "FixitFiasco/Customer Profile")]
 public class CustomerProfile : ScriptableObject
 {
@@ -152,6 +172,9 @@ public class CustomerProfile : ScriptableObject
     [Range(0, 5)] public int storyMaxLines = 3;
     [TextArea(2, 4)] public string focusReply = "Of course. I'll let you concentrate.";
     [TextArea(2, 4)] public string focusReturnLine = "I remember you need quiet while you work. I'll let you concentrate.";
+
+    [Header("Things Ace can ask about (the reply list; up to two show)")]
+    public ConversationTopic[] topics;
 
     [Header("First visit dialogue")]
     public DialogueSet lines;

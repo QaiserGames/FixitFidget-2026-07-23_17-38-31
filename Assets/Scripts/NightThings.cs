@@ -7,11 +7,15 @@ using System.Collections.Generic;
 // take it (NightTrophy) and it goes on Ace's shelf (TrophyShelf); the next morning its owner comes
 // in and tells Ace about it, and Ace has to keep a straight face (MorningFace, StraightFaceMeter).
 //
+// Since the dialogue pass (claude/dialogue-skyrim-proposal.md) the mention is something Ace asks about:
+// a line in the conversation's reply list (topic), answered with the mention. If Ace never asks, the
+// owner mentions it while they wait (waitingMention). A "\n" in a line starts the next line on screen.
+//
 // Night 1 has one thing: Grace's garden gnome, by her front step at 12 West Street (her HomeDoor).
 //
 // EVERY WORD HERE IS A PLACEHOLDER. Grace's canon is Mansoor's: the gnome's name, what she says about
-// it on Day 1 (after Ace takes her camera job), her complaint the morning after, her two reactions
-// and the notebook's shorthand of them are drafts to rewrite. Change the words here; keep the ids
+// it on Day 1 (when Ace asks about her plans, at the counter over her camera), her complaint the morning
+// after, her two reactions and the notebook's shorthand of them are drafts to rewrite. Change the words here; keep the ids
 // (saves hold them). The meter's numbers are the thing's difficulty: a stolen gnome is easy.
 //
 // No Unity types: the Night 1 rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
@@ -27,8 +31,12 @@ public sealed class NightThing
     /// <summary>What Ace calls it before hearing about it ("the garden gnome").</summary>
     public string unknownName = "";
 
-    /// <summary>What the owner says about it by day (added after a line of theirs).</summary>
+    /// <summary>What Ace asks, in the reply list, that gets the owner talking about it by day. Under 30 characters.</summary>
+    public string topic = "";
+    /// <summary>What the owner says about it by day: their answer to the topic.</summary>
     public string mention = "";
+    /// <summary>The same, said while they wait if Ace never asked (one short line, a bubble).</summary>
+    public string waitingMention = "";
     /// <summary>The morning after: the owner tells Ace about it, and then the meter runs.</summary>
     public string complaint = "";
     /// <summary>The owner's reaction when Ace keeps a straight face.</summary>
@@ -70,12 +78,14 @@ public static class NightThings
         owner = GraceCameraEpisode.ProfileId,
         name = "Barnaby",
         unknownName = "the garden gnome",
-        mention = "I'll be home tonight polishing Barnaby for the reunion. He's my garden gnome: "
-            + "twenty years on the front step of the saffron house on the corner.",
-        complaint = "Before anything else: somebody took Barnaby off my front step last night. "
-            + "Twenty years he stood there. Who steals a garden gnome, Ace? What sort of person does that?",
+        topic = "Big plans tonight?",
+        mention = "Polishing Barnaby for the reunion. He's my garden gnome.\n"
+            + "Twenty years on the front step of the saffron house, on the corner.",
+        waitingMention = "Tonight I'm polishing Barnaby. My garden gnome.",
+        complaint = "Somebody took Barnaby off my front step last night.\n"
+            + "Twenty years he stood there. Who steals a garden gnome, Ace?",
         held = "Thank you for not laughing, dear. The postman laughed.",
-        cracked = "Ace. Are you smiling? ...Hm. I'll be keeping an eye on my front step.",
+        cracked = "Ace. Are you smiling?\n...Hm. I'll be keeping an eye on my front step.",
         takenNote = "Barnaby is coming home with Ace. He'll go on the shelf.",
         takenNoteUnknown = "The garden gnome is coming home with Ace. It'll go on the shelf.",
         notebookMention = "Has a garden gnome, Barnaby, on the front step of the saffron house on the corner. Twenty years. Polishes him.",

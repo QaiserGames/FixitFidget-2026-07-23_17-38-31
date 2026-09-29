@@ -31311,7 +31311,8 @@ MonoBehaviour:
   dialogueText: {fileID: 1310840630}
   optionsText: {fileID: 2078145351}
   fadeSpeed: 8
-  charactersPerSecond: 45
+  readingSpeed: 18
+  listenBeat: {x: 0.35, y: 1}
 --- !u!225 &226741272
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -51966,7 +51967,7 @@ MonoBehaviour:
     lines:
       intake:
       - "Hi! My {device} \u2014 {fault}. Any chance?"
-      - Morning! {fault} on my {device}. Can you look?
+      - "Morning! My {device} \u2014 {fault}. Can you look?"
       accepted:
       - Amazing, thank you.
       - No rush at all.
@@ -51985,6 +51986,9 @@ MonoBehaviour:
       orderedDrink:
       - "Ooh \u2014 could I get a coffee too?"
       - Since I'm here, a drink?
+      drinkOrder:
+      - Hi! Could I get {a drink}?
+      - Ooh, {a drink}, please!
   - archetypeName: Impatient
     patienceMultiplier: 0.7
     tipMultiplier: 0.9
@@ -51993,7 +51997,7 @@ MonoBehaviour:
     drinkWishChance: 0.25
     lines:
       intake:
-      - '{device}. {fault}. How long?'
+      - 'My {device}: {fault}. How long?'
       - This is {fault}. Can you do it now?
       accepted:
       - Fine. I'll wait here.
@@ -52013,6 +52017,9 @@ MonoBehaviour:
       orderedDrink:
       - Coffee. While I'm standing here.
       - Get me a coffee.
+      drinkOrder:
+      - Just {a drink}. Quick.
+      - I'll take {a drink}. Now, ideally.
   - archetypeName: Chatty
     patienceMultiplier: 1.3
     tipMultiplier: 1
@@ -52021,8 +52028,8 @@ MonoBehaviour:
     drinkWishChance: 0.8
     lines:
       intake:
-      - "So \u2014 my {device}. {fault}. Long story."
-      - You'll laugh. {device}, {fault}.
+      - "So \u2014 my {device}, {fault}. Long story."
+      - 'You''ll laugh. My {device}: {fault}.'
       accepted:
       - Brilliant. I'll be right over there.
       - Take your time, I'm in no hurry at all.
@@ -52041,6 +52048,9 @@ MonoBehaviour:
       orderedDrink:
       - "Actually \u2014 a coffee would be lovely."
       - Ooh, while you're up. A drink?
+      drinkOrder:
+      - Oh, {a drink} would be lovely.
+      - I'll have {a drink}, I think. Yes!
   - archetypeName: Rushed
     patienceMultiplier: 0.6
     tipMultiplier: 1.3
@@ -52050,7 +52060,7 @@ MonoBehaviour:
     lines:
       intake:
       - "Sorry \u2014 {device}, {fault}. I'm late."
-      - I know you're busy. {fault}. Please.
+      - 'I know you''re busy. My {device}: {fault}. Please.'
       accepted:
       - Thank you. Really.
       - You're saving me here.
@@ -52069,6 +52079,9 @@ MonoBehaviour:
       orderedDrink:
       - Coffee? To go, if that's alright.
       - A quick coffee, if you can.
+      drinkOrder:
+      - Could I get {a drink} to go?
+      - "Sorry \u2014 {a drink}, quick as you can?"
   - archetypeName: Sentimental
     patienceMultiplier: 1.1
     tipMultiplier: 1.4
@@ -52097,6 +52110,9 @@ MonoBehaviour:
       orderedDrink:
       - Could I trouble you for a coffee?
       - A drink would be nice, thank you.
+      drinkOrder:
+      - Could I have {a drink}, please?
+      - I'd love {a drink}, if it's no trouble.
   firstNames:
   - Valerie
   - Deshawn
@@ -120714,6 +120730,7 @@ MonoBehaviour:
   recapPanel: {fileID: 736731051}
   displayCafeTime: 1
   viewHintText: {fileID: 1167107278}
+  promptShadow: 1
 --- !u!114 &908985952
 MonoBehaviour:
   m_ObjectHideFlags: 0

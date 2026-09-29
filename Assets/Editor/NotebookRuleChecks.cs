@@ -65,6 +65,13 @@ public static class NotebookRuleChecks
         Check(intake.Count == 4 && intake.Select(f => f.id).Distinct().Count() == 4, "Grace's intake gives four different facts.");
         Check(intake.All(f => f.who == "grace" && f.source == Notebook.Sources.Told && f.sure == Notebook.Sureness.Sure),
             "They are about Grace, told, and sure.");
+        // The dialogue pass: her request tells two of them, her thanks the other two (each learned when it's said).
+        List<string> request = NotebookEntries.GraceIntakeSaid("Grace").Select(f => f.id).ToList();
+        List<string> thanks = NotebookEntries.GraceThanksSaid("Grace").Select(f => f.id).ToList();
+        Check(request.Count == 2 && thanks.Count == 2 && !request.Intersect(thanks).Any()
+              && request.Concat(thanks).OrderBy(id => id).SequenceEqual(intake.Select(f => f.id).OrderBy(id => id))
+              && request.Contains("grace.camera.strap") && thanks.Contains("grace.reunion.date"),
+            "Her request (the strap, her husband) and her thanks (the reunion, the photos) share the four facts between them.");
         Check(intake.Select(f => f.kind).OrderBy(k => k).SequenceEqual(new[] { "claim", "possession", "relationship", "schedule" }),
             "Kinds: a possession, a relationship, a schedule and a claim.");
         int learned = intake.Count(f => book.Learn(f, 1));

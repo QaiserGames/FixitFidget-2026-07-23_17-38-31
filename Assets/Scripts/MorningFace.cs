@@ -153,8 +153,8 @@ public sealed class MorningFace
     {
         meter = StraightFaceMeter.Rolled(thing.sweepSeconds, thing.green, thing.near, thing.patience, Rng);
         Now = Step.Meter;
-        // The meter takes the conversation's key-hint row and gives its key itself (StraightFaceUI), so
-        // it can sit under the person's line instead of over their face.
+        // The meter takes the place of Ace's replies (bottom right) and gives its key itself
+        // (StraightFaceUI), so it sits beside the person's line instead of over it or their face.
         ui.SetOptions("");
         StraightFaceUI.Draw(meter, StopHint);
     }

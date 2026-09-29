@@ -40,6 +40,18 @@ public sealed class CustomerStoryteller : MonoBehaviour
         if (Time.time < retryAt) return;
         retryAt = Time.time + 0.5f;
         if (!RoomCanHearStory()) return;
+        // Something they meant to mention and Ace never asked about (the dialogue pass: Grace's gnome, if
+        // "Big plans tonight?" wasn't asked) comes out first, in a story's place.
+        CustomerIdentity identity = owner.Identity;
+        if (identity != null && identity.PeekWaitingMention(out string mention))
+        {
+            if (owner.TrySayStoryLine(mention))
+            {
+                identity.MarkWaitingMentionSaid();
+                run.Rest();
+            }
+            return;
+        }
         if (owner.TrySayStoryLine(lines[run.LinesSpoken])) run.MarkSpoken();
     }
 

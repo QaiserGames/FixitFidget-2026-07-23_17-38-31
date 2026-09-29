@@ -390,11 +390,13 @@ public sealed class NightCycle : MonoBehaviour
         title = Label("Title", curtainRect, new Vector2(0f, 40f), new Vector2(1400f, 110f), 76f, new Color(.95f, .92f, .85f), font);
         subtitle = Label("Subtitle", curtainRect, new Vector2(0f, -40f), new Vector2(1300f, 90f), 30f, new Color(.72f, .7f, .66f), font);
 
+        // Above the prompt ("[E]  Take Barnaby", "[F]  Serve at counter": bottom middle, about 180-220 up),
+        // so a note never sits on it: by day too, when Grace's print is noted as her conversation closes.
         noteBox = new GameObject("Note", typeof(RectTransform)).GetComponent<RectTransform>();
         noteBox.SetParent(canvasObject.transform, false);
         noteBox.anchorMin = noteBox.anchorMax = new Vector2(.5f, 0f);
         noteBox.pivot = new Vector2(.5f, 0f);
-        noteBox.anchoredPosition = new Vector2(0f, 150f);
+        noteBox.anchoredPosition = new Vector2(0f, 250f);
         noteBox.sizeDelta = new Vector2(1180f, 64f);
         var backing = noteBox.gameObject.AddComponent<Image>();
         backing.color = new Color(.075f, .07f, .065f, .86f);

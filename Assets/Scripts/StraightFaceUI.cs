@@ -5,8 +5,9 @@ using UnityEngine.UI;
 // ---------------------------------------------------------------------------
 // THE STRAIGHT-FACE METER ON SCREEN (the Night 1 slice; MorningFace runs it)
 //
-// A small panel in the conversation's bottom row, under the person's line, where the conversation's own
-// key hints go: it takes their place while it's up, so the speaker's face stays clear in the close-up.
+// A small panel in the conversation's bottom row, beside the person's line, where Ace's replies and their
+// key hints go (bottom right, since the dialogue pass): it takes their place while it's up, so the
+// speaker's face and what they're saying both stay clear.
 // Its title gives the key and "Keep a straight face"; below it a bar with its green mark (and a paler
 // band either side, the "near enough"), and the needle sweeping across. When the needle stops, the
 // title says how it went, and then the key to go on. HUD only: the reaction itself is in the
@@ -117,12 +118,14 @@ public sealed class StraightFaceUI : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = .5f;
 
-        // The conversation's text column is 900 wide, 100 right of the middle, from 140 to 340 up
-        // (ConversationPanel/DialogueText), with the person's line at its top; the key hints below it
-        // are centred about 137 up. The meter takes that row: 81 to 159 up, under a line of up to five
-        // rows. (Sitting on top of the column, it covered the lower half of the speaker's face.)
-        RectTransform box = Rect("Meter", canvasObject.transform, new Vector2(.5f, 0f), new Vector2(100f, 81f), new Vector2(580f, 78f));
-        box.pivot = new Vector2(.5f, 0f);
+        // Since the dialogue pass the person's line is a subtitle, x 390-1250 and from 44 up (bottom
+        // aligned, up to three lines of it), and Ace's replies sit to its right, x 1304-1864 from 44 up
+        // (ConversationUI.Look). The meter takes the replies' place, which the morning scene leaves empty:
+        // x 1284-1864, 44 to 122 up, on the subtitle's baseline. (Under the old layout it sat in the key-hint
+        // row under the line, which is where the subtitle is now; on top of the line it covered the
+        // speaker's face.)
+        RectTransform box = Rect("Meter", canvasObject.transform, new Vector2(1f, 0f), new Vector2(-56f, 44f), new Vector2(580f, 78f));
+        box.pivot = new Vector2(1f, 0f);
         Image backing = box.gameObject.AddComponent<Image>();
         backing.color = Backing;
         backing.raycastTarget = false;
