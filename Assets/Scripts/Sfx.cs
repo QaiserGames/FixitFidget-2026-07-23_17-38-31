@@ -120,11 +120,11 @@ public static class SoundRig
         if (view == null) return;
         if (view.GetComponent<ListenerRig>() == null) view.gameObject.AddComponent<ListenerRig>();
         if (view.GetComponent<AceFootsteps>() == null) view.gameObject.AddComponent<AceFootsteps>();
-        // By its Instance, not FindAnyObjectByType: that never finds an object that isn't saved
-        // (HideFlags.DontSave), so it would make a second soundscape on every scene load.
+        // By its Instance: one soundscape per Play session. It is an ordinary object of the session, so it
+        // ends with it (PlaySessionLeftovers).
         if (CafeSoundscape.Instance == null)
         {
-            var go = new GameObject("Soundscape (while playing)") { hideFlags = HideFlags.DontSave };
+            var go = new GameObject("Soundscape (while playing)") { hideFlags = PlaySessionLeftovers.RuntimeFlags };
             go.AddComponent<CafeSoundscape>();
         }
     }

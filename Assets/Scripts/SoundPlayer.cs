@@ -75,7 +75,8 @@ public sealed class SoundPlayer : MonoBehaviour
     {
         if (Instance != null) return Instance;
         if (!Application.isPlaying) return null;
-        var go = new GameObject("Sound player (while playing)") { hideFlags = HideFlags.DontSave };
+        // An ordinary object of the Play session, so it ends with it (PlaySessionLeftovers).
+        var go = new GameObject("Sound player (while playing)") { hideFlags = PlaySessionLeftovers.RuntimeFlags };
         go.AddComponent<SoundPlayer>();
         return Instance;
     }
@@ -88,7 +89,7 @@ public sealed class SoundPlayer : MonoBehaviour
         FindGroups();
         for (int i = 0; i < VoiceCount; i++)
         {
-            var go = new GameObject("Voice " + (i + 1)) { hideFlags = HideFlags.DontSave };
+            var go = new GameObject("Voice " + (i + 1)) { hideFlags = PlaySessionLeftovers.RuntimeFlags };
             go.transform.SetParent(transform, false);
             var source = go.AddComponent<AudioSource>();
             source.playOnAwake = false;
@@ -188,7 +189,7 @@ public sealed class SoundPlayer : MonoBehaviour
         AudioClip clip = Pick(cue);
         if (clip == null) return null;
 
-        var go = new GameObject("Loop: " + cueName) { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Loop: " + cueName) { hideFlags = PlaySessionLeftovers.RuntimeFlags };
         go.transform.SetParent(transform, false);
         go.transform.position = follow != null ? follow.position : at;
         var source = go.AddComponent<AudioSource>();

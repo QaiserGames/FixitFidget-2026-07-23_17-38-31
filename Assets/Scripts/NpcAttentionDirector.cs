@@ -100,7 +100,9 @@ public sealed class NpcAttentionDirector : MonoBehaviour
     {
         if (instance != null) return instance;
         if (!Application.isPlaying) return null;
-        var go = new GameObject("NPC attention director (runtime)") { hideFlags = HideFlags.DontSave };
+        // An ordinary object of the Play session, so it ends with it. Marked DontSave it outlived the
+        // session in the editor and ran again beside the next one's director (PlaySessionLeftovers).
+        var go = new GameObject("NPC attention director (runtime)") { hideFlags = PlaySessionLeftovers.RuntimeFlags };
         instance = go.AddComponent<NpcAttentionDirector>();
         return instance;
     }

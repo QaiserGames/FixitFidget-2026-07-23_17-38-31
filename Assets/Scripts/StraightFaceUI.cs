@@ -68,7 +68,9 @@ public sealed class StraightFaceUI : MonoBehaviour
     static StraightFaceUI Ensure()
     {
         if (instance != null) return instance;
-        var go = new GameObject("Straight-face meter (while playing)") { hideFlags = HideFlags.DontSave };
+        // An ordinary object of the Play session, so a meter on screen when Play stops goes with it
+        // (PlaySessionLeftovers: marked DontSave, it stayed in the Game view and over the next session).
+        var go = new GameObject("Straight-face meter (while playing)") { hideFlags = PlaySessionLeftovers.RuntimeFlags };
         instance = go.AddComponent<StraightFaceUI>();
         instance.Build();
         return instance;

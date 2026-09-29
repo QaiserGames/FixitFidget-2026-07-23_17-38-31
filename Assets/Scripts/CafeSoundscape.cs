@@ -41,8 +41,8 @@ public sealed class CafeSoundscape : MonoBehaviour
     float nextCount, nextDoorCheck, nextFar = -1f, nextTidy;
 
     /// <summary>
-    /// The one soundscape while playing. Its object is never saved (HideFlags.DontSave), and Unity's
-    /// FindObjectsByType / FindAnyObjectByType never return such objects, so this is how it's found.
+    /// The one soundscape while playing (SoundRig makes it). Its object belongs to the Play session and
+    /// ends with it (PlaySessionLeftovers); this is how the game finds it.
     /// </summary>
     public static CafeSoundscape Instance { get; private set; }
 
