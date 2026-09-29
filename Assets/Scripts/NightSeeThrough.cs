@@ -34,6 +34,9 @@ using UnityEngine.Rendering;
 //
 // Night only, overhead only: in first person, at a station or by day nothing
 // here runs, and Clear() puts every material back.
+//
+// A house Ace has walked into (the break-ins) is left alone while Ace is inside
+// (Leave): it shows its own rooms, like a doll's house (GraceHouse).
 // ---------------------------------------------------------------------------
 [DefaultExecutionOrder(-50)]   // after CafeViewMode (-100) has placed the overhead camera this frame
 [DisallowMultipleComponent]
@@ -79,6 +82,7 @@ public sealed class NightSeeThrough : MonoBehaviour
     sealed class Group
     {
         public string name;
+        public Transform root;
         public Bounds bounds;
         public Renderer[] renderers;
         public Bounds[] boxes;
@@ -93,6 +97,7 @@ public sealed class NightSeeThrough : MonoBehaviour
     readonly List<Group> groups = new();
     readonly Dictionary<Material, Material> copies = new();
     readonly HashSet<string> everFaded = new();
+    readonly HashSet<Transform> leftAlone = new();
     MaterialPropertyBlock block;
     readonly Vector3[] aim = new Vector3[5];
 
@@ -113,6 +118,33 @@ public sealed class NightSeeThrough : MonoBehaviour
     readonly HashSet<Renderer> wornRenderers = new();
     /// <summary>True when the dither shader was found (the see-through is dotted, not blended).</summary>
     public bool Dithered => dither != null;
+
+    /// <summary>
+    /// While <paramref name="leave"/> is true, the building never turns see-through (a house Ace is inside, which
+    /// shows its own rooms: GraceHouse); if it is see-through now, it gets its own materials back at once.
+    /// </summary>
+    public void Leave(Transform building, bool leave)
+    {
+        if (building == null) return;
+        if (!leave)
+        {
+            leftAlone.Remove(building);
+            return;
+        }
+        leftAlone.Add(building);
+        // Its own materials back at once, not after a fade: the house is about to hide parts of itself, and a dotted
+        // copy left on a part hidden now would come back dotted when the house shows it again (the first walk check).
+        foreach (var g in groups)
+            if (g.worn && LeftAlone(g)) TakeOff(g);
+    }
+
+    bool LeftAlone(Group g)
+    {
+        if (leftAlone.Count == 0 || g.root == null) return false;
+        foreach (Transform b in leftAlone)
+            if (b != null && (g.root == b || g.root.IsChildOf(b))) return true;
+        return false;
+    }
 
     /// <summary>Find everything that can hide Ace. Call once, when the night begins.</summary>
     public void Build(CafeViewMode cafeView, Transform nightGroup)
@@ -136,6 +168,9 @@ public sealed class NightSeeThrough : MonoBehaviour
         foreach (var b in FindObjectsByType<Rigidbody>(FindObjectsInactive.Include)) if (!b.isKinematic) skipRoots.Add(b.transform);
         foreach (var v in FindObjectsByType<PolygonNpcVisual>(FindObjectsInactive.Include)) skipRoots.Add(v.transform);
         foreach (var car in FindObjectsByType<CafeCar>(FindObjectsInactive.Include)) skipRoots.Add(car.transform);
+        // Grace's rooms show themselves (GraceHouse: cut-away walls, the floor above hidden); only her house's shell
+        // can turn see-through, while Ace is outside it.
+        foreach (var rooms in FindObjectsByType<GraceHouse>(FindObjectsInactive.Include)) skipRoots.Add(rooms.transform);
         var skipRenderers = new HashSet<Renderer>();
         if (view != null)
         {
@@ -180,6 +215,7 @@ public sealed class NightSeeThrough : MonoBehaviour
             var g = new Group
             {
                 name = PathOf(pair.Key),
+                root = pair.Key,
                 bounds = all,
                 renderers = pair.Value.ToArray(),
                 boxes = new Bounds[pair.Value.Count],
@@ -240,7 +276,7 @@ public sealed class NightSeeThrough : MonoBehaviour
         foreach (var g in groups)
         {
             g.blocking = false;
-            if (!AnyHit(g.bounds, eye)) continue;
+            if (LeftAlone(g) || !AnyHit(g.bounds, eye)) continue;
             foreach (var box in g.boxes)
                 if (AnyHit(box, eye)) { g.blocking = true; break; }
         }

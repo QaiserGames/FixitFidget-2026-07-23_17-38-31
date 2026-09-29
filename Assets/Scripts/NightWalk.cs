@@ -194,6 +194,12 @@ public sealed class NightWalk : MonoBehaviour
     public NightRooms rooms;
     public HomeHours homeHours = new HomeHours();
 
+    [Header("Break-ins (claude/break-ins-spec.md)")]
+    [Tooltip("Ace can go into Grace's house at night: her door opens for Ace, and inside the camera looks in from the " +
+             "street (GraceHouse). Off until the break-ins are ready; their lab (Fixit Fidget > Night > Break-ins - Play " +
+             "the night at Grace's door) switches it on for that session.")]
+    public bool breakIns;
+
     [Header("Neighbours coming home (part 4)")]
     public Neighbour[] neighbours = DefaultNeighbours();
 
@@ -225,6 +231,8 @@ public sealed class NightWalk : MonoBehaviour
     public NightNeighbours NeighbourWalks => neighbourWalks;
     public NightTorch Torch => torch;
     public NightNotebook NotebookPage => notebook;
+    /// <summary>The see-through for buildings in the way (null by day).</summary>
+    public NightSeeThrough SeeThrough => seeThrough;
 
     // Synty's POLYGON shaders (Generic_Basic / Generic_Standard) name their glow like this.
     static readonly int SyntyEmissionMap = Shader.PropertyToID("_Emission_Map");

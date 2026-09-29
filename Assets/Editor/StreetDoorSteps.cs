@@ -100,7 +100,8 @@ public static class StreetDoorSteps
     public static Recipe RecipeFor(Transform building)
     {
         string name = building.name;
-        if (name.EndsWith("bay-window house", StringComparison.Ordinal)) return BayHouse();
+        if (name.EndsWith("bay-window house", StringComparison.Ordinal))
+            return building.GetComponentInChildren<GraceHouse>(true) != null ? WidenedBayHouse() : BayHouse();
         if (name.EndsWith("neighborhood shop house", StringComparison.Ordinal))
         {
             float width = name.StartsWith("Courtyard", StringComparison.Ordinal) ? 5.95f
@@ -134,6 +135,26 @@ public static class StreetDoorSteps
             if (y - .0175f >= r.top) break;
             r.lips.Add(MinMax(new Vector3(-2.8f, y - .0175f, 0f), new Vector3(2.8f, y + .0175f, .05f)));
         }
+        return r;
+    }
+
+    /// <summary>
+    /// Grace's saffron house since the break-ins (GraceHouseSteps): the doorway widened from 0.98 m to 1.30 m (a
+    /// 1.0 m Ace fits through it), the cream surround moved out 0.16 m each side to the stoop's width, the leaf
+    /// stretched to match, and real rooms behind it instead of the dark hall.
+    /// </summary>
+    public static Recipe WidenedBayHouse()
+    {
+        const float wider = .16f;
+        Recipe r = BayHouse();
+        r.kind = "bay-window house, widened for the break-ins";
+        r.left -= wider; r.right += wider;
+        r.leafWidth = r.right - r.left;
+        r.frameOuterLeft -= wider; r.frameOuterRight += wider;
+        r.frameBox = MinMax(r.frameBox.min - new Vector3(wider, 0f, 0f), r.frameBox.max + new Vector3(wider, 0f, 0f));
+        r.doorZone = MinMax(r.doorZone.min - new Vector3(wider, 0f, 0f), r.doorZone.max + new Vector3(wider, 0f, 0f));
+        r.threshold = MinMax(r.threshold.min - new Vector3(wider, 0f, 0f), r.threshold.max + new Vector3(wider, 0f, 0f));
+        r.hall = new Vector3(1.76f, .15f, -1.16f);   // at the foot of her stairs, clear of the door's swing
         return r;
     }
 

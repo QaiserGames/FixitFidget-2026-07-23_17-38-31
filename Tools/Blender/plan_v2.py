@@ -14,6 +14,10 @@ each side: 5.42 x 4.02 inside. (The overnight plan used 5.3 x 4.7: the 4.7 came 
 includes the bays and the stoop. The ground floor is 0.68 m shallower than drawn.)
 
 World = (-21.66 + Y, 0.15 + z, -4.71 + X).
+
+The numbers below are layout v2 as drawn (the plan drawing and the mock-up read them). What the house was actually
+built with in Unity, after the first build's checks, is AS_BUILT at the end: the build step
+(Assets/Editor/GraceHouseSteps.cs) is the source of truth for the house, and AS_BUILT mirrors it.
 """
 
 # ---------------------------------------------------------------- Ace
@@ -116,6 +120,62 @@ ROUTINE = [
     ('1:00', 'the bedroom goes dark: asleep'),
     ('2:40', 'down to the kitchen for water, then back up'),
     ('4:00', 'dawn'),
+]
+
+# ---------------------------------------------------------------- as built (29 Sept 2026, chunk A of the break-ins)
+# Same conventions as above: (X, Y, z, turn), z up from that storey's floor. Only what differs from v2, or is new.
+AS_BUILT = {
+    'ground': {
+        'GH_KitchenCounter_Short': (3.62, 0.31, 0, 0),   # the 2.0 m counter is its own model now (GH_KitchenCounter kept)
+        'GH_Kettle': (3.385, 0.42, 0.926, 15),
+        'GH_Teapot': (3.665, 0.21, 0.926, -25),
+        'GH_CupBox': (2.93, 0.345, 0.92, 90),            # the reunion cups, on the worktop by the stairs
+        'GH_CoatStand': (5.12, 3.72, 0, -90),            # in the corner by the TV: by the door it was in Ace's way
+        'GH_Frame_XL': (0.0, 2.00, 1.45, 90),            # over the lower flight
+    },
+    'first': {
+        'GH_Bed': (4.41, 3.283, 0, -90),                 # 1.35 x 1.90: head to the north wall, against the street wall
+        'GH_Quilt_Made': (4.41, 3.283, 0, -90),          # on the bed (no collider of its own)
+        'GH_BedsideTable': (5.195, 2.306, 0, -90),       # one, on the bed's back side, with the lamp
+        'GH_BedsideLamp': (5.195, 2.306, 0.55, 0),
+        'GH_Wardrobe': (0.305, 3.485, 0, 90),            # south wall, in front of the stairwell (over the foot of the stairs)
+        'GH_DressingTable': (1.36, 4.49, 0, 180),        # in the south bay
+        'GH_Rug': (2.52, 3.20, 0, 0),
+        'GH_BedroomDoor_Frame': (3.05, 1.51, 0, 0),
+        'GH_InteriorDoor_Frame': (4.05, 0.73, 0, 90),    # the bathroom's door, shut
+        'GH_InteriorDoor_Leaf': (4.05, 1.13, 0, 90),
+    },
+    # Her photos, mostly upstairs (placeholder canon: her in none of them)
+    'photos': [
+        ('GH_Frame_L', 1.46, 2.10, 1.30, 90),            # along the stairwell
+        ('GH_Frame_L', 1.46, 2.62, 1.40, 90),
+        ('GH_Frame_XL', 2.72, 4.02, 1.25, 180),          # on the street wall between the bays
+        ('GH_Frame_L', 0.95, 2.95, 1.30, 0),             # on the stairwell's front
+        ('GH_Frame_S', 0.92, 4.36, 0.76, 172),           # on the dressing table
+        ('GH_Frame_M', 1.80, 4.36, 0.76, 190),
+    ],
+    'lamps': {'bedside': (5.195, 2.306, 0.85), 'landing': (3.30, 0.73, 2.25)},   # first floor, on at night only
+}
+AS_BUILT_BEDROOM_DOOR = (2.35, 3.75)   # 1.40 m, moved 0.25 m west of v2's (2.60, 4.00): 1.39 m past the bed, not 1.21
+AS_BUILT_BEDROOM_LEAVES = 'a pair of 0.70 m leaves, hinges at X 2.35 and 3.75, Y 1.62; folded back against the wall (they close in chunk C)'
+AS_BUILT_F1_WALLS = [
+    # (x0, x1, y0, y1, z0 up from the first floor); the inside walls are thinner than v2 drew them
+    (1.46, 2.35, 1.46, 1.56, 0.0),     # the bedroom's back wall, west of its door
+    (3.75, W, 1.46, 1.56, 0.0),        # ... east of it
+    (2.35, 3.75, 1.46, 1.56, 2.20),    # over the door
+    (1.41, 1.46, 1.46, 2.95, 0.0),     # along the stairwell (0.05 thick)
+    (0.0, 1.46, 2.90, 2.95, 0.0),      # the stairwell's front (0.05 thick)
+    (4.00, 4.10, 0.0, 1.46, 0.0),      # the bathroom's side, its door at Y 0.32..1.14 (2.03 high)
+]
+AS_BUILT_HALL_MARKER = (0.95, 2.95)    # where the street door's hall marker went: at the foot of her stairs
+AS_BUILT_COLLISION = [
+    'the stairs: a block for the landing and the cupboard (X 0..2.60, Y 0..1.42, z 0..1.20; its front stops where the '
+    'lower ramp meets the landing, so there is no lip), a 39.8 deg ramp over each flight (lower: Y 2.86 z 0 to Y 1.42 '
+    'z 1.2; upper: X 1.14 z 1.2 to X 2.58 z 2.4), the lower banister and the cupboard front closed to the ceiling',
+    'headroom over the foot of the stairs: the floor above (X 0..1.46, Y 2.90..4.02) is solid only from Y 3.40, the '
+    "stairwell's front only from 0.30 above the first floor, the wardrobe's collider starts 0.30 up",
+    'the bedroom leaves: only the leaf is solid (6 cm), not its knobs',
+    "the rooms' colliders and the door brackets' are on at night only (GraceHouse.SetSolid): the day is unchanged",
 ]
 
 

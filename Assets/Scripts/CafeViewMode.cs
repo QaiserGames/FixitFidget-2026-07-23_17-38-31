@@ -15,6 +15,12 @@ using Unity.Cinemachine;
 // camera. Switched off, the night's own limits below apply (the 28 Sept framing).
 // The café's cut-away walls then only give way when they hide Ace.
 // FollowAce(false) puts the day's view back exactly as it was.
+//
+// Inside a house at night (the break-ins; GraceHouse calls EnterHouseView), the
+// camera turns to look in from the street, like a doll's house with its front
+// open, and zooms in closer than the café allows (House Distance Min/Max). The
+// player can still orbit and zoom; turning the view by hand ends the turn at
+// once. ExitHouseView turns it back to the angle it had outside.
 [DefaultExecutionOrder(-100)]
 [DisallowMultipleComponent]
 public sealed class CafeViewMode : MonoBehaviour
@@ -72,6 +78,13 @@ public sealed class CafeViewMode : MonoBehaviour
     [Tooltip("The point on Ace the camera looks at, metres above the feet.")]
     [SerializeField, Range(0, 2)] private float followHeight = 1f;
 
+    [Header("Inside a house (the break-ins)")]
+    [Tooltip("Zoom limits while Ace is inside a house and the camera looks in from the street, metres from Ace.")]
+    [SerializeField, Range(4, 40)] private float houseDistanceMin = 8f;
+    [SerializeField, Range(4, 40)] private float houseDistanceMax = 22f;
+    [Tooltip("Seconds the camera takes to turn to the house's view, and back.")]
+    [SerializeField, Range(0, 3)] private float houseTurnSeconds = .8f;
+
     PlayerInteractor interactor;
     ConversationController conversation;
     ItemInspector inspector;
@@ -90,6 +103,10 @@ public sealed class CafeViewMode : MonoBehaviour
     bool following;
     Vector3 followFocus, followVelocity;
     float dayIsoYaw, dayIsoPitch, dayIsoDistance, dayHomeYaw, dayHomePitch, dayHomeDistance;
+    // Inside a house (the break-ins): the view it turns to, the view to turn back to, and the turn itself.
+    bool inHouse, turning;
+    float turnT, turnFromYaw, turnFromPitch, turnFromDistance, turnToYaw, turnToPitch, turnToDistance;
+    float outsideYaw, outsidePitch, outsideDistance, outsideHomeYaw, outsideHomePitch, outsideHomeDistance;
 
     public bool FirstPersonSelected => firstPerson;
     public bool WalkingFirstPerson => isActiveAndEnabled && firstPerson && !AtStation && !OverlayOwnsInput;
@@ -111,6 +128,8 @@ public sealed class CafeViewMode : MonoBehaviour
     public IReadOnlyList<CutawayWall> CutawayWalls => cuts ?? System.Array.Empty<CutawayWall>();
     /// <summary>True while the overhead camera follows Ace (a night walk).</summary>
     public bool Following => following;
+    /// <summary>True while Ace is inside a house and the camera looks in from the street (EnterHouseView).</summary>
+    public bool InHouseView => inHouse;
     /// <summary>The point the overhead camera looks at: the café's centre by day, Ace (trailing) when following.</summary>
     public Vector3 OverheadFocus => following ? followFocus : isometricFocus;
     /// <summary>The overhead camera's limits right now: tilt min and max in degrees, distance min and max in metres
@@ -128,8 +147,8 @@ public sealed class CafeViewMode : MonoBehaviour
     bool NightFraming => following && !followWithDayFraming;
     float PitchMin => NightFraming ? followPitchMin : 38f;
     float PitchMax => NightFraming ? followPitchMax : 68f;
-    float DistanceMin => NightFraming ? followDistanceMin : minimumDistance;
-    float DistanceMax => NightFraming ? followDistanceMax : maximumDistance;
+    float DistanceMin => inHouse ? houseDistanceMin : NightFraming ? followDistanceMin : minimumDistance;
+    float DistanceMax => inHouse ? houseDistanceMax : NightFraming ? followDistanceMax : maximumDistance;
     Vector3 AceFocus => AceFeet + Vector3.up * followHeight;
     bool AtStation => interactor != null && interactor.IsAtStation;
     bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.RecapOwnsInput
@@ -237,26 +256,35 @@ public sealed class CafeViewMode : MonoBehaviour
                 if (mouse.middleButton.isPressed)
                 {
                     Vector2 delta = mouse.delta.ReadValue();
+                    if (delta != Vector2.zero) turning = false;
                     isoYaw = Mathf.Repeat(isoYaw + delta.x * .18f, 360);
                     isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f, PitchMin, PitchMax);
                 }
                 float scroll = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > .01f)
+                {
+                    turning = false;
                     isoDistance = Mathf.Clamp(isoDistance - Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f, DistanceMin, DistanceMax);
+                }
             }
             // Controller: right stick orbits and tilts, triggers zoom (RT in,
             // LT out), R3 returns to the authored overhead angle.
             Vector2 orbit = PadInput.Curved(PadInput.RightStick, 1.4f);
             if (orbit != Vector2.zero)
             {
+                turning = false;
                 isoYaw = Mathf.Repeat(isoYaw + orbit.x * padOrbitSpeed * padDelta, 360);
                 isoPitch = Mathf.Clamp(isoPitch - orbit.y * padTiltSpeed * padDelta, PitchMin, PitchMax);
             }
             float zoom = PadInput.RightTrigger - PadInput.LeftTrigger;
             if (Mathf.Abs(zoom) > .01f)
+            {
+                turning = false;
                 isoDistance = Mathf.Clamp(isoDistance - zoom * padZoomSpeed * padDelta, DistanceMin, DistanceMax);
+            }
             if (PadInput.Pressed(PadButton.RightStickPress))
             {
+                turning = false;
                 isoYaw = homeIsoYaw;
                 isoPitch = homeIsoPitch;
                 isoDistance = homeIsoDistance;
@@ -271,6 +299,7 @@ public sealed class CafeViewMode : MonoBehaviour
     /// </summary>
     public void OrbitTo(float yawDegrees, float pitchDegrees, float distance)
     {
+        turning = false;
         isoYaw = Mathf.Repeat(yawDegrees, 360);
         isoPitch = Mathf.Clamp(pitchDegrees, PitchMin, PitchMax);
         isoDistance = Mathf.Clamp(distance, DistanceMin, DistanceMax);
@@ -317,11 +346,60 @@ public sealed class CafeViewMode : MonoBehaviour
         }
         else
         {
+            // The night is over: the day's view comes back, whatever the house view was doing.
+            inHouse = false;
+            turning = false;
             following = false;
             isoYaw = dayIsoYaw; isoPitch = dayIsoPitch; isoDistance = dayIsoDistance;
             homeIsoYaw = dayHomeYaw; homeIsoPitch = dayHomePitch; homeIsoDistance = dayHomeDistance;
         }
         RefreshCameraPose();
+    }
+
+    /// <summary>
+    /// Ace has walked into a house (the break-ins): turn the overhead camera to the given angle over House Turn
+    /// Seconds (yaw and tilt in degrees, distance in metres from Ace), and allow closer zoom (House Distance Min/Max).
+    /// R3 comes back to this view. Only while following Ace; safe to call twice.
+    /// </summary>
+    public void EnterHouseView(float yawDegrees, float pitchDegrees, float distance)
+    {
+        if (!following || inHouse) return;
+        outsideYaw = isoYaw; outsidePitch = isoPitch; outsideDistance = isoDistance;
+        outsideHomeYaw = homeIsoYaw; outsideHomePitch = homeIsoPitch; outsideHomeDistance = homeIsoDistance;
+        inHouse = true;
+        homeIsoYaw = Mathf.Repeat(yawDegrees, 360);
+        homeIsoPitch = Mathf.Clamp(pitchDegrees, PitchMin, PitchMax);
+        homeIsoDistance = Mathf.Clamp(distance, DistanceMin, DistanceMax);
+        TurnTo(homeIsoYaw, homeIsoPitch, homeIsoDistance);
+    }
+
+    /// <summary>Ace has walked out again: turn back to the view from before EnterHouseView. Safe to call twice.</summary>
+    public void ExitHouseView()
+    {
+        if (!inHouse) return;
+        inHouse = false;
+        homeIsoYaw = outsideHomeYaw; homeIsoPitch = outsideHomePitch; homeIsoDistance = outsideHomeDistance;
+        TurnTo(outsideYaw, Mathf.Clamp(outsidePitch, PitchMin, PitchMax), Mathf.Clamp(outsideDistance, DistanceMin, DistanceMax));
+    }
+
+    void TurnTo(float yawDegrees, float pitchDegrees, float distance)
+    {
+        turnFromYaw = isoYaw; turnFromPitch = isoPitch; turnFromDistance = isoDistance;
+        turnToYaw = yawDegrees; turnToPitch = pitchDegrees; turnToDistance = distance;
+        turnT = 0f;
+        turning = houseTurnSeconds > 0f;
+        if (!turning) { isoYaw = turnToYaw; isoPitch = turnToPitch; isoDistance = turnToDistance; }
+    }
+
+    void StepTurn()
+    {
+        if (!turning) return;
+        turnT = Mathf.MoveTowards(turnT, 1f, Time.unscaledDeltaTime / Mathf.Max(.01f, houseTurnSeconds));
+        float t = Mathf.SmoothStep(0f, 1f, turnT);
+        isoYaw = Mathf.Repeat(Mathf.LerpAngle(turnFromYaw, turnToYaw, t), 360);
+        isoPitch = Mathf.Lerp(turnFromPitch, turnToPitch, t);
+        isoDistance = Mathf.Lerp(turnFromDistance, turnToDistance, t);
+        if (turnT >= 1f) turning = false;
     }
 
     // Public so the existing scene recipe and play-mode validation can use the
@@ -346,6 +424,7 @@ public sealed class CafeViewMode : MonoBehaviour
         if (following)
             followFocus = followLag <= 0f ? AceFocus
                 : Vector3.SmoothDamp(followFocus, AceFocus, ref followVelocity, followLag, Mathf.Infinity, Time.deltaTime);
+        StepTurn();
         RefreshCameraPose();
         RefreshCursor();
         if (bodyRenderer != null)

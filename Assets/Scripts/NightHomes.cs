@@ -22,6 +22,8 @@ using UnityEngine.SceneManagement;
 //     minutes: someone up for a glass of water; and somewhere one light stays on nearly all night;
 //   * shop fronts stay dark (closed);
 //   * Grace's house has one warm room until about midnight, and nothing marks it;
+//     her ground floor has real rooms behind clear glass (the break-ins, GraceHouse), so her
+//     front window gets no pane of its own: her lamps light it;
 //   * houses whose neighbour is still out (NightNeighbours) are dark until they come home, then a
 //     room lights, and later one upstairs.
 //
@@ -48,6 +50,12 @@ public sealed class NightHomes : MonoBehaviour
     }
 
     readonly List<Room> rooms = new();
+
+    /// <summary>
+    /// Houses whose ground floor has real rooms behind a clear window (Grace's: GraceHouse registers it). Their
+    /// ground-floor windows get no lit pane or curtains of their own; the house's own lamps light them.
+    /// </summary>
+    public static readonly HashSet<Transform> RealGroundFloors = new();
     readonly List<Renderer> hiddenCurtains = new();
     readonly List<UnityEngine.Object> made = new();          // materials and textures to free
     readonly Dictionary<Material, Material> darkCurtains = new();
@@ -101,6 +109,7 @@ public sealed class NightHomes : MonoBehaviour
                 houseByPath[r.housePath ?? ""] = house = FindByPath(r.housePath);
             if (house == null || !house.gameObject.activeInHierarchy) continue;
             houseCount.Add(house);
+            if (r.floor == 0 && RealGroundFloors.Contains(house)) continue;
             if (awayNames.Contains(house.name)) away.Add(house);
             if (paneLit == null) paneLit = PaneMaterial(house, glow);
             if (paneLit == null) { problems.Append("no window glass material to copy; "); break; }

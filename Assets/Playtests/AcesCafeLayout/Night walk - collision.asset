@@ -18,48 +18,48 @@ MonoBehaviour:
     rotation: {x: -0, y: -0, z: -0, w: 1}
     scale: {x: 0.08, y: 0.26, z: 18}
     from: ACE'S CAFE - layout study 02/01 - room and windows/Skirting - right
-  - mesh: {fileID: 473618303259207158, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
+  - mesh: {fileID: 2296827927077968495, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
     position: {x: -17.55, y: 0, z: -2}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
       bay-window house/Street palette
-  - mesh: {fileID: 6219889694380750470, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
+  - mesh: {fileID: 9212852458116591026, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
     position: {x: -17.55, y: 0, z: -2}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
       bay-window house/Sidewalk stone
-  - mesh: {fileID: -9047353130379074316, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
+  - mesh: {fileID: -8995776273037079108, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
     position: {x: -17.55, y: 0, z: -2}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
       bay-window house/Cream trim
-  - mesh: {fileID: 8861059788536215766, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
-    position: {x: -17.55, y: 0, z: -2}
-    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
-      bay-window house/Window glass
-  - mesh: {fileID: 7457455563132006265, guid: ab36ef4a9b00cc84aadc5f134e433c0d, type: 2}
-    position: {x: -17.55, y: 0, z: -2}
-    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
-      bay-window house/Curtain glow
   - mesh: {fileID: 6312010070404133590, guid: ab36ef4a9b00cc84aadc5f134e433c0d, type: 2}
     position: {x: -17.55, y: 0, z: -2}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
       bay-window house/Ironwork
-  - mesh: {fileID: -1402443354885261935, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -17.484499, y: 1.95, z: -2.4}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.30000007, y: 0.2, z: 0.025000008}
+    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
+      bay-window house/House number (day and night)/Plaque
+  - mesh: {fileID: 43864448151238041, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
     position: {x: -17.55, y: 0, z: -2}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
-      bay-window house/Doorway hall
+      bay-window house/Front window (clear glass)
+  - mesh: {fileID: -6230084762324540876, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
+    position: {x: -17.55, y: 0, z: -2}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
+      bay-window house/Front window curtains
   - mesh: {fileID: -2315057821601826961, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
     position: {x: -17.55, y: 0, z: 4}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
@@ -102,6 +102,12 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/2 - Dusty
       rose bay-window house/Doorway hall
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -17.4845, y: 1.95, z: 3.6}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.30000007, y: 0.2, z: 0.025000008}
+    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/2 - Dusty
+      rose bay-window house/House number (day and night)/Plaque
   - mesh: {fileID: 7384646499263008086, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
     position: {x: -17.55, y: 0, z: 10}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
@@ -144,6 +150,12 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/3 - Sea green
       bay-window house/Doorway hall
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -17.484499, y: 1.95, z: 9.6}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.30000007, y: 0.2, z: 0.025000008}
+    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/3 - Sea green
+      bay-window house/House number (day and night)/Plaque
   - mesh: {fileID: 1241552592074153785, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
     position: {x: -17.55, y: 0, z: 16}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
@@ -180,6 +192,12 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/4 - Lavender
       bay-window house/Doorway hall
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -17.484499, y: 1.95, z: 15.6}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.30000007, y: 0.2, z: 0.025000008}
+    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/4 - Lavender
+      bay-window house/House number (day and night)/Plaque
   - mesh: {fileID: -330432444353072739, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
     position: {x: -17.55, y: 0, z: 30.6}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
@@ -228,6 +246,12 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/5 - Sky blue
       bay-window house/Doorway hall
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -17.484499, y: 1.95, z: 30.2}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.30000007, y: 0.2, z: 0.025000008}
+    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/5 - Sky blue
+      bay-window house/House number (day and night)/Plaque
   - mesh: {fileID: -7202104487585116328, guid: ba7ad5395a9721e41bdc06e12af476ee, type: 2}
     position: {x: -17.55, y: 0, z: 36.6}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
@@ -264,6 +288,12 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/6 - Saffron
       bay-window house/Doorway hall
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: -17.4845, y: 1.95, z: 36.199997}
+    rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 0.30000007, y: 0.2, z: 0.025000008}
+    from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/6 - Saffron
+      bay-window house/House number (day and night)/Plaque
   - mesh: {fileID: -4026237841314636746, guid: 066e2c10b7b9b984eaef23a8553c15be, type: 3}
     position: {x: -4.05, y: 0.00000002980232, z: -1.85}
     rotation: {x: -0.7071068, y: -0, z: -0, w: 0.7071067}
@@ -4376,5 +4406,11 @@ MonoBehaviour:
     scale: {x: 1, y: 1, z: 1}
     from: ACE'S CAFE - layout study 02/21 - Edges of the 9 blocks/Building site (beyond
       B1 and B2)/SM_Prop_Cone_01
-  triangles: 352740
+  - mesh: {fileID: -8856557306268942133, guid: 690d9608258f9c2499d4c5eb89c07bc6, type: 3}
+    position: {x: -17.06, y: 0.15000002, z: -2.9800055}
+    rotation: {x: -0, y: 0.7071069, z: -0, w: 0.70710665}
+    scale: {x: 0.9999999, y: 1, z: 0.9999999}
+    from: ACE'S CAFE - layout study 02/22 - Night 1 slice/Grace's gnome (Barnaby)/Barnaby
+      the garden gnome/Model
+  triangles: 353524
   sheared: 1

@@ -80,21 +80,28 @@ public static class StreetDoorCheck
                 // The doorway and hall are clear: nothing of the building across them. The top
                 // 8 cm (just under the head) is reported separately: on the bay-window houses the
                 // bay's carved support bracket above the door dips 6 cm below the head at its
-                // front corner, as it always overlapped the old frame block.
+                // front corner, as it always overlapped the old frame block. Behind Grace's door
+                // (the break-ins) there are real rooms instead of the hall: only the doorway
+                // itself is looked at here (Break-ins 2 checks her rooms).
+                bool rooms = building.GetComponentInChildren<GraceHouse>(true) != null;
+                float hallBack = rooms ? -.3f : -StreetDoorSteps.HallDepth + .05f;
                 var passage = new Bounds();
-                passage.SetMinMax(new Vector3(r.left + .03f, r.floor + .05f, -StreetDoorSteps.HallDepth + .05f),
+                passage.SetMinMax(new Vector3(r.left + .03f, r.floor + .05f, hallBack),
                                   new Vector3(r.right - .03f, r.top - .08f, r.frameFront - .03f));
                 string blocking = Blocking(building, passage, door);
                 Line(blocking == null, $"{name}: the doorway and hall are clear up to 8 cm under the head{(blocking != null ? " — " + blocking + " is in the way" : "")}");
                 var underHead = new Bounds();
-                underHead.SetMinMax(new Vector3(r.left + .03f, r.top - .08f, -StreetDoorSteps.HallDepth + .05f),
+                underHead.SetMinMax(new Vector3(r.left + .03f, r.top - .08f, hallBack),
                                     new Vector3(r.right - .03f, r.top - .005f, r.frameFront - .03f));
                 string trim = Blocking(building, underHead, door);
                 if (trim != null) report.AppendLine($"info     {name}: just under the head: {trim}");
 
                 Transform hall = building.Find(StreetDoorSteps.HallName);
-                Line(hall != null && hall.GetComponent<MeshFilter>() != null && hall.GetComponent<MeshFilter>().sharedMesh != null
-                     && hall.GetComponent<MeshFilter>().sharedMesh.triangles.Length == 30, $"{name}: the dark hall is there (5 faces)");
+                if (rooms)
+                    Line(hall == null || !hall.gameObject.activeSelf, $"{name}: the dark hall is put away (her rooms are behind the door)");
+                else
+                    Line(hall != null && hall.GetComponent<MeshFilter>() != null && hall.GetComponent<MeshFilter>().sharedMesh != null
+                         && hall.GetComponent<MeshFilter>().sharedMesh.triangles.Length == 30, $"{name}: the dark hall is there (5 faces)");
 
                 // The swing stays inside the doorway and the hall.
                 string swing = Swing(building, door, leaf, r);
@@ -160,6 +167,7 @@ public static class StreetDoorCheck
         {
             if (filter.sharedMesh == null || filter.transform.IsChildOf(door.transform)) continue;
             if (filter.name == StreetDoorSteps.HallName) continue;
+            if (!filter.gameObject.activeInHierarchy) continue;
             Mesh mesh = filter.sharedMesh;
             Vector3[] v = mesh.vertices;
             int[] t = mesh.triangles;
