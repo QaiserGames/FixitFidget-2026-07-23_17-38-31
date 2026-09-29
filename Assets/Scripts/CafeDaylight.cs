@@ -8,7 +8,9 @@ using UnityEngine.Rendering;
 /// timers or closing rules; the same day progression drives work and sunset.
 /// A night walk (night step 4, <see cref="NightWalk"/>) can hold the hour at night,
 /// add a moon and dim the café's own lights through <see cref="SetNight"/>; by
-/// default all three are neutral, so the day plays exactly as before.
+/// default all three are neutral, so the day plays exactly as before. While the
+/// moon is up, stars and the moon itself are drawn in the sky (<see cref="NightSky"/>,
+/// the second playtest, 29 Sept); by day nothing of it exists.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class CafeDaylight : MonoBehaviour
@@ -39,6 +41,8 @@ public sealed class CafeDaylight : MonoBehaviour
     [Range(0f, 360f)] public float moonAzimuth = 215f;
     public Color moonColor = new Color(.62f, .72f, 1f);
     [Min(0f)] public float moonIntensity = .32f;
+    [Tooltip("Stars, and the moon where the moonlight comes from, drawn in the sky while the moon is up (NightSky). Off: the night sky as before.")]
+    public bool nightSky = true;
 
     /// <summary>The café room: lights inside it are the café's own, dimmed while it is closed for the night.</summary>
     public static readonly Rect CafeInside = Rect.MinMaxRect(-7.4f, .1f, 7.4f, 18f);
@@ -61,6 +65,7 @@ public sealed class CafeDaylight : MonoBehaviour
     readonly List<LightState> lightStates = new();
     readonly Dictionary<Material, Material> glowCopies = new();
     Material skyCopy, previousSky;
+    NightSky nightSkyView;
     Light previousSun;
     Quaternion previousSunRotation;
     Color previousSunColor;
@@ -145,14 +150,14 @@ public sealed class CafeDaylight : MonoBehaviour
         if (!captured) Capture();
         var sample = EvaluateAtHour(hour);
         lastAppliedHour = sample.hour;
+        // Night walk only: once the sun is down, the same light becomes the moon.
+        float moon = MoonStrength * sample.night * Mathf.Clamp01(1f - sample.sunStrength * 4f);
         if (sun != null)
         {
             sun.transform.rotation = Quaternion.Euler(sample.altitude,
                 Mathf.LerpAngle(morningSunAzimuth, eveningSunAzimuth, Mathf.InverseLerp(9f, 20f, sample.hour)), 0f);
             sun.color = sample.sunColor;
             sun.intensity = daylightIntensity * sample.sunStrength;
-            // Night walk only: once the sun is down, the same light becomes the moon.
-            float moon = MoonStrength * sample.night * Mathf.Clamp01(1f - sample.sunStrength * 4f);
             if (moon > 0f)
             {
                 sun.transform.rotation = Quaternion.Euler(moonAltitude, moonAzimuth, 0f);
@@ -180,6 +185,7 @@ public sealed class CafeDaylight : MonoBehaviour
             SetFloat(skyCopy, Exposure, sample.skyExposure);
             SetFloat(skyCopy, AtmosphereThickness, Mathf.Lerp(1f, 1.2f, sample.dusk));
         }
+        ShowNightSky(nightSky ? moon : 0f);
         float evening = Mathf.Max(sample.night, Smooth(17f, 19.3f, sample.hour));
         float lamps = Mathf.Lerp(daytimeLampStrength, 1f, evening);
         foreach (var state in lightStates)
@@ -187,6 +193,20 @@ public sealed class CafeDaylight : MonoBehaviour
         foreach (var copy in glowCopies.Values)
             copy.SetColor(Emission, eveningGlow * Mathf.Lerp(.035f, 1f, evening));
     }
+
+    // The stars and the moon (NightSky): made the first time the moon is up, and never by day.
+    void ShowNightSky(float strength)
+    {
+        if (strength <= 0f && nightSkyView == null) return;
+        if (nightSkyView == null) nightSkyView = NightSky.Create(transform);
+        // The moonlight shines along the light's forward; the moon is the other way.
+        nightSkyView.Show(strength, Quaternion.Euler(moonAltitude, moonAzimuth, 0f) * Vector3.back);
+    }
+
+    /// <summary>The night sky's state, for the night's reports.</summary>
+    public string DescribeNightSky() => nightSkyView != null ? nightSkyView.Describe()
+        : nightSky ? "Night sky: not made yet (it comes with the moon, on a night walk)."
+        : "Night sky: switched off (Night Sky on CafeDaylight).";
 
     void Capture()
     {
@@ -272,6 +292,8 @@ public sealed class CafeDaylight : MonoBehaviour
             if (state.renderer != null) state.renderer.sharedMaterials = state.materials;
         foreach (var copy in glowCopies.Values) Destroy(copy);
         if (skyCopy != null) Destroy(skyCopy);
+        if (nightSkyView != null) Destroy(nightSkyView.gameObject);
+        nightSkyView = null;
         glowCopies.Clear(); rendererStates.Clear(); lightStates.Clear();
         skyCopy = null;
         captured = false;

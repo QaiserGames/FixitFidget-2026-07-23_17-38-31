@@ -8,9 +8,12 @@ using Unity.Cinemachine;
 // cameras keep their existing higher priorities and their own look controls.
 //
 // By day the overhead camera circles a fixed point in the café. On a night walk
-// (NightWalk calls FollowAce) it follows Ace instead: closer, steeper, trailing a
-// fifth of a second behind so the capsule's instant starts and stops don't jolt
-// the view. The café's cut-away walls then only give way when they hide Ace.
+// (NightWalk calls FollowAce) it follows Ace instead, trailing a fifth of a
+// second behind so the capsule's instant starts and stops don't jolt the view.
+// It keeps the day's own tilt and zoom (Follow With Day Framing): the second
+// playtest (29 Sept) found the closer, steeper night view felt like a different
+// camera. Switched off, the night's own limits below apply (the 28 Sept framing).
+// The café's cut-away walls then only give way when they hide Ace.
 // FollowAce(false) puts the day's view back exactly as it was.
 [DefaultExecutionOrder(-100)]
 [DisallowMultipleComponent]
@@ -53,13 +56,15 @@ public sealed class CafeViewMode : MonoBehaviour
     [SerializeField, Range(0, 1.5f)] private float cutawayRiseMargin = .3f;
 
     [Header("Following Ace (the night walk)")]
-    [Tooltip("Tilt limits while the overhead camera follows Ace outside, degrees. The café's own view uses 38-68.")]
+    [Tooltip("Follow Ace with the café's own tilt and zoom (38-68°, Minimum/Maximum Distance), carrying on from the view the day left. Off: the night's own limits below (the 28 Sept framing: closer and steeper).")]
+    [SerializeField] private bool followWithDayFraming = true;
+    [Tooltip("Only with Follow With Day Framing off. Tilt limits while the overhead camera follows Ace outside, degrees. The café's own view uses 38-68.")]
     [SerializeField, Range(30, 89)] private float followPitchMin = 55f;
     [SerializeField, Range(30, 89)] private float followPitchMax = 80f;
-    [Tooltip("Zoom limits while following Ace, metres from Ace. The café's own view uses Minimum/Maximum Distance.")]
+    [Tooltip("Only with Follow With Day Framing off. Zoom limits while following Ace, metres from Ace. The café's own view uses Minimum/Maximum Distance.")]
     [SerializeField, Range(4, 80)] private float followDistanceMin = 12f;
     [SerializeField, Range(4, 80)] private float followDistanceMax = 34f;
-    [Tooltip("Where following starts, and where R3 returns to: tilt in degrees, distance in metres.")]
+    [Tooltip("Only with Follow With Day Framing off. Where following starts, and where R3 returns to: tilt in degrees, distance in metres.")]
     [SerializeField, Range(30, 89)] private float followStartPitch = 62f;
     [SerializeField, Range(4, 80)] private float followStartDistance = 20f;
     [Tooltip("How far the camera trails behind Ace, in seconds. Hides the capsule's instant starts and stops.")]
@@ -108,16 +113,23 @@ public sealed class CafeViewMode : MonoBehaviour
     public bool Following => following;
     /// <summary>The point the overhead camera looks at: the café's centre by day, Ace (trailing) when following.</summary>
     public Vector3 OverheadFocus => following ? followFocus : isometricFocus;
+    /// <summary>The overhead camera's limits right now: tilt min and max in degrees, distance min and max in metres
+    /// (the café's own, and the night's own only while following with Follow With Day Framing off).</summary>
+    public Vector4 OverheadLimits => new Vector4(PitchMin, PitchMax, DistanceMin, DistanceMax);
+    /// <summary>Where the controller's R3 returns the overhead camera to: turn, tilt, distance.</summary>
+    public Vector3 OverheadHome => new Vector3(homeIsoYaw, homeIsoPitch, homeIsoDistance);
     /// <summary>The overhead view is on screen: not first person, not a close-up at a station, a dialogue or an item.</summary>
     public bool OverheadShown => isActiveAndEnabled && OverheadPresentation;
     /// <summary>Ace's feet: the capsule's bottom (the player's origin is the capsule's centre).</summary>
     public Vector3 AceFeet => transform.position + Vector3.up * (capsule != null ? capsule.center.y - capsule.height * .5f : -1f);
     /// <summary>Ace is inside the café room (by position; the same room the café's own lights belong to).</summary>
     public bool AceInsideCafe => CafeDaylight.CafeInside.Contains(new Vector2(transform.position.x, transform.position.z));
-    float PitchMin => following ? followPitchMin : 38f;
-    float PitchMax => following ? followPitchMax : 68f;
-    float DistanceMin => following ? followDistanceMin : minimumDistance;
-    float DistanceMax => following ? followDistanceMax : maximumDistance;
+    // The night's own limits apply only while following with the day's framing switched off.
+    bool NightFraming => following && !followWithDayFraming;
+    float PitchMin => NightFraming ? followPitchMin : 38f;
+    float PitchMax => NightFraming ? followPitchMax : 68f;
+    float DistanceMin => NightFraming ? followDistanceMin : minimumDistance;
+    float DistanceMax => NightFraming ? followDistanceMax : maximumDistance;
     Vector3 AceFocus => AceFeet + Vector3.up * followHeight;
     bool AtStation => interactor != null && interactor.IsAtStation;
     bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.RecapOwnsInput
@@ -278,9 +290,11 @@ public sealed class CafeViewMode : MonoBehaviour
     }
 
     /// <summary>
-    /// The night walk's overhead camera: on, it follows Ace, closer and steeper than the
-    /// café's own view (the same orbit and zoom controls, within the follow limits); off,
-    /// the day's view comes back exactly as it was left. Safe to call twice.
+    /// The night walk's overhead camera: on, it follows Ace with the same orbit and zoom
+    /// controls. With Follow With Day Framing (the default) the tilt, the zoom and R3's home
+    /// carry on from the day's view; without it, following starts closer and steeper, within
+    /// the night's own limits. Off, the day's view comes back exactly as it was left. Safe to
+    /// call twice.
     /// </summary>
     public void FollowAce(bool on)
     {
@@ -290,9 +304,14 @@ public sealed class CafeViewMode : MonoBehaviour
             dayIsoYaw = isoYaw; dayIsoPitch = isoPitch; dayIsoDistance = isoDistance;
             dayHomeYaw = homeIsoYaw; dayHomePitch = homeIsoPitch; dayHomeDistance = homeIsoDistance;
             following = true;
-            // Keep the heading, so the streets stay the way round they were; R3 comes back here.
-            isoPitch = homeIsoPitch = Mathf.Clamp(followStartPitch, followPitchMin, followPitchMax);
-            isoDistance = homeIsoDistance = Mathf.Clamp(followStartDistance, followDistanceMin, followDistanceMax);
+            // Keep the heading, so the streets stay the way round they were. With the day's
+            // framing the tilt and the zoom carry on too: only what the camera looks at changes.
+            if (!followWithDayFraming)
+            {
+                // The night's own framing; R3 comes back here.
+                isoPitch = homeIsoPitch = Mathf.Clamp(followStartPitch, followPitchMin, followPitchMax);
+                isoDistance = homeIsoDistance = Mathf.Clamp(followStartDistance, followDistanceMin, followDistanceMax);
+            }
             followFocus = AceFocus;
             followVelocity = Vector3.zero;
         }

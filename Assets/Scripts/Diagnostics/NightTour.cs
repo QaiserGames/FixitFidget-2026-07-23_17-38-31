@@ -14,7 +14,14 @@ using UnityEngine;
 // the north road works, down to the front street and out to its east end, and
 // back into the café. The overhead camera is turned on each leg so that the
 // buildings on one side stand between it and Ace, then it zooms out and in. At
-// the end Ace walks a stretch of the front street in first person.
+// the end Ace walks a stretch of the front street in first person, and looks up
+// at the night sky (the moon, and the stars away from it).
+//
+// The camera's tilt and zoom on each leg are given in terms of the overhead
+// camera's own limits (CafeViewMode.OverheadLimits and OverheadHome): its lowest
+// tilt, where it starts, zoomed right out or right in. So the tour tests
+// whichever framing the night uses (since 29 Sept the day's own, 38-68° and
+// 24-48 m; before, 55-80° and 12-34 m).
 //
 // The route was worked out from the night sweep's grid (Logs/Night/edges-night-*):
 // every point is ground Ace can reach at night, well clear of walls.
@@ -31,6 +38,8 @@ public sealed class NightTour : MonoBehaviour
     public float photoEvery = 2.5f;
 
     const float NoChange = -1f;
+    // A leg's camera in terms of the overhead camera's own limits (see the top).
+    const float Lowest = -2f, Home = -3f, Farthest = -4f, Nearest = -5f;
 
     // A point on the route; the camera settings apply to the leg that starts there
     // (NoChange: carry on). radius: how close counts as arrived.
@@ -56,14 +65,14 @@ public sealed class NightTour : MonoBehaviour
         new Stop(-11.88f, -35.88f, "south down West Street to the road works (camera to the west)", yaw: 90f),
         new Stop(-11.88f, 22.12f, "north up West Street (camera to the east)", yaw: 270f),
         new Stop(-39.88f, 22.12f, "west along the back street to its road works (camera to the south)", yaw: 0f),
-        new Stop(12.12f, 22.12f, "east along the back street (camera to the north, lower)", yaw: 180f, pitch: 55f),
-        new Stop(12.12f, 31.12f, "up East Street to the north road works", yaw: 180f, pitch: 62f),
+        new Stop(12.12f, 22.12f, "east along the back street (camera to the north, at its lowest tilt)", yaw: 180f, pitch: Lowest),
+        new Stop(12.12f, 31.12f, "up East Street to the north road works", yaw: 180f, pitch: Home),
         new Stop(12.12f, -7.62f, "south down East Street (camera to the east)", yaw: 270f),
         new Stop(38.12f, -7.62f, "east along the front street to its road works (camera to the south)", yaw: 0f),
-        new Stop(.12f, -7.62f, "back west to the café, zoomed out", yaw: 25f, distance: 34f),
-        new Stop(.12f, -.8f, "zoomed in to the door", distance: 12f, radius: .3f),
+        new Stop(.12f, -7.62f, "back west to the café, zoomed right out", yaw: 25f, distance: Farthest),
+        new Stop(.12f, -.8f, "zoomed right in to the door", distance: Nearest, radius: .3f),
         new Stop(.12f, .6f, radius: .25f),
-        new Stop(.12f, 5.12f, "inside the café again", distance: 20f, radius: .5f),
+        new Stop(.12f, 5.12f, "inside the café again", distance: Home, radius: .5f),
     };
 
     PlayerMovement movement;
@@ -101,12 +110,19 @@ public sealed class NightTour : MonoBehaviour
         targetYaw = a.x; targetPitch = a.y; targetDistance = a.z;
         yield return StartCoroutine(Photo("start"));
 
+        Vector4 limits = view.OverheadLimits;
+        Vector3 home = view.OverheadHome;
+        events.Add($"{Time.time - started,6:0.0}s  the overhead camera: tilt {limits.x:0}-{limits.y:0}°, zoom {limits.z:0}-{limits.w:0} m; " +
+                   $"starting at {a.y:0}°, {a.z:0} m (R3's home {home.y:0}°, {home.z:0} m)");
         foreach (Stop stop in Overhead)
         {
             if (stop.yaw != NoChange) targetYaw = stop.yaw;
-            if (stop.pitch != NoChange) targetPitch = stop.pitch;
-            if (stop.distance != NoChange) targetDistance = stop.distance;
-            if (stop.note != null) events.Add($"{Time.time - started,6:0.0}s  {stop.note}");
+            if (stop.pitch != NoChange)
+                targetPitch = stop.pitch == Lowest ? limits.x : stop.pitch == Home ? home.y : stop.pitch;
+            if (stop.distance != NoChange)
+                targetDistance = stop.distance == Farthest ? limits.w : stop.distance == Nearest ? limits.z
+                    : stop.distance == Home ? home.z : stop.distance;
+            if (stop.note != null) events.Add($"{Time.time - started,6:0.0}s  {stop.note} (tilt {targetPitch:0}°, {targetDistance:0} m)");
             yield return StartCoroutine(WalkTo(stop));
         }
 
@@ -124,6 +140,16 @@ public sealed class NightTour : MonoBehaviour
         yield return StartCoroutine(Photo("first-person-looking-north"));
         view.LookTo(90f, 3f);
         yield return StartCoroutine(Photo("first-person-looking-east"));
+        // The night sky: the moon, where the moonlight comes from, then the stars away from it.
+        // Only first person ever sees the sky; the overhead camera looks down at the street.
+        var daylight = FindAnyObjectByType<CafeDaylight>();
+        float moonHeading = daylight != null ? daylight.moonAzimuth + 180f : 35f;
+        float moonUp = daylight != null ? daylight.moonAltitude : 42f;
+        events.Add($"{Time.time - started,6:0.0}s  first person, looking up at the night sky");
+        view.LookTo(moonHeading, -(moonUp - 10f));
+        yield return StartCoroutine(Photo("first-person-the-moon"));
+        view.LookTo(moonHeading + 150f, -40f);
+        yield return StartCoroutine(Photo("first-person-stars"));
         movement.ScriptedInput = null;
         view.SetFirstPerson(false);
         yield return new WaitForSeconds(1.5f);   // the blend back to the overhead view
@@ -229,6 +255,8 @@ public sealed class NightTour : MonoBehaviour
             names.Sort();
             foreach (string n in names) report.AppendLine($"  turned see-through: {n}");
         }
+        var sky = FindAnyObjectByType<CafeDaylight>();
+        if (sky != null) report.AppendLine(sky.DescribeNightSky());
         report.AppendLine(cafeWallDownOutside
             ? $"A café wall was down while Ace was outside for {cafeWallDownFrames} frames (it should only be when the café hides Ace)."
             : "No café wall went down while Ace was outside.");

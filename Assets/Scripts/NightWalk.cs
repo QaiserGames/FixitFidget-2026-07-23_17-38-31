@@ -23,6 +23,8 @@ using UnityEngine.Rendering;
 //       and throws light on the pavement;
 //     * a night look (more bloom, a cooler balance) on its own Volume, weight 0
 //       by day;
+//     * stars and the moon in the sky (NightSky, through CafeDaylight; since the
+//       second playtest, 29 Sept), seen in first person;
 //     * the street is quiet: the café sends nobody, the day's clock stops, and
 //       the day's walkers and traffic go home.
 //
@@ -35,8 +37,9 @@ using UnityEngine.Rendering;
 //     * the road works at the 8 street ends are night-only objects (Night Only).
 //
 //   Part 3, getting about:
-//     * the overhead camera follows Ace: closer and steeper than the café's own
-//       view, trailing a fifth of a second behind (CafeViewMode.FollowAce);
+//     * the overhead camera follows Ace, trailing a fifth of a second behind
+//       (CafeViewMode.FollowAce), at the café's own tilt and zoom since the
+//       second playtest (29 Sept; it was closer and steeper before);
 //     * a building or a big tree between the camera and Ace turns see-through
 //       (NightSeeThrough);
 //     * the café is closed: the HUD shows the night's hour instead of the day's
@@ -875,9 +878,12 @@ public sealed class NightWalk : MonoBehaviour
         if (viewMode != null)
         {
             Vector3 a = viewMode.OverheadAngle;
+            Vector4 limits = viewMode.OverheadLimits;
             sb.AppendLine($"Overhead camera: {(viewMode.Following ? "following Ace" : "the café's own view")}, turn {a.x:0}°, tilt {a.y:0}°, " +
-                          $"{a.z:0.0} m away; Ace {(viewMode.AceInsideCafe ? "inside" : "outside")} the café.");
+                          $"{a.z:0.0} m away (tilt {limits.x:0}-{limits.y:0}°, zoom {limits.z:0}-{limits.w:0} m); " +
+                          $"Ace {(viewMode.AceInsideCafe ? "inside" : "outside")} the café.");
         }
+        if (daylight != null) sb.AppendLine(daylight.DescribeNightSky());
         if (seeThrough != null) sb.AppendLine(seeThrough.Describe());
         if (homes != null) sb.AppendLine(homes.Describe(Hour));
         if (neighbourWalks != null) sb.AppendLine(neighbourWalks.Describe());
