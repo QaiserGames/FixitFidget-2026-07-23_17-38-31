@@ -14,6 +14,16 @@ public class ShopInventory : MonoBehaviour
     public int Cups => cups;
     public int Beans => beans;
     public int RestockCost => restockCost;
+    public int RestockAmount => restockAmount;
+
+    /// <summary>What one restock adds to the cups and to the beans: the amount, plus the Bulk Restock
+    /// upgrade's bonus. The recap phone shows this number, and BuyRestock adds it.</summary>
+    public int RestockAdds => restockAmount + (UpgradeManager.Instance != null ? UpgradeManager.Instance.ExtraRestock : 0);
+
+    /// <summary>Under this many is "low" (the recap phone marks it, and its Shop tab gets a "!").</summary>
+    public const int LowStock = 10;
+    public bool CupsLow => cups < LowStock;
+    public bool BeansLow => beans < LowStock;
 
     private void Awake()
     {
@@ -76,9 +86,9 @@ public class ShopInventory : MonoBehaviour
 
         ShopEconomy.Instance.AddMoney(-restockCost);
 
-        int bonus = UpgradeManager.Instance != null ? UpgradeManager.Instance.ExtraRestock : 0;
-        cups += restockAmount + bonus;
-        beans += restockAmount + bonus;
+        int adds = RestockAdds;
+        cups += adds;
+        beans += adds;
         return true;
     }
 }

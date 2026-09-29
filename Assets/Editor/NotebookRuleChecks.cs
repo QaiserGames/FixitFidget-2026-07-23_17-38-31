@@ -175,6 +175,30 @@ public static class NotebookRuleChecks
         Check(text.Split('\n').Skip(1).All(line => line.StartsWith("<size=", StringComparison.Ordinal) && line.EndsWith("</size>", StringComparison.Ordinal)),
             "Every line under the heading is sized on its own, so no size leaks into the next line.");
 
+        // ---------- the recap phone's Notes (playtest 2, step 2) ----------
+        var phoneBook = new Notebook();
+        foreach (NotebookFactData fact in NotebookEntries.GraceIntake("Grace")) phoneBook.Learn(fact, 1);
+        phoneBook.Learn(new NotebookFactData { id = "tomas.job", who = "tomas", name = "Tomas", kind = Notebook.Kinds.Schedule,
+            text = "works nights.", source = Notebook.Sources.Overheard, sure = Notebook.Sureness.Hunch }, 2);
+        phoneBook.Learn(new NotebookFactData { id = "grace.home", who = "grace", name = "Grace", kind = Notebook.Kinds.Address,
+            text = "Came out of the saffron house.", source = Notebook.Sources.Seen, sure = Notebook.Sureness.Hunch }, 2);
+        phoneBook.Learn(new NotebookFactData { id = "grace.home", sure = Notebook.Sureness.Likely }, 3);
+        phoneBook.Learn(NotebookEntries.GraceReturn("Grace", GracePhotoOutcome.Clear), 3);
+        List<NotebookPerson> people = NotebookRecap.People(phoneBook);
+        Check(people.Count == 2 && people[0].who == "grace" && people[0].name == "Grace" && people[1].who == "tomas",
+            "Notes lists people in the order Ace first learned about them.");
+        Check(people[0].facts.Count == 6 && people[0].facts[0].id == "grace.home" && people[0].facts[1].id == "grace.camera.strap"
+              && people[0].facts[5].id == "grace.reunion.photo", "Where they live comes first, then the rest in the order learned.");
+        Check(people.Sum(p => p.facts.Count) == phoneBook.Count && people[1].facts.Single().id == "tomas.job", "Every fact is on exactly one person's page.");
+        Check(people[0].LearnedOn(3) == 1 && people[0].LearnedOn(1) == 4 && people[1].LearnedOn(3) == 0, "Each page counts what was learned on a day.");
+        Check(NotebookRecap.Sureness(phoneBook.Find("grace.home"), 3) == "likely now" && NotebookRecap.Sureness(phoneBook.Find("grace.home"), 4) == "likely"
+              && NotebookRecap.Sureness(phoneBook.Find("tomas.job"), 3) == "hunch" && NotebookRecap.Sureness(phoneBook.Find("grace.camera.strap"), 1) == ""
+              && NotebookRecap.Sureness(null, 1) == "", "Sureness in words: a guess says so, a fact made surer today says \"now\", a told fact says nothing.");
+        Check(NotebookRecap.Sentence("works nights.") == "Works nights." && NotebookRecap.Sentence(null) == "", "A fact reads as a sentence of its own.");
+        Check(NotebookRecap.People(null).Count == 0 && NotebookRecap.People(new Notebook()).Count == 0, "No notebook, no pages.");
+        Check(NotebookRecap.Page(phoneBook).StartsWith("<b>Grace</b>\n<size=92%><indent=4%>Came out of the saffron house. <color=#A6A6A6>(likely)</color></indent></size>\n",
+            StringComparison.Ordinal), "The night's page still reads as before: the name, then where they live, marked as a guess.");
+
         return count;
     }
 }

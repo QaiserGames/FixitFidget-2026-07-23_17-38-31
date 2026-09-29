@@ -46,6 +46,23 @@ public static class ReputationRuleChecks
         Check(back.recap.reviewQuotes.Length == 1 && back.recap.reviewQuotes[0].Contains("Perfect latte"), "Quotes survive Unity's JSON, including curly quotes.");
         Check(back.TryCreateNextDay(out SaveData next) && next.reputation == 30 && next.starsEarned == 2 && next.recap == null,
             "Open Tomorrow carries reputation forward and leaves today's reviews behind.");
+
+        // The recap phone's review cards (playtest 2, step 2).
+        Check(old.recap.reviewCardLines != null && old.recap.reviewCardRegulars != null && old.recap.reviewCardReasons != null,
+            "A v4 recap gets empty card arrays.");
+        var phone = new ReputationLedger();
+        phone.Restore(0, 0, 4, false, null);
+        phone.Record(new ReviewEntry { review = Review.LikedIt, reason = ReviewReason.WaitedLong, name = "Grace", regular = true });
+        phone.Settle(4, (e, i) => "“x” — " + e.name, e => "Worth the wait. Just about.");
+        var phoneSave = new SaveData { day = 4, dayCompleted = true, recap = new RecapSaveData { day = 4 } };
+        phone.WriteRecap(phoneSave.recap);
+        var phoneBack = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(phoneSave));
+        phoneBack.ValidateAndMigrate();
+        var phoneResumed = new ReputationLedger();
+        phoneResumed.Restore(0, 0, 4, true, phoneBack.recap);
+        Check(phoneResumed.Cards.Count == 1 && phoneResumed.Cards[0].line == "Worth the wait. Just about." && phoneResumed.Cards[0].regular
+            && phoneResumed.Cards[0].review == Review.LikedIt && phoneResumed.Cards[0].reason == ReviewReason.WaitedLong,
+            "The phone's review cards survive Unity's JSON.");
         return n;
     }
 #endif
@@ -237,6 +254,52 @@ public static class ReputationRuleChecks
         var top = new ReputationLedger();
         top.Restore(700, 5, 40, false, null);
         Check(ReputationRecap.Build(top).Contains("Five stars") && ReputationRecap.Bar(top) == new string('▓', 10), "Five stars reads as complete.");
+
+        // ---------- review cards (the recap phone, playtest 2) ----------
+        var phoneDay = new ReputationLedger();
+        phoneDay.Restore(28, 1, 5, false, null);
+        phoneDay.Record(E(Review.LovedIt, "Tomas"));
+        phoneDay.Record(E(Review.LetDown, "Walk-in 3"));
+        phoneDay.Record(new ReviewEntry { review = Review.LikedIt, reason = ReviewReason.WaitedLong, name = "Grace", regular = true });
+        phoneDay.Record(new ReviewEntry { review = Review.NeverAgain, reason = ReviewReason.WalkedOutAfterAccepting, name = "Saamin" });
+        var carded = new List<string>();
+        phoneDay.Settle(5, (e, i) => "“" + e.name + "”", e =>
+        {
+            carded.Add(e.name);
+            return e.name == "Saamin" ? "  Took my watch.  " : e.name == "Grace" ? "" : e.name + " wrote this.";
+        });
+        Check(phoneDay.Cards.Count == 4 && carded.Count == 4, "Every review gets a card, not only the quoted ones.");
+        Check(phoneDay.Cards[0].name == "Tomas" && phoneDay.Cards[1].name == "a walk-in" && phoneDay.Cards[2].name == "Grace"
+            && phoneDay.Cards[3].name == "Saamin", "Cards keep the order the reviews were written in, signed as the quotes are.");
+        Check(phoneDay.Cards[3].line == "Took my watch." && phoneDay.Cards[2].line == "Liked it.",
+            "A card's line is trimmed, and a kind of visit with no line shows its verdict.");
+        Check(phoneDay.Cards[0].Stars == 5 && phoneDay.Cards[1].Stars == 2 && phoneDay.Cards[2].Stars == 4 && phoneDay.Cards[3].Stars == 1
+            && phoneDay.Cards[2].regular && !phoneDay.Cards[0].regular, "Stars follow the verdict (Loved it 5 ... Never again 1), and regulars are marked.");
+        Check(phoneDay.Quotes.Count == 3, "The quotes are still picked as before.");
+        phoneDay.Settle(5, (e, i) => "again", e => "again");
+        Check(phoneDay.Cards.Count == 4 && phoneDay.Cards[0].line == "Tomas wrote this.", "Settling twice changes no card.");
+        var cardRecap = new RecapSaveData { day = 5 };
+        phoneDay.WriteRecap(cardRecap);
+        var cardsBack = new ReputationLedger();
+        cardsBack.Restore(phoneDay.Reputation, phoneDay.StarsEarned, 5, true, cardRecap);
+        Check(cardsBack.Cards.Count == 4 && cardsBack.Cards[1].name == "a walk-in" && cardsBack.Cards[3].line == "Took my watch."
+            && cardsBack.Cards[3].review == Review.NeverAgain && cardsBack.Cards[3].reason == ReviewReason.WalkedOutAfterAccepting
+            && cardsBack.Cards[2].regular && !cardsBack.Cards[0].regular, "A resumed recap shows the same cards.");
+        cardsBack.BeginDay(6);
+        Check(cardsBack.Cards.Count == 0, "A new day starts with no cards.");
+        var noCards = new ReputationLedger();
+        noCards.Restore(0, 0, 2, false, null);
+        noCards.Record(E(Review.LovedIt, "Ali"));
+        noCards.Settle(2, (e, i) => "x");
+        Check(noCards.Cards.Count == 0 && noCards.Quotes.Count == 1, "Without a card writer there are no cards, and nothing else changes.");
+        Check(ReputationRecap.Lesson(phoneDay.Cards) == "Walk-outs after you'd taken the job cost the most."
+            && ReputationRecap.Lesson(null) == "" && ReputationRecap.Lesson(new[] { new ReviewCard { review = Review.LovedIt } }) == "Every review was a good one.",
+            "The day's line picks its worst kind of review.");
+        Check(ReputationRules.StarsOf(Review.None) == 0 && ReputationRules.StarsOf(Review.Fine) == 3 && ReputationRules.StarsOf(Review.LovedIt) == 5,
+            "No review, no stars; Fine is three.");
+        Check(ReputationRules.SplitQuote(ReputationRules.Quote("My watch works.", "Walk-in 2"), out string splitLine, out string splitName)
+            && splitLine == "My watch works." && splitName == "a walk-in" && !ReputationRules.SplitQuote("plain text", out _, out _),
+            "An older recap's quote splits back into its line and its signature.");
 
         // ---------- save data ----------
         var save = new SaveData { reputation = -4, starsEarned = 12 };

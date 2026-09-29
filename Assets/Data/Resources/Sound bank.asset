@@ -731,3 +731,17 @@ MonoBehaviour:
     minGap: 0.5
     maxAtOnce: 1
     bus: 2
+  - name: phone.tap
+    when: 'A tap on Ace''s phone at closing (the recap): switching apps, Details,
+      buying. Soft, quieter than ui.confirm.'
+    clips: []
+    volume: 0.22
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 2
+    bus: 2

@@ -305,7 +305,7 @@ public class SaveManager : MonoBehaviour
             if (judgement.review != Review.None) reputation.Record(ReviewOf(customer, judgement));
         }
 
-        reputation.Settle(day, WriteQuote);
+        reputation.Settle(day, WriteQuote, WriteCard);
     }
 
     private void RebuildReputation()
@@ -340,6 +340,18 @@ public class SaveManager : MonoBehaviour
         string line = ReputationRules.Fill(pool[StableIndex(reputation.Day, entry.name, position, pool.Length)],
             entry.name, entry.thing, entry.drink);
         return ReputationRules.Quote(line, entry.name);
+    }
+
+    // Every review's line on the recap phone: the same pool, plain (no quotation marks or
+    // signature), always the same one for the same day and customer. It picks as the best
+    // review's quote does, so the day's best review reads the same on both.
+    private string WriteCard(ReviewEntry entry)
+    {
+        ReviewLines lines = reviewLines != null ? reviewLines : FallbackLines();
+        string[] pool = lines.For(entry.reason);
+        if (pool == null || pool.Length == 0) return null;
+        return ReputationRules.Fill(pool[StableIndex(reputation.Day, entry.name, 0, pool.Length)],
+            entry.name, entry.thing, entry.drink);
     }
 
     private static ReviewLines FallbackLines()

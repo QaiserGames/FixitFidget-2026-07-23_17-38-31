@@ -13,6 +13,11 @@ public class RecapUI : MonoBehaviour
     [SerializeField] private PlayerInteractor player;
     [SerializeField] private UpgradeShopUI upgradeShop;
 
+    [Header("The recap as Ace's phone (playtest 2, step 2: claude/playtest-2-plan.md §9)")]
+    [Tooltip("Show the recap as Ace's phone, built while playing (RecapPhone): Reviews, Franchise, Shop and Notes, " +
+             "with Close up for the night under every app. Off: the three-column recap in the scene, as before.")]
+    [SerializeField] private bool usePhone = true;
+
     [Header("Reputation (optional: Fixit Fidget > Reputation > Add stars and reviews to the recap)")]
     [SerializeField] private TMP_Text reputationText;
     [SerializeField] private Image[] reputationStars;
@@ -29,6 +34,24 @@ public class RecapUI : MonoBehaviour
     private SaveManager saveManager;
     private readonly List<CinemachineInputAxisController> pausedCameraInputs = new();
 
+    // The recap phone takes over the panel and the button (the rest of this class works as before on
+    // whichever is in use); the scene's three-column panel stays closed behind it.
+    private RecapPhone phone;
+    private GameObject scenePanel;
+    private static RecapUI current;
+
+    /// <summary>True while the end-of-day recap is on screen: the phone, or the three-column panel.</summary>
+    public static bool Showing => current != null && current.panel != null && current.panel.activeInHierarchy;
+
+    /// <summary>The recap phone, while Use Phone is on (null before Start, and with it off).</summary>
+    public RecapPhone Phone => phone;
+
+    /// <summary>The scene's three-column panel (it stays closed while the phone is in use).</summary>
+    public GameObject ScenePanel => scenePanel != null ? scenePanel : panel;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => current = null;
+
     // The Night 1 slice: the recap's button leads into the night first (NightCycle), then
     // tomorrow. Once this recap's night has been walked it goes straight to tomorrow.
     private bool nightDone;
@@ -38,10 +61,20 @@ public class RecapUI : MonoBehaviour
  
     private void Start()
     {
+        current = this;
+        scenePanel = panel;
         panel.SetActive(false);
-        nextDayButton.onClick.AddListener(OnNextDay);
         buttonLabel = nextDayButton.GetComponentInChildren<TMP_Text>(true);
         if (buttonLabel != null) openLabel = buttonLabel.text;
+        if (usePhone)
+        {
+            phone = RecapPhone.Create();
+            panel = phone.Root;
+            nextDayButton = phone.CloseButton;
+            buttonLabel = phone.CloseLabel;
+            if (string.IsNullOrWhiteSpace(openLabel)) openLabel = "Open Tomorrow";
+        }
+        nextDayButton.onClick.AddListener(OnNextDay);
  
         if (DayClock.Instance != null)
             DayClock.Instance.OnDayEnded += DayEnded;
@@ -61,12 +94,15 @@ public class RecapUI : MonoBehaviour
             DayClock.Instance.OnDayEnded -= DayEnded;
         if (saveManager != null) saveManager.SaveStatusChanged -= RefreshText;
         if (nextDayButton != null) nextDayButton.onClick.RemoveListener(OnNextDay);
+        if (phone != null) Destroy(phone.gameObject);
+        if (current == this) current = null;
     }
  
     // A new day's recap: its night hasn't been walked yet.
     private void DayEnded()
     {
         nightDone = false;
+        if (phone != null) phone.NewEvening();   // each evening's phone opens on Reviews
         Show();
     }
 
@@ -93,6 +129,14 @@ public class RecapUI : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        if (phone != null)
+        {
+            // The phone builds its apps while it is up: TextMesh Pro measures only live text.
+            if (nextDayButton != null) nextDayButton.interactable = true;
+            panel.SetActive(true);
+            RefreshText();
+            return;
+        }
         RefreshText();
         if (upgradeShop != null) upgradeShop.Build();
         if (nextDayButton != null) nextDayButton.interactable = true;
@@ -140,6 +184,12 @@ public class RecapUI : MonoBehaviour
     private void RefreshText()
     {
         var c = DayClock.Instance;
+        if (phone != null)
+        {
+            // The phone reads the day, the reviews, the notebook and the shop itself (and the save's error).
+            if (c != null && c.DayOver) phone.Refresh();
+            return;
+        }
         if (c == null || !c.DayOver || text == null) return;
 
         text.text =

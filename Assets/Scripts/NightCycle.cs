@@ -53,6 +53,15 @@ public sealed class NightCycle : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void OnSceneLoaded()
     {
+        // What an earlier Play session left behind. Until 29 Sept the cycle and its doorway were marked
+        // DontSave, and in the editor such an object outlives its Play session: a night stopped with its note
+        // on screen kept that note in the Game view in Edit Mode, and over the next session's recap. Put away
+        // before this session's cycle is made.
+        foreach (NightCycle old in Resources.FindObjectsOfTypeAll<NightCycle>())
+            if (old != null && old != Instance) Destroy(old.gameObject);
+        foreach (NightDoorway old in Resources.FindObjectsOfTypeAll<NightDoorway>())
+            if (old != null) Destroy(old.gameObject);
+
         PlayerMovement ace = FindAnyObjectByType<PlayerMovement>();
         haveHome = ace != null;
         if (haveHome)
@@ -106,7 +115,8 @@ public sealed class NightCycle : MonoBehaviour
     public static NightCycle Ensure()
     {
         if (Instance != null) return Instance;
-        var go = new GameObject("Night cycle (while playing)") { hideFlags = HideFlags.DontSave };
+        // An ordinary object of the scene, so it ends with the Play session (see OnSceneLoaded).
+        var go = new GameObject("Night cycle (while playing)");
         return go.AddComponent<NightCycle>();
     }
 
@@ -320,7 +330,7 @@ public sealed class NightCycle : MonoBehaviour
     void MakeTheDoorway()
     {
         if (doorway != null) return;
-        var go = new GameObject("Call it a night (while the night runs)") { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Call it a night (while the night runs)");
         go.transform.position = DoorwayCentre;
         var box = go.AddComponent<BoxCollider>();
         box.isTrigger = true;

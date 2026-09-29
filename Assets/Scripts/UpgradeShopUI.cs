@@ -44,25 +44,41 @@ public class UpgradeShopUI : MonoBehaviour
 
     public void OnBuy(UpgradeDefinition def)
     {
-        if (DayClock.Instance == null || !DayClock.Instance.DayOver) return;
-        if (UpgradeManager.Instance != null && UpgradeManager.Instance.Buy(def))
-            PersistPurchase();
+        if (TryBuy(def)) Refresh();
     }
 
     private void OnRestock()
     {
-        if (DayClock.Instance == null || !DayClock.Instance.DayOver) return;
-        if (ShopInventory.Instance != null && ShopInventory.Instance.BuyRestock())
-            PersistPurchase();
+        if (TryRestock()) Refresh();
     }
 
-    private void PersistPurchase()
+    // The recap's purchases, for this three-column shop and the recap phone (RecapPhone) alike:
+    // only while the day is over, and saved at once.
+
+    /// <summary>Buys the next level of <paramref name="def"/> at closing and saves. False if it couldn't.</summary>
+    public static bool TryBuy(UpgradeDefinition def)
+    {
+        if (DayClock.Instance == null || !DayClock.Instance.DayOver) return false;
+        if (UpgradeManager.Instance == null || !UpgradeManager.Instance.Buy(def)) return false;
+        PersistPurchase();
+        return true;
+    }
+
+    /// <summary>Buys a restock of cups and beans at closing and saves. False if it couldn't.</summary>
+    public static bool TryRestock()
+    {
+        if (DayClock.Instance == null || !DayClock.Instance.DayOver) return false;
+        if (ShopInventory.Instance == null || !ShopInventory.Instance.BuyRestock()) return false;
+        PersistPurchase();
+        return true;
+    }
+
+    private static void PersistPurchase()
     {
         // Only save after a successful transaction, with BOTH the deduction
         // and its purchased stock/level already applied. Never charge on load.
         if (SaveManager.Instance != null) SaveManager.Instance.TrySaveRecap();
         else Debug.LogError("[Save] Purchase could not be saved: no SaveManager.");
-        Refresh();
     }
 
     private void Refresh()

@@ -6,13 +6,15 @@ using UnityEngine;
 using UnityEngine.UI;
 
 // ---------------------------------------------------------------------------
-// Shows a made-up busy day in the recap's reputation block, so the layout and
-// the review lines can be checked without playing a whole day.
+// Shows a made-up busy day in the recap, so the layout and the review lines
+// can be checked without playing a whole day: on Ace's phone (its Reviews
+// app, one card per review) and in the three-column recap's reputation block.
 //
 // Play mode only, with the end-of-day recap on screen. Nothing is saved: the
-// preview only changes what the block shows, and leaving Play mode clears it.
+// preview only changes what the recap shows, and closing the recap (or
+// leaving Play mode) clears it.
 //
-// It quotes the LONGEST line of each kind, with the longest device name in the
+// It uses the LONGEST line of each kind, with the longest device name in the
 // game, and earns a star on the day. If this fits, any real day fits. Handy
 // after editing Assets/Data/Reputation/ReviewLines.
 // ---------------------------------------------------------------------------
@@ -28,7 +30,7 @@ public static class ReputationPreview
         if (recap == null) return;
         var so = new SerializedObject(recap);
         var text = so.FindProperty("reputationText").objectReferenceValue as TMP_Text;
-        if (text == null)
+        if (text == null && recap.Phone == null)
         {
             Debug.LogWarning("[Reputation preview] The recap has no reputation block. Run Fixit Fidget > Reputation > Add stars and reviews to the recap first.");
             return;
@@ -48,43 +50,41 @@ public static class ReputationPreview
         Add(Review.LetDown, ReviewReason.WalkedOutInQueue, "Omar", "Americano");
         Add(Review.NeverAgain, ReviewReason.WalkedOutAfterAccepting, "Walk-in 3", "reunion film camera");
         Add(Review.LovedIt, ReviewReason.LovedRepair, "Alishba", "Pocket Watch");
-        day.Settle(5, (entry, position) =>
+        string Longest(ReviewEntry entry)
         {
             string[] pool = lines.For(entry.reason);
             if (pool == null || pool.Length == 0) return null;
-            string longest = pool.Select(l => ReputationRules.Fill(l, entry.name, entry.thing, entry.drink))
-                                 .OrderByDescending(l => l.Length).First();
-            return ReputationRules.Quote(longest, entry.name);
-        });
+            return pool.Select(l => ReputationRules.Fill(l, entry.name, entry.thing, entry.drink)).OrderByDescending(l => l.Length).First();
+        }
+        day.Settle(5, (entry, position) => ReputationRules.Quote(Longest(entry), entry.name), Longest);
 
-        text.text = ReputationRecap.Build(day);
+        if (recap.Phone != null) recap.Phone.Preview(day);
 
-        SerializedProperty stars = so.FindProperty("reputationStars");
-        var earnedSprite = so.FindProperty("starEarnedSprite").objectReferenceValue as Sprite;
-        var emptySprite = so.FindProperty("starEmptySprite").objectReferenceValue as Sprite;
-        Color earnedColor = so.FindProperty("starEarnedColor").colorValue;
-        Color emptyColor = so.FindProperty("starEmptyColor").colorValue;
-        for (int i = 0; i < stars.arraySize; i++)
+        if (text != null)
         {
-            if (stars.GetArrayElementAtIndex(i).objectReferenceValue is not Image star) continue;
-            bool earned = i < day.StarsEarned;
-            star.color = earned ? earnedColor : emptyColor;
-            Sprite sprite = earned ? earnedSprite : emptySprite;
-            if (sprite != null) star.sprite = sprite;
+            text.text = ReputationRecap.Build(day);
+            SerializedProperty stars = so.FindProperty("reputationStars");
+            var earnedSprite = so.FindProperty("starEarnedSprite").objectReferenceValue as Sprite;
+            var emptySprite = so.FindProperty("starEmptySprite").objectReferenceValue as Sprite;
+            Color earnedColor = so.FindProperty("starEarnedColor").colorValue;
+            Color emptyColor = so.FindProperty("starEmptyColor").colorValue;
+            for (int i = 0; i < stars.arraySize; i++)
+            {
+                if (stars.GetArrayElementAtIndex(i).objectReferenceValue is not Image star) continue;
+                bool earned = i < day.StarsEarned;
+                star.color = earned ? earnedColor : emptyColor;
+                Sprite sprite = earned ? earnedSprite : emptySprite;
+                if (sprite != null) star.sprite = sprite;
+            }
         }
 
         Debug.Log($"[Reputation preview] A sample day: reputation {day.Reputation}, {day.StarsEarned} stars (new star today), " +
-                  $"{day.ReviewCount} reviews, {day.Quotes.Count} quotes (the longest line of each kind). Nothing saved; leave Play mode to clear it.");
+                  $"{day.ReviewCount} reviews, {day.Cards.Count} review cards and {day.Quotes.Count} quotes (the longest line of each kind), " +
+                  $"shown {(recap.Phone != null ? "on the phone" + (text != null ? " and in the three-column recap" : "") : "in the recap")}. " +
+                  "Nothing saved; closing the recap or leaving Play mode clears it.");
     }
 
     [MenuItem(Menu, true)]
-    static bool RecapOpen()
-    {
-        if (!EditorApplication.isPlaying) return false;
-        RecapUI recap = Object.FindAnyObjectByType<RecapUI>(FindObjectsInactive.Include);
-        if (recap == null) return false;
-        var panel = new SerializedObject(recap).FindProperty("panel").objectReferenceValue as GameObject;
-        return panel != null && panel.activeInHierarchy;
-    }
+    static bool RecapOpen() => EditorApplication.isPlaying && RecapUI.Showing;
 }
 #endif

@@ -14,8 +14,29 @@ using System.Text;
 // listed after the new ones ("(likely now)"). Street names are filled in as
 // the block is built (StreetNames), so a renamed street reads renamed.
 //
+// The recap phone's Notes app (playtest 2, step 2) lays the same notebook out
+// person by person from People, the grouping the night's page (Page) uses too.
+//
 // No Unity types: Tests/NotebookRules and Tests/HomeRules compile this file.
 // ---------------------------------------------------------------------------
+
+/// <summary>One person in Ace's notebook: what Ace calls them, and every fact about them,
+/// where they live first, then the rest in the order they were learned.</summary>
+public sealed class NotebookPerson
+{
+    public string who = "";
+    public string name = "";
+    public readonly List<NotebookFactData> facts = new List<NotebookFactData>();
+
+    /// <summary>How many of their facts were first learned on <paramref name="day"/>.</summary>
+    public int LearnedOn(int day)
+    {
+        int n = 0;
+        foreach (NotebookFactData fact in facts) if (fact.day == day) n++;
+        return n;
+    }
+}
+
 public static class NotebookRecap
 {
     /// <summary>At most this many of today's facts are listed; the rest are counted.</summary>
@@ -62,36 +83,64 @@ public static class NotebookRecap
     public static string Page(Notebook notebook)
     {
         if (notebook == null || notebook.Count == 0) return "";
-        var people = new List<string>();
-        var names = new Dictionary<string, string>();
-        foreach (NotebookFactData fact in notebook.Facts)
-        {
-            string who = fact.who ?? "";
-            if (names.ContainsKey(who)) continue;
-            people.Add(who);
-            names[who] = string.IsNullOrWhiteSpace(fact.name) ? who : fact.name;
-        }
         var text = new StringBuilder();
-        foreach (string who in people)
+        foreach (NotebookPerson person in People(notebook))
         {
             if (text.Length > 0) text.Append('\n');
-            text.Append("<b>").Append(names[who]).Append("</b>");
-            // Where they live first: that is what the night is for.
-            for (int pass = 0; pass < 2; pass++)
-                foreach (NotebookFactData fact in notebook.Facts)
-                {
-                    if ((fact.who ?? "") != who) continue;
-                    bool address = fact.kind == Notebook.Kinds.Address;
-                    if (address != (pass == 0)) continue;
-                    text.Append('\n').Append(Small).Append("<indent=4%>").Append(Sentence(fact.text)).Append(Marker(fact.sure, ""))
-                        .Append("</indent></size>");
-                }
+            text.Append("<b>").Append(person.name).Append("</b>");
+            foreach (NotebookFactData fact in person.facts)
+                text.Append('\n').Append(Small).Append("<indent=4%>").Append(Sentence(fact.text)).Append(Marker(fact.sure, ""))
+                    .Append("</indent></size>");
         }
         return text.ToString();
     }
 
-    // A fact on its own line: street names filled in, and a capital to start.
-    private static string Sentence(string text)
+    /// <summary>
+    /// The notebook person by person, in the order Ace first learned about them (the recap
+    /// phone's Notes, and the night's page). Each person's facts: where they live first, since
+    /// that is what the night is for, then everything else in the order it was learned. Empty
+    /// for no notebook or an empty one.
+    /// </summary>
+    public static List<NotebookPerson> People(Notebook notebook)
+    {
+        var people = new List<NotebookPerson>();
+        if (notebook == null) return people;
+        var byWho = new Dictionary<string, NotebookPerson>();
+        foreach (NotebookFactData fact in notebook.Facts)
+        {
+            string who = fact.who ?? "";
+            if (byWho.ContainsKey(who)) continue;
+            var person = new NotebookPerson { who = who, name = string.IsNullOrWhiteSpace(fact.name) ? who : fact.name };
+            byWho[who] = person;
+            people.Add(person);
+        }
+        for (int pass = 0; pass < 2; pass++)
+            foreach (NotebookFactData fact in notebook.Facts)
+            {
+                bool address = fact.kind == Notebook.Kinds.Address;
+                if (address != (pass == 0)) continue;
+                byWho[fact.who ?? ""].facts.Add(fact);
+            }
+        return people;
+    }
+
+    /// <summary>
+    /// How sure Ace is of <paramref name="fact"/>, in the notebook's words, or "" for a fact Ace was
+    /// told: "hunch" or "likely" for a guess, and for a fact Ace became surer of on
+    /// <paramref name="day"/> (learned earlier), "likely now" or "sure now". The words the recap
+    /// shows in brackets, plain, for the phone to colour.
+    /// </summary>
+    public static string Sureness(NotebookFactData fact, int day)
+    {
+        if (fact == null) return "";
+        bool surer = fact.surerDay == day && fact.day < day;
+        if (fact.sure == Notebook.Sureness.Hunch || fact.sure == Notebook.Sureness.Likely)
+            return surer ? fact.sure + " now" : fact.sure;
+        return surer && fact.sure == Notebook.Sureness.Sure ? "sure now" : "";
+    }
+
+    /// <summary>A fact as a sentence of its own: street names filled in, and a capital to start.</summary>
+    public static string Sentence(string text)
     {
         string said = StreetNames.Resolve(text ?? "");
         if (said.Length > 0 && char.IsLower(said[0])) said = char.ToUpperInvariant(said[0]) + said.Substring(1);

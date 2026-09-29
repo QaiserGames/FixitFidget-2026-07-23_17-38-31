@@ -56,8 +56,8 @@ public class ShopUI : MonoBehaviour
 
     private void Update()
     {
-        // The recap owns the screen — hide the in-game HUD behind it.
-        bool recapOpen = recapPanel != null && recapPanel.activeSelf;
+        // The recap owns the screen — hide the in-game HUD behind it (the recap phone, or the old panel).
+        bool recapOpen = RecapUI.Showing || recapPanel != null && recapPanel.activeSelf;
         // A night walk: the café is closed. The night's hour instead of the day's
         // clock, no money or stock, and only the night's own prompts (the Night 1 slice).
         NightWalk night = NightWalk.Instance != null && NightWalk.Instance.Active ? NightWalk.Instance : null;

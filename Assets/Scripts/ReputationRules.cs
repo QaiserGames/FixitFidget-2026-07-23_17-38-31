@@ -28,8 +28,9 @@ using System;
 // ---------------------------------------------------------------------------
 
 /// <summary>A customer's verdict on their visit. The number is the "stars" a
-/// review site would show, but players see words and faces, so that "stars"
-/// only ever means the café's own rating.</summary>
+/// review site would show. Since the recap phone (playtest 2, step 2) each
+/// review shows it as 1-5 stars, as a review site does, but no average is ever
+/// shown, so the café's own stars stay the only rating.</summary>
 public enum Review
 {
     None = 0,        // no review: declined, out of stock, shelf full
@@ -166,6 +167,26 @@ public static class ReputationRules
         stars <= 0 ? 0 : StarThresholds[Math.Min(MaxStars, stars) - 1];
 
     public static string NameOf(int stars) => StarNames[Math.Max(0, Math.Min(MaxStars, stars))];
+
+    /// <summary>The stars one review shows on the recap phone: 1-5, 0 for no review. Never averaged.</summary>
+    public static int StarsOf(Review review) => review == Review.None ? 0 : Math.Max(1, Math.Min(5, (int)review));
+
+    /// <summary>
+    /// A quote as <see cref="Quote"/> wrote it (“line” — name), back into its line and its
+    /// signature, for a recap saved before every review got a card of its own. False when the
+    /// text isn't in that shape.
+    /// </summary>
+    public static bool SplitQuote(string quote, out string line, out string name)
+    {
+        line = name = "";
+        if (string.IsNullOrWhiteSpace(quote)) return false;
+        const string Sign = "\u201D\u00A0\u2014\u00A0";
+        int end = quote.LastIndexOf(Sign, StringComparison.Ordinal);
+        if (end < 0 || !quote.StartsWith("\u201C", StringComparison.Ordinal)) return false;
+        line = quote.Substring(1, end - 1).Trim();
+        name = quote.Substring(end + Sign.Length).Replace('\u00A0', ' ').Trim();
+        return line.Length > 0;
+    }
 
     public static string Label(Review review) => review switch
     {

@@ -12,6 +12,22 @@ public sealed class ReviewEntry
     public bool regular;
 }
 
+/// <summary>
+/// One of the day's reviews as the recap phone shows it (playtest 2, step 2): who signed it, the
+/// verdict (1-5 stars), the kind of visit, and what they wrote, without quotation marks or a
+/// signature. Every review gets one, in the order they were written.
+/// </summary>
+public sealed class ReviewCard
+{
+    public string name = "";    // as signed: "Grace", "a walk-in"
+    public Review review;
+    public ReviewReason reason;
+    public string line = "";
+    public bool regular;
+
+    public int Stars => ReputationRules.StarsOf(review);
+}
+
 // ---------------------------------------------------------------------------
 // The café's reputation between days and sessions, in the same shape as
 // CustomerMemoryService: this class owns the numbers, SaveManager decides when
@@ -29,6 +45,7 @@ public sealed class ReputationLedger
     private readonly int[] counts = new int[6];            // index = (int)Review
     private readonly List<string> quotes = new();
     private readonly List<Review> quoteReviews = new();
+    private readonly List<ReviewCard> cards = new();
 
     public int Reputation { get; private set; }
     public int StarsEarned { get; private set; }
@@ -45,6 +62,10 @@ public sealed class ReputationLedger
 
     public IReadOnlyList<string> Quotes => quotes;
     public IReadOnlyList<Review> QuoteReviews => quoteReviews;
+
+    /// <summary>Every review of the settled day, in the order they were written (the recap phone).
+    /// Empty before closing, and for a recap saved before every review got a line.</summary>
+    public IReadOnlyList<ReviewCard> Cards => cards;
 
     public int Count(Review review) => review == Review.None ? 0 : counts[(int)review];
 
@@ -84,6 +105,27 @@ public sealed class ReputationLedger
             quotes.Add(savedQuotes[i]);
             quoteReviews.Add(verdict >= 1 && verdict <= 5 ? (Review)verdict : Review.None);
         }
+
+        // Every review, as the phone showed it (absent in recaps saved before the phone).
+        string[] names = recap.reviewCardNames ?? Array.Empty<string>();
+        string[] lines = recap.reviewCardLines ?? Array.Empty<string>();
+        int[] verdicts = recap.reviewCardVerdicts ?? Array.Empty<int>();
+        int[] reasons = recap.reviewCardReasons ?? Array.Empty<int>();
+        bool[] regulars = recap.reviewCardRegulars ?? Array.Empty<bool>();
+        int cardCount = Math.Min(lines.Length, verdicts.Length);
+        for (int i = 0; i < cardCount; i++)
+        {
+            if (verdicts[i] < 1 || verdicts[i] > 5 || string.IsNullOrWhiteSpace(lines[i])) continue;
+            int reason = i < reasons.Length ? reasons[i] : 0;
+            cards.Add(new ReviewCard
+            {
+                name = i < names.Length && !string.IsNullOrWhiteSpace(names[i]) ? names[i] : "a customer",
+                review = (Review)verdicts[i],
+                reason = Enum.IsDefined(typeof(ReviewReason), reason) ? (ReviewReason)reason : ReviewReason.None,
+                line = lines[i],
+                regular = i < regulars.Length && regulars[i]
+            });
+        }
     }
 
     /// <summary>Tomorrow has been saved: start collecting its reviews.</summary>
@@ -101,8 +143,10 @@ public sealed class ReputationLedger
 
     /// <summary>Counts today's reviews into the café's reputation. Once per day.
     /// <paramref name="write"/> turns a quoted review into its line of text; it
-    /// gets the review and its position (0 best, 1 worst, 2 a regular's).</summary>
-    public void Settle(int day, Func<ReviewEntry, int, string> write)
+    /// gets the review and its position (0 best, 1 worst, 2 a regular's).
+    /// <paramref name="writeCard"/>, if given, writes the line every review shows
+    /// on the recap phone (plain: no quotation marks, no signature).</summary>
+    public void Settle(int day, Func<ReviewEntry, int, string> write, Func<ReviewEntry, string> writeCard = null)
     {
         if (Settled) return;
 
@@ -122,6 +166,23 @@ public sealed class ReputationLedger
             quoteReviews.Add(picked[i].review);
         }
 
+        cards.Clear();
+        if (writeCard != null)
+            foreach (ReviewEntry r in today)
+            {
+                if (r == null || r.review == Review.None) continue;
+                string line = writeCard(r);
+                cards.Add(new ReviewCard
+                {
+                    name = ReputationRules.Attribution(r.name),
+                    review = r.review,
+                    reason = r.reason,
+                    // A kind of visit with no lines written still shows its verdict.
+                    line = string.IsNullOrWhiteSpace(line) ? ReputationRules.Label(r.review) + "." : line.Trim(),
+                    regular = r.regular
+                });
+            }
+
         Settled = true;
     }
 
@@ -139,6 +200,20 @@ public sealed class ReputationLedger
         int[] verdicts = new int[quoteReviews.Count];
         for (int i = 0; i < verdicts.Length; i++) verdicts[i] = (int)quoteReviews[i];
         recap.reviewQuoteVerdicts = verdicts;
+
+        recap.reviewCardNames = new string[cards.Count];
+        recap.reviewCardLines = new string[cards.Count];
+        recap.reviewCardVerdicts = new int[cards.Count];
+        recap.reviewCardReasons = new int[cards.Count];
+        recap.reviewCardRegulars = new bool[cards.Count];
+        for (int i = 0; i < cards.Count; i++)
+        {
+            recap.reviewCardNames[i] = cards[i].name;
+            recap.reviewCardLines[i] = cards[i].line;
+            recap.reviewCardVerdicts[i] = (int)cards[i].review;
+            recap.reviewCardReasons[i] = (int)cards[i].reason;
+            recap.reviewCardRegulars[i] = cards[i].regular;
+        }
     }
 
     /// <summary>Best review, worst review (only if it is worse than the best),
@@ -179,6 +254,7 @@ public sealed class ReputationLedger
         Array.Clear(counts, 0, counts.Length);
         quotes.Clear();
         quoteReviews.Clear();
+        cards.Clear();
         TodayChange = 0;
         Settled = false;
         StarsBefore = StarsEarned;
@@ -258,6 +334,24 @@ public static class ReputationRecap
     }
 
     public static string Signed(int value) => value > 0 ? "+" + value : value.ToString();
+
+    /// <summary>
+    /// The recap phone's one line about the day (the Franchise app's "What changed today"), from its
+    /// worst kind of review. Placeholder lines for the writers. Empty on a day with no reviews.
+    /// </summary>
+    public static string Lesson(IReadOnlyList<ReviewCard> cards)
+    {
+        if (cards == null || cards.Count == 0) return "";
+        bool Any(ReviewReason reason) { foreach (ReviewCard c in cards) if (c.reason == reason) return true; return false; }
+        if (Any(ReviewReason.WalkedOutAfterAccepting)) return "Walk-outs after you'd taken the job cost the most.";
+        if (Any(ReviewReason.RejectedRepair)) return "A repair went back still broken. That costs the most.";
+        if (Any(ReviewReason.WalkedOutInQueue)) return "Some gave up in the queue before you got to them.";
+        if (Any(ReviewReason.UnservedAtClose)) return "Some were still waiting when you closed.";
+        if (Any(ReviewReason.HelpedButUnhappy)) return "Someone got half of what they came for.";
+        bool allGood = true;
+        foreach (ReviewCard c in cards) if (c.review < Review.LikedIt) allGood = false;
+        return allGood ? "Every review was a good one." : "Long waits and rough repairs brought the reviews down.";
+    }
 
     public static string ColourOf(Review review) => review switch
     {

@@ -158,6 +158,7 @@ public sealed class SoundBank : ScriptableObject
         C("day.closed", SoundBus.UI, false, .4f, "The last customer has gone and the day is over (signature).", 1.5f, 12f, 2f, 1),
         C("recap.open", SoundBus.UI, false, .3f, "The day's recap appears: paper.", 1.5f, 12f, 1f, 1),
         C("ui.confirm", SoundBus.UI, false, .3f, "A confirming click in the menus (Open Tomorrow).", 1.5f, 12f, .1f, 2),
+        C("phone.tap", SoundBus.UI, false, .22f, "A tap on Ace's phone at closing (the recap): switching apps, Details, buying. Soft, quieter than ui.confirm.", 1.5f, 12f, .05f, 2),
 
         // The night's beds (filled in the night pass, §6).
         C("night.city", SoundBus.Outside, false, .3f, "The city at night, earlier and busier (a flat loop); cross-fades into night.city.late by 2 am."),

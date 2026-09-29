@@ -123,6 +123,16 @@ public class RecapSaveData
     // The quoted reviews exactly as shown, so a resumed recap reads the same.
     public string[] reviewQuotes = new string[0];
     public int[] reviewQuoteVerdicts = new int[0];
+
+    // Additive (playtest 2, step 2): every review of the day as the recap phone shows it, in the
+    // order they were written: who signed it, what they wrote, the verdict (1-5), the kind of visit
+    // (ReviewReason) and whether they're a regular. Absent in older saves, whose recap shows its
+    // quotes as cards instead. No version bump: older builds skip fields they don't know.
+    public string[] reviewCardNames = new string[0];
+    public string[] reviewCardLines = new string[0];
+    public int[] reviewCardVerdicts = new int[0];
+    public int[] reviewCardReasons = new int[0];
+    public bool[] reviewCardRegulars = new bool[0];
 }
 
 // The complete contents of a save file. If it's not in here, it isn't saved.
@@ -195,6 +205,11 @@ public class SaveData
         {
             recap.reviewQuotes ??= new string[0];
             recap.reviewQuoteVerdicts ??= new int[0];
+            recap.reviewCardNames ??= new string[0];
+            recap.reviewCardLines ??= new string[0];
+            recap.reviewCardVerdicts ??= new int[0];
+            recap.reviewCardReasons ??= new int[0];
+            recap.reviewCardRegulars ??= new bool[0];
         }
 
         if (version < 3)
