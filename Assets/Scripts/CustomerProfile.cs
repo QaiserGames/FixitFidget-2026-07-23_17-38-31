@@ -91,13 +91,33 @@ public class CustomerProfile : ScriptableObject
     // Every loaded profile's stand-in look, so that nobody else wears it (PolygonNpcVisual).
     private static readonly System.Collections.Generic.Dictionary<CustomerProfile, string> standIns = new();
 
-    /// <summary>True when a loaded regular's profile names <paramref name="lookName"/> as their stand-in look.</summary>
+    // Looks kept for someone who isn't a customer (Ace's stand-in body, AceBody): nobody else wears them either.
+    private static readonly System.Collections.Generic.Dictionary<Object, string> otherStandIns = new();
+
+    /// <summary>True when a loaded regular's profile names <paramref name="lookName"/> as their stand-in look, or
+    /// it is kept for someone else (<see cref="ReserveStandInLook"/>).</summary>
     public static bool IsStandInLook(string lookName)
     {
         if (string.IsNullOrEmpty(lookName)) return false;
         foreach (string look in standIns.Values)
             if (look == lookName) return true;
+        foreach (string look in otherStandIns.Values)
+            if (look == lookName) return true;
         return false;
+    }
+
+    /// <summary>Keep <paramref name="lookName"/> for <paramref name="owner"/> (Ace's stand-in body): walk-ins, patrons
+    /// and street neighbours skip it, as they skip a regular's.</summary>
+    public static void ReserveStandInLook(Object owner, string lookName)
+    {
+        if (owner == null) return;
+        if (string.IsNullOrEmpty(lookName)) otherStandIns.Remove(owner);
+        else otherStandIns[owner] = lookName;
+    }
+
+    public static void ReleaseStandInLook(Object owner)
+    {
+        if (!ReferenceEquals(owner, null)) otherStandIns.Remove(owner);
     }
 
     private void OnEnable() => RegisterStandIn();

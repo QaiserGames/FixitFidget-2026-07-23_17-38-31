@@ -143,6 +143,10 @@ public sealed class CafeViewMode : MonoBehaviour
     public Vector3 AceFeet => transform.position + Vector3.up * (capsule != null ? capsule.center.y - capsule.height * .5f : -1f);
     /// <summary>Ace is inside the café room (by position; the same room the café's own lights belong to).</summary>
     public bool AceInsideCafe => CafeDaylight.CafeInside.Contains(new Vector2(transform.position.x, transform.position.z));
+    /// <summary>Ace is drawn: not in first person and not at a station (the capsule's rule, which AceBody follows).</summary>
+    public bool ShowsAce => !AtStation && !firstPerson;
+    /// <summary>Set by AceBody while Ace's stand-in body is drawn instead of the capsule: the capsule's mesh hides.</summary>
+    public bool BodyStandsIn { get; set; }
     // The night's own limits apply only while following with the day's framing switched off.
     bool NightFraming => following && !followWithDayFraming;
     float PitchMin => NightFraming ? followPitchMin : 38f;
@@ -428,7 +432,7 @@ public sealed class CafeViewMode : MonoBehaviour
         RefreshCameraPose();
         RefreshCursor();
         if (bodyRenderer != null)
-            bodyRenderer.enabled = bodyWasVisible && !AtStation && !firstPerson;
+            bodyRenderer.enabled = bodyWasVisible && !AtStation && !firstPerson && !BodyStandsIn;
         RefreshCutawayWalls();
         RefreshOverheadFixtures();
     }

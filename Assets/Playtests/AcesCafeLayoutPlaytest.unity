@@ -144779,6 +144779,7 @@ GameObject:
   - component: {fileID: 1039162930}
   - component: {fileID: 1039162931}
   - component: {fileID: 1039162932}
+  - component: {fileID: 1039162933}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -145102,6 +145103,34 @@ NavMeshObstacle:
   m_CarveOnlyStationary: 1
   m_Center: {x: 0, y: 0, z: 0}
   m_TimeToStationary: 0.5
+--- !u!114 &1039162933
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1039162918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2feb0e2866fc68443a2d2e19df55ed64, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AceBody
+  look: {fileID: 2800363244470583931, guid: 2e1297afd8049c444bca7bc1025cd164, type: 3}
+  rig: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+  rigScale: 1.1
+  idleClip: {fileID: 9061338213343248790, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+  walkClip: {fileID: -5599002979973759676, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+  runClip: {fileID: 1395189703230314720, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
+  walkClipSpeed: 1.3184121
+  runClipSpeed: 3.0832474
+  walkLeftForward: 0
+  runLeftForward: 0.375
+  standingHeight: 2.0376494
+  turnSpeed: 720
+  gaitSmoothing: 0.08
+  walkBlend: {x: 0.15, y: 0.6}
+  runBlend: {x: 2.2, y: 3.4}
+  feetSmoothing: 0.05
 --- !u!1 &1039377971
 GameObject:
   m_ObjectHideFlags: 0

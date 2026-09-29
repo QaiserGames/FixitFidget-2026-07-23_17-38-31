@@ -16,6 +16,8 @@ using UnityEngine;
 // flights, the landing, into the bedroom past the foot of the bed to the wardrobe, then all the way back
 // down and out onto the pavement. For every leg: reached or not, how long it took, where it got stuck;
 // on the way down, how far the capsule ever left the flight. Photos of the house view on the way.
+// With Ace's stand-in body on (AceBody, at night): it runs while Ace runs, stands still at the stops, faces
+// the way Ace goes, stands on the floor, and hides in first person; photos of it running on three legs.
 // Report and photos: Logs/Night/grace-walk-<time>/. Play Mode stops by itself when it is done.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
@@ -82,9 +84,17 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
     PlayerMovement mover;
     CafeViewMode view;
     CharacterController capsule;
+    AceBody body;
     string folder;
     readonly StringBuilder report = new();
     int problems;
+    // Ace's stand-in body, while it is worn: frames running (and of those, showing the run), frames moving
+    // (with how far the body faced from the way Ace went), frames with the floor found under Ace.
+    int runFrames, runShown, placedFrames, onFloorFrames;
+    float runRates;
+    readonly List<float> facing = new();
+    readonly List<string> notStill = new();
+    static readonly string[] RunPhotos = { "at the fridge", "on the upper flight", "across the room" };
 
     void Start()
     {
@@ -92,6 +102,7 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         view = FindAnyObjectByType<CafeViewMode>();
         mover = view != null ? view.GetComponent<PlayerMovement>() : null;
         capsule = view != null ? view.GetComponent<CharacterController>() : null;
+        body = view != null ? view.GetComponent<AceBody>() : null;
         folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night",
             "grace-walk-" + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture)));
         Directory.CreateDirectory(folder);
@@ -116,6 +127,9 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         }
         report.AppendLine($"Ace: radius {capsule.radius:0.00}, height {capsule.height:0.00}, skin {capsule.skinWidth:0.00}, step {capsule.stepOffset:0.00}, slope limit {capsule.slopeLimit:0}°.");
         yield return new WaitForSeconds(1.5f);   // the night settles, the camera arrives
+        report.AppendLine(body != null && body.Worn
+            ? $"Ace's stand-in body: {body.LookName}, about {body.Height:0.00} m tall (the capsule stays {2f * capsule.radius:0.0} m wide)."
+            : "Ace's stand-in body: not worn (Ace is the capsule).");
         float started = Time.time;
         int photos = 0;
         float worstAir = 0f;
@@ -129,11 +143,21 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
             string stuck = null;
             bool reached = false;
             float air = 0f, legAir = 0f;
+            float legLength = best;
+            bool runPhoto = Array.IndexOf(RunPhotos, stop.what) >= 0 && body != null && body.Worn;
             while (Time.time - legStart < LegSeconds)
             {
                 Vector3 to = Flat(target - Ace);
                 float d = to.magnitude;
                 if (d <= Reach) { reached = true; break; }
+                WatchBody();
+                if (runPhoto && d < legLength * .55f)
+                {
+                    runPhoto = false;
+                    string shot = $"{++photos:00}-running-{Safe(stop.what)}.png";
+                    ScreenCapture.CaptureScreenshot(Path.Combine(folder, shot));
+                    report.AppendLine($"      photo {shot} (Ace's body running, {body.Speed:0.0} m/s, run {body.Gait.z:0.00})");
+                }
                 if (d < best - .03f) { best = d; bestAt = Time.time; }
                 else if (Time.time - bestAt > StuckAfter) { stuck = $"no closer than {best:0.00} m for {StuckAfter:0.0} s at plan {PlanOf(Ace)}"; break; }
                 // The way a player steers: a direction on screen, turned by the camera's yaw.
@@ -161,6 +185,8 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
             if (stop.photo)
             {
                 yield return new WaitForSeconds(.9f);   // the camera turns, the walls settle
+                if (body != null && body.Worn && body.Gait.x < .9f)
+                    notStill.Add($"{stop.what} (idle {body.Gait.x:0.00} at {body.Speed:0.00} m/s)");
                 string name = $"{++photos:00}-{Safe(stop.what)}.png";
                 ScreenCapture.CaptureScreenshot(Path.Combine(folder, name));
                 yield return null;
@@ -171,7 +197,59 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         report.AppendLine();
         Line(worstAir < .35f, $"Going down, the capsule stayed on the flights (longest in the air {worstAir:0.00} s, {worstAirWhere}; the stairs caught it {house.StairCatches} times)");
         report.AppendLine($"The whole walk took {Time.time - started:0.0} s.");
+        if (body != null && body.Worn)
+        {
+            report.AppendLine();
+            yield return BodyReport();
+        }
         Finish();
+    }
+
+    // Ace's stand-in body, every frame of a leg.
+    void WatchBody()
+    {
+        if (body == null || !body.Worn) return;
+        placedFrames++;
+        if (body.OnFloor) onFloorFrames++;
+        if (body.Speed > 4f) { runFrames++; runRates += body.RunRate; if (body.Gait.z >= .85f) runShown++; }
+        if (body.Speed > 1f) facing.Add(body.FacingError);
+    }
+
+    IEnumerator BodyReport()
+    {
+        Line(runFrames > 0 && runShown >= runFrames * .95f,
+            $"Ace's body runs while Ace runs: the run clip showing in {runShown} of {runFrames} frames above 4 m/s " +
+            $"(played at {(runFrames > 0 ? runRates / runFrames : 0f):0.00}x on average there, so the feet keep up)");
+        facing.Sort();
+        float median = facing.Count > 0 ? facing[facing.Count / 2] : 0f;
+        float p90 = facing.Count > 0 ? facing[Mathf.Min(facing.Count - 1, facing.Count * 9 / 10)] : 0f;
+        Line(facing.Count > 0 && median <= 20f,
+            $"Ace's body faces the way Ace goes: {median:0}° off at the median while moving, {p90:0}° at the 90th percentile (turning at the start of each leg), {facing.Count} frames");
+        Line(notStill.Count == 0, "Ace's body stands still at the photo stops" + (notStill.Count > 0 ? ": not at " + string.Join("; ", notStill) : ""));
+        Line(placedFrames > 0 && onFloorFrames >= placedFrames * .98f,
+            $"Ace's body stands on the floor found under Ace in {onFloorFrames} of {placedFrames} frames (else at the capsule's bottom)");
+        // Ace's look has left the walk-ins' pool: nobody else in the city wears it (the neighbours out tonight included).
+        int bodies = 0, doubles = 0;
+        foreach (PolygonNpcVisual other in FindObjectsByType<PolygonNpcVisual>(FindObjectsInactive.Include))
+        {
+            if (other == body.Visual || other.ActiveAppearance < 0) continue;
+            bodies++;
+            if (other.ActiveAppearanceName == body.LookName) doubles++;
+        }
+        Line(doubles == 0, $"Nobody else wears Ace's look ({body.LookName}): {doubles} of the {bodies} other city bodies in the scene");
+        // First person hides the body (and the capsule), as it hid the capsule before; back out, the body again.
+        Renderer capsuleMesh = view.bodyRenderer;
+        bool switched = view.SetFirstPerson(true);
+        yield return new WaitForSeconds(.4f);
+        bool hidden = !body.Drawn && (capsuleMesh == null || !capsuleMesh.enabled);
+        if (switched) view.SetFirstPerson(false);
+        yield return new WaitForSeconds(.6f);
+        bool back = body.Drawn && (capsuleMesh == null || !capsuleMesh.enabled);
+        Line(switched && hidden && back, $"First person hides Ace's body ({(hidden ? "hidden" : "still drawn")}), and back overhead it is drawn again instead of the capsule ({(back ? "yes" : "no")})");
+        string name = "zz-ace-body-overhead.png";
+        ScreenCapture.CaptureScreenshot(Path.Combine(folder, name));
+        yield return null;
+        report.AppendLine($"      photo {name}");
     }
 
     Vector3 Ace => capsule != null ? capsule.transform.position : transform.position;
