@@ -1,5 +1,69 @@
 # Current handoff — September 12, 2026
 
+## September 29 (early morning) — Playtest 2, step 1: the night camera matches the day's, and stars and a moon in the night sky; on `playtest-2`
+
+**Read this entry first.** One code commit, `7660844`, on the new branch `playtest-2`, made from `dialogue-pass` at `2e8160f` (the dialogue-pass handoff below). This entry comes in the commit after it. Nothing is pushed.
+
+Mansoor's second playtest brought nine notes. The plan, `claude/playtest-2-plan.md` in the project, turns them into one ordered list, and Mansoor decided its four questions on 29 Sept:
+
+- at night Ace takes supplies (cups, beans, repair parts) and keepsakes, replacing 25 Sept's "trophies only";
+- real rooms behind the doors;
+- the furniture built in Blender;
+- the order: quick fixes, then the recap as a phone, then the break-ins.
+
+This entry is step 1, the quick fixes: the camera felt different at night, and the night sky wanted stars.
+
+**What changed:**
+
+1. **The night camera is the day's** (`CafeViewMode`).
+   - At night the overhead camera still follows Ace, a fifth of a second behind, but with the day's own tilt and zoom: 38–68° and 24–48 m, carrying on from the view the day left. From the usual start that is 43° and 34 m, instead of 62° and 20 m.
+   - Buildings in the way still turn see-through, and the café's walls still only lower when they hide Ace.
+   - **Follow With Day Framing** (on) on `CafeViewMode`. Off brings back the 28 Sept framing (55–80°, 12–34 m, starting at 62° and 20 m).
+   - First person was already the same camera by day and night; only the lighting differs there.
+   - New for the checks: `OverheadLimits` and `OverheadHome`.
+2. **Stars and the moon** (`NightSky`, new; the shader "Fixit Fidget/Night sky", in `Assets/Playtests/AcesCafeLayout/Night walk - sky.shader`, new).
+   - About 1,600 stars, 40 of them brighter, some a little blue or warm, a few twinkling. They thin out towards the horizon.
+   - The moon is where the moonlight comes from (`CafeDaylight`'s Moon Altitude and Moon Azimuth: 42° up, in the north-east). It has a glow, and no stars in front of it.
+   - It is one mesh of small quads, drawn round the camera just inside its far plane: added light, no fog, never culled. Buildings and lamp posts hide it.
+   - It is rolled from a fixed seed with its own random numbers: the same sky every night, and no other random stream moves.
+   - `CafeDaylight` makes it the first time the moon is up (night walks only) and sets its strength. By day it doesn't exist. **Night Sky** (on) on `CafeDaylight` switches it off.
+   - Only first person sees the sky. The overhead camera has a 44° field of view, so even at its flattest tilt (38°) the top of the screen looks 16° below the horizon.
+   - **A player build must include the shader** (it is looked up by name), as with the see-through shader.
+3. **The night tour** (`NightTour`, Fixit Fidget › Night › Night walk 3 - Walk the tour).
+   - Each leg's tilt and zoom are given in terms of the camera's own limits: its lowest tilt, its start, zoomed right out or right in. So the tour tests whichever framing the night uses.
+   - At the end it looks up at the moon, and at the stars away from it, in first person (photos 23 and 24).
+   - Its report, and `NightWalk.Describe`, include the camera's limits and the night sky.
+
+**Checks** (lab sessions; the playtest save was never used):
+
+- **Compile:** no errors, and no warnings from these files.
+- **The night tour** (`Logs/Night/night-tour-2026-09-29_022617`):
+  - 342 m in 70 s, never stuck; frames 4.2 ms on average, the worst 24.8 ms;
+  - 26 different buildings and trees turned see-through, at most 4 at once. With the old framing it was 10, at most 2 (`night-tour-2026-09-28_154707`);
+  - the night sky: 1,635 stars (39 brighter) and the moon, 42° up towards 35°, drawn.
+- **Night 1 play checks:** cracking 76/76, keeping a straight face 76/76, the morning after Day 2 73/73.
+- **Night 1 rules:** 283 assertions, PASS.
+- **Wall cut-away** (Play Mode, a Day 5 lab session): 31/31. The day's overhead camera is as before.
+- No warnings or errors in any of these sessions.
+
+**Seen, not changed:**
+
+- **Ace is small on screen at night now**, as by day. The grey capsule is hard to see in a building's shadow or under a see-through building. The stand-in body (the plan's step 5) is the fix; the torch (F) helps meanwhile.
+- **More buildings turn see-through** at the day's flatter tilt (26 against 10 on the tour). The dots read clearly in the photos; worth watching in play.
+- **The moon is a bright, glowing disc.** The night look's bloom washes out its darker patches. A dimmer Moon Colour on the shader would show them but glow less. Mansoor's call.
+
+**Next** (the plan's order, `claude/playtest-2-plan.md` §6):
+
+1. Mansoor plays a night: the camera and the sky.
+2. Step 2: the recap as Ace's phone (Reviews, Franchise, Shop, Notes), from the mock-up.
+3. Meanwhile, Mansoor's: the new regulars' names and who they are, with his sister.
+
+**Known:**
+
+- The TextMesh Pro fallback font asset shows as modified after Play sessions. It was left out of the commit, as before.
+- The playtest's day logs (`DayLogs/AcesCafeLayout`) show as modified or new. They're never committed.
+- The café scene shows as changed in the editor after Play (Cinemachine's Save During Play). It was never saved; the file on disk is unchanged.
+
 ## September 28 (late night) — The dialogue pass: talking like Skyrim, not a novel (subtitles, Ace's replies, one question for Grace, shorter lines); on `dialogue-pass`
 
 **Read this entry first.** One code commit, `66eacd8`, on the new branch `dialogue-pass`, made from `night-1` at `1e4d78e` (the bug-fixes handoff below). This entry comes in the commit after it. Nothing is pushed.
