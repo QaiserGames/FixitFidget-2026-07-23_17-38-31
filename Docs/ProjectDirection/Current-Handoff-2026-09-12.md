@@ -1,5 +1,103 @@
 # Current handoff — September 12, 2026
 
+## September 29 (morning) — Playtest 2, step 2: the end-of-day recap becomes Ace's phone; on `playtest-2`
+
+**Read this entry first.** One code commit, `e919395`, on `playtest-2`, after step 1's handoff (`f0d6a6c`). This entry comes in the commit after it. Nothing is pushed.
+
+This is step 2 of the second playtest's plan (`claude/playtest-2-plan.md` in the project: the idea in §4.3, the spec in §9, as built in §10). The playtest's note: the recap read like "word vomit", but the stars and the reviews were loved, so make it a phone. It is built from the mock-up Mansoor approved.
+
+**What changed:**
+
+1. **The recap is Ace's phone** (`RecapPhone`, new). It is built in code while playing, so the scene doesn't change.
+   - It comes up at closing over the dimmed café, and the HUD hides behind it. Four apps sit on a tab bar, and it opens on Reviews each evening.
+   - **Reviews:**
+     - today's takings on a dark card, with **Details** for the day's 12 numbers (a failed save shows there, in red);
+     - today's summary: how many reviews, the reputation change, and five bars;
+     - every review of the day as a card, newest first: avatar, name ("a walk-in" for walk-ins), a "regular" tag, 1–5 stars, "today" and the line. No average anywhere.
+   - **Franchise:**
+     - the café's stars, "New star!" on the day, the level's name, and the bar to the next star;
+     - HQ's requests: the next star, no scandal, the offer at five stars;
+     - what changed today, with one line about the day's worst kind of review.
+   - **Shop:**
+     - the till;
+     - cups and beans, in red under 10;
+     - the restock: +20 each plus the upgrade's bonus, for $30;
+     - the six upgrades with level and price, greyed out of reach and MAX when maxed.
+     - Buying works as before: only at closing, saved at once.
+   - **Notes:** the notebook person by person. Where they live comes first, with "hunch" or "likely", and today's facts are marked NEW.
+   - **Close up for the night** sits above the tab bar in every app. It is the recap's own button: it still leads into the night, and reads Open Tomorrow once the night is walked.
+   - **Badges:** Franchise gets a dot on the day a star is earned, Shop a "!" while cups or beans are low, and Notes the number of facts learned today.
+   - **Controls:**
+     - mouse: click, and the wheel scrolls;
+     - keyboard: Q/E or ←/→ switch apps, 1–4 jump to one, W/S or ↑/↓ scroll;
+     - pad: LB/RB switch apps, the right stick scrolls, the D-pad moves between buttons with a gold ring on the one selected, and A presses.
+     - The hint for the device in use sits under the phone.
+2. **RecapUI:** **Use Phone** (on) hands the recap's panel and button to the phone. Off brings back the three-column recap, which stays in the scene untouched. Also new: `RecapUI.Showing` (ShopUI uses it to hide the HUD) and `RecapUI.Phone`.
+3. **A line for every review** (`ReputationLedger`, `SaveManager`, `SaveData`).
+   - Settling the day now writes a card for every review, not only the three quotes. The lines come from the same pools, picked as the best quote is, so the day's best review reads the same on both.
+   - The cards are saved with the recap: five additive arrays, no version bump. A recap saved before this step shows its quotes as cards (`ReputationRules.SplitQuote`).
+   - Also `ReputationRules.StarsOf` (Loved it 5 … Never again 1, never averaged) and `ReputationRecap.Lesson` (the day's one line).
+4. **Notes by person** (`NotebookRecap.People` and `Sureness`; `Sentence` is public). The night's notebook page is built from `People` now and reads exactly as before (compared on 20,000 random notebooks).
+5. **Shop plumbing:** `ShopInventory.RestockAdds` and `LowStock`; `UpgradeShopUI.TryBuy` and `TryRestock`, shared by both recaps.
+6. **Sound:** `phone.tap` in the sound bank, for switching apps, Details and buying. It stays silent until a file is chosen, like every cue so far.
+7. **A leak fixed** (`NightCycle`).
+   - The night cycle and its doorway were marked DontSave, and in the editor such an object outlives its Play session. A night stopped with its note on screen left that note in the Game view in Edit Mode, and drew it over the next session's recap. The phone's check caught it.
+   - They're ordinary scene objects now, and any left over from before is put away when a session starts.
+8. **The lab** (Fixit Fidget › Recap phone):
+   - **Play from a sample Day 3 recap (lab):** a lab session (a test save) that opens on a made-up Day 3's recap:
+     - five reviews and the café's second star;
+     - $641 in the till, 12 cups and 9 beans (low);
+     - Faster Machine at level 1;
+     - Grace in the notebook, with two facts new today.
+   - **Play check (lab, drives itself):** `RecapPhoneCheck`, 84 checks in about 6 s, and a photo of every app (`Logs/Recap/recap-phone-check-<time>/`).
+   - Fixit Fidget › Reputation › Preview a busy day fills the phone too.
+
+**Checks** (lab sessions; the playtest save was never used):
+
+- **Compile:** no errors, and no new warnings.
+- **The recap phone play check:** 84/84, 10 photos (`Logs/Recap/recap-phone-check-2026-09-29_061420`).
+- **By hand in the lab, with the real mouse:** clicking the tabs and Details, and scrolling with the wheel.
+- **Night 1 play checks** (they press the recap's button): cracking 76/76, keeping a straight face 76/76, the morning after Day 2 73/73.
+- **Night notebook** (Play Mode, lab): 15/15.
+- **Rules in Unity:** all PASS.
+  - Reputation 19,699, Night notebook 51, Night 1 283, Home 40.
+  - Recap input isolation and Recap save checkpoint.
+- **Console tests:** Reputation, Notebook, Home, Night and Storyteller rules pass. ContinuationRules fails, as it did before this step: it still expects save version 4.
+
+**Seen, not changed:**
+
+- **Screenshots of the desktop look washed out.** Captures of the screen on this PC come out much brighter than what the game draws.
+  - The Chrome icon on the taskbar is brightened by the same amount, so it's the capture, not the game (likely Windows HDR).
+  - The in-game photos are the true colours, and they match the mock-up. Judge colours from the photos, or on the screen itself.
+- **`Assets/AssetsPrefabs/PhoneRepair.prefab` shows as changed**: its "Fresh" screen is switched on.
+  - Something in a Play session switches on the prefab asset's own screen rather than a copy's, and the sound bank update's save-all wrote it to disk.
+  - It's harmless in play: every copy switches it off again when it wakes.
+  - Nobody meant that change, so it was left out of the commit. Discard it in a git client, or find the cause in a later session.
+- **Other runtime objects are still marked DontSave**: the straight face's screen, the sound player and soundscape, the attention director, the café life probe's camera, and others.
+  - They may outlive an editor Play session the same way.
+  - It's editor only; a build is unaffected. Not changed here, to keep the step small.
+- **The first two clicks after the lab opened didn't register.** They worked once a key had been pressed in the Game view, and every click after that did. Most likely the editor's focus; worth noticing in play.
+
+**Placeholder copy**, Mansoor's to rewrite:
+
+- the apps' names;
+- the headers: "Ace's Café" / "Repair café · Coffee · Reviews", "Franchise HQ" / "Your café's standing", "Supplies" / "In the till", "Notes" / "Everything Ace knows";
+- HQ's three requests and their small print;
+- the day's six lines about the worst kind of review;
+- "One for every drink", "For the coffee", the low-stock warning, and "Nothing written down yet."
+
+**Next** (the plan's order, `claude/playtest-2-plan.md` §6):
+
+1. Mansoor plays a closing: the phone, in play.
+2. Step 3: the break-ins spec, written and decided together.
+3. Meanwhile, Mansoor's: the new regulars' names and who they are, with his sister.
+
+**Known:**
+
+- The TextMesh Pro fallback font asset shows as modified after Play sessions. It was left out of the commit, as before.
+- The playtest's day logs (`DayLogs/AcesCafeLayout`) show as modified or new. They're never committed.
+- The café scene showed as changed after Play (Cinemachine's Save During Play). It was reloaded without saving; the file on disk is unchanged.
+
 ## September 29 (early morning) — Playtest 2, step 1: the night camera matches the day's, and stars and a moon in the night sky; on `playtest-2`
 
 **Read this entry first.** One code commit, `7660844`, on the new branch `playtest-2`, made from `dialogue-pass` at `2e8160f` (the dialogue-pass handoff below). This entry comes in the commit after it. Nothing is pushed.
