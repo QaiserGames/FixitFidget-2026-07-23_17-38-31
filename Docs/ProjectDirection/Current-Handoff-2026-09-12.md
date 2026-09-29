@@ -1,5 +1,70 @@
 # Current handoff — September 12, 2026
 
+## September 29 (overnight) — Playtest 2: the fixes step 2 turned up, the break-ins spec (step 3), and step 4 in Blender (Barnaby and Grace's furniture); on `playtest-2`
+
+**Read this entry first.** Four code commits on `playtest-2` after step 2's handoff (`10d5627`): `0563d7d`, `d8a1063`, `6ca5ca3` and `7f56852`. This entry comes in the commit after them. Nothing is pushed.
+
+Mansoor went to bed and asked for the steps to go on without waiting for his playtest. Everything below was done overnight and checked in lab sessions; the Day 2 playtest save was never used.
+
+**What changed:**
+
+1. **Editor Play sessions no longer leave helpers behind** (`0563d7d`, `PlaySessionLeftovers`, new).
+   - The sound player, the soundscape, the NPC attention director and the straight-face meter were marked DontSave. In the editor such an object outlives its Play session, and 51 were waiting in the editor, each still switched on.
+   - Now they end with their Play session. In the editor, each session starts by putting away any left from before. A build never had the problem.
+2. **PhoneRepair.prefab is back as it was.** Its "Fresh" screen had been switched on in the prefab asset itself during step 2. The flag is flipped back in the file, so git no longer lists it. What switches it on during play wasn't found; if it shows as changed again, discard it.
+3. **A correction to step 2's entry:** all nine console tests pass, ContinuationRules included. The "ContinuationRules fails" line came from a stale copy of the tests in the cloud workspace. The entry below is corrected.
+4. **Step 3, the break-ins spec** (`claude/break-ins-spec.md` in the project; nothing built from it yet). It covers:
+   - Grace's ground floor: a hall with the stairs and a cupboard under them, a front room and a kitchen;
+   - the way in, which is learned by day;
+   - the rules for being seen and heard;
+   - getting caught: bail, a late opening, a scandal;
+   - Ace's body, supplies, and the morning after.
+
+   Eight calls in its §11 are Mansoor's. The floor plan is `Claude outputs/grace-house-ground-floor.png`.
+   - **The survey tool** (`d8a1063`): Fixit Fidget › Night › Break-ins - Survey Grace's house (read-only). It gives her house's size, floors, windows, door and neighbours, with photos.
+5. **Step 4 in Blender: Barnaby** (`6ca5ca3`).
+   - **How it was built.** Blender on this PC wasn't running its MCP server, and the command-line mode has no BLENDER_PATH. So the models were built in Python with Blender 5.2.2 run as a module in the cloud workspace. That is the same version as this PC's Blender, and the .blend files open in it.
+   - **Where it lives.** The scripts are in `Tools/Blender` (see its README) and the source is `BlenderSource/Night1_Barnaby.blend`.
+   - **The model.** Barnaby is the placeholder's look made properly: red hat, blue coat, white beard, boots, a brass buckle, a mossy stone. He is 912 triangles and 0.23 × 0.23 × 0.52 m, inside the space the Night 1 set-up checked on her step. His materials are the placeholder's own, plus moss.
+   - **In Unity.** `Assets/Art/Models/Night/Barnaby.fbx` comes in upright with no turn and scale 1.
+     - Fixit Fidget › Night › **Night 1 - Barnaby: use the Blender model / back to simple shapes (the prefab only)** switches between the two looks. Both live in the prefab.
+     - The scene file isn't touched. The gnome on her step and the copy on Ace's shelf are the same prefab, so both follow.
+     - The Night 1 set-up builds the prefab the same way if it's run again.
+6. **Step 4 in Blender: Grace's furniture** (`7f56852`). These are the 24 pieces on the spec's list, 9,584 triangles in all:
+   - **Front room:** her armchair, the sofa, a wood-cased TV and its cabinet, the coffee table, the sideboard, four photo frames, a standard lamp, the rug.
+   - **Kitchen:** the counter run with an oven, a hob and a sink; wall cupboards; a mint fridge; a kettle; a teapot; the box of reunion cups (three sleeves of twelve) and one sleeve on its own.
+   - **Hall:** a coat stand with her coat, the stairs with the cupboard under them and its door, a doorway and a door.
+   - **Files.** The FBX files are in `Assets/Art/Models/GraceHouse`. The source is `BlenderSource/GraceHouse_GroundFloor.blend`, laid out by room.
+   - **In Unity.** Fixit Fidget › Night › **Break-ins - Grace's furniture: import and check (the models only)**:
+     - sets the import settings;
+     - makes her 21 materials (`Assets/Art/Materials/GraceHouse`);
+     - maps every material by name to the café's or hers;
+     - checks each piece and photographs the lot in a preview scene.
+   - **Not in the scene yet:** that's step 5.
+
+**Checks** (lab sessions):
+
+- Compiles with no errors. There are no warnings from the new files; the CS0618 warnings are the old ones from other editor files.
+- Barnaby's step: all pass. He is one mesh, upright, facing the street, and fits the checked space. Both scene copies are the prefab, and the shelf copy is still hidden (`Logs/Night/barnaby-model-2026-09-29_082222`).
+- Night 1 play checks with the model: keeping a straight face 76/76, cracking 76/76, the morning after Day 2 73/73.
+- Grace's furniture step: 49 checks, all pass (`Logs/Night/grace-furniture-2026-09-29_085237`).
+- Before these: the recap phone check 84/84; the Night notebook 15/15; the rules in Unity all pass; all nine console tests pass.
+
+**Seen, not changed:**
+
+- **Unity pauses Play when it isn't the window in front.** Run In Background is off in the Player settings. A notification or another window taking focus stalls a play check until Unity is clicked again; one check tonight took 195 s instead of 90 for that reason.
+  - Turning it on (Project Settings › Player › Resolution and Presentation) would keep the editor running in the background. It changes builds too, so it's Mansoor's call.
+- **Menu items can be run from Unity Search** (Ctrl+K): type the item's name and double-click it.
+- **The night camera at Grace's step.** Her house fades to a dither and Barnaby is small from that height; the glint makes him findable. Worth watching in play.
+
+**Next** (the plan's order, `claude/playtest-2-plan.md` §6):
+
+1. Mansoor plays: the phone at closing, and Night 1 with the new Barnaby.
+2. Mansoor's eight calls in the break-ins spec (§11).
+3. Step 5, Grace's house end to end, once they're decided.
+
+**Known:** as before, the TextMesh Pro fallback font, the playtest's day logs and the café scene after Play (reloaded without saving) are left out of every commit.
+
 ## September 29 (morning) — Playtest 2, step 2: the end-of-day recap becomes Ace's phone; on `playtest-2`
 
 **Read this entry first.** One code commit, `e919395`, on `playtest-2`, after step 1's handoff (`f0d6a6c`). This entry comes in the commit after it. Nothing is pushed.
@@ -62,7 +127,7 @@ This is step 2 of the second playtest's plan (`claude/playtest-2-plan.md` in the
 - **Rules in Unity:** all PASS.
   - Reputation 19,699, Night notebook 51, Night 1 283, Home 40.
   - Recap input isolation and Recap save checkpoint.
-- **Console tests:** Reputation, Notebook, Home, Night and Storyteller rules pass. ContinuationRules fails, as it did before this step: it still expects save version 4.
+- **Console tests:** all nine pass. (This line first said ContinuationRules failed; that came from a stale copy of the tests, and was corrected overnight.)
 
 **Seen, not changed:**
 
@@ -72,10 +137,10 @@ This is step 2 of the second playtest's plan (`claude/playtest-2-plan.md` in the
 - **`Assets/AssetsPrefabs/PhoneRepair.prefab` shows as changed**: its "Fresh" screen is switched on.
   - Something in a Play session switches on the prefab asset's own screen rather than a copy's, and the sound bank update's save-all wrote it to disk.
   - It's harmless in play: every copy switches it off again when it wakes.
-  - Nobody meant that change, so it was left out of the commit. Discard it in a git client, or find the cause in a later session.
+  - Nobody meant that change, so it was left out of the commit. (Restored overnight: see the entry above.)
 - **Other runtime objects are still marked DontSave**: the straight face's screen, the sound player and soundscape, the attention director, the café life probe's camera, and others.
   - They may outlive an editor Play session the same way.
-  - It's editor only; a build is unaffected. Not changed here, to keep the step small.
+  - It's editor only; a build is unaffected. Not changed here, to keep the step small. (Fixed overnight in `0563d7d` for the sound player, the soundscape, the attention director and the meter.)
 - **The first two clicks after the lab opened didn't register.** They worked once a key had been pressed in the Game view, and every click after that did. Most likely the editor's focus; worth noticing in play.
 
 **Placeholder copy**, Mansoor's to rewrite:
