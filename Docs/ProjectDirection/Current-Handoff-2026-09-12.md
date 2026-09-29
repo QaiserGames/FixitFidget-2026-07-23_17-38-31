@@ -1,5 +1,69 @@
 # Current handoff — September 12, 2026
 
+## September 28 (night) — Night 1 bug fixes before the playtest: drink orders, the door on the way out, first person at the door, the morning's notebook, a safe nightfall; on `night-1`
+
+**Read this entry first.** One code commit, `69c38b1`, on `night-1`, after the fixes entry below (`062ea9d`, handoff `7408576`). This entry comes in the commit after it. Nothing is pushed.
+
+Mansoor asked for every bug to be fixed before he plays ("fix any and all bugs before i play"). What was found came from two code reviews of Night 1's changes, the check photos, a live day-into-night run and a play-through of the lab entry by hand. Every check ran in lab sessions, and the playtest save was never written.
+
+**What was wrong, and what changed:**
+
+1. **A drink was "brought in" like a repair** (`CustomerIdentity`, `ConversationController`).
+   - A drink-only visit's first line came from the repair lines, with the drink as the device and "broken" as the fault. Grace on Day 3 said "Today's patient is my Latte: broken." A walk-in who came for a drink said "Hi! My Latte — broken. Any chance?", on every day, from before Night 1. Grace's Day 2 return ended "Today, I'd love a Latte."
+   - Now a returning regular skips the repair callbacks on a drink visit and orders in their own drink line (`orderedDrink`). Grace on Day 3: "A latte, please. No sugar. Life provides enough of that."
+   - A walk-in orders with a placeholder line, one pool for every personality: "Could I get {a drink}, please?" or "Just {a drink} today, please."
+   - Grace's Day 2 return ends "Today, I'd love a latte."
+   - New tokens: `{drink}` (the drink's name, lower case) and `{a drink}` ("a latte", "an espresso").
+   - The key hint reads "[E]  Take the order" for a drink ("Take the job" for a repair).
+   - One line is still picked, so the customers' random stream is as before.
+2. **The café's door offered "Call it a night" on the way out** (`NightCycle`, `NightDoorway`). It's offered only once Ace has been out since the night began (`NightCycle.BeenOut`). The moment's wait after the night begins stays.
+3. **In first person, standing in the doorway offered nothing** (`NightInteractable.IsZone`, `PlayerInteractor`). The crosshair's ray starts inside the doorway's trigger and never hits it. The doorway is now a place: offered wherever Ace stands in or near it, in either view.
+4. **Night things still worked during the fades** (`NightInteractable`). E in the dark at nightfall, or during dawn's fade (Barnaby after 4 AM), still counted. They're offered only while the night is on.
+5. **The notebook filed a mention Ace never heard** (`NightThings`, `NotebookHooks`, `MorningFace`). If Ace took the gnome without having heard of him (Mansoor's own save), Grace's complaint filed her Day 1 mention ("…the saffron house on the corner. Twenty years. Polishes him."). It now files what she has just said: "Had a garden gnome, Barnaby, on her front step. Twenty years." (a placeholder: `notebookComplaint`, `NightThings.Complained`, `NotebookHooks.HeardComplaint`).
+6. **A note from the night stayed on over the morning.** "Barnaby is coming home with Ace" (4.5 s), or the first night's 9-second note, showed over the "Home" and "Day 2" captions. It's put away as the morning begins.
+7. **An error at nightfall or in the morning would have left the screen dark for good** (`NightCycle`, `RecapUI`). The coroutine stopped where it threw. Each step is now guarded (`Safely`: logged, and the rest carries on).
+   - A night that can't begin goes straight on to tomorrow.
+   - If tomorrow can't open, the recap comes back (`RecapUI.ShowAgain`) and its button goes straight to tomorrow.
+   - The screen always comes back.
+8. **The meter stopped a frame late** (`MorningFace`). The needle moved on before Space was read, so it stopped a frame past where the player saw it: about 1.5% of the bar at 60 fps, 3% at 30. Space is read first now.
+9. **Low patience turned Grace's face "Impatient" during the morning scene** (`CustomerIdentity.Feel`). The scene's faces (concerned, then pleased or surprised) now hold until her next line.
+10. **The morning's visitor could be beaten to the counter** (`CustomerSpawner`). Grace walks over from her own front door, and the next arrival's countdown ran meanwhile: someone from the car park could reach the counter first. While someone with news of last night is walking over, the next arrival waits, a minute at most.
+11. **A lab night walk made the day run ahead** (`DayClock`). The night walk stops the day's clock, but the day's elapsed time kept counting. After an editor lab's mid-day night walk, the spawner thought the day was further on and its rush came early. Time the clock stood still no longer counts. (A real night comes after the day is over, where this never mattered.)
+12. **The lab's banner covered the controls hint and the conversation's portrait** (`CafeLab`). It's now in the bottom right corner, sized with the HUD.
+
+**Checks** (lab sessions):
+
+- **Compile:** no errors, 67 warnings (as before).
+- **Night 1 play checks** (on the final code): keeping a straight face 70/70, cracking 70/70, the morning after Day 2 71/71. New in them:
+  - on the way out, the door offers nothing;
+  - in first person inside the door, with the camera at Ace's eyes, "[E]  Call it a night" is on screen (photo `05b`), then again from above;
+  - Grace is first at the counter (nobody waiting ahead of her);
+  - the notebook has her own words (the Day 2 lab, like an older save);
+  - her order: "…Today, I'd love a latte." on Day 2, "A latte, please. No sugar. Life provides enough of that." on Day 3, and "Take the order".
+- **Night 1 rules:** 267 (`Tests/NightRules`: 265 rules and 2 save-format).
+- **Customer memory**, with new checks: a returning regular's drink visit orders in their own words, a walk-in orders "an espresso", and a repair keeps the repair line.
+- **16 more gameplay checks PASS:** human counter integration, customer delivery from either hand, Day 1 onboarding, Grace camera content, Grace camera interaction, continuation rules, recap input isolation, recap save checkpoint, storyteller interaction, waiting space, ticket layout, human rules, home rules, notebook rules, storyteller rules, featured repair.
+- **A live day into the night** (the path no check drives): a lab Day 5 on autopilot to its real end and recap, then "Close up for the night".
+  - The lab put Ace in the doorway: nothing offered. Out and back in by hand: "Call it a night", and in first person too.
+  - Then left alone: the night ended at dawn by itself, and Day 6 opened and ran.
+  - No warnings or errors.
+- **By hand, the Day 1 recap lab entry:** the recap's button; the night; out through the door (nothing offered); to Grace's step by her line's directions ("[E]  Take Barnaby"); the note; the notebook page (N); back in; "Call it a night"; Day 2's guide. No warnings or errors. Grace then ran out of patience at the counter while the mouse look was being fumbled (the clock runs about an hour every 16 seconds); the play checks cover her scene with real key presses.
+- The playtest's own day logs weren't touched: lab sessions wrote only to `DayLogs/CafeLab`.
+
+**Seen, not changed:**
+
+- Grace's lines on a drink visit are her authored ones. Two read as if a repair were involved: her warm "accepted" line ("Take care of it—and yourself.") and her first-meeting drink line ("While you work, may I have my usual latte?"). They're Mansoor's to rewrite (`Regular_Grace`).
+- The walk-ins' drink orders are placeholders in code (`CustomerIdentity.DrinkOrderLines`), one pool for every personality. A field on the dialogue sets would let each personality order in its own words.
+- The conversation's text has no shadow, and over the café's bright windows in the close-up it's harder to read. The HUD prompt's shadow could be given to it.
+- If Grace leaves before Ace talks to her, the morning scene waits for her next visit, and her complaint still says "last night".
+
+**Next:** Mansoor plays Night 1 (the lab entry, then his own save) and answers the three questions in `claude/night-1-slice.md` §9.
+
+**Known:**
+
+- The TextMesh Pro fallback font asset shows as modified after Play sessions. It was left out of the commit, as before.
+- The playtest's day logs (`DayLogs/AcesCafeLayout`) show as modified or new from earlier sessions. They're never committed.
+
 ## September 28 (late evening) — Night 1 fixes after the first look: the meter under Grace's line, no patience bars in conversations, a shadow behind the prompt, Grace's stand-in look; on `night-1`
 
 **Read this entry first.** One code commit, `062ea9d`, on `night-1`, after the Night 1 entry below (`2038a44`, handoff `43665f8`). This entry comes in the commit after it. Nothing is pushed.
