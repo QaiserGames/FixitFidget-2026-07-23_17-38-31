@@ -6,10 +6,11 @@ using UnityEngine.Playables;
 // ---------------------------------------------------------------------------
 // ACE'S STAND-IN BODY (29 Sept 2026: claude/break-ins-spec.md section 8, calls 1, 6 and d)
 //
-// Until Ace has a model of Ace's own, Ace wears a stand-in body at night: look 11, the green jacket
-// (POLYGON City's Character_Male_Jacket, one of the walk-ins' looks, which leaves their pool so Ace
-// never meets a double). By day the café keeps the capsule, except in its own lab
-// (Fixit Fidget > Night > Ace's body 2 - Try it in the café).
+// Until Ace has a model of Ace's own (a Sidekick character, next), Ace wears a stand-in body: look 11,
+// the green jacket (POLYGON City's Character_Male_Jacket, one of the walk-ins' looks, which leaves their
+// pool so Ace never meets a double). Day and night since Mansoor's call on 29 Sept (By Day below); with
+// By Day off, only at night and in the café lab (Fixit Fidget > Night > Ace's body 2 - Try it in the café).
+// By day the cups and hands Ace carries still sit where the capsule held them (a known rough edge).
 //
 // How: the same way every café person is drawn. A hidden café rig (Quaternius Beach, CC0) plays its
 // idle, walk or run, blended by how fast Ace really moves, with each clip played at the rate that
@@ -43,6 +44,10 @@ public sealed class AceBody : MonoBehaviour
     [Range(0f, 1f)] public float walkLeftForward, runLeftForward = .38f;
     [Tooltip("The body's height standing, metres, as measured by the set-up step (for the reports).")]
     [Min(0f)] public float standingHeight;
+
+    [Header("When")]
+    [Tooltip("Wear the body by day too (the café). Off: only at night, and by day in the café lab.")]
+    public bool byDay = true;
 
     [Header("Feel")]
     [Tooltip("Degrees a second the body turns toward where Ace is going.")]
@@ -132,7 +137,7 @@ public sealed class AceBody : MonoBehaviour
         {
             if (!Application.isPlaying || failed || !HasParts) return false;
             NightWalk night = NightWalk.Instance;
-            return night != null && night.Active || labRequest && CafeLab.Active;
+            return byDay || night != null && night.Active || labRequest && CafeLab.Active;
         }
     }
 

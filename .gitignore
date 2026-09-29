@@ -128,3 +128,9 @@ InitTestScene*.unity*
 # forbids sharing the files themselves, so they stay out of this public repository.
 /Assets/Audio/Licensed/
 /Assets/Audio/Licensed.meta
+
+# Synty Sidekick (the Starter Pack, and the Character Creator it fetches from Synty's GitHub releases): Synty's EULA
+# keeps these out of this public repository. The pack itself lives in /Assets/Synty/ (above); its tool downloader
+# caches the tool's packages here.
+/Assets/DownloadCache/
+/Assets/DownloadCache.meta
