@@ -9,13 +9,17 @@ using UnityEngine.UI;
 //
 //   * After the recap, its button reads "Close up for the night" (RecapUI): the screen goes dark,
 //     the café is emptied, and the night walk begins where Ace stands (NightWalk).
-//   * Ace calls it a night just inside the café's door (E there, or A / Cross: NightDoorway), or
-//     the night ends by itself at dawn (4 AM on the night's clock) and Ace hurries home.
+//   * Ace calls it a night just inside the café's door (E there, or A / Cross: NightDoorway) once Ace has
+//     been out (never on the way out), or the night ends by itself at dawn (4 AM on the night's clock)
+//     and Ace hurries home.
 //   * The screen goes dark again, the night is put away (NightWalk.End), Ace is back where the day
 //     starts, and the recap's own Open Tomorrow runs (RecapUI.ContinueAfterNight): the next morning is
 //     saved with what the night did (NightLedger), and opens.
 //
 // Nothing is saved during a night: quitting mid-night comes back to the recap, and the night again.
+// Nightfall and the morning are guarded (Safely): an error there is logged, and the screen never stays
+// dark. A night that couldn't begin goes straight on to tomorrow; if tomorrow can't open, the recap
+// comes back (its button then opens tomorrow).
 // The night can be switched off on the NightWalk (Night Follows The Day); a scene without a NightWalk
 // goes straight on to the next day, as before. A night started some other way (the editor's night
 // walk lab) is taken over too: the doorway and dawn work there, and ending it lets that day run.
@@ -62,7 +66,13 @@ public sealed class NightCycle : MonoBehaviour
 
     public Phase Now { get; private set; } = Phase.Day;
     public bool Running => Now != Phase.Day;
-    public bool CanCallItANight => Now == Phase.Night && Time.unscaledTime >= readyAt;
+    /// <summary>
+    /// Ace can call it a night (at the café's door): the night is on, a moment has passed since it began
+    /// (the press that closed the recap mustn't also end it), and Ace has been out since.
+    /// </summary>
+    public bool CanCallItANight => Now == Phase.Night && Time.unscaledTime >= readyAt && beenOut;
+    /// <summary>Ace has left the café since this night began (reports and checks).</summary>
+    public bool BeenOut => beenOut;
     /// <summary>Nights begun in this Play session, and how the last one ended (reports).</summary>
     public int NightsThisSession { get; private set; }
     public string LastEnding { get; private set; } = "";
@@ -70,8 +80,10 @@ public sealed class NightCycle : MonoBehaviour
 
     RecapUI recap;
     NightDoorway doorway;
+    CafeViewMode view;
     float readyAt;
     bool ending;
+    bool beenOut;
 
     CanvasGroup curtain;
     TMP_Text title, subtitle, note;
@@ -139,11 +151,14 @@ public sealed class NightCycle : MonoBehaviour
         int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         yield return Fade(1f, .6f);
         Caption($"Night {day}", "The café is closed. Walk where you like, and come back in through the café's door to call it a night.");
-        if (DayClock.Instance != null) DayClock.Instance.ClearTheShop();
-        Time.timeScale = 1f;
-        NightWalk walk = NightWalk.Instance;
-        walk.QuietTheStreet();
-        walk.Begin();
+        if (!Safely("nightfall", Nightfall))
+        {
+            // No night, then: put away whatever of it began, and on to tomorrow.
+            LastEnding = "could not begin (see the Console)";
+            Safely("putting the night away", PutTheNightAway);
+            yield return Tomorrow();
+            yield break;
+        }
         yield return new WaitForSecondsRealtime(1.4f);
         BeginNight();
         yield return Fade(0f, .9f);
@@ -154,12 +169,22 @@ public sealed class NightCycle : MonoBehaviour
                  $"{ControlHints.Torch} is the torch. Back inside the café's door, {ControlHints.Interact} calls it a night.", 9f);
     }
 
+    static void Nightfall()
+    {
+        if (DayClock.Instance != null) DayClock.Instance.ClearTheShop();
+        Time.timeScale = 1f;
+        NightWalk walk = NightWalk.Instance;
+        walk.QuietTheStreet();
+        walk.Begin();
+    }
+
     // The night is on: the doorway to call it a night, a moment before it can be used (the button
-    // that closed the recap mustn't also end the night).
+    // that closed the recap mustn't also end the night), and only once Ace has been out (Update).
     void BeginNight()
     {
         Now = Phase.Night;
         readyAt = Time.unscaledTime + 1f;
+        beenOut = false;
         NightsThisSession++;
         MakeTheDoorway();
     }
@@ -181,7 +206,16 @@ public sealed class NightCycle : MonoBehaviour
                 RemoveTheDoorway();
                 Now = Phase.Day;
             }
-            else if (walk.Hour >= walk.nightEndsAt - .001f) EndTheNight(true);
+            else
+            {
+                // The café's door calls it a night only on the way back in, never on the way out.
+                if (!beenOut)
+                {
+                    if (view == null) view = FindAnyObjectByType<CafeViewMode>();
+                    beenOut = view == null || !view.AceInsideCafe;
+                }
+                if (walk.Hour >= walk.nightEndsAt - .001f) EndTheNight(true);
+            }
         }
         if (note != null && noteBox.gameObject.activeSelf && Time.unscaledTime >= noteUntil) noteBox.gameObject.SetActive(false);
     }
@@ -207,23 +241,34 @@ public sealed class NightCycle : MonoBehaviour
     {
         Now = Phase.Dawn;
         LastEnding = dawn ? "dawn" : "called it a night";
-        Sfx.Play2D(dawn ? "night.dawn" : "night.home");
+        // A note from the night ("Barnaby is coming home with Ace") doesn't stay on over the morning.
+        HideNote();
+        Safely("the night's last sound", () => Sfx.Play2D(dawn ? "night.dawn" : "night.home"));
         yield return Fade(1f, dawn ? 1.4f : .7f);
         Caption(dawn ? "Dawn" : "Home",
             dawn ? "The sky pales, and Ace hurries home before the street wakes." : "Ace calls it a night.");
-        RemoveTheDoorway();
-        NightWalk walk = NightWalk.Instance;
-        if (walk != null) walk.End();
-        GoHome();
-        if (SaveManager.Instance != null) SaveManager.Instance.Night.CameHome();
+        Safely("putting the night away", PutTheNightAway);
+        Safely("the night's record", () => { if (SaveManager.Instance != null) SaveManager.Instance.Night.CameHome(); });
         yield return new WaitForSecondsRealtime(1.2f);
+        yield return Tomorrow();
+    }
 
-        // The recap's own Open Tomorrow: the morning is saved with the night's doings, then opens. If it
-        // can't be saved, the recap comes back with the error, and its button goes straight to tomorrow.
+    // After the night (or a night that couldn't begin): the recap's own Open Tomorrow. The morning is
+    // saved with the night's doings, then opens; if it can't be saved, the recap comes back with the
+    // error, and its button goes straight to tomorrow. Whatever happens, the screen comes back and the
+    // cycle returns to the day.
+    IEnumerator Tomorrow()
+    {
         DayClock clock = DayClock.Instance;
         bool tomorrow = false;
-        if (clock != null && clock.DayOver)
-            tomorrow = recap != null ? recap.ContinueAfterNight() : clock.TryNextDay();
+        bool opened = Safely("opening tomorrow", () =>
+        {
+            if (clock != null && clock.DayOver)
+                tomorrow = recap != null ? recap.ContinueAfterNight() : clock.TryNextDay();
+        });
+        // An error opening tomorrow: the recap again, rather than a closed day with no way on.
+        if (!opened && clock != null && clock.DayOver && recap != null)
+            Safely("showing the recap again", recap.ShowAgain);
         if (tomorrow) Caption($"Day {clock.Day}", "Morning");
         yield return new WaitForSecondsRealtime(tomorrow ? 1.3f : .2f);
         yield return Fade(0f, .9f);
@@ -231,6 +276,31 @@ public sealed class NightCycle : MonoBehaviour
         recap = null;
         Now = Phase.Day;
         ending = false;
+    }
+
+    void PutTheNightAway()
+    {
+        RemoveTheDoorway();
+        NightWalk walk = NightWalk.Instance;
+        if (walk != null) walk.End();
+        GoHome();
+    }
+
+    // One step of nightfall or the morning. An error is logged and the rest carries on: a coroutine
+    // that throws stops where it is, and the screen would stay dark for good.
+    static bool Safely(string what, System.Action step)
+    {
+        try
+        {
+            step?.Invoke();
+            return true;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[Night] Something went wrong with {what}; carrying on. {e.GetType().Name}: {e.Message}");
+            Debug.LogException(e);
+            return false;
+        }
     }
 
     // Back where the day starts (behind the counter), the way PlayerInteractor moves Ace: with the
@@ -290,6 +360,11 @@ public sealed class NightCycle : MonoBehaviour
         note.text = text;
         noteBox.gameObject.SetActive(true);
         noteUntil = Time.unscaledTime + Mathf.Max(1f, seconds);
+    }
+
+    void HideNote()
+    {
+        if (noteBox != null) noteBox.gameObject.SetActive(false);
     }
 
     void BuildScreen()
@@ -368,5 +443,5 @@ public sealed class NightCycle : MonoBehaviour
 
     public string Describe() =>
         $"Night cycle: {Now}; {NightsThisSession} night(s) this session, the last one ended: {(LastEnding.Length > 0 ? LastEnding : "not yet")}; " +
-        $"call it a night {(HasDoorway ? "inside the café's door" : "not offered")}; follows the day: {FollowsTheDay}.";
+        $"call it a night {(HasDoorway ? "inside the café's door" + (beenOut ? "" : " (once Ace has been out)") : "not offered")}; follows the day: {FollowsTheDay}.";
 }

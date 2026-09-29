@@ -100,6 +100,11 @@ public class CustomerSpawner : MonoBehaviour
     // thing to tell Ace about it (MorningFace runs at the counter).
     private CustomerProfile morningVisitor;
     private bool morningVisitorSpawned;
+    // Whoever has something to tell Ace about last night comes in first: while they're still walking
+    // over (CafeArrivals keeps their brain off until the door), the next arrival waits. A minute at most.
+    private CustomerBrain firstThing;
+    private float firstThingUntil;
+    private const float FirstThingWaitsAtMost = 60f;
     private readonly CustomerVisitRoster roster = new();
 
     private readonly DayOneOpening opening = new();
@@ -202,6 +207,7 @@ public class CustomerSpawner : MonoBehaviour
             featuredCustomer = null;
             morningVisitor = ResolveMorningVisitor(lastSeenDay);
             morningVisitorSpawned = false;
+            firstThing = null;
             openingCustomer = null;
             openingDrink = ResolveOpeningDrink();
             bool guide = today != null && today.GuidesOpeningOn(lastSeenDay);
@@ -236,6 +242,11 @@ public class CustomerSpawner : MonoBehaviour
         }
 
         if (DayClock.Instance != null && !DayClock.Instance.IsOpen) return;
+
+        // Someone coming in to tell Ace about last night is still on their way over: the next
+        // arrival's countdown waits for them to reach the door (the Night 1 slice).
+        if (firstThing != null && !firstThing.enabled && Time.time < firstThingUntil) return;
+        firstThing = null;
 
         timer -= Time.deltaTime;
         if (opening.VisitInProgress) return;
@@ -373,6 +384,11 @@ public class CustomerSpawner : MonoBehaviour
             () => brain.Init(counterQueue, exitPoint, job, wish));
         if (!walkingOver) brain.Init(counterQueue, exitPoint, job, wish);
         if (featuredDue) featuredCustomer = brain;
+        if (walkingOver && HasNightNews(profile))
+        {
+            firstThing = brain;
+            firstThingUntil = Time.time + FirstThingWaitsAtMost;
+        }
         if (profile != null) roster.RecordArrival(profile.PersistentId);
         if (opening.TryStartVisit()) openingCustomer = brain;
     }
@@ -401,6 +417,14 @@ public class CustomerSpawner : MonoBehaviour
 
     /// <summary>Who is coming in this morning to tell Ace about last night, or null (reports).</summary>
     public CustomerProfile MorningVisitor => morningVisitorSpawned ? null : morningVisitor;
+
+    // A regular with a deed of Ace's still to tell (NightLedger): the morning's visitor, or today's
+    // featured regular whose thing went missing last night.
+    private bool HasNightNews(CustomerProfile profile)
+    {
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        return profile != null && night != null && night.Unfaced(profile.PersistentId, lastSeenDay) != null;
+    }
 
     private void ResetRoster()
     {

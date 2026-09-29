@@ -61,6 +61,17 @@ public static class NotebookHooks
         return notebook != null && fact != null && notebook.Learn(fact, Today);
     }
 
+    /// <summary>
+    /// The morning after, the owner has just told Ace about <paramref name="thing"/> for the first time
+    /// (Ace took it without having heard of it): what they said then.
+    /// </summary>
+    public static bool HeardComplaint(string ownerName, NightThing thing)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        NotebookFactData fact = NightThings.Complained(thing, ownerName);
+        return notebook != null && fact != null && notebook.Learn(fact, Today);
+    }
+
     /// <summary>Ace took <paramref name="thing"/> at night: Ace's own secret.</summary>
     public static bool TookAtNight(NightThing thing)
     {

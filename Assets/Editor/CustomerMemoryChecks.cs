@@ -170,6 +170,29 @@ public static class CustomerMemoryChecks
             Require(identity.SayRepairCompleted(JobGrade.Rejected).Contains("still needs work")
                     && identity.Expression == PortraitExpression.Impatient, "Rejected handback has a matching response.");
 
+            // A visit for a drink orders it by name: never the repair callback's "my Latte: broken".
+            var latte = new Job { kind = JobKind.Drink, deviceName = "Latte" };
+            identity.SetupRegular(copy, Visit(true, true, "Good"));
+            identity.SetDevice(latte.Subject);
+            identity.SetFault(latte.faultDescription);
+            identity.SetStoryRequest(latte);
+            string order = identity.Say(CustomerIdentity.Beat.Intake);
+            Require(order.IndexOf("latte", StringComparison.OrdinalIgnoreCase) >= 0 && !order.Contains("broken") && !order.Contains("{")
+                    && !order.Contains("patient"), "A returning regular's drink visit orders the drink in their own words: " + order);
+            var espresso = new Job { kind = JobKind.Drink, deviceName = "Espresso" };
+            identity.SetupWalkIn(new CustomerArchetype { lines = new DialogueSet { intake = new[] { "My {device}: {fault}." } } }, "Walk-in");
+            identity.SetDevice(espresso.Subject);
+            identity.SetFault(espresso.faultDescription);
+            identity.SetStoryRequest(espresso);
+            string walkInOrder = identity.Say(CustomerIdentity.Beat.Intake);
+            Require(walkInOrder.Contains("an espresso") && !walkInOrder.Contains("broken"), "A walk-in's drink visit orders it: " + walkInOrder);
+            identity.SetStoryRequest(new Job { kind = JobKind.Repair, deviceName = "pocket watch" });
+            identity.SetDevice("pocket watch");
+            identity.SetFault("Jammed Gears");
+            Require(identity.Say(CustomerIdentity.Beat.Intake) == "My pocket watch: jammed gears.", "A repair visit keeps the repair intake.");
+            // Back to Grace, as before, for the checks below.
+            identity.SetupRegular(copy, Visit(true, true));
+
             foreach (CustomerReturnOutcome outcome in new[] { CustomerReturnOutcome.SuccessfulRepair, CustomerReturnOutcome.ImperfectRepair,
                 CustomerReturnOutcome.RejectedRepair, CustomerReturnOutcome.IncompleteService, CustomerReturnOutcome.MissedVisit,
                 CustomerReturnOutcome.DeclinedVisit, CustomerReturnOutcome.CapacityRefusal, CustomerReturnOutcome.ServedVisit })

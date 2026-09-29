@@ -42,6 +42,11 @@ public sealed class NightThing
 
     /// <summary>The notebook's shorthand of the mention (told).</summary>
     public string notebookMention = "";
+    /// <summary>
+    /// The notebook's shorthand of the complaint (told), when Ace first hears of it the morning after:
+    /// only what the owner says then, since Ace never heard the mention.
+    /// </summary>
+    public string notebookComplaint = "";
     /// <summary>Ace's own note after taking it (a secret, found at night).</summary>
     public string notebookTaken = "";
     /// <summary>After a crack: what the owner said (told).</summary>
@@ -74,6 +79,7 @@ public static class NightThings
         takenNote = "Barnaby is coming home with Ace. He'll go on the shelf.",
         takenNoteUnknown = "The garden gnome is coming home with Ace. It'll go on the shelf.",
         notebookMention = "Has a garden gnome, Barnaby, on the front step of the saffron house on the corner. Twenty years. Polishes him.",
+        notebookComplaint = "Had a garden gnome, Barnaby, on her front step. Twenty years.",
         notebookTaken = "Took Barnaby from her front step. He's on the shelf now.",
         notebookCracked = "Asked if you were smiling about Barnaby. Watching her front step now.",
         sweepSeconds = 1.1f,
@@ -109,6 +115,13 @@ public static class NightThings
     /// <summary>The owner told Ace about it. The fact's id is the thing's id.</summary>
     public static NotebookFactData Mentioned(NightThing thing, string ownerName) =>
         Fact(thing, thing?.id, ownerName, Notebook.Kinds.Possession, thing?.notebookMention, Notebook.Sources.Told);
+
+    /// <summary>
+    /// The owner told Ace about it only the morning after, in their complaint (Ace took it without having
+    /// heard of it). The same fact as the mention (its id is the thing's id), in the complaint's words.
+    /// </summary>
+    public static NotebookFactData Complained(NightThing thing, string ownerName) =>
+        Fact(thing, thing?.id, ownerName, Notebook.Kinds.Possession, thing?.notebookComplaint, Notebook.Sources.Told);
 
     /// <summary>Ace took it at night: Ace's own secret.</summary>
     public static NotebookFactData Taken(NightThing thing, string ownerName) =>

@@ -235,6 +235,19 @@ public class RecapUI : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Called by NightCycle when the morning couldn't open (an error, in the Console): this recap
+    /// again, holding the world still, its button now going straight to tomorrow.
+    /// </summary>
+    public void ShowAgain()
+    {
+        DayClock clock = DayClock.Instance;
+        if (clock == null || !clock.DayOver) return;
+        nightDone = true;
+        Time.timeScale = 0f;
+        Show();
+    }
+
     private bool OpenTomorrow(bool confirmSound)
     {
         DayClock clock = DayClock.Instance;

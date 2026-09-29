@@ -31,6 +31,13 @@ public class CustomerIdentity : MonoBehaviour
     private string deviceName = "thing";
     private bool isGraceCameraRequest;
     private string returnRequestLine = "Today, I've brought my {device}: {fault}.";
+    // A visit for a drink only: the intake orders it by name ({a drink}, {drink}) rather than bringing
+    // a device in (the repair lines would say "my Latte: broken").
+    private bool drinkVisit;
+    private string drinkName = "drink";
+    // A face set for a line outside the usual beats (Feel: the morning after a night). The panel shows it
+    // until their next line, however low their patience.
+    private bool feltAside;
 
     // Lowercased on the way in, because it arrives as a ticket label
     // ("Cracked Screen") and comes out mid-sentence ("my phone, cracked
@@ -50,6 +57,8 @@ public class CustomerIdentity : MonoBehaviour
         HasMetBefore = hasMetBefore;
         previousVisit = null;
         isGraceCameraRequest = false;
+        drinkVisit = false;
+        feltAside = false;
         lastBeat = Beat.Intake;
         Expression = PortraitExpression.Neutral;
     }
@@ -70,6 +79,8 @@ public class CustomerIdentity : MonoBehaviour
         HasMetBefore = false;
         previousVisit = null;
         isGraceCameraRequest = false;
+        drinkVisit = false;
+        feltAside = false;
         lastBeat = Beat.Intake;
         Expression = PortraitExpression.Neutral;
     }
@@ -89,8 +100,13 @@ public class CustomerIdentity : MonoBehaviour
     {
         isGraceCameraRequest = profile != null && job != null && job.kind == JobKind.Repair
             && GraceCameraEpisode.Matches(profile.PersistentId, job.storyEpisodeId);
-        returnRequestLine = job != null && job.kind == JobKind.Drink
-            ? "Today, I'd love a {device}." : "Today, I've brought my {device}: {fault}.";
+        drinkVisit = job != null && job.kind == JobKind.Drink;
+        if (drinkVisit)
+        {
+            string ordered = job.drink != null ? job.drink.drinkName : job.deviceName;
+            drinkName = string.IsNullOrWhiteSpace(ordered) ? "drink" : ordered.Trim().ToLowerInvariant();
+        }
+        returnRequestLine = drinkVisit ? "Today, I'd love {a drink}." : "Today, I've brought my {device}: {fault}.";
     }
 
     private bool HasGraceReturn => GraceCameraEpisode.HasPendingReturn(previousVisit,
@@ -122,8 +138,15 @@ public class CustomerIdentity : MonoBehaviour
         return string.IsNullOrWhiteSpace(acceptedLine) ? thing.mention : acceptedLine + "\n\n" + thing.mention;
     }
 
-    /// <summary>The face for a line said outside the usual beats (the morning after a night: MorningFace).</summary>
-    public void Feel(PortraitExpression expression) => Expression = expression;
+    /// <summary>
+    /// The face for a line said outside the usual beats (the morning after a night: MorningFace). The
+    /// conversation panel keeps it, even at low patience, until their next line (Say).
+    /// </summary>
+    public void Feel(PortraitExpression expression)
+    {
+        Expression = expression;
+        feltAside = true;
+    }
 
     public float PatienceMultiplier
     {
@@ -179,6 +202,7 @@ public class CustomerIdentity : MonoBehaviour
     public string Say(Beat beat)
     {
         lastBeat = beat;
+        feltAside = false;
         Expression = beat switch
         {
             Beat.Accepted or Beat.Completed => PortraitExpression.Happy,
@@ -204,8 +228,13 @@ public class CustomerIdentity : MonoBehaviour
             CustomerReturnOutcome outcome = ReturnOutcome;
             if (outcome != CustomerReturnOutcome.FirstVisit && !CustomerReturnPolicy.AllowsWarmDialogue(outcome))
                 Expression = PortraitExpression.Worried;
-            string callback = PickValid(profile.returnMemoryLines?.For(outcome));
-            if (!string.IsNullOrEmpty(callback)) return WithFocusCallback(Format(callback), beat);
+            // The memory callbacks bring a device in ("Today's patient is my {device}: {fault}"): a visit
+            // for a drink skips them and orders it (below). Either way one line is picked.
+            if (!drinkVisit)
+            {
+                string callback = PickValid(profile.returnMemoryLines?.For(outcome));
+                if (!string.IsNullOrEmpty(callback)) return WithFocusCallback(Format(callback), beat);
+            }
         }
 
         DialogueSet set = ResolveSet();
@@ -213,7 +242,7 @@ public class CustomerIdentity : MonoBehaviour
 
         string[] pool = beat switch
         {
-            Beat.Intake     => set.intake,
+            Beat.Intake     => drinkVisit ? DrinkOrder(set) : set.intake,
             Beat.Accepted   => set.accepted,
             Beat.Completed  => set.completed,
             Beat.Declined   => set.declined,
@@ -282,14 +311,42 @@ public class CustomerIdentity : MonoBehaviour
     // who has just said "thanks, I'll wait" is not shown scowling at you,
     // however low their patience. Only the intake line - spoken before you
     // have done anything - lets low patience show through.
+    // A face set outside the beats (Feel: the morning after a night) is how they took what was just
+    // said too, so it wins the same way.
     public PortraitExpression PanelExpressionAt(float patienceFraction) =>
-        lastBeat == Beat.Intake && patienceFraction <= 0.25f ? PortraitExpression.Impatient : Expression;
+        !feltAside && lastBeat == Beat.Intake && patienceFraction <= 0.25f ? PortraitExpression.Impatient : Expression;
 
     public Sprite PanelPortraitAt(float patienceFraction) =>
         profile != null ? profile.PortraitFor(PanelExpressionAt(patienceFraction)) : null;
 
+    // {a drink} and {drink}: what they came in to order, lower case ("a latte", "an espresso").
     private string Format(string line) => (line ?? "")
+        .Replace("{a drink}", WithArticle(drinkName)).Replace("{drink}", drinkName)
         .Replace("{device}", deviceName).Replace("{fault}", faultName);
+
+    private static string WithArticle(string noun) =>
+        string.IsNullOrEmpty(noun) ? "a drink" : ("aeiou".IndexOf(char.ToLowerInvariant(noun[0])) >= 0 ? "an " : "a ") + noun;
+
+    // A visit for a drink opens by ordering it. A regular orders in their own words (their lines' drink
+    // order: Grace's "A latte, please. No sugar."). A walk-in's drink lines are written as an extra while
+    // they wait ("could I get a coffee too?"), so they order with these.
+    // PLACEHOLDER COPY: Mansoor rewrites it (one pool for every personality for now).
+    private static readonly string[] DrinkOrderLines =
+    {
+        "Could I get {a drink}, please?",
+        "Just {a drink} today, please.",
+    };
+
+    private string[] DrinkOrder(DialogueSet set) =>
+        profile != null && HasAnyLine(set.orderedDrink) ? set.orderedDrink : DrinkOrderLines;
+
+    private static bool HasAnyLine(string[] pool)
+    {
+        if (pool == null) return false;
+        foreach (string line in pool)
+            if (!string.IsNullOrWhiteSpace(line)) return true;
+        return false;
+    }
 
     private static string PickValid(string[] pool, string fallback = "")
     {

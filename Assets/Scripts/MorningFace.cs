@@ -75,12 +75,13 @@ public sealed class MorningFace
         who.Identity.Feel(PortraitExpression.Worried);
         ui.SetLine(thing.complaint);
         ui.SetOptions("");
-        // Taken without knowing whose it was (they never mentioned it): now Ace knows, and notes it down.
+        // Taken without knowing whose it was (they never mentioned it): now Ace knows, and notes down
+        // what they just said (not the day's mention, which Ace never heard) and whose it was.
         Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
-        if (notebook != null && !notebook.Knows(thing.id + ".taken"))
+        if (notebook != null)
         {
-            NotebookHooks.HeardMention(who.CustomerName, thing);
-            NotebookHooks.TookAtNight(thing);
+            if (!notebook.Knows(thing.id)) NotebookHooks.HeardComplaint(who.CustomerName, thing);
+            if (!notebook.Knows(thing.id + ".taken")) NotebookHooks.TookAtNight(thing);
         }
     }
 
@@ -107,9 +108,11 @@ public sealed class MorningFace
                 return;
 
             case Step.Meter:
-                meter.Tick(deltaTime);
+                // A press stops the needle where the player saw it (last frame's drawing), before this
+                // frame moves it on.
                 bool stop = inputReady && (keys != null && keys.spaceKey.wasPressedThisFrame || PadInput.Pressed(PadButton.West));
                 if (stop) meter.Stop();
+                else meter.Tick(deltaTime);
                 if (meter.Stopped) Finish();
                 else StraightFaceUI.Draw(meter, StopHint);
                 return;

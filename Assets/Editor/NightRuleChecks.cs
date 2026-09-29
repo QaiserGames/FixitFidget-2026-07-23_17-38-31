@@ -183,7 +183,8 @@ public static class NightRuleChecks
             "The gnome is found by its id and by its owner.");
         Check(gnome.owner == GraceCameraEpisode.ProfileId && gnome.id == "grace.gnome", "It's Grace's, and its id is the saved one.");
         foreach (string line in new[] { gnome.name, gnome.unknownName, gnome.mention, gnome.complaint, gnome.held, gnome.cracked,
-                     gnome.takenNote, gnome.takenNoteUnknown, gnome.notebookMention, gnome.notebookTaken, gnome.notebookCracked })
+                     gnome.takenNote, gnome.takenNoteUnknown, gnome.notebookMention, gnome.notebookComplaint, gnome.notebookTaken,
+                     gnome.notebookCracked })
             Check(!string.IsNullOrWhiteSpace(line), "Every line is written.");
         Check(gnome.mention.Contains(gnome.name) && gnome.complaint.Contains(gnome.name), "The day and the morning after name the same gnome.");
         foreach (NightThing thing in NightThings.All)
@@ -200,7 +201,19 @@ public static class NightRuleChecks
             "Taking it is Ace's own secret, found at night.");
         Check(suspects.id == "grace.gnome.suspects" && suspects.name == "grace" && suspects.kind == Notebook.Kinds.Claim,
             "A crack is written down as what she said.");
-        Check(NightThings.Mentioned(null, "Grace") == null && NightThings.Taken(null, null) == null, "No thing, no fact.");
+        Check(NightThings.Mentioned(null, "Grace") == null && NightThings.Taken(null, null) == null
+              && NightThings.Complained(null, "Grace") == null, "No thing, no fact.");
+        // Taken before Ace had heard of it: the morning's complaint is how Ace learns whose it was, and the
+        // notebook keeps what she said then (never the day's mention, which Ace didn't hear).
+        NotebookFactData complained = NightThings.Complained(gnome, "Grace");
+        Check(complained.id == mentioned.id && complained.who == "grace" && complained.name == "Grace"
+              && complained.kind == Notebook.Kinds.Possession && complained.source == Notebook.Sources.Told
+              && complained.text == gnome.notebookComplaint && complained.text != gnome.notebookMention,
+            "Heard of only in the morning's complaint: the same fact, in the complaint's words.");
+        var lateBook = new Notebook();
+        Check(lateBook.Learn(complained, 3) && lateBook.Knows(gnome.id) && !lateBook.Learn(mentioned, 3)
+              && lateBook.Find(gnome.id).text == gnome.notebookComplaint,
+            "Once known from the complaint, the mention's words don't replace it.");
         var book = new Notebook();
         Check(book.Learn(mentioned, 1) && book.Learn(taken, 1) && !book.Learn(mentioned, 2) && book.Find("grace.gnome").confirmedDay == 2,
             "The notebook learns them like any other fact.");

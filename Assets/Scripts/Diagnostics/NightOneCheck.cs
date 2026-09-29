@@ -17,18 +17,19 @@ using UnityEngine.UI;
 //
 // From the recap of a made-up day (NightOneSteps writes the lab save) to Grace's visit the next morning:
 //   1. the recap's button reads "Close up for the night", and pressing it begins the night;
-//   2. Ace walks out of the café, along the front street and up to Grace's front step, where the prompt
-//      reads "Take Barnaby" when she told Ace his name on Day 1 (the Day 1 lab), "Take the garden gnome"
-//      when she never did (the Day 2 lab, like a save from before this step); E takes him: into the
-//      night's ledger, off her step, onto Ace's shelf, into the notebook;
-//   3. back in through the café's door the prompt reads "Call it a night"; E ends the night, and the next
-//      day opens, saved with what the night did;
-//   4. Grace comes in: on Day 2 as its featured regular, on Day 3 as the morning's visitor. At the
+//   2. Ace walks out of the café (the door doesn't offer to call it a night on the way out), along the
+//      front street and up to Grace's front step, where the prompt reads "Take Barnaby" when she told Ace
+//      his name on Day 1 (the Day 1 lab), "Take the garden gnome" when she never did (the Day 2 lab, like
+//      a save from before this step); E takes him: into the night's ledger, off her step, onto Ace's
+//      shelf, into the notebook;
+//   3. back in through the café's door the prompt reads "Call it a night", from above and in first
+//      person; E ends the night, and the next day opens, saved with what the night did;
+//   4. Grace comes in first: on Day 2 as its featured regular, on Day 3 as the morning's visitor. At the
 //      counter her first line is the complaint, then the straight-face meter runs.
 //      Keeping a straight face: the needle is stopped in the green (with Space, the player's key, when
 //      the Game view has the keyboard; otherwise directly). Cracking: it is left to run out. Her reaction,
 //      the ledger, suspicion and the notebook are checked, and the conversation goes on to what she
-//      came in for.
+//      came in for: her latte ("Take the order").
 // Ace is driven like a player: PlayerMovement.ScriptedInput stands in for the keys (as in NightTour), and
 // E goes through the interactor's own input message. A photo at each step and report.txt go to the
 // check's folder. Nothing is saved in the scene; the lab save is the only file written (by the game).
@@ -53,6 +54,9 @@ public sealed class NightOneCheck : MonoBehaviour
         new Vector3(.12f, 0f, -.8f), new Vector3(.12f, 0f, -7.62f),
     };
     static readonly float[] OutOfTheCafeRadii = { .45f, .45f, .45f, .5f, .5f, .25f, .3f, .7f };
+    // OutOfTheCafe's first points: from behind the counter to just inside the door, in the doorway's zone.
+    const int ToTheDoor = 6;
+    const string CallItANight = "Call it a night";
     // West Street's middle line, where the tour walks it.
     const float WestStreet = -11.88f;
     const float FrontStreet = -7.62f;
@@ -184,15 +188,23 @@ public sealed class NightOneCheck : MonoBehaviour
         yield return Seconds(1.6f);   // the fade in
         yield return Photo("02-night-begins");
 
+        // ---------- out through the café's door, which doesn't offer to end the night on the way out ----------
+        yield return Walk(OutOfTheCafe.Take(ToTheDoor).ToList(), OutOfTheCafeRadii.Take(ToTheDoor).ToList(),
+            "from behind the counter to just inside the café's door");
+        yield return Seconds(.4f);
+        Check(!NightCycle.Instance.CanCallItANight && interactor.CurrentPrompt != CallItANight,
+            $"on the way out the door doesn't offer to call it a night (the prompt reads \"{interactor.CurrentPrompt}\")");
+
         // ---------- to Grace's step ----------
         Vector3 forward = Flat(door.transform.forward).normalized;
         Vector3 stand = gnome.transform.position + forward * .95f;
-        var route = new List<Vector3>(OutOfTheCafe);
-        var radii = new List<float>(OutOfTheCafeRadii);
+        var route = OutOfTheCafe.Skip(ToTheDoor).ToList();
+        var radii = OutOfTheCafeRadii.Skip(ToTheDoor).ToList();
         route.Add(new Vector3(WestStreet, 0f, FrontStreet)); radii.Add(.9f);
         route.Add(new Vector3(WestStreet, 0f, stand.z)); radii.Add(.6f);
         route.Add(stand); radii.Add(.3f);
         yield return Walk(route, radii, "out of the café and up to Grace's front step");
+        Check(NightCycle.Instance.BeenOut, "the night knows Ace has been out");
         yield return Seconds(.5f);
         Check(interactor.CurrentPrompt == takePrompt, $"at her step the prompt reads \"{takePrompt}\" (it reads \"{interactor.CurrentPrompt}\")");
         yield return Photo("03-at-grace-step");
@@ -220,8 +232,24 @@ public sealed class NightOneCheck : MonoBehaviour
         };
         radii = new List<float> { .6f, .9f, .7f, .3f, .3f };
         yield return Walk(route, radii, "back along the front street and in through the café's door");
-        yield return Until(() => interactor.CurrentPrompt == "Call it a night", 4f, "inside the café's door the prompt reads \"Call it a night\"");
+        yield return Until(() => interactor.CurrentPrompt == CallItANight, 4f, "inside the café's door the prompt reads \"Call it a night\"");
         yield return Photo("05-call-it-a-night");
+        // In first person too: the doorway is a place, offered wherever Ace looks. Once the camera has come
+        // down to Ace's eyes the crosshair's ray starts inside the doorway's trigger and never hits it, so
+        // only that rule can offer it. Then back up to the overhead view for the rest.
+        if (view.SetFirstPerson(true))
+        {
+            yield return Until(() => CameraToAce() < 2f && view.WalkingFirstPerson && !view.SuppressWalkingInteraction
+                                     && interactor.CurrentPrompt == CallItANight, 6f,
+                "in first person too, the camera at Ace's eyes inside the door, the prompt reads \"Call it a night\"");
+            yield return Seconds(.3f);
+            Check(HudPrompt().EndsWith(CallItANight, StringComparison.Ordinal), $"…and the screen shows it (\"{HudPrompt()}\")");
+            yield return Photo("05b-call-it-a-night-in-first-person");
+            view.SetFirstPerson(false);
+            yield return Until(() => CameraToAce() > 5f && !view.FirstPersonSelected && interactor.CurrentPrompt == CallItANight, 6f,
+                "and again from above");
+        }
+        else Check(false, "Ace can switch to first person inside the café's door");
         movement.SendMessage("OnInteract", SendMessageOptions.DontRequireReceiver);   // E
         yield return Until(() => NightCycle.Instance.Now == NightCycle.Phase.Day && DayClock.Instance.Day == morning && !DayClock.Instance.DayOver, 15f,
             $"E called it a night: Day {morning} opened");
@@ -259,6 +287,9 @@ public sealed class NightOneCheck : MonoBehaviour
         if (!lastWait) yield break;
         yield return Until(() => grace == null || grace.CanHearIntake, 150f, "she reaches the counter");
         if (!lastWait || grace == null) yield break;
+        CustomerBrain here = grace;
+        int ahead = FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude).Count(b => b != null && b != here && b.CanHearIntake);
+        Check(ahead == 0, $"she's the first at the counter: nobody came in ahead of her while she walked over ({ahead} waiting)");
         yield return Seconds(.5f);
         yield return Photo("07-grace-at-the-counter");
 
@@ -271,6 +302,10 @@ public sealed class NightOneCheck : MonoBehaviour
         Check(Line() == barnaby.complaint, $"her first line is the complaint (\"{Short(Line())}\")");
         Check(saves.Notebook.Knows(barnaby.id) && saves.Notebook.Knows(barnaby.id + ".taken"),
             heardOfHim ? "the notebook has Barnaby and Ace's secret" : "now Ace knows whose he was: the notebook has Barnaby and Ace's secret");
+        string noted = saves.Notebook.Find(barnaby.id)?.text;
+        Check(noted == (heardOfHim ? barnaby.notebookMention : barnaby.notebookComplaint), heardOfHim
+            ? "…in the words of what she said on Day 1"
+            : $"…in the words of what she has just said, not of a Day 1 mention Ace never heard (\"{Short(noted)}\")");
         yield return Until(() => face.Now == MorningFace.Step.Meter, 15f, "the straight-face meter appears once she has said it");
         if (!lastWait) yield break;
         Check(StraightFaceUI.Showing, "the meter is on screen");
@@ -325,9 +360,17 @@ public sealed class NightOneCheck : MonoBehaviour
             string opening = GraceCameraEpisode.ReturnLine(GracePhotoOutcome.Clear);
             Check(Line().StartsWith(opening.Substring(0, 24), StringComparison.Ordinal),
                 $"her usual Day 2 visit follows: the reunion photo (\"{Short(Line())}\")");
+            Check(Line().EndsWith("Today, I'd love a latte.", StringComparison.Ordinal),
+                $"…and she orders her latte (\"...{Tail(Line())}\")");
         }
-        else Check(!string.IsNullOrWhiteSpace(Line()) && Line() != barnaby.complaint && grace.CanDecide,
-            $"then what she came in for, as any regular's visit (\"{Short(Line())}\")");
+        else
+        {
+            Check(!string.IsNullOrWhiteSpace(Line()) && Line() != barnaby.complaint && grace.CanDecide,
+                $"then what she came in for, as any regular's visit (\"{Short(Line())}\")");
+            Check(Line().IndexOf("latte", StringComparison.OrdinalIgnoreCase) >= 0 && !Line().Contains("broken") && !Line().Contains("{"),
+                $"…her latte, ordered in her own words, not a repair (\"{Short(Line())}\")");
+        }
+        yield return Until(() => Options().Contains("Take the order"), 8f, "the key hint reads \"Take the order\" (a drink, not a job)");
         Check(!StraightFaceUI.Showing, "the meter is put away");
         yield return Seconds(1.2f);
         yield return Photo("10-her-visit-goes-on");
@@ -398,10 +441,20 @@ public sealed class NightOneCheck : MonoBehaviour
     Button RecapButton() => Field<Button>(FindAnyObjectByType<RecapUI>(), "nextDayButton");
     bool RecapShowing() { GameObject panel = RecapPanel(); return panel != null && panel.activeInHierarchy; }
 
-    string Line()
+    // The prompt as the HUD shows it ("[E]  Call it a night").
+    string HudPrompt()
+    {
+        TMP_Text text = Field<TMP_Text>(FindAnyObjectByType<ShopUI>(), "promptText");
+        return text != null && text.gameObject.activeInHierarchy ? text.text ?? "" : "";
+    }
+
+    string Line() => ConversationText("dialogueText");
+    string Options() => ConversationText("optionsText");
+
+    string ConversationText(string field)
     {
         ConversationUI ui = Field<ConversationUI>(conversation, "ui");
-        TMP_Text text = Field<TMP_Text>(ui, "dialogueText");
+        TMP_Text text = Field<TMP_Text>(ui, field);
         return text != null ? text.text ?? "" : "";
     }
 
@@ -465,6 +518,15 @@ public sealed class NightOneCheck : MonoBehaviour
     void Note(string what) => report.AppendLine($"{Time.realtimeSinceStartup - started,6:0.0}s  note  {what}");
 
     static string Short(string line) => string.IsNullOrEmpty(line) ? "" : line.Length <= 70 ? line : line.Substring(0, 67) + "...";
+    static string Tail(string line) => string.IsNullOrEmpty(line) ? ""
+        : (line.Length <= 40 ? line : line.Substring(line.Length - 40)).Replace("\n", " ");
+
+    // How far the game's camera is from Ace: about half a metre in first person, tens of metres from above.
+    float CameraToAce()
+    {
+        Camera main = Camera.main;
+        return main != null && movement != null ? Vector3.Distance(main.transform.position, movement.transform.position) : 0f;
+    }
 
     static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
 

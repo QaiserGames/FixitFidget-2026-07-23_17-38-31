@@ -217,7 +217,12 @@ public class ConversationController : MonoBehaviour
         string refuse = ControlHints.Refuse;
         if (partner.OutOfStock)  return $"We're out of stock          [{refuse}]  Apologise";
         if (partner.ShelfFull)   return $"No room on the shelf        [{refuse}]  Turn them away";
-        if (partner.CanAcceptJob) return $"[{ControlHints.Interact}]  Take the job          [{refuse}]  Turn them away";
+        if (partner.CanAcceptJob)
+        {
+            // Someone who came in for a drink is placing an order, not handing over a job.
+            bool drink = partner.Record != null && partner.Record.kind == JobKind.Drink;
+            return $"[{ControlHints.Interact}]  {(drink ? "Take the order" : "Take the job")}          [{refuse}]  Turn them away";
+        }
         return $"[{ControlHints.Say("F", ControlHints.Back)}]  Step away";
     }
 }

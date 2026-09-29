@@ -308,7 +308,8 @@ public class PlayerInteractor : MonoBehaviour
     // ---------- at night (the Night 1 slice) ----------
 
     // Only the night's own things, with the day's reach and rules: the nearest from
-    // above, what the crosshair is on in first person. E, or A on a controller.
+    // above, what the crosshair is on in first person (and, either way, a place Ace
+    // stands in: NightInteractable.IsZone). E, or A on a controller.
     private void NightUpdate()
     {
         nearbyStation = null;
@@ -342,26 +343,40 @@ public class PlayerInteractor : MonoBehaviour
     {
         if (viewMode != null && viewMode.WalkingFirstPerson)
         {
-            if (cam == null) cam = Camera.main;
-            if (cam == null) return null;
-            Ray ray = cam.ViewportPointToRay(new Vector3(.5f, .5f));
-            RaycastHit[] hits = Physics.RaycastAll(ray, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
-            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-            foreach (RaycastHit hit in hits)
-            {
-                if (hit.collider.transform.IsChildOf(transform)) continue;
-                NightInteractable thing = hit.collider.GetComponentInParent<NightInteractable>();
-                if (thing != null && thing.IsAvailable) return thing;
-                if (!hit.collider.isTrigger) return null;
-            }
-            return null;
+            // What the crosshair is on first; failing that, a place Ace is standing in (the café's
+            // doorway: a ray from a camera inside its trigger never hits it).
+            NightInteractable seen = FindNightTargetInView();
+            return seen != null ? seen : FindNightTargetNear(zonesOnly: true);
         }
+        return FindNightTargetNear(zonesOnly: false);
+    }
+
+    private NightInteractable FindNightTargetInView()
+    {
+        if (cam == null) cam = Camera.main;
+        if (cam == null) return null;
+        Ray ray = cam.ViewportPointToRay(new Vector3(.5f, .5f));
+        RaycastHit[] hits = Physics.RaycastAll(ray, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider.transform.IsChildOf(transform)) continue;
+            NightInteractable thing = hit.collider.GetComponentInParent<NightInteractable>();
+            if (thing != null && thing.IsAvailable) return thing;
+            if (!hit.collider.isTrigger) return null;
+        }
+        return null;
+    }
+
+    // The nearest (by priority, then distance) within reach of Ace; only places, when asked.
+    private NightInteractable FindNightTargetNear(bool zonesOnly)
+    {
         NightInteractable best = null;
         float bestScore = float.MinValue;
         foreach (Collider near in Physics.OverlapSphere(transform.position, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide))
         {
             NightInteractable thing = near.GetComponentInParent<NightInteractable>();
-            if (thing == null || !thing.IsAvailable) continue;
+            if (thing == null || zonesOnly && !thing.IsZone || !thing.IsAvailable) continue;
             float score = thing.Priority * 100f - Vector3.Distance(transform.position, thing.transform.position);
             if (score > bestScore) { bestScore = score; best = thing; }
         }

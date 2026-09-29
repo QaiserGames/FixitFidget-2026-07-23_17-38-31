@@ -369,6 +369,11 @@ public sealed class CafeLabDirector : MonoBehaviour
 
     // ---------- the banner ----------
 
+    // In the bottom right corner, sized like the HUD (its canvas is 1920 x 1080, scaled to the screen):
+    // clear of the controls hint and a conversation's portrait (bottom left), the prompt, the
+    // conversation's lines and the straight-face meter (bottom middle), the clock (top right) and the
+    // night's notebook page (right).
+    private const float BannerWidth = 520f, BannerHeight = 72f, BannerMargin = 10f;
     private GUIStyle style;
 
     private void OnGUI()
@@ -377,6 +382,12 @@ public sealed class CafeLabDirector : MonoBehaviour
         string text = $"<b>CAFÉ LAB</b>  test save, nothing here touches your playtest save" +
                       $"\nautopilot {(Autopilot ? "ON" : "off")}";
         if (Time.time - lastActionAt < 6f) text += $"\n{lastAction}";
-        GUI.Box(new Rect(10, Screen.height - 86, 520, 76), text, style);
+        float scale = Mathf.Sqrt(Screen.width / 1920f * (Screen.height / 1080f));
+        if (scale <= 0f) return;
+        Matrix4x4 before = GUI.matrix;
+        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+        float width = Screen.width / scale, height = Screen.height / scale;
+        GUI.Box(new Rect(width - BannerWidth - BannerMargin, height - BannerHeight - BannerMargin, BannerWidth, BannerHeight), text, style);
+        GUI.matrix = before;
     }
 }

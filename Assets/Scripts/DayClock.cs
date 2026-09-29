@@ -45,6 +45,8 @@ public class DayClock : MonoBehaviour
     private bool advancingDay;
     // The opening bell waits for the day's first frame (see Update).
     private bool announceOpen;
+    // When the clock was stopped (the night walk stops it: NightWalk.QuietTheStreet), or -1.
+    private float stoppedAt = -1f;
 
     public int Day { get; private set; }
     public float TimeRemaining { get; private set; }
@@ -136,7 +138,23 @@ public class DayClock : MonoBehaviour
 
     // A clock stopped before its day's first frame (the night walk stops it as the scene loads)
     // never rings that day's opening bell later.
-    private void OnDisable() => announceOpen = false;
+    private void OnDisable()
+    {
+        announceOpen = false;
+        stoppedAt = Time.time;
+    }
+
+    // Started again (the night walk is over): the time it stood still isn't part of the day. Without
+    // this, a day that a lab's night walk interrupted went on as if the night had been spent open,
+    // and the spawner's calm / build / rush ran ahead by the whole night.
+    private void OnEnable()
+    {
+        if (stoppedAt < 0f) return;
+        float stopped = Mathf.Max(0f, Time.time - stoppedAt);
+        stoppedAt = -1f;
+        dayStartedAt += stopped;
+        closedAt += stopped;
+    }
 
     public void StartDay()
     {
