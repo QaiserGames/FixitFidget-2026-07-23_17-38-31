@@ -11,8 +11,9 @@ using UnityEngine.Rendering;
 // This component runs them:
 //
 //   * at night her lamps are on (all night for now; her routine comes with chunk C);
-//   * with the break-ins switched on (NightWalk.breakIns: on in the lab only, until they
-//     are ready), her front door opens for Ace like it does for her, and walking in turns
+//   * with the break-ins switched on (NightWalk.breakIns: on in the labs only, until they
+//     are ready; Fixit Fidget > Playtest > Play the whole game from Day 1 switches it on for
+//     every night of that session), her front door opens for Ace like it does for her, and walking in turns
 //     the camera to look in from the street, like a doll's house with its front open:
 //     the house's outer shell steps aside (it still casts its shadow), the walls toward
 //     the camera slide down to sill height as the café's do, and the floor above Ace is
@@ -98,8 +99,11 @@ public sealed class GraceHouse : MonoBehaviour
     [HideInInspector] public Vector3 doorBefore;
     [HideInInspector] public Vector3 leafColliderCentreBefore, leafColliderSizeBefore;
 
-    /// <summary>The lab asks for the night at her door: 1 to play it, 2 to walk the house by itself (a check).</summary>
+    /// <summary>The lab asks for the night at her door: 1 to play it, 2 to walk the house by itself (a check); or 3
+    /// (<see cref="WholeGameLab"/>), the whole game from Day 1: her door opens in every night, and Ace isn't moved.</summary>
     public const string LabKey = "FixitFidget.GraceHouse.Lab";
+    /// <summary>Fixit Fidget > Playtest > Play the whole game from Day 1: the break-ins on for the whole session.</summary>
+    public const int WholeGameLab = 3;
     /// <summary>The part of her house over the door (split off the trim by the build): solid from 2.35 m up, by night.</summary>
     public const string BracketsName = "Bay brackets over the door";
 
@@ -171,6 +175,13 @@ public sealed class GraceHouse : MonoBehaviour
         bool nightNow = night != null && night.Active;
         if (nightNow != lightsOn) SetLights(nightNow);
         if (nightNow != solidOn) SetSolid(nightNow);
+        if (labRequest == WholeGameLab && night != null && CafeLab.Active)
+        {
+            // The whole game from Day 1: nothing moves; her door simply opens for Ace in every night of this session.
+            labRequest = 0;
+            night.breakIns = true;
+            Debug.Log("[Break-ins] The whole game from Day 1: Grace's door opens for Ace in every night of this session.");
+        }
         if (labRequest != 0 && !labStarted && nightNow && CafeLab.Active) StartLab(night);
 
         bool breakIns = nightNow && night.breakIns;
