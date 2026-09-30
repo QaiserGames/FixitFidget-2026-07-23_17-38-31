@@ -145115,6 +145115,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2feb0e2866fc68443a2d2e19df55ed64, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AceBody
+  sidekick: {fileID: 3368505645475213147, guid: 719861f6e1af645408ecf0ef512a84b8, type: 3}
+  sidekickIdle: {fileID: 4925837963642883786, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
+  sidekickWalk: {fileID: -8349492526526354690, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
+  sidekickRun: {fileID: -1139191427167748907, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
+  sidekickScale: 1.1658536
+  sidekickWalkSpeed: 0.9580703
+  sidekickRunSpeed: 4.3272862
+  sidekickWalkLeftForward: 0
+  sidekickRunLeftForward: 0.96428573
+  sidekickHeight: 2.0376494
+  sidekickFootIK: 1
+  sidekickFace: 1
   look: {fileID: 2800363244470583931, guid: 2e1297afd8049c444bca7bc1025cd164, type: 3}
   rig: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
   rigScale: 1.1
@@ -145126,6 +145138,7 @@ MonoBehaviour:
   walkLeftForward: 0
   runLeftForward: 0.375
   standingHeight: 2.0376494
+  byDay: 1
   turnSpeed: 720
   gaitSmoothing: 0.08
   walkBlend: {x: 0.15, y: 0.6}

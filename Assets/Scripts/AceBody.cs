@@ -4,19 +4,25 @@ using UnityEngine.Animations;
 using UnityEngine.Playables;
 
 // ---------------------------------------------------------------------------
-// ACE'S STAND-IN BODY (29 Sept 2026: claude/break-ins-spec.md section 8, calls 1, 6 and d)
+// ACE'S BODY (29 Sept 2026: claude/break-ins-spec.md section 8, calls 1, 6 and d, and the Sidekick Ace)
 //
-// Until Ace has a model of Ace's own (a Sidekick character, next), Ace wears a stand-in body: look 11,
-// the green jacket (POLYGON City's Character_Male_Jacket, one of the walk-ins' looks, which leaves their
-// pool so Ace never meets a double). Day and night since Mansoor's call on 29 Sept (By Day below); with
-// By Day off, only at night and in the café lab (Fixit Fidget > Night > Ace's body 2 - Try it in the café).
-// By day the cups and hands Ace carries still sit where the capsule held them (a known rough edge).
+// Ace's own body is a Synty Sidekick character: "Ace", made in the Sidekick Character Creator (for now
+// Mansoor's placeholder from the free Starter Pack; everyday clothes come with Modern Civilians). It plays
+// the free animation library's idle, walk and run (Quaternius, CC0), re-imported as Humanoid so they fit
+// this body, and its face lives (AceFace: blinks and small glances). Fixit Fidget > Night > Ace's body 4
+// sets it up. Where the Sidekick files or those clips are missing, Ace wears the stand-in body instead:
+// look 11, the green jacket (POLYGON City's Character_Male_Jacket, one of the walk-ins' looks, which
+// leaves their pool while Ace wears it so Ace never meets a double; with the Sidekick body it goes back).
+// Day and night since Mansoor's call on 29 Sept (By Day below); with By Day off, only at night and in the
+// café lab (Fixit Fidget > Night > Ace's body 2 - Try it in the café). By day the cups and hands Ace
+// carries still sit where the capsule held them (a known rough edge).
 //
-// How: the same way every café person is drawn. A hidden café rig (Quaternius Beach, CC0) plays its
-// idle, walk or run, blended by how fast Ace really moves, with each clip played at the rate that
-// keeps its feet planted; the city look copies the rig bone by bone (PolygonNpcVisual). The body
-// stands on the floor under Ace (a ray down from the capsule's middle) and turns to face where Ace
-// is going; it keeps that heading when Ace stops.
+// How the stand-in moves: the way every café person is drawn. A hidden café rig (Quaternius Beach, CC0)
+// plays its idle, walk or run, and the city look copies the rig bone by bone (PolygonNpcVisual). The
+// Sidekick body plays its Humanoid clips on its own Animator. Either way the three clips are blended by
+// how fast Ace really moves, each played at the rate that keeps its feet planted, with one stride phase
+// shared by the walk and the run. The body stands on the floor under Ace (a ray down from the capsule's
+// middle) and turns to face where Ace is going; it keeps that heading when Ace stops.
 //
 // Only what you see changes. The collider is still the 1.0 m capsule (call 1), so the body stops
 // about a third of a metre short of walls; walking, interacting and the cameras are untouched. The
@@ -30,8 +36,26 @@ public sealed class AceBody : MonoBehaviour
     /// <summary>Set by the editor for one Play session: wear the body by day too (the café lab).</summary>
     public const string LabKey = "FixitFidget.AceBody.CafeLab";
 
-    [Header("Set by Fixit Fidget > Night > Ace's body 1 - Put on Ace's stand-in body")]
-    [Tooltip("The city look (a prefab in Assets/Art/CityNeighbors/Prefabs). Missing: Ace stays the capsule.")]
+    [Header("Ace's own body, a Sidekick character: set by Fixit Fidget > Night > Ace's body 4")]
+    [Tooltip("Ace, exported by the Sidekick Character Creator (Export Character as FBX: a Humanoid prefab). Missing: the stand-in body below.")]
+    public GameObject sidekick;
+    [Tooltip("Humanoid copies of the animation library's idle, walk and run (Assets/ThirdParty/Quaternius_UAL/Humanoid).")]
+    public AnimationClip sidekickIdle, sidekickWalk, sidekickRun;
+    [Tooltip("The Sidekick body's size (1 = as exported). The set-up step matches the café people's height.")]
+    [Min(.1f)] public float sidekickScale = 1f;
+    [Tooltip("Each clip's natural ground speed on the Sidekick body at scale 1, m/s: how fast its stance foot slides back.")]
+    [Min(.1f)] public float sidekickWalkSpeed = 1.3f, sidekickRunSpeed = 3.5f;
+    [Tooltip("Where in each clip (0-1) the left foot is furthest forward, so the walk and the run keep step while they blend.")]
+    [Range(0f, 1f)] public float sidekickWalkLeftForward, sidekickRunLeftForward;
+    [Tooltip("The Sidekick body's height standing, metres, as measured by the set-up step (for the reports).")]
+    [Min(0f)] public float sidekickHeight;
+    [Tooltip("Humanoid foot IK: the feet go where the clips put them (less sliding once the clips are fitted to this body).")]
+    public bool sidekickFootIK = true;
+    [Tooltip("The face lives: blinks and small glances (AceFace). Off: the eyes stay open and still; the jaw is held shut either way.")]
+    public bool sidekickFace = true;
+
+    [Header("The stand-in body (look 11), also the fallback: set by Fixit Fidget > Night > Ace's body 1")]
+    [Tooltip("The city look (a prefab in Assets/Art/CityNeighbors/Prefabs). Missing, with no Sidekick body: Ace stays the capsule.")]
     public GameObject look;
     [Tooltip("The café rig the look copies (Assets/ThirdParty/Quaternius_ModularMen/Beach.fbx).")]
     public GameObject rig;
@@ -61,10 +85,12 @@ public sealed class AceBody : MonoBehaviour
     [Tooltip("Seconds the feet take to follow the floor's height (a step up, the stairs).")]
     [Range(0f, .3f)] public float feetSmoothing = .05f;
 
-    /// <summary>The body is on (at night, or by day in the café lab).</summary>
+    /// <summary>The body is on (by day and night, or as By Day says).</summary>
     public bool Worn { get; private set; }
     /// <summary>The body is on and drawn (not first person, not at a station).</summary>
     public bool Drawn { get; private set; }
+    /// <summary>The body on is the Sidekick Ace (else the stand-in, look 11).</summary>
+    public bool WearsSidekick { get; private set; }
     /// <summary>Ace's horizontal speed as the gait sees it, m/s (smoothed).</summary>
     public float Speed => speed;
     /// <summary>How much of each clip is showing: idle, walk, run (they add up to 1).</summary>
@@ -77,20 +103,31 @@ public sealed class AceBody : MonoBehaviour
     public bool OnFloor { get; private set; }
     /// <summary>The body's height standing, metres (measured when it is put on).</summary>
     public float Height { get; private set; }
+    /// <summary>The stand-in look's name (look 11).</summary>
     public string LookName => look != null ? look.name : "";
+    /// <summary>Which body is on, for the reports: the Sidekick's name, or the stand-in look's.</summary>
+    public string BodyName => WearsSidekick && sidekick != null ? sidekick.name + " (Sidekick)" : LookName;
     public Transform RigRoot => rigRoot;
+    /// <summary>The stand-in's city look while the stand-in is on (null with the Sidekick body).</summary>
     public PolygonNpcVisual Visual => visual;
+    /// <summary>The Sidekick face while the Sidekick body is on.</summary>
+    public AceFace Face => face;
 
     static bool labRequest;
     CafeViewMode view;
     CharacterController capsule;
     Transform rigRoot;
     PolygonNpcVisual visual;
+    Renderer[] ownRenderers;
+    AceFace face;
     PlayableGraph graph;
     AnimationMixerPlayable mixer;
     AnimationClipPlayable idle, walk, run;
     GameObject drawnInstance;
-    bool failed;
+    bool drawnSet, sidekickFailed, standInFailed;
+    // The clips of the body that's on, and their numbers.
+    AnimationClip idleNow, walkNow, runNow;
+    float walkSpeedNow, runSpeedNow, walkLeftNow, runLeftNow;
     Vector3 lastPosition;
     float speed, wIdle = 1f, wWalk, wRun, idleTime, phase, bodyYaw, feetY, feetVelocity;
     bool placed;
@@ -115,10 +152,10 @@ public sealed class AceBody : MonoBehaviour
         capsule = GetComponent<CharacterController>();
     }
 
-    // Ace's look leaves the walk-ins' pool whenever Ace has one, by day too.
+    // Look 11 leaves the walk-ins' pool while Ace wears it, by day too; with the Sidekick body it stays theirs.
     void OnEnable()
     {
-        if (look != null) CustomerProfile.ReserveStandInLook(this, look.name);
+        if (!SidekickReady) Reserve();
     }
 
     void OnDisable()
@@ -129,13 +166,19 @@ public sealed class AceBody : MonoBehaviour
 
     void OnDestroy() => TakeOff();
 
-    bool HasParts => look != null && rig != null && idleClip != null && walkClip != null && runClip != null;
+    void Reserve()
+    {
+        if (look != null) CustomerProfile.ReserveStandInLook(this, look.name);
+    }
+
+    bool SidekickReady => !sidekickFailed && sidekick != null && sidekickIdle != null && sidekickWalk != null && sidekickRun != null;
+    bool StandInReady => !standInFailed && look != null && rig != null && idleClip != null && walkClip != null && runClip != null;
 
     bool Wanted
     {
         get
         {
-            if (!Application.isPlaying || failed || !HasParts) return false;
+            if (!Application.isPlaying || !SidekickReady && !StandInReady) return false;
             NightWalk night = NightWalk.Instance;
             return byDay || night != null && night.Active || labRequest && CafeLab.Active;
         }
@@ -160,6 +203,58 @@ public sealed class AceBody : MonoBehaviour
 
     void PutOn()
     {
+        if (SidekickReady && PutOnSidekick()) return;
+        if (StandInReady) PutOnStandIn();
+    }
+
+    // Ace's own body: the Sidekick prefab, its own Humanoid Animator playing the Humanoid clips.
+    bool PutOnSidekick()
+    {
+        GameObject body = Instantiate(sidekick, transform);
+        body.name = "Ace's body (" + sidekick.name + ", Sidekick)";
+        Animator animator = body.GetComponentInChildren<Animator>(true);
+        Avatar avatar = animator != null ? animator.avatar : null;
+        if (avatar == null || !avatar.isValid || !avatar.isHuman)
+        {
+            Debug.LogWarning("[Ace's body] " + sidekick.name + " has no working Humanoid avatar, so Ace wears the stand-in body instead.");
+            body.SetActive(false);
+            Destroy(body);
+            sidekickFailed = true;
+            Reserve();
+            return false;
+        }
+        rigRoot = body.transform;
+        // The size the set-up step chose (the café people's height), whatever Ace's own scale.
+        rigRoot.localScale = Vector3.one * (sidekickScale / Mathf.Max(.01f, transform.lossyScale.y));
+        // Nothing on the body takes part in the game: it is drawn and nothing else.
+        foreach (Collider c in body.GetComponentsInChildren<Collider>(true)) Destroy(c);
+        animator.runtimeAnimatorController = null;
+        animator.applyRootMotion = false;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
+        idleNow = sidekickIdle; walkNow = sidekickWalk; runNow = sidekickRun;
+        walkSpeedNow = sidekickWalkSpeed; runSpeedNow = sidekickRunSpeed;
+        walkLeftNow = sidekickWalkLeftForward; runLeftNow = sidekickRunLeftForward;
+        BuildGraph(animator, sidekickFootIK);
+
+        ownRenderers = body.GetComponentsInChildren<Renderer>(true);
+        // The face: blinks and glances, and in any case the jaw held shut (the clips have no jaw; see AceFace).
+        face = body.AddComponent<AceFace>();
+        face.lives = sidekickFace;
+        if (!face.Bind(rigRoot, animator))
+        {
+            Destroy(face);
+            face = null;
+        }
+        WearsSidekick = true;
+        Height = sidekickHeight > 0f ? sidekickHeight : Tallness(ownRenderers);
+        Wear();
+        return true;
+    }
+
+    // The stand-in: a hidden café rig plays the café clips; look 11 copies it bone by bone.
+    void PutOnStandIn()
+    {
         GameObject body = Instantiate(rig, transform);
         body.name = "Ace's body (the café rig, hidden; the city look copies it)";
         rigRoot = body.transform;
@@ -173,44 +268,64 @@ public sealed class AceBody : MonoBehaviour
         animator.applyRootMotion = false;
         animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
-        graph = PlayableGraph.Create("Ace's body");
-        graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
-        mixer = AnimationMixerPlayable.Create(graph, 3);
-        idle = Clip(idleClip, 0);
-        walk = Clip(walkClip, 1);
-        run = Clip(runClip, 2);
-        AnimationPlayableOutput output = AnimationPlayableOutput.Create(graph, "Ace's body", animator);
-        output.SetSourcePlayable(mixer);
-        graph.Play();
+        idleNow = idleClip; walkNow = walkClip; runNow = runClip;
+        walkSpeedNow = walkClipSpeed; runSpeedNow = runClipSpeed;
+        walkLeftNow = walkLeftForward; runLeftNow = runLeftForward;
+        BuildGraph(animator, false);
 
         visual = body.AddComponent<PolygonNpcVisual>();
         visual.Configure(new[] { look }, 0f, 0, 0f);
         if (!visual.ApplyAppearance(0))
         {
             Debug.LogWarning("[Ace's body] The look " + look.name + " couldn't copy the café rig; Ace stays the capsule.");
-            failed = true;
+            standInFailed = true;
             TakeOff();
             return;
         }
-        Height = standingHeight > 0f ? standingHeight : MeasureHeight();
+        Reserve();   // already kept unless the Sidekick body was meant to be on
+        WearsSidekick = false;
+        Height = standingHeight > 0f ? standingHeight
+            : Tallness(visual.VisualInstance != null ? visual.VisualInstance.GetComponentsInChildren<Renderer>(true) : null);
+        Wear();
+    }
+
+    void BuildGraph(Animator animator, bool footIK)
+    {
+        graph = PlayableGraph.Create("Ace's body");
+        graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+        mixer = AnimationMixerPlayable.Create(graph, 3);
+        idle = Clip(idleNow, 0, footIK);
+        walk = Clip(walkNow, 1, footIK);
+        run = Clip(runNow, 2, footIK);
+        AnimationPlayableOutput output = AnimationPlayableOutput.Create(graph, "Ace's body", animator);
+        output.SetSourcePlayable(mixer);
+        graph.Play();
+    }
+
+    AnimationClipPlayable Clip(AnimationClip clip, int port, bool footIK)
+    {
+        AnimationClipPlayable playable = AnimationClipPlayable.Create(graph, clip);
+        playable.SetApplyFootIK(footIK);
+        playable.SetSpeed(0);   // their times are set by hand each frame (the café run doesn't loop by itself)
+        graph.Connect(playable, 0, mixer, port);
+        return playable;
+    }
+
+    // Both bodies from here on: stand where Ace is, facing Ace's way, drawn or hidden as the capsule would be.
+    void Wear()
+    {
         lastPosition = transform.position;
         speed = 0f;
+        wIdle = 1f;
+        wWalk = wRun = 0f;
         bodyYaw = transform.eulerAngles.y;
         placed = false;
         drawnInstance = null;
+        drawnSet = false;
         Worn = true;
         if (view != null) view.BodyStandsIn = true;
         Place(0f);
         Draw(view == null || view.ShowsAce);
-    }
-
-    AnimationClipPlayable Clip(AnimationClip clip, int port)
-    {
-        AnimationClipPlayable playable = AnimationClipPlayable.Create(graph, clip);
-        playable.SetApplyFootIK(false);
-        playable.SetSpeed(0);   // their times are set by hand each frame (the run doesn't loop by itself)
-        graph.Connect(playable, 0, mixer, port);
-        return playable;
     }
 
     void TakeOff()
@@ -218,24 +333,28 @@ public sealed class AceBody : MonoBehaviour
         if (graph.IsValid()) graph.Destroy();
         if (rigRoot != null)
         {
-            // PolygonNpcVisual takes its city look with it.
+            // PolygonNpcVisual takes its city look with it; the Sidekick body takes its face.
             if (Application.isPlaying) Destroy(rigRoot.gameObject); else DestroyImmediate(rigRoot.gameObject);
         }
         rigRoot = null;
         visual = null;
+        ownRenderers = null;
+        face = null;
         drawnInstance = null;
+        drawnSet = false;
         bool wasWorn = Worn;
-        Worn = Drawn = false;
+        Worn = Drawn = WearsSidekick = false;
         if (wasWorn && view != null) view.BodyStandsIn = false;
     }
 
-    float MeasureHeight()
+    static float Tallness(Renderer[] renderers)
     {
-        if (visual == null || visual.VisualInstance == null) return 0f;
+        if (renderers == null) return 0f;
         bool any = false;
         Bounds b = default;
-        foreach (Renderer r in visual.VisualInstance.GetComponentsInChildren<Renderer>(true))
+        foreach (Renderer r in renderers)
         {
+            if (r == null) continue;
             if (!any) { b = r.bounds; any = true; }
             else b.Encapsulate(r.bounds);
         }
@@ -275,19 +394,19 @@ public sealed class AceBody : MonoBehaviour
 
         // One stride phase for both, so the feet keep step while they blend: each clip at the rate that
         // keeps its stance foot planted at this speed.
-        float scale = rigRoot != null ? rigRoot.lossyScale.y : rigScale;
-        float walkRate = Mathf.Clamp(speed / Mathf.Max(.1f, walkClipSpeed * scale), .6f, 1.8f);
-        RunRate = Mathf.Clamp(speed / Mathf.Max(.1f, runClipSpeed * scale), .7f, 1.6f);
+        float scale = rigRoot != null ? rigRoot.lossyScale.y : 1f;
+        float walkRate = Mathf.Clamp(speed / Mathf.Max(.1f, walkSpeedNow * scale), .6f, 1.8f);
+        RunRate = Mathf.Clamp(speed / Mathf.Max(.1f, runSpeedNow * scale), .7f, 1.6f);
         float stepping = wWalk + wRun;
         float cycles = stepping > 1e-3f
-            ? (wWalk * walkRate / walkClip.length + wRun * RunRate / runClip.length) / stepping
-            : walkRate / walkClip.length;
+            ? (wWalk * walkRate / walkNow.length + wRun * RunRate / runNow.length) / stepping
+            : walkRate / walkNow.length;
         phase = Mathf.Repeat(phase + dt * cycles, 1f);
-        idleTime = Mathf.Repeat(idleTime + dt, idleClip.length);
+        idleTime = Mathf.Repeat(idleTime + dt, idleNow.length);
 
         idle.SetTime(idleTime);
-        walk.SetTime(Mathf.Repeat(phase + walkLeftForward, 1f) * walkClip.length);
-        run.SetTime(Mathf.Repeat(phase + runLeftForward, 1f) * runClip.length);
+        walk.SetTime(Mathf.Repeat(phase + walkLeftNow, 1f) * walkNow.length);
+        run.SetTime(Mathf.Repeat(phase + runLeftNow, 1f) * runNow.length);
         mixer.SetInputWeight(0, wIdle);
         mixer.SetInputWeight(1, wWalk);
         mixer.SetInputWeight(2, wRun);
@@ -317,9 +436,22 @@ public sealed class AceBody : MonoBehaviour
         rigRoot.SetPositionAndRotation(new Vector3(middle.x, feetY, middle.z), Quaternion.Euler(0f, bodyYaw, 0f));
     }
 
-    // Drawn, or hidden (first person, a station): the city look's own renderers.
+    // Drawn, or hidden (first person, a station): the body's own renderers (the Sidekick's, or the city look's).
     void Draw(bool show)
     {
+        if (WearsSidekick)
+        {
+            if (!drawnSet || show != Drawn)
+            {
+                if (ownRenderers != null)
+                    foreach (Renderer r in ownRenderers)
+                        if (r != null) r.enabled = show;
+                if (face != null) face.enabled = show;   // no blinking while nobody can see it
+                drawnSet = true;
+            }
+            Drawn = show;
+            return;
+        }
         GameObject instance = visual != null ? visual.VisualInstance : null;
         if (instance != drawnInstance || show != Drawn)
         {

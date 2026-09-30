@@ -134,3 +134,8 @@ InitTestScene*.unity*
 # caches the tool's packages here.
 /Assets/DownloadCache/
 /Assets/DownloadCache.meta
+
+# The free animation library (Assets/ThirdParty/Quaternius_UAL, CC0, kept in this repository) re-imported as Humanoid
+# for Ace's Sidekick body: a 20 MB copy that Fixit Fidget > Night > Ace's body 4 makes, and can always make again.
+/Assets/ThirdParty/Quaternius_UAL/Humanoid/
+/Assets/ThirdParty/Quaternius_UAL/Humanoid.meta

@@ -17,6 +17,7 @@ using Object = UnityEngine.Object;
 //   Fixit Fidget > Night > Ace's body 1 - Take off Ace's stand-in body
 //   Fixit Fidget > Night > Ace's body 2 - Try it in the café (lab, Day 5, you serve)
 //   Fixit Fidget > Night > Ace's body 3 - Who wears Ace's look (Play Mode, a check)
+//   (Ace's body 4, the Sidekick Ace, is in AceSidekickSteps.cs; this stand-in stays as its fallback.)
 //
 // Putting it on gives Ace (the player object) an AceBody (see AceBody.cs for what it does) and fills
 // it in: the look (Character_Male_Jacket from the walk-ins' looks), the café rig (Quaternius Beach,
@@ -30,10 +31,10 @@ internal static class AceBodySteps
 {
     const string Menu = "Fixit Fidget/Night/";
     const string Tag = "[Ace's body] ";
-    const string Look = "Character_Male_Jacket";   // look 11, the green jacket (call d)
-    const string RigModel = "Assets/ThirdParty/Quaternius_ModularMen/Beach.fbx";
+    internal const string Look = "Character_Male_Jacket";   // look 11, the green jacket (call d)
+    internal const string RigModel = "Assets/ThirdParty/Quaternius_ModularMen/Beach.fbx";
     const string CafePerson = "Assets/AssetsPrefabs/Customer.prefab";
-    const string IdleName = "CharacterArmature|Idle", WalkName = "CharacterArmature|Walk", RunName = "CharacterArmature|Run";
+    internal const string IdleName = "CharacterArmature|Idle", WalkName = "CharacterArmature|Walk", RunName = "CharacterArmature|Run";
 
     [MenuItem(Menu + "Ace's body 1 - Put on Ace's stand-in body (look 11, the green jacket)")]
     static void PutOn()
@@ -170,6 +171,14 @@ internal static class AceBodySteps
     static void WhoWears()
     {
         AceBody ace = Object.FindAnyObjectByType<AceBody>();
+        if (ace != null && ace.WearsSidekick)
+        {
+            // The Sidekick Ace is one of a kind; look 11 is back in the walk-ins' pool.
+            bool held = ace.look != null && CustomerProfile.IsStandInLook(ace.look.name);
+            Debug.Log(Tag + $"Who wears Ace's look: Ace wears the Sidekick body ({ace.BodyName}), which nobody else can wear. " +
+                      (ace.look != null ? $"The stand-in look {ace.look.name} is {(held ? "still kept out of the walk-ins' pool (unexpected)" : "back in the walk-ins' pool")}." : ""));
+            return;
+        }
         if (ace == null || ace.look == null) { Debug.LogWarning(Tag + "Ace has no stand-in body."); return; }
         int bodies = 0;
         var wearing = new List<string>();
@@ -208,7 +217,7 @@ internal static class AceBodySteps
 
     // ------------------------------------------------------------------ helpers
 
-    static PlayerMovement FindAce()
+    internal static PlayerMovement FindAce()
     {
         PlayerMovement[] found = Object.FindObjectsByType<PlayerMovement>(FindObjectsInactive.Include);
         if (found.Length != 1) throw new InvalidOperationException($"Expected Ace (one PlayerMovement) in the scene, found {found.Length}.");
@@ -218,7 +227,7 @@ internal static class AceBodySteps
     }
 
     // The café people are the rig at their prefab's root scale (1.1).
-    static float CafePeopleScale()
+    internal static float CafePeopleScale()
     {
         GameObject person = AssetDatabase.LoadAssetAtPath<GameObject>(CafePerson);
         float s = person != null ? person.transform.localScale.y : 1.1f;
@@ -293,7 +302,7 @@ internal static class AceBodySteps
     }
 
     // In a preview scene: the rig at the café people's size with the look copying it, standing (idle).
-    static float ProveLook(GameObject rig, GameObject look, AnimationClip idle, float scale, out float width, out string bind)
+    internal static float ProveLook(GameObject rig, GameObject look, AnimationClip idle, float scale, out float width, out string bind)
     {
         Scene preview = EditorSceneManager.NewPreviewScene();
         GameObject actor = (GameObject)PrefabUtility.InstantiatePrefab(rig, preview);

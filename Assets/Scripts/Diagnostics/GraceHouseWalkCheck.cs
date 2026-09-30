@@ -16,8 +16,9 @@ using UnityEngine;
 // flights, the landing, into the bedroom past the foot of the bed to the wardrobe, then all the way back
 // down and out onto the pavement. For every leg: reached or not, how long it took, where it got stuck;
 // on the way down, how far the capsule ever left the flight. Photos of the house view on the way.
-// With Ace's stand-in body on (AceBody, at night): it runs while Ace runs, stands still at the stops, faces
-// the way Ace goes, stands on the floor, and hides in first person; photos of it running on three legs.
+// With Ace's body on (AceBody: the Sidekick Ace, or the stand-in): it runs while Ace runs, stands still at the
+// stops, faces the way Ace goes, stands on the floor, and hides in first person; photos of it running on three
+// legs. The Sidekick's face blinks; the stand-in's look is worn by nobody else.
 // Report and photos: Logs/Night/grace-walk-<time>/. Play Mode stops by itself when it is done.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
@@ -88,7 +89,7 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
     string folder;
     readonly StringBuilder report = new();
     int problems;
-    // Ace's stand-in body, while it is worn: frames running (and of those, showing the run), frames moving
+    // Ace's body, while it is worn: frames running (and of those, showing the run), frames moving
     // (with how far the body faced from the way Ace went), frames with the floor found under Ace.
     int runFrames, runShown, placedFrames, onFloorFrames;
     float runRates;
@@ -128,8 +129,8 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         report.AppendLine($"Ace: radius {capsule.radius:0.00}, height {capsule.height:0.00}, skin {capsule.skinWidth:0.00}, step {capsule.stepOffset:0.00}, slope limit {capsule.slopeLimit:0}°.");
         yield return new WaitForSeconds(1.5f);   // the night settles, the camera arrives
         report.AppendLine(body != null && body.Worn
-            ? $"Ace's stand-in body: {body.LookName}, about {body.Height:0.00} m tall (the capsule stays {2f * capsule.radius:0.0} m wide)."
-            : "Ace's stand-in body: not worn (Ace is the capsule).");
+            ? $"Ace's body: {body.BodyName}, about {body.Height:0.00} m tall (the capsule stays {2f * capsule.radius:0.0} m wide)."
+            : "Ace's body: not worn (Ace is the capsule).");
         float started = Time.time;
         int photos = 0;
         float worstAir = 0f;
@@ -205,7 +206,7 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         Finish();
     }
 
-    // Ace's stand-in body, every frame of a leg.
+    // Ace's body, every frame of a leg.
     void WatchBody()
     {
         if (body == null || !body.Worn) return;
@@ -228,15 +229,29 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         Line(notStill.Count == 0, "Ace's body stands still at the photo stops" + (notStill.Count > 0 ? ": not at " + string.Join("; ", notStill) : ""));
         Line(placedFrames > 0 && onFloorFrames >= placedFrames * .98f,
             $"Ace's body stands on the floor found under Ace in {onFloorFrames} of {placedFrames} frames (else at the capsule's bottom)");
-        // Ace's look has left the walk-ins' pool: nobody else in the city wears it (the neighbours out tonight included).
-        int bodies = 0, doubles = 0;
-        foreach (PolygonNpcVisual other in FindObjectsByType<PolygonNpcVisual>(FindObjectsInactive.Include))
+        if (body.WearsSidekick)
         {
-            if (other == body.Visual || other.ActiveAppearance < 0) continue;
-            bodies++;
-            if (other.ActiveAppearanceName == body.LookName) doubles++;
+            // The Sidekick face lives: it blinked and glanced while Ace walked (about one blink every four seconds).
+            AceFace face = body.Face;
+            if (face != null && !face.lives)
+                Line(true, $"Ace's face: still, as set (Sidekick Face is off); {face.Parts}");
+            else
+                Line(face != null && face.Blinks > 0 && face.Glances > 0, face != null
+                    ? $"Ace's face lives: {face.Blinks} blinks and {face.Glances} glances over the walk ({face.Parts})"
+                    : "Ace's face lives: the Sidekick body has no face to move (AceFace found nothing)");
         }
-        Line(doubles == 0, $"Nobody else wears Ace's look ({body.LookName}): {doubles} of the {bodies} other city bodies in the scene");
+        else
+        {
+            // The stand-in's look has left the walk-ins' pool: nobody else in the city wears it (the neighbours out tonight included).
+            int bodies = 0, doubles = 0;
+            foreach (PolygonNpcVisual other in FindObjectsByType<PolygonNpcVisual>(FindObjectsInactive.Include))
+            {
+                if (other == body.Visual || other.ActiveAppearance < 0) continue;
+                bodies++;
+                if (other.ActiveAppearanceName == body.LookName) doubles++;
+            }
+            Line(doubles == 0, $"Nobody else wears Ace's look ({body.LookName}): {doubles} of the {bodies} other city bodies in the scene");
+        }
         // First person hides the body (and the capsule), as it hid the capsule before; back out, the body again.
         Renderer capsuleMesh = view.bodyRenderer;
         bool switched = view.SetFirstPerson(true);
