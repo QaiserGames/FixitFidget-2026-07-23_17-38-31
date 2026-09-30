@@ -43,6 +43,10 @@ public class TicketRailUI : MonoBehaviour
             if (!show) return;
         }
 
+        // Who is in the café is looked up a few times a second, not every frame: the scene search
+        // allocated an array every frame (30 Sept), and a ticket a tenth of a second late is invisible.
+        if (Time.frameCount < nextScanFrame) { PruneStale(); return; }
+        nextScanFrame = Time.frameCount + 6;
         CustomerBrain[] all = FindObjectsByType<CustomerBrain>(
             FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 
@@ -59,11 +63,18 @@ public class TicketRailUI : MonoBehaviour
             ordered.Add(t);
         }
 
-        // Remove tickets whose customer is gone or done.
+        PruneStale();
+    }
+
+    private int nextScanFrame;
+
+    // Remove tickets whose customer is gone or done (every frame: a finished ticket must go at once).
+    private void PruneStale()
+    {
         stale.Clear();
         foreach (var kv in tickets)
             if (kv.Key == null || !kv.Key.InService || !kv.Key.HasJob) stale.Add(kv.Key);
-
+        if (stale.Count == 0) return;
         foreach (CustomerBrain b in stale)
         {
             ordered.Remove(tickets[b]);

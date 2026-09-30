@@ -50,12 +50,12 @@ public class EspressoMachine : Interactable
             // Finished drink sitting in the machine.
             if (loadedCup != null && !loadedCup.IsEmpty)
             {
-                PlayerCarry c = FindAnyObjectByType<PlayerCarry>();
+                PlayerCarry c = PlayerCarry.Current;
                 if (c != null && c.IsCarrying) return "Hands full";
                 return $"Take the {loadedCup.Drink.drinkName}";
             }
 
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry carry = PlayerCarry.Current;
             DrinkJob held = carry != null ? carry.Carried as DrinkJob : null;
 
             if (held == null || !held.IsEmpty) return "Needs an empty cup";

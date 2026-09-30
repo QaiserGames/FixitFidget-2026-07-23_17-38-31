@@ -74,7 +74,8 @@ sysinfo.txt
 # Mono auto generated files
 mono_crash.*
 
-# Builds
+# Builds (30 Sept: the player builds made for the performance work live in /Builds/, never in the repository)
+/Builds/
 *.apk
 *.aab
 *.unitypackage

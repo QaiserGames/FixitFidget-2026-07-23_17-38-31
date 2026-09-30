@@ -11,16 +11,27 @@
 // The shadow is never dithered: a see-through building still casts its whole
 // shadow, so the street's light doesn't change while it fades.
 //
-// NightSeeThrough makes run-time copies of the buildings' own materials with
+// SeeThroughMaterials makes run-time copies of the buildings' own materials with
 // this shader (POLYGON's albedo, colour, cut-out, and the night's lit windows as
-// emission) and sets _SeeThrough per renderer with a property block. Nothing
-// here is ever saved on a material asset.
+// emission); NightSeeThrough sets _SeeThrough per renderer with a property block.
+// Nothing here is ever saved on a material asset.
+//
+// THE CAFÉ'S CUT-AWAY WALLS (30 Sept 2026) use the same dots by height: below
+// _SeeThroughFrom (the window sill) the wall is solid, above _SeeThroughTo it is
+// down to _SeeThrough, and between the two it feathers, so a wall in the way
+// fades to a ghost above the sill instead of sliding down (CutawayWall,
+// GraceHouse). With _SeeThroughTo at or below _SeeThroughFrom (the default)
+// there is no feathering and the whole surface uses _SeeThrough, as the night's
+// buildings do. The height is the vertex's world height, carried by one extra
+// interpolator that each pass's vertex wrapper adds beside URP's own.
 // ---------------------------------------------------------------------------
 Shader "Fixit Fidget/Night see-through"
 {
     Properties
     {
         [PerRendererData] _SeeThrough("See-through (1 = solid)", Range(0.0, 1.0)) = 1.0
+        [PerRendererData] _SeeThroughFrom("Solid below this world height", Float) = 0.0
+        [PerRendererData] _SeeThroughTo("See-through above this world height", Float) = 0.0
 
         // The same as Universal Render Pipeline/Lit, so its passes read them as they are.
         _WorkflowMode("WorkflowMode", Float) = 1.0
@@ -72,13 +83,19 @@ Shader "Fixit Fidget/Night see-through"
         HLSLINCLUDE
         // 4 x 4 ordered dither: sixteen thresholds spread evenly over each 4 x 4 block of pixels.
         static const uint SeeThroughBayer[16] = { 0u, 8u, 2u, 10u, 12u, 4u, 14u, 6u, 3u, 11u, 1u, 9u, 15u, 7u, 13u, 5u };
-        // Set per renderer (a property block), so it sits outside the per-material buffer.
+        // Set per renderer (a property block), so they sit outside the per-material buffer.
         half _SeeThrough;
+        float _SeeThroughFrom;
+        float _SeeThroughTo;
 
-        void SeeThroughClip(float4 positionCS)
+        // heightWS: this pixel's world height (an interpolator each pass adds; see the vertex wrappers).
+        void SeeThroughClip(float4 positionCS, float heightWS)
         {
+            half keep = _SeeThrough;
+            if (_SeeThroughTo > _SeeThroughFrom)
+                keep = lerp(1.0h, _SeeThrough, (half)smoothstep(_SeeThroughFrom, _SeeThroughTo, heightWS));
             uint2 p = uint2(positionCS.xy) & 3u;
-            clip(_SeeThrough - (SeeThroughBayer[p.y * 4u + p.x] + 0.5) / 16.0);
+            clip(keep - (SeeThroughBayer[p.y * 4u + p.x] + 0.5) / 16.0);
         }
         ENDHLSL
 
@@ -94,7 +111,7 @@ Shader "Fixit Fidget/Night see-through"
 
             HLSLPROGRAM
             #pragma target 4.5
-            #pragma vertex LitPassVertex
+            #pragma vertex SeeThroughLitVertex
             #pragma fragment SeeThroughLitFragment
 
             #pragma shader_feature_local _NORMALMAP
@@ -140,16 +157,32 @@ Shader "Fixit Fidget/Night see-through"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
 
+            // Lit's own varyings plus the vertex's world height, for the feathering by height.
+            struct SeeThroughVaryings
+            {
+                Varyings lit;
+                float heightWS : TEXCOORD15;
+            };
+
+            SeeThroughVaryings SeeThroughLitVertex(Attributes input)
+            {
+                SeeThroughVaryings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+                output.lit = LitPassVertex(input);
+                output.heightWS = TransformObjectToWorld(input.positionOS.xyz).y;
+                return output;
+            }
+
             void SeeThroughLitFragment(
-                Varyings input
+                SeeThroughVaryings input
                 , out half4 outColor : SV_Target0
             #ifdef _WRITE_RENDERING_LAYERS
                 , out uint outRenderingLayers : SV_Target1
             #endif
             )
             {
-                SeeThroughClip(input.positionCS);
-                LitPassFragment(input, outColor
+                SeeThroughClip(input.lit.positionCS, input.heightWS);
+                LitPassFragment(input.lit, outColor
             #ifdef _WRITE_RENDERING_LAYERS
                     , outRenderingLayers
             #endif
@@ -198,7 +231,7 @@ Shader "Fixit Fidget/Night see-through"
 
             HLSLPROGRAM
             #pragma target 4.5
-            #pragma vertex DepthOnlyVertex
+            #pragma vertex SeeThroughDepthVertex
             #pragma fragment SeeThroughDepthFragment
 
             #pragma shader_feature_local _ALPHATEST_ON
@@ -208,10 +241,25 @@ Shader "Fixit Fidget/Night see-through"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
 
-            half SeeThroughDepthFragment(Varyings input) : SV_TARGET
+            struct SeeThroughDepthVaryings
             {
-                SeeThroughClip(input.positionCS);
-                return DepthOnlyFragment(input);
+                Varyings depth;
+                float heightWS : TEXCOORD15;
+            };
+
+            SeeThroughDepthVaryings SeeThroughDepthVertex(Attributes input)
+            {
+                SeeThroughDepthVaryings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+                output.depth = DepthOnlyVertex(input);
+                output.heightWS = TransformObjectToWorld(input.position.xyz).y;
+                return output;
+            }
+
+            half SeeThroughDepthFragment(SeeThroughDepthVaryings input) : SV_TARGET
+            {
+                SeeThroughClip(input.depth.positionCS, input.heightWS);
+                return DepthOnlyFragment(input.depth);
             }
             ENDHLSL
         }
@@ -226,7 +274,7 @@ Shader "Fixit Fidget/Night see-through"
 
             HLSLPROGRAM
             #pragma target 4.5
-            #pragma vertex DepthNormalsVertex
+            #pragma vertex SeeThroughDepthNormalsVertex
             #pragma fragment SeeThroughDepthNormalsFragment
 
             #pragma shader_feature_local _NORMALMAP
@@ -238,16 +286,31 @@ Shader "Fixit Fidget/Night see-through"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
 
+            struct SeeThroughNormalsVaryings
+            {
+                Varyings normals;
+                float heightWS : TEXCOORD15;
+            };
+
+            SeeThroughNormalsVaryings SeeThroughDepthNormalsVertex(Attributes input)
+            {
+                SeeThroughNormalsVaryings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+                output.normals = DepthNormalsVertex(input);
+                output.heightWS = TransformObjectToWorld(input.positionOS.xyz).y;
+                return output;
+            }
+
             void SeeThroughDepthNormalsFragment(
-                Varyings input
+                SeeThroughNormalsVaryings input
                 , out half4 outNormalWS : SV_Target0
             #ifdef _WRITE_RENDERING_LAYERS
                 , out uint outRenderingLayers : SV_Target1
             #endif
             )
             {
-                SeeThroughClip(input.positionCS);
-                DepthNormalsFragment(input, outNormalWS
+                SeeThroughClip(input.normals.positionCS, input.heightWS);
+                DepthNormalsFragment(input.normals, outNormalWS
             #ifdef _WRITE_RENDERING_LAYERS
                     , outRenderingLayers
             #endif

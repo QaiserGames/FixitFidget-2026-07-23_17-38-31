@@ -54,6 +54,10 @@ public class CameraWallFader : MonoBehaviour
 
     private void LateUpdate()
     {
+        // With nothing to fade (the café's walls are cut away by CafeViewMode instead, and the scene's
+        // list here is empty) there is nothing to do: the ray it cast every frame regardless allocated
+        // its hits for no one (30 Sept).
+        if (walls.Count == 0) return;
         obstructing.Clear();
 
         if (ShouldCheckForObstructions())

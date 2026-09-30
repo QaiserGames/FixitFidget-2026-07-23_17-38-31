@@ -14,7 +14,7 @@ public class CupStack : Interactable
     {
         get
         {
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry carry = PlayerCarry.Current;
             if (carry == null) return false;
 
             if (carry.IsCarrying) return HeldCup(carry) != null;
@@ -44,7 +44,7 @@ public class CupStack : Interactable
     {
         get
         {
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry carry = PlayerCarry.Current;
 
             if (carry != null && carry.IsCarrying)
             {

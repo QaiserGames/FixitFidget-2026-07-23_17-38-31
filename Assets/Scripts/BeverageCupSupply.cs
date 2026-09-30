@@ -9,7 +9,7 @@ public sealed class BeverageCupSupply : Interactable
     {
         get
         {
-            var carry = FindAnyObjectByType<PlayerCarry>();
+            var carry = PlayerCarry.Current;
             if (discard)
             {
                 var cup = carry != null ? carry.Carried as DrinkJob : null;

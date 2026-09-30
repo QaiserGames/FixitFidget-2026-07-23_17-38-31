@@ -162,6 +162,40 @@ public static class ControllerChecks
         Teleport(before);
         yield return Frames(3);
 
+        // ---------- the movement assist (30 Sept): a thumb a little off the room's axis walks along it ----------
+        // The stick direction that means "along the world's X axis" at the current camera yaw, then rolled 8°
+        // off it (inside the core: pulled dead on) and 30° off it (outside the edge: the stick's own direction).
+        if (movement.MovementAssist)
+        {
+            float yaw = view.MovementYaw;
+            Vector4 bands = movement.AssistBands;   // room core, room edge, screen core, screen edge
+            // A room axis (world +X): the stick a little off it walks dead along it.
+            yield return StickHeading(StickFor(90f + bands.x * .8f, yaw), .35f);
+            float offCore = Vector3.Angle(lastHeading, Vector3.right);
+            Check(lastHeading.sqrMagnitude > 0f && offCore < .5f,
+                $"Movement assist: the stick {bands.x * .8f:0}° off the room's axis walks dead along it ({offCore:0.0}° off; assist turned it by {lastAssist:0.0}°)");
+            Teleport(before);
+            yield return Frames(3);
+            // A direction clear of every band (room axes and screen axes alike) is left to the stick.
+            float free = FreeHeading(yaw, bands);
+            yield return StickHeading(StickFor(free, yaw), .35f);
+            float freeHeading = Mathf.Atan2(lastHeading.x, lastHeading.z) * Mathf.Rad2Deg;
+            float drift = Mathf.Abs(Mathf.DeltaAngle(free, freeHeading));
+            Check(lastHeading.sqrMagnitude > 0f && drift < 1.5f,
+                $"Movement assist: a stick clear of the bands (world heading {free:0}°) is left alone ({drift:0.0}° from it, assist {lastAssist:0.0}°)");
+            Teleport(before);
+            yield return Frames(3);
+            // Straight up on screen (the camera's yaw), pushed a little off it: the walk is exactly up the screen.
+            Vector3 screenUp = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
+            yield return StickHeading(StickFor(yaw + bands.z * .8f, yaw), .35f);
+            float offUp = Vector3.Angle(lastHeading, screenUp);
+            Check(lastHeading.sqrMagnitude > 0f && offUp < .5f,
+                $"Movement assist: the stick {bands.z * .8f:0}° off straight up walks straight up the screen ({offUp:0.0}° off; camera yaw {yaw:0}°)");
+            Teleport(before);
+            yield return Frames(3);
+        }
+        else Check(true, "Movement assist is off (the Inspector or the player's setting): its cases are skipped");
+
         // ---------- first person ----------
         yield return Press(GamepadButton.Select);
         Check(view.FirstPersonSelected, "View button switches to first person");
@@ -290,6 +324,49 @@ public static class ControllerChecks
     }
 
     // ---------- helpers ----------
+
+    // The walk's direction over a held stick: the commanded velocity (after the assist) averaged over
+    // the frames it was moving, and the assist's turn on the last of them.
+    private static Vector3 lastHeading;
+    private static float lastAssist;
+
+    private static IEnumerator StickHeading(Vector2 stick, float seconds)
+    {
+        Vector3 sum = Vector3.zero;
+        lastAssist = 0f;
+        Hold(new GamepadState { leftStick = stick });
+        yield return Frames(4);   // the stick settles through the Input System and the deadzone
+        for (float until = Time.realtimeSinceStartup + seconds; Time.realtimeSinceStartup < until;)
+        {
+            Vector3 v = movement.CommandedVelocity;
+            v.y = 0f;
+            if (v.sqrMagnitude > .01f) { sum += v.normalized; lastAssist = movement.AssistApplied; }
+            yield return null;
+        }
+        Release();
+        yield return Frames(3);
+        lastHeading = sum.sqrMagnitude > 0f ? sum.normalized : Vector3.zero;
+    }
+
+    // The stick (at four fifths deflection) that asks for a world heading, given the camera yaw the
+    // movement turns the stick by: PlayerMovement does Euler(0, yaw, 0) * (x, 0, y).
+    private static Vector2 StickFor(float worldHeading, float cameraYaw)
+    {
+        float rad = (worldHeading - cameraYaw) * Mathf.Deg2Rad;
+        return new Vector2(Mathf.Sin(rad), Mathf.Cos(rad)) * .8f;
+    }
+
+    // A world heading at least a band's width clear of every room axis and every screen axis.
+    private static float FreeHeading(float cameraYaw, Vector4 bands)
+    {
+        for (float h = 0f; h < 360f; h += 2.5f)
+        {
+            float toRoom = Mathf.Abs(Mathf.DeltaAngle(PlayerMovement.NearestLine(h, 0f), h));
+            float toScreen = Mathf.Abs(Mathf.DeltaAngle(PlayerMovement.NearestLine(h, cameraYaw), h));
+            if (toRoom >= bands.y + 5f && toScreen >= bands.w + 5f) return h;
+        }
+        return 45f;
+    }
 
     private static void Hold(GamepadState state) => InputSystem.QueueStateEvent(pad, state);
     private static void Release() => InputSystem.QueueStateEvent(pad, new GamepadState());

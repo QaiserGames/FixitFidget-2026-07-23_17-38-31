@@ -20,6 +20,18 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private bool promptShadow = true;
     private CafeViewMode viewMode;
 
+    // WHY THE HUD REMEMBERS WHAT IT LAST SHOWED (30 Sept 2026)
+    // Every frame used to build every HUD string afresh ($"Day {day}   {hour}", the prompt line, the
+    // hint), about 0.7 KB of garbage a frame at 240 fps: a collection every few seconds, and each one a
+    // hitch. TextMesh Pro ignores a string equal to the one it has, but the building itself is the
+    // waste. So each line is built only when what it says has changed (the minute, the money, the
+    // stock, the prompt's words), and otherwise nothing is allocated.
+    private int shownDay = int.MinValue, shownMinute = int.MinValue, shownClosingMinute = int.MinValue, shownMoney = int.MinValue,
+                shownCups = int.MinValue, shownBeans = int.MinValue, shownNightMinute = int.MinValue;
+    private bool shownOpen, shownCafeTime, shownNightClock;
+    private string shownHint, shownHintBase, shownNightPrompt, shownPromptLine, shownInteract, shownAction, shownToolName;
+    private bool shownHintNight, shownPromptPad, shownPromptHolding, shownPromptDebug, shownPromptHand;
+
     private void Start()
     {
         viewMode = interactor != null ? interactor.GetComponent<CafeViewMode>() : null;
@@ -65,8 +77,17 @@ public class ShopUI : MonoBehaviour
         {
             viewHintText.gameObject.SetActive(!recapOpen && viewMode != null && viewMode.CanChangeView);
             // At night the torch and the notebook join the view's own controls.
-            if (viewMode != null) viewHintText.text = viewMode.ControlsHint
-                + (night != null ? $"    {ControlHints.Torch}  Torch    {ControlHints.NotebookPage}  Notebook" : "");
+            if (viewMode != null)
+            {
+                string hintBase = viewMode.ControlsHint;   // built by the view only when its state changes
+                bool atNight = night != null;
+                if (!ReferenceEquals(hintBase, shownHintBase) && hintBase != shownHintBase || atNight != shownHintNight)
+                {
+                    shownHintBase = hintBase; shownHintNight = atNight;
+                    shownHint = atNight ? hintBase + $"    {ControlHints.Torch}  Torch    {ControlHints.NotebookPage}  Notebook" : hintBase;
+                    viewHintText.text = shownHint;
+                }
+            }
         }
         if (moneyText != null) moneyText.gameObject.SetActive(!recapOpen && night == null);
         if (clockText != null) clockText.gameObject.SetActive(!recapOpen);
@@ -80,10 +101,22 @@ public class ShopUI : MonoBehaviour
         if (night != null)
         {
             // The night's own clock (it moves: 11 PM to about 4 AM), shown as it reads.
-            if (clockText != null) clockText.text = $"Night   {FormatHour(night.ClockHour)}";
+            if (clockText != null)
+            {
+                int minute = Mathf.FloorToInt(Mathf.Clamp(night.ClockHour, 0, 24) * 60f + .001f);
+                if (minute != shownNightMinute || !shownNightClock)
+                {
+                    shownNightMinute = minute; shownNightClock = true; shownMinute = int.MinValue;
+                    clockText.text = $"Night   {FormatHour(night.ClockHour)}";
+                }
+            }
             string nightPrompt = interactor != null ? interactor.CurrentPrompt : "";
-            if (promptText != null)
-                promptText.text = string.IsNullOrEmpty(nightPrompt) ? "" : $"[{ControlHints.Interact}]  {nightPrompt}";
+            if (promptText != null && (nightPrompt != shownNightPrompt || shownPromptLine == null))
+            {
+                shownNightPrompt = nightPrompt; shownInteract = null;
+                shownPromptLine = string.IsNullOrEmpty(nightPrompt) ? "" : $"[{ControlHints.Interact}]  {nightPrompt}";
+                promptText.text = shownPromptLine;
+            }
             if (crosshair != null)
                 crosshair.SetActive(viewMode != null && viewMode.WalkingFirstPerson && !viewMode.PointerReleased && Time.timeScale > 0);
             return;
@@ -92,26 +125,46 @@ public class ShopUI : MonoBehaviour
         {
             var c = DayClock.Instance;
             if (displayCafeTime)
-                clockText.text = $"Day {c.Day}   {FormatHour(c.CurrentHour)}\n<size=65%>"
-                    + (c.IsOpen ? $"Closes at {FormatHour(c.ClosingHour)}" : "Closed · finishing service") + "</size>";
+            {
+                int minute = Mathf.FloorToInt(Mathf.Clamp(c.CurrentHour, 0, 24) * 60f + .001f);
+                int closing = Mathf.FloorToInt(Mathf.Clamp(c.ClosingHour, 0, 24) * 60f + .001f);
+                if (c.Day != shownDay || minute != shownMinute || closing != shownClosingMinute || c.IsOpen != shownOpen || !shownCafeTime || shownNightClock)
+                {
+                    shownDay = c.Day; shownMinute = minute; shownClosingMinute = closing; shownOpen = c.IsOpen; shownCafeTime = true; shownNightClock = false;
+                    clockText.text = $"Day {c.Day}   {FormatHour(c.CurrentHour)}\n<size=65%>"
+                        + (c.IsOpen ? $"Closes at {FormatHour(c.ClosingHour)}" : "Closed · finishing service") + "</size>";
+                }
+            }
             else
             {
-                int mins = Mathf.FloorToInt(c.TimeRemaining / 60f);
-                int secs = Mathf.FloorToInt(c.TimeRemaining % 60f);
-                clockText.text = c.IsOpen ? $"Day {c.Day}   {mins}:{secs:00}" : $"Day {c.Day}   CLOSING";
+                int second = Mathf.FloorToInt(c.TimeRemaining);
+                if (c.Day != shownDay || second != shownMinute || c.IsOpen != shownOpen || shownCafeTime || shownNightClock)
+                {
+                    shownDay = c.Day; shownMinute = second; shownOpen = c.IsOpen; shownCafeTime = false; shownNightClock = false;
+                    int mins = Mathf.FloorToInt(c.TimeRemaining / 60f);
+                    int secs = Mathf.FloorToInt(c.TimeRemaining % 60f);
+                    clockText.text = c.IsOpen ? $"Day {c.Day}   {mins}:{secs:00}" : $"Day {c.Day}   CLOSING";
+                }
             }
         }
 
-        if (ShopEconomy.Instance != null)
-            moneyText.text = $"${ShopEconomy.Instance.Money}";
-        
-        if (stockText != null && ShopInventory.Instance != null)
-            stockText.text = $"Cups {ShopInventory.Instance.Cups}    Beans {ShopInventory.Instance.Beans}";
+        if (ShopEconomy.Instance != null && ShopEconomy.Instance.Money != shownMoney)
+        {
+            shownMoney = ShopEconomy.Instance.Money;
+            moneyText.text = $"${shownMoney}";
+        }
+
+        if (stockText != null && ShopInventory.Instance != null
+            && (ShopInventory.Instance.Cups != shownCups || ShopInventory.Instance.Beans != shownBeans))
+        {
+            shownCups = ShopInventory.Instance.Cups; shownBeans = ShopInventory.Instance.Beans;
+            stockText.text = $"Cups {shownCups}    Beans {shownBeans}";
+        }
 
         // The conversation panel owns the screen while it's open.
         if (conversation != null && conversation.InConversation)
         {
-            promptText.text = "";
+            ClearPrompt();
             if (crosshair != null) crosshair.SetActive(false);
             return;
         }
@@ -121,7 +174,7 @@ public class ShopUI : MonoBehaviour
         if (interactor.CurrentStation != null
             && interactor.CurrentStation.GetComponent<BeverageStation>() != null)
         {
-            if (promptText != null) promptText.text = "";
+            ClearPrompt();
             if (crosshair != null) crosshair.SetActive(Time.timeScale > 0);
             return;
         }
@@ -134,28 +187,47 @@ public class ShopUI : MonoBehaviour
         if (counter != null && counter.IsOpen)
         {
             // The counter caption includes the switch and exit controls.
-            promptText.text = "";
+            ClearPrompt();
             return;
         }
 
-        string line = "";
         string interact = interactor.CurrentPrompt;
         string action = interactor.StationPrompt;
+        bool pad = PadInput.UsingPad;
+        bool holding = pad && inspector != null && inspector.IsHoldingItem;
+        string toolName = holding ? inspector.CurrentToolName : null;
+        bool hand = holding && inspector.CurrentTool == ToolType.Hand;
+        // Only when a word of it changes is the line built again (the debug line changes every frame).
+        if (showDebug || shownPromptLine == null || interact != shownInteract || action != shownAction || pad != shownPromptPad
+            || holding != shownPromptHolding || toolName != shownToolName || hand != shownPromptHand || shownPromptDebug)
+        {
+            shownInteract = interact; shownAction = action; shownPromptPad = pad; shownPromptHolding = holding;
+            shownToolName = toolName; shownPromptHand = hand; shownPromptDebug = showDebug; shownNightPrompt = null;
+            string line = "";
+            // Keys follow the device in use: [E] / [F] on a keyboard, the pad's
+            // own labels once a controller is being used (see ControlHints).
+            if (!string.IsNullOrEmpty(interact)) line += $"[{ControlHints.Interact}]  {interact}";
+            if (!string.IsNullOrEmpty(action))
+                line += (line.Length > 0 ? "        " : "") + $"[{ControlHints.Station}]  {action}";
+            // Working on an item with a controller: say how to change tools and put things down.
+            if (holding)
+                line += $"\n[{ControlHints.Tools}]  {toolName}        [{ControlHints.Use}]  Use        [{ControlHints.Back}]  "
+                    + (!hand ? "Put tool down" : "Put item down");
 
-        // Keys follow the device in use: [E] / [F] on a keyboard, the pad's
-        // own labels once a controller is being used (see ControlHints).
-        if (!string.IsNullOrEmpty(interact)) line += $"[{ControlHints.Interact}]  {interact}";
-        if (!string.IsNullOrEmpty(action))
-            line += (line.Length > 0 ? "        " : "") + $"[{ControlHints.Station}]  {action}";
-        // Working on an item with a controller: say how to change tools and put things down.
-        if (PadInput.UsingPad && inspector != null && inspector.IsHoldingItem)
-            line += $"\n[{ControlHints.Tools}]  {inspector.CurrentToolName}        [{ControlHints.Use}]  Use        [{ControlHints.Back}]  "
-                + (inspector.CurrentTool != ToolType.Hand ? "Put tool down" : "Put item down");
+            if (showDebug)
+                line += "\n" + interactor.DebugInfo;
 
-        if (showDebug)
-            line += "\n" + interactor.DebugInfo;
+            shownPromptLine = line;
+            promptText.text = line;
+        }
+    }
 
-        promptText.text = line;
+    // An empty prompt, and the line's memory forgotten, so the next words are built again.
+    private void ClearPrompt()
+    {
+        if (promptText != null && shownPromptLine != "") promptText.text = "";
+        shownPromptLine = "";
+        shownInteract = null; shownNightPrompt = null;
     }
 
     public static string FormatHour(float hour)

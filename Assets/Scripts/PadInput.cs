@@ -233,18 +233,26 @@ public static class PadInput
 
     // ---------- labels ----------
 
+    // Worked out once per pad, not once per ask: the labels are asked for every frame by the HUD, and
+    // the name-building here was garbage every frame with a controller plugged in (30 Sept).
+    private static Gamepad kindPad;
+    private static Family kindCache = Family.Xbox;
+
     public static Family Kind
     {
         get
         {
             Gamepad pad = Pad;
             if (pad == null) return Family.Xbox;
-            string name = (pad.layout + " " + pad.description.product + " " + pad.description.manufacturer).ToLowerInvariant();
-            if (name.Contains("dualshock") || name.Contains("dualsense") || name.Contains("playstation")
-                || name.Contains("sony")) return Family.PlayStation;
-            if (name.Contains("switch") || name.Contains("pro controller") || name.Contains("nintendo"))
-                return Family.Nintendo;
-            return Family.Xbox;
+            if (!ReferenceEquals(pad, kindPad))
+            {
+                kindPad = pad;
+                string name = (pad.layout + " " + pad.description.product + " " + pad.description.manufacturer).ToLowerInvariant();
+                kindCache = name.Contains("dualshock") || name.Contains("dualsense") || name.Contains("playstation") || name.Contains("sony")
+                    ? Family.PlayStation
+                    : name.Contains("switch") || name.Contains("pro controller") || name.Contains("nintendo") ? Family.Nintendo : Family.Xbox;
+            }
+            return kindCache;
         }
     }
 

@@ -13,7 +13,7 @@ public sealed class BeverageControl : Interactable
             if (dispenseButton) return slot.PourPrompt;
             if (slot.drink == null) return "No drink assigned";
             if (slot.IsPouring) return $"Pouring {slot.drink.drinkName} · {Mathf.RoundToInt(slot.Progress * 100)}%";
-            var carry = FindAnyObjectByType<PlayerCarry>();
+            var carry = PlayerCarry.Current;
             if (slot.Cup != null)
                 return slot.Cup.IsEmpty ? "Take empty cup · aim at the named paddle to pour"
                     : carry == null || !carry.HasSpace ? "Both hands full · set down or deliver an item"

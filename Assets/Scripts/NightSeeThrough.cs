@@ -24,8 +24,9 @@ using UnityEngine.Rendering;
 //     bounding boxes; cheap enough to test every frame).
 //   * How it fades: a screen-door dither (the shader "Fixit Fidget/Night
 //     see-through", URP's Lit with the dots added). Each material a building
-//     wears gets a copy with that shader, made once at run time and never saved:
-//     the same albedo, colour, cut-out and glow (the night's lit windows). A
+//     wears gets a copy with that shader (SeeThroughMaterials: made once per
+//     Play session, shared with the café's cut-away walls, never saved): the
+//     same albedo, colour, cut-out and glow (the night's lit windows). A
 //     fading building draws fewer and fewer of its dots, down to one in four;
 //     all its surfaces use the same dots, so what is behind shows through the
 //     gaps without the murky layers a blended fade gives. It gets its own
@@ -57,24 +58,9 @@ public sealed class NightSeeThrough : MonoBehaviour
     [Tooltip("Wider than this is ground, not a building: it never fades (metres).")]
     public float maxWidth = 45f;
 
-    public const string DitherShaderName = "Fixit Fidget/Night see-through";
-    static readonly int SeeThroughId = Shader.PropertyToID("_SeeThrough");
+    public const string DitherShaderName = SeeThroughMaterials.DitherShaderName;
+    static readonly int SeeThroughId = SeeThroughMaterials.SeeThroughId;
     static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-    static readonly int SurfaceId = Shader.PropertyToID("_Surface");
-    static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
-    static readonly int CutoffId = Shader.PropertyToID("_Cutoff");
-    static readonly int AlphaClipId = Shader.PropertyToID("_AlphaClip");
-    static readonly int EmissionMapId = Shader.PropertyToID("_EmissionMap");
-    static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
-    static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
-    static readonly int MetallicId = Shader.PropertyToID("_Metallic");
-    static readonly int CullId = Shader.PropertyToID("_Cull");
-    // Synty's POLYGON shaders (Generic_Basic) name theirs like this.
-    static readonly int SyntyAlbedoId = Shader.PropertyToID("_Albedo_Map");
-    static readonly int SyntyEmissionMapId = Shader.PropertyToID("_Emission_Map");
-    static readonly int SyntyEmissionColorId = Shader.PropertyToID("_Emission_Color");
-    static readonly int SyntyEnableEmissionId = Shader.PropertyToID("_Enable_Emission");
-    static readonly int SyntyClipId = Shader.PropertyToID("_Alpha_Clip_Threshold");
     // The café's own dressing (its entrance frame and brass pulls sit just outside the room) never fades:
     // Ace walks through that door, and the café has its own cut-away walls.
     static readonly string[] NeverFade = { "Hill", "City pavement", "Hazy skyline band", "12 - authored cafe interior" };
@@ -95,7 +81,6 @@ public sealed class NightSeeThrough : MonoBehaviour
     CafeViewMode view;
     Shader dither;
     readonly List<Group> groups = new();
-    readonly Dictionary<Material, Material> copies = new();
     readonly HashSet<string> everFaded = new();
     readonly HashSet<Transform> leftAlone = new();
     MaterialPropertyBlock block;
@@ -151,9 +136,8 @@ public sealed class NightSeeThrough : MonoBehaviour
     {
         view = cafeView;
         block ??= new MaterialPropertyBlock();
-        // Found by name: the night walk only runs in the editor's lab for now. (A build would need
-        // the shader kept, in Always Included Shaders or on a material in the build.)
-        dither = Shader.Find(DitherShaderName);
+        // The scene's own reference (CafeViewMode keeps it for the build), or found by name (SeeThroughMaterials).
+        dither = SeeThroughMaterials.Dither;
         groups.Clear();
         wornRenderers.Clear();
         Renderers = HideInstead = 0;
@@ -176,7 +160,6 @@ public sealed class NightSeeThrough : MonoBehaviour
         {
             foreach (var r in view.cutawayWalls) if (r != null) skipRenderers.Add(r);
             foreach (var r in view.overheadFixtures) if (r != null) skipRenderers.Add(r);
-            foreach (var cut in view.CutawayWalls) if (cut != null && cut.Stub != null) skipRenderers.Add(cut.Stub);
         }
 
         // Every candidate piece, and the box round each object's candidate pieces.
@@ -229,11 +212,9 @@ public sealed class NightSeeThrough : MonoBehaviour
         }
     }
 
-    // What SeeThrough can make a copy of: anything with an albedo to dot (POLYGON's or URP Lit's),
+    // What a copy can be made of: anything with an albedo to dot (POLYGON's or URP Lit's),
     // or, blended, anything with URP's surface switch.
-    bool CanSeeThrough(Material m) => dither != null
-        ? m.HasProperty(SyntyAlbedoId) || m.HasProperty(BaseMapId)
-        : m.HasProperty(SurfaceId);
+    static bool CanSeeThrough(Material m) => SeeThroughMaterials.CanCopy(m);
 
     void LateUpdate()
     {
@@ -311,7 +292,7 @@ public sealed class NightSeeThrough : MonoBehaviour
             bool hide = false;
             for (int m = 0; m < own.Length; m++)
             {
-                wear[m] = SeeThrough(own[m]);
+                wear[m] = SeeThroughMaterials.Copy(own[m]);
                 if (own[m] != null && wear[m] == null) hide = true;
                 colours[m] = own[m] != null && own[m].HasProperty(BaseColorId) ? own[m].GetColor(BaseColorId) : Color.white;
             }
@@ -380,98 +361,9 @@ public sealed class NightSeeThrough : MonoBehaviour
 
     void OnDisable() => Clear();
 
-    void OnDestroy()
-    {
-        Clear();
-        // Only the copies made here: glass keeps its own material (an asset), which must never be destroyed.
-        foreach (var pair in copies)
-            if (pair.Value != null && pair.Value != pair.Key) Destroy(pair.Value);
-        copies.Clear();
-    }
-
-    /// <summary>
-    /// A see-through copy of a material (made once): the source itself when it is already
-    /// see-through (glass), or null when its shader has nothing to copy from (it hides instead).
-    /// </summary>
-    Material SeeThrough(Material source)
-    {
-        if (source == null) return null;
-        if (copies.TryGetValue(source, out var copy)) return copy;
-        copy = dither != null ? DitherCopy(source) : BlendedCopy(source);
-        copies[source] = copy;
-        return copy;
-    }
-
-    Material DitherCopy(Material source)
-    {
-        bool synty = source.HasProperty(SyntyAlbedoId), lit = source.HasProperty(BaseMapId);
-        if (!synty && !lit) return null;
-        if (source.HasProperty(SurfaceId) && source.GetFloat(SurfaceId) > .5f) return source;   // glass: already see-through
-        var copy = new Material(dither) { name = source.name + " (see-through)", hideFlags = HideFlags.DontSave };
-        int albedo = synty ? SyntyAlbedoId : BaseMapId;
-        copy.SetTexture(BaseMapId, source.GetTexture(albedo));
-        copy.SetTextureScale(BaseMapId, source.GetTextureScale(albedo));
-        copy.SetTextureOffset(BaseMapId, source.GetTextureOffset(albedo));
-        copy.SetColor(BaseColorId, source.HasProperty(BaseColorId) ? source.GetColor(BaseColorId) : Color.white);
-        if (source.HasProperty(SmoothnessId)) copy.SetFloat(SmoothnessId, source.GetFloat(SmoothnessId));
-        if (source.HasProperty(MetallicId)) copy.SetFloat(MetallicId, source.GetFloat(MetallicId));
-        if (source.HasProperty(CullId)) copy.SetFloat(CullId, source.GetFloat(CullId));
-        // Cut-out parts of the atlas (POLYGON clips at half alpha).
-        bool clips = source.IsKeywordEnabled("_ALPHATEST_ON") || source.HasProperty(AlphaClipId) && source.GetFloat(AlphaClipId) > .5f;
-        if (clips)
-        {
-            copy.EnableKeyword("_ALPHATEST_ON");
-            copy.SetFloat(AlphaClipId, 1f);
-            copy.SetFloat(CutoffId, source.HasProperty(SyntyClipId) ? source.GetFloat(SyntyClipId)
-                : source.HasProperty(CutoffId) ? source.GetFloat(CutoffId) : .5f);
-        }
-        // The glow: POLYGON's (the night's lit windows and signs), or URP Lit's.
-        if (synty && source.HasProperty(SyntyEnableEmissionId) && source.GetFloat(SyntyEnableEmissionId) > .5f && source.HasProperty(SyntyEmissionMapId))
-        {
-            copy.SetTexture(EmissionMapId, source.GetTexture(SyntyEmissionMapId));
-            copy.SetColor(EmissionColorId, source.HasProperty(SyntyEmissionColorId) ? source.GetColor(SyntyEmissionColorId) : Color.black);
-            copy.EnableKeyword("_EMISSION");
-        }
-        else if (!synty && source.IsKeywordEnabled("_EMISSION"))
-        {
-            copy.SetTexture(EmissionMapId, source.GetTexture(EmissionMapId));
-            copy.SetColor(EmissionColorId, source.GetColor(EmissionColorId));
-            copy.EnableKeyword("_EMISSION");
-        }
-        copy.renderQueue = source.renderQueue;
-        return copy;
-    }
-
-    Material BlendedCopy(Material source)
-    {
-        Material copy = null;
-        if (source.HasProperty(SurfaceId))
-        {
-            copy = new Material(source) { name = source.name + " (see-through)", hideFlags = HideFlags.DontSave };
-            // URP's surface options, which POLYGON's shader graph also exposes (Allow Material Override).
-            copy.SetFloat(SurfaceId, 1f);                                   // Transparent
-            Set(copy, "_Blend", 0f);                                         // Alpha
-            Set(copy, "_SrcBlend", (float)BlendMode.SrcAlpha);
-            Set(copy, "_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-            Set(copy, "_SrcBlendAlpha", (float)BlendMode.One);
-            Set(copy, "_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
-            Set(copy, "_ZWrite", 0f);
-            Set(copy, "_AlphaClip", 0f);                                     // POLYGON clips at 0.5 alpha: off, or it would vanish
-            Set(copy, "_AlphaToMask", 0f);
-            copy.DisableKeyword("_ALPHATEST_ON");
-            copy.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-            copy.DisableKeyword("_ALPHAMODULATE_ON");
-            copy.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            copy.SetOverrideTag("RenderType", "Transparent");
-            copy.renderQueue = (int)RenderQueue.Transparent;
-        }
-        return copy;
-    }
-
-    static void Set(Material m, string property, float value)
-    {
-        if (m.HasProperty(property)) m.SetFloat(property, value);
-    }
+    // The copies are the Play session's (SeeThroughMaterials): the café's walls may still wear one
+    // after the night ends, so nothing is destroyed here.
+    void OnDestroy() => Clear();
 
     // ---------- grouping ----------
 
@@ -517,12 +409,5 @@ public sealed class NightSeeThrough : MonoBehaviour
     public string Describe() =>
         $"See-through ({(dither != null ? "dotted" : "blended: the dither shader was not found")}): " +
         $"{groups.Count} buildings and trees ({Renderers} pieces, {HideInstead} of them hide instead) can fade; " +
-        $"{FadedNow} faded now, {MostAtOnce} at most at once, {everFaded.Count} different ones so far; {MadeCopies()} see-through materials.";
-
-    int MadeCopies()
-    {
-        int n = 0;
-        foreach (var pair in copies) if (pair.Value != null && pair.Value != pair.Key) n++;
-        return n;
-    }
+        $"{FadedNow} faded now, {MostAtOnce} at most at once, {everFaded.Count} different ones so far; {SeeThroughMaterials.Made} see-through materials.";
 }

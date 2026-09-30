@@ -182,11 +182,12 @@ public class PlayerInteractor : MonoBehaviour
             Vector2 centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             Ray ray = cam.ScreenPointToRay(centre);
 
-            RaycastHit[] hits = Physics.RaycastAll(ray, stationReach);
-            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            int count = Physics.RaycastNonAlloc(ray, HitBuffer, stationReach);
+            System.Array.Sort(HitBuffer, 0, count, ByDistance);
 
-            foreach (RaycastHit h in hits)
+            for (int i = 0; i < count; i++)
             {
+                RaycastHit h = HitBuffer[i];
                 Interactable it = h.collider.GetComponentInParent<Interactable>();
                 if (it == null) continue;
                 if (it is StationInteractable) continue;
@@ -200,7 +201,21 @@ public class PlayerInteractor : MonoBehaviour
         if (viewMode != null && viewMode.WalkingFirstPerson) return FindFirstPersonFloorTarget();
 
         // ---- Isometric shop floor: nearest available wins ----
-        return FindFloorTarget(Physics.OverlapSphere(transform.position, reach));
+        int near = Physics.OverlapSphereNonAlloc(transform.position, reach, ColliderBuffer);
+        return FindFloorTargetAmong(ColliderBuffer, near);
+    }
+
+    // The whole array (the checks hand one in by reflection, so this name and shape stay).
+    private Interactable FindFloorTarget(Collider[] near) => FindFloorTargetAmong(near, near != null ? near.Length : 0);
+
+    // Query buffers, so aiming allocates nothing frame after frame (the garbage brought a collection
+    // every few seconds: a hitch). Sixty-four is more than the café ever has within Ace's reach.
+    static readonly RaycastHit[] HitBuffer = new RaycastHit[64];
+    static readonly Collider[] ColliderBuffer = new Collider[64];
+    static readonly System.Collections.Generic.IComparer<RaycastHit> ByDistance = new HitDistanceComparer();
+    sealed class HitDistanceComparer : System.Collections.Generic.IComparer<RaycastHit>
+    {
+        public int Compare(RaycastHit a, RaycastHit b) => a.distance.CompareTo(b.distance);
     }
 
     private Interactable FindFirstPersonFloorTarget()
@@ -208,10 +223,11 @@ public class PlayerInteractor : MonoBehaviour
         if (cam == null) cam = Camera.main;
         if (cam == null) return null;
         Ray ray = cam.ViewportPointToRay(new Vector3(.5f, .5f));
-        RaycastHit[] hits = Physics.RaycastAll(ray, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-        foreach (RaycastHit hit in hits)
+        int count = Physics.RaycastNonAlloc(ray, HitBuffer, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        System.Array.Sort(HitBuffer, 0, count, ByDistance);
+        for (int i = 0; i < count; i++)
         {
+            RaycastHit hit = HitBuffer[i];
             if (hit.collider.transform.IsChildOf(transform)) continue;
             Interactable item = hit.collider.GetComponentInParent<Interactable>();
             if (item != null && item.IsAvailable && (!(item is CustomerInteractable customer) || customer.FloorAvailable))
@@ -222,13 +238,14 @@ public class PlayerInteractor : MonoBehaviour
         }
         return null;
     }
-    private Interactable FindFloorTarget(Collider[] near)
+    private Interactable FindFloorTargetAmong(Collider[] near, int count)
     {
         Interactable best = null;
         float bestScore = float.MinValue;
 
-        foreach (Collider h in near)
+        for (int n = 0; n < count; n++)
         {
+            Collider h = near[n];
             Interactable it = h.GetComponentInParent<Interactable>();
             if (it == null || !it.IsAvailable) continue;
 
@@ -256,8 +273,9 @@ public class PlayerInteractor : MonoBehaviour
             if (carry == null) carry = GetComponent<PlayerCarry>();
             StationInteractable placement = null;
             float placementDistance = float.PositiveInfinity;
-            foreach (Collider h in near)
+            for (int n = 0; n < count; n++)
             {
+                Collider h = near[n];
                 var station = h.GetComponentInParent<StationInteractable>();
                 if (station == null || !station.PrefersPlacementOver(best, carry)) continue;
                 float distance = Vector3.Distance(transform.position, station.transform.position);
@@ -356,10 +374,11 @@ public class PlayerInteractor : MonoBehaviour
         if (cam == null) cam = Camera.main;
         if (cam == null) return null;
         Ray ray = cam.ViewportPointToRay(new Vector3(.5f, .5f));
-        RaycastHit[] hits = Physics.RaycastAll(ray, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-        foreach (RaycastHit hit in hits)
+        int count = Physics.RaycastNonAlloc(ray, HitBuffer, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        System.Array.Sort(HitBuffer, 0, count, ByDistance);
+        for (int i = 0; i < count; i++)
         {
+            RaycastHit hit = HitBuffer[i];
             if (hit.collider.transform.IsChildOf(transform)) continue;
             NightInteractable thing = hit.collider.GetComponentInParent<NightInteractable>();
             if (thing != null && thing.IsAvailable) return thing;
@@ -373,8 +392,10 @@ public class PlayerInteractor : MonoBehaviour
     {
         NightInteractable best = null;
         float bestScore = float.MinValue;
-        foreach (Collider near in Physics.OverlapSphere(transform.position, reach, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide))
+        int count = Physics.OverlapSphereNonAlloc(transform.position, reach, ColliderBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        for (int n = 0; n < count; n++)
         {
+            Collider near = ColliderBuffer[n];
             NightInteractable thing = near.GetComponentInParent<NightInteractable>();
             if (thing == null || zonesOnly && !thing.IsZone || !thing.IsAvailable) continue;
             float score = thing.Priority * 100f - Vector3.Distance(transform.position, thing.transform.position);

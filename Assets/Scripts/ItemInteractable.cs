@@ -23,7 +23,7 @@ public class ItemInteractable : Interactable
 
             if (drink == null && job.Owner == null) return false;
 
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry carry = PlayerCarry.Current;
             return carry != null && carry.HasSpace;
         }
     }

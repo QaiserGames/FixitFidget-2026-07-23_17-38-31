@@ -134,8 +134,12 @@ public sealed class PersonalSpace : MonoBehaviour
         // round the café's people themselves; a café NPC on the move still never ends
         // up inside one of them.
         if (!meStill)
-            foreach (NpcJourney walker in NpcJourney.Active)
+        {
+            // By index: a foreach over the read-only interface boxed its enumerator, garbage every frame (30 Sept).
+            var walkers = NpcJourney.Active;
+            for (int w = 0; w < walkers.Count; w++)
             {
+                NpcJourney walker = walkers[w];
                 if (walker == null || !walker.isActiveAndEnabled || walker.gameObject == gameObject) continue;
                 Vector3 away = me - walker.transform.position;
                 if (Mathf.Abs(away.y) > 1.2f) continue;
@@ -145,6 +149,7 @@ public sealed class PersonalSpace : MonoBehaviour
                 Vector3 direction = apart > 1e-3f ? away / apart : transform.right;
                 push += direction * (wanted - apart);
             }
+        }
 
         // Ace: the NPC does all of the giving way, sideways past him.
         Vector3 playerPush = GiveWayToPlayer(me, meStill);

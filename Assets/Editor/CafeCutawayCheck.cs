@@ -17,21 +17,22 @@ using Object = UnityEngine.Object;
 //
 // It turns the overhead camera all the way round (and lower and closer, where
 // the back wall gets in the way), and at every stop checks that:
-//   * a wall in the way is down at sill height, never gone: its low stand-in
-//     is drawn and the real wall only casts its shadow;
-//   * pictures, shelves and lamps on a lowered wall are hidden, while things on
-//     the counters and the floor stay;
-//   * a wall out of the way is back up exactly as it was;
+//   * a wall in the way fades to a ghost above the sill, never goes: it wears
+//     its see-through copy (the dither shader), stays drawn and still casts its
+//     whole shadow (30 Sept: a fade, not the slide it used to be);
+//   * pictures, shelves and lamps on a faded wall fade with it, while things on
+//     the counters and the floor stay solid;
+//   * a wall out of the way is back exactly as it was, its own materials on;
 //   * at the usual angle nothing is cut;
 //   * wobbling the camera across the edge doesn't make a wall flicker;
-//   * first person puts every wall straight back up.
+//   * first person puts every wall straight back.
 // Photos from the game camera and a report go to Logs/CafeWalls/cutaway-<time>/.
 // The camera is put back where it was at the end.
 // ---------------------------------------------------------------------------
 public static class CafeCutawayCheck
 {
     const string Menu = "Fixit Fidget/Checks/Wall cut-away (Play Mode, lab session)";
-    const float Settle = .9f; // slide (0.25 s) + rise delay (0.35 s) + margin
+    const float Settle = 1.2f; // fade (0.35 s) + rise delay (0.5 s) + margin
 
     static IEnumerator routine;
     static double resumeAt;
@@ -92,8 +93,9 @@ public static class CafeCutawayCheck
 
         CutawayWall[] cuts = view.CutawayWalls.Where(c => c != null).ToArray();
         Check(cuts.Length >= 2, $"The drawn cut-away walls are set up ({string.Join(", ", cuts.Select(c => c.Wall.name))})");
+        Check(SeeThroughMaterials.Dithered, "The see-through shader is in hand (dotted, not blended)");
         foreach (CutawayWall cut in cuts)
-            Check(cut.Sliceable, $"{cut.Wall.name} can slide down{(cut.Sliceable ? "" : " (" + cut.Problem + ")")}");
+            Check(cut.Fades, $"{cut.Wall.name} can fade{(cut.Fades ? $" (sill {cut.SillTop - cut.BaseY:0.00} m up, ghost {cut.Ghost:0.00})" : " (" + cut.Problem + ")")}");
         CutawayWall back = cuts.FirstOrDefault(c => c.Wall.name == "Back plaster");
         CutawayWall tan = cuts.FirstOrDefault(c => c.Wall.name == "Left rear plaster");
 
@@ -130,11 +132,11 @@ public static class CafeCutawayCheck
             }
             if (back != null && back.Lowered && backDownAt == null) backDownAt = angle;
             if (tan != null && tan.Lowered && tanDownAt == null) tanDownAt = angle;
-            Note($"{label}: " + string.Join(", ", cuts.Select(c => $"{c.Wall.name} {(c.Lowered ? $"down (top {c.ShownTop:0.00} m, {c.Decor.Count(r => r != null && r.forceRenderingOff)} things hidden)" : "up")}")));
+            Note($"{label}: " + string.Join(", ", cuts.Select(c => $"{c.Wall.name} {(c.Lowered ? $"faded (keep {c.Keep:0.00}, {c.Decor.Count(SeeThroughMaterials.IsWorn)} things with it)" : "solid")}")));
             previous = angle;
             first = false;
         }
-        Check(back == null || down[back] > 0, $"Turning round lowers the back wall somewhere ({(back != null ? down[back] : 0)} of {sweep.Count} stops)");
+        Check(back == null || down[back] > 0, $"Turning round fades the back wall somewhere ({(back != null ? down[back] : 0)} of {sweep.Count} stops)");
         Check(tan == null || down[tan] > 0, $"…and the tan rear wall ({(tan != null ? down[tan] : 0)} of {sweep.Count} stops)");
 
         // ---- the back wall down: what hides and what stays ----
@@ -186,12 +188,12 @@ public static class CafeCutawayCheck
                 last = wall.Lowered;
             }
             Check(startedDown && rises == 0,
-                $"Wobbling 1.2° either side of {wall.Wall.name}'s edge (yaw {edgeYaw:0.0}) for 2.4 s keeps it down: {rises} rises");
+                $"Wobbling 1.2° either side of {wall.Wall.name}'s edge (yaw {edgeYaw:0.0}) for 2.4 s keeps it faded: {rises} returns");
             view.OrbitTo(45, 50, 34);
             yield return .2f;
-            Check(wall.Lowered, "…and turning back to the usual angle doesn't raise it instantly");
+            Check(wall.Lowered, "…and turning back to the usual angle doesn't bring it back instantly");
             yield return Settle;
-            Check(!wall.Lowered, $"…but it is back up within {Settle + .2f:0.0} s");
+            Check(!wall.Lowered, $"…but it is back within {Settle + .2f:0.0} s");
         }
         else Check(false, "The sweep found an edge where a wall goes down, to wobble across");
 
@@ -204,7 +206,7 @@ public static class CafeCutawayCheck
         if (view.SetFirstPerson(true))
         {
             yield return .1f;
-            Check(cuts.All(c => !c.Lowered), "First person puts every wall straight back up");
+            Check(cuts.All(c => !c.Lowered && !c.Worn), "First person puts every wall straight back, its own materials on");
             CheckStates(view, "first person");
             view.SetFirstPerson(false);
             yield return Settle;
@@ -217,48 +219,53 @@ public static class CafeCutawayCheck
         Check(saveAfter == saveBefore, "The playtest save was not written");
     }
 
-    // Every cut-away wall is either up and exactly as built, or down at (or on
-    // its way to) sill height with its stand-in drawn. Never simply gone.
+    // Every cut-away wall is either solid and exactly as built, or faded (or on its way): wearing
+    // its see-through copy, still drawn, still casting its whole shadow. Never simply gone.
     static void CheckStates(CafeViewMode view, string where, bool quiet = false)
     {
         foreach (CutawayWall c in view.CutawayWalls)
         {
-            if (c == null || !c.Sliceable) continue;
+            if (c == null || !c.Fades) continue;
             string name = c.Wall.name;
             if (c.Lowered)
             {
-                bool drawn = c.Stub.enabled && c.Wall.enabled && c.Wall.shadowCastingMode == ShadowCastingMode.ShadowsOnly;
-                bool settled = c.Progress >= 1f && Mathf.Abs(c.Stub.bounds.max.y - c.CutTop) < .03f && Mathf.Abs(c.CutTop - (c.BaseY + .78f)) < .03f;
+                bool drawn = c.Worn && c.Wall.enabled && !c.Wall.forceRenderingOff && c.Wall.shadowCastingMode != ShadowCastingMode.ShadowsOnly
+                             && c.Wall.sharedMaterials.All(WearsDots);
+                bool settled = c.Progress >= 1f && Mathf.Abs(c.Keep - c.Ghost) < .01f && Mathf.Abs(c.SillTop - (c.BaseY + .78f)) < .03f;
                 if (!quiet || !drawn || !settled)
-                    Check(drawn && settled, $"{where}: {name} is down at sill height ({c.Stub.bounds.max.y:0.00} m), not gone; the real wall only casts its shadow");
+                    Check(drawn && settled, $"{where}: {name} is faded to its ghost above the sill (keep {c.Keep:0.00}, sill at {c.SillTop - c.BaseY:0.00} m), still drawn and casting its shadow");
             }
             else
             {
-                bool asBuilt = !c.Stub.enabled && c.Wall.enabled && c.Wall.shadowCastingMode != ShadowCastingMode.ShadowsOnly
-                               && c.Decor.All(r => r == null || !r.forceRenderingOff);
+                bool asBuilt = !c.Worn && c.Wall.enabled && !c.Wall.forceRenderingOff && c.Wall.shadowCastingMode != ShadowCastingMode.ShadowsOnly
+                               && !c.Wall.sharedMaterials.Any(WearsDots)
+                               && c.Decor.All(r => r == null || !SeeThroughMaterials.IsWorn(r) && !r.forceRenderingOff);
                 if (!quiet || !asBuilt)
-                    Check(asBuilt, $"{where}: {name} is up, drawn as built, nothing on it hidden");
+                    Check(asBuilt, $"{where}: {name} is solid, drawn as built, its own materials on, nothing on it faded");
             }
         }
     }
 
+    static bool WearsDots(Material m) => m != null && m.shader != null && m.shader.name == SeeThroughMaterials.DitherShaderName;
+
     static void CheckDecor(CutawayWall back)
     {
-        Renderer[] hidden = back.Decor.Where(r => r != null && r.forceRenderingOff).ToArray();
-        Note("Hidden with the back wall: " + string.Join(", ", hidden.Select(Path3).Distinct()));
-        Check(hidden.Length > 0, $"Things fixed to the back wall hide while it is down ({hidden.Length} pieces)");
+        Renderer[] faded = back.Decor.Where(r => r != null && SeeThroughMaterials.IsWorn(r)).ToArray();
+        Note("Faded with the back wall: " + string.Join(", ", faded.Select(Path3).Distinct()));
+        Check(faded.Length > 0, $"Things fixed to the back wall fade with it ({faded.Length} pieces)");
+        Check(faded.All(r => r.forceRenderingOff || r.sharedMaterials.All(WearsDots)), "…each wearing the dots (or hidden, when its shader has none)");
         foreach (string expected in new[] { "Chalkboard face", "Walls - Clock_01", "Subway tile backsplash", "Lamp shade", "CoffeeShelf_InteriorOak", "RepairWallTools_InteriorOak" })
-            Check(hidden.Any(r => r.name == expected), $"…including {expected}");
-        bool shelf = hidden.Any(r => r.name.StartsWith("Back bar cup shelf", StringComparison.Ordinal));
+            Check(faded.Any(r => r.name == expected), $"…including {expected}");
+        bool shelf = faded.Any(r => r.name.StartsWith("Back bar cup shelf", StringComparison.Ordinal));
         Check(shelf, "…including the back-bar cup shelf (needs Second pass > Give the back-bar cup shelf its own mesh)");
-        Check(hidden.All(r => r.GetComponentInParent<Interactable>(true) == null && r.GetComponentInParent<Rigidbody>(true) == null),
-            "Nothing hidden is something Ace or a customer uses");
-        // Things standing on the counters and the floor stay.
+        Check(faded.All(r => r.GetComponentInParent<Interactable>(true) == null && r.GetComponentInParent<Rigidbody>(true) == null),
+            "Nothing faded is something Ace or a customer uses");
+        // Things standing on the counters and the floor stay solid.
         var all = Object.FindObjectsByType<Renderer>(FindObjectsInactive.Exclude);
         foreach (string stays in new[] { "Drinks - Bottle_01", "Drink countertop", "Carcass", "Body", "Coffee sacks" })
         {
             Renderer r = all.FirstOrDefault(x => x.name == stays && Vector3.Distance(x.bounds.center, new Vector3(x.bounds.center.x, 1f, 17.6f)) < 1.2f);
-            if (r != null) Check(!r.forceRenderingOff, $"{stays} ({Path3(r)}) stays: it stands on a counter or the floor");
+            if (r != null) Check(!SeeThroughMaterials.IsWorn(r) && !r.forceRenderingOff, $"{stays} ({Path3(r)}) stays solid: it stands on a counter or the floor");
         }
     }
 

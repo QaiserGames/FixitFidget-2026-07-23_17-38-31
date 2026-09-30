@@ -137,7 +137,7 @@ public class StationInteractable : Interactable
     {
         get
         {
-            PlayerCarry c = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry c = PlayerCarry.Current;
             return c != null && c.IsCarrying && dropSpot != null;
         }
     }
@@ -146,7 +146,7 @@ public class StationInteractable : Interactable
     {
         get
         {
-            PlayerCarry c = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry c = PlayerCarry.Current;
             if (c == null || !c.IsCarrying || dropSpot == null) return "";
             if (!dropSpot.CanAccept(c.Carried)) return "No room here";
             return dropSpot.Kind == DropSpot.SpotKind.Counter ? "Return item" : "Set down";

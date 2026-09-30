@@ -176,6 +176,18 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
                           $"{(legAir > .05f ? $", in the air {legAir:0.00} s at most" : "")}; " +
                           $"{(house.Viewing ? (house.Upstairs ? "inside, upstairs" : "inside") : "outside")}");
             if (!reached) break;
+            // On the stoop: her door opens only once Ace is let in (E, "Let yourself in"; since 30 Sept). The
+            // check presses it the way the zone does, and waits for the door to swing open before walking in.
+            if (stop.what == "on the pavement at her stoop")
+            {
+                yield return null;   // the way-in zone's offer settles
+                Line(house.AceOnStoop && house.DoorPromptShown && house.DoorPrompt == "Let yourself in",
+                     $"    on the stoop the way in is offered (\"{house.DoorPrompt}\"; on the stoop: {house.AceOnStoop}, offered: {house.DoorPromptShown})");
+                house.LetAceIn();
+                float pressed = Time.time;
+                while (house.door != null && !house.door.IsOpen && Time.time - pressed < 2.5f) yield return null;
+                Line(house.door == null || house.door.IsOpen, $"    E opened her door ({Time.time - pressed:0.0} s; let in {house.LetIns} time(s))");
+            }
             // Through her door on the way in: wait for it to shut behind Ace before the entry's way north.
             if (stop.what == "in the entry, inside the door")
             {

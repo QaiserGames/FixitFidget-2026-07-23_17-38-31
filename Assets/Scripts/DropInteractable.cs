@@ -13,7 +13,7 @@ public class DropInteractable : Interactable
     {
         get
         {
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry carry = PlayerCarry.Current;
             return carry != null && carry.IsCarrying && spot != null;
         }
     }
@@ -28,7 +28,7 @@ public class DropInteractable : Interactable
         {
             if (spot == null) return "";
 
-            PlayerCarry carry = FindAnyObjectByType<PlayerCarry>();
+            PlayerCarry carry = PlayerCarry.Current;
             if (carry == null || !carry.IsCarrying) return "";
 
             if (!spot.CanAccept(carry.Carried)) return "No room here";

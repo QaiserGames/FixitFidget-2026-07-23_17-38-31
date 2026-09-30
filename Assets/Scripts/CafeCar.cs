@@ -447,8 +447,13 @@ public sealed class CafeCar : MonoBehaviour, StreetLife.IStreetBody
 
     private static bool PersonInRect(Vector3 centre, Vector3 forward, Vector3 right, float halfLength, float halfWidth)
     {
-        foreach (NpcJourney walker in NpcJourney.Active)
+        // By index: a foreach over the read-only interface boxed its enumerator, garbage every frame (30 Sept).
+        var walkers = NpcJourney.Active;
+        for (int w = 0; w < walkers.Count; w++)
+        {
+            NpcJourney walker = walkers[w];
             if (walker != null && Inside(walker.transform.position, centre, forward, right, halfLength, halfWidth)) return true;
+        }
         foreach (CharacterController player in CafeArrivals.Players)
             if (player != null && player.enabled && Inside(player.transform.position, centre, forward, right, halfLength, halfWidth)) return true;
         return false;

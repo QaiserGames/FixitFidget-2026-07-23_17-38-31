@@ -11,13 +11,16 @@ using UnityEngine.Rendering;
 // This component runs them:
 //
 //   * at night her lamps are on (all night for now; her routine comes with chunk C);
-//   * with the break-ins switched on (NightWalk.breakIns: on in the labs only, until they
-//     are ready; Fixit Fidget > Playtest > Play the whole game from Day 1 switches it on for
-//     every night of that session), her front door opens for Ace like it does for her, and walking in turns
-//     the camera to look in from the street, like a doll's house with its front open:
-//     the house's outer shell steps aside (it still casts its shadow), the walls toward
-//     the camera slide down to sill height as the café's do, and the floor above Ace is
-//     hidden. The player can still orbit and zoom. Walking out puts it all back;
+//   * with the break-ins switched on (NightWalk.breakIns: on in the real game since 30 Sept;
+//     a lab can switch it off), her front door is Ace's way in: on the stoop the prompt reads
+//     "Let yourself in" (GraceDoorZone, a place made here while the night runs), E opens the
+//     door, and it minds Ace's capsule from there (open while Ace is in the doorway or just
+//     inside, shut behind Ace on the pavement). Until 30 Sept it opened by itself as Ace
+//     stepped up, with nothing on screen to say so. Walking in turns the camera to look in
+//     from the street, like a doll's house with its front open: the house's outer shell steps
+//     aside (it still casts its shadow), the walls toward the camera fade to a ghost above sill
+//     height as the café's do (30 Sept: a fade, not a slide; SeeThroughMaterials), and the floor
+//     above Ace is hidden. The player can still orbit and zoom. Walking out puts it all back;
 //   * on her stairs, Ace keeps to the flight going down (a capsule walking down a 40°
 //     flight would otherwise leave it at the top and land at the bottom).
 //
@@ -40,20 +43,20 @@ public sealed class GraceHouse : MonoBehaviour
         public int storey;
         [Tooltip("The wall up to the cut: always drawn.")]
         public Renderer lower;
-        [Tooltip("The wall above the cut: what slides down. Null when the whole wall is below the cut.")]
+        [Tooltip("The wall above the cut: what fades to a ghost. Null when the whole wall is below the cut.")]
         public Transform upper;
         [Tooltip("An outside wall: it comes down whenever the camera is outside it.")]
         public bool perimeter;
         [Tooltip("Toward the outside (perimeter walls), in this object's space.")]
         public Vector3 outward;
-        [Tooltip("Things hung on it above the cut: hidden while it is down.")]
+        [Tooltip("Things hung on it above the cut: they fade with it.")]
         public Renderer[] hanging = Array.Empty<Renderer>();
 
-        [NonSerialized] public float progress, clearFor;
-        [NonSerialized] public bool down, measured;
-        [NonSerialized] public Vector3 upperScale, upperPosition;
+        [NonSerialized] public float progress, clearFor, keep = 1f;
+        [NonSerialized] public bool down, measured, worn;
         [NonSerialized] public Renderer upperRenderer;
         [NonSerialized] public Bounds full;              // the whole wall as built, in the world
+        [NonSerialized] public float cutY;               // world height of the cut: solid below, the ghost above
     }
 
     [Header("Built by Fixit Fidget > Night > Break-ins 1")]
@@ -76,18 +79,26 @@ public sealed class GraceHouse : MonoBehaviour
     [Range(0f, 360f)] public float houseYaw = 258f;
     [Range(38f, 68f)] public float housePitch = 52f;
     [Range(8f, 22f)] public float houseDistance = 13f;
-    [Tooltip("Seconds a wall takes to slide down or back up.")]
-    [Range(.05f, 1f)] public float slideSeconds = .2f;
-    [Tooltip("Seconds a wall waits, clearly out of the way, before it comes back up.")]
-    [Range(0f, 2f)] public float riseDelay = .35f;
+    [Tooltip("Seconds a wall takes to fade to its ghost, or back.")]
+    [Range(.05f, 1f)] public float slideSeconds = .35f;
+    [Tooltip("Seconds a wall waits, clearly out of the way, before it comes back.")]
+    [Range(0f, 2f)] public float riseDelay = .5f;
+    [Tooltip("How much of a wall above the cut is still drawn while it is out of the way: .2 is one dot in five.")]
+    [Range(.05f, .6f)] public float ghost = .2f;
+    [Tooltip("Over how many metres above the cut the wall feathers from solid to the ghost.")]
+    [Range(.05f, 1.5f)] public float feather = .45f;
 
     [Header("Her door, for Ace (break-ins only)")]
     [Tooltip("How far to either side of the doorway's middle Ace can be for the door to open (metres).")]
     public float doorReach = .9f;
     [Tooltip("How far inside (Ace's middle, behind the door's plane) the door stays open: the capsule must be clear of the leaf before it shuts.")]
     public float doorInside = .65f;
-    [Tooltip("How far out in front of it (on the stoop) the door opens for Ace.")]
+    [Tooltip("How far out in front of it (on the stoop) Ace can be let in from, and how far the way-in zone reaches.")]
     public float doorOutside = 1.6f;
+    [Tooltip("In front of the door's plane by less than this, Ace is in the doorway: the door holds itself open there and just inside (Door Inside). Further out, on the stoop, it opens only once Ace is let in (E).")]
+    public float doorwayDepth = .35f;
+    [Tooltip("Once let in (E on the stoop), the door stays open this long for Ace to walk through (seconds); walking away off the stoop ends it sooner.")]
+    public float letInFor = 8f;
 
     // ---- the undo record (Fixit Fidget > Night > Break-ins 1 - Take Grace's house back out) ----
     [HideInInspector] public MeshFilter[] changedParts = Array.Empty<MeshFilter>();
@@ -115,6 +126,19 @@ public sealed class GraceHouse : MonoBehaviour
     public bool LightsOn => lightsOn;
     /// <summary>How often the stairs kept Ace on a flight going down, this session.</summary>
     public int StairCatches { get; private set; }
+    /// <summary>How often Ace was let in at her door (E on the stoop), this session.</summary>
+    public int LetIns { get; private set; }
+    /// <summary>How often E found her door locked (the break-ins off), this session.</summary>
+    public int FoundLocked { get; private set; }
+    /// <summary>Ace stands on her stoop, in front of the door (within Door Reach and Door Outside, outside the doorway).</summary>
+    public bool AceOnStoop => onStoop;
+    /// <summary>The way in is offered: Ace on the stoop, the door not yet open for Ace.</summary>
+    public bool DoorPromptShown => aceT != null && door != null && onStoop && !(door.IsOpen || Time.time < letInUntil);
+    /// <summary>What the stoop's prompt says: the way in, or a door to try when the break-ins are off.</summary>
+    public string DoorPrompt => BreakInsOn ? "Let yourself in" : "Try the door";
+    /// <summary>The break-ins are on tonight (NightWalk.breakIns, the night running).</summary>
+    public static bool BreakInsOn => NightWalk.Instance != null && NightWalk.Instance.Active && NightWalk.Instance.breakIns;
+    public const string LockedNote = "Locked. Her door doesn't open for Ace tonight.";
     /// <summary>Plan metres (X, Y, z) to the world.</summary>
     public Vector3 World(float X, float Y, float z = 0f) => transform.TransformPoint(new Vector3(-X, z, Y));
     /// <summary>The world to plan metres (X, Y, z).</summary>
@@ -129,7 +153,9 @@ public sealed class GraceHouse : MonoBehaviour
     CharacterController ace;
     Transform aceT;
     Collider leafCollider;
-    bool lightsOn, viewing, upstairs, shellHidden, holdingDoor, aceWasGrounded, labStarted;
+    GraceDoorZone wayIn;
+    float letInUntil;
+    bool lightsOn, viewing, upstairs, shellHidden, holdingDoor, aceWasGrounded, labStarted, onStoop, wasNight, saidTonight;
     readonly List<(Renderer renderer, ShadowCastingMode mode)> shell = new();
     Renderer[] upstairsParts = Array.Empty<Renderer>();
     readonly Dictionary<Renderer, int> hideReasons = new();
@@ -162,6 +188,8 @@ public sealed class GraceHouse : MonoBehaviour
     {
         if (viewing) Leave();
         ReleaseDoor();
+        RemoveTheWayIn();
+        wasNight = false;
         if (leafCollider != null) leafCollider.enabled = true;
         SetLights(false);
         SetSolid(true);
@@ -186,10 +214,23 @@ public sealed class GraceHouse : MonoBehaviour
 
         bool breakIns = nightNow && night.breakIns;
         FindAce();
+        // The way in stands on her stoop for the whole night (with the break-ins off it says the door is locked).
+        if (nightNow && !wasNight) { MakeTheWayIn(); saidTonight = false; }
+        else if (!nightNow && wasNight) RemoveTheWayIn();
+        wasNight = nightNow;
+        if (nightNow && !saidTonight && aceT != null)
+        {
+            saidTonight = true;
+            Debug.Log("[Break-ins] Tonight Grace's door " + (breakIns
+                ? "opens for Ace: E on her stoop (\"Let yourself in\")."
+                : "is locked for Ace: the break-ins are off (NightWalk.breakIns; Fixit Fidget > Night > Break-ins 4)."));
+        }
         if (!breakIns || aceT == null)
         {
             if (viewing) Leave();
             ReleaseDoor();
+            letInUntil = 0f;
+            onStoop = breakIns == false && aceT != null && door != null && OnStoop(aceT.position);
             if (leafCollider != null && !leafCollider.enabled) leafCollider.enabled = true;
             return;
         }
@@ -249,18 +290,20 @@ public sealed class GraceHouse : MonoBehaviour
         ace = view.GetComponent<CharacterController>();
     }
 
-    // Held open while Ace is on the stoop or in the doorway, as it is for the people who live here. Its leaf is
-    // solid only while it stands still: a moving leaf would shove the capsule, so while it swings Ace passes
-    // through it (it swings into the hall, where Ace stands, whichever way Ace is going).
+    // On the stoop the door opens for Ace only once Ace is let in (E: LetAceIn), and stays open for a
+    // moment for Ace to walk through. In the doorway or just inside it holds itself open, as it does for
+    // the people who live here, so Ace is never shut in the leaf's way; on the pavement it shuts behind
+    // Ace. Its leaf is solid only while it stands still: a moving leaf would shove the capsule, so while it
+    // swings Ace passes through it (it swings into the hall, where Ace stands, whichever way Ace is going).
     void DoorForAce()
     {
         if (door == null) return;
         Vector3 p = aceT.position;
-        Vector3 fromDoor = p - door.DoorwayPoint;
-        fromDoor.y = 0f;
-        float across = Vector3.Dot(fromDoor, door.transform.right);
         float outside = door.Outside(p);
-        bool wants = Mathf.Abs(across) < doorReach && outside > -doorInside && outside < doorOutside;
+        bool inReach = InReach(p, outside);
+        onStoop = inReach && outside >= doorwayDepth;
+        if (!inReach) letInUntil = 0f;   // walked away: next time it is E again
+        bool wants = inReach && (outside < doorwayDepth || Time.time < letInUntil);
         if (wants) { door.Hold(this, .3f); holdingDoor = true; }
         else ReleaseDoor();
         if (leafCollider != null)
@@ -268,6 +311,66 @@ public sealed class GraceHouse : MonoBehaviour
             bool still = door.IsClosed || door.OpenAmount >= .999f;
             if (leafCollider.enabled != still) leafCollider.enabled = still;
         }
+    }
+
+    // Within Door Reach of the doorway's middle, from just inside (Door Inside) to the front of the stoop (Door Outside).
+    bool InReach(Vector3 p, float outside)
+    {
+        Vector3 fromDoor = p - door.DoorwayPoint;
+        fromDoor.y = 0f;
+        float across = Vector3.Dot(fromDoor, door.transform.right);
+        return Mathf.Abs(across) < doorReach && outside > -doorInside && outside < doorOutside;
+    }
+
+    bool OnStoop(Vector3 p)
+    {
+        float outside = door.Outside(p);
+        return InReach(p, outside) && outside >= doorwayDepth;
+    }
+
+    /// <summary>
+    /// E on her stoop ("Let yourself in", GraceDoorZone; also the walk check's press): with the break-ins on the
+    /// door opens and stays open for Ace to walk through (Let In For); off, it is locked and a note says so.
+    /// </summary>
+    public void LetAceIn()
+    {
+        if (door == null) return;
+        if (!BreakInsOn)
+        {
+            FoundLocked++;
+            NightCycle.Note(LockedNote);
+            Sfx.Play("night.door.locked", door.DoorwayPoint);
+            return;
+        }
+        FindAce();
+        if (aceT == null || !OnStoop(aceT.position)) return;
+        letInUntil = Time.time + letInFor;
+        LetIns++;
+        Sfx.Play("night.door.open", door.DoorwayPoint);
+    }
+
+    // The way in: a trigger over the stoop and the doorway, so the interactor offers it wherever Ace stands
+    // there (a zone, as the café's "Call it a night" is). Made while the night runs, never saved.
+    void MakeTheWayIn()
+    {
+        if (wayIn != null || door == null) return;
+        var go = new GameObject("Ace's way in at Grace's door (while the night runs)") { hideFlags = PlaySessionLeftovers.RuntimeFlags };
+        Vector3 outward = door.Outward;
+        float depth = doorOutside + doorInside;
+        go.transform.SetPositionAndRotation(door.DoorwayPoint + outward * (doorOutside - doorInside) * .5f, Quaternion.LookRotation(outward, Vector3.up));
+        var box = go.AddComponent<BoxCollider>();
+        box.isTrigger = true;
+        box.center = new Vector3(0f, 1.1f, 0f);
+        box.size = new Vector3(doorReach * 2f, 2.2f, depth);
+        wayIn = go.AddComponent<GraceDoorZone>();
+        wayIn.house = this;
+    }
+
+    void RemoveTheWayIn()
+    {
+        if (wayIn == null) return;
+        if (Application.isPlaying) Destroy(wayIn.gameObject); else DestroyImmediate(wayIn.gameObject);
+        wayIn = null;
     }
 
     void ReleaseDoor()
@@ -389,14 +492,13 @@ public sealed class GraceHouse : MonoBehaviour
         r.forceRenderingOff = next != 0;
     }
 
-    // Called while every wall stands as built (on the way in, before any has moved).
+    // Called while every wall stands as built (on the way in, before any has faded).
     void Measure(Wall w)
     {
         if (w.measured || w.upper == null) return;
-        w.upperScale = w.upper.localScale;
-        w.upperPosition = w.upper.localPosition;
         w.upperRenderer = w.upper.GetComponent<Renderer>();
         w.full = w.upperRenderer != null ? w.upperRenderer.bounds : new Bounds(w.upper.position, Vector3.zero);
+        w.cutY = w.full.min.y;
         if (w.lower != null) w.full.Encapsulate(w.lower.bounds);
         w.measured = true;
     }
@@ -442,18 +544,30 @@ public sealed class GraceHouse : MonoBehaviour
         return length > .01f && wall.IntersectRay(new Ray(eye, d / length), out float hit) && hit < length - .15f;
     }
 
-    // The part above the cut shrinks toward the cut (its bottom stays put), then isn't drawn; what hangs on the
-    // wall above the cut hides while it is on its way down.
+    // The part above the cut fades to a ghost (the dither shader's dots, feathered up from the cut), and what
+    // hangs on the wall fades with it at the same dots: nothing moves, nothing pops. A part whose material
+    // can't be copied hides instead (SeeThroughMaterials).
     void Apply(Wall w)
     {
         if (w.upper == null || !w.measured) return;
-        float shown = 1f - Mathf.SmoothStep(0f, 1f, w.progress);
-        float height = Mathf.Max(.0005f, w.upperScale.y * shown);
-        float bottom = w.upperPosition.y - w.upperScale.y * .5f;
-        w.upper.localScale = new Vector3(w.upperScale.x, height, w.upperScale.z);
-        w.upper.localPosition = new Vector3(w.upperPosition.x, bottom + height * .5f, w.upperPosition.z);
-        if (w.upperRenderer != null) SetHidden(w.upperRenderer, HiddenWallTop, shown < .01f);
-        foreach (Renderer r in w.hanging) SetHidden(r, HiddenOnWall, w.progress > .5f);
+        bool down = w.progress > 0f;
+        w.keep = down ? Mathf.Lerp(1f, ghost, Mathf.SmoothStep(0f, 1f, w.progress)) : 1f;
+        if (down && !w.worn)
+        {
+            w.worn = true;
+            SeeThroughMaterials.Wear(w.upperRenderer);
+            foreach (Renderer r in w.hanging) SeeThroughMaterials.Wear(r);
+        }
+        else if (!down && w.worn)
+        {
+            w.worn = false;
+            SeeThroughMaterials.TakeOff(w.upperRenderer);
+            foreach (Renderer r in w.hanging) SeeThroughMaterials.TakeOff(r);
+        }
+        if (!w.worn) return;
+        float from = w.cutY, to = w.cutY + feather;
+        SeeThroughMaterials.Show(w.upperRenderer, w.keep, from, to);
+        foreach (Renderer r in w.hanging) SeeThroughMaterials.Show(r, w.keep, from, to);
     }
 
     // ------------------------------------------------------------------ the lab

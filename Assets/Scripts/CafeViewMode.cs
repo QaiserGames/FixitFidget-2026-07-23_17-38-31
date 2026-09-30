@@ -29,7 +29,7 @@ public sealed class CafeViewMode : MonoBehaviour
     public CinemachineCamera firstPersonCamera;
     public Vector3 isometricFocus = new Vector3(0, .6f, 9);
     public Renderer bodyRenderer;
-    [Tooltip("Only these authored wall pieces are cut away in an overhead view: they slide down to sill height.")]
+    [Tooltip("Only these authored wall pieces are cut away in an overhead view: above the sill they fade to a ghost when they are in the way.")]
     public Renderer[] cutawayWalls = System.Array.Empty<Renderer>();
     [Tooltip("Hanging fixture meshes hidden in the overhead view. Assign renderers, not lights.")]
     public Renderer[] overheadFixtures = System.Array.Empty<Renderer>();
@@ -52,14 +52,20 @@ public sealed class CafeViewMode : MonoBehaviour
     [SerializeField, Range(4, 60)] private float padZoomSpeed = 22f;
 
     [Header("Cut-away walls")]
-    [Tooltip("How much of a cut-away wall stays up in the overhead view, in metres: the window-sill height.")]
+    [Tooltip("The see-through shader (Fixit Fidget/Night see-through). Held here so a build keeps it; the walls and the night's buildings fade with it.")]
+    [SerializeField] private Shader seeThroughShader;
+    [Tooltip("How much of a cut-away wall stays solid in the overhead view, in metres: the window-sill height. Above it the wall fades.")]
     [SerializeField, Range(.3f, 1.6f)] private float cutawayHeight = .78f;
-    [Tooltip("Seconds a wall takes to slide down, or back up.")]
-    [SerializeField, Range(0, 1)] private float cutawaySlideSeconds = .25f;
-    [Tooltip("Seconds a wall waits, clearly out of the way, before it comes back up. Stops it flickering at the edge.")]
-    [SerializeField, Range(0, 2)] private float cutawayRiseDelay = .35f;
+    [Tooltip("Over how many metres above the sill the wall feathers from solid to the ghost.")]
+    [SerializeField, Range(.05f, 1.5f)] private float cutawayFeather = .45f;
+    [Tooltip("How much of the wall above the sill is still drawn when it is out of the way: .2 is one dot in five.")]
+    [SerializeField, Range(.05f, .6f)] private float cutawayGhost = .2f;
+    [Tooltip("Seconds a wall takes to fade to its ghost, or back.")]
+    [SerializeField, Range(0, 1)] private float cutawaySlideSeconds = .35f;
+    [Tooltip("Seconds a wall waits, clearly out of the way, before it comes back. Stops it flickering at the edge.")]
+    [SerializeField, Range(0, 2)] private float cutawayRiseDelay = .5f;
     [Tooltip("How much taller a lowered wall is treated when deciding whether it is clearly out of the way, in metres.")]
-    [SerializeField, Range(0, 1.5f)] private float cutawayRiseMargin = .3f;
+    [SerializeField, Range(0, 1.5f)] private float cutawayRiseMargin = .4f;
 
     [Header("Following Ace (the night walk)")]
     [Tooltip("Follow Ace with the café's own tilt and zoom (38-68°, Minimum/Maximum Distance), carrying on from the view the day left. Off: the night's own limits below (the 28 Sept framing: closer and steeper).")]
@@ -112,12 +118,26 @@ public sealed class CafeViewMode : MonoBehaviour
     public bool WalkingFirstPerson => isActiveAndEnabled && firstPerson && !AtStation && !OverlayOwnsInput;
     public bool PointerReleased => pointerReleased;
     public bool CanChangeView => isActiveAndEnabled && !AtStation && !OverlayOwnsInput;
-    public string ControlsHint => !CanChangeView ? "" : PadInput.UsingPad
-        ? firstPerson ? $"{ControlHints.View}  Isometric"
-            : $"{ControlHints.View}  First person    Right stick  Orbit    {ControlHints.Zoom}  Zoom"
-        : firstPerson
-            ? pointerReleased ? "Click to look around    V  Isometric" : "V  Isometric    Esc  Free cursor"
-            : "V  First person    Middle-drag  Orbit    Scroll  Zoom";
+    // Built once per state, not once per frame: the HUD asks every frame, and the pad's line with its
+    // labels was 0.3 KB of garbage a frame (30 Sept). The same string comes back until something changes.
+    string hintCache = "";
+    int hintKey = -1;
+    public string ControlsHint
+    {
+        get
+        {
+            int key = (CanChangeView ? 1 : 0) | (PadInput.UsingPad ? 2 : 0) | (firstPerson ? 4 : 0) | (pointerReleased ? 8 : 0) | ((int)PadInput.Kind << 4);
+            if (key == hintKey) return hintCache;
+            hintKey = key;
+            hintCache = !CanChangeView ? "" : PadInput.UsingPad
+                ? firstPerson ? $"{ControlHints.View}  Isometric"
+                    : $"{ControlHints.View}  First person    Right stick  Orbit    {ControlHints.Zoom}  Zoom"
+                : firstPerson
+                    ? pointerReleased ? "Click to look around    V  Isometric" : "V  Isometric    Esc  Free cursor"
+                    : "V  First person    Middle-drag  Orbit    Scroll  Zoom";
+            return hintCache;
+        }
+    }
     public bool SuppressWalkingInteraction => WalkingFirstPerson
         && (pointerReleased || Time.frameCount <= resumedAtFrame || brain != null && brain.IsBlending);
     public bool SuppressWalkingMovement => WalkingFirstPerson && pointerReleased;
@@ -179,16 +199,16 @@ public sealed class CafeViewMode : MonoBehaviour
         wallVisibility = new bool[cutawayWalls.Length];
         for (int i = 0; i < cutawayWalls.Length; i++)
             wallVisibility[i] = cutawayWalls[i] != null && cutawayWalls[i].enabled;
-        // Each drawn cut-away wall gets its low stand-in (see CutawayWall).
+        // Each drawn cut-away wall fades above the sill when it is in the way (see CutawayWall).
+        SeeThroughMaterials.Provide(seeThroughShader);
         cuts = new CutawayWall[cutawayWalls.Length];
         for (int i = 0; i < cutawayWalls.Length; i++)
         {
             if (cutawayWalls[i] == null) continue;
             cutawaySkip.Add(cutawayWalls[i]);
             if (!wallVisibility[i]) continue;
-            cuts[i] = new CutawayWall(cutawayWalls[i], cutawayHeight);
-            if (cuts[i].Stub != null) cutawaySkip.Add(cuts[i].Stub);
-            else Debug.Log($"[View] {cutawayWalls[i].name} can't slide down ({cuts[i].Problem}), so it hides in the overhead view instead.", cutawayWalls[i]);
+            cuts[i] = new CutawayWall(cutawayWalls[i], cutawayHeight, cutawayFeather, cutawayGhost);
+            if (!cuts[i].Fades) Debug.Log($"[View] {cutawayWalls[i].name} can't fade ({cuts[i].Problem}), so it hides in the overhead view instead.", cutawayWalls[i]);
         }
         foreach (Renderer fixture in overheadFixtures) if (fixture != null) cutawaySkip.Add(fixture);
         fixtureVisibility = new bool[overheadFixtures.Length];
@@ -464,9 +484,9 @@ public sealed class CafeViewMode : MonoBehaviour
         Cursor.visible = !locked && !PadInput.UsingPad;
     }
 
-    // A wall that hides the room from the overhead camera slides down to sill
-    // height instead of vanishing (CutawayWall). It goes down as soon as it is in
-    // the way, and only comes back up once it has been clearly out of the way
+    // A wall that hides the room from the overhead camera fades to a ghost above
+    // the sill instead of vanishing (CutawayWall). It goes as soon as it is in
+    // the way, and only comes back once it has been clearly out of the way
     // (with a margin) for a moment, so it never flickers at the edge.
     void RefreshCutawayWalls()
     {

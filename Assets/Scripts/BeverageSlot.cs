@@ -24,7 +24,7 @@ public sealed class BeverageSlot : MonoBehaviour
             // Pick-up can happen via the cup's own ItemInteractable as well as the pad.
             if (cup != null)
             {
-                var carry = FindAnyObjectByType<PlayerCarry>();
+                var carry = PlayerCarry.Current;
                 if (carry != null && carry.Contains(cup)) cup = null;
             }
             return cup;

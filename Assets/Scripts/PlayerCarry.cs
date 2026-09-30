@@ -79,8 +79,17 @@ public class PlayerCarry : MonoBehaviour
         if (preferredPickupHand >= 0) return hands.Find(h => h.hand == preferredPickupHand);
         return hands.Count > 0 ? hands[selected] : null;
     }
+    // WHY THERE IS A CURRENT (30 Sept 2026)
+    // Every station, cup stack, drop spot and item asked the scene for the player's hands
+    // (FindAnyObjectByType) inside its IsAvailable and Prompt getters, and the interactor asks those
+    // of everything within reach every frame: a scene search and 40 B of garbage per ask. Ace has one
+    // pair of hands; this is it (with the search kept as the fallback for a scene without Ace).
+    public static PlayerCarry Instance { get; private set; }
+    public static PlayerCarry Current => Instance != null ? Instance : FindAnyObjectByType<PlayerCarry>();
+
     private void Awake()
     {
+        Instance = this;
         if (!sharedHandsInitialized) { capacity = 2; sharedHandsInitialized = true; }
         interaction = GetComponent<PlayerInteractor>();
         dialogue = GetComponent<ConversationController>();
@@ -98,6 +107,12 @@ public class PlayerCarry : MonoBehaviour
         }
     }
     private void OnEnable()
+    {
+        Instance = this;
+        OnEnableBody();
+    }
+
+    private void OnEnableBody()
     {
         Application.onBeforeRender += RefreshPresentation;
         UnityEngine.Rendering.RenderPipelineManager.beginCameraRendering += BeforeCameraRendering;
@@ -146,7 +161,8 @@ public class PlayerCarry : MonoBehaviour
         if (physicalHands != null) physicalHands.SetVisible(show);
         for (int side = 0; side < capacity; side++)
         {
-            Held held = hands.Find(h => h.hand == side);
+            Held held = null;
+            for (int i = 0; i < hands.Count; i++) if (hands[i].hand == side) { held = hands[i]; break; }   // no lambda: no garbage a frame
             bool active = side == SelectedHandIndex;
             Vector3 centre = HandCentre(side, firstPerson, active);
             if (held != null)
@@ -249,6 +265,12 @@ public class PlayerCarry : MonoBehaviour
         for (int i = 0; i < held.colliders.Length; i++) if (held.colliders[i] != null) held.colliders[i].enabled = held.collision[i];
     }
     private void OnDisable()
+    {
+        if (Instance == this) Instance = null;
+        OnDisableBody();
+    }
+
+    private void OnDisableBody()
     {
         Application.onBeforeRender -= RefreshPresentation;
         UnityEngine.Rendering.RenderPipelineManager.beginCameraRendering -= BeforeCameraRendering;

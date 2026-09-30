@@ -1,24 +1,34 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering;
+using Object = UnityEngine.Object;
 
 // ---------------------------------------------------------------------------
 // One cut-away wall in the overhead view (CafeViewMode owns these).
 //
-// When the wall blocks the view it no longer vanishes: it slides down to a low
-// stand-in at window-sill height, and back up once it is clearly out of the way.
+// WHAT IT DOES NOW (30 Sept 2026; Mansoor's second playtest: the walls dropping
+// "looks too instant and weird", he asked for a fade, "like an actual published
+// game"): a wall in the way no longer slides down. It fades to a ghost above
+// the window sill, over a third of a second with an ease, and comes back the
+// same way once it has been clearly out of the way for a moment.
 //
-//   * The stand-in is a copy of the wall's own mesh whose top edge moves. The
-//     texture stays where it was (a slice, not a squash).
-//   * The real wall never moves and keeps its collider. While it is down it only
-//     casts its shadow, so the light in the room doesn't change when you orbit.
-//   * Pictures, shelves, lamps and boards fixed to the wall above the cut hide
-//     while it is down, each one as the top edge passes it, so nothing floats.
-//     Things standing on the floor or on a counter stay.
+//   * How: the wall wears a see-through copy of its own materials (the dither
+//     shader "Fixit Fidget/Night see-through" through SeeThroughMaterials, the
+//     same dots the night's buildings use) with the dots set by height: solid
+//     up to the sill, feathering over the next half metre, and above that one
+//     dot in five. The wall never moves, keeps its collider, and casts its whole
+//     shadow throughout, so the light in the room doesn't change as you orbit.
+//   * Pictures, shelves, lamps and boards fixed to the wall above the sill fade
+//     with it, at the same dots and the same heights, so nothing pops or floats.
+//     Things standing on the floor or on a counter stay solid.
+//   * Two walls meeting at a corner may both claim a picture: it wears one copy
+//     and gets its own materials back only when neither wall needs it.
 //
-// A wall that can't be sliced (not a simple box, or its mesh can't be read)
-// falls back to the old behaviour, hiding completely, and says why (Problem).
+// A wall whose materials can't be copied (no albedo to dot, no surface switch)
+// falls back to the old behaviour, hiding above nothing (the whole wall casts
+// only its shadow) and says why (Problem).
 // ---------------------------------------------------------------------------
 public sealed class CutawayWall
 {
@@ -34,127 +44,78 @@ public sealed class CutawayWall
     const int ObjectParts = 64;
     // Rescan what hangs on the wall at most this often (seconds).
     const float RescanAfter = 5f;
+    // The scene is searched for candidates at most this often (seconds), for every wall at once.
+    const float CandidatesFresh = 60f;
+    // Only renderers within this far of a cut-away wall are candidates for hanging on one (metres).
+    const float CandidateReach = 4f;
 
     public Renderer Wall { get; }
-    /// <summary>The low stand-in (null when the wall can't be sliced).</summary>
-    public MeshRenderer Stub { get; private set; }
-    public bool Sliceable => Stub != null;
-    /// <summary>Why this wall hides instead of sliding down (null when it slides).</summary>
+    /// <summary>Why this wall hides instead of fading (null when it fades).</summary>
     public string Problem { get; }
+    /// <summary>The wall fades to a ghost (its materials could be copied); otherwise it hides.</summary>
+    public bool Fades => Problem == null;
     /// <summary>The whole wall, as built. The real wall never moves, so this never changes.</summary>
     public Bounds FullBounds { get; }
     public float BaseY => FullBounds.min.y;
     public float FullTop => FullBounds.max.y;
-    /// <summary>World height of the cut: how high the wall stays when fully down.</summary>
-    public float CutTop => BaseY + cutFraction * FullBounds.size.y;
-    /// <summary>World height of the wall's top edge as drawn right now.</summary>
-    public float ShownTop => BaseY + shown * FullBounds.size.y;
-    /// <summary>0 = up, 1 = fully down.</summary>
+    /// <summary>World height up to which the wall stays solid while it is down: the window sill.</summary>
+    public float SillTop => BaseY + sillHeight;
+    /// <summary>World height above which the wall is fully the ghost; it feathers between the sill and here.</summary>
+    public float GhostFrom => SillTop + feather;
+    /// <summary>How much of the wall above the sill is drawn when fully down (1 = all, .2 = one dot in five).</summary>
+    public float Ghost => ghost;
+    /// <summary>How much of the wall above the sill is drawn right now (1 = all of it).</summary>
+    public float Keep => keep;
+    /// <summary>0 = up (as built), 1 = fully down (the ghost).</summary>
     public float Progress => progress;
     /// <summary>Down, or on its way down or up.</summary>
     public bool Lowered => progress > 0f;
     public bool GoingDown => goingDown;
+    /// <summary>The wall and what hangs on it wear their see-through copies right now.</summary>
+    public bool Worn => worn;
     public IReadOnlyList<Renderer> Decor => decorRenderers;
 
-    readonly float cutFraction;
+    readonly float sillHeight, feather, ghost;
     readonly ShadowCastingMode wallShadows;
     readonly bool wallEnabled;
-    readonly Mesh mesh;
-    readonly Vector3[] fullVertices, vertices;
-    readonly Vector2[] fullUv, uv, fullUv2, uv2;
-    // Per vertex: -1 never moves (bottom edge), -2 top face (drops, texture unchanged),
-    // otherwise the bottom vertex straight below it on the same face.
-    readonly int[] partner;
-    readonly float lowLocal, highLocal;
 
     readonly List<Renderer> decorRenderers = new();
-    readonly List<float> decorTops = new();
-    readonly List<bool> decorHidden = new();
-    // How many walls are hiding each renderer right now (two walls meet at a
-    // corner, and one coming up mustn't show what the other still hides).
-    static readonly Dictionary<Renderer, int> HiddenBy = new();
+    readonly List<bool> decorWorn = new();   // this wall holds the piece's copy (SeeThroughMaterials counts holders)
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetHidden() => HiddenBy.Clear();
-    float progress, shown = 1f, appliedShown = -1f, clearFor, scannedAt = float.NegativeInfinity;
-    bool goingDown, wallDown;
+    static void ResetShared()
+    {
+        wallBounds.Clear();
+        candidates = Array.Empty<MeshRenderer>();
+        candidatesAt = float.NegativeInfinity;
+    }
 
-    public CutawayWall(Renderer wall, float keepHeight)
+    float progress, keep = 1f, appliedKeep = -1f, clearFor, scannedAt = float.NegativeInfinity;
+    bool goingDown, worn, wallHidden;
+
+    public CutawayWall(Renderer wall, float sillHeight, float feather, float ghost)
     {
         Wall = wall;
         FullBounds = wall.bounds;
+        if (!wallBounds.Contains(FullBounds)) { wallBounds.Add(FullBounds); ForgetCandidates(); }
         wallShadows = wall.shadowCastingMode;
         wallEnabled = wall.enabled;
-        cutFraction = Mathf.Clamp01(keepHeight / Mathf.Max(.01f, FullBounds.size.y));
-        Problem = Check(wall, out Mesh source, out lowLocal, out highLocal, out partner);
-        if (Problem != null) return;
-
-        fullVertices = source.vertices;
-        vertices = (Vector3[])fullVertices.Clone();
-        fullUv = source.uv.Length == fullVertices.Length ? source.uv : null;
-        uv = fullUv != null ? (Vector2[])fullUv.Clone() : null;
-        fullUv2 = source.uv2.Length == fullVertices.Length ? source.uv2 : null;
-        uv2 = fullUv2 != null ? (Vector2[])fullUv2.Clone() : null;
-        mesh = Object.Instantiate(source);
-        mesh.name = source.name + " (cut-away)";
-        mesh.MarkDynamic();
-
-        // A child with no transform of its own, so it sits exactly on the wall.
-        var stub = new GameObject(wall.name + " (cut-away)") { layer = wall.gameObject.layer };
-        stub.transform.SetParent(wall.transform, false);
-        stub.AddComponent<MeshFilter>().sharedMesh = mesh;
-        Stub = stub.AddComponent<MeshRenderer>();
-        Stub.sharedMaterials = wall.sharedMaterials;
-        // The real wall keeps casting the full shadow; the stand-in casts none.
-        Stub.shadowCastingMode = ShadowCastingMode.Off;
-        Stub.receiveShadows = wall.receiveShadows;
-        Stub.lightProbeUsage = wall.lightProbeUsage;
-        Stub.reflectionProbeUsage = wall.reflectionProbeUsage;
-        Stub.probeAnchor = wall.probeAnchor;
-        Stub.renderingLayerMask = wall.renderingLayerMask;
-        Stub.motionVectorGenerationMode = wall.motionVectorGenerationMode;
-        Stub.allowOcclusionWhenDynamic = wall.allowOcclusionWhenDynamic;
-        if (wall.lightmapIndex >= 0 && wall.lightmapIndex < 0xFFFE)
-        {
-            Stub.lightmapIndex = wall.lightmapIndex;
-            Stub.lightmapScaleOffset = wall.lightmapScaleOffset;
-        }
-        Stub.enabled = false;
+        this.sillHeight = Mathf.Clamp(sillHeight, 0f, Mathf.Max(0f, FullBounds.size.y - .05f));
+        this.feather = Mathf.Max(.01f, feather);
+        this.ghost = Mathf.Clamp(ghost, .05f, 1f);
+        Problem = Check(wall);
     }
 
-    // A wall slices when it is an upright box: every vertex on its bottom or top
-    // edge, and every side-face top corner with a bottom corner straight below it.
-    static string Check(Renderer wall, out Mesh source, out float low, out float high, out int[] partner)
+    // A wall fades when every material it wears can be copied see-through.
+    static string Check(Renderer wall)
     {
-        source = null; low = high = 0f; partner = null;
         if (wall is not MeshRenderer) return "it isn't a plain mesh";
-        if (wall.isPartOfStaticBatch) return "it is static-batched, so its mesh is shared with other objects";
-        MeshFilter filter = wall.GetComponent<MeshFilter>();
-        source = filter != null ? filter.sharedMesh : null;
-        if (source == null) return "it has no mesh";
-        if (!source.isReadable) return "its mesh can't be read at run time";
-        if (Vector3.Dot(wall.transform.up, Vector3.up) < .999f) return "it isn't upright";
-        Vector3[] v = source.vertices;
-        Vector3[] n = source.normals;
-        if (v.Length == 0 || n.Length != v.Length) return "its mesh has no normals";
-        low = float.MaxValue; high = float.MinValue;
-        foreach (Vector3 p in v) { low = Mathf.Min(low, p.y); high = Mathf.Max(high, p.y); }
-        if (high - low < 1e-4f) return "it is flat";
-        float eps = (high - low) * 1e-3f;
-        partner = new int[v.Length];
-        for (int i = 0; i < v.Length; i++)
-        {
-            bool top = Mathf.Abs(v[i].y - high) <= eps;
-            if (!top && Mathf.Abs(v[i].y - low) > eps) return "it isn't a simple box (it has corners part-way up)";
-            partner[i] = -1;
-            if (!top) continue;
-            if (n[i].y > .5f) { partner[i] = -2; continue; }
-            for (int j = 0; j < v.Length && partner[i] == -1; j++)
-                if (Mathf.Abs(v[j].y - low) <= eps && Mathf.Abs(v[j].x - v[i].x) <= eps
-                    && Mathf.Abs(v[j].z - v[i].z) <= eps && Vector3.Dot(n[j], n[i]) > .99f)
-                    partner[i] = j;
-            if (partner[i] == -1) return "one of its side faces has no bottom corner below its top corner";
-        }
+        Material[] materials = wall.sharedMaterials;
+        if (materials.Length == 0) return "it has no material";
+        if (!SeeThroughMaterials.Dithered) return "the see-through shader wasn't found (CafeViewMode keeps it)";
+        foreach (Material m in materials)
+            if (m == null || !SeeThroughMaterials.CanCopy(m))
+                return $"its material {(m != null ? m.name : "(none)")} has no albedo to dot";
         return null;
     }
 
@@ -162,7 +123,7 @@ public sealed class CutawayWall
     /// One frame. blocks: the full wall hides the room from the overhead camera.
     /// nearlyBlocks: it would still come close to hiding it (used before rising).
     /// </summary>
-    public void Step(bool overhead, bool blocks, bool nearlyBlocks, float dt, float slideSeconds, float riseDelay,
+    public void Step(bool overhead, bool blocks, bool nearlyBlocks, float dt, float fadeSeconds, float riseDelay,
                      Transform player, HashSet<Renderer> skip)
     {
         if (!overhead)
@@ -181,11 +142,11 @@ public sealed class CutawayWall
         }
         float target = goingDown ? 1f : 0f;
         if (progress <= 0f && target > 0f) FindDecor(player, skip);
-        progress = slideSeconds <= 0f ? target : Mathf.MoveTowards(progress, target, dt / slideSeconds);
+        progress = fadeSeconds <= 0f ? target : Mathf.MoveTowards(progress, target, dt / fadeSeconds);
         Apply();
     }
 
-    /// <summary>Back to the wall as built: up, drawn, casting its usual shadow.</summary>
+    /// <summary>Back to the wall as built: solid, its own materials, casting its usual shadow.</summary>
     public void Restore()
     {
         goingDown = false; clearFor = 0f; progress = 0f;
@@ -196,82 +157,116 @@ public sealed class CutawayWall
     {
         Restore();
         ForgetDecor();
-        if (Stub != null) Discard(Stub.gameObject);
-        if (mesh != null) Discard(mesh);
-        Stub = null;
-    }
-
-    static void Discard(Object o)
-    {
-        if (Application.isPlaying) Object.Destroy(o); else Object.DestroyImmediate(o);
+        wallBounds.Remove(FullBounds);
     }
 
     void Apply()
     {
         bool down = progress > 0f;
-        shown = down && Sliceable ? Mathf.Lerp(1f, cutFraction, Mathf.SmoothStep(0f, 1f, progress)) : down ? 0f : 1f;
-        if (down != wallDown)
+        // An ease both ways: nothing starts or stops with a jolt.
+        keep = down ? Mathf.Lerp(1f, ghost, Mathf.SmoothStep(0f, 1f, progress)) : 1f;
+        if (Fades)
         {
-            wallDown = down;
+            if (down && !worn) WearAll();
+            else if (!down && worn) TakeOffAll();
+            if (worn && !Mathf.Approximately(keep, appliedKeep))
+            {
+                appliedKeep = keep;
+                ShowAll();
+            }
+            return;
+        }
+        // The fallback: the wall hides (its shadow stays) and what hangs on it hides with it.
+        if (down != wallHidden)
+        {
+            wallHidden = down;
             if (Wall != null)
             {
-                // Down: the real wall only casts its shadow (or, if it never cast
-                // one, doesn't draw at all). Up: exactly as it was.
                 Wall.shadowCastingMode = down && wallShadows != ShadowCastingMode.Off ? ShadowCastingMode.ShadowsOnly : wallShadows;
                 Wall.enabled = wallEnabled && !(down && wallShadows == ShadowCastingMode.Off);
             }
-            if (Stub != null) Stub.enabled = down;
+            for (int i = 0; i < decorRenderers.Count; i++) SetHidden(i, down);
         }
-        if (Mathf.Approximately(shown, appliedShown)) return;
-        appliedShown = shown;
-        if (Sliceable && down) Slice(shown);
-        float top = ShownTop;
-        for (int i = 0; i < decorRenderers.Count; i++)
-            SetHidden(i, down && top < decorTops[i] - .01f);
     }
 
+    // ---- wearing the see-through copies ----
+
+    void WearAll()
+    {
+        worn = true;
+        appliedKeep = -1f;
+        SeeThroughMaterials.Wear(Wall);
+        for (int i = 0; i < decorRenderers.Count; i++)
+            if (!decorWorn[i]) { decorWorn[i] = true; SeeThroughMaterials.Wear(decorRenderers[i]); }
+    }
+
+    void TakeOffAll()
+    {
+        worn = false;
+        SeeThroughMaterials.TakeOff(Wall);
+        for (int i = 0; i < decorRenderers.Count; i++)
+            if (decorWorn[i]) { decorWorn[i] = false; SeeThroughMaterials.TakeOff(decorRenderers[i]); }
+    }
+
+    void ShowAll()
+    {
+        float from = SillTop, to = GhostFrom;
+        SeeThroughMaterials.Show(Wall, keep, from, to);
+        for (int i = 0; i < decorRenderers.Count; i++) SeeThroughMaterials.Show(decorRenderers[i], keep, from, to);
+    }
+
+    // The fallback's hiding (a wall that can't fade): what hangs on it hides with it.
     void SetHidden(int i, bool hide)
     {
-        if (decorHidden[i] == hide) return;
-        decorHidden[i] = hide;
-        Renderer r = decorRenderers[i];
-        if (r == null) return;
-        HiddenBy.TryGetValue(r, out int count);
-        count += hide ? 1 : -1;
-        if (count > 0) { HiddenBy[r] = count; r.forceRenderingOff = true; }
-        else { HiddenBy.Remove(r); r.forceRenderingOff = false; }
+        if (decorWorn[i] == hide) return;
+        decorWorn[i] = hide;
+        if (hide) SeeThroughMaterials.Wear(decorRenderers[i], hideInstead: true);
+        else SeeThroughMaterials.TakeOff(decorRenderers[i]);
     }
 
     void ForgetDecor()
     {
-        for (int i = 0; i < decorRenderers.Count; i++) SetHidden(i, false);
+        for (int i = 0; i < decorRenderers.Count; i++)
+            if (decorWorn[i]) { decorWorn[i] = false; SeeThroughMaterials.TakeOff(decorRenderers[i]); }
         decorRenderers.Clear();
-        decorTops.Clear();
-        decorHidden.Clear();
-    }
-
-    // Moves the top edge to the given fraction of the wall's height; side faces
-    // take their texture coordinates from the same point on the full wall.
-    void Slice(float fraction)
-    {
-        float y = Mathf.Lerp(lowLocal, highLocal, fraction);
-        for (int i = 0; i < vertices.Length; i++)
-        {
-            int below = partner[i];
-            if (below == -1) continue;
-            Vector3 top = fullVertices[i];
-            vertices[i] = new Vector3(top.x, y, top.z);
-            if (below < 0) continue;
-            if (uv != null) uv[i] = Vector2.LerpUnclamped(fullUv[below], fullUv[i], fraction);
-            if (uv2 != null) uv2[i] = Vector2.LerpUnclamped(fullUv2[below], fullUv2[i], fraction);
-        }
-        mesh.vertices = vertices;
-        if (uv != null) mesh.uv = uv;
-        if (uv2 != null) mesh.uv2 = uv2;
-        mesh.RecalculateBounds();
+        decorWorn.Clear();
     }
 
     // ---- what is fixed to the wall ----
+
+    // WHY THE CANDIDATES ARE SHARED (30 Sept 2026)
+    // Each wall used to search the whole scene (FindObjectsByType over every mesh renderer: thousands,
+    // with the city in the scene) every time it started going down, at most every five seconds. Orbiting
+    // the café drops one wall after another, so that was a search every couple of seconds: a spike each
+    // time (Mansoor's second playtest: the frame rate drops when he looks around). Now the scene is
+    // searched at most once a minute, for every wall at once, and only what stands within a few metres
+    // of some cut-away wall is kept; a wall going down looks through that short list.
+    static MeshRenderer[] candidates = Array.Empty<MeshRenderer>();
+    static float candidatesAt = float.NegativeInfinity;
+    static readonly List<Bounds> wallBounds = new();
+
+    static MeshRenderer[] Candidates()
+    {
+        if (Time.unscaledTime - candidatesAt < CandidatesFresh) return candidates;
+        candidatesAt = Time.unscaledTime;
+        var kept = new List<MeshRenderer>();
+        foreach (MeshRenderer r in Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Exclude))
+        {
+            if (r == null) continue;
+            Bounds b = r.bounds;
+            for (int i = 0; i < wallBounds.Count; i++)
+            {
+                Bounds near = wallBounds[i];
+                near.Expand(CandidateReach * 2f);
+                if (near.Intersects(b)) { kept.Add(r); break; }
+            }
+        }
+        candidates = kept.ToArray();
+        return candidates;
+    }
+
+    /// <summary>Forget the shared candidates: the next wall to go down searches the scene again (after furnishing changes).</summary>
+    public static void ForgetCandidates() => candidatesAt = float.NegativeInfinity;
 
     // Looked up each time the wall starts going down (at most every few seconds),
     // so things added or moved during the day are found too.
@@ -283,10 +278,10 @@ public sealed class CutawayWall
 
         Bounds w = FullBounds;
         bool normalX = w.size.x < w.size.z;
-        float cut = CutTop;
+        float cut = SillTop;
         var objects = new Dictionary<Transform, bool>();
         var small = new Dictionary<Transform, bool>();
-        foreach (MeshRenderer r in Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Exclude))
+        foreach (MeshRenderer r in Candidates())
         {
             if (r == null || skip != null && skip.Contains(r)) continue;
             if (player != null && r.transform.IsChildOf(player)) continue;
@@ -299,17 +294,16 @@ public sealed class CutawayWall
         {
             if (!pair.Value) continue;
             Renderer[] parts = pair.Key.GetComponentsInChildren<Renderer>(false);
-            float top = float.MinValue;
-            foreach (Renderer part in parts) top = Mathf.Max(top, part.bounds.max.y);
             foreach (Renderer part in parts)
             {
-                if (skip != null && skip.Contains(part)) continue;
+                if (part == Wall || skip != null && skip.Contains(part)) continue;
                 decorRenderers.Add(part);
-                decorTops.Add(top);
-                decorHidden.Add(false);
+                decorWorn.Add(false);
             }
         }
-        appliedShown = -1f; // re-apply to the new list
+        // A wall already down wears its new list at once.
+        if (worn) WearAll();
+        appliedKeep = -1f;
     }
 
     static bool NearWall(Bounds b, Bounds w, bool normalX)
@@ -350,7 +344,7 @@ public sealed class CutawayWall
 
     // Fixed to the wall: close to one of its faces, along it, rising above the
     // cut, and either hung high or flat against it. Anything people or the game
-    // use (an interactable, a physics body, a character) is never hidden.
+    // use (an interactable, a physics body, a character) is never touched.
     static bool Mounted(Transform root, Bounds w, bool normalX, float cut)
     {
         if (root.GetComponentInParent<Interactable>(true) != null || root.GetComponentInChildren<Interactable>(true) != null

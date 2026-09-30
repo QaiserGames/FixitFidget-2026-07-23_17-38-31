@@ -745,3 +745,30 @@ MonoBehaviour:
     minGap: 0.05
     maxAtOnce: 2
     bus: 2
+  - name: night.door.open
+    when: 'Grace''s front door opens for Ace at night: a latch, then a slow hinge
+      (never a slam).'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: night.door.locked
+    when: 'Ace tries a locked front door at night: the handle rattles once.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0

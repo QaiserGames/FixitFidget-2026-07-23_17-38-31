@@ -579,7 +579,7 @@ public sealed class StreetLife : MonoBehaviour
                 ReportTrafficError(pair.Key + ": cars must share one valid route in the same direction.");
                 continue; // Invalid groups stay parked rather than running through one another.
             }
-            group.Sort(CompareRoutePosition);
+            SortByRoute(group);
             if (group.Count > 1)
             {
                 float required = 0f;
@@ -622,6 +622,20 @@ public sealed class StreetLife : MonoBehaviour
     {
         trafficSetupError = string.IsNullOrEmpty(trafficSetupError) ? message : trafficSetupError + " " + message;
         Debug.LogWarning("StreetLife: " + message, this);
+    }
+
+    // An insertion sort of our own, not List.Sort: even with a comparer object, the library's sort makes a
+    // delegate every call (128 B for each open route, every frame: the Profiler's call stack, 30 Sept). A
+    // lane is nearly in order already (cars follow, they don't pass), so this is one pass and no garbage.
+    private static void SortByRoute(List<Actor> lane)
+    {
+        for (int i = 1; i < lane.Count; i++)
+        {
+            Actor moving = lane[i];
+            int j = i - 1;
+            while (j >= 0 && CompareRoutePosition(lane[j], moving) > 0) { lane[j + 1] = lane[j]; j--; }
+            lane[j + 1] = moving;
+        }
     }
 
     private static int CompareRoutePosition(Actor a, Actor b) =>
@@ -669,7 +683,7 @@ public sealed class StreetLife : MonoBehaviour
     {
         foreach (List<Actor> group in trafficGroups)
         {
-            if (group[0].openRoute) group.Sort(CompareRoutePosition);
+            if (group[0].openRoute) SortByRoute(group);
             foreach (Actor entry in group)
             {
                 bool moving = !entry.respawning && entry.actor != null && entry.actor.gameObject.activeInHierarchy;
@@ -1041,7 +1055,7 @@ public sealed class StreetLife : MonoBehaviour
         if (direction.sqrMagnitude > 1e-6f) car.rotation = Quaternion.LookRotation(direction, Vector3.up);
         actors.Add(entry);
         lane.Add(entry);
-        if (entry.openRoute) lane.Sort(CompareRoutePosition);
+        if (entry.openRoute) SortByRoute(lane);
         return entry;
     }
 

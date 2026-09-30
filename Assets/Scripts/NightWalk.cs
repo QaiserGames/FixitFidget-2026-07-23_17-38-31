@@ -195,10 +195,11 @@ public sealed class NightWalk : MonoBehaviour
     public HomeHours homeHours = new HomeHours();
 
     [Header("Break-ins (claude/break-ins-spec.md)")]
-    [Tooltip("Ace can go into Grace's house at night: her door opens for Ace, and inside the camera looks in from the " +
-             "street (GraceHouse). Off until the break-ins are ready; their lab (Fixit Fidget > Night > Break-ins - Play " +
-             "the night at Grace's door) switches it on for that session.")]
-    public bool breakIns;
+    [Tooltip("Ace can go into Grace's house at night: E on her stoop opens her door (\"Let yourself in\"), and inside the " +
+             "camera looks in from the street (GraceHouse). On in the real game since 30 Sept (Mansoor's second playtest " +
+             "found her door shut); Fixit Fidget > Night > Break-ins 4 sets it in the scene. The break-ins' labs switch it " +
+             "on for their session whatever the scene says.")]
+    public bool breakIns = true;
 
     [Header("Neighbours coming home (part 4)")]
     public Neighbour[] neighbours = DefaultNeighbours();

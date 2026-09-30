@@ -172,5 +172,9 @@ public sealed class SoundBank : ScriptableObject
         C("night.dawn", SoundBus.UI, false, .3f, "Dawn ends the night: the first bird, Ace hurrying home.", 1.5f, 12f, 1f, 1),
         C("face.held", SoundBus.UI, false, .3f, "Ace keeps a straight face: a small relieved breath or a soft tick of the needle (never a fanfare).", 1.5f, 12f, .5f, 1),
         C("face.cracked", SoundBus.UI, false, .3f, "Ace cracks: a stifled snort, comic but small.", 1.5f, 12f, .5f, 1),
+
+        // The break-ins (30 Sept): Ace lets themself in at Grace's front door.
+        C("night.door.open", SoundBus.World, true, .35f, "Grace's front door opens for Ace at night: a latch, then a slow hinge (never a slam).", 1f, 10f, .5f, 1),
+        C("night.door.locked", SoundBus.World, true, .3f, "Ace tries a locked front door at night: the handle rattles once.", 1f, 8f, .5f, 1),
     };
 }

@@ -31,6 +31,56 @@ public class PlayerMovement : MonoBehaviour
              "how much speed survives the short gap between letting go of one key and pressing the next at a corner.")]
     [SerializeField, Min(1f)] private float firstPersonBraking = 50f;
 
+    // WHY THE OVERHEAD VIEW PULLS A STICK ONTO THE ROOM'S AXES (30 Sept 2026)
+    //
+    // The overhead camera looks at the café from a corner (the authored view turns 25° from the room's
+    // axes; the player can orbit it anywhere), and the stick is turned by that yaw, so pushing straight
+    // up walks straight up the screen, which is diagonal to every wall, counter and aisle: they all lie
+    // on the world's axes. Walking along the counter means holding the stick at exactly the angle the
+    // counter makes on screen, and a thumb on an analog stick never holds an angle for long, so Ace
+    // drifted into the counter or away from it (Mansoor's second playtest: "hard to move straight on
+    // the controller in isometric view").
+    //
+    // So in the overhead view the WORLD direction the stick asks for is pulled onto the nearest line of
+    // two families: the room's axes (0, 90, 180, 270°: along the walls), and the screen's axes (the
+    // camera's yaw and its right angles: straight up, down, left and right on screen). Dead on within a
+    // core, blending back to the stick's own direction at the edge, so nothing jumps as the thumb rolls;
+    // between the bands the stick is free. The keyboard's directions are exact already, so it changes
+    // nothing there (at the authored 25° no key walks along a wall: that is the camera's angle, not the
+    // stick's); first person keeps pure analog (you steer with the mouse or the right stick); the labs'
+    // scripted input is never shaped (a check steers toward exact points).
+    [Header("Overhead movement assist")]
+    [Tooltip("In the overhead view a stick direction close to one of the room's axes (along the walls), or to straight up, down, left or right on screen, is pulled onto it, so walking along a counter or a wall doesn't drift. Off: pure analog. First person and the keyboard are unchanged either way.")]
+    [SerializeField] private bool movementAssist = true;
+    [Tooltip("Degrees either side of a room axis (along the walls) that count as dead on: the walk is exactly along the axis.")]
+    [SerializeField, Range(0f, 22f)] private float assistAxisCore = 10f;
+    [Tooltip("Degrees either side of a room axis where the pull fades out; past this the stick is free.")]
+    [SerializeField, Range(0f, 30f)] private float assistAxisEdge = 15f;
+    [Tooltip("Degrees either side of straight up, down, left or right on screen that count as dead on.")]
+    [SerializeField, Range(0f, 22f)] private float assistScreenCore = 5f;
+    [Tooltip("Degrees either side of a screen axis where the pull fades out.")]
+    [SerializeField, Range(0f, 30f)] private float assistScreenEdge = 9f;
+
+    /// <summary>The player's setting, kept between sessions; the Inspector's value is the default.</summary>
+    public const string AssistPrefKey = "FixitFidget.MovementAssist";
+    bool? assistSetting;
+    public bool MovementAssist
+    {
+        get
+        {
+            assistSetting ??= PlayerPrefs.HasKey(AssistPrefKey) ? PlayerPrefs.GetInt(AssistPrefKey) == 1 : movementAssist;
+            return assistSetting.Value;
+        }
+        set
+        {
+            assistSetting = value;
+            PlayerPrefs.SetInt(AssistPrefKey, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
+    /// <summary>Degrees the assist turned this frame's walk by (0 when off, free, or standing still). For checks.</summary>
+    public float AssistApplied { get; private set; }
+
     private CharacterController controller;
     private Vector2 moveInput;
 
@@ -144,7 +194,42 @@ public class PlayerMovement : MonoBehaviour
         float cameraYaw = viewMode != null && viewMode.isActiveAndEnabled ? viewMode.MovementYaw : 45;
         Vector3 move = Quaternion.Euler(0f, cameraYaw, 0f) * new Vector3(walkInput.x, 0f, walkInput.y);
 
+        AssistApplied = 0f;
+        bool overhead = viewMode == null || !viewMode.WalkingFirstPerson;
+        if (overhead && ScriptedInput == null && MovementAssist) move = Assisted(move, cameraYaw);
+
         CommandedVelocity = move * moveSpeed;
         controller.SimpleMove(CommandedVelocity);
     }
+
+    // The world direction pulled onto the nearest room axis or screen axis (see the note above). The
+    // magnitude is kept: the assist turns the walk, it never slows it.
+    Vector3 Assisted(Vector3 move, float cameraYaw)
+    {
+        float length = move.magnitude;
+        if (length < .0001f) return move;
+        float heading = Mathf.Atan2(move.x, move.z) * Mathf.Rad2Deg;         // world yaw of the walk
+        // The nearest line of each family, and how far off it the stick is (signed).
+        float wall = NearestLine(heading, 0f), wallError = Mathf.DeltaAngle(wall, heading);
+        float screen = NearestLine(heading, cameraYaw), screenError = Mathf.DeltaAngle(screen, heading);
+        // Whichever the stick is closer to, measured against that family's own band.
+        float wallEdge = Mathf.Max(assistAxisCore, assistAxisEdge), screenEdge = Mathf.Max(assistScreenCore, assistScreenEdge);
+        bool useWall = Mathf.Abs(wallError) / Mathf.Max(.01f, wallEdge) <= Mathf.Abs(screenError) / Mathf.Max(.01f, screenEdge);
+        float line = useWall ? wall : screen, error = useWall ? wallError : screenError;
+        float core = useWall ? assistAxisCore : assistScreenCore, edge = useWall ? wallEdge : screenEdge;
+        float off = Mathf.Abs(error);
+        if (off >= edge) return move;
+        // Dead on inside the core; between core and edge the line lets go smoothly (no jump at the edge).
+        float keep = edge > core ? Mathf.SmoothStep(0f, 1f, (off - core) / (edge - core)) : 0f;
+        float shaped = line + error * keep;
+        AssistApplied = Mathf.DeltaAngle(heading, shaped);
+        float rad = shaped * Mathf.Deg2Rad;
+        return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)) * length;
+    }
+
+    /// <summary>The line nearest <paramref name="heading"/> among <paramref name="offset"/> and its right angles (degrees).</summary>
+    public static float NearestLine(float heading, float offset) => offset + Mathf.Round(Mathf.DeltaAngle(offset, heading) / 90f) * 90f;
+
+    /// <summary>The assist's bands, for checks: room-axis core and edge, screen-axis core and edge (degrees).</summary>
+    public Vector4 AssistBands => new Vector4(assistAxisCore, Mathf.Max(assistAxisCore, assistAxisEdge), assistScreenCore, Mathf.Max(assistScreenCore, assistScreenEdge));
 }

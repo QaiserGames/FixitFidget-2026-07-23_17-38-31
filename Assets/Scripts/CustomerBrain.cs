@@ -502,7 +502,7 @@ public class CustomerBrain : MonoBehaviour
                 if (playerCarry == null || playerCarry.gameObject != ace.gameObject) playerCarry = ace.GetComponent<PlayerCarry>();
                 if (playerCarry != null) return playerCarry;
             }
-            return FindAnyObjectByType<PlayerCarry>();
+            return PlayerCarry.Current;
         }
     }
 
