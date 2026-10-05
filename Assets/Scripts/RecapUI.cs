@@ -114,7 +114,7 @@ public class RecapUI : MonoBehaviour
         // Return camera-reader ownership before the recap takes its snapshot.
         if (player != null) player.GetComponent<CounterRepairView>()?.Close();
         SuspendCameraInput(FindObjectsByType<CinemachineInputAxisController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None));
+            FindObjectsInactive.Include));
         // Get the player out of any station so they aren't stuck behind the panel.
         if (player != null)
         {
@@ -124,7 +124,7 @@ public class RecapUI : MonoBehaviour
             player.GetComponent<PlayerMovement>()?.ClearInput();
         }
         foreach (HoverTooltipUI tooltip in FindObjectsByType<HoverTooltipUI>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            FindObjectsInactive.Exclude))
             tooltip.HideImmediately();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;

@@ -330,6 +330,10 @@ public sealed class NightWalk : MonoBehaviour
         daylightHour = Hour;
         if (daylight != null) daylight.SetNight(ClockHour, moon, cafeInsideLights);
         foreach (var go in nightOnly) if (go != null) go.SetActive(true);
+        // The night's lamps and signs: the café walls look again for what hangs on them, now (the night's own
+        // start-up frame) rather than when the first wall goes down.
+        CutawayWall.ForgetCandidates();
+        CutawayWall.PrepareCandidates();
         LightTheWindows();
         LightTheSigns();
         LightTheLateSpot();
@@ -384,6 +388,8 @@ public sealed class NightWalk : MonoBehaviour
         viewMode = null;
         if (daylight != null) daylight.SetNight(null, 0f, 1f);
         foreach (var go in nightOnly) if (go != null) go.SetActive(false);
+        CutawayWall.ForgetCandidates();
+        CutawayWall.PrepareCandidates();
         // Newest first: a renderer swapped twice (windows, then the late spot's glass) gets its own materials back last.
         for (int i = swapped.Count - 1; i >= 0; i--)
             if (swapped[i].renderer != null) swapped[i].renderer.sharedMaterials = swapped[i].materials;

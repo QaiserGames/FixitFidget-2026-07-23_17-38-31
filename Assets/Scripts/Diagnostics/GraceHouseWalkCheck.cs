@@ -19,6 +19,9 @@ using UnityEngine;
 // With Ace's body on (AceBody: the Sidekick Ace, or the stand-in): it runs while Ace runs, stands still at the
 // stops, faces the way Ace goes, stands on the floor, and hides in first person; photos of it running on three
 // legs. The Sidekick's face blinks; the stand-in's look is worn by nobody else.
+// Then sneaking (chunk B, 30 Sept): back on the pavement, Ace sneaks along the longest clear way (1.6 m/s,
+// crouched, the crouch walk showing, steps heard within 1 m), stops crouched, looks in first person (the eye
+// lower), stands and walks back (5 m/s, steps heard within 4 m).
 // Report and photos: Logs/Night/grace-walk-<time>/. Play Mode stops by itself when it is done.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
@@ -210,12 +213,139 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         report.AppendLine();
         Line(worstAir < .35f, $"Going down, the capsule stayed on the flights (longest in the air {worstAir:0.00} s, {worstAirWhere}; the stairs caught it {house.StairCatches} times)");
         report.AppendLine($"The whole walk took {Time.time - started:0.0} s.");
+        yield return SneakCheck();
         if (body != null && body.Worn)
         {
             report.AppendLine();
             yield return BodyReport();
         }
         Finish();
+    }
+
+    // ------------------------------------------------------------------ sneaking (chunk B, 30 Sept)
+
+    // From wherever the walk ended (the pavement at her stoop), the longest clear way Ace's capsule could go: sneak
+    // along it (crouched, 1.6 m/s, steps heard within 1 m), stop crouched, look in first person (the eye lower), stand,
+    // and walk back (5 m/s, steps heard within 4 m). The check's own sneak key is PlayerMovement.ScriptedSneak.
+    IEnumerator SneakCheck()
+    {
+        report.AppendLine();
+        report.AppendLine("Sneaking (chunk B):");
+        Vector3 way = Vector3.zero;
+        float clear = 0f;
+        Vector3 middle = capsule.transform.TransformPoint(capsule.center);
+        float half = Mathf.Max(0f, capsule.height * .5f - capsule.radius);
+        // The capsule, lifted over a kerb (the controller steps up that much), a hair thinner than Ace.
+        Vector3 top = middle + Vector3.up * half;
+        Vector3 low = middle + Vector3.down * half + Vector3.up * (capsule.stepOffset + .02f);
+        if (low.y > top.y) low = top;
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 dir = Quaternion.Euler(0f, i * 45f, 0f) * Vector3.forward;
+            float free = Physics.CapsuleCast(low, top, capsule.radius * .95f, dir, out RaycastHit hit, 8f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) ? hit.distance : 8f;
+            if (free > clear) { clear = free; way = dir; }
+        }
+        Line(clear >= 3.5f, $"a clear way to sneak along, from {PlanOf(Ace)}: {clear:0.0} m (of the 8 ways round)");
+        if (clear < 3.5f) { mover.ScriptedSneak = null; yield break; }
+        float length = Mathf.Min(clear - .8f, 4f);
+        int[] kinds = NightNoise.CountByKind;
+
+        // 1. Sneak along it.
+        int sneakBefore = kinds[(int)NoiseKind.SneakStep], stepBefore = kinds[(int)NoiseKind.Step];
+        mover.ScriptedSneak = true;
+        yield return Leg(way, length, true);
+        int sneakSteps = kinds[(int)NoiseKind.SneakStep] - sneakBefore, walkSteps = kinds[(int)NoiseKind.Step] - stepBefore;
+        Line(Mathf.Abs(legSpeed - mover.SneakSpeed) <= .2f,
+            $"sneaking goes {legSpeed:0.00} m/s once crouched (set: {mover.SneakSpeed:0.0}; walking is {mover.WalkSpeed:0.0}), over {length:0.0} m");
+        NightNoise.Recent(0, out NightNoiseEvent last);
+        Line(sneakSteps > 0 && walkSteps == 0 && last.kind == NoiseKind.SneakStep && Mathf.Approximately(last.radius, NightNoise.SneakRadius),
+            $"sneaking steps are heard within {NightNoise.SneakRadius:0} m: {sneakSteps} sneaking steps, {walkSteps} walking ones (the last noise: {last.kind}, {last.radius:0.0} m)");
+        if (body != null && body.Worn)
+        {
+            if (body.CanCrouch)
+            {
+                Line(legFrames > 0 && legCrouchShown >= legFrames * .9f,
+                    $"Ace's body crouch-walks while sneaking: the crouch walk showing in {legCrouchShown} of {legFrames} frames once crouched, " +
+                    $"played at {(legFrames > 0 ? legCrouchRates / legFrames : 0f):0.00}x on average (the feet keep up near 1)");
+                Line(legFrames > 0 && legCrouchRates / legFrames >= .6f && legCrouchRates / legFrames <= 1.6f,
+                    "the crouch walk plays within 0.6-1.6x of its own speed");
+            }
+            else
+                Line(!body.WearsSidekick,
+                    body.WearsSidekick ? "Ace's body can crouch: the Sidekick body has no crouch clips yet (Fixit Fidget > Night > Ace's body 5)"
+                                       : "Ace's body: the stand-in has no crouch clips, so it sneaks upright (as designed)");
+        }
+
+        // 2. Stop, still crouched.
+        yield return new WaitForSeconds(.6f);
+        if (body != null && body.Worn && body.CanCrouch)
+            Line(body.CrouchGait.x >= .9f, $"stopped, Ace stays crouched and still (crouched still {body.CrouchGait.x:0.00}, crouch walk {body.CrouchGait.y:0.00})");
+        ScreenCapture.CaptureScreenshot(Path.Combine(folder, "zz-sneak-2-crouched-still.png"));
+        yield return null;
+        report.AppendLine("      photos zz-sneak-1-sneaking.png, zz-sneak-2-crouched-still.png");
+
+        // 3. First person, crouched and then standing: the eye drops with the crouch.
+        bool switched = view.SetFirstPerson(true);
+        yield return new WaitForSeconds(.5f);
+        float eyeCrouched = view.firstPersonCamera != null ? view.firstPersonCamera.transform.position.y - view.AceFeet.y : 0f;
+        ScreenCapture.CaptureScreenshot(Path.Combine(folder, "zz-sneak-3-first-person-crouched.png"));
+        yield return null;
+        mover.ScriptedSneak = false;
+        yield return new WaitForSeconds(.5f);
+        float eyeStanding = view.firstPersonCamera != null ? view.firstPersonCamera.transform.position.y - view.AceFeet.y : 0f;
+        if (switched) view.SetFirstPerson(false);
+        Line(switched && Mathf.Abs(eyeStanding - eyeCrouched - mover.CrouchEyeDrop) <= .05f,
+            $"in first person the eye is {eyeCrouched:0.00} m up crouched and {eyeStanding:0.00} m standing (drops {mover.CrouchEyeDrop:0.00} m); photo zz-sneak-3-first-person-crouched.png");
+        yield return new WaitForSeconds(.6f);
+
+        // 4. Stand and walk back.
+        sneakBefore = kinds[(int)NoiseKind.SneakStep];
+        stepBefore = kinds[(int)NoiseKind.Step];
+        yield return Leg(-way, length, false);
+        sneakSteps = kinds[(int)NoiseKind.SneakStep] - sneakBefore;
+        walkSteps = kinds[(int)NoiseKind.Step] - stepBefore;
+        Line(Mathf.Abs(legSpeed - mover.WalkSpeed) <= .35f, $"standing up, Ace walks back at {legSpeed:0.00} m/s (set: {mover.WalkSpeed:0.0})");
+        NightNoise.Recent(0, out last);
+        Line(walkSteps > 0 && sneakSteps == 0 && last.kind == NoiseKind.Step && Mathf.Approximately(last.radius, NightNoise.WalkRadius),
+            $"walking steps are heard within {NightNoise.WalkRadius:0} m: {walkSteps} walking steps, {sneakSteps} sneaking ones");
+        mover.ScriptedSneak = null;
+        mover.ScriptedInput = null;
+    }
+
+    // One straight leg of the sneak check: steered like a player (a direction on screen), timed once the crouch (or the
+    // standing up) has settled. Sets legSpeed, and while crouched counts the frames the crouch walk shows.
+    float legSpeed, legCrouchRates;
+    int legFrames, legCrouchShown;
+    IEnumerator Leg(Vector3 way, float length, bool sneaking)
+    {
+        Vector3 from = Ace, steadyFrom = Ace;
+        float began = Time.time, steadyAt = -1f;
+        // Crouching down takes a quarter of a second (the speed eases with it); standing, the walk starts at once.
+        float settle = sneaking ? .5f : .1f;
+        legSpeed = legCrouchRates = 0f;
+        legFrames = legCrouchShown = 0;
+        bool photo = !sneaking;
+        while (Flat(Ace - from).magnitude < length && Time.time - began < 8f)
+        {
+            Vector3 local = Quaternion.Inverse(Quaternion.Euler(0f, view.MovementYaw, 0f)) * way;
+            mover.ScriptedInput = new Vector2(local.x, local.z);
+            if (steadyAt < 0f && Time.time - began >= settle) { steadyAt = Time.time; steadyFrom = Ace; }
+            if (steadyAt >= 0f && sneaking && body != null && body.Worn && body.CanCrouch)
+            {
+                legFrames++;
+                legCrouchRates += body.CrouchRate;
+                if (body.CrouchGait.y >= .85f) legCrouchShown++;
+            }
+            if (!photo && Flat(Ace - from).magnitude > length * .6f)
+            {
+                photo = true;
+                ScreenCapture.CaptureScreenshot(Path.Combine(folder, "zz-sneak-1-sneaking.png"));
+            }
+            yield return null;
+        }
+        if (steadyAt >= 0f) legSpeed = Flat(Ace - steadyFrom).magnitude / Mathf.Max(.01f, Time.time - steadyAt);
+        mover.ScriptedInput = Vector2.zero;
     }
 
     // Ace's body, every frame of a leg.

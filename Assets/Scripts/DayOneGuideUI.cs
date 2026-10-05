@@ -32,7 +32,7 @@ public class DayOneGuideUI : MonoBehaviour
         conversation = dialogue != null ? dialogue : (player != null ? player.GetComponent<ConversationController>() : null);
         recap = recapPanel;
         carry = player != null ? player.GetComponent<PlayerCarry>() : null;
-        drops = FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        drops = FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude);
     }
 
     private void LateUpdate()

@@ -33,7 +33,7 @@ public static class StabilityPass
     public static void FixDrain()
     {
         WaitingSpot[] spots = Object.FindObjectsByType<WaitingSpot>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
 
         if (spots.Length == 0)
         {
@@ -95,7 +95,7 @@ public static class StabilityPass
         // --- drain rates ---
         int badSeat = 0, badLoiter = 0, seats = 0, loiter = 0;
         foreach (WaitingSpot s in Object.FindObjectsByType<WaitingSpot>(
-                     FindObjectsInactive.Include, FindObjectsSortMode.None))
+                     FindObjectsInactive.Include))
         {
             if (s == null) continue;
             bool isSeat = s is TableSeat || s.Kind == WaitingSpot.SpotKind.Seat;

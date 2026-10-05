@@ -233,7 +233,7 @@ public class DayClock : MonoBehaviour
 
         // Closed: wait for everyone still inside to finish up.
         CustomerBrain[] remaining = FindObjectsByType<CustomerBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         if (remaining.Length == 0) { EndDay(); return; }
 
@@ -343,7 +343,7 @@ public class DayClock : MonoBehaviour
     private void ClearCustomers()
     {
         CustomerBrain[] leftovers = FindObjectsByType<CustomerBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         foreach (CustomerBrain c in leftovers)
             if (c != null) c.ForceRemove();
@@ -352,7 +352,7 @@ public class DayClock : MonoBehaviour
     private void ClearPatrons()
     {
         PatronBrain[] stragglers = FindObjectsByType<PatronBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         foreach (PatronBrain p in stragglers)
             if (p != null) Destroy(p.gameObject);

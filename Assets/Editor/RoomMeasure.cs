@@ -117,7 +117,7 @@ public static class RoomMeasure
             Line(sb, string.Format("SpawnPoint   ({0,6:F2}, {1,6:F2})", spawn.transform.position.x, spawn.transform.position.z));
 
         // Queue clearance — the number that can silently break intake.
-        CounterQueue queue = Object.FindFirstObjectByType<CounterQueue>();
+        CounterQueue queue = Object.FindAnyObjectByType<CounterQueue>();
         if (queue != null && haveCounter)
         {
             Line(sb, "");
@@ -155,7 +155,7 @@ public static class RoomMeasure
         Line(sb, "(a spot on the staff side is one that sends customers behind your counter)");
         Line(sb, "");
 
-        WaitingSpot[] spots = Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        WaitingSpot[] spots = Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Include);
 
         int seatCustomer = 0, seatStaff = 0, loiterCustomer = 0, loiterStaff = 0;
         int offMesh = 0, unreachable = 0;
@@ -343,5 +343,5 @@ public static class RoomMeasure
     }
 
     private static GameObject[] AllObjects() =>
-        Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
 }

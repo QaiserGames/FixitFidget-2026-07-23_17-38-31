@@ -145,7 +145,7 @@ public static class CafeParkingLot
         Transform cafe = FindRoot(CafeRoot) ?? throw new InvalidOperationException("Open the café scene first.");
         if (cafe.Find(GroupName) != null) return "Already built (" + GroupName + " exists). Run \"Undo the car park\" first to rebuild.";
         Transform door = FindRoot("SpawnPoint") ?? throw new InvalidOperationException("SpawnPoint (the café door) is missing.");
-        var life = Object.FindFirstObjectByType<StreetLife>() ?? throw new InvalidOperationException("No StreetLife in the scene.");
+        var life = Object.FindAnyObjectByType<StreetLife>() ?? throw new InvalidOperationException("No StreetLife in the scene.");
         if (!life.actors.Any(a => a != null && a.trafficGroup == EntryLane) || !life.actors.Any(a => a != null && a.trafficGroup == ExitLane))
             throw new InvalidOperationException("The street has no '" + EntryLane + "' or '" + ExitLane + "'.");
         Transform surrounds = cafe.Find("09 - neighborhood surrounds V3") ?? throw new InvalidOperationException("09 - neighborhood surrounds V3 is missing.");
@@ -604,7 +604,7 @@ public static class CafeParkingLot
             text.alignment = TextAlignmentOptions.Center;
             text.color = new Color(.97f, .93f, .82f);
             text.rectTransform.sizeDelta = new Vector2(1.22f, .3f);
-            text.enableWordWrapping = false;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
             go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
         }
     }
@@ -1023,7 +1023,7 @@ public static class CafeParkingLot
         Walk(arrivals.EditorLotToDoor.name, arrivals.EditorLotToDoor.points, true);
 
         // The lanes the cars use must pass where the paths join them.
-        var life = Object.FindFirstObjectByType<StreetLife>();
+        var life = Object.FindAnyObjectByType<StreetLife>();
         if (life != null)
         {
             Vector4 a = arrivals.EditorTurnIn.FirstOrDefault(), b = arrivals.EditorTurnOut.LastOrDefault();

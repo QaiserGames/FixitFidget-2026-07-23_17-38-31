@@ -73,7 +73,7 @@ public sealed class CounterRepairView : MonoBehaviour
         modelHeight = Mathf.Max(.01f, bounds.size.y); modelWidth = Mathf.Max(.01f, bounds.size.x);
         modelBaseScale = model.transform.localScale;
         modelOffset = model.transform.localPosition - display.transform.InverseTransformPoint(bounds.center);
-        foreach (var input in FindObjectsByType<CinemachineInputAxisController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var input in FindObjectsByType<CinemachineInputAxisController>(FindObjectsInactive.Exclude))
             if (input.enabled) { cameraReaders.Add(input); input.enabled = false; }
         BuildOverlay(owner);
         speaker = display.AddComponent<AudioSource>(); speaker.playOnAwake = false; speaker.volume = .16f;

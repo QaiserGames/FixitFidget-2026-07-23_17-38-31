@@ -96,6 +96,7 @@ public sealed class CafeViewMode : MonoBehaviour
     ItemInspector inspector;
     CounterRepairView counterRepair;
     CharacterController capsule;
+    PlayerMovement movement;
     CinemachineBrain brain;
     bool firstPerson, pointerReleased, acceptingLook, bodyWasVisible;
     bool[] wallVisibility, fixtureVisibility;
@@ -192,6 +193,7 @@ public sealed class CafeViewMode : MonoBehaviour
         inspector = GetComponent<ItemInspector>();
         counterRepair = GetComponent<CounterRepairView>();
         capsule = GetComponent<CharacterController>();
+        movement = GetComponent<PlayerMovement>();
         var main = Camera.main;
         brain = main != null ? main.GetComponent<CinemachineBrain>() : null;
         if (bodyRenderer == null) bodyRenderer = GetComponent<Renderer>();
@@ -225,6 +227,25 @@ public sealed class CafeViewMode : MonoBehaviour
         // Let the authored walking camera face the cafe on first entry.
         yaw = firstPersonCamera != null ? firstPersonCamera.transform.eulerAngles.y : isoYaw;
         if (firstPersonCamera != null) firstPersonCamera.Priority = 0;
+    }
+
+    // THE WALLS, READIED AHEAD OF TIME (30 Sept 2026, the performance pass)
+    // A wall going down for the first time used to search the scene for what hangs on it and make its
+    // see-through copies in that very frame: with several walls at once (back from first person) that
+    // was a 10 ms hitch in the build. Now the frames right after loading do it, the search first and
+    // then one wall a frame, while nobody is looking.
+    void Start() => StartCoroutine(PrepareCutawayWalls());
+
+    System.Collections.IEnumerator PrepareCutawayWalls()
+    {
+        yield return null;
+        if (cuts == null) yield break;
+        CutawayWall.PrepareCandidates();
+        for (int i = 0; i < cuts.Length; i++)
+        {
+            yield return null;
+            if (cuts[i] != null && cuts[i].Wall != null) cuts[i].Prepare(transform, cutawaySkip);
+        }
     }
 
     void Update()
@@ -461,9 +482,10 @@ public sealed class CafeViewMode : MonoBehaviour
     {
         if (firstPersonCamera != null)
         {
-            // Player origin is at the capsule centre, not its feet.
+            // Player origin is at the capsule centre, not its feet. Crouched (sneaking), the eye drops with Ace's head.
             float floorOffset = capsule != null ? capsule.center.y - capsule.height * .5f : -1;
-            Vector3 eye = transform.position + Vector3.up * (floorOffset + eyeHeight);
+            float crouchDrop = movement != null ? movement.EyeDrop : 0f;
+            Vector3 eye = transform.position + Vector3.up * (floorOffset + eyeHeight - crouchDrop);
             firstPersonCamera.transform.SetPositionAndRotation(eye, Quaternion.Euler(pitch, yaw, 0));
             firstPersonCamera.Priority = firstPerson ? 15 : 0;
         }

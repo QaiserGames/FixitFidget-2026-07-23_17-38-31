@@ -1,5 +1,33 @@
 # Current handoff — September 12, 2026
 
+## October 5 — The 30 Sept evening's code lands: sneaking (break-ins chunk B), the NPC bodies and the walls cheaper, the deprecation warnings gone, builds keep their own save; on `playtest-2`
+
+**Read this entry first.** One code commit on `playtest-2` after `0afef60`, with this entry in it. Nothing is pushed. The design work of 1–5 Oct (the foundation story, the house interiors, the franchise plan) is in the project docs, not here: `claude/foundation-the-fixers-notebook.md`, `claude/night-0-and-the-favours-spec.md`, `claude/house-interiors-plan.md`, `claude/franchise-ready-cafe.md`.
+
+**What happened between the two commits.** The 4K test build of 30 Sept was never closed by Alt+F4 (the key never reached it); it ran Day 3 to 8 PM unattended and saved over the playtest save. Then Mansoor ended the build himself and played Days 1–2 again that afternoon, so the playtest save is his own again (Day 2 closed, 1 star, $29 after $350 of upgrades at the recap). `Fixit Fidget › Recovery` (`TestBuildCleanup`) exists for the next time: close a build in `Builds/`, list the saves, put a save back only when the files are exactly the case it was written for. The code written that evening was parked in `Claude outputs/pending-2026-09-30/` and compiled today, first time, with no errors.
+
+**What changed:**
+
+1. **Sneaking, break-ins chunk B** (`PlayerMovement`, `AceBody`, `AceFootsteps`, `CafeViewMode`, `ControlHints`, `ShopUI`; `NightNoise`, new; `AceSidekickSteps` gains `Night › Ace's body 5 - Sneaking: fit the crouch clips to Ace (scene)`; the scene saved with AceBody's crouch fields).
+   - At night, **held Ctrl or C** sneaks (on a pad the **left stick's click** switches it on and off; holding a stick down while steering is a cramp). Sneak Speed 1.6 m/s (the spec's number), the crouch eased over 0.25 s, the first-person eye 0.55 m lower; the capsule never changes (call 1). By day it is off (C switches hands in the café); `Sneak By Day` on PlayerMovement turns it on for a lab.
+   - The Sidekick body blends into the library's crouch clips (`Crouch_Idle_Loop`, `Crouch_Fwd_Loop`, already in the Humanoid copy) on two more mixer inputs; the stand-in has none and sneaks upright. Ace's body 5 measured the crouch walk at 0.76 m/s on Ace and Ace crouched at 1.24 m (standing 2.04).
+   - **Tuning flag:** at 1.6 m/s the crouch walk plays at 2.0× its own pace (clamped), which reads as hurried; 1.2 m/s would play at 1.6×. The walk check marks this as its one FAIL on purpose until Mansoor picks the speed (PlayerMovement › Sneak Speed in the Inspector, live).
+   - `NightNoise` (new): every noise Ace makes at night, with the spec's radii (walking 4 m, sneaking 1 m, lock pick 4, rustle 3, creaky stair 5), as one event anyone listening can take (Grace, chunk C). Footsteps raise it; sneaking steps are shorter and a third as loud. The HUD's night line reads `Ctrl  Sneak    F  Torch    N  Notebook`.
+   - `GraceHouseWalkCheck` grew a sneaking section (the longest clear way from where the walk ends: sneak along it, stop crouched, first person crouched and standing, walk back): all PASS but the pace flag.
+2. **Performance leftovers** (`PolygonNpcVisual`, `CutawayWall`, `SeeThroughMaterials`, `CafeViewMode`, `NightWalk`).
+   - A body's skeleton is read once per spawn: Unity's `renderer.bones`, `mesh.bindposes` and every `Transform.name` hand back fresh copies, and binding read them per bone (~0.4 MB of garbage per arrival). Bind poses are cached per mesh for the Play session.
+   - A body nobody can see isn't posed; above `Max Follow Rate` (120 fps) the café's people take turns (every other or third frame); Ace's own stand-in is posed every frame (`EveryFrame`). `LateBehaviourUpdate` fell from ~0.50 ms to ~0.19 ms a frame in the performance check (same scene, same phases); averages 4.2–4.4 ms from 4.4–5.1.
+   - The cut-away walls search the scene once (kept until the night starts or ends, or the furnishing tools reset it; `ForgetCandidates`/`PrepareCandidates`), one wall re-looks per frame, `RescanAfter` 30 s, and `CafeViewMode` readies every wall and its see-through copies in the frames after loading (`Prepare`), which was the ~10 ms hitch on the first-person/overhead switch.
+3. **Builds keep their own save** (`SaveManager.BuildFileName`): a built player writes `playtest-aces-cafe-build.json` / `save-build.json`, never the editor's file.
+4. **The 33 CS0618 warnings** (sorted `FindObjectsByType`, `FindFirstObjectByType`, TMP's `enableWordWrapping`) in 12 scripts and 8 editor tools; two CS0414 unused-field warnings remain (`CustomerBrain.wordsPerSecond`, `NpcSocial.lastArrivalLookAt`), left for their owners.
+5. **Tools:** `CompileLog` (every compile's errors and warnings to `Logs/Compile/last.txt`; `Checks › Copy the editor's log into Logs`), `Room › Camera angles - photograph the home view at 25°, 0° and 45° (read-only)` (renders plus `angles.json` with where each key walks; the marked-up comparison was sent to Mansoor), `Recovery` (above).
+
+**Checks:** compiles clean; Grace's walk check all clear but the pace flag (`Logs/Night/grace-walk-2026-10-05_023252`); performance check all clear (`Logs/Performance/perf-2026-10-05_023429`); Ace's body 5 report and photo (`Logs/Night/ace-sneak-2026-10-05_023135`).
+
+**Seen, not changed:** Mansoor's own scene edits of 30 Sept are in this commit's scene file: two roof props off the north-west corner building (`SM_Prop_Skylight_01`, `SM_Prop_Roof_Aircon_03`), the repair cabinets and tabletop moved 0.92 m back to the wall with the bench, the bench mat, tray and inspect rig nudged, the tool stand's parts moved 0.85 m along, one street lamp's glass moved. Nothing a step or check references.
+
+**Next:** the foundation pass (Night 0, the favours) once Mansoor's calls are in; the house-interiors plan; chunk C (Grace at home); his camera-angle call.
+
 ## September 30 — Playtest 2, the second notes: Grace's door for real, the controller's diagonals, performance measured and presets, walls that fade, the real café pass; on `playtest-2`
 
 **Read this entry first.** One code commit on `playtest-2` after `611830e`, with this entry in it. Nothing is pushed. The entries this doc owed for 29 Sept (the afternoon and evening) are at the end of this one, under "Owed from 29 Sept".

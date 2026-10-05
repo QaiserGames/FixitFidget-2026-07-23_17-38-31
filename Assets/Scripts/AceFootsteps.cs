@@ -19,6 +19,9 @@ using UnityEngine;
 // as road; sidewalk stone, kerbs and the café's entry apron as pavement). Nothing sounds while the
 // game is paused or Ace stands still; a jump of more than 1.5 m in a frame (a reset, a teleport)
 // isn't a step. Added to Ace while playing by SoundRig; never saved.
+//
+// At night each step is also a noise someone could hear (break-ins chunk B, NightNoise): heard within
+// 4 m walking, 1 m sneaking. A sneaking step is shorter (the crouch walk's stride) and much quieter.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class AceFootsteps : MonoBehaviour
@@ -29,7 +32,11 @@ public sealed class AceFootsteps : MonoBehaviour
     };
     static readonly System.Random Rng = new System.Random();
 
+    // A sneaking step: this much of a walking stride, at this much of its volume.
+    const float SneakStride = .7f, SneakVolume = .3f;
+
     CafeViewMode view;
+    PlayerMovement movement;
     Vector3 last;
     float walked, stride = .72f, thisStride = .72f;
     readonly Dictionary<string, int> surfaces = new Dictionary<string, int>();
@@ -44,13 +51,16 @@ public sealed class AceFootsteps : MonoBehaviour
     void OnEnable()
     {
         view = GetComponent<CafeViewMode>();
+        movement = GetComponent<PlayerMovement>();
         last = transform.position;
         SoundPlayer player = SoundPlayer.Ensure();
         if (player != null && player.Bank != null) stride = player.Bank.stride;
         NextStride();
     }
 
-    void NextStride() => thisStride = stride * (.94f + (float)Rng.NextDouble() * .12f);
+    bool Sneaking => movement != null && movement.Sneaking;
+
+    void NextStride() => thisStride = stride * (Sneaking ? SneakStride : 1f) * (.94f + (float)Rng.NextDouble() * .12f);
 
     void Update()
     {
@@ -64,14 +74,24 @@ public sealed class AceFootsteps : MonoBehaviour
         walked += distance;
         if (walked < thisStride) return;
         walked = Mathf.Min(walked - thisStride, thisStride * .5f);
+        bool sneaking = Sneaking;
         NextStride();
 
         Vector3 feet = view != null ? view.AceFeet : now;
         string surface = Surface(feet);
         Steps++;
+        if (sneaking) SneakSteps++;
         surfaces[surface] = (surfaces.TryGetValue(surface, out int n) ? n : 0) + 1;
-        Sfx.Play("ace.step." + surface, feet + Vector3.up * .05f);
+        Sfx.Play(Cue(surface), feet + Vector3.up * .05f, sneaking ? SneakVolume : 1f);
+        // Heard at night: 4 m walking, 1 m sneaking (NightNoise does nothing by day).
+        NightNoise.Make(feet, sneaking ? NoiseKind.SneakStep : NoiseKind.Step);
     }
+
+    // The three cues' names, made once (a step used to build its name each time: a little garbage per step).
+    static string Cue(string surface) => surface == "cafe" ? "ace.step.cafe" : surface == "road" ? "ace.step.road" : "ace.step.pavement";
+
+    /// <summary>Of the steps, how many were sneaking.</summary>
+    public int SneakSteps { get; private set; }
 
     string Surface(Vector3 feet)
     {

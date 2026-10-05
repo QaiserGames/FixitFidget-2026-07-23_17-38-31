@@ -31,4 +31,6 @@ public static class ControlHints
     public static string Torch => Pad ? PadInput.Label(PadButton.West) : "F";
     /// <summary>Night walk: Ace's notebook page.</summary>
     public static string NotebookPage => Pad ? PadInput.Label(PadButton.DpadUp) : "N";
+    /// <summary>Night walk: sneak (held Ctrl or C; the pad's left-stick click switches it on and off).</summary>
+    public static string Sneak => Pad ? PadInput.Label(PadButton.LeftStickPress) : "Ctrl";
 }

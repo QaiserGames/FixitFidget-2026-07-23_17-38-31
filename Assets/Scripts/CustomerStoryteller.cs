@@ -72,7 +72,7 @@ public sealed class CustomerStoryteller : MonoBehaviour
             ? owner.LookTarget.position : owner.transform.position + Vector3.up * 1.5f);
         if (point.z <= 0f || point.x < 0f || point.x > 1f || point.y < 0f || point.y > 1f) return false;
 
-        foreach (CustomerBrain customer in FindObjectsByType<CustomerBrain>(FindObjectsSortMode.None))
+        foreach (CustomerBrain customer in FindObjectsByType<CustomerBrain>())
         {
             // An intake, drink request, reassurance or departure already owns speech.
             if (customer.SpeechBusy) return false;

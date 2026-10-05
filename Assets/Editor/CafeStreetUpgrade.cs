@@ -882,7 +882,7 @@ public static class CafeStreetUpgrade
             if(!oldStreet.Find(required))throw new InvalidOperationException("Missing exterior group: "+required);
         foreach(var required in new[]{"V3 - connected neighborhood ground","V3 - courtyard and corner details","V3 lights","V3 - lantern fixtures"})
             if(!surrounds.Find(required))throw new InvalidOperationException("Missing exterior group: "+required);
-        if(!Find("Player").GetComponent<CafeViewMode>()||!Object.FindFirstObjectByType<CafeDaylight>()||!Find("Entry apron").GetComponent<MeshFilter>())
+        if(!Find("Player").GetComponent<CafeViewMode>()||!Object.FindAnyObjectByType<CafeDaylight>()||!Find("Entry apron").GetComponent<MeshFilter>())
             throw new InvalidOperationException("Cafe view, daylight and entrance apron references are required.");
         var life=oldStreet.GetComponentInChildren<StreetLife>();
         if(!life || life.actors.Count(a=>a.actor && a.wheels.Length>0)!=2)
@@ -930,10 +930,10 @@ public static class CafeStreetUpgrade
         var mode=Find("Player").GetComponent<CafeViewMode>();
         mode.overheadFixtures=pendants.SelectMany(t=>t.GetComponentsInChildren<Renderer>(true))
             .Concat(v4.Find("V4 - ceiling fixtures").GetComponentsInChildren<Renderer>(true)).ToArray();
-        var daylight=Object.FindFirstObjectByType<CafeDaylight>();
-        daylight.warmLights=Object.FindObjectsByType<Light>(FindObjectsSortMode.None)
+        var daylight=Object.FindAnyObjectByType<CafeDaylight>();
+        daylight.warmLights=Object.FindObjectsByType<Light>()
             .Where(l=>l!=daylight.sun&&(l.name=="Light_ShopWarmth"||l.name.StartsWith("V3"))).ToArray();
-        daylight.emissiveRenderers=Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None)
+        daylight.emissiveRenderers=Object.FindObjectsByType<Renderer>()
             .Where(r=>r.sharedMaterials.Any(m=>daylight.emissiveMaterials.Contains(m))).ToArray();
         Physics.SyncTransforms();AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(scene);
         return "V4 applied: level connected cafe block, rounded street loop, four spaced cars, consistent paving, planted pockets and separated ceiling fixtures. Review and save.";
@@ -1168,7 +1168,7 @@ public static class CafeStreetUpgrade
         // The bed formerly sat in what is now an eastbound through street.
         var oldBeds=v4.Find("V4 - small planted sidewalk pockets");if(oldBeds)Object.DestroyImmediate(oldBeds.gameObject);
         V4Planting();
-        var life=Object.FindFirstObjectByType<StreetLife>();var cars=life.actors.Where(a=>a.actor&&a.wheels.Length>0).ToArray();
+        var life=Object.FindAnyObjectByType<StreetLife>();var cars=life.actors.Where(a=>a.actor&&a.wheels.Length>0).ToArray();
         var oldRoutes=cars.Select(a=>a.waypoints[0].parent).Distinct().ToArray();
         var route=Group("V4 - right lane around neighborhood block",v4);
         var points=V4Loop(-1.4f,-.17f).Reverse().ToArray();
@@ -1359,7 +1359,7 @@ public static class CafeStreetUpgrade
         street=v4;hasGeometry=true;
         string[] models={"sedan","hatchback-sports","taxi","van","suv","delivery","sedan-sports","suv-luxury"};
         foreach(string name in models)if(!AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"/StreetModels/"+name+".fbx"))throw new InvalidOperationException("Missing car "+name);
-        var life=Object.FindFirstObjectByType<StreetLife>();
+        var life=Object.FindAnyObjectByType<StreetLife>();
         var oldCars=life.actors.Where(a=>a.actor&&a.wheels.Length>0).ToArray();
         var oldRoutes=oldCars.Select(a=>a.waypoints[0].parent).Distinct().ToArray();
         foreach(var a in oldCars){life.actors.Remove(a);Object.DestroyImmediate(a.actor.gameObject);}

@@ -108,6 +108,17 @@ public static class SeeThroughMaterials
         return copy;
     }
 
+    /// <summary>
+    /// Make the copies a renderer would wear, without putting them on: ahead of time, so the first wall to go
+    /// down doesn't make them in the frame it starts (CutawayWall.Prepare, in the frames after loading).
+    /// </summary>
+    public static void Prepare(Renderer r)
+    {
+        if (r == null) return;
+        Material[] own = r.sharedMaterials;
+        for (int m = 0; m < own.Length; m++) Copy(own[m]);
+    }
+
     // ---- wearing a copy (the cut-away walls, Grace's walls) ----
     //
     // A renderer wears one copy for as long as anyone needs it (two walls meeting at a corner may

@@ -261,7 +261,8 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         RemoveAppearance();
 
         var renderers = new List<SkinnedMeshRenderer>(GetComponentsInChildren<SkinnedMeshRenderer>(true));
-        if (!BindSkeleton(transform, renderers, SourceBones, out source, out sourceBind, out sourceBindPosition)) return false;
+        Skin[] sourceSkins = ReadSkins(renderers);
+        if (!BindSkeleton(transform, sourceSkins, SourceBones, out source, out sourceBind, out sourceBindPosition)) return false;
 
         instance = Instantiate(appearancePrefabs[index], transform, false);
         instance.name = "City look - " + appearancePrefabs[index].name;
@@ -273,13 +274,15 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         instance.transform.localScale = Vector3.one;
         foreach (Animator animator in instance.GetComponentsInChildren<Animator>(true)) animator.enabled = false;
         var visualRenderers = new List<SkinnedMeshRenderer>(instance.GetComponentsInChildren<SkinnedMeshRenderer>(true));
-        if (!BindSkeleton(instance.transform, visualRenderers, TargetBones, out target, out targetBind, out targetBindPosition)
+        Skin[] targetSkins = ReadSkins(visualRenderers);
+        if (!BindSkeleton(instance.transform, targetSkins, TargetBones, out target, out targetBind, out targetBindPosition)
             || targetBindPosition[Hips].y < 1e-3f || sourceBindPosition[Hips].y < 1e-3f)
         {
             DestroyInstance();
             return false;
         }
-        BindFingers(renderers, visualRenderers);
+        BindFingers(sourceSkins, targetSkins);
+        visibleParts = visualRenderers.ToArray();
         // Bind poses are in each root's own units, so sizing the body afterwards
         // leaves them valid; hipsScale converts the actor's hip sway into them.
         float scale = visualScale > 0f ? visualScale : sourceBindPosition[Hips].y / targetBindPosition[Hips].y;
@@ -309,7 +312,44 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         return true;
     }
 
-    private void LateUpdate() => Follow();
+    // WHY A BODY ISN'T ALWAYS POSED EVERY FRAME (30 Sept 2026, the performance pass)
+    //
+    // Posing is ~40 bone turns a body, and with a full café it cost 0.9 ms of every frame on the main thread
+    // (the performance check). Two things cost nothing to see: a body nobody can see (not in any camera's
+    // view, not even its shadow) isn't posed at all; and above about Max Follow Rate frames a second the
+    // bodies take turns, each posed every other (or third) frame. At 240 fps each body is still posed 120
+    // times a second, which the eye can't tell from 240, and the café's people cost half. The body moves
+    // with its actor every frame either way (it is the actor's child); only the pose waits a frame. Ace's own
+    // stand-in body is posed every frame (Every Frame).
+    [Tooltip("Above this many frames a second, bodies take turns being posed (each at least this often). 0: every body every frame.")]
+    [SerializeField, Range(0f, 240f)] private float maxFollowRate = 120f;
+    /// <summary>Pose every frame whatever the rate, and even when unseen (Ace's own body).</summary>
+    public bool EveryFrame { get; set; }
+    /// <summary>For checks: frames this body was posed, and frames it wasn't (unseen, or its turn skipped).</summary>
+    public int FollowedFrames { get; private set; }
+    public int SkippedFrames { get; private set; }
+    private SkinnedMeshRenderer[] visibleParts = Array.Empty<SkinnedMeshRenderer>();
+    private static int followTurns;
+    private readonly int followTurn = followTurns++;
+
+    private void LateUpdate()
+    {
+        if (!EveryFrame && instance != null && Application.isPlaying)
+        {
+            bool seen = false;
+            for (int i = 0; i < visibleParts.Length; i++)
+                if (visibleParts[i] != null && visibleParts[i].isVisible) { seen = true; break; }
+            float dt = Time.smoothDeltaTime;
+            int turns = maxFollowRate > 0f && dt > 1e-5f ? Mathf.Clamp(Mathf.RoundToInt(1f / (dt * maxFollowRate)), 1, 3) : 1;
+            if (!seen || turns > 1 && (Time.frameCount + followTurn) % turns != 0)
+            {
+                SkippedFrames++;
+                return;
+            }
+        }
+        FollowedFrames++;
+        Follow();
+    }
 
     /// <summary>Poses the new body from the actor's skeleton. Public for editor line-ups.</summary>
     public void Follow()
@@ -503,7 +543,7 @@ public sealed class PolygonNpcVisual : MonoBehaviour
 
     // The fingers: each rig finger bone and the body's, looked up under their own hand
     // (the body's finger names are the same on both hands), with their T-poses.
-    private void BindFingers(List<SkinnedMeshRenderer> sourceRenderers, List<SkinnedMeshRenderer> targetRenderers)
+    private void BindFingers(Skin[] sourceSkins, Skin[] targetSkins)
     {
         var from = new List<Transform>();
         var to = new List<Transform>();
@@ -514,12 +554,15 @@ public sealed class PolygonNpcVisual : MonoBehaviour
             {
                 Transform rigHand = source[side == 0 ? WristL : WristR], bodyHand = target[side == 0 ? WristL : WristR];
                 if (rigHand == null || bodyHand == null) continue;
+                // Each hand's bones by name, read once (a Transform's name is a fresh string each time it's read).
+                Dictionary<string, Transform> rigFingers = Under(rigHand), bodyFingers = Under(bodyHand);
                 string suffix = side == 0 ? ".L" : ".R";
                 foreach (var (rig, body) in FingerBones)
                 {
-                    Transform a = FindUnder(rigHand, rig + suffix), b = FindFinger(bodyHand, body, side == 0 ? "L" : "R");
+                    rigFingers.TryGetValue(rig + suffix, out Transform a);
+                    Transform b = FindFinger(bodyFingers, body, side == 0 ? "L" : "R");
                     if (a == null || b == null) continue;
-                    if (!BindOne(transform, sourceRenderers, a, out Quaternion aBind) || !BindOne(instance.transform, targetRenderers, b, out Quaternion bBind)) continue;
+                    if (!BindOne(transform, sourceSkins, a, out Quaternion aBind) || !BindOne(instance.transform, targetSkins, b, out Quaternion bBind)) continue;
                     from.Add(a); to.Add(b); fromBind.Add(aBind); toBind.Add(bBind);
                 }
             }
@@ -531,41 +574,94 @@ public sealed class PolygonNpcVisual : MonoBehaviour
 
     // A body's finger bone under its hand: "Thumb_01", "Thumb_01 1" (Unity's name for a
     // repeated name) or "Thumb_01_L" / "Thumb_01_R".
-    private static Transform FindFinger(Transform hand, string boneName, string side)
+    private static Transform FindFinger(Dictionary<string, Transform> hand, string boneName, string side)
     {
-        Transform exact = FindUnder(hand, boneName);
-        if (exact != null) return exact;
-        Transform sided = FindUnder(hand, boneName + "_" + side);
-        if (sided != null) return sided;
-        return FindUnder(hand, boneName + " 1");
+        if (hand.TryGetValue(boneName, out Transform exact)) return exact;
+        if (hand.TryGetValue(boneName + "_" + side, out Transform sided)) return sided;
+        return hand.TryGetValue(boneName + " 1", out Transform repeated) ? repeated : null;
     }
 
-    private static Transform FindUnder(Transform node, string boneName)
+    // Every bone under <node> by name; where a name repeats, the first met depth-first (children in order, each
+    // with its own children before the next), as a search from the top would find it.
+    private static Dictionary<string, Transform> Under(Transform node)
+    {
+        var map = new Dictionary<string, Transform>();
+        AddUnder(node, map);
+        return map;
+    }
+
+    private static void AddUnder(Transform node, Dictionary<string, Transform> map)
     {
         for (int i = 0; i < node.childCount; i++)
         {
             Transform child = node.GetChild(i);
-            if (child.name == boneName) return child;
-            Transform hit = FindUnder(child, boneName);
-            if (hit != null) return hit;
+            string childName = child.name;
+            if (!map.ContainsKey(childName)) map.Add(childName, child);
+            AddUnder(child, map);
         }
-        return null;
     }
 
     // One bone's T-pose turn in <root>'s space, from the first skinned mesh that uses it.
-    private static bool BindOne(Transform root, List<SkinnedMeshRenderer> renderers, Transform bone, out Quaternion bind)
+    private static bool BindOne(Transform root, Skin[] skins, Transform bone, out Quaternion bind)
     {
-        foreach (SkinnedMeshRenderer renderer in renderers)
+        foreach (Skin skin in skins)
         {
-            if (renderer == null || renderer.sharedMesh == null) continue;
-            int b = Array.IndexOf(renderer.bones, bone);
-            Matrix4x4[] poses = renderer.sharedMesh.bindposes;
-            if (b < 0 || b >= poses.Length) continue;
-            bind = (root.worldToLocalMatrix * renderer.transform.localToWorldMatrix * poses[b].inverse).rotation;
+            int b = Array.IndexOf(skin.bones, bone);
+            if (b < 0 || b >= skin.poses.Length) continue;
+            bind = (root.worldToLocalMatrix * skin.renderer.transform.localToWorldMatrix * skin.poses[b].inverse).rotation;
             return true;
         }
         bind = Quaternion.identity;
         return false;
+    }
+
+    // WHAT A SKINNED MESH KNOWS ABOUT ITS SKELETON, READ ONCE (30 Sept 2026, the performance pass)
+    // Unity's renderer.bones, mesh.bindposes and every Transform's name each hand back a fresh copy. Binding a
+    // body used to read them per bone looked up (and names inside a lambda), about 0.4 MB of garbage every
+    // time someone walked in. Now each renderer's bones and their names are read once per body, and each mesh's
+    // bind poses once per Play session (they're part of the asset).
+    private readonly struct Skin
+    {
+        public readonly SkinnedMeshRenderer renderer;
+        public readonly Transform[] bones;
+        public readonly string[] names;
+        public readonly Matrix4x4[] poses;
+
+        public Skin(SkinnedMeshRenderer renderer, Transform[] bones, string[] names, Matrix4x4[] poses)
+        {
+            this.renderer = renderer;
+            this.bones = bones;
+            this.names = names;
+            this.poses = poses;
+        }
+    }
+
+    private static readonly Dictionary<Mesh, Matrix4x4[]> BindPoseCache = new Dictionary<Mesh, Matrix4x4[]>();
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetBindPoseCache() => BindPoseCache.Clear();
+
+    private static Skin[] ReadSkins(List<SkinnedMeshRenderer> renderers)
+    {
+        var skins = new List<Skin>(renderers.Count);
+        foreach (SkinnedMeshRenderer renderer in renderers)
+        {
+            if (renderer == null || renderer.sharedMesh == null) continue;
+            Transform[] bones = renderer.bones;
+            var names = new string[bones.Length];
+            for (int i = 0; i < bones.Length; i++) names[i] = bones[i] != null ? bones[i].name : null;
+            skins.Add(new Skin(renderer, bones, names, BindPoses(renderer.sharedMesh)));
+        }
+        return skins.ToArray();
+    }
+
+    // In Play Mode a mesh's bind poses are read once and kept (the asset doesn't change while playing); in the
+    // editor's line-ups they're read fresh, since a model can be re-imported between two of them.
+    private static Matrix4x4[] BindPoses(Mesh mesh)
+    {
+        if (!Application.isPlaying) return mesh.bindposes;
+        if (!BindPoseCache.TryGetValue(mesh, out Matrix4x4[] poses)) BindPoseCache[mesh] = poses = mesh.bindposes;
+        return poses;
     }
 
     public void RemoveAppearance()
@@ -595,7 +691,7 @@ public sealed class PolygonNpcVisual : MonoBehaviour
 
     // T-pose of each named bone, in <root>'s space, taken from the skinned
     // meshes' bind poses - exact regardless of what pose the rig is in now.
-    private static bool BindSkeleton(Transform root, List<SkinnedMeshRenderer> renderers, string[] names,
+    private static bool BindSkeleton(Transform root, Skin[] skins, string[] names,
         out Transform[] bones, out Quaternion[] bind, out Vector3[] bindPosition)
     {
         bones = new Transform[names.Length];
@@ -604,15 +700,12 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         int found = 0;
         for (int n = 0; n < names.Length; n++)
         {
-            foreach (SkinnedMeshRenderer renderer in renderers)
+            foreach (Skin skin in skins)
             {
-                if (renderer == null || renderer.sharedMesh == null) continue;
-                Transform[] rendererBones = renderer.bones;
-                Matrix4x4[] poses = renderer.sharedMesh.bindposes;
-                int b = Array.FindIndex(rendererBones, t => t != null && t.name == names[n]);
-                if (b < 0 || b >= poses.Length) continue;
-                Matrix4x4 model = root.worldToLocalMatrix * renderer.transform.localToWorldMatrix * poses[b].inverse;
-                bones[n] = rendererBones[b];
+                int b = Array.IndexOf(skin.names, names[n]);
+                if (b < 0 || b >= skin.poses.Length || skin.bones[b] == null) continue;
+                Matrix4x4 model = root.worldToLocalMatrix * skin.renderer.transform.localToWorldMatrix * skin.poses[b].inverse;
+                bones[n] = skin.bones[b];
                 bind[n] = model.rotation;
                 bindPosition[n] = model.GetColumn(3);
                 found++;

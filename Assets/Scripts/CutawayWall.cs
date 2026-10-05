@@ -42,10 +42,10 @@ public sealed class CutawayWall
     // A group of renderers counts as one object while it fits in this box.
     const float ObjectWidth = 2.6f, ObjectHeight = 3.4f;
     const int ObjectParts = 64;
-    // Rescan what hangs on the wall at most this often (seconds).
-    const float RescanAfter = 5f;
-    // The scene is searched for candidates at most this often (seconds), for every wall at once.
-    const float CandidatesFresh = 60f;
+    // Rescan what hangs on the wall at most this often (seconds). It was 5 until 30 Sept: walls going down
+    // together (back from first person) each looked again in the same frame, a hitch; nothing hangs on a wall
+    // differently five seconds later.
+    const float RescanAfter = 30f;
     // Only renderers within this far of a cut-away wall are candidates for hanging on one (metres).
     const float CandidateReach = 4f;
 
@@ -87,7 +87,8 @@ public sealed class CutawayWall
     {
         wallBounds.Clear();
         candidates = Array.Empty<MeshRenderer>();
-        candidatesAt = float.NegativeInfinity;
+        candidatesKnown = false;
+        lookedAtFrame = -1;
     }
 
     float progress, keep = 1f, appliedKeep = -1f, clearFor, scannedAt = float.NegativeInfinity;
@@ -239,16 +240,20 @@ public sealed class CutawayWall
     // with the city in the scene) every time it started going down, at most every five seconds. Orbiting
     // the café drops one wall after another, so that was a search every couple of seconds: a spike each
     // time (Mansoor's second playtest: the frame rate drops when he looks around). Now the scene is
-    // searched at most once a minute, for every wall at once, and only what stands within a few metres
-    // of some cut-away wall is kept; a wall going down looks through that short list.
+    // searched once, for every wall at once, and only what stands within a few metres of some cut-away
+    // wall is kept; a wall going down looks through that short list. Nothing near the walls comes or goes
+    // during play (the upgrades are numbers, not furniture), so the list is kept until something says
+    // otherwise: the night walk starting or ending (its lamps and signs), the furnishing tools, a new wall.
     static MeshRenderer[] candidates = Array.Empty<MeshRenderer>();
-    static float candidatesAt = float.NegativeInfinity;
+    static bool candidatesKnown;
     static readonly List<Bounds> wallBounds = new();
+    // The frame a wall last looked for what hangs on it: one wall looks per frame (see FindDecor).
+    static int lookedAtFrame = -1;
 
     static MeshRenderer[] Candidates()
     {
-        if (Time.unscaledTime - candidatesAt < CandidatesFresh) return candidates;
-        candidatesAt = Time.unscaledTime;
+        if (candidatesKnown) return candidates;
+        candidatesKnown = true;
         var kept = new List<MeshRenderer>();
         foreach (MeshRenderer r in Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Exclude))
         {
@@ -266,13 +271,32 @@ public sealed class CutawayWall
     }
 
     /// <summary>Forget the shared candidates: the next wall to go down searches the scene again (after furnishing changes).</summary>
-    public static void ForgetCandidates() => candidatesAt = float.NegativeInfinity;
+    public static void ForgetCandidates() => candidatesKnown = false;
 
-    // Looked up each time the wall starts going down (at most every few seconds),
-    // so things added or moved during the day are found too.
-    void FindDecor(Transform player, HashSet<Renderer> skip)
+    /// <summary>The shared search, ahead of time (CafeViewMode does it in the frames after loading).</summary>
+    public static void PrepareCandidates() => Candidates();
+
+    /// <summary>
+    /// Ahead of time (the frames after loading, one wall a frame): find what hangs on this wall and make the
+    /// see-through copies it and they will wear, so the first time it goes down costs nothing extra.
+    /// </summary>
+    public void Prepare(Transform player, HashSet<Renderer> skip)
     {
-        if (Time.unscaledTime - scannedAt < RescanAfter) return;
+        FindDecor(player, skip, force: true);
+        if (!Fades) return;
+        SeeThroughMaterials.Prepare(Wall);
+        for (int i = 0; i < decorRenderers.Count; i++) SeeThroughMaterials.Prepare(decorRenderers[i]);
+    }
+
+    // Looked up each time the wall starts going down (at most every RescanAfter seconds), so things moved
+    // during the day are found too. One wall looks per frame: when several go down together (back from first
+    // person) the others keep the list they had (Prepare made one for each after loading) and look again the
+    // next time they go down.
+    void FindDecor(Transform player, HashSet<Renderer> skip, bool force = false)
+    {
+        bool hasList = scannedAt > float.NegativeInfinity;
+        if (!force && hasList && (Time.unscaledTime - scannedAt < RescanAfter || Time.frameCount == lookedAtFrame)) return;
+        lookedAtFrame = Time.frameCount;
         scannedAt = Time.unscaledTime;
         ForgetDecor();
 
@@ -301,8 +325,12 @@ public sealed class CutawayWall
                 decorWorn.Add(false);
             }
         }
-        // A wall already down wears its new list at once.
-        if (worn) WearAll();
+        // A wall already down puts its new list on at once (the wall itself already wears its copy, or hides).
+        for (int i = 0; i < decorRenderers.Count; i++)
+        {
+            if (worn && !decorWorn[i]) { decorWorn[i] = true; SeeThroughMaterials.Wear(decorRenderers[i]); }
+            else if (!Fades && wallHidden) SetHidden(i, true);
+        }
         appliedKeep = -1f;
     }
 

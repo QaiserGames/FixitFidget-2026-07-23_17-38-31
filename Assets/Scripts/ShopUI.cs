@@ -84,7 +84,9 @@ public class ShopUI : MonoBehaviour
                 if (!ReferenceEquals(hintBase, shownHintBase) && hintBase != shownHintBase || atNight != shownHintNight)
                 {
                     shownHintBase = hintBase; shownHintNight = atNight;
-                    shownHint = atNight ? hintBase + $"    {ControlHints.Torch}  Torch    {ControlHints.NotebookPage}  Notebook" : hintBase;
+                    shownHint = atNight
+                        ? hintBase + $"    {ControlHints.Sneak}  Sneak    {ControlHints.Torch}  Torch    {ControlHints.NotebookPage}  Notebook"
+                        : hintBase;
                     viewHintText.text = shownHint;
                 }
             }

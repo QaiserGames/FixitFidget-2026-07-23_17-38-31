@@ -26,7 +26,7 @@ public static class CircuitIntegrationChecks
             UnityEngine.Object.Destroy(phone);
             throw new InvalidOperationException("No phone software fault is installed.");
         }
-        foreach (DropSpot spot in UnityEngine.Object.FindObjectsByType<DropSpot>(FindObjectsSortMode.None))
+        foreach (DropSpot spot in UnityEngine.Object.FindObjectsByType<DropSpot>())
         {
             if (spot.Kind != DropSpot.SpotKind.Bench || !spot.CanAccept(job)) continue;
             Transform point = spot.ResolvePoint(job);

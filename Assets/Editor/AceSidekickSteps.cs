@@ -17,6 +17,7 @@ using Object = UnityEngine.Object;
 //
 //   Fixit Fidget > Night > Ace's body 4 - Put on Ace's Sidekick body (from the Character Creator)
 //   Fixit Fidget > Night > Ace's body 4 - Take off the Sidekick body (back to the stand-in)
+//   Fixit Fidget > Night > Ace's body 5 - Sneaking: fit the crouch clips to Ace (scene)   (break-ins chunk B, 30 Sept)
 //
 // Putting it on fills in Ace's AceBody (see AceBody.cs) with Ace's own character: the prefab the Sidekick
 // Character Creator exported as "Ace" (Assets/Synty/SidekickCharacters/Characters/Ace, git-ignored), and
@@ -44,6 +45,8 @@ internal static class AceSidekickSteps
     internal const string LibraryFolder = "Assets/ThirdParty/Quaternius_UAL/Humanoid";
     internal const string LibraryHumanoid = LibraryFolder + "/AnimationLibrary_Humanoid.fbx";
     const string IdleTake = "Idle_Loop", WalkTake = "Walk_Loop";
+    const string CrouchIdleTake = "Crouch_Idle_Loop", CrouchWalkTake = "Crouch_Fwd_Loop";
+    const string CrouchName = "Ace's body 5 - Sneaking: fit the crouch clips to Ace (scene)";
     static readonly string[] RunTakes = { "Jog_Fwd_Loop", "Sprint_Loop" };
     // What the copy keeps: idle, walk, the two runs (one is picked), and the crouch for chunk B.
     static readonly string[] Takes = { IdleTake, WalkTake, "Jog_Fwd_Loop", "Sprint_Loop", "Crouch_Idle_Loop", "Crouch_Fwd_Loop" };
@@ -146,6 +149,7 @@ internal static class AceSidekickSteps
             Undo.RecordObject(body, "Take off Ace's Sidekick body");
             body.sidekick = null;
             body.sidekickIdle = body.sidekickWalk = body.sidekickRun = null;
+            body.sidekickCrouchIdle = body.sidekickCrouchWalk = null;
             EditorUtility.SetDirty(body);
             EditorSceneManager.MarkSceneDirty(ace.gameObject.scene);
             Debug.Log(Tag + "The Sidekick body is off: Ace wears the stand-in (" + body.LookName + ") again. " +
@@ -159,7 +163,138 @@ internal static class AceSidekickSteps
 
     [MenuItem(Menu + PutOnName, true)]
     [MenuItem(Menu + TakeOffName, true)]
+    [MenuItem(Menu + CrouchName, true)]
     static bool NotPlaying() => !EditorApplication.isPlayingOrWillChangePlaymode;
+
+    // ------------------------------------------------------------------ sneaking: the crouch (break-ins chunk B)
+
+    // Ace's body 5: the library's two crouch loops on Ace's Sidekick body (they are already in the Humanoid copy).
+    // Measures the crouch walk the way the walk and the run were measured (the stance foot's backward speed and
+    // when the left foot is furthest forward), and how tall Ace is crouched; photographs Ace standing, crouched
+    // and crouch walking; and sets AceBody's crouch fields (undo). Save the scene to keep them.
+    [MenuItem(Menu + CrouchName)]
+    static void FitCrouchMenu()
+    {
+        string folder = null;
+        var report = new StringBuilder();
+        try
+        {
+            CityPackChecks.RequireScene();
+            PlayerMovement ace = AceBodySteps.FindAce();
+            AceBody body = ace.GetComponent<AceBody>();
+            if (body == null || body.sidekick == null)
+                throw new InvalidOperationException("Ace has no Sidekick body yet (Ace's body 4 puts it on). Nothing was changed.");
+            folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night",
+                "ace-sneak-" + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture)));
+            Directory.CreateDirectory(folder);
+            report.AppendLine("Ace sneaking: the crouch clips on Ace's Sidekick body, " + DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture));
+            Dictionary<string, AnimationClip> clips = HumanoidLibrary(report);
+            float scale = body.sidekickScale > .01f ? body.sidekickScale : 1f;
+            Crouched c;
+            using (var studio = new Studio())
+                c = FitCrouch(studio, body.sidekick, clips, scale, body.sidekickFootIK, folder, report);
+
+            Undo.RecordObject(body, "Fit Ace's crouch clips");
+            body.sidekickCrouchIdle = clips[CrouchIdleTake];
+            body.sidekickCrouchWalk = clips[CrouchWalkTake];
+            body.sidekickCrouchSpeed = c.walk.speed;
+            body.sidekickCrouchLeftForward = c.walk.leftForward;
+            body.sidekickCrouchHeight = c.crouched * scale;
+            EditorUtility.SetDirty(body);
+            EditorSceneManager.MarkSceneDirty(ace.gameObject.scene);
+
+            float sneak = SneakSpeed(ace);
+            report.AppendLine();
+            report.AppendLine($"Set AceBody on '{ace.name}': crouch clips {CrouchIdleTake} and {CrouchWalkTake}; the crouch walk's natural speed " +
+                              $"{c.walk.speed:0.00} m/s at scale 1, {c.walk.speed * scale:0.00} m/s on Ace ({scale:0.000}x), so at Ace's sneaking " +
+                              $"{sneak:0.0} m/s it plays at {sneak / Mathf.Max(.01f, c.walk.speed * scale):0.00}x; Ace crouched is {c.crouched * scale:0.00} m tall " +
+                              $"(standing {c.standing * scale:0.00} m). Save the scene to keep it (Ctrl+S).");
+            File.WriteAllText(Path.Combine(folder, "report.txt"), report.ToString());
+            Debug.Log(Tag + $"Ace can crouch: the crouch walk plays at {sneak / Mathf.Max(.01f, c.walk.speed * scale):0.00}x at {sneak:0.0} m/s; " +
+                      $"{c.crouched * scale:0.00} m tall crouched. Save the scene to keep it. {folder}\n{report}");
+        }
+        catch (Exception e)
+        {
+            if (folder != null)
+            {
+                report.AppendLine().AppendLine("FAILED: " + e.Message);
+                File.WriteAllText(Path.Combine(folder, "report.txt"), report.ToString());
+            }
+            Debug.LogError(Tag + "Fit the crouch clips FAILED: " + e.Message + (folder != null ? " Report so far: " + folder : "") + "\n" + e);
+        }
+    }
+
+    struct Crouched { public Gait walk; public float standing, crouched; }
+
+    static Crouched FitCrouch(Studio studio, GameObject sidekick, Dictionary<string, AnimationClip> clips, float scale, bool footIK,
+        string folder, StringBuilder report)
+    {
+        foreach (string take in new[] { CrouchIdleTake, CrouchWalkTake })
+            if (!clips.ContainsKey(take)) throw new InvalidOperationException($"{LibraryHumanoid} has no clip '{take}'. AceBody wasn't changed.");
+        var c = new Crouched();
+        GameObject actor = studio.Add(sidekick);
+        try
+        {
+            using var poser = new Poser(actor, footIK);
+            // Heights at scale 1 (the posed bounds are in the world, and the actor is at 1 here).
+            poser.Pose(clips[IdleTake], clips[IdleTake].length * .35f);
+            c.standing = PosedBounds(actor).size.y;
+            poser.Pose(clips[CrouchIdleTake], clips[CrouchIdleTake].length * .35f);
+            c.crouched = PosedBounds(actor).size.y;
+            c.walk = HumanGait(poser, clips[CrouchWalkTake], Path.Combine(folder, "ace-" + CrouchWalkTake + ".csv"));
+            report.AppendLine();
+            report.AppendLine("The crouch on Ace (Humanoid, scale 1):");
+            report.AppendLine($"  standing {c.standing:0.00} m, crouched ({CrouchIdleTake}) {c.crouched:0.00} m, {c.crouched / Mathf.Max(.01f, c.standing) * 100f:0}% of standing");
+            report.AppendLine("  " + c.walk.how);
+            if (c.walk.facing < 0)
+                throw new InvalidOperationException($"On Ace the crouch walk faces -Z, backwards for AceBody: see the import settings of {LibraryHumanoid}. AceBody wasn't changed.");
+            if (c.walk.speed <= .1f)
+                throw new InvalidOperationException($"Couldn't measure the crouch walk's speed ({c.walk.how}). AceBody wasn't changed.");
+            if (c.crouched < .4f || c.crouched > c.standing * .95f)
+                throw new InvalidOperationException($"The crouch doesn't look like a crouch ({c.crouched:0.00} m against {c.standing:0.00} m standing). AceBody wasn't changed.");
+
+            // Photos at Ace's real size: standing, crouched (front, three-quarters, side), and the crouch walk, four moments.
+            // The face holds the jaw shut, as AceFace does in play (the clips have no jaw).
+            actor.transform.localScale = Vector3.one * scale;
+            AceFace face = actor.AddComponent<AceFace>();
+            bool faceBound = face.Bind(actor.transform, poser.Animator);
+            void Hold() { if (faceBound) face.Apply(0f, Vector2.zero); }
+            const int W = 300, H = 420;
+            var sheet = new Sheet(4, 2, W, H);
+            Vector3 middle = new Vector3(0f, 1.05f, 0f);
+            poser.Pose(clips[IdleTake], clips[IdleTake].length * .35f);
+            Hold();
+            sheet.Put(0, 0, studio.Shot(middle, 25f, 8f, 5.2f, 24f, W, H));
+            AnimationClip still = clips[CrouchIdleTake], walk = clips[CrouchWalkTake];
+            (float yaw, float at)[] crouchedShots = { (25f, .35f), (60f, .35f), (90f, .35f) };
+            for (int i = 0; i < crouchedShots.Length; i++)
+            {
+                poser.Pose(still, still.length * crouchedShots[i].at);
+                Hold();
+                sheet.Put(i + 1, 0, studio.Shot(middle, crouchedShots[i].yaw, 8f, 5.2f, 24f, W, H));
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                poser.Pose(walk, Mathf.Repeat(c.walk.leftForward + i * .25f, 1f) * walk.length);
+                Hold();
+                sheet.Put(i, 1, studio.Shot(middle, 60f, 8f, 5.2f, 24f, W, H));
+            }
+            string photo = Path.Combine(folder, "1-crouch.png");
+            sheet.Save(photo);
+            report.AppendLine();
+            report.AppendLine("Photo: " + photo);
+            report.AppendLine($"  Top: Ace standing ({IdleTake}); crouched ({CrouchIdleTake}) from the front-left, three-quarters and the side. " +
+                              $"Bottom: the crouch walk ({CrouchWalkTake}), four moments a quarter of a stride apart.");
+            return c;
+        }
+        finally { studio.Remove(actor); }
+    }
+
+    static float SneakSpeed(PlayerMovement ace)
+    {
+        SerializedProperty speed = new SerializedObject(ace).FindProperty("sneakSpeed");
+        return speed != null && speed.floatValue > .1f ? speed.floatValue : 1.6f;
+    }
 
     // ------------------------------------------------------------------ the Humanoid copy of the library
 

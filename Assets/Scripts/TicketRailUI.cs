@@ -48,7 +48,7 @@ public class TicketRailUI : MonoBehaviour
         if (Time.frameCount < nextScanFrame) { PruneStale(); return; }
         nextScanFrame = Time.frameCount + 6;
         CustomerBrain[] all = FindObjectsByType<CustomerBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         // Add tickets for anyone whose job we've accepted.
         foreach (CustomerBrain b in all)

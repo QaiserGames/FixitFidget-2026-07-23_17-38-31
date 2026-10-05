@@ -61,6 +61,40 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Degrees either side of a screen axis where the pull fades out.")]
     [SerializeField, Range(0f, 30f)] private float assistScreenEdge = 9f;
 
+    // SNEAKING (break-ins chunk B, 30 Sept 2026: claude/break-ins-spec.md §6 and §8)
+    //
+    // At night Ace can sneak: held Ctrl or C on the keyboard; on a controller the left stick's click
+    // switches it on and off (holding a stick down while steering with it is a cramp, so the pad
+    // toggles). Sneaking is 1.6 m/s instead of 5, crouched: the body lowers (AceBody plays the
+    // crouch clips) and the first-person eye drops, but the capsule stays exactly as it is (call 1),
+    // so nothing has to check headroom when Ace stands up. Steps are quieter and heard within 1 m
+    // instead of 4 (AceFootsteps, NightNoise). By day it's off: C switches hands in the café.
+    [Header("Sneaking (at night)")]
+    [Tooltip("Sneaking speed, m/s (the break-ins spec: 1.6; walking is Move Speed).")]
+    [SerializeField, Min(.2f)] private float sneakSpeed = 1.6f;
+    [Tooltip("Seconds to crouch down, or to stand back up.")]
+    [SerializeField, Range(.05f, 1f)] private float crouchSeconds = .25f;
+    [Tooltip("How far the first-person eye drops when crouched, metres.")]
+    [SerializeField, Range(0f, 1f)] private float crouchEyeDrop = .55f;
+    [Tooltip("Sneaking by day too (the café). Off: only at night (by day C switches hands).")]
+    [SerializeField] private bool sneakByDay;
+
+    /// <summary>Ace is sneaking (held Ctrl or C, or the pad's toggle), at night.</summary>
+    public bool Sneaking { get; private set; }
+    /// <summary>How crouched Ace is, 0 standing to 1 crouched (eased over Crouch Seconds). AceBody and the eye follow it.</summary>
+    public float Crouch { get; private set; }
+    /// <summary>How far the first-person eye is lowered right now, metres.</summary>
+    public float EyeDrop => Crouch * crouchEyeDrop;
+    /// <summary>The speed Ace walks at right now, m/s: Move Speed standing, Sneak Speed crouched, eased with the crouch.</summary>
+    public float TopSpeed => Mathf.Lerp(moveSpeed, sneakSpeed, Crouch);
+    /// <summary>Diagnostics: while set, it stands in for the sneak key (the checks sneak on their own).</summary>
+    public bool? ScriptedSneak { get; set; }
+    /// <summary>The settings, for checks: walking and sneaking speed (m/s), and how far the eye drops crouched (m).</summary>
+    public float WalkSpeed => moveSpeed;
+    public float SneakSpeed => sneakSpeed;
+    public float CrouchEyeDrop => crouchEyeDrop;
+    bool padSneak;
+
     /// <summary>The player's setting, kept between sessions; the Inspector's value is the default.</summary>
     public const string AssistPrefKey = "FixitFidget.MovementAssist";
     bool? assistSetting;
@@ -148,8 +182,31 @@ public class PlayerMovement : MonoBehaviour
         CommandedVelocity = Vector3.zero;
     }
 
+    // Sneaking: at night only (unless Sneak By Day), held Ctrl or C, or the pad's toggle, or a check's
+    // ScriptedSneak. Crouch eases toward it, and the speed follows the crouch (see TopSpeed).
+    private void UpdateSneak()
+    {
+        NightWalk night = NightWalk.Instance;
+        bool allowed = sneakByDay || night != null && night.Active;
+        if (!allowed)
+        {
+            padSneak = false;
+            Sneaking = false;
+        }
+        else
+        {
+            if (PadInput.Pressed(PadButton.LeftStickPress)) padSneak = !padSneak;
+            Keyboard keys = Keyboard.current;
+            bool held = keys != null && Application.isFocused
+                && (keys.leftCtrlKey.isPressed || keys.rightCtrlKey.isPressed || keys.cKey.isPressed);
+            Sneaking = ScriptedSneak ?? (held || padSneak);
+        }
+        Crouch = Mathf.MoveTowards(Crouch, Sneaking ? 1f : 0f, Time.deltaTime / Mathf.Max(.01f, crouchSeconds));
+    }
+
     private void Update()
     {
+        UpdateSneak();
         if (Time.timeScale <= 0 || (DayClock.Instance != null && DayClock.Instance.RecapOwnsInput)
             || (conversation != null && conversation.InConversation))
         {
@@ -181,7 +238,7 @@ public class PlayerMovement : MonoBehaviour
             // by top speed. MoveTowards keeps it frame-rate independent: the same
             // corner feels the same at 60 fps and at 240.
             bool held = target.sqrMagnitude > 0.0001f;
-            float rate = (held ? firstPersonAcceleration : firstPersonBraking) / Mathf.Max(moveSpeed, 0.01f);
+            float rate = (held ? firstPersonAcceleration : firstPersonBraking) / Mathf.Max(TopSpeed, 0.01f);
             walkInput = Vector2.MoveTowards(walkInput, target, rate * Time.deltaTime);
         }
         else
@@ -198,7 +255,7 @@ public class PlayerMovement : MonoBehaviour
         bool overhead = viewMode == null || !viewMode.WalkingFirstPerson;
         if (overhead && ScriptedInput == null && MovementAssist) move = Assisted(move, cameraYaw);
 
-        CommandedVelocity = move * moveSpeed;
+        CommandedVelocity = move * TopSpeed;
         controller.SimpleMove(CommandedVelocity);
     }
 

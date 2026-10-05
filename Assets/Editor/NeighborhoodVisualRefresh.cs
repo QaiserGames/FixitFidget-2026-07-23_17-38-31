@@ -16,7 +16,7 @@ public static class NeighborhoodVisualRefresh
     static readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
     static readonly Vector3[] Trees = { new Vector3(16.5f,0,5.6f), new Vector3(16.5f,0,15.5f), new Vector3(-6.6f,0,19.5f) };
     static readonly Vector3[] Benches = { new Vector3(16.5f,0,1.5f), new Vector3(16.5f,0,10.7f), new Vector3(16.5f,0,19.6f), new Vector3(-.4f,0,19.5f) };
-    static Transform Find(string name) => Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None).FirstOrDefault(t => t.gameObject.scene == SceneManager.GetActiveScene() && t.name == name);
+    static Transform Find(string name) => Object.FindObjectsByType<Transform>(FindObjectsInactive.Include).FirstOrDefault(t => t.gameObject.scene == SceneManager.GetActiveScene() && t.name == name);
     static Transform Group(string name, Transform parent)
     {
         var t = new GameObject(name).transform; t.SetParent(parent, false); return t;

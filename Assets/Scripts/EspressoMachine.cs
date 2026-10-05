@@ -15,7 +15,7 @@ public class EspressoMachine : Interactable
     // Everyone waiting on a drink that hasn't been started, oldest order first.
     //
     // THE BUG THIS FIXES: this used to claim "oldest first" while relying on
-    // whatever order FindObjectsByType handed back — and FindObjectsSortMode.None
+    // whatever order FindObjectsByType handed back — and it (unsorted)
     // explicitly guarantees NO order, stable or otherwise. So orders[0] was
     // arbitrary, and could differ between the frame that drew the prompt and
     // the frame you pressed E. The prompt said "Make Latte for Priya" and the
@@ -29,7 +29,7 @@ public class EspressoMachine : Interactable
         {
             List<CustomerBrain> list = new();
             foreach (CustomerBrain b in FindObjectsByType<CustomerBrain>(
-                         FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                         FindObjectsInactive.Exclude))
             {
                 if (b.AwaitingDrink) list.Add(b);
             }
@@ -68,7 +68,7 @@ public class EspressoMachine : Interactable
                 // how the latched-order bug hid for so long. Say which it is.
                 int made = 0;
                 foreach (CustomerBrain b in FindObjectsByType<CustomerBrain>(
-                             FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                             FindObjectsInactive.Exclude))
                 {
                     if (b != null && b.HasDrinkOrder && !b.AwaitingDrink) made++;
                 }

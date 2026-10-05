@@ -15,7 +15,7 @@ public class ScrewTarget : BenchInteractable
 
     private void Start()
     {
-        rig = FindFirstObjectByType<BenchRig>();
+        rig = FindAnyObjectByType<BenchRig>();
     }
 
     // The plate this screw fastens tells us who it is at startup.

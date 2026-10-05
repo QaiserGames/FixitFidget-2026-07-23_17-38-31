@@ -243,7 +243,7 @@ public class DayLog : MonoBehaviour
     private void SweepRemaining()
     {
         CustomerBrain[] left = FindObjectsByType<CustomerBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
 
         foreach (CustomerBrain b in left)
         {

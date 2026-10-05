@@ -273,7 +273,7 @@ public class CustomerSpawner : MonoBehaviour
         if (opening.IsActive) cap = 1;
 
         int living = FindObjectsByType<CustomerBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length;
+            FindObjectsInactive.Exclude).Length;
         if (living >= cap)
         {
             if (opening.IsActive) timer = blockedRetryInterval;

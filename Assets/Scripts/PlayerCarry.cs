@@ -216,7 +216,7 @@ public class PlayerCarry : MonoBehaviour
             while (side < capacity && hands.Exists(h => h.hand == side)) side++;
             if (side >= capacity) return false;
         }
-        foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsSortMode.None)) spot.Release(item);
+        foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(item);
         if (item is DrinkJob drink)
             foreach (BeverageSlot slot in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude)) slot.Release(drink);
         var held = new Held { item = item, hand = side, scale = item.transform.localScale,

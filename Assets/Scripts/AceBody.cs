@@ -24,6 +24,11 @@ using UnityEngine.Playables;
 // shared by the walk and the run. The body stands on the floor under Ace (a ray down from the capsule's
 // middle) and turns to face where Ace is going; it keeps that heading when Ace stops.
 //
+// Sneaking (break-ins chunk B, 30 Sept): as Ace crouches (PlayerMovement.Crouch), the Sidekick body blends
+// into the library's crouch clips (Crouch_Idle_Loop and Crouch_Fwd_Loop, Humanoid), the crouch walk at the
+// rate that keeps its feet planted. Fixit Fidget > Night > Ace's body 5 fits them. The stand-in has no
+// crouch clips, so it sneaks upright, just slowly.
+//
 // Only what you see changes. The collider is still the 1.0 m capsule (call 1), so the body stops
 // about a third of a metre short of walls; walking, interacting and the cameras are untouched. The
 // capsule's own mesh hides while the body is drawn; in first person and at a station the body hides,
@@ -54,6 +59,16 @@ public sealed class AceBody : MonoBehaviour
     [Tooltip("The face lives: blinks and small glances (AceFace). Off: the eyes stay open and still; the jaw is held shut either way.")]
     public bool sidekickFace = true;
 
+    [Header("Sneaking, the crouch (break-ins chunk B): set by Fixit Fidget > Night > Ace's body 5")]
+    [Tooltip("Humanoid crouch clips for the Sidekick body: crouched and still, and walking crouched (Crouch_Idle_Loop, Crouch_Fwd_Loop from the Humanoid copy). Missing: sneaking is slow but upright.")]
+    public AnimationClip sidekickCrouchIdle, sidekickCrouchWalk;
+    [Tooltip("The crouch walk's natural ground speed on the Sidekick body at scale 1, m/s.")]
+    [Min(.1f)] public float sidekickCrouchSpeed = 1f;
+    [Tooltip("Where in the crouch walk (0-1) the left foot is furthest forward.")]
+    [Range(0f, 1f)] public float sidekickCrouchLeftForward;
+    [Tooltip("The Sidekick body's height crouched, metres, as measured by the set-up step. Grace's eyes aim at it (chunk C).")]
+    [Min(0f)] public float sidekickCrouchHeight;
+
     [Header("The stand-in body (look 11), also the fallback: set by Fixit Fidget > Night > Ace's body 1")]
     [Tooltip("The city look (a prefab in Assets/Art/CityNeighbors/Prefabs). Missing, with no Sidekick body: Ace stays the capsule.")]
     public GameObject look;
@@ -82,6 +97,8 @@ public sealed class AceBody : MonoBehaviour
     public Vector2 walkBlend = new Vector2(.15f, .6f);
     [Tooltip("Speeds, m/s: from walking to running.")]
     public Vector2 runBlend = new Vector2(2.2f, 3.4f);
+    [Tooltip("Speeds, m/s: crouched, from still to walking.")]
+    public Vector2 crouchBlend = new Vector2(.1f, .45f);
     [Tooltip("Seconds the feet take to follow the floor's height (a step up, the stairs).")]
     [Range(0f, .3f)] public float feetSmoothing = .05f;
 
@@ -93,8 +110,16 @@ public sealed class AceBody : MonoBehaviour
     public bool WearsSidekick { get; private set; }
     /// <summary>Ace's horizontal speed as the gait sees it, m/s (smoothed).</summary>
     public float Speed => speed;
-    /// <summary>How much of each clip is showing: idle, walk, run (they add up to 1).</summary>
+    /// <summary>How much of each standing clip is showing: idle, walk, run (they add up to 1 standing, less as Ace crouches).</summary>
     public Vector3 Gait => new Vector3(wIdle, wWalk, wRun);
+    /// <summary>How much of the crouch clips is showing: crouched and still, crouch walking (they add up to how crouched Ace is).</summary>
+    public Vector2 CrouchGait => new Vector2(wCrouchIdle, wCrouchWalk);
+    /// <summary>The body on can crouch (the Sidekick body with its crouch clips; the stand-in can't).</summary>
+    public bool CanCrouch => crouchIdleNow != null && crouchWalkNow != null;
+    /// <summary>The crouch walk's playback rate right now (1 = as made).</summary>
+    public float CrouchRate { get; private set; } = 1f;
+    /// <summary>The body's height crouched, metres (measured by the set-up step; else about two thirds of standing).</summary>
+    public float CrouchedHeight => WearsSidekick && sidekickCrouchHeight > .3f ? sidekickCrouchHeight : Height * .66f;
     /// <summary>The run clip's playback rate right now (1 = as made).</summary>
     public float RunRate { get; private set; } = 1f;
     /// <summary>While Ace moves: degrees between where the body faces and where Ace is going (0 standing).</summary>
@@ -116,20 +141,21 @@ public sealed class AceBody : MonoBehaviour
     static bool labRequest;
     CafeViewMode view;
     CharacterController capsule;
+    PlayerMovement movement;
     Transform rigRoot;
     PolygonNpcVisual visual;
     Renderer[] ownRenderers;
     AceFace face;
     PlayableGraph graph;
     AnimationMixerPlayable mixer;
-    AnimationClipPlayable idle, walk, run;
+    AnimationClipPlayable idle, walk, run, crouchIdle, crouchWalk;
     GameObject drawnInstance;
     bool drawnSet, sidekickFailed, standInFailed;
-    // The clips of the body that's on, and their numbers.
-    AnimationClip idleNow, walkNow, runNow;
-    float walkSpeedNow, runSpeedNow, walkLeftNow, runLeftNow;
+    // The clips of the body that's on, and their numbers (no crouch clips on the stand-in).
+    AnimationClip idleNow, walkNow, runNow, crouchIdleNow, crouchWalkNow;
+    float walkSpeedNow, runSpeedNow, walkLeftNow, runLeftNow, crouchSpeedNow, crouchLeftNow;
     Vector3 lastPosition;
-    float speed, wIdle = 1f, wWalk, wRun, idleTime, phase, bodyYaw, feetY, feetVelocity;
+    float speed, wIdle = 1f, wWalk, wRun, wCrouchIdle, wCrouchWalk, idleTime, phase, crouchIdleTime, crouchPhase, bodyYaw, feetY, feetVelocity;
     bool placed;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -150,6 +176,7 @@ public sealed class AceBody : MonoBehaviour
     {
         view = GetComponent<CafeViewMode>();
         capsule = GetComponent<CharacterController>();
+        movement = GetComponent<PlayerMovement>();
     }
 
     // Look 11 leaves the walk-ins' pool while Ace wears it, by day too; with the Sidekick body it stays theirs.
@@ -235,6 +262,12 @@ public sealed class AceBody : MonoBehaviour
         idleNow = sidekickIdle; walkNow = sidekickWalk; runNow = sidekickRun;
         walkSpeedNow = sidekickWalkSpeed; runSpeedNow = sidekickRunSpeed;
         walkLeftNow = sidekickWalkLeftForward; runLeftNow = sidekickRunLeftForward;
+        // The crouch, both clips or neither (Ace's body 5 sets them).
+        bool crouch = sidekickCrouchIdle != null && sidekickCrouchWalk != null;
+        crouchIdleNow = crouch ? sidekickCrouchIdle : null;
+        crouchWalkNow = crouch ? sidekickCrouchWalk : null;
+        crouchSpeedNow = sidekickCrouchSpeed;
+        crouchLeftNow = sidekickCrouchLeftForward;
         BuildGraph(animator, sidekickFootIK);
 
         ownRenderers = body.GetComponentsInChildren<Renderer>(true);
@@ -271,9 +304,11 @@ public sealed class AceBody : MonoBehaviour
         idleNow = idleClip; walkNow = walkClip; runNow = runClip;
         walkSpeedNow = walkClipSpeed; runSpeedNow = runClipSpeed;
         walkLeftNow = walkLeftForward; runLeftNow = runLeftForward;
+        crouchIdleNow = crouchWalkNow = null;   // the café rig has no crouch: the stand-in sneaks upright
         BuildGraph(animator, false);
 
         visual = body.AddComponent<PolygonNpcVisual>();
+        visual.EveryFrame = true;   // Ace is always posed: the café people take turns at high frame rates, Ace never
         visual.Configure(new[] { look }, 0f, 0, 0f);
         if (!visual.ApplyAppearance(0))
         {
@@ -293,10 +328,15 @@ public sealed class AceBody : MonoBehaviour
     {
         graph = PlayableGraph.Create("Ace's body");
         graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
-        mixer = AnimationMixerPlayable.Create(graph, 3);
+        mixer = AnimationMixerPlayable.Create(graph, CanCrouch ? 5 : 3);
         idle = Clip(idleNow, 0, footIK);
         walk = Clip(walkNow, 1, footIK);
         run = Clip(runNow, 2, footIK);
+        if (CanCrouch)
+        {
+            crouchIdle = Clip(crouchIdleNow, 3, footIK);
+            crouchWalk = Clip(crouchWalkNow, 4, footIK);
+        }
         AnimationPlayableOutput output = AnimationPlayableOutput.Create(graph, "Ace's body", animator);
         output.SetSourcePlayable(mixer);
         graph.Play();
@@ -317,7 +357,7 @@ public sealed class AceBody : MonoBehaviour
         lastPosition = transform.position;
         speed = 0f;
         wIdle = 1f;
-        wWalk = wRun = 0f;
+        wWalk = wRun = wCrouchIdle = wCrouchWalk = 0f;
         bodyYaw = transform.eulerAngles.y;
         placed = false;
         drawnInstance = null;
@@ -340,6 +380,7 @@ public sealed class AceBody : MonoBehaviour
         visual = null;
         ownRenderers = null;
         face = null;
+        crouchIdleNow = crouchWalkNow = null;
         drawnInstance = null;
         drawnSet = false;
         bool wasWorn = Worn;
@@ -385,12 +426,18 @@ public sealed class AceBody : MonoBehaviour
         }
         else FacingError = 0f;
 
-        // Which clips: standing, walking, running.
+        // Which clips: standing, walking, running; and, as Ace crouches (sneaking), crouched and still or
+        // crouch walking instead. The stand-in has no crouch clips, so it sneaks upright.
+        float crouched = CanCrouch && movement != null ? movement.Crouch : 0f;
         float moving = Smooth(Mathf.InverseLerp(walkBlend.x, walkBlend.y, speed));
         float running = Smooth(Mathf.InverseLerp(runBlend.x, runBlend.y, speed));
-        wIdle = 1f - moving;
-        wWalk = moving * (1f - running);
-        wRun = moving * running;
+        float stalking = Smooth(Mathf.InverseLerp(crouchBlend.x, crouchBlend.y, speed));
+        float upright = 1f - crouched;
+        wIdle = upright * (1f - moving);
+        wWalk = upright * moving * (1f - running);
+        wRun = upright * moving * running;
+        wCrouchIdle = crouched * (1f - stalking);
+        wCrouchWalk = crouched * stalking;
 
         // One stride phase for both, so the feet keep step while they blend: each clip at the rate that
         // keeps its stance foot planted at this speed.
@@ -410,6 +457,16 @@ public sealed class AceBody : MonoBehaviour
         mixer.SetInputWeight(0, wIdle);
         mixer.SetInputWeight(1, wWalk);
         mixer.SetInputWeight(2, wRun);
+        if (!CanCrouch) return;
+
+        // The crouch walk keeps its own stride phase, at the rate that keeps its stance foot planted.
+        CrouchRate = Mathf.Clamp(speed / Mathf.Max(.1f, crouchSpeedNow * scale), .5f, 2f);
+        crouchPhase = Mathf.Repeat(crouchPhase + dt * CrouchRate / crouchWalkNow.length, 1f);
+        crouchIdleTime = Mathf.Repeat(crouchIdleTime + dt, crouchIdleNow.length);
+        crouchIdle.SetTime(crouchIdleTime);
+        crouchWalk.SetTime(Mathf.Repeat(crouchPhase + crouchLeftNow, 1f) * crouchWalkNow.length);
+        mixer.SetInputWeight(3, wCrouchIdle);
+        mixer.SetInputWeight(4, wCrouchWalk);
     }
 
     static float Smooth(float t) => t * t * (3f - 2f * t);

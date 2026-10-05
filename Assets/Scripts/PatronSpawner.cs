@@ -97,7 +97,7 @@ public class PatronSpawner : MonoBehaviour
         timer = NextGap;
 
         int living = FindObjectsByType<PatronBrain>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length;
+            FindObjectsInactive.Exclude).Length;
         if (living >= maxPatrons) return;
 
         // The valve. Patrons still walking over (CafeArrivals) take their seat at

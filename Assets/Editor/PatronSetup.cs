@@ -169,7 +169,7 @@ public static class PatronSetup
     {
         int n = 0;
         foreach (WaitingSpot s in Object.FindObjectsByType<WaitingSpot>(
-                     FindObjectsInactive.Include, FindObjectsSortMode.None))
+                     FindObjectsInactive.Include))
             if (s != null && s.Kind == WaitingSpot.SpotKind.Seat) n++;
         return n;
     }
@@ -179,7 +179,7 @@ public static class PatronSetup
     {
         int seats = 0, loiter = 0;
         foreach (WaitingSpot s in Object.FindObjectsByType<WaitingSpot>(
-                     FindObjectsInactive.Include, FindObjectsSortMode.None))
+                     FindObjectsInactive.Include))
         {
             if (s == null) continue;
             if (s.Kind == WaitingSpot.SpotKind.Seat) seats++;

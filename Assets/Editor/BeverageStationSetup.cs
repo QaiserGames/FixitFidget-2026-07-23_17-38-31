@@ -23,10 +23,8 @@ public static class BeverageStationSetup
         if (EditorApplication.isPlayingOrWillChangePlaymode)
             throw new InvalidOperationException("Stop Play Mode before installing the dispenser.");
         Scene scene = SceneManager.GetActiveScene();
-        var existing = UnityEngine.Object.FindObjectsByType<BeverageStation>(FindObjectsInactive.Include,
-            FindObjectsSortMode.None).Where(item => item.gameObject.scene == scene).ToArray();
-        var old = UnityEngine.Object.FindObjectsByType<EspressoMachine>(FindObjectsInactive.Include,
-            FindObjectsSortMode.None).FirstOrDefault(item => item.gameObject.scene == scene);
+        var existing = UnityEngine.Object.FindObjectsByType<BeverageStation>(FindObjectsInactive.Include).Where(item => item.gameObject.scene == scene).ToArray();
+        var old = UnityEngine.Object.FindObjectsByType<EspressoMachine>(FindObjectsInactive.Include).FirstOrDefault(item => item.gameObject.scene == scene);
         var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
         if (modelAsset == null) throw new InvalidOperationException("Import " + ModelPath + " first.");
         if (old == null && existing.Length == 0)
@@ -190,7 +188,7 @@ public static class BeverageStationSetup
             // The former separate CupStack sits directly on KitchenCounter. Preserve that
             // dedicated leaf object inactive so the new caddy is the one visible supply.
             foreach (var legacyCups in UnityEngine.Object.FindObjectsByType<CupStack>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None))
+                FindObjectsInactive.Include))
             {
                 if (legacyCups.gameObject.scene != scene || legacyCups.transform.childCount != 0
                     || Vector3.Distance(legacyCups.transform.position, root.transform.position) > 2f) continue;

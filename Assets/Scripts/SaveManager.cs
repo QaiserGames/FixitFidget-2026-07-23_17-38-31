@@ -47,9 +47,25 @@ public class SaveManager : MonoBehaviour
 
     // A café lab session (editor only, see CafeLab) keeps its own checkpoint,
     // so testing the café's people never touches the real playtest save.
-    private string PathToFile => Path.Combine(Application.persistentDataPath,
-        CafeLab.Active ? CafeLab.SaveFileName
-        : useInteractionPlaytestSave ? PlaytestFileName : "save.json");
+    // A built player keeps its own as well: the editor and a build share the persistent data
+    // folder, and on 30 Sept a test build left running closed its Day 3 with nobody serving and
+    // saved it over the editor's playtest save. A build's file ends in "-build"
+    // (playtest-aces-cafe-build.json, save-build.json), so the two never share a checkpoint.
+    private string PathToFile => Path.Combine(Application.persistentDataPath, SaveFileName);
+
+    private string SaveFileName
+    {
+        get
+        {
+            if (CafeLab.Active) return CafeLab.SaveFileName;
+            string name = useInteractionPlaytestSave ? PlaytestFileName : "save.json";
+            return Application.isEditor ? name : BuildFileName(name);
+        }
+    }
+
+    // "playtest-aces-cafe.json" -> "playtest-aces-cafe-build.json".
+    public static string BuildFileName(string editorFileName) =>
+        Path.GetFileNameWithoutExtension(editorFileName) + "-build" + Path.GetExtension(editorFileName);
 
     private string PlaytestFileName => string.IsNullOrWhiteSpace(interactionPlaytestSaveName)
         || !interactionPlaytestSaveName.StartsWith("playtest-", StringComparison.Ordinal)
