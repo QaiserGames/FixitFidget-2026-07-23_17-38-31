@@ -44,6 +44,12 @@ public sealed class CafeDaylight : MonoBehaviour
     [Tooltip("Stars, and the moon where the moonlight comes from, drawn in the sky while the moon is up (NightSky). Off: the night sky as before.")]
     public bool nightSky = true;
 
+    [Header("Indoors at night (the break-ins)")]
+    [Tooltip("How much of the night's ambient light reaches the rooms of a house Ace is in (1 = all of it). Lower, and a room goes dark between its lamps, which is what makes the lamps read; the street outside dims with it while Ace is indoors (5 Oct 2026, the house interiors plan).")]
+    [Range(0f, 1f)] public float indoorAmbient = .35f;
+    [Tooltip("Seconds for the ambient to settle after Ace steps in or out.")]
+    [Min(.05f)] public float indoorSeconds = .5f;
+
     /// <summary>The café room: lights inside it are the café's own, dimmed while it is closed for the night.</summary>
     public static readonly Rect CafeInside = Rect.MinMaxRect(-7.4f, .1f, 7.4f, 18f);
 
@@ -51,6 +57,11 @@ public sealed class CafeDaylight : MonoBehaviour
     public float? HourOverride { get; private set; }
     public float MoonStrength { get; private set; }
     public float InteriorLampScale { get; private set; } = 1f;
+    /// <summary>1 while Ace is inside a house at night (GraceHouse says so); the ambient is scaled by Indoor Ambient, smoothly.</summary>
+    public float IndoorTarget { get; private set; }
+    /// <summary>The smoothed indoors amount (0 outside, 1 inside) the ambient is dimmed by right now.</summary>
+    public float Indoor => indoor;
+    float indoor;
 
     public struct LightingSample
     {
@@ -93,11 +104,24 @@ public sealed class CafeDaylight : MonoBehaviour
     {
         // Unscaled scheduling lets the final closing light reach a paused recap,
         // while CurrentHour itself remains frozen when the player pauses.
-        if ((clock == null && !HourOverride.HasValue) || Time.unscaledTime < nextUpdate) return;
+        if (clock == null && !HourOverride.HasValue) return;
+        // Indoors at night: the ambient settles toward Indoor Ambient every frame while Ace steps in or out.
+        bool moving = !Mathf.Approximately(indoor, IndoorTarget);
+        if (moving) indoor = Mathf.MoveTowards(indoor, IndoorTarget, Time.unscaledDeltaTime / Mathf.Max(.05f, indoorSeconds));
+        if (!moving && Time.unscaledTime < nextUpdate) return;
         nextUpdate = Time.unscaledTime + .1f;
         float hour = HourOverride ?? clock.CurrentHour;
-        if (!captured || Mathf.Abs(hour - lastAppliedHour) > .0001f)
+        if (!captured || moving || Mathf.Abs(hour - lastAppliedHour) > .0001f)
             ApplyAtHour(hour);
+    }
+
+    /// <summary>
+    /// Ace is inside a house (true) or out again (false): at night the ambient light is scaled down to Indoor
+    /// Ambient over Indoor Seconds, so the rooms are dark between their lamps. By day it changes nothing.
+    /// </summary>
+    public void SetIndoors(bool inside)
+    {
+        IndoorTarget = inside ? 1f : 0f;
     }
 
     /// <summary>
@@ -165,11 +189,13 @@ public sealed class CafeDaylight : MonoBehaviour
                 sun.intensity = moonIntensity * moon;
             }
         }
+        // Indoors at night: the ambient goes down to Indoor Ambient while Ace is in a house (GraceHouse; Update eases it).
+        float keep = Mathf.Lerp(1f, indoorAmbient, indoor * sample.night);
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = sample.ambientSky;
-        RenderSettings.ambientEquatorColor = sample.ambientEquator;
-        RenderSettings.ambientGroundColor = sample.ambientGround;
-        RenderSettings.reflectionIntensity = Mathf.Lerp(previousReflectionIntensity, .2f, sample.night);
+        RenderSettings.ambientSkyColor = sample.ambientSky * keep;
+        RenderSettings.ambientEquatorColor = sample.ambientEquator * keep;
+        RenderSettings.ambientGroundColor = sample.ambientGround * keep;
+        RenderSettings.reflectionIntensity = Mathf.Lerp(previousReflectionIntensity, .2f, sample.night) * keep;
         if (useDistanceHaze)
         {
             RenderSettings.fog = true;

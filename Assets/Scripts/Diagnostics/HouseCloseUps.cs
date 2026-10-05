@@ -121,6 +121,24 @@ public sealed class HouseCloseUps : MonoBehaviour
             Vector3 look = grace.World(spot.lookX, spot.lookY) + Vector3.up * (lift + 1.3f);
             yield return Shot(at, look, 0f, $"grace-{g:00}-{Safe(spot.what)}.png", spot.what);
         }
+        // 3b. What glows in her house at this hour (for the window-at-night work): every renderer in it whose material
+        //     has an emission colour, with where it is in plan metres.
+        report.AppendLine();
+        report.AppendLine("Glowing in her house (materials with an emission colour):");
+        if (grace.house != null)
+            foreach (Renderer r in grace.house.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null) continue;
+                foreach (Material m in r.sharedMaterials)
+                {
+                    if (m == null || !m.HasProperty("_EmissionColor")) continue;
+                    Color e = m.GetColor("_EmissionColor");
+                    if (e.maxColorComponent < .02f) continue;
+                    Vector3 c = grace.Plan(r.bounds.center);
+                    report.AppendLine($"  {PathUnder(r.transform, grace.house)}: '{m.name}' emission ({e.r:0.00}, {e.g:0.00}, {e.b:0.00})" +
+                                      $"{(m.IsKeywordEnabled("_EMISSION") ? "" : " (keyword off)")}, at plan ({c.x:0.00}, {c.y:0.00}), {c.z:0.00} up, {r.bounds.size.x:0.0} x {r.bounds.size.y:0.0} x {r.bounds.size.z:0.0}");
+                }
+            }
         // 4. Four doors again with the torch on, for the difference it makes.
         if (torch != null)
         {
@@ -170,6 +188,14 @@ public sealed class HouseCloseUps : MonoBehaviour
         yield return new WaitForSeconds(.25f);
         photos++;
         report.AppendLine($"  {file}: {what}  (at {feet.x:0.0}, {feet.z:0.0}; looking {yaw:0}°, {pitch:0}°)");
+    }
+
+    static string PathUnder(Transform t, Transform under)
+    {
+        var parts = new List<string>();
+        for (; t != null && t != under; t = t.parent) parts.Add(t.name);
+        parts.Reverse();
+        return string.Join("/", parts);
     }
 
     static string HouseName(Transform door)

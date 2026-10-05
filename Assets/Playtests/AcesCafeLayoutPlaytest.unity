@@ -21300,6 +21300,7 @@ GameObject:
   m_Component:
   - component: {fileID: 141179144}
   - component: {fileID: 141179145}
+  - component: {fileID: 141179146}
   m_Layer: 0
   m_Name: Her standard lamp (night)
   m_TagString: Untagged
@@ -21333,18 +21334,18 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.78, b: 0.52, a: 1}
-  m_Intensity: 1.6
-  m_Range: 4.5
+  m_Intensity: 2
+  m_Range: 5.5
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
-    m_Type: 0
+    m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
-    m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
+    m_Strength: 0.85
+    m_Bias: 0.03
+    m_NormalBias: 0.3
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
       e00: 1
@@ -21387,6 +21388,35 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &141179146
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 141179143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &141784542
 GameObject:
   m_ObjectHideFlags: 0
@@ -47344,8 +47374,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.35781366, y: 0.20137922, z: -0.079325385, w: 0.908363}
-  m_LocalPosition: {x: -10.508838, y: 23.787945, z: -13.536274}
+  m_LocalRotation: {x: 0.36650124, y: 0, z: 0, w: 0.93041754}
+  m_LocalPosition: {x: 0, y: 23.787945, z: -15.866024}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -51305,6 +51335,7 @@ GameObject:
   m_Component:
   - component: {fileID: 359387254}
   - component: {fileID: 359387255}
+  - component: {fileID: 359387256}
   m_Layer: 0
   m_Name: Her bedside lamp (night)
   m_TagString: Untagged
@@ -51338,18 +51369,18 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.76, b: 0.5, a: 1}
-  m_Intensity: 1.4
-  m_Range: 3.5
+  m_Intensity: 1.5
+  m_Range: 4
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
-    m_Type: 0
+    m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
-    m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
+    m_Strength: 0.85
+    m_Bias: 0.03
+    m_NormalBias: 0.3
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
       e00: 1
@@ -51392,6 +51423,35 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &359387256
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 359387253}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &359514230
 GameObject:
   m_ObjectHideFlags: 0
@@ -63150,6 +63210,7 @@ Transform:
   - {fileID: 352986683}
   - {fileID: 47078333}
   - {fileID: 141179144}
+  - {fileID: 524458146}
   m_Father: {fileID: 1779931243}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &434438118
@@ -76281,6 +76342,103 @@ MeshRenderer:
   m_CorrespondingSourceObject: {fileID: 2315730, guid: abf5b8361dd32a84990b3ef68982a8b4, type: 3}
   m_PrefabInstance: {fileID: 524293150}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &524458145
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 524458146}
+  - component: {fileID: 524458147}
+  m_Layer: 0
+  m_Name: The kitchen light (night)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &524458146
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 524458145}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.64, y: 1.42, z: 0.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 433783539}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!108 &524458147
+Light:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 524458145}
+  m_Enabled: 0
+  serializedVersion: 13
+  m_Type: 2
+  m_Color: {r: 1, g: 0.9, b: 0.72, a: 1}
+  m_Intensity: 0.9
+  m_Range: 2.8
+  m_SpotAngle: 30
+  m_InnerSpotAngle: 21.80208
+  m_CookieSize2D: {x: 0.5, y: 0.5}
+  m_Shadows:
+    m_Type: 0
+    m_Resolution: -1
+    m_CustomResolution: -1
+    m_Strength: 1
+    m_Bias: 0.05
+    m_NormalBias: 0.4
+    m_NearPlane: 0.2
+    m_CullingMatrixOverride:
+      e00: 1
+      e01: 0
+      e02: 0
+      e03: 0
+      e10: 0
+      e11: 1
+      e12: 0
+      e13: 0
+      e20: 0
+      e21: 0
+      e22: 1
+      e23: 0
+      e30: 0
+      e31: 0
+      e32: 0
+      e33: 1
+    m_UseCullingMatrixOverride: 0
+  m_Cookie: {fileID: 0}
+  m_DrawHalo: 0
+  m_Flare: {fileID: 0}
+  m_RenderMode: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingLayerMask: 1
+  m_Lightmapping: 4
+  m_LightShadowCasterMode: 0
+  m_AreaSize: {x: 1, y: 1}
+  m_BounceIntensity: 1
+  m_ColorTemperature: 6570
+  m_UseColorTemperature: 0
+  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_UseBoundingSphereOverride: 0
+  m_UseViewFrustumForShadowCasterCull: 1
+  m_ForceVisible: 0
+  m_ShapeRadius: 0.025
+  m_ShadowAngle: 0
+  m_LightUnit: 1
+  m_LuxAtDistance: 1
+  m_EnableSpotReflector: 1
 --- !u!1 &526069392
 GameObject:
   m_ObjectHideFlags: 0
@@ -96286,8 +96444,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 671985847}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.35781366, y: 0.20137922, z: -0.079325385, w: 0.908363}
-  m_LocalPosition: {x: -10.508838, y: 23.787945, z: -13.536274}
+  m_LocalRotation: {x: 0.36650124, y: 0, z: 0, w: 0.93041754}
+  m_LocalPosition: {x: 0, y: 23.787945, z: -15.866024}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -145707,7 +145865,7 @@ MonoBehaviour:
   assistAxisEdge: 17
   assistScreenCore: 5
   assistScreenEdge: 9
-  sneakSpeed: 1.6
+  sneakSpeed: 1.2
   crouchSeconds: 0.25
   crouchEyeDrop: 0.55
   sneakByDay: 0
@@ -150141,7 +150299,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1070459770}
-  m_Mesh: {fileID: 2296827927077968495, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
+  m_Mesh: {fileID: -6021716776341762521, guid: 458bb577808c8a647bd184c9c031ff94, type: 2}
 --- !u!1 &1071524565
 GameObject:
   m_ObjectHideFlags: 0
@@ -183290,6 +183448,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: -26653507663821049, guid: f2aa130b4f2671d4e9b45f8af9af2181, type: 2}
+  - {fileID: 2100000, guid: 2719f34fa1ce5de44926d80ddf74a116, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -183320,7 +183479,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1319956053}
-  m_Mesh: {fileID: -6230084762324540876, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
+  m_Mesh: {fileID: 332721138376141333, guid: 458bb577808c8a647bd184c9c031ff94, type: 2}
 --- !u!4 &1319956056
 Transform:
   m_ObjectHideFlags: 0
@@ -246401,6 +246560,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1779931243}
   - component: {fileID: 1779931244}
+  - component: {fileID: 1779931245}
   m_Layer: 0
   m_Name: Grace's house - inside (break-ins)
   m_TagString: Untagged
@@ -246689,6 +246849,7 @@ MonoBehaviour:
   - {fileID: 141179145}
   - {fileID: 359387255}
   - {fileID: 2113237311}
+  - {fileID: 524458147}
   firstFloorAt: 2.4
   insideX: {x: -5.42, y: 0}
   insideZ: {x: 0, y: 4.02}
@@ -246741,6 +246902,40 @@ MonoBehaviour:
   doorBefore: {x: 1.11, y: 0, z: 0.17}
   leafColliderCentreBefore: {x: 0.49000072, y: 1.24, z: 0.10375037}
   leafColliderSizeBefore: {x: 0.98000026, y: 2.2000003, z: 0.20750068}
+--- !u!114 &1779931245
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1779931242}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1e12a78faa11fb4a8c91f1f3705fcd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GraceHouseFinish
+  curtains: {fileID: 1319956055}
+  curtainsBefore: {fileID: -6230084762324540876, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
+  curtainsMaterialsBefore:
+  - {fileID: -26653507663821049, guid: f2aa130b4f2671d4e9b45f8af9af2181, type: 2}
+  palette: {fileID: 1070459773}
+  paletteBefore: {fileID: 2296827927077968495, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
+  addedLights:
+  - {fileID: 524458147}
+  changedLights:
+  - {fileID: 141179145}
+  - {fileID: 359387255}
+  intensityBefore:
+  - 1.6
+  - 1.4
+  rangeBefore:
+  - 4.5
+  - 3.5
+  shadowsBefore: 0000000000000000
+  nightLightsBefore:
+  - {fileID: 141179145}
+  - {fileID: 359387255}
+  - {fileID: 2113237311}
 --- !u!1 &1779986182
 GameObject:
   m_ObjectHideFlags: 0
@@ -280262,6 +280457,8 @@ MonoBehaviour:
   moonColor: {r: 0.62, g: 0.72, b: 1, a: 1}
   moonIntensity: 0.32
   nightSky: 1
+  indoorAmbient: 0.35
+  indoorSeconds: 0.5
 --- !u!1001 &2000396797
 PrefabInstance:
   m_ObjectHideFlags: 0

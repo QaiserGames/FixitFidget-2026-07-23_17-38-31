@@ -334,6 +334,9 @@ internal static class GraceHouseSteps
         {
             float y = .8f + .25f * k, lo = y - .0175f, hi = y + .0175f;
             lipFaces += wall.CutHole(2, .05f, 1, Rect.MinMaxRect(x0, lo - .01f, x1, hi + .01f));
+            // Their backs too (z 0, looking into the house): left whole, they showed from inside as bars across the
+            // window once the wall behind the glass was cut (seen in the slop audit, 5 Oct).
+            lipFaces += wall.CutHole(2, 0f, -1, Rect.MinMaxRect(x0, lo - .01f, x1, hi + .01f));
             lipFaces += wall.CutHole(1, hi, 1, Rect.MinMaxRect(x0, -.01f, x1, .06f));
             lipFaces += wall.CutHole(1, lo, -1, Rect.MinMaxRect(x0, -.01f, x1, .06f));
             // Their new ends, mapped like the lip's end by the doorway.
@@ -877,7 +880,7 @@ internal static class GraceHouseSteps
 
     // One mesh, worked on in its own space: positions, normals, tangents, two UV sets and colours per vertex,
     // triangles per sub-mesh. New faces take their texture mapping from the faces they continue.
-    sealed class Surgery
+    internal sealed class Surgery
     {
         readonly List<Vector3> v = new(), n = new();
         readonly List<Vector4> t = new();

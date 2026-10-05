@@ -121,8 +121,13 @@ public sealed class NightHomes : MonoBehaviour
             Renderer merged = CurtainOf(house);
             if (r.curtains != null && merged != null && merged.sharedMaterial != null)
             {
-                room.curtainsLit = Part(room.root.transform, "Curtains, lit", r.curtains, merged.sharedMaterial);
-                room.curtainsDark = Part(room.root.transform, "Curtains, dark", r.curtains, DarkCurtain(merged.sharedMaterial));
+                // Lit, the curtains glow toward the street only: their faces looking into the room wear the dark
+                // curtain, so a room Ace is in (Grace's) isn't lit orange by its own window (5 Oct).
+                Material dark = DarkCurtain(merged.sharedMaterial);
+                Mesh facing = FacingOut(r.curtains, house, r.centre);
+                room.curtainsLit = Part(room.root.transform, "Curtains, lit", facing, merged.sharedMaterial);
+                room.curtainsLit.sharedMaterials = new[] { merged.sharedMaterial, dark };
+                room.curtainsDark = Part(room.root.transform, "Curtains, dark", r.curtains, dark);
             }
             rooms.Add(room);
         }
@@ -363,6 +368,38 @@ public sealed class NightHomes : MonoBehaviour
     }
 
     // ---------- making the parts ----------
+
+    // The curtains' mesh in two parts: the faces looking out of the house (toward its window, away from the house's
+    // middle) and the rest (the faces into the room, the edges). Made at run time and freed with the night.
+    Mesh FacingOut(Mesh curtains, Transform house, Vector3 windowCentre)
+    {
+        Vector3 outward = windowCentre - house.position;
+        outward.y = 0f;
+        if (outward.sqrMagnitude < 1e-4f) outward = house.forward;
+        Vector3 local = house.InverseTransformDirection(outward.normalized);
+        Vector3[] v = curtains.vertices;
+        var outside = new List<int>();
+        var inside = new List<int>();
+        for (int sub = 0; sub < curtains.subMeshCount; sub++)
+        {
+            int[] t = curtains.GetTriangles(sub);
+            for (int k = 0; k + 2 < t.Length; k += 3)
+            {
+                Vector3 n = Vector3.Cross(v[t[k + 1]] - v[t[k]], v[t[k + 2]] - v[t[k]]);
+                (Vector3.Dot(n, local) > 0f ? outside : inside).AddRange(new[] { t[k], t[k + 1], t[k + 2] });
+            }
+        }
+        var mesh = new Mesh { name = curtains.name + " (facing out)", hideFlags = HideFlags.DontSave };
+        mesh.SetVertices(v);
+        if (curtains.normals.Length == v.Length) mesh.SetNormals(curtains.normals);
+        if (curtains.uv.Length == v.Length) mesh.SetUVs(0, curtains.uv);
+        mesh.subMeshCount = 2;
+        mesh.SetTriangles(outside, 0);
+        mesh.SetTriangles(inside, 1);
+        mesh.RecalculateBounds();
+        made.Add(mesh);
+        return mesh;
+    }
 
     MeshRenderer Part(Transform parent, string name, Mesh mesh, Material material)
     {

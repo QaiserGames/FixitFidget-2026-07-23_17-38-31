@@ -150,6 +150,7 @@ public sealed class GraceHouse : MonoBehaviour
 
     static int labRequest;
     CafeViewMode view;
+    CafeDaylight daylight;
     CharacterController ace;
     Transform aceT;
     Collider leafCollider;
@@ -418,6 +419,9 @@ public sealed class GraceHouse : MonoBehaviour
         viewing = true;
         upstairs = AceFeetLocalY() > firstFloorAt - .3f;
         if (view != null) view.EnterHouseView(houseYaw, housePitch, houseDistance);
+        // Indoors the night's ambient goes down (CafeDaylight.indoorAmbient): the rooms are dark between her lamps.
+        if (daylight == null) daylight = FindAnyObjectByType<CafeDaylight>();
+        if (daylight != null) daylight.SetIndoors(true);
         NightSeeThrough seeThrough = NightWalk.Instance != null ? NightWalk.Instance.SeeThrough : null;
         if (seeThrough != null) seeThrough.Leave(house, true);
         // The shell: every renderer of the house but the rooms (and the lit panes the night added to it).
@@ -433,6 +437,7 @@ public sealed class GraceHouse : MonoBehaviour
     {
         viewing = false;
         if (view != null) view.ExitHouseView();
+        if (daylight != null) daylight.SetIndoors(false);
         HideShell(false);
         shell.Clear();
         foreach (Wall w in walls)
