@@ -235,7 +235,8 @@ internal static class NightOneSteps
             Transform group = layout.transform.Find(GroupName);
             Check(group != null, $"\"{GroupName}\" is in the scene (Night 1 - Put Grace's gnome...)");
             NightTrophy[] trophies = CityPackChecks.InScene<NightTrophy>();
-            Check(trophies.Length == NightThings.All.Count, $"one thing to take for each night thing ({trophies.Length} in the scene, {NightThings.All.Count} known)");
+            Check(trophies.Length == NightThings.All.Count, $"one thing to take for each night thing ({trophies.Length} in the scene, {NightThings.All.Count} known: " +
+                  "Grace's gnome here; her cups by Night 2 1)");
             HomeDoor door = CityPackChecks.InScene<HomeDoor>().FirstOrDefault(d => d.homeId == "home.grace");
             Check(door != null, "Grace's front door (home.grace) is in the scene");
             foreach (NightTrophy trophy in trophies)
@@ -247,7 +248,9 @@ internal static class NightOneSteps
                 Check(colliders.Any(c => c.isTrigger && c.enabled), $"{trophy.name}: it has a trigger to be found by at night");
                 Check(colliders.Any(c => !c.isTrigger && c.enabled), $"{trophy.name}: it is solid (Ace doesn't walk through it)");
                 Check(trophy.gameObject.layer == 0, $"{trophy.name}: it is on the Default layer (the interactor's night search sees it)");
-                if (thing != null && thing.owner == GraceCameraEpisode.ProfileId && door != null)
+                // Outdoors by her door (the gnome); indoors (her cups, Night 2 1) only taken in sight.
+                if (trophy.needsSight) Check(trophy.thingId != NightThings.GraceGnome, $"{trophy.name}: indoors, taken only in sight");
+                else if (thing != null && thing.owner == GraceCameraEpisode.ProfileId && door != null)
                 {
                     float away = Vector3.Distance(Flat(trophy.transform.position), Flat(door.transform.position));
                     Check(away < 1.6f, $"{trophy.name}: by Grace's door ({F(away)} m from it)");

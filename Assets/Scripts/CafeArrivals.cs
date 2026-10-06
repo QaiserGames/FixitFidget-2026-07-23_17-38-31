@@ -433,6 +433,18 @@ public sealed class CafeArrivals : MonoBehaviour
     }
 
     /// <summary>
+    /// As TryArrive, but always on foot along one of the public walking routes (never out of a car): the man at the
+    /// bins on his morning visit (LodgerDay). False when there's no CafeArrivals, or no route.
+    /// </summary>
+    public static bool TryArriveOnFoot(GameObject npc, Kind kind, Action atDoor)
+    {
+        CafeArrivals arrivals = Instance;
+        if (arrivals == null || !arrivals.isActiveAndEnabled || npc == null) return false;
+        int route = arrivals.PickFootRoute();
+        return route >= 0 && arrivals.EditorArriveOnFoot(npc, kind, route, atDoor);
+    }
+
+    /// <summary>
     /// Called by a brain that reached the exit: walks them back to their car or home
     /// instead of vanishing. False: the caller destroys them as before.
     /// </summary>

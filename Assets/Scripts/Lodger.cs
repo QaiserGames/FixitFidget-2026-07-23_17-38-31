@@ -16,9 +16,11 @@ using UnityEngine.AI;
 //   * When Ace passes (within 7 m, no scene playing) he says something now and then (the Night lines' pools, throttled
 //     by BarkRules): "Not yet." while his errand is out, "Over here." when Ace has the thing in hand, "Good." after.
 //   * The return (the five beats' third): Ace brings the thing back (NightGive, in front of the far half) and he plays
-//     the return scene; on its lines the thing leaves Ace's hand for his corner, he turns it to face the street, and
-//     he pays: a lesson and a page (LodgerStory). Ace answers once, as in the deal.
-//   * His corner: what Ace has brought him stands on the trash can's lid beside the dumpster, at night only.
+//     the favour's return scene (LodgerStory.Favours); on its lines the thing leaves Ace's hand for his corner, he does
+//     what it was for (turns the gnome to face the street; sets four of Grace's cups out on the crate, one by one), and
+//     he pays: a lesson and a page. Ace answers once, as in the deal.
+//   * His corner: what Ace has brought him, at night only: the gnome on the trash can's lid, the cups on the crate
+//     beside it (NightZeroSet).
 //   * Round the back the camera looks at the bins from the street (CafeViewMode's house view, NightZeroSet.view*):
 //     from the front, the café's back wall stands between the camera and the dumpster.
 //
@@ -71,7 +73,7 @@ public sealed class Lodger : MonoBehaviour
     float yaw, yawTo;
     bool inView;
     float nextLook;
-    Coroutine turningGnome;
+    Coroutine turningGnome, settingOut;
 
     void Awake() => Instance = this;
 
@@ -82,6 +84,7 @@ public sealed class Lodger : MonoBehaviour
         if (set != null)
         {
             if (set.cornerGnome != null) set.cornerGnome.SetActive(false);
+            if (set.cornerCups != null) set.cornerCups.SetActive(false);
             set.SetLid(set.farLid, 0f);
             set.SetLid(set.nearLid, 0f);
         }
@@ -261,37 +264,35 @@ public sealed class Lodger : MonoBehaviour
     /// <summary>Can Ace hand him <paramref name="thing"/> now? (It's his errand, he's up, nothing else is playing.)</summary>
     public bool CanTake(string thing)
     {
-        if (!Up || Returning || Barks.ScenePlaying || string.IsNullOrEmpty(thing)) return false;
+        if (!Up || Returning || Barks.ScenePlaying || NightZero.Pending || string.IsNullOrEmpty(thing)) return false;
         NightLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
         return ledger != null && LodgerStory.Errand(ledger) == thing && ledger.HasTrophy(thing);
     }
 
-    /// <summary>Ace hands him <paramref name="thing"/>: the return scene. False if he can't take it now.</summary>
+    /// <summary>Ace hands him <paramref name="thing"/>: the favour's return scene. False if he can't take it now.</summary>
     public bool Receive(string thing)
     {
         if (!CanTake(thing)) return false;
         Returning = true;
-        returned = thing;
+        returned = LodgerStory.FindFavour(thing);
         paid = false;
         PlayerMovement.Hold(this);
         if (ace != null) Face(ace.position);
         if (aceBody != null && body != null) aceBody.FaceToward(body.transform.position);
-        bool playing = Barks.Play(LodgerStory.ReturnScene, Who, onDone: Returned, onLineId: OnReturnLine,
+        bool playing = returned != null && Barks.Play(returned.returnScene, Who, onDone: Returned, onLineId: OnReturnLine,
             onReply: (choice, reply) => Replied(choice, reply));
         PlayerMovement.Release(this);   // the scene holds Ace now, or nothing does
         if (!playing)
         {
             // No return scene in the Night lines (Barks 1 not run yet): what it does still happens, without the words.
-            OnReturnLine(LodgerStory.TakesItLine);
-            OnReturnLine(LodgerStory.TurnsItLine);
-            OnReturnLine(LodgerStory.LessonLine);
-            OnReturnLine(LodgerStory.PageLine);
+            if (returned != null)
+                foreach (string line in new[] { returned.takes, returned.sets, returned.lesson, returned.page }) OnReturnLine(line);
             Returned();
         }
         return true;
     }
 
-    string returned = "";
+    LodgerStory.Favour returned;
     bool paid;
 
     Transform Who(string speakerId) => speakerId == LodgerStory.SpeakerId ? Speaker : null;
@@ -303,37 +304,46 @@ public sealed class Lodger : MonoBehaviour
         Heard(warmth);
     }
 
-    // What happens on the return's lines: he takes it (it leaves Ace's hand for his corner), turns it to face the
-    // street, and pays (the lesson, then the page).
+    // What happens on the return's lines: he takes it (it leaves Ace's hand for his corner), does what it was for
+    // (turns the gnome to face the street; sets the cups out), and pays (the lesson, then the page).
     void OnReturnLine(string id)
     {
         NightLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
-        if (ledger == null) return;
-        if (id == LodgerStory.TakesItLine)
+        if (ledger == null || returned == null || string.IsNullOrEmpty(id)) return;
+        string thing = returned.id;
+        if (id == returned.takes)
         {
             NightCarry carry = NightCarry.Current;
-            if (carry != null && carry.HeldId == returned) carry.Drop();
-            if (ledger.Give(returned)) Sfx.Play("lodger.takes", set.cornerGnome != null ? set.cornerGnome.transform.position : Speaker.position);
+            if (carry != null && carry.HeldId == thing) carry.Drop();
+            if (ledger.Give(thing)) Sfx.Play("lodger.takes", CornerOf(returned) != null ? CornerOf(returned).transform.position : Speaker.position);
             ShowCorner(turned: false);
             TrophyShelf.RefreshAll();
         }
-        else if (id == LodgerStory.TurnsItLine)
+        else if (id == returned.sets)
         {
-            if (turningGnome != null) StopCoroutine(turningGnome);
-            turningGnome = StartCoroutine(TurnTheGnome());
+            if (returned.corner == "gnome")
+            {
+                if (turningGnome != null) StopCoroutine(turningGnome);
+                turningGnome = StartCoroutine(TurnTheGnome());
+            }
+            else if (returned.corner == "cups")
+            {
+                if (settingOut != null) StopCoroutine(settingOut);
+                settingOut = StartCoroutine(SetOutTheCups());
+            }
         }
-        else if (id == LodgerStory.LessonLine)
+        else if (id == returned.lesson)
         {
-            LodgerStory.Lesson lesson = LodgerStory.FindLesson(LodgerStory.LessonFor(returned));
+            LodgerStory.Lesson lesson = LodgerStory.FindLesson(returned.teaches);
             if (lesson != null && ledger.Learn(lesson.id))
             {
                 Sfx.Play2D("lodger.lesson");
                 NightCycle.Note(lesson.learned, 6f);
             }
         }
-        else if (id == LodgerStory.PageLine)
+        else if (id == returned.page)
         {
-            NotebookFactData page = LodgerStory.PageFor(returned);
+            NotebookFactData page = LodgerStory.PageFor(thing);
             Notebook notebook = SaveManager.Instance.Notebook;
             if (page != null && notebook != null && notebook.Learn(page, NotebookHooks.Today))
             {
@@ -346,30 +356,46 @@ public sealed class Lodger : MonoBehaviour
 
     void Returned()
     {
-        // Whatever the lines did or didn't say, the errand is paid in full.
-        if (!paid)
+        // Whatever the lines did or didn't say, the favour is paid in full.
+        if (!paid && returned != null)
         {
-            OnReturnLine(LodgerStory.TakesItLine);
-            OnReturnLine(LodgerStory.LessonLine);
-            OnReturnLine(LodgerStory.PageLine);
+            OnReturnLine(returned.takes);
+            OnReturnLine(returned.lesson);
+            OnReturnLine(returned.page);
         }
+        if (settingOut != null) { StopCoroutine(settingOut); settingOut = null; }
         ShowCorner(turned: true);
         Returning = false;
-        returned = "";
+        returned = null;
     }
 
     // ---------- his corner ----------
 
-    // What Ace has brought him stands on the trash can's lid (night only). Set down facing the alley; on his line he
-    // turns it to face the street.
+    GameObject CornerOf(LodgerStory.Favour favour) =>
+        favour == null ? null : favour.corner == "gnome" ? set.cornerGnome : favour.corner == "cups" ? set.cornerCups : null;
+
+    // What Ace has brought him, at night only: the gnome on the trash can's lid (set down facing the alley; on his line
+    // he turns it to face the street), the cups on the crate (on his line he sets them out, one by one). Turned: as
+    // they stand once he's done with them.
     void ShowCorner(bool turned)
     {
-        if (set.cornerGnome == null) return;
         NightLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
-        bool given = ledger != null && ledger.HasGiven(NightThings.GraceGnome);
-        if (set.cornerGnome.activeSelf != given) set.cornerGnome.SetActive(given);
-        if (given && turned && turningGnome == null) set.cornerGnome.transform.localRotation = Quaternion.identity;
-        else if (given && !turned) set.cornerGnome.transform.localRotation = Quaternion.Euler(0f, -set.gnomeTurn, 0f);
+        if (set.cornerGnome != null)
+        {
+            bool given = ledger != null && ledger.HasGiven(NightThings.GraceGnome);
+            if (set.cornerGnome.activeSelf != given) set.cornerGnome.SetActive(given);
+            if (given && turned && turningGnome == null) set.cornerGnome.transform.localRotation = Quaternion.identity;
+            else if (given && !turned) set.cornerGnome.transform.localRotation = Quaternion.Euler(0f, -set.gnomeTurn, 0f);
+        }
+        if (set.cornerCups != null && settingOut == null)
+        {
+            // Before he sets them out, the crate stands empty.
+            bool shown = turned && ledger != null && ledger.HasGiven(NightThings.GraceCups);
+            if (set.cornerCups.activeSelf != shown) set.cornerCups.SetActive(shown);
+            if (shown)
+                foreach (Transform cup in set.cornerCups.transform)
+                    if (!cup.gameObject.activeSelf) cup.gameObject.SetActive(true);
+        }
     }
 
     IEnumerator TurnTheGnome()
@@ -386,6 +412,50 @@ public sealed class Lodger : MonoBehaviour
         gnome.localRotation = to;
         Sfx.Play("lodger.gnome", gnome.position);
         turningGnome = null;
+    }
+
+    // "Four cups. Old habit.": he sets them out on the crate one at a time, each popping into place with a clink.
+    IEnumerator SetOutTheCups()
+    {
+        GameObject group = set.cornerCups;
+        if (group == null) { settingOut = null; yield break; }
+        Transform cups = group.transform;
+        int count = cups.childCount;
+        var sizes = new Vector3[count];
+        for (int i = 0; i < count; i++)
+        {
+            Transform cup = cups.GetChild(i);
+            sizes[i] = cup.localScale;
+            cup.gameObject.SetActive(false);
+        }
+        group.SetActive(true);
+        Beat(NpcBeats.Clip.Thinking);
+        for (int i = 0; i < count; i++)
+        {
+            yield return new WaitForSeconds(i == 0 ? .25f : .4f);
+            Transform cup = cups.GetChild(i);
+            cup.gameObject.SetActive(true);
+            Sfx.Play("lodger.cup", cup.position);
+            for (float t = 0f; t < 1f; t += Time.deltaTime / .14f)
+            {
+                cup.localScale = sizes[i] * Mathf.SmoothStep(.35f, 1f, t);
+                yield return null;
+            }
+            cup.localScale = sizes[i];
+        }
+        settingOut = null;
+    }
+
+    /// <summary>The cups standing on the crate now (checks).</summary>
+    public int CupsOut
+    {
+        get
+        {
+            if (set == null || set.cornerCups == null || !set.cornerCups.activeInHierarchy) return 0;
+            int n = 0;
+            foreach (Transform cup in set.cornerCups.transform) if (cup.gameObject.activeSelf) n++;
+            return n;
+        }
     }
 
     public string Describe() =>

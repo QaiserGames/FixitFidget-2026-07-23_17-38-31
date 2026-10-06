@@ -4086,6 +4086,7 @@ MonoBehaviour:
   - {fileID: 7236857262814840105, guid: 65025400c2560c3428b67000506481a2, type: 3}
   - {fileID: 68109615320612230, guid: d1d6118c44e2a3f44868f3c7fce215a2, type: 3}
   - {fileID: 2121298225629461297, guid: 4619e761f64f7c94f914c81ea69997ab, type: 3}
+  - {fileID: 142174026674943727, guid: cd3c0664311fedc4f93a3d0e0492bafc, type: 3}
   keepOriginalShare: 0.2
   fixedAppearance: -1
   visualScale: 0
@@ -4095,6 +4096,7 @@ MonoBehaviour:
   seatedShoulderSettle: 0.9
   copyFingers: 1
   handsToFace: 1
+  maxFollowRate: 120
 --- !u!114 &5979114650565750167
 MonoBehaviour:
   m_ObjectHideFlags: 0

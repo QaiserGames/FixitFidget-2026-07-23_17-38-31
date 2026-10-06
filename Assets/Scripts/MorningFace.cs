@@ -20,6 +20,13 @@ using UnityEngine.InputSystem;
 // The words and the meter's difficulty come from the thing (NightThings). Once the man at the bins has
 // taught Ace Nerve (LodgerStory, 6 Oct 2026), the green and its "near enough" are wider, and the meter's
 // title says so.
+//
+// Its second flavour (session 3: claude/session-3-favours-stalling-officer.md §5): "Say nothing". The officer, after
+// his order, asks a question about the man at the bins (OfficerStory). The same meter with the question's words and
+// difficulty ("Say nothing", then "Said nothing." or "You flinched."); kept, his thanks; flinched, he noticed (one
+// step more suspicious, a line in the notebook). Either way his description goes in the notebook, and the question
+// is asked once (NightLedger.Questioned). It comes after the order (AfterTheOrder), so when it's done the conversation
+// closes (AfterOrder), instead of going on to the request.
 // ---------------------------------------------------------------------------
 public sealed class MorningFace
 {
@@ -33,6 +40,8 @@ public sealed class MorningFace
     readonly ConversationUI ui;
     readonly NightDeedData deed;
     readonly NightThing thing;
+    readonly OfficerStory.Question question;
+    readonly string opening;
     StraightFaceMeter meter;
     float meterAt = -1f;
     float resultSince = -1f;
@@ -45,8 +54,13 @@ public sealed class MorningFace
 
     public Step Now { get; private set; } = Step.Complaint;
     public StraightFaceMeter Meter => meter;
+    /// <summary>The thing they're telling Ace about (a complaint), or null (a question).</summary>
     public NightThing Thing => thing;
+    /// <summary>The question being asked (the officer's "say nothing"), or null (a complaint).</summary>
+    public OfficerStory.Question Question => question;
     public CustomerBrain Who => who;
+    /// <summary>A question after the order: when it's done the conversation closes.</summary>
+    public bool AfterOrder => question != null;
     /// <summary>The most recent scene (reports and checks).</summary>
     public static MorningFace Last { get; private set; }
 
@@ -62,33 +76,50 @@ public sealed class MorningFace
         NightDeedData deed = night.Unfaced(identity.Profile.PersistentId, day);
         NightThing thing = deed != null ? NightThings.Find(deed.thing) : null;
         if (thing == null || string.IsNullOrWhiteSpace(thing.complaint)) return null;
-        return new MorningFace(brain, ui, deed, thing);
+        return new MorningFace(brain, ui, deed, thing, null, thing.complaint);
     }
 
-    MorningFace(CustomerBrain who, ConversationUI ui, NightDeedData deed, NightThing thing)
+    /// <summary>
+    /// The question <paramref name="brain"/> asks after their order, if they have one today (OfficerStory); or null.
+    /// <paramref name="accepted"/>, what they said to Ace's "Coming right up.", comes first, on its own line.
+    /// </summary>
+    public static MorningFace AfterTheOrder(CustomerBrain brain, ConversationUI ui, string accepted)
+    {
+        if (brain == null || ui == null) return null;
+        CustomerIdentity identity = brain.Identity;
+        if (identity == null || !identity.IsRegular || identity.Profile == null) return null;
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
+        OfficerStory.Question q = OfficerStory.Due(identity.Profile.PersistentId, day, night);
+        if (q == null || string.IsNullOrWhiteSpace(q.question)) return null;
+        string opening = string.IsNullOrWhiteSpace(accepted) ? q.question : accepted.TrimEnd() + "\n" + q.question;
+        return new MorningFace(brain, ui, null, null, q, opening);
+    }
+
+    MorningFace(CustomerBrain who, ConversationUI ui, NightDeedData deed, NightThing thing, OfficerStory.Question question, string opening)
     {
         this.who = who;
         this.ui = ui;
         this.deed = deed;
         this.thing = thing;
+        this.question = question;
+        this.opening = opening;
         Last = this;
     }
 
-    /// <summary>Their complaint: the first line of the conversation.</summary>
+    /// <summary>Their complaint (or their question): the line the meter answers.</summary>
     public void Begin()
     {
-        who.Identity.Feel(PortraitExpression.Worried);
-        ui.SetLine(thing.complaint);
+        who.Identity.Feel(question != null ? PortraitExpression.Neutral : PortraitExpression.Worried);
+        ui.SetLine(opening);
         ui.SetOptions("");
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        if (notebook == null || thing == null) return;
         // Taken without knowing whose it was (they never mentioned it): now Ace knows, and notes down
         // what they just said (not the day's mention, which Ace never heard) and whose it was.
-        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
-        if (notebook != null)
-        {
-            if (!notebook.Knows(thing.id)) NotebookHooks.HeardComplaint(who.CustomerName, thing);
-            NightLedger night = SaveManager.Instance.Night;
-            if (!notebook.Knows(thing.id + ".taken")) NotebookHooks.TookAtNight(thing, night != null && night.HasGiven(thing.id));
-        }
+        if (!notebook.Knows(thing.id)) NotebookHooks.HeardComplaint(who.CustomerName, thing);
+        NightLedger night = SaveManager.Instance.Night;
+        if (!notebook.Knows(thing.id + ".taken")) NotebookHooks.TookAtNight(thing, night != null && night.HasGiven(thing.id));
     }
 
     /// <summary>
@@ -130,7 +161,7 @@ public sealed class MorningFace
                     return;
                 }
                 if (resultSince < 0f) resultSince = Time.time;
-                StraightFaceUI.Result(meter, $"[{ControlHints.Interact}]  Go on");
+                StraightFaceUI.Result(meter, HeldWord, CrackedWord, $"[{ControlHints.Interact}]  Go on");
                 if (next || Time.time - resultSince >= ReadTime(ui.LineFinished ? LastLine : ""))
                 {
                     Now = Step.Done;
@@ -148,7 +179,11 @@ public sealed class MorningFace
         if (Now != Step.Result && Now != Step.Done) Now = Step.Done;
     }
 
-    string LastLine => meter != null && meter.Held ? thing.held : thing.cracked;
+    string Held => question != null ? question.held : thing.held;
+    string Cracked => question != null ? question.cracked : thing.cracked;
+    string HeldWord => question != null ? question.heldWord : null;
+    string CrackedWord => question != null ? question.crackedWord : null;
+    string LastLine => meter != null && meter.Held ? Held : Cracked;
 
     static float ReadTime(string line) => Mathf.Clamp((line ?? "").Length / 30f, 1.6f, 4f);
 
@@ -158,9 +193,13 @@ public sealed class MorningFace
     {
         NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
         Nerve = night != null && night.Knows(LodgerStory.Nerve);
-        meter = StraightFaceMeter.Rolled(thing.sweepSeconds, LodgerStory.Green(thing.green, Nerve), LodgerStory.Near(thing.near, Nerve),
-            thing.patience, Rng);
-        stopHint = $"[{StopKey}]  Keep a straight face" + (Nerve ? "   <color=#A6A6A6>Nerve</color>" : "");
+        float sweep = question != null ? question.sweepSeconds : thing.sweepSeconds;
+        float green = question != null ? question.green : thing.green;
+        float near = question != null ? question.near : thing.near;
+        float patience = question != null ? question.patience : thing.patience;
+        meter = StraightFaceMeter.Rolled(sweep, LodgerStory.Green(green, Nerve), LodgerStory.Near(near, Nerve), patience, Rng);
+        string what = question != null && !string.IsNullOrWhiteSpace(question.title) ? question.title : "Keep a straight face";
+        stopHint = $"[{StopKey}]  {what}" + (Nerve ? "   <color=#A6A6A6>Nerve</color>" : "");
         Now = Step.Meter;
         // The meter takes the place of Ace's replies (bottom right) and gives its key itself
         // (StraightFaceUI), so it sits beside the person's line instead of over it or their face.
@@ -173,18 +212,29 @@ public sealed class MorningFace
         bool held = meter.Held;
         int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
-        if (night != null) night.Faced(deed, !held, day);
-        if (!held) NotebookHooks.Suspects(who.CustomerName, thing);
+        if (question != null)
+        {
+            string asker = who.Identity != null && who.Identity.Profile != null ? who.Identity.Profile.PersistentId : question.asker;
+            if (night != null) night.Questioned(question.id, asker, day, !held);
+            NotebookHooks.AskedBy(who.CustomerName, question, flinched: !held);
+        }
+        else
+        {
+            if (night != null) night.Faced(deed, !held, day);
+            if (!held) NotebookHooks.Suspects(who.CustomerName, thing);
+        }
         Sfx.Play2D(held ? "face.held" : "face.cracked");
         who.Identity.Feel(held ? PortraitExpression.Happy : PortraitExpression.Surprised);
-        StraightFaceUI.Result(meter);
-        ui.SetLine(held ? thing.held : thing.cracked);
+        StraightFaceUI.Result(meter, HeldWord, CrackedWord);
+        ui.SetLine(held ? Held : Cracked);
         ui.SetOptions("");
         resultSince = -1f;
         Now = Step.Result;
     }
 
-    public string Describe() => $"Morning scene with {who?.CustomerName ?? "nobody"} about {thing?.name ?? "?"}: {Now}{(Nerve ? " (Nerve)" : "")}" +
+    public string Describe() =>
+        $"Morning scene with {who?.CustomerName ?? "nobody"} " +
+        (question != null ? $"(his question {question.id})" : $"about {thing?.name ?? "?"}") + $": {Now}{(Nerve ? " (Nerve)" : "")}" +
         (meter == null ? "" : $"; needle {meter.Needle:0.00}, green {meter.GreenLeft:0.00}-{meter.GreenRight:0.00}, " +
          $"{(meter.Stopped ? (meter.Held ? "held" : meter.TimedOut ? "cracked (never stopped)" : "cracked") : "running")} after {meter.Elapsed:0.0} s");
 }

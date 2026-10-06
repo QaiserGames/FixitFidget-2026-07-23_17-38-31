@@ -73,6 +73,12 @@ public class PatronSpawner : MonoBehaviour
     private float NextGap =>
         spawnInterval * Random.Range(1f - spawnJitter, 1f + spawnJitter);
 
+    // The man at the bins by day (his visit after a skip, his note: session 3) lives beside the patrons.
+    private void Awake()
+    {
+        if (GetComponent<LodgerDay>() == null) gameObject.AddComponent<LodgerDay>();
+    }
+
     private void Update()
     {
         if (patronPrefab == null || spawnPoint == null) return;
@@ -135,6 +141,39 @@ public class PatronSpawner : MonoBehaviour
         // CafeArrivals they start at the door straight away, as before.
         if (CafeArrivals.TryArrive(go, CafeArrivals.Kind.Patron, () => ComeIn(brain))) return;
         ComeIn(brain);
+    }
+
+    /// <summary>
+    /// The man at the bins comes in for his morning visit after a skip (LodgerDay; claude/session-3-favours-stalling-
+    /// officer.md §4): a patron in <paramref name="look"/>, on foot, who sits for <paramref name="stay"/> seconds,
+    /// orders nothing and pays nothing. Null if there's no patron body to make him from.
+    /// </summary>
+    public GameObject SpawnTheMan(GameObject look, float stay)
+    {
+        if (patronPrefab == null || spawnPoint == null) return null;
+        GameObject go = Instantiate(patronPrefab, ScatteredSpawn(), spawnPoint.rotation);
+        go.name = "The man at the bins (his morning visit)";
+        CustomerBrain stray = go.GetComponent<CustomerBrain>();
+        if (stray != null) Destroy(stray);
+        CustomerInteractable talkable = go.GetComponent<CustomerInteractable>();
+        if (talkable != null) Destroy(talkable);
+        // His own look: the walk-in outfits go before they wake (they would switch one on over it), and the city look
+        // is his alone (it's kept for him: NightZeroSet).
+        NpcVisualVariants outfits = go.GetComponent<NpcVisualVariants>();
+        if (outfits != null)
+        {
+            outfits.enabled = false;
+            Destroy(outfits);
+        }
+        PolygonNpcVisual visual = go.GetComponent<PolygonNpcVisual>();
+        if (visual != null && look != null) visual.Configure(new[] { look }, 0f, 0, 0f);
+        PatronBrain brain = go.GetComponent<PatronBrain>();
+        if (brain == null) brain = go.AddComponent<PatronBrain>();
+        brain.StayFor(stay);
+        // On foot, never out of a car (he lives in the bins); in at the door with no payment (he orders nothing).
+        if (CafeArrivals.TryArriveOnFoot(go, CafeArrivals.Kind.Patron, () => { if (brain != null) brain.Init(exitPoint); })) return go;
+        brain.Init(exitPoint);
+        return go;
     }
 
     private void ComeIn(PatronBrain brain)

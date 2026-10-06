@@ -17,6 +17,11 @@ using UnityEngine;
 // The man at the bins (6 Oct 2026): when it's the thing he asked for (LodgerStory.Errand), Ace carries it in hand
 // (NightCarry) back to the bins to give him, and mutters the night's line; it only goes on Ace's shelf if the night
 // ends with it still in hand. Grace's morning is the same either way: it was Ace who took it.
+//
+// Indoors (Grace's cups on her kitchen worktop, session 3), a thing needs to be seen to be taken (Needs Sight): from
+// overhead the interactor offers whatever is nearest within reach, which would include the cups through her kitchen
+// wall. One ray from Ace's eyes to the thing, only while it's a candidate (Ace within reach), once a frame at most;
+// anything that stops the ray right at the thing (its box, the worktop) doesn't hide it.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightTrophy : NightInteractable
@@ -25,6 +30,8 @@ public sealed class NightTrophy : NightInteractable
     public string thingId = NightThings.GraceGnome;
     [Tooltip("What's seen in the street. Hidden once it has been taken.")]
     public GameObject visual;
+    [Tooltip("Only offered when Ace can see it: a thing indoors is never taken through a wall.")]
+    public bool needsSight;
 
     NightThing thing;
     NightLedger ledger;
@@ -43,7 +50,66 @@ public sealed class NightTrophy : NightInteractable
         }
     }
 
-    protected override bool AvailableTonight => Thing != null && !Taken;
+    protected override bool AvailableTonight => Thing != null && !Taken && (!needsSight || Seen);
+
+    // ---------- line of sight ----------
+
+    // A ray that stops this close to the thing has reached it (its own box, the worktop under it).
+    const float NearEnough = .3f;
+    // Ace's eyes above Ace's middle (the capsule's middle is 1 m up; the eyes about 1.55 m).
+    const float EyeAboveMiddle = .55f;
+
+    static Transform ace;
+    int seenFrame = -1;
+    bool seen;
+    bool haveSightPoint;
+    Vector3 sightPoint;
+
+    /// <summary>Ace can see it from where Ace stands now (always true unless it needs sight).</summary>
+    public bool Seen
+    {
+        get
+        {
+            if (!needsSight) return true;
+            if (seenFrame == Time.frameCount) return seen;
+            seenFrame = Time.frameCount;
+            seen = LineOfSight();
+            return seen;
+        }
+    }
+
+    bool LineOfSight()
+    {
+        if (ace == null)
+        {
+            PlayerMovement player = FindAnyObjectByType<PlayerMovement>();
+            ace = player != null ? player.transform : null;
+        }
+        if (ace == null) return true;
+        Vector3 target = SightPoint;
+        Vector3 eye = ace.position + Vector3.up * EyeAboveMiddle;
+        if (!Physics.Linecast(eye, target, out RaycastHit hit, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return true;
+        if (hit.collider.transform.IsChildOf(transform)) return true;
+        return (hit.point - target).sqrMagnitude <= NearEnough * NearEnough;
+    }
+
+    // The middle of what's seen (it never moves: worked out once).
+    Vector3 SightPoint
+    {
+        get
+        {
+            if (haveSightPoint) return sightPoint;
+            sightPoint = transform.position + Vector3.up * .1f;
+            if (visual == null || !visual.activeInHierarchy) return sightPoint;
+            haveSightPoint = true;
+            Renderer[] parts = visual.GetComponentsInChildren<Renderer>();
+            if (parts.Length == 0) return sightPoint;
+            Bounds b = parts[0].bounds;
+            foreach (Renderer r in parts) b.Encapsulate(r.bounds);
+            sightPoint = b.center;
+            return sightPoint;
+        }
+    }
 
     // The interactor reads the prompt every frame while Ace is near: made again only when the name changes.
     string promptFor, prompt = "";
@@ -130,8 +196,10 @@ public sealed class NightTrophy : NightInteractable
         // His errand: in Ace's hand, back to the bins.
         carry.Hold(visual, thingId);
         NightCycle.Note($"Bring {(heardOfIt ? Thing.name : Thing.unknownName)} back to the man at the bins.");
+        // Ace's line of the night for this favour ("It's a gnome. It's just a gnome.").
         NightLines lines = NightLines.Current;
-        NightLines.Line mine = lines != null ? lines.FindLine(LodgerStory.AceNightOne) : null;
+        LodgerStory.Favour favour = LodgerStory.FindFavour(thingId);
+        NightLines.Line mine = lines != null ? lines.FindLine(favour != null && favour.aceLine.Length > 0 ? favour.aceLine : LodgerStory.AceNightOne) : null;
         if (mine != null) Barks.SayAce(mine.text);
     }
 }

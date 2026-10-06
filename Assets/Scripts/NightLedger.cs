@@ -18,7 +18,13 @@ using System.Collections.Generic;
 //   * the man at the bins (claude/the-man-at-the-bins-story.md, 6 Oct 2026): whether Ace has met him (Night 0's
 //     deal), how warm he is to Ace (Ace's replies nudge it; hidden), the lessons he has taught Ace (they pay off
 //     by day: Nerve widens the straight face's green) and what Ace has brought him (his corner by the bins).
-//     A thing Ace gives him leaves Ace's shelf for his corner; it is still Ace's deed, so the morning is the same.
+//     A thing Ace gives him leaves Ace's shelf for his corner; it is still Ace's deed, so the morning is the same;
+//   * his favours (session 3): the one he's asking for now (LodgerStory.Favours, in order), the night he first asked
+//     and last asked, and the skips in a row. A night that ends without the favour he asked for that night is a skip:
+//     the next morning he sits in the café (VisitDay); the third in a row, a note on the counter instead (NoteDay),
+//     and the favour is dropped. Giving it to him (Give) brings the next one up, not yet asked;
+//   * the officer's questions (session 3): each asked once, on a day, kept or flinched at; a flinch makes him one
+//     step more suspicious, like a cracked straight face.
 //
 // No Unity types: the Night 1 rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
 // ---------------------------------------------------------------------------
@@ -29,6 +35,8 @@ public sealed class NightLedger
     readonly Dictionary<string, int> suspicion = new(StringComparer.Ordinal);
     readonly List<string> lessons = new();
     readonly List<string> given = new();
+    readonly List<string> dropped = new();
+    readonly List<QuestionData> questions = new();
 
     /// <summary>Something changed (a trophy taken, a morning scene played, a restore): shelves and streets look again.</summary>
     public event Action Changed;
@@ -53,13 +61,103 @@ public sealed class NightLedger
     /// <summary>What Ace has brought him, in order (his corner). Treat as read-only.</summary>
     public IReadOnlyList<string> Given => given;
 
-    /// <summary>The deal at the bins is made. True the first time.</summary>
-    public bool Meet()
+    /// <summary>
+    /// The deal at the bins is made on night <paramref name="night"/>: he has asked for his first favour (the gnome).
+    /// True the first time.
+    /// </summary>
+    public bool Meet(int night = 1)
     {
         if (MetHim) return false;
         MetHim = true;
+        if (Favour.Length == 0) Favour = LodgerStory.NextFavour("", Closed);
+        if (Favour.Length > 0) AskedOn = LastAsked = Math.Max(1, night);
         Changed?.Invoke();
         return true;
+    }
+
+    // ---------- his favours ----------
+
+    /// <summary>The favour he's asking for now (a LodgerStory.Favours id); "" before the deal, or when none is left.</summary>
+    public string Favour { get; private set; } = "";
+    /// <summary>The night he first asked for it (0: not yet: the ritual's next ask is for it).</summary>
+    public int AskedOn { get; private set; }
+    /// <summary>The last night he asked for it (a night that ends without it, after he asked, is a skip).</summary>
+    public int LastAsked { get; private set; }
+    /// <summary>Nights in a row he asked for it and the night ended without it.</summary>
+    public int Skips { get; private set; }
+    /// <summary>The day he sits in the café (the morning after a skip), or 0.</summary>
+    public int VisitDay { get; private set; }
+    /// <summary>The day his note is on the counter (the morning after the third skip), or 0; and the favour it gives up.</summary>
+    public int NoteDay { get; private set; }
+    public string NoteFavour { get; private set; } = "";
+    /// <summary>Favours he stopped asking for. Treat as read-only.</summary>
+    public IReadOnlyList<string> Dropped => dropped;
+
+    /// <summary>The thing Ace is out to get for him: his favour, once asked for, until it's given; or "".</summary>
+    public string Errand => MetHim && Favour.Length > 0 && AskedOn > 0 && !HasGiven(Favour) ? Favour : "";
+
+    /// <summary>Done with: given to him, or dropped.</summary>
+    public bool Closed(string favour) => !string.IsNullOrEmpty(favour) && (given.Contains(favour) || dropped.Contains(favour));
+
+    /// <summary>He asks for his favour tonight (the ask, or the ask again). False with nothing to ask for.</summary>
+    public bool Ask(int night)
+    {
+        if (!MetHim || Favour.Length == 0 || night <= 0) return false;
+        if (AskedOn == 0) AskedOn = night;
+        LastAsked = night;
+        Changed?.Invoke();
+        return true;
+    }
+
+    public bool VisitDue(int day) => day > 0 && VisitDay == day;
+    public bool NoteDue(int day) => day > 0 && NoteDay == day;
+
+    // The favour is done or dropped: the next one comes up, not asked yet.
+    void MoveOn()
+    {
+        Favour = LodgerStory.NextFavour(Favour, Closed);
+        AskedOn = LastAsked = Skips = 0;
+    }
+
+    // ---------- the officer's questions ----------
+
+    /// <summary>Every question the officer has asked, oldest first. Treat as read-only.</summary>
+    public IReadOnlyList<QuestionData> Questions => questions;
+
+    public bool HasAsked(string question)
+    {
+        if (string.IsNullOrEmpty(question)) return false;
+        foreach (QuestionData q in questions) if (q.id == question) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// <paramref name="who"/> asked Ace <paramref name="question"/> on <paramref name="day"/>; a flinch makes them one step
+    /// more suspicious (never stars). Each question is asked once. True when it's new.
+    /// </summary>
+    public bool Questioned(string question, string who, int day, bool cracked)
+    {
+        if (string.IsNullOrEmpty(question) || HasAsked(question)) return false;
+        questions.Add(new QuestionData { id = question, who = who ?? "", day = Math.Max(0, day), cracked = cracked });
+        if (cracked && !string.IsNullOrEmpty(who)) suspicion[who] = Suspicion(who) + 1;
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>The question asked on <paramref name="day"/> (the latest, if more than one), or null.</summary>
+    public QuestionData QuestionOn(int day)
+    {
+        QuestionData found = null;
+        foreach (QuestionData q in questions) if (q.day == day && day > 0) found = q;
+        return found;
+    }
+
+    /// <summary>The deed someone told Ace about on <paramref name="day"/> (the latest), or null.</summary>
+    public NightDeedData FacedOn(int day)
+    {
+        NightDeedData found = null;
+        foreach (NightDeedData deed in deeds) if (deed.faced && deed.facedDay == day && day > 0) found = deed;
+        return found;
     }
 
     /// <summary>A reply nudges how warm he is (negative: colder), kept within the limits. The new warmth.</summary>
@@ -94,6 +192,8 @@ public sealed class NightLedger
     {
         if (!HasTrophy(thing) || given.Contains(thing)) return false;
         given.Add(thing);
+        // His favour done: the next one comes up (asked for at the bins, a night from now).
+        if (thing == Favour) MoveOn();
         Changed?.Invoke();
         return true;
     }
@@ -154,10 +254,26 @@ public sealed class NightLedger
     /// <summary>How suspicious <paramref name="who"/> is of Ace: 0 is not at all.</summary>
     public int Suspicion(string who) => who != null && suspicion.TryGetValue(who, out int level) ? level : 0;
 
-    /// <summary>Ace is home: one more night done.</summary>
-    public void CameHome()
+    /// <summary>
+    /// Ace is home from night <paramref name="night"/>: one more night done. If he asked for his favour tonight and the
+    /// night ends without it, that's a skip: he sits in the café the next morning, or, the third in a row, leaves a note
+    /// on the counter and stops asking for it (the next one comes up).
+    /// </summary>
+    public void CameHome(int night = 0)
     {
         Nights++;
+        if (night > 0 && MetHim && Favour.Length > 0 && LastAsked == night && !HasGiven(Favour))
+        {
+            Skips++;
+            if (Skips >= LodgerStory.SkipsBeforeDropped)
+            {
+                NoteDay = night + 1;
+                NoteFavour = Favour;
+                if (!dropped.Contains(Favour)) dropped.Add(Favour);
+                MoveOn();
+            }
+            else VisitDay = night + 1;
+        }
         Changed?.Invoke();
     }
 
@@ -169,6 +285,8 @@ public sealed class NightLedger
         suspicion.Clear();
         lessons.Clear();
         given.Clear();
+        dropped.Clear();
+        questions.Clear();
         Nights = saved != null ? Math.Max(0, saved.nights) : 0;
         MetHim = saved != null && saved.metHim;
         Warmth = saved != null ? Math.Max(-NightSaveData.MaxWarmth, Math.Min(NightSaveData.MaxWarmth, saved.warmth)) : 0;
@@ -186,8 +304,40 @@ public sealed class NightLedger
             // Only what Ace has taken can be his.
             foreach (string thing in saved.given ?? Array.Empty<string>())
                 if (!string.IsNullOrEmpty(thing) && trophies.Contains(thing) && !given.Contains(thing)) given.Add(thing);
+            foreach (string favour in saved.dropped ?? Array.Empty<string>())
+                if (!string.IsNullOrEmpty(favour) && !dropped.Contains(favour)) dropped.Add(favour);
+            var asked = new HashSet<string>(StringComparer.Ordinal);
+            foreach (QuestionData q in saved.questions ?? Array.Empty<QuestionData>())
+                if (q != null && !string.IsNullOrEmpty(q.id) && asked.Add(q.id)) questions.Add(q.Copy());
         }
+        RestoreFavour(saved);
         Changed?.Invoke();
+    }
+
+    // His favour as saved, tidied: an unknown or finished one moves on; a save from before the favours (met, no favour)
+    // picks up at the first one not given, which the deal asked for if it's the gnome.
+    void RestoreFavour(NightSaveData saved)
+    {
+        Favour = saved?.favour ?? "";
+        AskedOn = saved != null ? Math.Max(0, saved.askedOn) : 0;
+        LastAsked = saved != null ? Math.Max(0, saved.lastAsked) : 0;
+        Skips = saved != null ? Math.Max(0, Math.Min(LodgerStory.SkipsBeforeDropped - 1, saved.skips)) : 0;
+        VisitDay = saved != null ? Math.Max(0, saved.visitDay) : 0;
+        NoteDay = saved != null ? Math.Max(0, saved.noteDay) : 0;
+        NoteFavour = saved?.noteFavour ?? "";
+        if (!MetHim)
+        {
+            Favour = "";
+            AskedOn = LastAsked = Skips = 0;
+            return;
+        }
+        if (Favour.Length > 0 && (LodgerStory.FindFavour(Favour) == null || Closed(Favour))) Favour = "";
+        if (Favour.Length == 0)
+        {
+            Favour = LodgerStory.NextFavour("", Closed);
+            AskedOn = LastAsked = Skips = 0;
+        }
+        if (Favour == LodgerStory.FirstErrand && AskedOn == 0) AskedOn = 1;
     }
 
     /// <summary>A copy of everything, for the save.</summary>
@@ -202,7 +352,17 @@ public sealed class NightLedger
             warmth = Warmth,
             lessons = lessons.ToArray(),
             given = given.ToArray(),
+            favour = Favour,
+            askedOn = AskedOn,
+            lastAsked = LastAsked,
+            skips = Skips,
+            visitDay = VisitDay,
+            noteDay = NoteDay,
+            noteFavour = NoteFavour,
+            dropped = dropped.ToArray(),
+            questions = new QuestionData[questions.Count],
         };
+        for (int i = 0; i < questions.Count; i++) data.questions[i] = questions[i].Copy();
         for (int i = 0; i < deeds.Count; i++) data.deeds[i] = deeds[i].Copy();
         var list = new List<SuspicionData>();
         foreach (KeyValuePair<string, int> pair in suspicion)

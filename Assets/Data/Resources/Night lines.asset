@@ -249,11 +249,135 @@ MonoBehaviour:
   - id: lodger.beckon.02
     speaker: lodger
     situation: lodger.beckon
-    text: Bring him here.
+    text: Bring it here.
   - id: lodger.beckon.03
     speaker: lodger
     situation: lodger.beckon
     text: That's the one.
+  - id: lodger.night0.12
+    speaker: lodger
+    situation: night0.deal
+    text: That cop who drinks your coffee? He's looking for me.
+  - id: lodger.night0.13
+    speaker: lodger
+    situation: night0.deal
+    text: Keep him happy.
+  - id: ace.night2.02a
+    speaker: ace
+    situation: night2.ask
+    text: One sleeve. Fine.
+  - id: lodger.night2.03a
+    speaker: lodger
+    situation: night2.ask
+    text: Good. Don't wake her.
+  - id: lodger.night2.04
+    speaker: lodger
+    situation: night2.ask
+    text: Her kitchen. A box on the worktop.
+  - id: lodger.night2.w02
+    speaker: lodger
+    situation: night2.ask
+    text: 'Before you ask: old times. You''ll see.'
+  - id: ace.night2.02w
+    speaker: ace
+    situation: night2.ask
+    text: Old times?
+  - id: lodger.night2.03w
+    speaker: lodger
+    situation: night2.ask
+    text: You'll see. Bring them back.
+  - id: lodger.night2.r01
+    speaker: lodger
+    situation: night2.return
+    text: You found them.
+  - id: ace.night2.r02a
+    speaker: ace
+    situation: night2.return
+    text: One sleeve, as asked.
+  - id: ace.night2.r02b
+    speaker: ace
+    situation: night2.return
+    text: So what are they for?
+  - id: lodger.night2.r03a
+    speaker: lodger
+    situation: night2.return
+    text: As asked. I like that.
+  - id: lodger.night2.r03b
+    speaker: lodger
+    situation: night2.return
+    text: Watch.
+  - id: lodger.night2.r04
+    speaker: lodger
+    situation: night2.return
+    text: Four cups. Old habit. There used to be four of us.
+  - id: lodger.night2.r05
+    speaker: lodger
+    situation: night2.return
+    text: Doors. Every house has a key. People tell you where.
+  - id: lodger.night2.r06
+    speaker: lodger
+    situation: night2.return
+    text: And a page. Her photos. Look who isn't in them.
+  - id: lodger.night2.r07
+    speaker: lodger
+    situation: night2.return
+    text: Two cars on West Street. I want them gone.
+  - id: lodger.wait.01
+    speaker: lodger
+    situation: night.wait
+    text: Nothing tonight. I'm still thinking.
+  - id: lodger.remind.gnome
+    speaker: lodger
+    situation: lodger.remind
+    text: The gnome. Grace's step.
+  - id: lodger.remind.cups
+    speaker: lodger
+    situation: lodger.remind
+    text: Grace's cups. One sleeve.
+  - id: lodger.remind.cones
+    speaker: lodger
+    situation: lodger.remind
+    text: The cones. West Street.
+  - id: lodger.verdict.held.01
+    speaker: lodger
+    situation: lodger.verdict.held
+    text: She asked. You held. Good.
+  - id: lodger.verdict.held.02
+    speaker: lodger
+    situation: lodger.verdict.held
+    text: Straight face this morning. I saw.
+  - id: lodger.verdict.cracked.01
+    speaker: lodger
+    situation: lodger.verdict.cracked
+    text: You smiled at her this morning. She'll remember.
+  - id: lodger.verdict.cracked.02
+    speaker: lodger
+    situation: lodger.verdict.cracked
+    text: Your face this morning. Work on it.
+  - id: lodger.verdict.quiet.01
+    speaker: lodger
+    situation: lodger.verdict.quiet
+    text: The cop asked about me. You said nothing. Good.
+  - id: lodger.verdict.flinched.01
+    speaker: lodger
+    situation: lodger.verdict.flinched
+    text: The cop asked. You flinched. He'll be back.
+  - id: lodger.visit.01
+    speaker: lodger
+    situation: lodger.visit
+    text: Nice place. Shame about last night.
+  - id: lodger.visit.02
+    speaker: lodger
+    situation: lodger.visit
+    text: Good coffee. I'll wait.
+  - id: lodger.visit.warm.01
+    speaker: lodger
+    situation: lodger.visit.warm
+    text: Nice place. Take your time. Not too much.
+  - id: lodger.visit.cold.01
+    speaker: lodger
+    situation: lodger.visit.cold
+    text: Nice place. Be a shame if people asked questions.
   scenes:
   - id: night0.deal
     holdAce: 1
@@ -266,6 +390,8 @@ MonoBehaviour:
     - lodger.night0.07
     - lodger.night0.08
     - lodger.night0.09
+    - lodger.night0.12
+    - lodger.night0.13
     choices:
     - after: lodger.night0.01
       first:
@@ -286,12 +412,20 @@ MonoBehaviour:
         answer: lodger.night0.11
         warmth: 0
   - id: night2.ask
-    holdAce: 0
+    holdAce: 1
     lines:
     - lodger.night2.01
-    - ace.night2.02
-    - lodger.night2.03
-    choices: []
+    - lodger.night2.04
+    choices:
+    - after: lodger.night2.01
+      first:
+        line: ace.night2.02a
+        answer: lodger.night2.03a
+        warmth: 1
+      second:
+        line: ace.night2.02
+        answer: lodger.night2.03
+        warmth: 0
   - id: night3.ask
     holdAce: 0
     lines:
@@ -299,7 +433,7 @@ MonoBehaviour:
     - lodger.night3.02
     choices: []
   - id: night.off
-    holdAce: 0
+    holdAce: 1
     lines:
     - lodger.off.01
     choices: []
@@ -321,3 +455,42 @@ MonoBehaviour:
         line: ace.night1.r02b
         answer: lodger.night1.r03b
         warmth: 0
+  - id: night2.ask.warm
+    holdAce: 1
+    lines:
+    - lodger.night2.01
+    - lodger.night2.w02
+    - lodger.night2.04
+    choices:
+    - after: lodger.night2.w02
+      first:
+        line: ace.night2.02a
+        answer: lodger.night2.03a
+        warmth: 1
+      second:
+        line: ace.night2.02w
+        answer: lodger.night2.03w
+        warmth: 0
+  - id: night2.return
+    holdAce: 1
+    lines:
+    - lodger.night2.r01
+    - lodger.night2.r04
+    - lodger.night2.r05
+    - lodger.night2.r06
+    - lodger.night2.r07
+    choices:
+    - after: lodger.night2.r01
+      first:
+        line: ace.night2.r02a
+        answer: lodger.night2.r03a
+        warmth: 1
+      second:
+        line: ace.night2.r02b
+        answer: lodger.night2.r03b
+        warmth: 0
+  - id: night.wait
+    holdAce: 1
+    lines:
+    - lodger.wait.01
+    choices: []

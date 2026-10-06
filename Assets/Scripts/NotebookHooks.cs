@@ -90,6 +90,39 @@ public static class NotebookHooks
         return notebook != null && fact != null && notebook.Learn(fact, Today);
     }
 
+    /// <summary>
+    /// The man at the bins told Ace about <paramref name="thing"/> (his ask: Grace's cups, and where they are), under its
+    /// owner's name. True when it's new to the notebook.
+    /// </summary>
+    public static bool HeardFromHim(NightThing thing)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        if (notebook == null || thing == null || notebook.Knows(thing.id)) return false;
+        NotebookFactData fact = NightThings.Mentioned(thing, NameOf(notebook, thing.owner));
+        return fact != null && notebook.Learn(fact, Today);
+    }
+
+    /// <summary>The officer asked Ace a question (OfficerStory): his description of the man; and, after a flinch, that he noticed.</summary>
+    public static bool AskedBy(string name, OfficerStory.Question question, bool flinched)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        if (notebook == null || question == null) return false;
+        bool learned = false;
+        NotebookFactData asked = OfficerStory.Asked(question, name);
+        if (asked != null) learned |= notebook.Learn(asked, Today);
+        NotebookFactData noticed = flinched ? OfficerStory.Flinched(question, name) : null;
+        if (noticed != null) learned |= notebook.Learn(noticed, Today);
+        return learned;
+    }
+
+    /// <summary>His note on the counter (the third skip): kept as one of his pages.</summary>
+    public static bool FoundHisNote(string favour)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        NotebookFactData page = LodgerStory.NotePage(favour);
+        return notebook != null && page != null && notebook.Learn(page, Today);
+    }
+
     /// <summary>Ace took <paramref name="thing"/> at night: Ace's own secret (<paramref name="forHim"/>: for the man at the bins).</summary>
     public static bool TookAtNight(NightThing thing, bool forHim = false)
     {

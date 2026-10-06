@@ -54,10 +54,16 @@ public sealed class StraightFaceUI : MonoBehaviour
     /// The needle has stopped: say how it went until Hide, followed by <paramref name="then"/> (the key
     /// to go on) once there is one.
     /// </summary>
-    public static void Result(StraightFaceMeter meter, string then = null)
+    public static void Result(StraightFaceMeter meter, string then = null) => Result(meter, null, null, then);
+
+    /// <summary>
+    /// The same, in other words (the officer's "Say nothing": "Said nothing." or "You flinched."); null keeps the usual
+    /// "Straight face!" and "You cracked.".
+    /// </summary>
+    public static void Result(StraightFaceMeter meter, string heldWord, string crackedWord, string then = null)
     {
         if (meter == null || !Application.isPlaying) return;
-        Ensure().Place(meter, meter.Held ? "Straight face!" : "You cracked.", then);
+        Ensure().Place(meter, meter.Held ? heldWord ?? "Straight face!" : crackedWord ?? "You cracked.", then);
     }
 
     public static void Hide()

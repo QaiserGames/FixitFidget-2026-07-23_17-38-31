@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97892a325f0d8524eaf01f70a23c9b44, type: 3}
+  m_Name: Regular_Officer
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerProfile
+  characterName: Officer
+  bio: 'Walks the beat round the blocks. Drinks his coffee black and notices everything.
+    (Placeholder: Mansoor and his sister write him.)'
+  themeColor: {r: 0.5, g: 0.64, b: 0.85, a: 1}
+  persistentId: officer
+  homeId: 
+  standInLook: Character_Male_Police
+  portraitNeutral: {fileID: 0}
+  portraitHappy: {fileID: 0}
+  portraitAnnoyed: {fileID: 0}
+  portraitSad: {fileID: 0}
+  portraitSurprised: {fileID: 0}
+  patienceMultiplier: 1.1
+  tipMultiplier: 1
+  movementProfile: {fileID: 0}
+  preferredWaitKind: 1
+  drinkWishChance: 0
+  primaryVisitKind: 2
+  preferredDrink: {fileID: 11400000, guid: f8f4c1a2bc2829d4ba3142360184b7a1, type: 2}
+  preferredDevice: {fileID: 0}
+  preferredDeviceChance: 0
+  storyteller: 0
+  storyLines: []
+  storyFirstDelay: 12
+  storyInterval: 22
+  storyMaxLines: 3
+  focusReply: Of course. I'll let you concentrate.
+  focusReturnLine: I remember you need quiet while you work. I'll let you concentrate.
+  topics: []
+  lines:
+    intake:
+    - Coffee, black. That's all, Ace.
+    accepted:
+    - Thanks. I'll take it by the window.
+    completed:
+    - Good coffee. Don't tell the second batch.
+    declined:
+    - Fair enough. Another time.
+    reassured:
+    - No rush. I'm on a break.
+    stormedOut:
+    - I'll get one on the beat.
+    orderedDrink:
+    - 'Coffee, black. First batch, if it''s going.
+
+      The second batch here is
+      always burnt.'
+    drinkOrder: []
+  returnLines:
+    intake:
+    - Coffee, black. That's all.
+    accepted:
+    - Thanks.
+    completed:
+    - Still good.
+    declined:
+    - Another time, then.
+    reassured:
+    - I've got a minute.
+    stormedOut:
+    - I'll be back.
+    orderedDrink:
+    - Morning, Ace. Black. First batch.
+    drinkOrder: []
+  warmLines:
+    intake:
+    - The usual, Ace.
+    accepted:
+    - Thanks, Ace.
+    completed:
+    - First batch. You can tell.
+    declined:
+    - Busy one. Another time.
+    reassured:
+    - Take your time. I'm off the clock.
+    stormedOut:
+    - I'll catch you tomorrow.
+    orderedDrink:
+    - Morning, Ace. The usual. First batch.
+    drinkOrder: []
+  returnMemoryLines:
+    successfulRepair: []
+    imperfectRepair: []
+    rejectedRepair: []
+    incompleteService: []
+    missedVisit: []
+    declinedVisit: []
+    capacityRefusal: []
+    servedVisit: []
+  passableRepairLines: []
+  rejectedRepairLines: []
+  drinkCompletedLines:
+  - That's the first batch. You can tell.

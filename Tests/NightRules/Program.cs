@@ -57,6 +57,16 @@ internal static class Program
             "The man at the bins survives a save round trip: met, warmth, lessons, his corner.");
         Check(!old.night.metHim && old.night.warmth == 0 && old.night.lessons.Length == 0 && old.night.given.Length == 0,
             "A save from before him: not met, no warmth, nothing learned or given.");
+
+        // His favours and the officer's question (session 3): added fields, no version bump.
+        NightLedger favours = NightRuleChecks.Favoured();
+        var favoursBack = JsonSerializer.Deserialize<SaveData>(JsonSerializer.Serialize(new SaveData { day = 4, night = favours.Snapshot() }, options), options);
+        favoursBack.ValidateAndMigrate();
+        var favoursAgain = new NightLedger();
+        favoursAgain.Restore(favoursBack.night);
+        Check(NightRuleChecks.SameFavours(favours, favoursAgain), "His favours, the skips, the visit and note days and the officer's question survive a save round trip.");
+        Check(old.night.favour == "" && old.night.skips == 0 && old.night.dropped.Length == 0 && old.night.questions.Length == 0,
+            "A save from before the favours: none of them.");
         return n;
     }
 }

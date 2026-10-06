@@ -26,8 +26,10 @@ using UnityEngine.UI;
 //   Barks.Say(speaker, id, text)        a line now (a reaction, a one-off); heard within Hearing of Ace
 //   Barks.SayFrom(speaker, id, situation) an ambient line from the speaker's pool, throttled
 //   Barks.SayAce(text)                  Ace muttering
-//   Barks.Play(sceneId, who)            a scene from the asset: lines in order; Ace held if the scene says
+//   Barks.Play(sceneId, who)            a scene from the asset: lines in order; Ace held if the scene says (optionally
+//                                       led by one line from code: the man's verdict before tonight's ask)
 //   Barks.PlayLines(lines, hold, who)   the same, from code
+//   Barks.PoolLine(id, situation)       the next line of a pool, without saying it (a scene's lead line)
 //
 // Ace answers (6 Oct 2026, claude/the-man-at-the-bins-story.md §4): where a held scene from the asset has a choice
 // after one of its lines, the scene waits once that line is up and Ace's two replies come up as chips where Ace's
@@ -170,6 +172,19 @@ public sealed class Barks : MonoBehaviour
         return b.Ambient(speaker, speakerId, pool[i].text);
     }
 
+    /// <summary>
+    /// The next line of <paramref name="speakerId"/>'s pool for <paramref name="situation"/>, in the pool's order (every
+    /// line once before any repeats), without saying it: a scene's lead line, or one of a scene made in code. "" if none.
+    /// </summary>
+    public static string PoolLine(string speakerId, string situation)
+    {
+        Barks b = Ensure();
+        NightLines lines = NightLines.Current;
+        if (b == null || lines == null || string.IsNullOrEmpty(situation)) return "";
+        IReadOnlyList<NightLines.Line> pool = lines.Pool(speakerId, situation);
+        return pool.Count == 0 ? "" : pool[b.Rules.Next(NightLines.PoolKey(speakerId, situation), pool.Count)].text;
+    }
+
     /// <summary>An ambient line with this text, throttled like a pool's (for code-made lines and the checks).</summary>
     public static bool SayAmbient(Transform speaker, string speakerId, string text)
     {
@@ -189,16 +204,24 @@ public sealed class Barks : MonoBehaviour
     /// sooner), Ace held still if the scene says so. <paramref name="who"/> gives each speaker's transform (Ace
     /// is found by itself). <paramref name="onLineId"/> hears each line's id as it comes up (what happens on a
     /// line: the notebook changing hands), and <paramref name="onReply"/> which reply Ace picked at a choice (0 or
-    /// 1). False if another scene is playing or the scene isn't there.
+    /// 1). <paramref name="leadText"/>, said by <paramref name="leadSpeaker"/>, comes first (a line from code: the
+    /// man's verdict on the day before tonight's ask). False if another scene is playing or the scene isn't there.
     /// </summary>
     public static bool Play(string sceneId, Func<string, Transform> who, Action<int, string> onLine = null, Action onDone = null,
-                            Action<string> onLineId = null, Action<NightLines.Choice, int> onReply = null)
+                            Action<string> onLineId = null, Action<NightLines.Choice, int> onReply = null,
+                            string leadSpeaker = null, string leadText = null)
     {
         Barks b = Ensure();
         NightLines lines = NightLines.Current;
         NightLines.Scene s = lines != null ? lines.FindScene(sceneId) : null;
         if (b == null || s == null || b.scene != null) return false;
         var play = new ScenePlay { hold = s.holdAce, who = who, onLine = onLine, onDone = onDone, onLineId = onLineId, onReply = onReply, from = s };
+        if (!string.IsNullOrWhiteSpace(leadText) && !string.IsNullOrEmpty(leadSpeaker))
+        {
+            play.speakers.Add(leadSpeaker);
+            play.texts.Add(leadText);
+            play.ids.Add("");
+        }
         foreach (string id in s.lines)
         {
             NightLines.Line line = lines.FindLine(id);

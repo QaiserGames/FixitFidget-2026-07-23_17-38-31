@@ -1,10 +1,12 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 // ---------------------------------------------------------------------------
-// NIGHT 0: THE BINS (6 Oct 2026; claude/night-0-and-the-favours-spec.md §3, claude/the-man-at-the-bins-story.md §2, §7)
+// THE BINS AT NIGHTFALL: NIGHT 0, AND EVERY NIGHT AFTER IT (6 Oct 2026; claude/night-0-and-the-favours-spec.md §3,
+// claude/the-man-at-the-bins-story.md §2, §7; session 3: claude/session-3-favours-stalling-officer.md §1)
 //
-// The first night, until Ace has met the man at the bins (NightLedger.MetHim), opens inside Night 1:
+// The first night, until Ace has met the man at the bins (NightLedger.MetHim), opens inside Night 1 (Night 0):
 //   1. after "Close up for the night" and the Night card, Ace stands just inside the café's back door with the bin
 //      bag in hand (NightCarry). The night's clock waits (it starts at 11 PM once the deal is made), and nothing
 //      else at night is offered yet (NightInteractable: only the bins' own things);
@@ -14,25 +16,31 @@ using UnityEngine;
 //      flickers, the view pushes in (a Cinemachine blend to the set's camera and back), the far lid creaks up and a man
 //      stands up out of the dumpster, and looks round;
 //   4. the deal (the Night lines' held scene): who he isn't, what he knows, the leverage, the turn, the notebook
-//      (his pages go in on its line: the inherited source), the first errand (Grace's gnome). Ace answers twice;
-//      each reply nudges his warmth (NightLedger);
+//      (his pages go in on its line: the inherited source), the first errand (Grace's gnome), and the cop who drinks
+//      Ace's coffee. Ace answers twice; each reply nudges his warmth (NightLedger);
 //   5. then the night proper: the clock runs, Ace's line ("I own a café and a man lives in my bins."), the night's
 //      notes, and he stays standing in the dumpster all night (Lodger).
-// Nothing is saved during a night: quitting part way comes back to the recap, and Night 0 again.
+// Every night after the deal (session 3) opens the same way, without the reveal: the bag, the back door, "Bin it",
+// and he's already standing in the other half. He turns to Ace and says his verdict on the day just ended (if anything
+// happened: a straight face that morning, the officer's question), then tonight's scene (LodgerStory.WhatTonight):
+// the ask for his next favour (held, Ace answers; warm, he says why), the ask again after a skip (colder, from code),
+// a night off, or nothing yet. Then the clock runs, and a note says where the thing is.
+// Nothing is saved during a night: quitting part way comes back to the recap, and the bins again.
 //
-// Made by NightCycle at nightfall, only when it's due (Due); a lab that checks the night proper skips it (Skip For
-// Lab: NightOneCheck). Without the set in the scene (Fixit Fidget > Night > Bins 1) there is no Night 0.
+// Made by NightCycle at nightfall, only when it's due (Due, Ritual); a lab that checks the night proper skips it
+// (Skip For Lab: NightOneCheck). Without the set in the scene (Fixit Fidget > Night > Bins 1) there are no bins.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightZero : MonoBehaviour
 {
+    /// <summary>Where tonight's bins are. Deal: the deal on Night 0, tonight's scene on any other night.</summary>
     public enum Step { AtTheDoor, Outside, Binning, Reveal, Deal, Done }
 
-    /// <summary>What Ace carries out on Night 0 (NightCarry's id).</summary>
+    /// <summary>What Ace carries out every night (NightCarry's id).</summary>
     public const string BagId = "bag";
 
     public static NightZero Instance { get; private set; }
-    /// <summary>For one Play session: a lab that checks the night proper (Night 1's checks) skips Night 0.</summary>
+    /// <summary>For one Play session: a lab that checks the night proper (Night 1's checks) skips the bins.</summary>
     public static bool SkipForLab { get; set; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -45,10 +53,19 @@ public sealed class NightZero : MonoBehaviour
     /// <summary>Does tonight open with Night 0? Not met yet, the bins are in the scene, and no lab says otherwise.</summary>
     public static bool Due => !SkipForLab && NightZeroSet.Instance != null && SaveManager.Instance != null && !SaveManager.Instance.Night.MetHim;
 
-    /// <summary>Night 0 is under way tonight: until the deal is made, only the bins' things are offered.</summary>
+    /// <summary>Does tonight open at the bins, as every night after the deal does? Met, the bins in the scene, no lab says otherwise.</summary>
+    public static bool Ritual => !SkipForLab && NightZeroSet.Instance != null && SaveManager.Instance != null && SaveManager.Instance.Night.MetHim;
+
+    /// <summary>The bins are under way tonight: until his scene is over, only the bins' things are offered.</summary>
     public static bool Pending => Instance != null && Instance.Now != Step.Done;
 
     public Step Now { get; private set; } = Step.AtTheDoor;
+    /// <summary>Night 0 (the reveal and the deal), not the bins of a later night.</summary>
+    public bool First { get; private set; }
+    /// <summary>What he said tonight after the bag went in (a later night), for the reports and checks.</summary>
+    public LodgerStory.Tonight Tonight { get; private set; } = LodgerStory.Tonight.Wait;
+    /// <summary>His verdict tonight (a pool), or "".</summary>
+    public string Verdict { get; private set; } = "";
     /// <summary>Ace's replies tonight, in order (0 or 1 each), for the reports.</summary>
     public string Replies { get; private set; } = "";
     /// <summary>Seconds of the reveal, from the bag going in to his first line (reports).</summary>
@@ -60,15 +77,18 @@ public sealed class NightZero : MonoBehaviour
     AceBody aceBody;
     NightLedger ledger;
     float lampIntensity;
+    LodgerStory.Favour asked;
 
-    /// <summary>Night 0 begins (NightCycle, at nightfall, while the screen is dark): Ace at the back door with the bag.</summary>
+    static int Night => DayClock.Instance != null ? DayClock.Instance.Day : 0;
+
+    /// <summary>The bins begin (NightCycle, at nightfall, while the screen is dark): Ace at the back door with the bag.</summary>
     public static NightZero Begin(Lodger man)
     {
         if (Instance != null) return Instance;
         NightZeroSet set = NightZeroSet.Instance;
         PlayerMovement ace = FindAnyObjectByType<PlayerMovement>();
         if (set == null || ace == null || SaveManager.Instance == null) return null;
-        var go = new GameObject("Night 0 (while the night runs)");
+        var go = new GameObject("The bins (while the night runs)");
         NightZero zero = go.AddComponent<NightZero>();
         zero.Open(set, man, ace);
         return zero;
@@ -91,6 +111,7 @@ public sealed class NightZero : MonoBehaviour
         ace = player;
         aceBody = player.GetComponent<AceBody>();
         ledger = SaveManager.Instance.Night;
+        First = !ledger.MetHim;
         if (set.lamp != null) lampIntensity = set.lamp.intensity;
         NightWalk walk = NightWalk.Instance;
         if (walk != null) walk.ClockHeld = true;
@@ -104,8 +125,8 @@ public sealed class NightZero : MonoBehaviour
     {
         NightWalk walk = NightWalk.Instance;
         if (walk == null || !walk.Active) { Destroy(gameObject); return; }
-        // A deal that stopped some other way (a check clearing the screen): the night must not stay waiting.
-        if (Now == Step.Deal && !Barks.ScenePlaying) DealMade();
+        // A scene that stopped some other way (a check clearing the screen): the night must not stay waiting.
+        if (Now == Step.Deal && !Barks.ScenePlaying) SceneDone();
     }
 
     // ---------- the back door ----------
@@ -122,13 +143,15 @@ public sealed class NightZero : MonoBehaviour
     /// <summary>Ace has the bag, outside, by the dumpster.</summary>
     public bool CanBinIt => Now == Step.Outside && NightCarry.Current != null && NightCarry.Current.HeldId == BagId;
 
-    /// <summary>"Bin it" (NightBins): the bag goes in, and he stands up out of the other half.</summary>
+    /// <summary>"Bin it" (NightBins): the bag goes in; on Night 0 he stands up out of the other half.</summary>
     public void BinIt()
     {
         if (!CanBinIt) return;
         Now = Step.Binning;
         StartCoroutine(TheBins());
     }
+
+    Transform Who(string speakerId) => speakerId == LodgerStory.SpeakerId && man != null ? man.Speaker : null;
 
     IEnumerator TheBins()
     {
@@ -143,7 +166,7 @@ public sealed class NightZero : MonoBehaviour
         GameObject bag = set.bag != null ? Instantiate(set.bag) : null;
         if (bag != null)
         {
-            bag.name = "The bag going in (Night 0)";
+            bag.name = "The bag going in";
             bag.transform.localScale = set.bag.transform.lossyScale * set.bagScale;
             foreach (Collider c in bag.GetComponentsInChildren<Collider>(true)) Destroy(c);
             // Into the middle of the near half, below its front rim: under the near lid's middle, level with where he
@@ -163,6 +186,25 @@ public sealed class NightZero : MonoBehaviour
         Sfx.Play("bins.bag", set.nearLid != null ? set.nearLid.position : ace.transform.position);
         yield return Lid(set.nearLid, .65f, 0f, .16f);
         Sfx.Play("bins.lid", set.nearLid != null ? set.nearLid.position : ace.transform.position);
+
+        if (!First)
+        {
+            // Any night after the deal: he's already standing in the other half. He turns to Ace, and says his piece.
+            yield return new WaitForSeconds(.35f);
+            if (man != null) man.Face(ace.transform.position);
+            if (aceBody != null && man != null) aceBody.FaceToward(man.Speaker.position);
+            yield return new WaitForSeconds(.45f);
+            Now = Step.Deal;
+            bool said = PlayTonight();
+            PlayerMovement.Release(this);   // the scene holds Ace now (or, with no scene in the lines, nothing does)
+            if (!said)
+            {
+                // No lines for it in the Night lines (Barks 1 not run yet): what it does still happens, without the words.
+                if (asked != null) OnAskLine(asked.firstLine);
+                SceneDone();
+            }
+            yield break;
+        }
 
         // A beat, in the quiet.
         yield return new WaitForSeconds(.9f);
@@ -187,13 +229,12 @@ public sealed class NightZero : MonoBehaviour
         // The deal.
         RevealSeconds = Time.time - began;
         Now = Step.Deal;
-        bool playing = Barks.Play(LodgerStory.DealScene, id => id == LodgerStory.SpeakerId && man != null ? man.Speaker : null,
-            onDone: DealMade, onLineId: OnDealLine, onReply: Replied);
+        bool playing = Barks.Play(LodgerStory.DealScene, Who, onDone: SceneDone, onLineId: OnDealLine, onReply: Replied);
         PlayerMovement.Release(this);   // the scene holds Ace now (or, with no scene in the lines, nothing does)
         if (!playing)
         {
             OnDealLine(LodgerStory.HandOverLine);
-            DealMade();
+            SceneDone();
         }
     }
 
@@ -252,34 +293,110 @@ public sealed class NightZero : MonoBehaviour
         if (man != null) man.Heard(warmth);
     }
 
-    void DealMade()
+    // ---------- tonight (every night after the deal) ----------
+
+    // His verdict, then tonight's scene. False when there were no lines to play (the Night lines lack it).
+    bool PlayTonight()
+    {
+        int night = Night;
+        LodgerStory.Favour favour = LodgerStory.FindFavour(ledger.Favour);
+        Tonight = LodgerStory.WhatTonight(ledger, night, InTheGame);
+        Verdict = LodgerStory.Verdict(ledger, night);
+        string verdict = Verdict.Length > 0 ? Barks.PoolLine(LodgerStory.SpeakerId, Verdict) : "";
+        switch (Tonight)
+        {
+            case LodgerStory.Tonight.Ask:
+                ledger.Ask(night);
+                asked = favour;
+                return Barks.Play(LodgerStory.AskScene(favour, ledger.Warmth), Who, onDone: SceneDone, onLineId: OnAskLine, onReply: Replied,
+                    leadSpeaker: LodgerStory.SpeakerId, leadText: verdict);
+            case LodgerStory.Tonight.AskAgain:
+            {
+                ledger.Ask(night);
+                // Colder: one of his cold lines, then what he wants. Said from code (Ace held), no reply.
+                var speakers = new List<string>(3);
+                var texts = new List<string>(3);
+                void Add(string text)
+                {
+                    if (string.IsNullOrWhiteSpace(text)) return;
+                    speakers.Add(LodgerStory.SpeakerId);
+                    texts.Add(text);
+                }
+                Add(verdict);
+                Add(Barks.PoolLine(LodgerStory.SpeakerId, LodgerStory.Cold));
+                NightLines lines = NightLines.Current;
+                Add(favour != null && lines != null ? lines.FindLine(favour.remind)?.text : "");
+                return texts.Count > 0 && Barks.PlayLines(speakers, texts, holdAce: true, Who, onDone: SceneDone);
+            }
+            case LodgerStory.Tonight.Off:
+                return Barks.Play(LodgerStory.OffScene, Who, onDone: SceneDone, leadSpeaker: LodgerStory.SpeakerId, leadText: verdict);
+            default:
+                return Barks.Play(LodgerStory.WaitScene, Who, onDone: SceneDone, leadSpeaker: LodgerStory.SpeakerId, leadText: verdict);
+        }
+    }
+
+    // A favour is in the game when there's something to take for it: a thing in the scene, or one Ace already has.
+    static bool InTheGame(string favour)
+    {
+        if (NightThings.Find(favour) == null) return false;
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        if (night != null && night.HasTrophy(favour)) return true;
+        foreach (NightTrophy thing in FindObjectsByType<NightTrophy>(FindObjectsInactive.Include))
+            if (thing.thingId == favour) return true;
+        return false;
+    }
+
+    // On the ask's first line Ace hears of the thing: the notebook learns it (his word for it).
+    void OnAskLine(string id)
+    {
+        if (asked == null || string.IsNullOrEmpty(id) || id != asked.firstLine) return;
+        NightThing thing = NightThings.Find(asked.id);
+        if (thing != null && NotebookHooks.HeardFromHim(thing)) Sfx.Play2D("notebook.page");
+    }
+
+    void SceneDone()
     {
         if (Now == Step.Done) return;
         Now = Step.Done;
-        ledger.Meet();
+        if (First) ledger.Meet(Night);
         NightWalk walk = NightWalk.Instance;
         if (walk != null) walk.ClockHeld = false;
         StartCoroutine(After());
     }
 
-    // Ace's line of the night, then what the night is for.
+    // Ace's line of the night (Night 0), then what the night is for.
     IEnumerator After()
     {
         yield return new WaitForSeconds(.6f);
-        NightLines lines = NightLines.Current;
-        NightLines.Line mine = lines != null ? lines.FindLine(LodgerStory.AceNightZero) : null;
-        if (mine != null) Barks.SayAce(mine.text);
-        yield return new WaitForSeconds(3.2f);
-        NightThing gnome = NightThings.Find(LodgerStory.FirstErrand);
         Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
-        string name = gnome == null ? "the gnome" : notebook != null && notebook.Knows(gnome.id) ? gnome.name : gnome.unknownName;
-        NightCycle.Note($"{Capital(name)} is on Grace's front step: the saffron house on the corner. {ControlHints.Torch} is the torch, " +
-                        $"{ControlHints.NotebookPage} the notebook. Back inside the café, {ControlHints.Interact} calls it a night.", 9f);
+        if (First)
+        {
+            NightLines lines = NightLines.Current;
+            NightLines.Line mine = lines != null ? lines.FindLine(LodgerStory.AceNightZero) : null;
+            if (mine != null) Barks.SayAce(mine.text);
+            yield return new WaitForSeconds(3.2f);
+            NightThing gnome = NightThings.Find(LodgerStory.FirstErrand);
+            string name = gnome == null ? "the gnome" : notebook != null && notebook.Knows(gnome.id) ? gnome.name : gnome.unknownName;
+            NightCycle.Note($"{Capital(name)} is on Grace's front step: the saffron house on the corner. {ControlHints.Torch} is the torch, " +
+                            $"{ControlHints.NotebookPage} the notebook. Back inside the café, {ControlHints.Interact} calls it a night.", 9f);
+            yield break;
+        }
+        LodgerStory.Favour errand = LodgerStory.FindFavour(ledger.Errand);
+        NightThing thing = errand != null ? NightThings.Find(errand.id) : null;
+        string known = thing == null ? "" : notebook != null && notebook.Knows(thing.id) ? thing.name : thing.unknownName;
+        // A night off is a night off, whatever he's still waiting for. Already Ace's (a night that ended with it in hand, or
+        // taken before he asked): it's on Ace's shelf, behind the counter (NightShelfTake hands it back), not where it was.
+        string hint = thing == null || Tonight == LodgerStory.Tonight.Off ? $"The night is yours. {ControlHints.Torch} is the torch, {ControlHints.NotebookPage} the notebook."
+            : ledger.OnShelf(thing.id) ? $"He wants what's already on Ace's shelf, behind the counter: {known}."
+            : LodgerStory.Hint(errand, known);
+        NightCycle.Note($"{hint} {ControlHints.Interact} at the back door calls it a night.", 8f);
     }
 
     static string Capital(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
 
     public string Describe() =>
-        $"Night 0: {Now}; replies {(Replies.Length > 0 ? Replies : "none yet")}; the reveal took {RevealSeconds:0.0} s; " +
-        $"his warmth {(ledger != null ? ledger.Warmth : 0)}; the clock {(NightWalk.Instance != null && NightWalk.Instance.ClockHeld ? "waiting" : "running")}.";
+        (First ? $"Night 0: {Now}; replies {(Replies.Length > 0 ? Replies : "none yet")}; the reveal took {RevealSeconds:0.0} s; "
+               : $"The bins: {Now}; tonight {Tonight}{(Verdict.Length > 0 ? ", his verdict " + Verdict : "")}; replies {(Replies.Length > 0 ? Replies : "none")}; ") +
+        $"his warmth {(ledger != null ? ledger.Warmth : 0)}; his favour {(ledger != null && ledger.Favour.Length > 0 ? ledger.Favour : "none")} " +
+        $"(skips {(ledger != null ? ledger.Skips : 0)}); the clock {(NightWalk.Instance != null && NightWalk.Instance.ClockHeld ? "waiting" : "running")}.";
 }

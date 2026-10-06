@@ -31,6 +31,10 @@ MonoBehaviour:
   patienceMultiplier: 1
   maxCustomers: 5
   drinkOnlyChance: 0.3
+  guidedOpening: 0
+  openingDrink: {fileID: 0}
+  openingHintDuration: 6
+  suppressRepairDrinkWishes: 0
   devices:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
   - {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
@@ -41,3 +45,14 @@ MonoBehaviour:
   - Sentimental
   - Impatient
   regularChance: 0.3
+  featuredRegular: {fileID: 0}
+  showFeaturedVisitHints: 0
+  featuredRegularArrivesAt: 0.15
+  useFeaturedRepair: 0
+  featuredRepair:
+    devicePrefab: {fileID: 0}
+    faultIndex: 0
+    storyEpisodeId: 
+  storyVisits:
+  - who: {fileID: 11400000, guid: 11b2eb1e8c94a444c8ba4851ad187011, type: 2}
+    arrivesAt: 0.25

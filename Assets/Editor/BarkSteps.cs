@@ -25,6 +25,13 @@ using UnityEngine;
 // choices once: only if it is still exactly the 5 Oct placeholder (the "Why?" exchange becomes the second choice's
 // second reply). A deal someone has rewritten is left alone, and the report says so.
 //
+// Session 3 (claude/session-3-favours-stalling-officer.md): Night 2's ask (held, with Ace's reply; and its warm
+// version), the cups' return, a night with nothing yet, the lines he says again after a skip, his verdicts on the day,
+// his lines in the café, and the cop line at the end of the deal. Three placeholders of 5 Oct and 6 Oct are upgraded
+// once, only if they are still exactly as they were made (anything rewritten is left alone and the report says so):
+// the deal gets the cop line; Night 2's ask becomes held, with a reply; the night off holds Ace. One line's words are
+// changed the same way, only if untouched: "Bring him here." (the gnome) becomes "Bring it here." (any favour).
+//
 // Barks 2 starts a night walk lab (the Day 5 test save, never the playtest save) with the bark check, which
 // photographs and checks the lines on screen (Logs/Night/barks-check-<time>/).
 // ---------------------------------------------------------------------------
@@ -112,6 +119,44 @@ internal static class BarkSteps
         ("neighbour.window.01", "neighbour", "neighbour.window", "Who's out there at this hour?"),
         ("neighbour.window.02", "neighbour", "neighbour.window", "Some of us sleep, you know."),
         ("neighbour.window.03", "neighbour", "neighbour.window", "Go home!"),
+        // Session 3: the cop line at the end of the deal (the officer drinks Ace's coffee from Day 1).
+        ("lodger.night0.12", "lodger", "night0.deal", "That cop who drinks your coffee? He's looking for me."),
+        ("lodger.night0.13", "lodger", "night0.deal", "Keep him happy."),
+        // Night 2's ask: Ace answers; warm, he says why before Ace asks.
+        ("ace.night2.02a", "ace", "night2.ask", "One sleeve. Fine."),
+        ("lodger.night2.03a", "lodger", "night2.ask", "Good. Don't wake her."),
+        ("lodger.night2.04", "lodger", "night2.ask", "Her kitchen. A box on the worktop."),
+        ("lodger.night2.w02", "lodger", "night2.ask", "Before you ask: old times. You'll see."),
+        ("ace.night2.02w", "ace", "night2.ask", "Old times?"),
+        ("lodger.night2.03w", "lodger", "night2.ask", "You'll see. Bring them back."),
+        // Night 2's return: four cups on the crate.
+        ("lodger.night2.r01", "lodger", "night2.return", "You found them."),
+        ("ace.night2.r02a", "ace", "night2.return", "One sleeve, as asked."),
+        ("ace.night2.r02b", "ace", "night2.return", "So what are they for?"),
+        ("lodger.night2.r03a", "lodger", "night2.return", "As asked. I like that."),
+        ("lodger.night2.r03b", "lodger", "night2.return", "Watch."),
+        ("lodger.night2.r04", "lodger", "night2.return", "Four cups. Old habit. There used to be four of us."),
+        ("lodger.night2.r05", "lodger", "night2.return", "Doors. Every house has a key. People tell you where."),
+        ("lodger.night2.r06", "lodger", "night2.return", "And a page. Her photos. Look who isn't in them."),
+        ("lodger.night2.r07", "lodger", "night2.return", "Two cars on West Street. I want them gone."),
+        // A night with nothing to ask yet (the next favour isn't in the game).
+        ("lodger.wait.01", "lodger", "night.wait", "Nothing tonight. I'm still thinking."),
+        // What he wants, said again after his cold line (the ask again, after a skip).
+        ("lodger.remind.gnome", "lodger", "lodger.remind", "The gnome. Grace's step."),
+        ("lodger.remind.cups", "lodger", "lodger.remind", "Grace's cups. One sleeve."),
+        ("lodger.remind.cones", "lodger", "lodger.remind", "The cones. West Street."),
+        // His verdict on the day just ended, before tonight's ask.
+        ("lodger.verdict.held.01", "lodger", "lodger.verdict.held", "She asked. You held. Good."),
+        ("lodger.verdict.held.02", "lodger", "lodger.verdict.held", "Straight face this morning. I saw."),
+        ("lodger.verdict.cracked.01", "lodger", "lodger.verdict.cracked", "You smiled at her this morning. She'll remember."),
+        ("lodger.verdict.cracked.02", "lodger", "lodger.verdict.cracked", "Your face this morning. Work on it."),
+        ("lodger.verdict.quiet.01", "lodger", "lodger.verdict.quiet", "The cop asked about me. You said nothing. Good."),
+        ("lodger.verdict.flinched.01", "lodger", "lodger.verdict.flinched", "The cop asked. You flinched. He'll be back."),
+        // In the café, the morning after a skip: one line when Ace passes, by how warm he is.
+        ("lodger.visit.01", "lodger", "lodger.visit", "Nice place. Shame about last night."),
+        ("lodger.visit.02", "lodger", "lodger.visit", "Good coffee. I'll wait."),
+        ("lodger.visit.warm.01", "lodger", "lodger.visit.warm", "Nice place. Take your time. Not too much."),
+        ("lodger.visit.cold.01", "lodger", "lodger.visit.cold", "Nice place. Be a shame if people asked questions."),
     };
 
     // The deal as Barks 1 first made it (5 Oct), and as it is with Ace's replies (6 Oct): his "...I didn't see you."
@@ -127,13 +172,33 @@ internal static class BarkSteps
         "lodger.night0.06", "lodger.night0.07", "lodger.night0.08", "lodger.night0.09",
     };
 
+    // The deal with the cop line at its end (session 3).
+    static readonly string[] DealWithTheCop =
+    {
+        "lodger.night0.01", "lodger.night0.03", "lodger.night0.04", "lodger.night0.05",
+        "lodger.night0.06", "lodger.night0.07", "lodger.night0.08", "lodger.night0.09", "lodger.night0.12", "lodger.night0.13",
+    };
+    // Night 2's ask as Barks 1 first made it (5 Oct: not held, Ace's "Why cups?" a line of the scene), and as it is now.
+    static readonly string[] NightTwoAskOfFifthOctober = { "lodger.night2.01", "ace.night2.02", "lodger.night2.03" };
+    static readonly string[] NightTwoAsk = { "lodger.night2.01", "lodger.night2.04" };
+    static readonly string[] NightOff = { "lodger.off.01" };
+
     static readonly (string id, bool hold, string[] lines)[] Scenes =
     {
-        ("night0.deal", true, DealWithReplies),
+        ("night0.deal", true, DealWithTheCop),
         ("night1.return", true, new[] { "lodger.night1.r01", "lodger.night1.r04", "lodger.night1.r05", "lodger.night1.r06", "lodger.night1.r07" }),
-        ("night2.ask", false, new[] { "lodger.night2.01", "ace.night2.02", "lodger.night2.03" }),
+        ("night2.ask", true, NightTwoAsk),
+        ("night2.ask.warm", true, new[] { "lodger.night2.01", "lodger.night2.w02", "lodger.night2.04" }),
+        ("night2.return", true, new[] { "lodger.night2.r01", "lodger.night2.r04", "lodger.night2.r05", "lodger.night2.r06", "lodger.night2.r07" }),
         ("night3.ask", false, new[] { "lodger.night3.01", "lodger.night3.02" }),
-        ("night.off", false, new[] { "lodger.off.01" }),
+        ("night.off", true, NightOff),
+        ("night.wait", true, new[] { "lodger.wait.01" }),
+    };
+
+    // A placeholder's words changed once, only if they are still exactly as they were made.
+    static readonly (string id, string was, string now)[] Retexts =
+    {
+        ("lodger.beckon.02", "Bring him here.", "Bring it here."),
     };
 
     // Each scene's choices: after which line, then each reply's line, the line said back and its warmth.
@@ -142,6 +207,9 @@ internal static class BarkSteps
         ("night0.deal", "lodger.night0.01", "ace.night0.02", "lodger.night0.01a", 1, "ace.night0.02b", "lodger.night0.01b", -1),
         ("night0.deal", "lodger.night0.09", "ace.night0.10a", "lodger.night0.11a", 1, "ace.night0.10", "lodger.night0.11", 0),
         ("night1.return", "lodger.night1.r01", "ace.night1.r02a", "lodger.night1.r03a", 1, "ace.night1.r02b", "lodger.night1.r03b", 0),
+        ("night2.ask", "lodger.night2.01", "ace.night2.02a", "lodger.night2.03a", 1, "ace.night2.02", "lodger.night2.03", 0),
+        ("night2.ask.warm", "lodger.night2.w02", "ace.night2.02a", "lodger.night2.03a", 1, "ace.night2.02w", "lodger.night2.03w", 0),
+        ("night2.return", "lodger.night2.r01", "ace.night2.r02a", "lodger.night2.r03a", 1, "ace.night2.r02b", "lodger.night2.r03b", 0),
     };
 
     // ================================================================== Barks 1
@@ -198,6 +266,38 @@ internal static class BarkSteps
                 }
                 else dealNote = " The deal has been rewritten since 5 Oct, so its replies were not added: add them in its Choices.";
             }
+            // Session 3: the cop line at the deal's end, once, only if the deal is as Barks 1 made it on 6 Oct.
+            if (deal != null && deal.lines != null && !deal.lines.Contains("lodger.night0.12"))
+            {
+                if (deal.lines.SequenceEqual(DealWithReplies))
+                {
+                    deal.lines = DealWithTheCop.ToArray();
+                    dealNote += " The deal now ends with the cop line.";
+                }
+                else dealNote += " The deal has been rewritten, so the cop line (lodger.night0.12, .13) was not added: add it to its Lines.";
+            }
+            // Night 2's ask of 5 Oct, untouched: held, with Ace's reply. The night off of 5 Oct, untouched: held.
+            NightLines.Scene nightTwo = sceneList.FirstOrDefault(x => x != null && x.id == "night2.ask");
+            if (nightTwo != null && !nightTwo.holdAce && (nightTwo.choices == null || nightTwo.choices.Length == 0))
+            {
+                if (nightTwo.lines != null && nightTwo.lines.SequenceEqual(NightTwoAskOfFifthOctober))
+                {
+                    nightTwo.lines = NightTwoAsk.ToArray();
+                    nightTwo.holdAce = true;
+                    nightTwo.choices = ChoicesOf("night2.ask");
+                    dealNote += " Night 2's ask now holds Ace, with a reply.";
+                }
+                else dealNote += " Night 2's ask has been rewritten, so it was left alone: it should hold Ace and have a choice.";
+            }
+            NightLines.Scene off = sceneList.FirstOrDefault(x => x != null && x.id == "night.off");
+            if (off != null && !off.holdAce && off.lines != null && off.lines.SequenceEqual(NightOff)) off.holdAce = true;
+            int retexts = 0;
+            foreach (var (id, was, now) in Retexts)
+            {
+                NightLines.Line line = lineList.FirstOrDefault(l => l != null && l.id == id);
+                if (line != null && line.text == was) { line.text = now; retexts++; }
+            }
+            if (retexts > 0) dealNote += $" {retexts} placeholder line(s) reworded.";
             asset.speakers = speakerList.ToArray();
             asset.lines = lineList.ToArray();
             asset.scenes = sceneList.ToArray();

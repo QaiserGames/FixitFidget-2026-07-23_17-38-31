@@ -154,7 +154,8 @@ public sealed class NightOneCheck : MonoBehaviour
         home = movement.transform.position;
 
         NightThing barnaby = NightThings.GnomeOfGrace;
-        NightTrophy gnome = FindAnyObjectByType<NightTrophy>();
+        // The gnome by its id: since session 3 there is more than one thing to take (Grace's cups).
+        NightTrophy gnome = FindObjectsByType<NightTrophy>(FindObjectsInactive.Include).FirstOrDefault(t => t.thingId == barnaby.id);
         TrophyShelf shelf = FindAnyObjectByType<TrophyShelf>();
         HomeDoor door = HomeDoor.Find("home.grace");
         Check(recapDay == 1 || recapDay == 2, $"it is Day {recapDay}'s recap");

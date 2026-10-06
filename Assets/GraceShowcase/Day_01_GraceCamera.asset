@@ -49,3 +49,6 @@ MonoBehaviour:
     devicePrefab: {fileID: 4068417638479487646, guid: 37fd044e1625dd048b010ff5d14fba84, type: 3}
     faultIndex: 0
     storyEpisodeId: grace_reunion_camera_v1
+  storyVisits:
+  - who: {fileID: 11400000, guid: 11b2eb1e8c94a444c8ba4851ad187011, type: 2}
+    arrivesAt: 0.35

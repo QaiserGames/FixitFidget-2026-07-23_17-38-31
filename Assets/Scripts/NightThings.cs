@@ -11,7 +11,10 @@ using System.Collections.Generic;
 // a line in the conversation's reply list (topic), answered with the mention. If Ace never asks, the
 // owner mentions it while they wait (waitingMention). A "\n" in a line starts the next line on screen.
 //
-// Night 1 has one thing: Grace's garden gnome, by her front step at 12 West Street (her HomeDoor).
+// Night 1 has one thing: Grace's garden gnome, by her front step at 12 West Street (her HomeDoor). Night 2 (6 Oct 2026,
+// session 3): a sleeve of her reunion cups, on top of their box on her kitchen worktop (the man at the bins' second
+// favour: LodgerStory). Ace takes it from inside her house, never through a wall (NightTrophy.needsSight). Nobody
+// mentions the cups by day: Ace first hears of them from him (his ask puts them in the notebook).
 //
 // EVERY WORD HERE IS A PLACEHOLDER. Grace's canon is Mansoor's: the gnome's name, what she says about
 // it on Day 1 (when Ace asks about her plans, at the counter over her camera), her complaint the morning
@@ -72,6 +75,7 @@ public sealed class NightThing
 public static class NightThings
 {
     public const string GraceGnome = "grace.gnome";
+    public const string GraceCups = "grace.cups";
 
     // PLACEHOLDER COPY (see the header): Mansoor rewrites it.
     public static readonly NightThing GnomeOfGrace = new NightThing
@@ -101,7 +105,35 @@ public static class NightThings
         patience = 6f,
     };
 
-    static readonly NightThing[] all = { GnomeOfGrace };
+    // PLACEHOLDER COPY (see the header): Mansoor rewrites it. A little harder to keep a straight face about than the
+    // gnome (the break-ins spec, section 10: the deed is worse).
+    public static readonly NightThing CupsOfGrace = new NightThing
+    {
+        id = GraceCups,
+        owner = GraceCameraEpisode.ProfileId,
+        name = "the reunion cups",
+        unknownName = "a sleeve of cups",
+        topic = "",
+        mention = "",
+        waitingMention = "",
+        complaint = "Somebody's been at my reunion cups. A whole sleeve, gone.\n"
+            + "Who breaks into a house for paper cups, Ace?",
+        held = "You're right, it's silly. Still. Twelve cups.",
+        cracked = "Ace. Are you laughing at me?\nI'll be counting my cups from now on.",
+        takenNote = "A sleeve of Grace's reunion cups is coming home with Ace. It'll go on the shelf.",
+        takenNoteUnknown = "A sleeve of cups is coming home with Ace. It'll go on the shelf.",
+        notebookMention = "Has a box of reunion cups in her kitchen: three sleeves of twelve, on the worktop. (His word.)",
+        notebookComplaint = "Someone took a sleeve of her reunion cups.",
+        notebookTaken = "Took a sleeve of her reunion cups. It's on the shelf.",
+        notebookTakenFor = "Took a sleeve of her reunion cups, for the man at the bins.",
+        notebookCracked = "Smiled when she told me about her cups. She's counting them now.",
+        sweepSeconds = .95f,
+        green = .19f,
+        near = .025f,
+        patience = 5.5f,
+    };
+
+    static readonly NightThing[] all = { GnomeOfGrace, CupsOfGrace };
 
     public static IReadOnlyList<NightThing> All => all;
 
@@ -114,7 +146,7 @@ public static class NightThings
         return null;
     }
 
-    /// <summary>The first thing <paramref name="owner"/> owns, or null.</summary>
+    /// <summary>The first thing <paramref name="owner"/> owns, or null (Grace: her gnome, the thing she talks about by day).</summary>
     public static NightThing OwnedBy(string owner)
     {
         if (string.IsNullOrEmpty(owner)) return null;

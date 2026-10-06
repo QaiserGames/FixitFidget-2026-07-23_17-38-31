@@ -78,6 +78,17 @@ public class PatronBrain : MonoBehaviour
     private int priority;
 
     public bool IsSeated => state == State.Sitting;
+    /// <summary>On the way out (or out of the door).</summary>
+    public bool IsLeaving => state == State.Leaving;
+
+    /// <summary>
+    /// Stay exactly <paramref name="seconds"/> once seated (the man at the bins' visit: a minute), instead of the
+    /// usual 40-90 s. Call before Init.
+    /// </summary>
+    public void StayFor(float seconds)
+    {
+        minStay = maxStay = Mathf.Max(1f, seconds);
+    }
 
     private void Awake()
     {

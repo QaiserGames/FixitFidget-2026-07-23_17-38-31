@@ -86,7 +86,8 @@ public class ConversationController : MonoBehaviour
     private bool conversationOpen;
     private int closedAtFrame = -1;
     // The Night 1 slice: the morning after a night, the straight-face scene runs
-    // first (MorningFace), then the usual request.
+    // first (MorningFace), then the usual request. Session 3: the officer's question
+    // runs after his order instead (MorningFace.AfterTheOrder), and then the conversation closes.
     private MorningFace morningFace;
 
     // The reply list: what's offered, which one E picks, and whether the stick is back in the middle.
@@ -229,12 +230,15 @@ public class ConversationController : MonoBehaviour
         }
 
         // The straight-face scene owns the conversation until it's done; then on
-        // to what they came in for, as usual.
+        // to what they came in for, as usual. A question after the order (the
+        // officer's) has had its answer read by then: the conversation closes.
         if (morningFace != null)
         {
             morningFace.Tick(Time.deltaTime, Time.time >= inputReadyAt);
             if (morningFace.Now != MorningFace.Step.Done) return;
+            bool afterOrder = morningFace.AfterOrder;
             morningFace = null;
+            if (afterOrder) { End(); return; }
             ui.SetLine(partner.HearIntake());
             RefreshPortrait();
             inputReadyAt = Time.time + inputDelay;
@@ -359,8 +363,19 @@ public class ConversationController : MonoBehaviour
             case ReplyKind.Accept:
                 if (!partner.CanAcceptJob) return;
                 string accepted = partner.AcceptJob();
-                if (partner.CanFixAtCounter) { counterAfterClose = partner; End(); }
-                else CloseWith(accepted);
+                if (partner.CanFixAtCounter) { counterAfterClose = partner; End(); return; }
+                // Session 3: the officer has a question after his order (OfficerStory): "say nothing".
+                morningFace = MorningFace.AfterTheOrder(partner, ui, accepted);
+                if (morningFace != null)
+                {
+                    ClearReplies();
+                    morningFace.Begin();
+                    RefreshPortrait();
+                    // The press that ordered can't also skip the question.
+                    inputReadyAt = Time.time + .15f;
+                    return;
+                }
+                CloseWith(accepted);
                 return;
             case ReplyKind.HandBack:
                 if (!partner.JobReady) return;

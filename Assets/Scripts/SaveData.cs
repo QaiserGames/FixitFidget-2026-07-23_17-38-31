@@ -96,6 +96,30 @@ public class NightSaveData
     public int warmth;                                         // how warm he is to Ace (hidden; Ace's replies move it)
     public string[] lessons = new string[0];                   // what he has taught Ace ("nerve"), in order
     public string[] given = new string[0];                     // what Ace has brought him (his corner): thing ids
+
+    // His favours and the officer's questions (claude/session-3-favours-stalling-officer.md; additive, 6 Oct 2026, no
+    // version bump: an older save loads with none, and NightLedger.Restore picks his favour up where it was).
+    public string favour = "";                                 // the favour he's asking for now (LodgerStory.Favours), "" none
+    public int askedOn;                                        // the night he first asked for it (0: not yet)
+    public int lastAsked;                                      // the last night he asked for it
+    public int skips;                                          // nights in a row he asked and the night ended without it
+    public int visitDay;                                       // the day he sits in the café (the morning after a skip), 0 none
+    public int noteDay;                                        // the day his note is on the counter (the third skip), 0 none
+    public string noteFavour = "";                             // ...and the favour it gives up on
+    public string[] dropped = new string[0];                   // favours he stopped asking for
+    public QuestionData[] questions = new QuestionData[0];     // what the officer has asked Ace, oldest first
+}
+
+// A question someone asked Ace by day (the officer's "Have you seen a man of this description?": OfficerStory).
+[Serializable]
+public class QuestionData
+{
+    public string id = "";      // which question (OfficerStory): asked once
+    public string who = "";     // who asked: a regular's profile id
+    public int day;             // the day it was asked
+    public bool cracked;        // Ace flinched (a "say nothing" meter cracked)
+
+    public QuestionData Copy() => (QuestionData)MemberwiseClone();
 }
 
 // A completed day's figures are a snapshot, not a replay of payouts/events.
@@ -209,6 +233,11 @@ public class SaveData
         night.lessons = night.lessons == null ? new string[0] : Array.FindAll(night.lessons, lesson => !string.IsNullOrEmpty(lesson));
         night.given = night.given == null ? new string[0] : Array.FindAll(night.given, thing => !string.IsNullOrEmpty(thing));
         night.warmth = Math.Max(-NightSaveData.MaxWarmth, Math.Min(NightSaveData.MaxWarmth, night.warmth));
+        night.favour ??= "";
+        night.noteFavour ??= "";
+        night.dropped = night.dropped == null ? new string[0] : Array.FindAll(night.dropped, favour => !string.IsNullOrEmpty(favour));
+        night.questions = night.questions == null ? new QuestionData[0]
+            : Array.FindAll(night.questions, q => q != null && !string.IsNullOrEmpty(q.id));
         reputation = Math.Max(0, reputation);
         starsEarned = Math.Max(0, Math.Min(5, starsEarned));
         if (recap != null)

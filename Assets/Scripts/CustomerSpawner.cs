@@ -104,6 +104,9 @@ public class CustomerSpawner : MonoBehaviour
     // over (CafeArrivals keeps their brain off until the door), the next arrival waits. A minute at most.
     private CustomerBrain firstThing;
     private float firstThingUntil;
+    // Session 3: named regulars who also come in today at an authored time (DayDefinition.storyVisits: the officer),
+    // each once; which of today's have come.
+    private bool[] storySpawned = System.Array.Empty<bool>();
     private const float FirstThingWaitsAtMost = 60f;
     private readonly CustomerVisitRoster roster = new();
 
@@ -207,6 +210,7 @@ public class CustomerSpawner : MonoBehaviour
             featuredCustomer = null;
             morningVisitor = ResolveMorningVisitor(lastSeenDay);
             morningVisitorSpawned = false;
+            storySpawned = today != null ? new bool[today.StoryVisitsOn(lastSeenDay).Length] : System.Array.Empty<bool>();
             firstThing = null;
             openingCustomer = null;
             openingDrink = ResolveOpeningDrink();
@@ -325,6 +329,9 @@ public class CustomerSpawner : MonoBehaviour
         bool morningDue = !featuredDue && morningVisitor != null && !morningVisitorSpawned
                           && !opening.IsActive && roster.CanVisit(morningVisitor.PersistentId);
 
+        // A story visit (the officer) whose time has come takes the next slot after those two.
+        int storyDue = featuredDue || morningDue ? -1 : StoryVisitDue();
+
         if (featuredDue)
         {
             profile = today.featuredRegular;
@@ -334,6 +341,11 @@ public class CustomerSpawner : MonoBehaviour
         {
             profile = morningVisitor;
             morningVisitorSpawned = true;
+        }
+        else if (storyDue >= 0)
+        {
+            profile = today.StoryVisitsOn(lastSeenDay)[storyDue].who;
+            storySpawned[storyDue] = true;
         }
         else if (!opening.IsActive)
         {
@@ -393,6 +405,33 @@ public class CustomerSpawner : MonoBehaviour
         if (opening.TryStartVisit()) openingCustomer = brain;
     }
 
+    // Today's first story visit whose time has come and who hasn't been in yet, or -1. Never during the Day 1 lesson's
+    // two visits (the same rule as the featured regular).
+    private int StoryVisitDue()
+    {
+        if (today == null || opening.IsActive) return -1;
+        StoryVisit[] visits = today.StoryVisitsOn(lastSeenDay);
+        for (int i = 0; i < visits.Length && i < storySpawned.Length; i++)
+        {
+            StoryVisit visit = visits[i];
+            if (visit == null || visit.who == null || storySpawned[i]) continue;
+            if (roster.CanVisit(visit.who.PersistentId) && opening.AllowsFeatured(DayFraction, visit.arrivesAt)) return i;
+        }
+        return -1;
+    }
+
+    /// <summary>Who is still to come in today on a story visit, in order (reports and checks).</summary>
+    public IEnumerable<CustomerProfile> StoryVisitorsToCome
+    {
+        get
+        {
+            if (today == null) yield break;
+            StoryVisit[] visits = today.StoryVisitsOn(lastSeenDay);
+            for (int i = 0; i < visits.Length && i < storySpawned.Length; i++)
+                if (visits[i] != null && visits[i].who != null && !storySpawned[i]) yield return visits[i].who;
+        }
+    }
+
     // The Night 1 slice: the first regular with something to tell Ace this morning (NightLedger),
     // found among the regulars or the schedule's featured ones. Today's featured regular is left
     // out: their authored visit brings them anyway.
@@ -432,10 +471,16 @@ public class CustomerSpawner : MonoBehaviour
         if (regulars != null)
             foreach (CustomerProfile profile in regulars)
                 if (profile != null) reserved.Add(profile.characterName);
-        // Reserve scheduled names on every day, not just their featured day.
+        // Reserve scheduled names on every day, not just their featured day (story visitors' too).
         if (schedule != null)
             foreach (DayDefinition day in schedule)
-                if (day != null && day.featuredRegular != null) reserved.Add(day.featuredRegular.characterName);
+            {
+                if (day == null) continue;
+                if (day.featuredRegular != null) reserved.Add(day.featuredRegular.characterName);
+                if (day.storyVisits != null)
+                    foreach (StoryVisit visit in day.storyVisits)
+                        if (visit != null && visit.who != null) reserved.Add(visit.who.characterName);
+            }
         roster.Reset(firstNames, reserved);
     }
 

@@ -40,6 +40,20 @@ public class DayPhase
     public float spawnInterval = 15f;
 }
 
+// A named regular who also comes in on this day at an authored time, besides the featured one (session 3: the officer's
+// coffee on Day 1 and his question on Day 3). Arrives like the featured regular: the next free arrival slot after the
+// time, never during the Day 1 lesson's two visits.
+[System.Serializable]
+public class StoryVisit
+{
+    [Tooltip("Who comes in.")]
+    public CustomerProfile who;
+
+    [Range(0f, 0.95f)]
+    [Tooltip("Earliest point in the day they may take the next arrival slot (0.25: a quarter through the day).")]
+    public float arrivesAt = 0.3f;
+}
+
 [CreateAssetMenu(fileName = "Day_", menuName = "FixitFiasco/Day Definition")]
 public class DayDefinition : ScriptableObject
 {
@@ -153,6 +167,15 @@ public class DayDefinition : ScriptableObject
     [Tooltip("Give this featured appearance a specific repair. Other arrivals and the opening lesson keep their normal jobs. Off preserves existing days.")]
     public bool useFeaturedRepair;
     public FeaturedRepairRequest featuredRepair = new FeaturedRepairRequest();
+
+    [Header("Story visits (also today)")]
+    [Tooltip("Named regulars who also come in today at an authored time (the officer). Each comes once, on this day " +
+             "only (a repeated last day doesn't repeat them).")]
+    public StoryVisit[] storyVisits;
+
+    /// <summary>The story visits on <paramref name="day"/>: only on this asset's own day, never when it repeats.</summary>
+    public StoryVisit[] StoryVisitsOn(int day) =>
+        day == dayNumber && storyVisits != null ? storyVisits : System.Array.Empty<StoryVisit>();
 
     // ---------- lookups ----------
 

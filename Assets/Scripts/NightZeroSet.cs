@@ -54,6 +54,11 @@ public sealed class NightZeroSet : MonoBehaviour
     public GameObject cornerGnome;
     [Tooltip("Degrees the corner gnome turns from facing the alley to facing the street when he sets it down.")]
     public float gnomeTurn = 180f;
+    [Tooltip("Grace's four cups on the crate beside the trash can, at night once Ace has given him the cups (he sets them out " +
+             "one by one: each child is a cup). Switched off in the scene. Fixit Fidget > Night > Night 2 1 puts them in.")]
+    public GameObject cornerCups;
+    [Tooltip("The crate his cups stand on (by day too: a box by the bins).")]
+    public GameObject crate;
 
     [Header("What's carried and worn")]
     [Tooltip("The bin bag Ace carries out (POLYGON City's SM_Prop_TrashBag_03).")]
@@ -90,5 +95,6 @@ public sealed class NightZeroSet : MonoBehaviour
     public string Describe() =>
         $"The bins: back door {(insideDoor != null && outsideDoor != null ? "set" : "MISSING")}, dumpster lids {(nearLid != null && farLid != null ? "set" : "MISSING")}, " +
         $"lamp {(lamp != null ? "set" : "none")}, reveal camera {(revealCamera != null ? "set" : "none")}, corner gnome {(cornerGnome != null ? "set" : "none")}, " +
+        $"corner cups {(cornerCups != null ? cornerCups.transform.childCount + " on the crate" : "none (Night 2 1)")}, " +
         $"bag {(bag != null ? bag.name : "none")}, his look {(look != null ? look.name : "none")}.";
 }

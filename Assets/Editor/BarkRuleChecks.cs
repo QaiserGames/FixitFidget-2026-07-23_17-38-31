@@ -11,6 +11,8 @@ using UnityEngine;
 // scenes, blank lines, and the 60-character writing rule (a warning, not a failure). Since 6 Oct, Ace's replies
 // too: each choice in a held scene, after one of its lines, both replies Ace's lines (32 characters for a chip:
 // a warning), the lines said back there, the warmth small; and the scenes the man at the bins plays (LodgerStory).
+// Session 3: every favour's ask (and its warm one), its line to say again, its return and the lines things happen on;
+// a night off and a night with nothing yet; his cold, verdict and visit pools; Ace's line for each favour.
 public static class BarkRuleChecks
 {
 #if UNITY_EDITOR
@@ -84,9 +86,33 @@ public static class BarkRuleChecks
         Check(Array.IndexOf(lines.FindScene(LodgerStory.DealScene).lines, LodgerStory.HandOverLine) >= 0, "The deal says the line on which the notebook changes hands.");
         foreach (string id in new[] { LodgerStory.TakesItLine, LodgerStory.TurnsItLine, LodgerStory.LessonLine, LodgerStory.PageLine })
             Check(Array.IndexOf(lines.FindScene(LodgerStory.ReturnScene).lines, id) >= 0, $"The return says '{id}' (what he does happens on it).");
-        foreach (string pool in new[] { LodgerStory.Waiting, LodgerStory.Beckon, LodgerStory.Done })
+        foreach (string pool in new[] { LodgerStory.Waiting, LodgerStory.Beckon, LodgerStory.Done, LodgerStory.Cold,
+                     LodgerStory.VerdictHeld, LodgerStory.VerdictCracked, LodgerStory.VerdictQuiet, LodgerStory.VerdictFlinched,
+                     LodgerStory.Visit, LodgerStory.VisitWarm, LodgerStory.VisitCold })
             Check(lines.Pool(LodgerStory.SpeakerId, pool).Count > 0, $"He has lines for '{pool}'.");
         Check(ids.Contains(LodgerStory.AceNightZero) && ids.Contains(LodgerStory.AceNightOne), "Ace's lines of Nights 0 and 1 are in the asset.");
+        foreach (string scene in new[] { LodgerStory.OffScene, LodgerStory.WaitScene })
+            Check(scenes.Contains(scene) && lines.FindScene(scene).holdAce, $"'{scene}' is a scene that holds Ace (it plays at the bins).");
+        // Each favour he can ask for in the game: its ask, the line said again, the return.
+        foreach (LodgerStory.Favour f in LodgerStory.Favours)
+        {
+            if (NightThings.Find(f.id) == null) continue;   // not in the game yet (the cones)
+            Check(ids.Contains(f.remind), $"Favour '{f.id}': the line he says again after a skip ('{f.remind}') is in the asset.");
+            Check(ids.Contains(f.aceLine), $"Favour '{f.id}': Ace's line on taking it ('{f.aceLine}') is in the asset.");
+            foreach (string ask in new[] { f.ask, f.askWarm })
+            {
+                if (string.IsNullOrEmpty(ask)) continue;
+                NightLines.Scene asked = lines.FindScene(ask);
+                Check(asked != null && asked.holdAce && asked.choices != null && asked.choices.Length > 0,
+                    $"Favour '{f.id}': its ask '{ask}' is a held scene where Ace answers.");
+                Check(string.IsNullOrEmpty(f.firstLine) || Array.IndexOf(asked.lines, f.firstLine) >= 0,
+                    $"Favour '{f.id}': its ask '{ask}' says '{f.firstLine}' (Ace hears of the thing on it).");
+            }
+            NightLines.Scene back = lines.FindScene(f.returnScene);
+            Check(back != null && back.holdAce && back.choices != null && back.choices.Length > 0, $"Favour '{f.id}': its return '{f.returnScene}' is a held scene where Ace answers.");
+            foreach (string id in new[] { f.takes, f.sets, f.lesson, f.page })
+                Check(Array.IndexOf(back.lines, id) >= 0, $"Favour '{f.id}': its return says '{id}' (what he does happens on it).");
+        }
         return n;
     }
 #endif

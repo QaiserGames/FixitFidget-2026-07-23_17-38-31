@@ -30,7 +30,9 @@ using UnityEngine.UI;
 // The man at the bins (6 Oct 2026): at nightfall he's at the bins behind the café once Ace has met him, or, the
 // first time, hidden in the dumpster while Night 0 opens the night at the café's back door (Lodger, NightZero).
 // Until the deal is made, Ace can't call it a night. The back door is a blink (Through): a dip to black, and Ace
-// is on its other side.
+// is on its other side. Since session 3 every night after the deal opens at the bins too (NightZero.Ritual): the bag,
+// then his verdict and tonight's ask; and the morning tells the night's record which night Ace came home from, so a
+// night that ends without the favour he asked for counts as a skip (NightLedger.CameHome).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightCycle : MonoBehaviour
@@ -186,9 +188,11 @@ public sealed class NightCycle : MonoBehaviour
         Now = Phase.Dusk;
         int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         yield return Fade(1f, .6f);
-        // Night 0 (the first night, until the man at the bins is met) opens with one last job instead.
-        bool zero = NightZero.Due;
+        // Night 0 (the first night, until the man at the bins is met) opens with one last job instead; every night
+        // after it opens at the bins too.
+        bool zero = NightZero.Due, bins = !zero && NightZero.Ritual;
         Caption($"Night {day}", zero ? "The café is closed. One last job: the bins, out the back."
+            : bins ? "The café is closed. Take the bins out, and the night is yours."
             : "The café is closed. Walk where you like, and come back in through the café's door to call it a night.");
         if (!Safely("nightfall", Nightfall))
         {
@@ -203,7 +207,7 @@ public sealed class NightCycle : MonoBehaviour
         Safely("the man at the bins", () =>
         {
             Lodger man = Lodger.Expected(zero) ? Lodger.Arrive(hidden: zero) : null;
-            if (zero && NightZero.Begin(man) == null) Debug.LogWarning("[Night] Night 0 couldn't begin; the night goes on without it.");
+            if ((zero || bins) && NightZero.Begin(man) == null) Debug.LogWarning("[Night] The bins couldn't begin; the night goes on without them.");
         });
         yield return new WaitForSecondsRealtime(1.4f);
         BeginNight();
@@ -295,7 +299,10 @@ public sealed class NightCycle : MonoBehaviour
         Caption(dawn ? "Dawn" : "Home",
             dawn ? "The sky pales, and Ace hurries home before the street wakes." : "Ace calls it a night.");
         Safely("putting the night away", PutTheNightAway);
-        Safely("the night's record", () => { if (SaveManager.Instance != null) SaveManager.Instance.Night.CameHome(); });
+        Safely("the night's record", () =>
+        {
+            if (SaveManager.Instance != null) SaveManager.Instance.Night.CameHome(DayClock.Instance != null ? DayClock.Instance.Day : 0);
+        });
         yield return new WaitForSecondsRealtime(1.2f);
         yield return Tomorrow();
     }
