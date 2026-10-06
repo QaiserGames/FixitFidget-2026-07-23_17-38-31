@@ -1,5 +1,63 @@
 # Current handoff — September 12, 2026
 
+## October 6 (late night) — Grace at home, break-ins chunk C (`0c55831`); on `playtest-2`
+
+**Read this entry first.** Two commits on `playtest-2` after `c003d67` (the upright table reactions, wired with `NPC › Mixamo 3` once Mansoor had seen the photos): chunk C (`0c55831`) and this entry. Nothing is pushed. The plan is `claude/chunk-c-grace-at-home-plan.md` in the project docs (its "As built" section at the end), with `claude/break-ins-spec.md` §6.
+
+**Mansoor's calls (6 Oct, night), all as recommended:** her night as proposed; getting caught before chunk E is a placeholder ("Caught.", the night ends, what was taken goes back, nothing else lost); weekdays from Day 1 = Monday, named in the HUD and the recap, and on Thursday nights she's out till 1:30 AM; the upright reactions wired.
+
+**What changed:**
+
+1. **Grace lives in her house at night** (`GraceAtHome`, new, on her rooms' root). `Night › Break-ins 6 - Put Grace at home (scene)` adds it (run once, scene saved); `Break-ins 6 - Take Grace back out` undoes it. Her own look (`Character_BusinessWoman`), placed at nightfall, walks set paths through her house (`GraceHouseMap`: 27 spots and the ways between them) and sits in her armchair with the café's sit. Her night (`GraceNight`, 48 s an hour):
+   - 11 PM in her armchair, the TV on;
+   - 11:35 the kettle (the kitchen light goes on as she steps into the kitchen and off as she leaves it);
+   - 11:45 back to her chair with her tea;
+   - midnight up the stairs (the landing light), into her bedroom, the doors shut behind her, her bedside lamp, into bed (the slept-in quilt `GH_Quilt_Asleep` takes the made one's place);
+   - asleep about 12:20 (her lamp off);
+   - 2:40 a glass of water (lamp, doors, landing and kitchen lights, the sink, back up, doors shut), asleep again about 3:05.
+   Move the clock (the labs do) and she is wherever her night has got to.
+2. **The street reads her lamps.** Her front window's curtains glow while the front room's lamp is on, and the TV flickers a cool light (`The TV's light (night)`, added by the step). A bedroom bay lights with her bedside lamp: `NightHomes.Drive` hands her windows to her instead of the city's guesses.
+3. **Her eyes, her ears and her mark** (the spec's numbers):
+   - she sees in 110°, 7 m in a lit room and 3 m in a dark one; watching TV, only the 60° toward the screen and at half the rate; sneaking halves the rate, the torch doubles it; walls and furniture block her view;
+   - she hears steps (4 m walking, 1 m sneaking), the cups' rustle (3 m), the creaky tread on the upper flight and her doors opened at a walk (5 m), all straight-line;
+   - a "?" badge beside her head (`NoticeMark`, drawn in code) fills as she sees or hears Ace. At a third she says "Hm?" and looks; from a half she comes to look where she noticed Ace, looks round for 3 s and goes back; full, she has caught Ace;
+   - asleep she sees nothing; a loud sound within 5 m wakes her for 20 s (lamp on, "Hello?").
+4. **Hiding** (`HidingPlace`): the cupboard under the stairs and her wardrobe, E in and E out. Ace's body and capsule are set aside and a note says so; she never opens them.
+5. **Her bedroom doors** (`BedroomDoorsZone`) shut behind her at bedtime and after her water. E opens them: sneaking, slowly (2 s) and quietly; at a walk, at once, and the creak wakes her.
+6. **Caught, the placeholder** (`NightCycle.Caught`): "Ace?! What on earth—", the screen fades to "Caught." ("Whatever Ace took tonight goes back. For now that's all: the cells, bail and the papers come later."), and the night ends there. What Ace took that night goes back: off the shelf, back where it was, crossed out of the notebook (`NightLedger.PutBack`, `Notebook.Forget`). Things from earlier nights stay.
+7. **Weekdays** (`Weekdays`): Day 1 is a Monday. The HUD reads "Thursday · Day 4" by day and "Thursday night" by night; the dusk and morning captions and the recap say it too (the phone's kicker reads "THURSDAY · DAY 4"; its "· CLOSED" is dropped to make room).
+8. **Her Thursday:** out all evening (the house dark at 11 PM). From 1:00 AM she's on her way: she appears at the nearest point of her way home that the camera can't see (up West Street, on the street side of the pavement, clear of the stoops' railings and the signal post at her corner), timed to be in at her front door at 1:30. Then tea, bed at 1:50 and no water at 2:40.
+9. **Sounds named** in `SoundBank` for the Sonniss pass (the TV, the kettle, the tap, her lamp, doors, bed, "Hm?", woken, caught, the creaky tread, the doors' creak, hiding); silent until it has files.
+10. **Found and fixed while checking:**
+    - `Barks` is made on first use, and one made in the middle of a night took its first frame for nightfall and cleared the line that made it: her first "Hm?" never showed. It now starts knowing whether it's night.
+    - Her first way home ran through a railing and the signal post at her corner (she walks by setting her position, so nothing stopped her). The Thursday check now walks her way with a capsule her size and lists anything solid on it.
+    - The checks: the Night 2 check now waits on her stoop until she's asleep and sneaks in; Ace's walk through her house (`Break-ins 3`) runs on a night she's out.
+
+**Try it:** `Night › Break-ins 7 - Grace at home: her night and her eyes and ears (lab, a check)` drives itself through all of it and leaves you in the lab; `Break-ins 7 - Grace at home: her Thursday (lab, a check)`. To play it: `Night › Night 2 - Play from Day 2's recap (lab)`, "Close up for the night", take the bins out, then go to her house (12 West Street): watch her windows and go in after 12:20.
+
+**Checks:** Grace at home 80 of 80 (`Logs/Night/grace-at-home-night-2026-10-06_173057`) and her Thursday 22 of 22 (`grace-at-home-thursday-2026-10-06_172809`; in at her door at 1:28); Grace at home rules 1031; Night 2 100 of 100 (`night-two-check-cups-2026-10-06_173435`; asleep 52 s after Ace reached her stoop); stalling: his note 46 of 46, his visit 55 of 55; Night 0 89 of 89; Night 1 76 of 76 twice; Barks 2, 43 of 43; juice 24 of 24; the recap phone 84 of 84; Ace's walk through her house all clear; Night 1 rules 422; the console tests (GraceRules 1031, NightRules 416, NotebookRules 50, BarkRules 501, HomeRules 38, ReputationRules 19,691) pass; compile 0 errors, the two old CS0414 warnings. The HUD fits "Wednesday · Day 3", the longest day.
+
+**Choices made inside the plan (his to overrule):**
+
+- Sounds alone take her mark to two thirds at most: only seeing Ace catches him.
+- She comes to look from a half (two sounds, or a sound and a glimpse).
+- "Close up" in her sight is 1 m: the fastest notice, 1 s.
+- The creaky tread carries 5 m at a walk and 2.5 m sneaking (her pillow is 4 m away).
+- While she's up for water the made quilt shows (a thrown-back quilt would need a model).
+- She's asleep about 12:22–12:25, not on the stroke of 12:20: her lamp goes off 4 s after she's in bed.
+- The notebook learning her Thursdays waits for chunk D.
+- On a Thursday, someone standing in the middle of the pavement at her steps stops her: she waits for him to step aside (she doesn't notice Ace on the street in this chunk).
+
+**Seen, not changed:**
+
+- By the spec's numbers, Ace standing still a metre to her side while she watches TV isn't seen (outside the TV's 60°). Walking there, his steps give him away. The first numbers to tune, after Mansoor plays it: the TV's slice, the rustle's 3 m, coming to look from a half.
+- Her component in the saved scene still carries the old `homecomingWalk` field (renamed `wayHome`); it goes the next time the scene is saved. Harmless.
+- Ace's walk check (`Break-ins 3`) stops Play by itself when it's done, unlike the other checks. Pressing Play after it starts an ordinary session on the real playtest save. It happened once this session: about 40 s on that save's Day 3 recap with nothing pressed; loading a recap doesn't write the save, so it's untouched.
+- The Synty Package Helper asked about Shader Graph again after a reload: skipped, nothing installed.
+- The stray `Assets/Scripts/Diagnostics/AceTurnCheck-1.cs` (and its .meta) is still not committed: Mansoor deletes it.
+
+**Next:** Mansoor plays her night (and a Thursday: Day 4's night) and says how it feels. Then chunk D: the stash and the secret (the notebook learns her Thursdays there).
+
 ## October 6 (night) — Playtest fixes and the first juice pass (`989f043`); on `playtest-2`
 
 **Read this entry first.** One commit on `playtest-2` after `0dfe903`, and this entry. Nothing is pushed. The notes are in the project docs: `claude/session-2026-10-06-notes.md` (the night section) and `claude/the-man-at-the-bins-story.md` §15.
