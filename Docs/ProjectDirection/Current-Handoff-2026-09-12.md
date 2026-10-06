@@ -1,5 +1,32 @@
 # Current handoff — September 12, 2026
 
+## October 6 (night) — Playtest fixes and the first juice pass (`989f043`); on `playtest-2`
+
+**Read this entry first.** One commit on `playtest-2` after `0dfe903`, and this entry. Nothing is pushed. The notes are in the project docs: `claude/session-2026-10-06-notes.md` (the night section) and `claude/the-man-at-the-bins-story.md` §15.
+
+**Mansoor's playtest (6 Oct) and his calls:** "the door inside the cafe that goes out towards the bin is off ... a side pillar that's going from the wall to hitting the door"; in first person "you can see inside the head" of the gnome; after Days 1 and 2 the man stands out of the dumpster all night, where he liked his head coming out when the bag went in; Grace stands in her doorway when Ace goes for the cups; everyone reacts the same way ("a little leaning in the chair"); more juice. His calls: move the door and trim the ledge; the man ducks down after his say and pops up again; juice in code now, the sounds later with the Sonniss files; these fixes and the juice first, then chunk C.
+
+**What changed:**
+
+1. **The back door's corner** (`Night › Bins 2 - Give the back door room (Edit Mode)`, run once and saved). The "pillar" was the courtyard window's cream sill, 0.26 m deep, running the whole east wall into the door under its handle. It now stops where the glass does, at the plaster pier (a cut copy of its mesh, `Assets/Art/NightZero/Courtyard sill - stops at the glass.asset`, used by the scene and the night's collision list; the street's geometry asset is untouched). The door moved 0.27 m along the wall, leaving 0.30 m of wall to the corner (the coffee sacks stop it going further: they reach x 6.14, the frame starts at 6.16). Round it: the chalkboard 0.31 m left, the cat picture onto the pier facing the room (0.58 m from the back wall, so it doesn't fade with it), the loose coffee sack under the window ledge, the clock centred over the door; Ace's places each side checked for room again. `Bins 1 - Take them out again` puts all of it back. Photos: `Logs/Night/bins-door-room-2026-10-06_142131`.
+2. **The man pops up and ducks back** (`Lodger`, `NightZero`). From nightfall he's hidden in the dumpster, its lid shut, every night. When the bag goes in he pops up: a quick pop, a peek over the rim, or a slow rise, by night (Night 2 peeks). After his say he ducks back and the lid drops; he pops up again when Ace comes back within 4.5 m with what he asked for, and ducks 1.6 s after the return. Walk off more than 7 m for 2.5 s and he ducks too. His lines in passing come from inside the bin while he's down (the lid rattles).
+3. **Nobody left on a doorstep at night** (`CafeArrivals.HomeForTheNight`, called from `NightWalk`'s nightfall). The day's last visitors on their way home were frozen where they stood when night fell; Grace stood in her doorway all of Night 2. Now nightfall sends them all home (and the cars back to the pool).
+4. **Barnaby's hat** was built inside out (one closed shell facing in). `Tools/Blender/fixit_blender.py` turns any closed shell that faces in (`orient_shells`), and `Barnaby.fbx` and its `.blend` are rebuilt. In first person he's held low on the right, looking back at Ace (`NightCarry`).
+5. **Reactions** (`NpcBeats`). Served, or handed a good repair, a person picks from a few reactions, less likely to repeat their own last ones or the room's last two. Upright versions of the sitting thumbs up and laugh are baked (`NPC › Mixamo 1`; back held as the breathing idle holds it) for tables, where the sofa versions lean into the table. **Not wired yet:** Mansoor sees the photos first, then `NPC › Mixamo 3` wires them. Until then a table picks between the two talking clips.
+6. **Juice** (`Juice`, new; all drawn in code, nothing added to the scene): badges over heads (a heart for a perfect repair, a star for a good one, a cup for a drink, a tick when reassured, dots for so-so, a grey cloud for unfixed, a sweat drop when frustrated, a red burst when furious or walking out); "+$6" and "+$3 tip" over whoever pays; sparks when a part goes in or grime comes off; a big sparkle and "Fixed!" when a repair is finished on the bench; what Ace hands over flies to them in an arc; the money in the corner counts up with a bounce and a flash (`ShopUI`); new tickets drop onto the rail (`TicketRailUI`); the recap's takings count up (`RecapPhone`). Their sounds are named in `SoundBank` and stay silent until it has files.
+
+**Try it:** `Fixit Fidget › Playtest › Play the whole game from Day 1 (test save)`; `Night › Night 2 - Play from Day 2's recap (lab)` for the man's peek. `Playtest › Juice - Photograph the feedback (lab, Play Mode)` shows and photographs every kind of juice.
+
+**Checks:** Night 0 89 of 89 (`Logs/Night/night-zero-check-2026-10-06_144332`, with photo 09b: Barnaby in first person); Night 1 76 of 76 twice (`night-one-check-straight-face-2026-10-06_144719`, `night-one-check-cracking-2026-10-06_145003`); Night 2 97 of 97 (`night-two-check-cups-2026-10-06_145241`); stalling: his note 46 of 46, his visit 55 of 55; Barks 2, 43 of 43 (`barks-check-2026-10-06_150458`); the juice check 24 of 24 (`Logs/Juice/juice-check-2026-10-06_144027`); the console tests (NightRules 407, NotebookRules 50, BarkRules 501, HomeRules 38, ReputationRules 19,691) pass; compile 0 errors, the two old CS0414 warnings.
+
+**Seen, not changed:**
+
+- After the stalling visit check had passed, the lab logged one "[Deshawn] couldn't reach the counter and gave up". Nobody serves in that lab, so the queue fills; not seen elsewhere.
+- The Synty Package Helper asks to install Shader Graph for the Sidekick Character Creator after some script reloads. Skipped each time (nothing installed).
+- In first person Barnaby's face sits at the bottom edge of the view. Raise or shrink him if Mansoor prefers.
+
+**Next:** Mansoor looks at the upright reactions' photos (then `Mixamo 3`), then chunk C: Grace at home (her routine, sight and hearing, her mark, hiding, her bedroom doors).
+
 ## October 6 (evening) — The favours, stalling and the officer (`234eedc`); on `playtest-2`
 
 **Read this entry first.** Two commits on `playtest-2` after `e9b3f8f`: session 3 of the foundation pass (`234eedc`) and this entry. Nothing is pushed. The build note is in the project docs: `claude/session-3-favours-stalling-officer.md` (with `claude/the-man-at-the-bins-story.md` and `claude/night-0-and-the-favours-spec.md` for the design).
