@@ -146092,9 +146092,9 @@ MonoBehaviour:
   sidekickIdle: {fileID: 4925837963642883786, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
   sidekickWalk: {fileID: -8349492526526354690, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
   sidekickRun: {fileID: -1139191427167748907, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
-  sidekickScale: 1.1658536
-  sidekickWalkSpeed: 0.9580703
-  sidekickRunSpeed: 4.3272862
+  sidekickScale: 1.1658535
+  sidekickWalkSpeed: 0.9645223
+  sidekickRunSpeed: 4.8819947
   sidekickWalkLeftForward: 0
   sidekickRunLeftForward: 0.96428573
   sidekickHeight: 2.0376494
@@ -146102,9 +146102,9 @@ MonoBehaviour:
   sidekickFace: 1
   sidekickCrouchIdle: {fileID: -359718019515549578, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
   sidekickCrouchWalk: {fileID: -4143002631956505332, guid: c56d069c84e7e3644b5cf4e6ebd467a4, type: 3}
-  sidekickCrouchSpeed: 0.6556373
+  sidekickCrouchSpeed: 0.65326136
   sidekickCrouchLeftForward: 0
-  sidekickCrouchHeight: 1.2398767
+  sidekickCrouchHeight: 1.2398766
   look: {fileID: 2800363244470583931, guid: 2e1297afd8049c444bca7bc1025cd164, type: 3}
   rig: {fileID: 919132149155446097, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}
   rigScale: 1.1
@@ -146118,6 +146118,10 @@ MonoBehaviour:
   standingHeight: 2.0376494
   byDay: 1
   turnSpeed: 720
+  quickTurn: 20
+  pivotStep: 1
+  pivotAngles: {x: 25, y: 55}
+  pivotGait: 1.2
   gaitSmoothing: 0.08
   walkBlend: {x: 0.15, y: 0.6}
   runBlend: {x: 2.2, y: 3.4}

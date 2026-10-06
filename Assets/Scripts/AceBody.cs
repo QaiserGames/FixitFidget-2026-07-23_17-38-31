@@ -24,6 +24,14 @@ using UnityEngine.Playables;
 // shared by the walk and the run. The body stands on the floor under Ace (a ray down from the capsule's
 // middle) and turns to face where Ace is going; it keeps that heading when Ace stops.
 //
+// Turning round (5 Oct 2026, Mansoor's report "he runs in a diagonal animation when I move the stick from up
+// to down", and his call): the capsule reverses in a single frame, so the body used to swing round at a flat
+// 720°/s with the run still playing, and for about 0.15 s after a quick flick Ace ran side-on. Now the body
+// turns faster the further it has left to turn (Quick Turn: a full about-face in about 0.13 s, small steering
+// as before), and while it is still well round (Pivot Angles) the legs leave the run for a quick step (Pivot
+// Gait), so Ace never runs sideways. The capsule, and so the controls, are unchanged. Fixit Fidget > Night >
+// Ace's body 6 measures it (AceTurnCheck), before and after.
+//
 // Sneaking (break-ins chunk B, 30 Sept): as Ace crouches (PlayerMovement.Crouch), the Sidekick body blends
 // into the library's crouch clips (Crouch_Idle_Loop and Crouch_Fwd_Loop, Humanoid), the crouch walk at the
 // rate that keeps its feet planted. Fixit Fidget > Night > Ace's body 5 fits them. The stand-in has no
@@ -89,8 +97,20 @@ public sealed class AceBody : MonoBehaviour
     public bool byDay = true;
 
     [Header("Feel")]
-    [Tooltip("Degrees a second the body turns toward where Ace is going.")]
+    [Tooltip("Degrees a second the body turns toward where Ace is going, at least (Quick Turn makes big turns faster).")]
     [Range(90f, 1440f)] public float turnSpeed = 720f;
+    [Tooltip("The further the body has left to turn, the faster it turns: each second it closes this many times the gap " +
+             "(20: half of it in 0.035 s), never slower than Turn Speed. So a full about-face takes about 0.13 s, and small " +
+             "steering stays at Turn Speed. 0: always Turn Speed (before 5 Oct 2026).")]
+    [Range(0f, 40f)] public float quickTurn = 20f;
+    [Tooltip("While the body swings round, the legs leave the run for a quick step, so Ace never runs sideways. Off: the run " +
+             "plays through the swing (before 5 Oct 2026).")]
+    public bool pivotStep = true;
+    [Tooltip("Degrees between where the body faces and where Ace is going: past the first the legs start leaving the run, " +
+             "past the second they only step. (25, 55): the run never shows more than about 36° off.")]
+    public Vector2 pivotAngles = new Vector2(25f, 55f);
+    [Tooltip("How fast the legs go while they step round, m/s: a brisk walk, under where the run starts (Run Blend).")]
+    [Min(0f)] public float pivotGait = 1.2f;
     [Tooltip("Seconds over which the gait follows Ace's speed (idle, walk, run).")]
     [Range(.02f, .5f)] public float gaitSmoothing = .08f;
     [Tooltip("Speeds, m/s: from standing to walking.")]
@@ -124,6 +144,14 @@ public sealed class AceBody : MonoBehaviour
     public float RunRate { get; private set; } = 1f;
     /// <summary>While Ace moves: degrees between where the body faces and where Ace is going (0 standing).</summary>
     public float FacingError { get; private set; }
+    /// <summary>How far the legs have left the run to step round while the body swings (0-1; see Pivot Angles).</summary>
+    public float Pivot { get; private set; }
+    /// <summary>The speed the legs move at, m/s: Speed, held down to Pivot Gait while the body swings round.</summary>
+    public float GaitSpeed { get; private set; }
+    /// <summary>The way the body faces, degrees (world yaw; the rig root's).</summary>
+    public float BodyYaw => bodyYaw;
+    /// <summary>Where the walk and the run are in their shared stride (0-1), for checks.</summary>
+    public float StridePhase => phase;
     /// <summary>The floor was found under Ace this frame (else the feet are put at the capsule's bottom).</summary>
     public bool OnFloor { get; private set; }
     /// <summary>The body's height standing, metres (measured when it is put on).</summary>
@@ -421,17 +449,27 @@ public sealed class AceBody : MonoBehaviour
         if (raw > .3f && distance <= 3f && !firstPerson)
         {
             float toward = Mathf.Atan2(moved.x, moved.z) * Mathf.Rad2Deg;
-            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, toward, turnSpeed * dt);
+            // At least Turn Speed; and the further there is to go, the faster: Quick Turn times the gap a second, as
+            // an exponential, so a turn takes the same time at 60 fps as at 240.
+            float left = Mathf.Abs(Mathf.DeltaAngle(bodyYaw, toward));
+            float step = Mathf.Max(turnSpeed * dt, left * (1f - Mathf.Exp(-quickTurn * dt)));
+            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, toward, step);
             FacingError = Mathf.Abs(Mathf.DeltaAngle(bodyYaw, toward));
         }
         else FacingError = 0f;
 
+        // The legs go at Ace's speed; but while the body is still swinging round (a stick flicked from up to down:
+        // the capsule has already turned back), they leave the run for a quick step, so Ace never runs sideways.
+        Pivot = pivotStep ? Smooth(Mathf.InverseLerp(pivotAngles.x, Mathf.Max(pivotAngles.x + 1f, pivotAngles.y), FacingError)) : 0f;
+        float gait = Mathf.Lerp(speed, Mathf.Min(speed, pivotGait), Pivot);
+        GaitSpeed = gait;
+
         // Which clips: standing, walking, running; and, as Ace crouches (sneaking), crouched and still or
         // crouch walking instead. The stand-in has no crouch clips, so it sneaks upright.
         float crouched = CanCrouch && movement != null ? movement.Crouch : 0f;
-        float moving = Smooth(Mathf.InverseLerp(walkBlend.x, walkBlend.y, speed));
-        float running = Smooth(Mathf.InverseLerp(runBlend.x, runBlend.y, speed));
-        float stalking = Smooth(Mathf.InverseLerp(crouchBlend.x, crouchBlend.y, speed));
+        float moving = Smooth(Mathf.InverseLerp(walkBlend.x, walkBlend.y, gait));
+        float running = Smooth(Mathf.InverseLerp(runBlend.x, runBlend.y, gait));
+        float stalking = Smooth(Mathf.InverseLerp(crouchBlend.x, crouchBlend.y, gait));
         float upright = 1f - crouched;
         wIdle = upright * (1f - moving);
         wWalk = upright * moving * (1f - running);
@@ -442,8 +480,8 @@ public sealed class AceBody : MonoBehaviour
         // One stride phase for both, so the feet keep step while they blend: each clip at the rate that
         // keeps its stance foot planted at this speed.
         float scale = rigRoot != null ? rigRoot.lossyScale.y : 1f;
-        float walkRate = Mathf.Clamp(speed / Mathf.Max(.1f, walkSpeedNow * scale), .6f, 1.8f);
-        RunRate = Mathf.Clamp(speed / Mathf.Max(.1f, runSpeedNow * scale), .7f, 1.6f);
+        float walkRate = Mathf.Clamp(gait / Mathf.Max(.1f, walkSpeedNow * scale), .6f, 1.8f);
+        RunRate = Mathf.Clamp(gait / Mathf.Max(.1f, runSpeedNow * scale), .7f, 1.6f);
         float stepping = wWalk + wRun;
         float cycles = stepping > 1e-3f
             ? (wWalk * walkRate / walkNow.length + wRun * RunRate / runNow.length) / stepping
@@ -460,7 +498,7 @@ public sealed class AceBody : MonoBehaviour
         if (!CanCrouch) return;
 
         // The crouch walk keeps its own stride phase, at the rate that keeps its stance foot planted.
-        CrouchRate = Mathf.Clamp(speed / Mathf.Max(.1f, crouchSpeedNow * scale), .5f, 2f);
+        CrouchRate = Mathf.Clamp(gait / Mathf.Max(.1f, crouchSpeedNow * scale), .5f, 2f);
         crouchPhase = Mathf.Repeat(crouchPhase + dt * CrouchRate / crouchWalkNow.length, 1f);
         crouchIdleTime = Mathf.Repeat(crouchIdleTime + dt, crouchIdleNow.length);
         crouchIdle.SetTime(crouchIdleTime);

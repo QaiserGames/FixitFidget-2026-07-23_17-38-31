@@ -94,7 +94,7 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
     int problems;
     // Ace's body, while it is worn: frames running (and of those, showing the run), frames moving
     // (with how far the body faced from the way Ace went), frames with the floor found under Ace.
-    int runFrames, runShown, placedFrames, onFloorFrames;
+    int runFrames, runShown, placedFrames, onFloorFrames, pivotFrames;
     float runRates;
     readonly List<float> facing = new();
     readonly List<string> notStill = new();
@@ -354,7 +354,9 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         if (body == null || !body.Worn) return;
         placedFrames++;
         if (body.OnFloor) onFloorFrames++;
-        if (body.Speed > 4f) { runFrames++; runRates += body.RunRate; if (body.Gait.z >= .85f) runShown++; }
+        // Running straight; while the body swings round a sharp turn the legs step on purpose (AceBody's pivot step, 5 Oct).
+        if (body.Speed > 4f && body.Pivot < .01f) { runFrames++; runRates += body.RunRate; if (body.Gait.z >= .85f) runShown++; }
+        else if (body.Speed > 4f) pivotFrames++;
         if (body.Speed > 1f) facing.Add(body.FacingError);
     }
 
@@ -362,7 +364,8 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
     {
         Line(runFrames > 0 && runShown >= runFrames * .95f,
             $"Ace's body runs while Ace runs: the run clip showing in {runShown} of {runFrames} frames above 4 m/s " +
-            $"(played at {(runFrames > 0 ? runRates / runFrames : 0f):0.00}x on average there, so the feet keep up)");
+            $"(played at {(runFrames > 0 ? runRates / runFrames : 0f):0.00}x on average there, so the feet keep up; " +
+            $"and {pivotFrames} frames stepping round a sharp turn)");
         facing.Sort();
         float median = facing.Count > 0 ? facing[facing.Count / 2] : 0f;
         float p90 = facing.Count > 0 ? facing[Mathf.Min(facing.Count - 1, facing.Count * 9 / 10)] : 0f;

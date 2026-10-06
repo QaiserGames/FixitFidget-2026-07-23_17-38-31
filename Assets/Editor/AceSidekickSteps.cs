@@ -31,7 +31,8 @@ using Object = UnityEngine.Object;
 // clip's natural speed and stride phase on this body (the stance foot's backward speed, the same method as
 // the stand-in's), and which run suits Ace's own speed best. It sizes Ace to the café people's height
 // (the stand-in's, look 11 on the café rig), and photographs Ace moving, Ace beside a café person, and the
-// face (open, blinking, glancing). The stand-in's settings stay, as the fallback where the Sidekick files
+// face (open, blinking, glancing). Before measuring, both steps straighten the clips on Ace (Straighten, 6 Oct 2026): each
+// one's import Offset is set so it goes, or stands, straight along Ace's forward. The stand-in's settings stay, as the fallback where the Sidekick files
 // are missing. The only change to the scene is AceBody's fields (undo). Report and photos:
 // Logs/Night/ace-sidekick-<time>/.
 internal static class AceSidekickSteps
@@ -91,6 +92,7 @@ internal static class AceSidekickSteps
             string photos;
             using (var studio = new Studio())
             {
+                clips = Straighten(studio, sidekick, body.sidekickFootIK, clips, report);
                 m = Measure(studio, sidekick, clips, body.sidekickFootIK, aceSpeed, folder, report);
                 photos = Photos(studio, sidekick, clips, m, body.sidekickFootIK, folder);
             }
@@ -192,7 +194,10 @@ internal static class AceSidekickSteps
             float scale = body.sidekickScale > .01f ? body.sidekickScale : 1f;
             Crouched c;
             using (var studio = new Studio())
+            {
+                clips = Straighten(studio, body.sidekick, body.sidekickFootIK, clips, report);
                 c = FitCrouch(studio, body.sidekick, clips, scale, body.sidekickFootIK, folder, report);
+            }
 
             Undo.RecordObject(body, "Fit Ace's crouch clips");
             body.sidekickCrouchIdle = clips[CrouchIdleTake];
@@ -298,7 +303,8 @@ internal static class AceSidekickSteps
 
     // ------------------------------------------------------------------ the Humanoid copy of the library
 
-    static Dictionary<string, AnimationClip> HumanoidLibrary(StringBuilder report)
+    // offsets: each take's Root Transform Rotation Offset, degrees (Straighten works them out). Null keeps the ones the copy has.
+    static Dictionary<string, AnimationClip> HumanoidLibrary(StringBuilder report, IReadOnlyDictionary<string, float> offsets = null)
     {
         if (AssetDatabase.LoadMainAssetAtPath(LibrarySource) == null)
             throw new InvalidOperationException(LibrarySource + " isn't there (the free animation library, kept in the repository). Nothing was changed.");
@@ -328,6 +334,7 @@ internal static class AceSidekickSteps
         // Only the clips Ace uses; looped; in place, with the body's sway, bob and turn kept in the pose
         // (Ace's capsule does the moving, and AceBody plays each clip at the rate that fits).
         ModelImporterClipAnimation[] defaults = importer.defaultClipAnimations;
+        Dictionary<string, float> kept = CurrentOffsets(importer);
         var wanted = new List<ModelImporterClipAnimation>();
         foreach (string take in Takes)
         {
@@ -341,9 +348,12 @@ internal static class AceSidekickSteps
             clip.mirror = false;
             // Facing: the library's body faces -Z as made (backwards, for Unity); "Body Orientation" turns the root to
             // the body's own forward, so on Ace the clips face +Z, the way AceBody turns the body toward where Ace goes.
+            // That forward is the body's at the clip's first frame, so a loop that starts mid-twist comes out turned:
+            // each clip's Offset turns it straight again (Straighten; 6 Oct 2026, the jog ran 28° off).
             clip.lockRootRotation = true;
             clip.keepOriginalOrientation = false;
-            clip.rotationOffset = 0f;
+            clip.rotationOffset = offsets != null && offsets.TryGetValue(take, out float given) ? given
+                                : kept.TryGetValue(take, out float had) ? had : 0f;
             clip.lockRootHeightY = true;
             clip.keepOriginalPositionY = true;
             clip.heightFromFeet = false;
@@ -381,9 +391,20 @@ internal static class AceSidekickSteps
     }
 
     static string Signature(IEnumerable<ModelImporterClipAnimation> clips) => string.Join("|", clips.Select(c =>
-        string.Format(CultureInfo.InvariantCulture, "{0};{1};{2};{3};{4}{5}{6}{7}{8}{9}{10}{11}{12}{13}", c.name, c.takeName, c.firstFrame, c.lastFrame,
+        string.Format(CultureInfo.InvariantCulture, "{0};{1};{2};{3};{4}{5}{6}{7}{8}{9}{10}{11}{12}{13};{14:0.###}", c.name, c.takeName, c.firstFrame, c.lastFrame,
             c.loopTime, c.loopPose, c.mirror, c.lockRootRotation, c.keepOriginalOrientation, c.lockRootHeightY, c.keepOriginalPositionY,
-            c.heightFromFeet, c.lockRootPositionXZ, c.keepOriginalPositionXZ)));
+            c.heightFromFeet, c.lockRootPositionXZ, c.keepOriginalPositionXZ, c.rotationOffset)));
+
+    // Each take's Offset as the copy has it now (0 for a take it hasn't got).
+    static Dictionary<string, float> CurrentOffsets(ModelImporter importer)
+    {
+        var offsets = new Dictionary<string, float>();
+        foreach (ModelImporterClipAnimation c in importer.clipAnimations ?? Array.Empty<ModelImporterClipAnimation>())
+            if (!string.IsNullOrEmpty(c.name) && !offsets.ContainsKey(c.name)) offsets[c.name] = c.rotationOffset;
+        foreach (string take in Takes)
+            if (!offsets.ContainsKey(take)) offsets[take] = 0f;
+        return offsets;
+    }
 
     // A few of the avatar's bones, to see what the automatic mapping picked.
     static string Mapped(Avatar avatar)
@@ -405,10 +426,111 @@ internal static class AceSidekickSteps
         return speed != null && speed.floatValue > .1f ? speed.floatValue : 5f;
     }
 
+    // ------------------------------------------------------------------ straight on Ace
+
+    // The takes that go, straightened by where the planted foot slides; and the ones that stand, by where the hips and
+    // shoulders face.
+    static readonly string[] Going = { WalkTake, "Jog_Fwd_Loop", "Sprint_Loop", CrouchWalkTake };
+    static readonly string[] Standing = { IdleTake, CrouchIdleTake };
+    const float StraightWithin = 1.5f;   // degrees
+
+    // Each clip, as Ace plays it, must go (walking, running, crouch walking) or face (standing, crouched still) straight along
+    // Ace's own forward, the way AceBody turns him. The copy's "Body Orientation" root takes the body's facing at the clip's
+    // first frame, so a loop that starts mid-twist comes out turned on Ace: on 6 Oct 2026 the jog went 28° off, the sprint 20°
+    // and the walk 7°, and Ace ran diagonally (Mansoor's report). This measures each on Ace, sets each clip's Offset (Root
+    // Transform Rotation) to cancel it, re-imports the copy, and measures again. Already straight: nothing changes.
+    static Dictionary<string, AnimationClip> Straighten(Studio studio, GameObject sidekick, bool footIK, Dictionary<string, AnimationClip> clips, StringBuilder report)
+    {
+        var importer = (ModelImporter)AssetImporter.GetAtPath(LibraryHumanoid);
+        Dictionary<string, float> offsets0 = CurrentOffsets(importer);
+        Dictionary<string, float> angles0 = TakeAngles(studio, sidekick, footIK, clips);
+        report.AppendLine();
+        report.AppendLine("Straight on Ace: how far each clip goes (walking, running, crouch walking) or faces (standing, crouched still) off his own " +
+                          "forward, + to his right; in brackets each clip's Offset (Root Transform Rotation), degrees:");
+        report.AppendLine("  as the copy had them: " + Angles(angles0, offsets0));
+        if (angles0.Values.All(a => Mathf.Abs(a) <= StraightWithin))
+        {
+            report.AppendLine($"  all within {StraightWithin}°: nothing to straighten.");
+            return clips;
+        }
+        // Cancel each angle, re-import and measure again. Which way an Offset turns a clip comes from the most turned one.
+        Dictionary<string, float> offsets1 = Takes.ToDictionary(t => t, t => offsets0[t] - (angles0.TryGetValue(t, out float a) ? a : 0f));
+        clips = HumanoidLibrary(new StringBuilder(), offsets1);
+        Dictionary<string, float> angles1 = TakeAngles(studio, sidekick, footIK, clips);
+        string most = angles0.OrderByDescending(kv => Mathf.Abs(kv.Value)).First().Key;
+        float turn = Mathf.DeltaAngle(angles0[most], angles1[most]) / Mathf.DeltaAngle(offsets0[most], offsets1[most]);
+        report.AppendLine($"  an Offset turns a clip {turn:+0.00;-0.00}° a degree ({most}: {angles0[most]:+0.0;-0.0}° to {angles1[most]:+0.0;-0.0}°)");
+        Dictionary<string, float> offsets = offsets1, angles = angles1;
+        if (angles1.Values.Any(a => Mathf.Abs(a) > StraightWithin))
+        {
+            if (Mathf.Abs(Mathf.Abs(turn) - 1f) > .25f)
+                throw new InvalidOperationException($"An Offset turned {most} by {turn:0.00}° a degree, so the clips can't be straightened this way: see the " +
+                                                    $"import settings of {LibraryHumanoid} (Root Transform Rotation). AceBody wasn't changed.");
+            float way = Mathf.Sign(turn);
+            offsets = Takes.ToDictionary(t => t, t => offsets0[t] - (angles0.TryGetValue(t, out float a) ? a : 0f) / way);
+            clips = HumanoidLibrary(new StringBuilder(), offsets);
+            angles = TakeAngles(studio, sidekick, footIK, clips);
+        }
+        report.AppendLine("  straightened: " + Angles(angles, offsets));
+        string[] still = angles.Where(kv => Mathf.Abs(kv.Value) > StraightWithin).Select(kv => $"{kv.Key} {kv.Value:+0.0;-0.0}°").ToArray();
+        if (still.Length > 0)
+            throw new InvalidOperationException($"Couldn't straighten {string.Join(", ", still)} to within {StraightWithin}°. AceBody wasn't changed.");
+        return clips;
+    }
+
+    // How far each take goes or faces off Ace's own forward, on Ace (degrees, + to his right).
+    static Dictionary<string, float> TakeAngles(Studio studio, GameObject sidekick, bool footIK, Dictionary<string, AnimationClip> clips)
+    {
+        var angles = new Dictionary<string, float>();
+        GameObject actor = studio.Add(sidekick);
+        try
+        {
+            using var poser = new Poser(actor, footIK);
+            foreach (string take in Going)
+            {
+                Gait g = HumanGait(poser, clips[take], null);
+                if (g.speed <= .1f) throw new InvalidOperationException($"Couldn't measure which way '{take}' goes on Ace ({g.how}). AceBody wasn't changed.");
+                angles[take] = g.facing > 0 ? g.travel : Mathf.DeltaAngle(0f, g.travel + 180f);
+            }
+            foreach (string take in Standing) angles[take] = TorsoFacing(poser, clips[take]);
+        }
+        finally { studio.Remove(actor); }
+        return angles;
+    }
+
+    // Where the body faces over a clip, against the root's forward: square to the hips and to the shoulders, averaged over the
+    // clip (degrees, + to the right).
+    static float TorsoFacing(Poser poser, AnimationClip clip)
+    {
+        Animator a = poser.Animator;
+        Transform lh = a.GetBoneTransform(HumanBodyBones.LeftUpperLeg), rh = a.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+        Transform ls = a.GetBoneTransform(HumanBodyBones.LeftUpperArm), rs = a.GetBoneTransform(HumanBodyBones.RightUpperArm);
+        if (lh == null || rh == null || ls == null || rs == null) throw new InvalidOperationException("Ace's avatar has no upper legs or upper arms mapped.");
+        Transform root = a.transform;
+        int n = Mathf.Max(24, Mathf.RoundToInt(clip.length * 30f));
+        double sin = 0d, cos = 0d;
+        for (int i = 0; i < n; i++)
+        {
+            poser.Pose(clip, clip.length * i / n);
+            foreach ((Transform l, Transform r) in new[] { (lh, rh), (ls, rs) })
+            {
+                Vector3 ahead = Vector3.Cross(root.InverseTransformDirection(r.position - l.position), Vector3.up);
+                double yaw = Math.Atan2(ahead.x, ahead.z);
+                sin += Math.Sin(yaw);
+                cos += Math.Cos(yaw);
+            }
+        }
+        return (float)(Math.Atan2(sin, cos) * Mathf.Rad2Deg);
+    }
+
+    static string Angles(Dictionary<string, float> angles, Dictionary<string, float> offsets) =>
+        string.Join(", ", angles.Select(kv => $"{kv.Key} {kv.Value:+0.0;-0.0}° ({(offsets.TryGetValue(kv.Key, out float o) ? o : 0f):0.0})"));
+
     // ------------------------------------------------------------------ measuring
 
     // facing: +1 when the body faces +Z (the stance foot slides toward -Z), -1 when it faces -Z.
-    struct Gait { public float speed, leftForward, hipsDrift; public int facing; public string how; }
+    // travel: which way the clip goes against the body's own forward, degrees, + to its right (where the planted foot slides, reversed).
+    struct Gait { public float speed, leftForward, hipsDrift, travel; public int facing; public string how; }
 
     struct Measured
     {
@@ -523,6 +645,7 @@ internal static class AceSidekickSteps
         // While a foot is low it is on the ground, sliding back: toward -Z if the body faces +Z, toward +Z if it faces -Z.
         var back = new List<float>();
         var ahead = new List<float>();
+        Vector2 backWay = Vector2.zero, aheadWay = Vector2.zero;   // the slides summed (x, z)
         for (int f = 0; f < 2; f++)
         {
             float minY = float.MaxValue, maxY = float.MinValue;
@@ -532,21 +655,24 @@ internal static class AceSidekickSteps
             {
                 int next = (i + 1) % n;
                 if (feet[f, i].y > low || feet[f, next].y > low) continue;
-                float v = (feet[f, next].z - feet[f, i].z) / dt;
-                if (v < -.2f) back.Add(-v);
-                else if (v > .2f) ahead.Add(v);
+                float v = (feet[f, next].z - feet[f, i].z) / dt, side = (feet[f, next].x - feet[f, i].x) / dt;
+                if (v < -.2f) { back.Add(-v); backWay += new Vector2(side, v); }
+                else if (v > .2f) { ahead.Add(v); aheadWay += new Vector2(side, v); }
             }
         }
         int facing = back.Count >= ahead.Count ? 1 : -1;
         List<float> speeds = facing > 0 ? back : ahead;
+        // Which way the clip goes against the body's own forward: the planted foot's slides summed, reversed.
+        Vector2 slid = facing > 0 ? backWay : aheadWay;
+        float goes = slid.sqrMagnitude > 1e-6f ? Mathf.Atan2(-slid.x * facing, -slid.y * facing) * Mathf.Rad2Deg : 0f;
         int forward = 0;
         for (int i = 1; i < n; i++) if (facing * (feet[0, i].z - feet[0, forward].z) > 0f) forward = i;
         // How far the hips go over one cycle: from the first sample to the last, plus one more step at that rate.
         Vector3 travel = (hip[n - 1] - hip[0]) * n / Mathf.Max(1, n - 1);
         float drift = new Vector2(travel.x, travel.z).magnitude;
-        string where = $"faces {(facing > 0 ? "+Z" : "-Z")}, hips travel {drift * 100f:0.0} cm over a cycle";
+        string where = $"faces {(facing > 0 ? "+Z" : "-Z")}, goes {goes:+0.0;-0.0}° off straight ahead, hips travel {drift * 100f:0.0} cm over a cycle";
         if (speeds.Count < 4)
-            return new Gait { hipsDrift = drift, facing = facing, how = $"'{name}' {length:0.00} s: too few stance samples ({speeds.Count} of {n}); {where}" };
+            return new Gait { hipsDrift = drift, travel = goes, facing = facing, how = $"'{name}' {length:0.00} s: too few stance samples ({speeds.Count} of {n}); {where}" };
         speeds.Sort();
         float median = speeds[speeds.Count / 2];
         return new Gait
@@ -554,6 +680,7 @@ internal static class AceSidekickSteps
             speed = median,
             leftForward = (float)forward / n,
             hipsDrift = drift,
+            travel = goes,
             facing = facing,
             how = $"'{name}' {length:0.00} s, stance foot {median:0.00} m/s over {speeds.Count} of {n} samples (scale 1), " +
                   $"left foot furthest forward at {(float)forward / n:0.00} of the cycle, {where}" + (drift > .05f ? " (NOT in place)" : ""),
