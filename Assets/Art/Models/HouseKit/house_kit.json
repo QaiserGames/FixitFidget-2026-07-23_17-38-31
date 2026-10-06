@@ -1,0 +1,1061 @@
+{
+ "version": 1,
+ "pieces": [
+  {
+   "name": "HK_Skirting",
+   "group": "Finish",
+   "what": "skirting board, 1.00 m (stretch x)",
+   "stretch": true,
+   "tris": 16,
+   "size": [
+    1.0,
+    0.12,
+    0.018
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_DadoRail",
+   "group": "Finish",
+   "what": "dado rail, 1.00 m, for the sill-cut seam at 0.78 (stretch x)",
+   "stretch": true,
+   "tris": 28,
+   "size": [
+    1.0,
+    0.06,
+    0.03
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_Cornice",
+   "group": "Finish",
+   "what": "cove cornice, 1.00 m (stretch x)",
+   "stretch": true,
+   "tris": 36,
+   "size": [
+    1.0,
+    0.08,
+    0.08
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_Skirting_Corner",
+   "group": "Finish",
+   "what": "skirting, an inside corner, mitred (0.10 each way)",
+   "stretch": false,
+   "tris": 26,
+   "size": [
+    0.1,
+    0.12,
+    0.1
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_DadoRail_Corner",
+   "group": "Finish",
+   "what": "dado rail, an inside corner, mitred (0.10 each way)",
+   "stretch": false,
+   "tris": 44,
+   "size": [
+    0.1,
+    0.06,
+    0.1
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_Cornice_Corner",
+   "group": "Finish",
+   "what": "cornice, an inside corner, mitred (0.10 each way)",
+   "stretch": false,
+   "tris": 56,
+   "size": [
+    0.1,
+    0.08,
+    0.1
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_Architrave",
+   "group": "Finish",
+   "what": "architrave moulding, 1.00 m (stretch x; turn it for the jambs)",
+   "stretch": true,
+   "tris": 20,
+   "size": [
+    1.0,
+    0.07,
+    0.025
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_LiningBoard",
+   "group": "Finish",
+   "what": "a reveal lining board, 1.00 x 0.20 (stretch x and y)",
+   "stretch": true,
+   "tris": 12,
+   "size": [
+    1.0,
+    0.012,
+    0.2
+   ],
+   "bottom": 0.0,
+   "back": 0.2,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_Threshold",
+   "group": "Finish",
+   "what": "threshold, 1.00 m (stretch x)",
+   "stretch": true,
+   "tris": 20,
+   "size": [
+    1.0,
+    0.02,
+    0.12
+   ],
+   "bottom": 0.0,
+   "back": 0.06,
+   "materials": [
+    "HK_Oak"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_WindowSill",
+   "group": "Finish",
+   "what": "window sill, 1.00 m (stretch x)",
+   "stretch": true,
+   "tris": 20,
+   "size": [
+    1.0,
+    0.035,
+    0.08
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Trim_Paint"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_CurtainPanel",
+   "group": "Window",
+   "what": "one curtain panel, gathered, 1.50 long (hangs from the rod)",
+   "stretch": false,
+   "tris": 144,
+   "size": [
+    0.358,
+    1.504,
+    0.05
+   ],
+   "bottom": -1.5,
+   "back": 0.016,
+   "materials": [
+    "HK_Curtain_Oat"
+   ],
+   "islands": 2
+  },
+  {
+   "name": "HK_CurtainRod",
+   "group": "Window",
+   "what": "curtain rod, 1.00 m, the rod alone (stretch x)",
+   "stretch": true,
+   "tris": 28,
+   "size": [
+    1.0,
+    0.024,
+    0.024
+   ],
+   "bottom": -0.012,
+   "back": -0.078,
+   "materials": [
+    "T2_Brass"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_CurtainRod_End",
+   "group": "Window",
+   "what": "a curtain rod end: finial and bracket (one each end, the second mirrored)",
+   "stretch": false,
+   "tris": 116,
+   "size": [
+    0.193,
+    0.06,
+    0.111
+   ],
+   "bottom": -0.03,
+   "back": 0.0,
+   "materials": [
+    "T2_Brass"
+   ],
+   "islands": 4
+  },
+  {
+   "name": "HK_Blind",
+   "group": "Window",
+   "what": "roller blind, 1.00 m, half down (stretch x)",
+   "stretch": true,
+   "tris": 100,
+   "size": [
+    1.016,
+    0.854,
+    0.073
+   ],
+   "bottom": -0.854,
+   "back": 0.0,
+   "materials": [
+    "HK_Blind",
+    "HK_Oak",
+    "DC_SteelDark"
+   ],
+   "islands": 5
+  },
+  {
+   "name": "HK_Doormat",
+   "group": "Lived in",
+   "what": "doormat",
+   "stretch": false,
+   "tris": 24,
+   "size": [
+    0.7,
+    0.016,
+    0.45
+   ],
+   "bottom": 0.0,
+   "back": 0.225,
+   "materials": [
+    "HK_Coir_Dark",
+    "HK_Coir"
+   ],
+   "islands": 2
+  },
+  {
+   "name": "HK_Radiator",
+   "group": "Lived in",
+   "what": "panel radiator, 1.00 x 0.60",
+   "stretch": false,
+   "tris": 388,
+   "size": [
+    1.088,
+    0.725,
+    0.096
+   ],
+   "bottom": 0.0,
+   "back": -0.004,
+   "materials": [
+    "HK_Radiator",
+    "DC_SteelDark",
+    "T2_Brass",
+    "DC_Steel"
+   ],
+   "islands": 23
+  },
+  {
+   "name": "HK_Picture_Hills",
+   "group": "Lived in",
+   "what": "picture: hills",
+   "stretch": false,
+   "tris": 56,
+   "size": [
+    0.58,
+    0.44,
+    0.031
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "CC_Wood_Espresso",
+    "HK_Painting_Hills"
+   ],
+   "islands": 2
+  },
+  {
+   "name": "HK_Picture_Harbour",
+   "group": "Lived in",
+   "what": "picture: the harbour",
+   "stretch": false,
+   "tris": 56,
+   "size": [
+    0.63,
+    0.45,
+    0.031
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Oak",
+    "HK_Painting_Harbour"
+   ],
+   "islands": 2
+  },
+  {
+   "name": "HK_Picture_Still",
+   "group": "Lived in",
+   "what": "picture: a still life",
+   "stretch": false,
+   "tris": 56,
+   "size": [
+    0.4,
+    0.48,
+    0.031
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "T2_Brass",
+    "HK_Painting_Still"
+   ],
+   "islands": 2
+  },
+  {
+   "name": "HK_Picture_Portrait",
+   "group": "Lived in",
+   "what": "picture: a portrait",
+   "stretch": false,
+   "tris": 56,
+   "size": [
+    0.37,
+    0.45,
+    0.031
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "CC_Wood_Counter",
+    "HK_Painting_Portrait"
+   ],
+   "islands": 2
+  },
+  {
+   "name": "HK_Cushion",
+   "group": "Lived in",
+   "what": "cushion",
+   "stretch": false,
+   "tris": 108,
+   "size": [
+    0.45,
+    0.14,
+    0.45
+   ],
+   "bottom": 0.0,
+   "back": 0.225,
+   "materials": [
+    "HK_Cushion_Mustard"
+   ],
+   "islands": 1
+  },
+  {
+   "name": "HK_Rug_Round",
+   "group": "Lived in",
+   "what": "round rug, 1.40",
+   "stretch": false,
+   "tris": 420,
+   "size": [
+    1.4,
+    0.015,
+    1.4
+   ],
+   "bottom": 0.0,
+   "back": 0.7,
+   "materials": [
+    "HK_Rug_Cream",
+    "HK_Rug_Teal",
+    "HK_Rug_Rust"
+   ],
+   "islands": 4
+  },
+  {
+   "name": "HK_Rug_Runner",
+   "group": "Lived in",
+   "what": "hall runner, 2.00 x 0.70",
+   "stretch": false,
+   "tris": 108,
+   "size": [
+    2.1,
+    0.014,
+    0.7
+   ],
+   "bottom": 0.0,
+   "back": 0.35,
+   "materials": [
+    "HK_Rug_Cream",
+    "HK_Rug_Rust",
+    "GH_Lace"
+   ],
+   "islands": 9
+  },
+  {
+   "name": "HK_Plant",
+   "group": "Lived in",
+   "what": "pot plant",
+   "stretch": false,
+   "tris": 514,
+   "size": [
+    0.597,
+    0.604,
+    0.514
+   ],
+   "bottom": 0.0,
+   "back": 0.249,
+   "materials": [
+    "HK_Terracotta",
+    "HK_Soil",
+    "HK_Leaf_Light",
+    "HK_Leaf"
+   ],
+   "islands": 11
+  },
+  {
+   "name": "HK_Books_Row",
+   "group": "Lived in",
+   "what": "a row of books, 0.40",
+   "stretch": false,
+   "tris": 528,
+   "size": [
+    0.375,
+    0.24,
+    0.16
+   ],
+   "bottom": 0.0,
+   "back": 0.08,
+   "materials": [
+    "HK_Book_Red",
+    "HK_Paper",
+    "HK_Book_Blue",
+    "HK_Book_Green",
+    "HK_Book_Cream",
+    "HK_Oak"
+   ],
+   "islands": 20
+  },
+  {
+   "name": "HK_Book_Open",
+   "group": "Lived in",
+   "what": "an open book",
+   "stretch": false,
+   "tris": 124,
+   "size": [
+    0.249,
+    0.023,
+    0.18
+   ],
+   "bottom": 0.0,
+   "back": 0.09,
+   "materials": [
+    "HK_Book_Green",
+    "HK_Paper"
+   ],
+   "islands": 5
+  },
+  {
+   "name": "HK_Clock",
+   "group": "Lived in",
+   "what": "wall clock, 0.30",
+   "stretch": false,
+   "tris": 508,
+   "size": [
+    0.3,
+    0.3,
+    0.046
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Oak",
+    "HK_Clock_Face",
+    "HK_Ink",
+    "T2_Brass"
+   ],
+   "islands": 18
+  },
+  {
+   "name": "HK_Mug",
+   "group": "Lived in",
+   "what": "mug",
+   "stretch": false,
+   "tris": 286,
+   "size": [
+    0.106,
+    0.095,
+    0.084
+   ],
+   "bottom": 0.0,
+   "back": 0.042,
+   "materials": [
+    "DC_Ceramic",
+    "GH_Delft_Blue"
+   ],
+   "islands": 5
+  },
+  {
+   "name": "HK_Plates",
+   "group": "Lived in",
+   "what": "a stack of plates",
+   "stretch": false,
+   "tris": 378,
+   "size": [
+    0.24,
+    0.045,
+    0.24
+   ],
+   "bottom": 0.0,
+   "back": 0.12,
+   "materials": [
+    "DC_Ceramic",
+    "GH_Delft_Blue"
+   ],
+   "islands": 4
+  },
+  {
+   "name": "HK_Post_Pile",
+   "group": "Lived in",
+   "what": "a pile of post",
+   "stretch": false,
+   "tris": 240,
+   "size": [
+    0.269,
+    0.019,
+    0.184
+   ],
+   "bottom": 0.0,
+   "back": 0.086,
+   "materials": [
+    "HK_Paper",
+    "HK_Stamp",
+    "HK_Ink"
+   ],
+   "islands": 20
+  },
+  {
+   "name": "HK_Letter",
+   "group": "Lived in",
+   "what": "one letter",
+   "stretch": false,
+   "tris": 60,
+   "size": [
+    0.22,
+    0.005,
+    0.11
+   ],
+   "bottom": 0.0,
+   "back": 0.055,
+   "materials": [
+    "HK_Paper",
+    "HK_Stamp",
+    "HK_Ink"
+   ],
+   "islands": 5
+  },
+  {
+   "name": "HK_Shoes",
+   "group": "Lived in",
+   "what": "a pair of shoes",
+   "stretch": false,
+   "tris": 272,
+   "size": [
+    0.288,
+    0.085,
+    0.249
+   ],
+   "bottom": 0.0,
+   "back": 0.128,
+   "materials": [
+    "HK_Sole",
+    "HK_Leather_Brown"
+   ],
+   "islands": 6
+  },
+  {
+   "name": "HK_Slippers",
+   "group": "Lived in",
+   "what": "slippers",
+   "stretch": false,
+   "tris": 144,
+   "size": [
+    0.266,
+    0.045,
+    0.237
+   ],
+   "bottom": 0.0,
+   "back": 0.118,
+   "materials": [
+    "HK_Sole",
+    "HK_Slipper"
+   ],
+   "islands": 4
+  },
+  {
+   "name": "HK_HookRail",
+   "group": "Lived in",
+   "what": "hook rail, three hooks",
+   "stretch": false,
+   "tris": 248,
+   "size": [
+    0.5,
+    0.08,
+    0.071
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "HK_Oak",
+    "DC_SteelDark"
+   ],
+   "islands": 10
+  },
+  {
+   "name": "HK_Coat",
+   "group": "Lived in",
+   "what": "a coat and scarf on a hook (hangs from the hook)",
+   "stretch": false,
+   "tris": 232,
+   "size": [
+    0.56,
+    0.92,
+    0.19
+   ],
+   "bottom": -0.92,
+   "back": 0.015,
+   "materials": [
+    "GH_Wool_Camel",
+    "HK_Cord_Black",
+    "GH_Scarf_Red"
+   ],
+   "islands": 6
+  },
+  {
+   "name": "HK_Toaster",
+   "group": "Lived in",
+   "what": "toaster",
+   "stretch": false,
+   "tris": 144,
+   "size": [
+    0.305,
+    0.194,
+    0.17
+   ],
+   "bottom": 0.0,
+   "back": 0.085,
+   "materials": [
+    "HK_Enamel_Cream",
+    "HK_Ink",
+    "DC_Steel"
+   ],
+   "islands": 8
+  },
+  {
+   "name": "HK_Bin",
+   "group": "Lived in",
+   "what": "pedal bin",
+   "stretch": false,
+   "tris": 320,
+   "size": [
+    0.35,
+    0.577,
+    0.391
+   ],
+   "bottom": 0.0,
+   "back": 0.171,
+   "materials": [
+    "HK_Bin_Grey",
+    "DC_SteelDark"
+   ],
+   "islands": 5
+  },
+  {
+   "name": "HK_Newspaper",
+   "group": "Lived in",
+   "what": "a folded newspaper",
+   "stretch": false,
+   "tris": 104,
+   "size": [
+    0.3,
+    0.016,
+    0.2
+   ],
+   "bottom": 0.0,
+   "back": 0.1,
+   "materials": [
+    "HK_Paper",
+    "HK_Ink"
+   ],
+   "islands": 6
+  },
+  {
+   "name": "HK_Pendant",
+   "group": "Lived in",
+   "what": "pendant light (hangs from the ceiling)",
+   "stretch": false,
+   "tris": 336,
+   "size": [
+    0.28,
+    0.36,
+    0.28
+   ],
+   "bottom": -0.36,
+   "back": 0.14,
+   "materials": [
+    "HK_Trim_Paint",
+    "HK_Cord_Black",
+    "T2_Brass",
+    "GH_Lampshade",
+    "DC_Ceramic"
+   ],
+   "islands": 6
+  },
+  {
+   "name": "HK_StripLight",
+   "group": "Lived in",
+   "what": "strip light, 0.60 (hangs under a cupboard)",
+   "stretch": false,
+   "tris": 72,
+   "size": [
+    0.6,
+    0.032,
+    0.05
+   ],
+   "bottom": -0.032,
+   "back": 0.025,
+   "materials": [
+    "HK_Enamel_Cream",
+    "DC_Ceramic"
+   ],
+   "islands": 2
+  },
+  {
+   "name": "HK_Door_Panelled",
+   "group": "Door",
+   "what": "panelled front door, 0.98 x 2.19 (hinge at x 0)",
+   "stretch": false,
+   "tris": 696,
+   "size": [
+    0.98,
+    2.19,
+    0.144
+   ],
+   "bottom": 0.0,
+   "back": 0.006,
+   "materials": [
+    "HK_Door_Paint",
+    "HK_Door_Glass",
+    "T2_Brass",
+    "HK_Iron_Black"
+   ],
+   "islands": 26
+  },
+  {
+   "name": "HK_PorchLantern",
+   "group": "Door",
+   "what": "porch lantern on a bracket",
+   "stretch": false,
+   "tris": 340,
+   "size": [
+    0.147,
+    0.241,
+    0.215
+   ],
+   "bottom": -0.001,
+   "back": 0.0,
+   "materials": [
+    "HK_Iron_Black",
+    "HK_Lantern_Glass",
+    "DC_Ceramic"
+   ],
+   "islands": 13
+  }
+ ],
+ "materials": {
+  "HK_Trim_Paint": {
+   "hex": "F2EDE3",
+   "smoothness": 0.35
+  },
+  "HK_Oak": {
+   "hex": "9A7044",
+   "smoothness": 0.3
+  },
+  "HK_Cord_Black": {
+   "hex": "2A2622",
+   "smoothness": 0.3
+  },
+  "HK_Coir": {
+   "hex": "A88A5C",
+   "smoothness": 0.02
+  },
+  "HK_Coir_Dark": {
+   "hex": "5E4A33",
+   "smoothness": 0.02
+  },
+  "HK_Radiator": {
+   "hex": "E8E4DC",
+   "smoothness": 0.3
+  },
+  "HK_Curtain_Oat": {
+   "hex": "CDBBA0",
+   "smoothness": 0.08
+  },
+  "HK_Curtain_Rose": {
+   "hex": "B98A8A",
+   "smoothness": 0.08
+  },
+  "HK_Blind": {
+   "hex": "E9E2D2",
+   "smoothness": 0.1
+  },
+  "HK_Cushion_Mustard": {
+   "hex": "C99A3E",
+   "smoothness": 0.1
+  },
+  "HK_Cushion_Sage": {
+   "hex": "8FA58B",
+   "smoothness": 0.1
+  },
+  "HK_Rug_Teal": {
+   "hex": "3E6B6A",
+   "smoothness": 0.03
+  },
+  "HK_Rug_Cream": {
+   "hex": "D9CBA9",
+   "smoothness": 0.03
+  },
+  "HK_Rug_Rust": {
+   "hex": "9A4A32",
+   "smoothness": 0.03
+  },
+  "HK_Terracotta": {
+   "hex": "B5603A",
+   "smoothness": 0.2
+  },
+  "HK_Soil": {
+   "hex": "3B2A1E",
+   "smoothness": 0.02
+  },
+  "HK_Leaf": {
+   "hex": "4F7A3F",
+   "smoothness": 0.15
+  },
+  "HK_Leaf_Light": {
+   "hex": "78A05A",
+   "smoothness": 0.15
+  },
+  "HK_Book_Red": {
+   "hex": "8E3A33",
+   "smoothness": 0.2
+  },
+  "HK_Book_Blue": {
+   "hex": "34507A",
+   "smoothness": 0.2
+  },
+  "HK_Book_Green": {
+   "hex": "4A6B4A",
+   "smoothness": 0.2
+  },
+  "HK_Book_Cream": {
+   "hex": "E2D6BC",
+   "smoothness": 0.2
+  },
+  "HK_Paper": {
+   "hex": "F2EEE6",
+   "smoothness": 0.05
+  },
+  "HK_Ink": {
+   "hex": "2E2B28",
+   "smoothness": 0.1
+  },
+  "HK_Stamp": {
+   "hex": "B04A3C",
+   "smoothness": 0.1
+  },
+  "HK_Leather_Brown": {
+   "hex": "5A3A24",
+   "smoothness": 0.3
+  },
+  "HK_Sole": {
+   "hex": "2B2622",
+   "smoothness": 0.2
+  },
+  "HK_Slipper": {
+   "hex": "9C8A9C",
+   "smoothness": 0.05
+  },
+  "HK_Enamel_Cream": {
+   "hex": "EFE6D0",
+   "smoothness": 0.6
+  },
+  "HK_Bin_Grey": {
+   "hex": "6B6E70",
+   "smoothness": 0.45
+  },
+  "HK_Clock_Face": {
+   "hex": "F4EFE2",
+   "smoothness": 0.2
+  },
+  "HK_Painting_Hills": {
+   "hex": "8FA6B8",
+   "smoothness": 0.1,
+   "texture": "Assets/Art/Textures/HouseKit/HK_Painting_Hills.png"
+  },
+  "HK_Painting_Harbour": {
+   "hex": "7F9BB0",
+   "smoothness": 0.1,
+   "texture": "Assets/Art/Textures/HouseKit/HK_Painting_Harbour.png"
+  },
+  "HK_Painting_Still": {
+   "hex": "B48E6A",
+   "smoothness": 0.1,
+   "texture": "Assets/Art/Textures/HouseKit/HK_Painting_Still.png"
+  },
+  "HK_Painting_Portrait": {
+   "hex": "6E7F8E",
+   "smoothness": 0.1,
+   "texture": "Assets/Art/Textures/HouseKit/HK_Painting_Portrait.png"
+  },
+  "HK_Door_Paint": {
+   "hex": "2F6E63",
+   "smoothness": 0.3
+  },
+  "HK_Door_Glass": {
+   "hex": "C9D6DE",
+   "smoothness": 0.9
+  },
+  "HK_Lantern_Glass": {
+   "hex": "FFE2B0",
+   "smoothness": 0.6,
+   "emission": "FFD9A0"
+  },
+  "HK_Iron_Black": {
+   "hex": "1F1E1C",
+   "smoothness": 0.35
+  }
+ },
+ "grace_materials": {
+  "GH_Velvet_Teal": {
+   "hex": "2F5D5A",
+   "smoothness": 0.25
+  },
+  "GH_Fabric_Rose": {
+   "hex": "B7857C",
+   "smoothness": 0.12
+  },
+  "GH_Pillow_Sage": {
+   "hex": "8FA58B",
+   "smoothness": 0.12
+  },
+  "GH_Pillow_Mustard": {
+   "hex": "C99A3E",
+   "smoothness": 0.12
+  },
+  "GH_Lace": {
+   "hex": "EFE7D6",
+   "smoothness": 0.1
+  },
+  "GH_Rug_Field": {
+   "hex": "7E3434",
+   "smoothness": 0.05
+  },
+  "GH_Rug_Border": {
+   "hex": "D8C39C",
+   "smoothness": 0.05
+  },
+  "GH_Plastic_Dark": {
+   "hex": "2B2926",
+   "smoothness": 0.35
+  },
+  "GH_TV_Screen": {
+   "hex": "1D2A2F",
+   "smoothness": 0.8
+  },
+  "GH_Lampshade": {
+   "hex": "E7D5B0",
+   "smoothness": 0.1
+  },
+  "GH_Photo": {
+   "hex": "BFA88A",
+   "smoothness": 0.25
+  },
+  "GH_Kitchen_Cream": {
+   "hex": "E6DCC3",
+   "smoothness": 0.35
+  },
+  "GH_Fridge_Mint": {
+   "hex": "BCD6C4",
+   "smoothness": 0.55
+  },
+  "GH_Enamel_Red": {
+   "hex": "B13A2F",
+   "smoothness": 0.55
+  },
+  "GH_Delft_Blue": {
+   "hex": "2F5B8F",
+   "smoothness": 0.6
+  },
+  "GH_Wool_Camel": {
+   "hex": "A57B52",
+   "smoothness": 0.08
+  },
+  "GH_Scarf_Red": {
+   "hex": "8E3130",
+   "smoothness": 0.08
+  },
+  "GH_Paint_White": {
+   "hex": "ECE6D8",
+   "smoothness": 0.3
+  },
+  "GH_Cardboard": {
+   "hex": "B78C5A",
+   "smoothness": 0.05
+  },
+  "GH_Tape": {
+   "hex": "CDB57E",
+   "smoothness": 0.3
+  },
+  "GH_Glass_Dark": {
+   "hex": "2A3438",
+   "smoothness": 0.85
+  }
+ }
+}
