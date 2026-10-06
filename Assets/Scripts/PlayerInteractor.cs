@@ -84,6 +84,14 @@ public class PlayerInteractor : MonoBehaviour
             return;
         }
 
+        // So does a scene that holds Ace still (Barks): its E moves the scene on.
+        if (PlayerMovement.Held)
+        {
+            ClearFocus();
+            CurrentPrompt = "";
+            return;
+        }
+
         if (viewMode != null && viewMode.SuppressWalkingInteraction)
         { ClearFocus(); nearbyStation = null; return; }
 
@@ -291,6 +299,8 @@ public class PlayerInteractor : MonoBehaviour
     private void PerformInteraction(int hand)
     {
         if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0) return;
+        // A scene holding Ace still (Barks) owns E: it moves the scene on.
+        if (PlayerMovement.Held) return;
         if (NightIsOn) { NightInteract(); return; }
         if (viewMode != null && viewMode.SuppressWalkingInteraction) return;
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
@@ -331,7 +341,8 @@ public class PlayerInteractor : MonoBehaviour
     private void NightUpdate()
     {
         nearbyStation = null;
-        if (Time.timeScale <= 0 || viewMode != null && viewMode.SuppressWalkingInteraction)
+        // Paused, the cursor released, or a scene holding Ace still (Barks: its E moves the scene on).
+        if (Time.timeScale <= 0 || viewMode != null && viewMode.SuppressWalkingInteraction || PlayerMovement.Held)
         {
             ClearFocus();
             return;

@@ -1,0 +1,218 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 594770df16f39d6449b1afaabb254b15, type: 3}
+  m_Name: Night lines
+  m_EditorClassIdentifier: Assembly-CSharp::NightLines
+  speakers:
+  - id: lodger
+    name: 'The man at the bins (placeholder: the Lodger)'
+    colour: {r: 0.7882353, g: 0.69803923, b: 0.5176471, a: 1}
+    sound: 
+  - id: ace
+    name: Ace
+    colour: {r: 0.30980393, g: 0.7019608, b: 0.5254902, a: 1}
+    sound: 
+  - id: grace
+    name: Grace
+    colour: {r: 0.83137256, g: 0.63529414, b: 0.22745098, a: 1}
+    sound: 
+  - id: officer
+    name: The officer (placeholder)
+    colour: {r: 0.49803922, g: 0.6392157, b: 0.8509804, a: 1}
+    sound: 
+  - id: neighbour
+    name: A neighbour
+    colour: {r: 0.56078434, g: 0.6509804, b: 0.78431374, a: 1}
+    sound: 
+  lines:
+  - id: lodger.night0.01
+    speaker: lodger
+    situation: night0.deal
+    text: You didn't see me.
+  - id: ace.night0.02
+    speaker: ace
+    situation: night0.deal
+    text: ...I didn't see you.
+  - id: lodger.night0.03
+    speaker: lodger
+    situation: night0.deal
+    text: You open at nine. You burn the second batch.
+  - id: lodger.night0.04
+    speaker: lodger
+    situation: night0.deal
+    text: Grace likes you.
+  - id: lodger.night0.05
+    speaker: lodger
+    situation: night0.deal
+    text: "A caf\xE9 whose owner talks doesn't stay open long."
+  - id: lodger.night0.06
+    speaker: lodger
+    situation: night0.deal
+    text: But I like you. So here's the thing.
+  - id: lodger.night0.07
+    speaker: lodger
+    situation: night0.deal
+    text: Everything I know about this street. Learn the rest.
+  - id: lodger.night0.08
+    speaker: lodger
+    situation: night0.deal
+    text: And don't get caught.
+  - id: lodger.night0.09
+    speaker: lodger
+    situation: night0.deal
+    text: There's a gnome on the corner step. Bring it to me.
+  - id: ace.night0.10
+    speaker: ace
+    situation: night0.deal
+    text: Why?
+  - id: lodger.night0.11
+    speaker: lodger
+    situation: night0.deal
+    text: Don't ask why. Ask how.
+  - id: lodger.night2.01
+    speaker: lodger
+    situation: night2.ask
+    text: Grace has cups. A box of them. Get me a sleeve.
+  - id: ace.night2.02
+    speaker: ace
+    situation: night2.ask
+    text: Cups? Why cups?
+  - id: lodger.night2.03
+    speaker: lodger
+    situation: night2.ask
+    text: A man needs cups.
+  - id: lodger.night3.01
+    speaker: lodger
+    situation: night3.ask
+    text: Two cars parked on West Street last night.
+  - id: lodger.night3.02
+    speaker: lodger
+    situation: night3.ask
+    text: Nobody parks on West Street. Cones. Both spots.
+  - id: lodger.off.01
+    speaker: lodger
+    situation: night.off
+    text: Tonight, nothing. Sit. Drink.
+  - id: lodger.cold.01
+    speaker: lodger
+    situation: lodger.cold
+    text: Tonight, then.
+  - id: lodger.cold.02
+    speaker: lodger
+    situation: lodger.cold
+    text: Still waiting.
+  - id: lodger.cold.03
+    speaker: lodger
+    situation: lodger.cold
+    text: I asked nicely once.
+  - id: lodger.waiting.01
+    speaker: lodger
+    situation: lodger.waiting
+    text: Not yet.
+  - id: lodger.waiting.02
+    speaker: lodger
+    situation: lodger.waiting
+    text: You're going the wrong way.
+  - id: lodger.waiting.03
+    speaker: lodger
+    situation: lodger.waiting
+    text: I'm not going anywhere.
+  - id: lodger.done.01
+    speaker: lodger
+    situation: lodger.done
+    text: Good.
+  - id: lodger.done.02
+    speaker: lodger
+    situation: lodger.done
+    text: Not bad. Not bad at all.
+  - id: lodger.done.03
+    speaker: lodger
+    situation: lodger.done
+    text: See? Easy.
+  - id: ace.line.night0
+    speaker: ace
+    situation: ace.night
+    text: "I own a caf\xE9 and a man lives in my bins."
+  - id: ace.line.night1
+    speaker: ace
+    situation: ace.night
+    text: It's a gnome. It's just a gnome.
+  - id: ace.line.night2
+    speaker: ace
+    situation: ace.night
+    text: If she wakes up I'm a burglar. If not, a guest.
+  - id: ace.line.night3
+    speaker: ace
+    situation: ace.night
+    text: Stupidest thing I've ever done. Quite well done.
+  - id: ace.line.day5
+    speaker: ace
+    situation: ace.night
+    text: I'm getting good at this. That's the worrying part.
+  - id: grace.notice.01
+    speaker: grace
+    situation: grace.notice
+    text: Hm?
+  - id: grace.notice.02
+    speaker: grace
+    situation: grace.notice
+    text: Is someone there?
+  - id: grace.notice.03
+    speaker: grace
+    situation: grace.notice
+    text: Hello?
+  - id: grace.caught.01
+    speaker: grace
+    situation: grace.caught
+    text: "Ace?! What on earth\u2014"
+  - id: neighbour.window.01
+    speaker: neighbour
+    situation: neighbour.window
+    text: Who's out there at this hour?
+  - id: neighbour.window.02
+    speaker: neighbour
+    situation: neighbour.window
+    text: Some of us sleep, you know.
+  - id: neighbour.window.03
+    speaker: neighbour
+    situation: neighbour.window
+    text: Go home!
+  scenes:
+  - id: night0.deal
+    holdAce: 1
+    lines:
+    - lodger.night0.01
+    - ace.night0.02
+    - lodger.night0.03
+    - lodger.night0.04
+    - lodger.night0.05
+    - lodger.night0.06
+    - lodger.night0.07
+    - lodger.night0.08
+    - lodger.night0.09
+    - ace.night0.10
+    - lodger.night0.11
+  - id: night2.ask
+    holdAce: 0
+    lines:
+    - lodger.night2.01
+    - ace.night2.02
+    - lodger.night2.03
+  - id: night3.ask
+    holdAce: 0
+    lines:
+    - lodger.night3.01
+    - lodger.night3.02
+  - id: night.off
+    holdAce: 0
+    lines:
+    - lodger.off.01

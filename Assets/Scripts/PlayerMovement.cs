@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -115,6 +116,20 @@ public class PlayerMovement : MonoBehaviour
     /// <summary>Degrees the assist turned this frame's walk by (0 when off, free, or standing still). For checks.</summary>
     public float AssistApplied { get; private set; }
 
+    // ---- held still by a short scene (Barks: Night 0's deal) ----
+    // Walking stops (the camera stays free) while anything holds Ace; E belongs to the scene meanwhile
+    // (PlayerInteractor stands aside). Static, so a scene needn't find the player.
+    static readonly HashSet<object> holds = new HashSet<object>();
+
+    /// <summary>Hold Ace still until <see cref="Release"/> with the same owner (a scene, a check).</summary>
+    public static void Hold(object owner) { if (owner != null) holds.Add(owner); }
+    public static void Release(object owner) { if (owner != null) holds.Remove(owner); }
+    /// <summary>Something holds Ace still (a scene is playing).</summary>
+    public static bool Held => holds.Count > 0;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ForgetHolds() => holds.Clear();
+
     private CharacterController controller;
     private Vector2 moveInput;
 
@@ -211,6 +226,14 @@ public class PlayerMovement : MonoBehaviour
             || (conversation != null && conversation.InConversation))
         {
             ClearInput();
+            return;
+        }
+
+        if (Held)
+        {
+            // A scene holds Ace: stand still (gravity still applies), and start from rest after.
+            ClearInput();
+            if (controller != null && controller.enabled) controller.SimpleMove(Vector3.zero);
             return;
         }
 
