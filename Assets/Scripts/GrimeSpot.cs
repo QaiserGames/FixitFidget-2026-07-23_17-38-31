@@ -26,7 +26,8 @@ public class GrimeSpot : MonoBehaviour
 
         if (scrubHealth <= 0f)
         {
-            Debug.Log("Sparkling clean!");   // placeholder for sparkle particles + chime
+            // A spot gone: a little burst of sparks (Juice), and the chime.
+            Juice.Sparkle(transform.position);
             Sfx.Play("grime.clean", transform.position);
             Destroy(gameObject);
         }

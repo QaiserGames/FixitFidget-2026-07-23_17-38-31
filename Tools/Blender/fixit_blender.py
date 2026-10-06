@@ -108,14 +108,55 @@ class Prop:
                     v.co.z = 0.0
                     self.floored += 1
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        # recalc_face_normals guesses each shell's outside from one face, and can guess wrong on a bent, tipped shape
+        # (Barnaby's flopped hat came out inside out: 57 of its 61 faces facing in, so from any side you saw into his
+        # head; Mansoor's playtest, 6 Oct 2026). Every closed shell is checked by its volume and turned round if needed.
+        self.turned = orient_shells(bm)
         box_uvs(bm)
         me = bpy.data.meshes.new(self.name)
         bm.to_mesh(me)
         for m in self.mats:
             me.materials.append(m)
         ob = bpy.data.objects.new(self.name, me)
+        ob['fixit_shells_turned'] = self.turned
         (collection or bpy.context.scene.collection).objects.link(ob)
         return ob
+
+
+def orient_shells(bm):
+    """
+    Every closed shell (each of its edges between two of its faces) faces outward: a shell whose volume comes out
+    negative was built inside out, and its faces are turned round. Open shells (a plane, a cut tube) are left as they
+    are: they have no inside. Returns how many shells were turned.
+    """
+    seen = set()
+    turned = 0
+    for start in bm.faces:
+        if start in seen:
+            continue
+        shell = []
+        stack = [start]
+        seen.add(start)
+        while stack:
+            f = stack.pop()
+            shell.append(f)
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g not in seen:
+                        seen.add(g)
+                        stack.append(g)
+        edges = {e for f in shell for e in f.edges}
+        if any(len(e.link_faces) != 2 for e in edges):
+            continue
+        volume = 0.0
+        for f in shell:
+            vs = [v.co for v in f.verts]
+            for i in range(1, len(vs) - 1):
+                volume += vs[0].dot(vs[i].cross(vs[i + 1]))
+        if volume < 0.0:
+            bmesh.ops.reverse_faces(bm, faces=shell)
+            turned += 1
+    return turned
 
 
 # ----------------------------------------------------------------------------- primitives (each returns a new bmesh)

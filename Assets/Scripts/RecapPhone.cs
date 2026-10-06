@@ -119,6 +119,12 @@ public sealed class RecapPhone : MonoBehaviour
     static readonly Vector3[] corners = new Vector3[4];
 
     bool dirty = true, scrollToTop = true, hintForPad, hintWritten;
+    // Today's takings count up from $0 the first time an evening's phone shows them (6 Oct 2026, juice).
+    TMP_Text todayMoney;
+    int todayEarned, todayShown;
+    float countSince = -1f;
+    bool countDue = true;
+    const float CountSeconds = .9f;
     GameObject lastRevealed;
     ReputationLedger preview;   // a made-up day (Fixit Fidget > Reputation > Preview), until the phone closes
     Sprite rounded, ring, circle, star, house, bag, note, tick, cupBody, cupLid, bean, beanCrease;
@@ -273,6 +279,7 @@ public sealed class RecapPhone : MonoBehaviour
     /// <summary>A new day's recap: back to Reviews, Details closed, at the top.</summary>
     public void NewEvening()
     {
+        countDue = true;
         Current = App.Reviews;
         DetailsOpen = false;
         preview = null;
@@ -372,6 +379,28 @@ public sealed class RecapPhone : MonoBehaviour
         HandleInput();
         TrackSelection();
         UpdateHint();
+        CountUp();
+    }
+
+    // Today's takings, counting up (the text is made again only when the figure changes).
+    void CountUp()
+    {
+        if (countSince < 0f || todayMoney == null) return;
+        float t = (Time.unscaledTime - countSince) / CountSeconds;
+        if (t < 0f) return;
+        t = Mathf.Clamp01(t);
+        int now = Mathf.RoundToInt(todayEarned * (1f - (1f - t) * (1f - t) * (1f - t)));
+        if (now != todayShown)
+        {
+            todayShown = now;
+            todayMoney.text = "$" + now;
+            Sfx.Play2D("recap.count", .5f);
+        }
+        if (t >= 1f)
+        {
+            countSince = -1f;
+            Sfx.Play2D("recap.counted");
+        }
     }
 
     void LateUpdate()
@@ -672,6 +701,17 @@ public sealed class RecapPhone : MonoBehaviour
         TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned : 0), 0f, 0f, 0f, 24f, DarkText, wrap: false,
             style: FontStyles.Bold, rich: false);
         Vector2 moneySize = money.rectTransform.sizeDelta;
+        // Sized for the whole figure; it counts up into that space from the right.
+        money.horizontalAlignment = HorizontalAlignmentOptions.Right;
+        todayMoney = money;
+        todayEarned = clock != null ? clock.Earned : 0;
+        if (countDue)
+        {
+            countDue = false;
+            countSince = Time.unscaledTime + .25f;
+            todayShown = 0;
+        }
+        if (countSince >= 0f) money.text = "$" + todayShown;
         Place(money.rectTransform, right - moneySize.x, 10f, moneySize.x, moneySize.y);
         Button details = Pill(card, DetailsOpen ? "Hide details" : "Details", right, Bottom(money.rectTransform) + 3f, 14f,
             DarkLine, DarkText, "details", ToggleDetails, true);

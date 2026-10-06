@@ -71,6 +71,9 @@ public sealed class NpcBeats : MonoBehaviour
             SitLookAround = "Sitting - Looking Side To Side", SitTalking = "Sitting Talking", SitTalkShort = "Talking",
             SitLaughing = "Sitting Laughing", SitImpatient = "Sitting - Impatiently Waiting", SitTapping = "Sitting - Tapping Fingers",
             SitAngry = "Sitting Angry", SitThumbsUp = "Sitting Thumbs Up", Beckoning = "Beckoning";
+        // Baked by Mixamo 1 from the sofa-only two with the back held upright, so the arms and head do the gesture without
+        // leaning into a table (6 Oct 2026, Mansoor's playtest: everyone at a table reacted the same way). Wired by Mixamo 3.
+        public const string SitThumbsUpUpright = "Sitting Thumbs Up (upright)", SitLaughingUpright = "Sitting Laughing (upright)";
     }
 
     /// <summary>What just happened, for <see cref="React"/>.</summary>
@@ -150,6 +153,8 @@ public sealed class NpcBeats : MonoBehaviour
         [Clip.SitAngry] = new Use(0f, 0f, false),
         [Clip.SitThumbsUp] = new Use(0f, 0f, false, Place.NoTable),
         [Clip.Beckoning] = new Use(0f, 0f, false),
+        [Clip.SitThumbsUpUpright] = new Use(0f, 0f, false),
+        [Clip.SitLaughingUpright] = new Use(3.5f, 4.5f, false),
     };
 
     // Base-layer states in which a beat may show.
@@ -168,6 +173,10 @@ public sealed class NpcBeats : MonoBehaviour
     private static readonly Dictionary<TableSeat, bool> tableInFront = new();
     private static readonly Dictionary<string, int> started = new();
     private static int interruptions, reactions;
+    // The last two reactions anyone in the café played: less likely again straight away, so two tables served one after
+    // the other don't do the same thing.
+    private static readonly string[] roomRecent = new string[2];
+    private static int roomNext;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -179,6 +188,8 @@ public sealed class NpcBeats : MonoBehaviour
         tableInFront.Clear();
         started.Clear();
         interruptions = reactions = 0;
+        roomRecent[0] = roomRecent[1] = null;
+        roomNext = 0;
     }
 
     /// <summary>The clip library, or null on a copy of the project without the Mixamo folder.</summary>
@@ -403,6 +414,8 @@ public sealed class NpcBeats : MonoBehaviour
     /// <summary>A reaction to something that just happened (see <see cref="Moment"/>). False: nothing played; the caller keeps its old gesture.</summary>
     public bool React(Moment moment, PortraitExpression face = PortraitExpression.Neutral, JobGrade grade = JobGrade.Good, float seconds = 0f)
     {
+        // The badge over their head says it whether or not a clip can play (6 Oct: Juice).
+        Emote(moment, grade);
         if (!Ready) return false;
         bool seated = SettledInChair;
         bool noTable = seated && !TableInFront(seating.Seat);
@@ -432,8 +445,7 @@ public sealed class NpcBeats : MonoBehaviour
                 break;
 
             case Moment.Served:
-                if (seated) played = noTable ? PlayUse(Clip.SitThumbsUp, Kind.Reaction) : PlayUse(Clip.SitTalkShort, Kind.Reaction, 2.4f);
-                else played = PlayUse(Random.value < .7f ? Clip.Thankful : Clip.HappyHand, Kind.Reaction);
+                played = seated ? HappySeated(noTable, big: false) : HappyStanding(big: false);
                 if (played) pleasedUntil = Time.time + 25f;
                 if (seated && social != null) social.Nod(7f);
                 break;
@@ -473,16 +485,83 @@ public sealed class NpcBeats : MonoBehaviour
         switch (grade)
         {
             case JobGrade.Perfect:
-                if (seated) return noTable ? PlayUse(Clip.SitThumbsUp, Kind.Reaction) : PlayUse(Clip.SitTalkShort, Kind.Reaction, 2.4f);
-                return PlayUse(Clip.Excited, Kind.Reaction);
+                return seated ? HappySeated(noTable, big: true) : HappyStanding(big: true);
             case JobGrade.Good:
-                if (seated) return noTable ? PlayUse(Clip.SitThumbsUp, Kind.Reaction) : PlayUse(Clip.SitTalkShort, Kind.Reaction, 2.4f);
-                return PlayUse(Random.value < .6f ? Clip.Thankful : Clip.HappyHand, Kind.Reaction);
+                return seated ? HappySeated(noTable, big: false) : HappyStanding(big: false);
             case JobGrade.Passable:
                 return !seated && PlayUse(Clip.Shrugging, Kind.Reaction);
             default:   // Rejected: it goes home unfixed
                 if (seated) return PatienceNow() < .3f && PlayUse(Clip.SitAngry, Kind.Reaction);
                 return PlayUse(Shy ? Clip.Pouting : Clip.Disappointed, Kind.Reaction);
+        }
+    }
+
+    // A happy reaction (served, or a good repair back): one of a few, picked so that a person never does their last one again
+    // and the room is less likely to see the same one twice running (6 Oct 2026, Mansoor's playtest: "a lot of people have the
+    // same emotion or emote when they are given their product back or their coffee ... they just do like a little leaning in
+    // the chair"). At a table the sofa's thumbs up and laugh would lean into it: their upright versions play there instead.
+    private bool HappySeated(bool noTable, bool big)
+    {
+        candidates.Clear();
+        if (noTable)
+        {
+            AddReaction(Clip.SitThumbsUp, 3f);
+            AddReaction(Clip.SitLaughing, big ? 3f : 1f);
+            AddReaction(Clip.SitTalkShort, 1.5f);
+        }
+        else
+        {
+            AddReaction(Clip.SitThumbsUpUpright, 3f);
+            AddReaction(Clip.SitLaughingUpright, big ? 2.5f : .8f);
+            AddReaction(Clip.SitTalkShort, 1.5f);
+            AddReaction(Clip.SitTalking, 1.2f);
+        }
+        string pick = Pick();
+        if (pick == null) return false;
+        if (pick == Clip.SitTalking) return Play(pick, 2.6f, Kind.Reaction, Random.Range(0f, .85f));
+        return pick == Clip.SitTalkShort ? PlayUse(pick, Kind.Reaction, 2.4f) : PlayUse(pick, Kind.Reaction);
+    }
+
+    private bool HappyStanding(bool big)
+    {
+        candidates.Clear();
+        if (big)
+        {
+            AddReaction(Clip.Excited, 3f);
+            AddReaction(Clip.HappyHand, 1f);
+            AddReaction(Clip.Thankful, 1f);
+        }
+        else
+        {
+            AddReaction(Clip.Thankful, 3f);
+            AddReaction(Clip.HappyHand, 2f);
+            AddReaction(Clip.NodYes, 1f);
+        }
+        string pick = Pick();
+        return pick != null && PlayUse(pick, Kind.Reaction);
+    }
+
+    // As Add, and less likely again when someone in the room has just done it.
+    private void AddReaction(string clip, float w)
+    {
+        for (int i = 0; i < roomRecent.Length; i++) if (roomRecent[i] == clip) w *= .35f;
+        Add(clip, w);
+    }
+
+    // The badge over their head for what just happened (Juice): a cup for a drink, a heart for a perfect repair, a star for a
+    // good one, dots for so-so or let down, a grey cloud for unfixed, a tick when reassured, an angry burst walking out.
+    private void Emote(Moment moment, JobGrade grade)
+    {
+        switch (moment)
+        {
+            case Moment.Served: Juice.Emote(transform, Juice.Icon.Cup); break;
+            case Moment.Returned:
+                Juice.Emote(transform, grade == JobGrade.Perfect ? Juice.Icon.Heart : grade == JobGrade.Good ? Juice.Icon.Star
+                    : grade == JobGrade.Passable ? Juice.Icon.Dots : Juice.Icon.Cloud);
+                break;
+            case Moment.Reassured: Juice.Emote(transform, Juice.Icon.Tick); break;
+            case Moment.LetDown: Juice.Emote(transform, Juice.Icon.Dots); break;
+            case Moment.StormOut: Juice.Emote(transform, Juice.Icon.Burst); break;
         }
     }
 
@@ -672,8 +751,16 @@ public sealed class NpcBeats : MonoBehaviour
         float p = customer.PatienceFraction;
         if (p > .45f) frustratedShown = false;
         if (p > .25f) furiousShown = false;
-        if (p < .12f && !furiousShown) { furiousShown = frustratedShown = true; pendingMood = Mood.Furious; pendingUntil = Time.time + 6f; }
-        else if (p < .3f && !frustratedShown) { frustratedShown = true; pendingMood = Mood.Frustrated; pendingUntil = Time.time + 6f; }
+        if (p < .12f && !furiousShown)
+        {
+            furiousShown = frustratedShown = true; pendingMood = Mood.Furious; pendingUntil = Time.time + 6f;
+            Juice.Emote(transform, Juice.Icon.Burst);
+        }
+        else if (p < .3f && !frustratedShown)
+        {
+            frustratedShown = true; pendingMood = Mood.Frustrated; pendingUntil = Time.time + 6f;
+            Juice.Emote(transform, Juice.Icon.Drop);
+        }
         if (Time.time >= pendingUntil) return;
         if (current != null && kind != Kind.Idle) return;
         if (social != null && social.BrainHasFocus) return;   // Ace is right there with them
@@ -777,6 +864,11 @@ public sealed class NpcBeats : MonoBehaviour
         ShowPhone(e);
         recent[recentNext] = clip;
         recentNext = (recentNext + 1) % recent.Length;
+        if (as_ == Kind.Reaction)
+        {
+            roomRecent[roomNext] = clip;
+            roomNext = (roomNext + 1) % roomRecent.Length;
+        }
         started.TryGetValue(clip, out int n);
         started[clip] = n + 1;
         return true;

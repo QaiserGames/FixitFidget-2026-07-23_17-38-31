@@ -25,9 +25,10 @@ using UnityEngine.UI;
 //   4. the deal: two replies (1 and 2 on the keyboard when the Game view has it, as a player would), his warmth
 //      nudged by each (+1, then 0), the notebook's first pages his (in italics, first on its page), the deal made,
 //      the clock running, Night 0 over;
-//   5. the errand: Barnaby taken from Grace's step goes into Ace's hand (not onto the shelf), and back at the bins
-//      "Give him Barnaby": the return (one reply, +1), the gnome in his corner turned to face the street, Nerve
-//      learned, a page for the notebook;
+//   5. the errand: Barnaby taken from Grace's step goes into Ace's hand (not onto the shelf), and in first person he sits
+//      low on the right of the view, looking back at Ace (photo 09b: his hat the right way out, 6 Oct 2026); back at the
+//      bins he pops up as Ace comes (he ducked back in after the deal), and "Give him Barnaby": the return (one reply,
+//      +1), the gnome in his corner turned to face the street, Nerve learned, a page for the notebook, and he ducks again;
 //   6. "Call it a night" at the back door; Day 2's save has all of it; Grace comes in, and the straight face's green is
 //      wider (Nerve).
 // Also: standing near him adds no garbage a frame. A photo at each step and report.txt go to
@@ -245,7 +246,7 @@ public sealed class NightZeroCheck : MonoBehaviour
         Check(LodgerStory.Errand(ledger) == barnaby.id, "his errand: Grace's gnome");
         yield return Seconds(4f);   // Ace's line, then the night's note
         Check(NoteShowing().Contains("Grace's front step"), $"the note says where the gnome is (\"{Short(NoteShowing())}\")");
-        Check(man.Up, "he stays standing in the dumpster");
+        Check(man.Hidden && set.LidOpen(set.farLid) < .01f, $"his say done, he ducked back into the dumpster and the lid dropped ({man.Describe()})");
         Check(interactor.CurrentPrompt != "Call it a night",
             $"at the dumpster after the deal the back door isn't offered (it's two metres away; the prompt reads \"{interactor.CurrentPrompt}\")");
         yield return Photo("08-after-the-deal");
@@ -278,6 +279,35 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return Seconds(.6f);
         yield return Photo("09-barnaby-in-hand");
 
+        // ...and in first person, as Mansoor held him (6 Oct 2026: "when picking it up in first person, you can see inside the
+        // head"): low on the right of the view, looking back at Ace, his hat the right way out (Barnaby.fbx rebuilt).
+        view.SetFirstPerson(true);
+        yield return Until(() => view.FirstPersonSelected && view.WalkingFirstPerson, 2f, "V: first person, Barnaby in hand");
+        yield return Seconds(1.2f);
+        Camera eye = Camera.main;
+        GameObject heldNow = NightCarry.Current != null ? NightCarry.Current.Held : null;
+        bool inView = false;
+        if (heldNow != null && eye != null)
+        {
+            Bounds seen = default;
+            bool any = false;
+            foreach (Renderer r in heldNow.GetComponentsInChildren<Renderer>())
+            {
+                if (!r.enabled) continue;
+                if (any) seen.Encapsulate(r.bounds);
+                else { seen = r.bounds; any = true; }
+            }
+            Vector3 at = any ? eye.WorldToViewportPoint(seen.center) : Vector3.zero;
+            inView = any && at.z > 0f && at.x > .5f && at.x < 1f && at.y > 0f && at.y < .5f;
+            Note($"in first person Barnaby sits at {at.x:0.00}, {at.y:0.00} of the view, {at.z:0.00} m ahead");
+        }
+        Check(inView, "in first person he's in view, low on the right");
+        yield return Photo("09b-barnaby-in-hand-first-person");
+        view.SetFirstPerson(false);
+        yield return Until(() => !view.FirstPersonSelected && eye != null
+                                 && Vector3.Distance(eye.transform.position, movement.transform.position) > 5f, 3f,
+            "V again: back to the view from above");
+
         // ---------- back to the bins ----------
         int passing = man.Passing;
         yield return Walk(new List<Vector3>
@@ -287,7 +317,8 @@ public sealed class NightZeroCheck : MonoBehaviour
         }, new List<float> { .6f, .9f, .6f, .25f }, "back up West Street and along Back Street to his half of the dumpster");
         string give = "Give him " + barnaby.name;
         yield return Until(() => interactor.CurrentPrompt == give, 3f, $"at his half the prompt reads \"{give}\"");
-        Note($"he said {man.Passing - passing} line(s) in passing on the way back");
+        Check(man.Up && man.PoppedFor > 0f, $"he popped up as Ace came back with Barnaby, {man.PoppedFor:0.0} m from his half");
+        Note($"he said {man.Passing - passing} line(s) in passing on the way back ({man.FromTheBin} from inside the bin tonight)");
         yield return Photo("10-give-him-barnaby");
 
         // ---------- the return ----------
@@ -329,6 +360,7 @@ public sealed class NightZeroCheck : MonoBehaviour
         Note(gotNerve && gotPage ? "Nerve and the page came on their lines" : "Nerve or the page came only at the end (the return's lines missed them)");
         yield return Seconds(.5f);
         yield return Photo("12-his-corner");
+        yield return Until(() => man.Hidden, 4f, "a moment after the return he's back in the bin, the lid shut");
 
         // ---------- calling it a night at the back door ----------
         yield return Walk(new List<Vector3> { new Vector3(6.25f, 0f, 20.2f), set.outsideDoor.position }, new List<float> { .35f, .3f },

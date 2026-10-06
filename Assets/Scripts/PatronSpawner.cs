@@ -184,6 +184,7 @@ public class PatronSpawner : MonoBehaviour
         if (payPerPatron > 0 && ShopEconomy.Instance != null)
         {
             ShopEconomy.Instance.AddMoney(payPerPatron);
+            Juice.Money(brain.transform, payPerPatron);
 
             // Through DayClock as well, or the till climbs while "Earned today"
             // sits still and the recap quietly under-reports the day.

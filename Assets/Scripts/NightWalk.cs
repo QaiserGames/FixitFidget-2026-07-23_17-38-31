@@ -426,6 +426,9 @@ public sealed class NightWalk : MonoBehaviour
         QuietedActors = LitBuildings = GlowingSigns = CityLitAtStart = CityWentToBed = 0;
     }
 
+    /// <summary>The café's visitors who were still on their way home when this night fell, sent home at once (QuietTheStreet).</summary>
+    public int SentHomeAtNightfall { get; private set; }
+
     /// <summary>
     /// The café is closed and the street has gone to bed: the café sends nobody, the day's clock
     /// stops, and StreetLife's walkers and cars leave (part 4 brings a few neighbours home).
@@ -435,6 +438,10 @@ public sealed class NightWalk : MonoBehaviour
     /// </summary>
     public void QuietTheStreet()
     {
+        // Everyone still on their way home from the café is home first: paused, CafeArrivals would leave them standing on
+        // their doorsteps all night (it opens their front doors). 6 Oct: Grace stood in her doorway all of Night 2.
+        CafeArrivals arrivals = FindAnyObjectByType<CafeArrivals>();
+        if (arrivals != null) SentHomeAtNightfall = arrivals.HomeForTheNight();
         foreach (Behaviour b in new Behaviour[]
                  {
                      FindAnyObjectByType<CustomerSpawner>(), FindAnyObjectByType<PatronSpawner>(), FindAnyObjectByType<CafeArrivals>(),

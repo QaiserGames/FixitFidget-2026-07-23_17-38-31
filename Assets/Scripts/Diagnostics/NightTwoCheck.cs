@@ -18,8 +18,8 @@ using UnityEngine.UI;
 // From Day 2's recap of a made-up save after Night 1 (NightTwoSteps.DayTwoRecap: the man met, Barnaby given, Nerve,
 // Grace's morning held, the officer in for a coffee on Day 1):
 //   * Cups (the main check):
-//       1. "Close up for the night": Ace inside the back door with the bag, the clock waiting, the man standing in the
-//          dumpster (no reveal);
+//       1. "Close up for the night": Ace inside the back door with the bag, the clock waiting, the man out of sight in the
+//          dumpster (since 6 Oct he pops up when the bag goes in: on Night 2, the peek over the rim);
 //       2. "Take the bins out", "Bin it": the near lid, the bag in; his verdict on the day (a straight face held) and the
 //          ask for the cups (warm: he says why); Ace answers (+1); the notebook learns where the cups are; the clock runs;
 //       3. Grace's house: the cups can't be taken from behind her kitchen wall; inside, at the worktop, "Take the
@@ -158,7 +158,10 @@ public sealed class NightTwoCheck : MonoBehaviour
         NightZero zero = NightZero.Instance;
         Lodger man = Lodger.Instance;
         Check(zero != null && !zero.First && NightZero.Pending && zero.Now == NightZero.Step.AtTheDoor, "the night opens at the bins (" + (zero != null ? zero.Describe() : "none") + ")");
-        Check(man != null && man.Up, "he's standing in the dumpster already (no reveal after Night 0)");
+        Check(man != null && man.Hidden, "he's out of sight in the dumpster, its lid shut, until the bag goes in");
+        CafeArrivals arrivals = FindAnyObjectByType<CafeArrivals>();
+        Check(arrivals == null || arrivals.Visiting == 0,
+            $"nobody from the café is left on their way home ({(NightWalk.Instance != null ? NightWalk.Instance.SentHomeAtNightfall : 0)} sent home at nightfall)");
         if (zero == null || man == null) yield break;
         Check(Flat(movement.transform.position - set.insideDoor.position).magnitude < .3f && NightCarry.Current != null && NightCarry.Current.HeldId == NightZero.BagId,
             "Ace is just inside the back door with the bin bag");
@@ -182,7 +185,9 @@ public sealed class NightTwoCheck : MonoBehaviour
             yield return null;
         }
         Check(nearMost > 40f && !reveal, $"the near lid lifted for the bag ({nearMost:0}°), and there was no reveal this time");
-        Check(Time.realtimeSinceStartup - binned < 3.5f, $"he spoke {Time.realtimeSinceStartup - binned:0.0} s after the bag went in (a beat, not a reveal)");
+        Check(man.Up && man.Pops == 1 && zero.Popped == Lodger.StyleFor(2) && set.LidOpen(set.farLid) > .99f,
+            $"he popped up out of the far half, the lid up ({zero.Popped}: on Night 2 the peek over the rim)");
+        Check(Time.realtimeSinceStartup - binned < 3.5f, $"he spoke {Time.realtimeSinceStartup - binned:0.0} s after the bag went in (a pop, not a reveal)");
 
         // ---------- his verdict, and tonight's ask ----------
         yield return Until(() => Barks.ScenePlaying, 3f, "his scene began");
@@ -227,6 +232,7 @@ public sealed class NightTwoCheck : MonoBehaviour
         }
         yield return Until(() => zero.Now == NightZero.Step.Done && !NightZero.Pending, 3f, "his scene is over");
         Check(!NightWalk.Instance.ClockHeld, "the night's clock runs");
+        yield return Until(() => man.Hidden && set.LidOpen(set.farLid) < .01f, 3f, "his say done, he ducks back into the dumpster and the lid drops");
         yield return Seconds(1f);
         Check(NoteShowing().Contains("kitchen"), $"the note says where the cups are (\"{Short(NoteShowing())}\")");
         yield return Photo("04-after-his-ask");
@@ -283,6 +289,7 @@ public sealed class NightTwoCheck : MonoBehaviour
         }, new List<float> { .6f, .9f, .6f, .25f }, "back up West Street and along Back Street to his half of the dumpster");
         string give = "Give him " + cups.name;
         yield return Until(() => interactor.CurrentPrompt == give, 3f, $"at his half the prompt reads \"{give}\"");
+        Check(man.Up && man.PoppedFor > 0f, $"he popped up as Ace came back with the cups, {man.PoppedFor:0.0} m from his half");
         yield return Photo("07-give-him-the-cups");
 
         // ---------- the return: four cups on the crate ----------
@@ -318,6 +325,7 @@ public sealed class NightTwoCheck : MonoBehaviour
         Check(saves.Notebook.Knows("lodger.page.grace.photos"), "and gave Ace a page: her photos");
         Check(ledger.Favour == LodgerStory.Cones && LodgerStory.Errand(ledger) == "", "the cups are done: his next favour comes up (the cones, not in the game yet)");
         Note($"Doors came with {cupsWhenPaid} cup(s) out");
+        yield return Until(() => man.Hidden, 4f, "a moment after the return he's back in the bin, the lid shut");
         yield return Seconds(.4f);
         yield return Photo("09-his-corner");
 

@@ -53,6 +53,9 @@ were first run (29 Sept 2026, overnight). The `.blend` files are Blender 5.2 fil
   square end of a splayed leg) are put on it. Things that aren't furniture (the mock-up's floor slabs)
   say `floor=False`.
 - No two faces share a plane: make the part that should show a few millimetres proud.
+- Every closed shell faces outward: `Prop.finish` checks each closed shell's volume and turns one built inside out the
+  right way round (`orient_shells`). Barnaby's flopped hat had come out inside out, so in Unity you saw into his head
+  (6 Oct 2026); the report says how many were turned.
 - Doors have their origin on the hinge line at the floor, so Unity can swing them about Y.
 - Colours are sRGB hex, converted to linear for Blender. The materials are named after the Unity
   materials they become: the café's own (`CC_Wood_Counter`, `DC_Steel`, `T2_Brass`, ...) or new

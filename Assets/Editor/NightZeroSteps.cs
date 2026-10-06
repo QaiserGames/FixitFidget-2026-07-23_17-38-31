@@ -33,7 +33,11 @@ using Object = UnityEngine.Object;
 //     if it would sit on the door's frame); and the rear lane's walker turns back before the trash can.
 //     Running it again rebuilds the group (the moves aren't repeated). Photos and notes go to Logs/Night/bins-setup-<time>/.
 //     Save the scene yourself once the diff is read.
-//   ... > Bins 1 - Take them out again: removes the group and puts the three things and the walker's turn back.
+//   ... > Bins 1 - Take them out again: removes the group and puts the three things and the walker's turn back (and what
+//     Bins 2 moved, and the whole window sill).
+//   ... > Bins 2 - Give the back door room (Edit Mode): once, after Bins 1 (6 Oct 2026, Mansoor's playtest; see its section):
+//     the courtyard window's sill stops where the glass does, and the door moves along the wall, 0.30 m from the corner, with
+//     the menu, the cat picture, a coffee sack and the clock moved round it.
 //   ... > Night 0 - Play check (lab, drives itself): NightZeroCheck from Day 1's recap through Night 0 and the errand.
 internal static class NightZeroSteps
 {
@@ -335,6 +339,8 @@ internal static class NightZeroSteps
             Undo.SetCurrentGroupName("Bins 1 - take them out");
             Transform group = layout.transform.Find(GroupName);
             NightWalk walk = layout.GetComponentInChildren<NightWalk>(true);
+            // What Bins 2 moved round the back door goes back first (its record is on the group).
+            if (group != null && group.TryGetComponent(out NightZeroSet roomed)) PutTheCornerBack(roomed, walk, report);
             if (group != null)
             {
                 if (walk != null)
@@ -369,6 +375,348 @@ internal static class NightZeroSteps
             Debug.Log(Tag + "Took the bins out (Edit > Undo puts them back). The cut dumpster meshes stay in " + MeshAsset + "; they are harmless.\n" + report);
         }
         catch (Exception e) { Debug.LogError(Tag + "Taking the bins out FAILED: " + e.Message + "\n" + report); }
+    }
+
+    // ------------------------------------------------------------------ Bins 2: room for the back door (6 Oct 2026)
+
+    // Mansoor's playtest (6 Oct): "the door inside the cafe that goes out towards the bin is off ... there's a side pillar
+    // that's going from the wall to hitting the door". It was the courtyard window's sill: a cream ledge 0.26 m deep, 0.76 to
+    // 0.86 m up, that ran the whole east wall (z 0 to 18) and so into the back door just under its handle; and the door's frame
+    // stood 3 cm off the east wall. His call: the sill stops where the glass stops, and the door moves along the wall.
+    //
+    //   Fixit Fidget > Night > Bins 2 - Give the back door room (Edit Mode), once, after Bins 1:
+    //     * the sill stops where the glass does, at the plaster pier by the corner (a copy of its mesh, cut short, in
+    //       Assets/Art/NightZero/Courtyard sill - stops at the glass.asset; the scene's sill and the night's collision list use
+    //       the copy, the street's geometry asset is not touched);
+    //     * the door, both its leaves, the night's two places to stand at it and where Ace stands each side move along the
+    //       wall, leaving 0.30 m of wall between its frame and the corner: as far as the coffee sacks allow (they reach x 6.07);
+    //     * the chalkboard menu slides left, over the sacks; the cat picture goes on the plain pier, facing the room, far enough
+    //       from the back wall not to fade with it (CutawayWall's reach); the loose coffee sack goes under the window ledge by
+    //       the pier, out of the way to the door; the wall clock sits centred over the door.
+    //   Photos before and after, and a report: Logs/Night/bins-door-room-<time>/. Edit > Undo takes it all out again; so does
+    //   Bins 1 - Take them out again (which puts these things back too). Save the scene yourself once the diff is read.
+
+    const string CourtyardWindows = "09 - neighborhood surrounds V3/V3 - courtyard-facing cafe windows";
+    const string SillMeshAsset = MeshFolder + "/Courtyard sill - stops at the glass.asset";
+    // Wall between the door's frame and the east wall: what the coffee sacks leave (the frame stops 9 cm short of them).
+    const float CornerReturn = .30f;
+    // CutawayWall counts anything within this of a wall's face as hung on it (its Reach): the picture on the pier stays further
+    // than this from the back wall, or it would fade with the back wall.
+    const float CutawayReach = .55f;
+    // The skirting along the east wall stands this far out from it.
+    const float Skirting = .09f;
+
+    [MenuItem(Menu + "Bins 2 - Give the back door room (Edit Mode)")]
+    static void GiveTheDoorRoom()
+    {
+        var report = new StringBuilder("Bins 2 - give the back door room\n"
+            + DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + "\n\n");
+        try
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Edit Mode only.");
+            CityPackChecks.RequireScene();
+            GameObject layout = Layout();
+            Transform group = layout.transform.Find(GroupName);
+            if (group == null) throw new InvalidOperationException("There are no bins in the scene yet (Bins 1 - Put the back door and the bins behind the café).");
+            NightZeroSet set = group.GetComponent<NightZeroSet>();
+            if (set == null) throw new InvalidOperationException("The bins group has no NightZeroSet.");
+            if (set.cornerMoved != null && set.cornerMoved.Length > 0)
+                throw new InvalidOperationException("Bins 2 has already run on this scene (the door has its room). Edit > Undo, or Bins 1 - Take them out again, to start over.");
+            NightWalk walk = layout.GetComponentInChildren<NightWalk>(true);
+            if (walk == null) throw new InvalidOperationException("There is no NightWalk in the scene.");
+            Transform doorIn = group.Find("Back door (inside)"), doorOut = group.Find("Back door (outside)");
+            if (doorIn == null || doorOut == null) throw new InvalidOperationException("The back door's two leaves aren't in the bins group.");
+            Transform windows = layout.transform.Find(CourtyardWindows);
+            MeshFilter sill = windows != null ? windows.Find("Cream trim")?.GetComponent<MeshFilter>() : null;
+            MeshFilter plaster = windows != null ? windows.Find("Cloud plaster")?.GetComponent<MeshFilter>() : null;
+            if (sill == null || sill.sharedMesh == null || plaster == null || plaster.sharedMesh == null)
+                throw new InvalidOperationException($"The courtyard windows' sill and plaster aren't where they were ({LayoutRoot}/{CourtyardWindows}/Cream trim, Cloud plaster).");
+            Transform board = Find(layout.transform, "Chalkboard menu");
+            Transform picture = Find(layout.transform, "Cat portrait study");
+            Transform sack = Find(layout.transform, "Coffee sack");
+            Transform sacks = Find(layout.transform, "Coffee sacks");
+            Transform clock = FindNear(layout.transform, "Walls - Clock_01", new Vector3(6.5f, 2.4f, WallInside), .5f);
+            if (board == null || picture == null || sack == null || clock == null)
+                throw new InvalidOperationException("The chalkboard menu, the cat picture, the loose coffee sack or the wall clock isn't in the scene where it was.");
+
+            // ---------- where the glass stops: the start of the plaster pier by the corner ----------
+            float pierFrom = PierStart(plaster);
+            float pierTo = WallInside;
+            report.AppendLine($"The east wall by the corner: the glass stops at z {F(pierFrom)}, where the plaster pier begins; the pier runs to the back wall (z {F(pierTo)}).");
+
+            string folder = LogFolder("bins-door-room");
+            Bounds inB0 = BoundsOf(doorIn.gameObject);
+            CornerPhotos(folder, "before", set, inB0.center.x);
+
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Bins 2 - room for the back door");
+            var moved = new List<NightZeroSet.Moved>();
+            void Move(Transform what, Vector3 to, Quaternion turn)
+            {
+                moved.Add(new NightZeroSet.Moved { what = what, wasPosition = what.position, wasRotation = what.rotation, putAt = to });
+                Undo.RecordObject(what, "Bins 2 - move " + what.name);
+                what.SetPositionAndRotation(to, turn);
+            }
+
+            // ---------- the sill stops where the glass stops ----------
+            Mesh was = sill.sharedMesh;
+            Mesh cut = CutTheSill(was, sill.transform, pierFrom, report);
+            Undo.RecordObject(sill, "Bins 2 - the sill cut short");
+            sill.sharedMesh = cut;
+            int pieces = 0;
+            if (walk.nightCollision != null)
+            {
+                Undo.RecordObject(walk.nightCollision, "Bins 2 - the sill at night");
+                for (int i = 0; i < walk.nightCollision.pieces.Length; i++)
+                    if (walk.nightCollision.pieces[i].mesh == was)
+                    {
+                        walk.nightCollision.pieces[i].mesh = cut;
+                        pieces++;
+                    }
+                EditorUtility.SetDirty(walk.nightCollision);
+            }
+            report.AppendLine($"  The night's collision list: {pieces} piece(s) now the cut sill (it was solid at night too).");
+
+            // ---------- the door, and everything at it, along the wall ----------
+            Bounds inB = BoundsOf(doorIn.gameObject), outB = BoundsOf(doorOut.gameObject);
+            float doorX = EastWallInside - CornerReturn - inB.extents.x;
+            float dx = doorX - inB.center.x;
+            Vector3 along = new Vector3(dx, 0f, 0f);
+            Move(doorIn, doorIn.position + along, doorIn.rotation);
+            Move(doorOut, doorOut.position + along, doorOut.rotation);
+            Transform night = group.Find(NightOnlyName);
+            if (night != null)
+                foreach (NightBackDoor zone in night.GetComponentsInChildren<NightBackDoor>(true))
+                    Move(zone.transform, zone.transform.position + along, zone.transform.rotation);
+            inB = BoundsOf(doorIn.gameObject);
+            outB = BoundsOf(doorOut.gameObject);
+            report.AppendLine();
+            report.AppendLine($"The door: {F(-dx)} m along the wall, x {F(inB.min.x)} to {F(inB.max.x)} now ({F(EastWallInside - inB.max.x)} m of wall to the corner); " +
+                              "both leaves and the night's two places to stand at it moved with it.");
+            if (sacks != null)
+            {
+                Bounds pile = BoundsOf(sacks.gameObject);
+                report.AppendLine(pile.max.x <= inB.min.x - .02f
+                    ? $"  The coffee sacks reach x {F(pile.max.x)}: {F(inB.min.x - pile.max.x)} m short of the frame."
+                    : $"  NOTE: the coffee sacks reach x {F(pile.max.x)}, past the frame's edge ({F(inB.min.x)}): look at photo 2.");
+            }
+
+            // ---------- the corner, tidied ----------
+            report.AppendLine();
+            report.AppendLine("Round it:");
+            Bounds boardB = BoundsOf(board.gameObject);
+            float boardShift = inB.min.x - .08f - boardB.max.x;
+            if (boardShift < 0f)
+            {
+                Move(board, board.position + new Vector3(boardShift, 0f, 0f), board.rotation);
+                boardB = BoundsOf(board.gameObject);
+                report.AppendLine($"  the chalkboard menu: {F(-boardShift)} m left, x {F(boardB.min.x)} to {F(boardB.max.x)} (8 cm from the door's frame), over the sacks.");
+            }
+            else report.AppendLine("  the chalkboard menu: already clear of the door; left where it is.");
+
+            Vector3 clockAt = clock.position;
+            Move(clock, new Vector3(doorX, clockAt.y, clockAt.z), clock.rotation);
+            Bounds clockB = BoundsOf(clock.gameObject);
+            report.AppendLine($"  the wall clock: centred over the door (x {F(doorX)}), {F(clockB.min.y - inB.max.y)} m above its frame.");
+
+            // The cat picture, onto the pier: facing the room (turned a quarter), its back on the plaster, out of the back wall's
+            // fade reach, otherwise in the pier's middle.
+            Quaternion facingRoom = Quaternion.Euler(0f, 90f, 0f) * picture.rotation;
+            picture.rotation = facingRoom;   // measured turned (recorded below)
+            Bounds pic = BoundsOf(picture.gameObject);
+            picture.rotation = Quaternion.Inverse(Quaternion.Euler(0f, 90f, 0f)) * facingRoom;
+            float picZ = Mathf.Min((pierFrom + pierTo) * .5f, WallInside - CutawayReach - .03f - pic.extents.z);
+            Vector3 picShift = new Vector3(EastWallInside - .012f - pic.max.x, 0f, picZ - pic.center.z);
+            Move(picture, picture.position + picShift, facingRoom);
+            pic = BoundsOf(picture.gameObject);
+            report.AppendLine($"  the cat picture: onto the plaster pier, facing the room: z {F(pic.min.z)} to {F(pic.max.z)}, {F(pic.min.y)} to {F(pic.max.y)} m up; " +
+                              $"{F(WallInside - pic.max.z)} m from the back wall (it fades with a wall within {F(CutawayReach)}), {F(pic.min.z - pierFrom)} m clear of the glass.");
+            if (pic.min.z < pierFrom + .03f) report.AppendLine("  NOTE: the picture reaches past the pier onto the glass.");
+
+            // The loose sack: under the window ledge, at the foot of the last bay before the pier, its long side along the wall.
+            // (By the pier itself it would narrow the way to the door to Ace's width: the sacks' pile is on the other side.)
+            Quaternion sackTurn = sack.rotation, upright = Quaternion.identity;
+            sack.rotation = upright;   // measured turned; put back for the record below
+            Bounds sackB = BoundsOf(sack.gameObject);
+            if (sackB.size.x > sackB.size.z)
+            {
+                upright = Quaternion.Euler(0f, 90f, 0f);
+                sack.rotation = upright;
+                sackB = BoundsOf(sack.gameObject);
+            }
+            Vector3 sackShift = new Vector3(EastWallInside - Skirting - sackB.max.x, 0f, pierFrom - .25f - sackB.max.z);
+            sack.rotation = sackTurn;
+            Move(sack, sack.position + sackShift, upright);
+            sackB = BoundsOf(sack.gameObject);
+            Bounds sillB = BoundsOf(sill.gameObject);
+            report.AppendLine($"  the loose coffee sack: under the window ledge by the pier, x {F(sackB.min.x)} to {F(sackB.max.x)}, z {F(sackB.min.z)} to {F(sackB.max.z)}; " +
+                              $"its top {F(sackB.max.y)} m up, the ledge's underside {F(sillB.min.y)} m.");
+
+            // ---------- where Ace stands, each side, checked for room again ----------
+            var spots = new StringBuilder();
+            Vector3 insideAt, outsideAt;
+            Scene preview = EditorSceneManager.NewPreviewScene();
+            try
+            {
+                var source = new Dictionary<Collider, string>();
+                var region = new Bounds(new Vector3(5.5f, 1.5f, 18f), new Vector3(6f, 4f, 7f));
+                int solids = CopySolids(preview, region, group, source);
+                Transform dump = group.Find("Dumpster"), can = group.Find("Trash can (his corner)");
+                if (dump != null) SolidBox(preview, BoundsOf(dump.gameObject), "the dumpster", source);
+                if (can != null) SolidBox(preview, BoundsOf(can.gameObject), "the trash can", source);
+                Physics.SyncTransforms();
+                PhysicsScene physics = preview.GetPhysicsScene();
+                spots.AppendLine($"Room for Ace (a capsule {F(AceRadius)} m round, from 0.15 m to 1.95 m up), among {solids} solid things around the door:");
+                insideAt = Nearest(physics, source, spots, "inside the back door", new Vector2(doorX, inB.min.z - .45f),
+                    doorX - 1.4f, doorX + .35f, 16f, inB.min.z - .5f);
+                outsideAt = Clear(physics, source, spots, "outside the back door", new[]
+                {
+                    new Vector2(doorX, outB.max.z + .65f), new Vector2(doorX - .05f, outB.max.z + .7f), new Vector2(doorX + .05f, outB.max.z + .75f),
+                });
+            }
+            finally { EditorSceneManager.ClosePreviewScene(preview); }
+            if (set.insideDoor != null)
+                Move(set.insideDoor, insideAt, Quaternion.Euler(0f, Mathf.Atan2(doorX - insideAt.x, inB.min.z - insideAt.z) * Mathf.Rad2Deg, 0f));
+            if (set.outsideDoor != null) Move(set.outsideDoor, outsideAt, set.outsideDoor.rotation);
+            report.AppendLine();
+            report.Append(spots);
+
+            // ---------- the record, to put it all back ----------
+            Undo.RecordObject(set, "Bins 2 - the record");
+            set.cornerMoved = moved.ToArray();
+            set.sill = sill;
+            set.sillWas = was;
+            EditorUtility.SetDirty(set);
+            Undo.CollapseUndoOperations(undoGroup);
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+
+            CornerPhotos(folder, "after", set, doorX);
+            report.AppendLine();
+            report.AppendLine("Photos, before and after (the same five views): 1 the corner from behind the counter, 2 from where Ace stands inside the door, " +
+                              "3 the side wall by the corner, 4 from above, 5 the door from Back Street.");
+            report.AppendLine();
+            report.AppendLine("The scene changed: read the diff, then save it (Ctrl+S). Edit > Undo takes it all out again; so does Bins 1 - Take them out again.");
+            File.WriteAllText(Path.Combine(folder, "report.txt"), report.ToString());
+            Selection.activeGameObject = doorIn.gameObject;
+            Debug.Log(Tag + "Gave the back door room. " + folder + "\n" + report);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(Tag + "Giving the back door room FAILED: " + e.Message + "\n" + report + "\n" + e);
+        }
+    }
+
+    // Where the plaster pier by the corner begins: the courtyard plaster is three boxes (the piers), the last reaching the back wall.
+    static float PierStart(MeshFilter plaster)
+    {
+        Vector3[] v = plaster.sharedMesh.vertices;
+        float best = float.MaxValue;
+        for (int b = 0; b + 24 <= v.Length; b += 24)
+        {
+            Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
+            for (int i = b; i < b + 24; i++)
+            {
+                Vector3 w = plaster.transform.TransformPoint(v[i]);
+                min = Vector3.Min(min, w);
+                max = Vector3.Max(max, w);
+            }
+            if (min.x >= EastWallInside - .05f && max.z >= WallInside - .1f) best = Mathf.Min(best, min.z);
+        }
+        if (best == float.MaxValue || best < 15.5f || best > 17.5f)
+            throw new InvalidOperationException($"The plaster pier by the corner wasn't found in '{plaster.sharedMesh.name}' (expected one box from about z 16.4 to the back wall).");
+        return best;
+    }
+
+    // A copy of the sill's mesh (one box along the east wall), its far end moved back to <endZ>: saved as an asset of our own.
+    static Mesh CutTheSill(Mesh sill, Transform at, float endZ, StringBuilder report)
+    {
+        Vector3[] v = sill.vertices;
+        Vector3[] world = v.Select(p => at.TransformPoint(p)).ToArray();
+        float minX = world.Min(p => p.x), maxZ = world.Max(p => p.z), minZ = world.Min(p => p.z);
+        if (v.Length != 24 || minX < EastWallInside - .4f || maxZ < WallInside - .1f || minZ > 1f)
+            throw new InvalidOperationException($"'{sill.name}' isn't the sill it was (one box along the east wall, z 0 to 18): {v.Length} corners, x from {F(minX)}, z {F(minZ)} to {F(maxZ)}.");
+        int movedCorners = 0;
+        for (int i = 0; i < v.Length; i++)
+            if (world[i].z > endZ + .001f)
+            {
+                v[i] = at.InverseTransformPoint(new Vector3(world[i].x, world[i].y, endZ));
+                movedCorners++;
+            }
+        var copy = Object.Instantiate(sill);
+        copy.name = "Courtyard sill - stops at the glass";
+        copy.vertices = v;
+        copy.RecalculateBounds();
+        EnsureMeshFolder();
+        Mesh saved = AssetDatabase.LoadAssetAtPath<Mesh>(SillMeshAsset);
+        if (saved != null)
+        {
+            EditorUtility.CopySerialized(copy, saved);
+            saved.name = copy.name;
+            Object.DestroyImmediate(copy);
+            EditorUtility.SetDirty(saved);
+        }
+        else
+        {
+            AssetDatabase.CreateAsset(copy, SillMeshAsset);
+            saved = copy;
+        }
+        report.AppendLine($"  The sill: {movedCorners} of its 24 corners moved from z {F(maxZ)} back to z {F(endZ)} (it is {F(endZ - minZ)} m long now, " +
+                          $"was {F(maxZ - minZ)}); saved in {SillMeshAsset}. The street's geometry asset is untouched.");
+        return saved;
+    }
+
+    static void EnsureMeshFolder()
+    {
+        if (AssetDatabase.IsValidFolder(MeshFolder)) return;
+        string parent = Path.GetDirectoryName(MeshFolder).Replace('\\', '/');
+        AssetDatabase.CreateFolder(parent, Path.GetFileName(MeshFolder));
+    }
+
+    // Bins 1 - Take them out again: what Bins 2 moved goes back (each only if it's still where Bins 2 put it), and the sill is
+    // whole again, in the scene and in the night's collision list.
+    static void PutTheCornerBack(NightZeroSet set, NightWalk walk, StringBuilder report)
+    {
+        int back = 0, left = 0;
+        foreach (NightZeroSet.Moved m in set.cornerMoved ?? Array.Empty<NightZeroSet.Moved>())
+        {
+            if (m.what == null) continue;
+            if (m.what.IsChildOf(set.transform)) continue;   // the door and its places go with the group
+            if (Vector3.Distance(m.what.position, m.putAt) > .02f) { left++; continue; }
+            Undo.RecordObject(m.what, "Bins 1 - put it back");
+            m.what.SetPositionAndRotation(m.wasPosition, m.wasRotation);
+            back++;
+        }
+        if (set.sill != null && set.sillWas != null && set.sill.sharedMesh != set.sillWas)
+        {
+            Mesh cut = set.sill.sharedMesh;
+            Undo.RecordObject(set.sill, "Bins 1 - the sill whole again");
+            set.sill.sharedMesh = set.sillWas;
+            if (walk != null && walk.nightCollision != null)
+            {
+                Undo.RecordObject(walk.nightCollision, "Bins 1 - the sill whole at night");
+                for (int i = 0; i < walk.nightCollision.pieces.Length; i++)
+                    if (walk.nightCollision.pieces[i].mesh == cut) walk.nightCollision.pieces[i].mesh = set.sillWas;
+                EditorUtility.SetDirty(walk.nightCollision);
+            }
+            report.AppendLine("The window sill runs the whole wall again (Bins 2 undone).");
+        }
+        if (back + left > 0)
+            report.AppendLine($"Bins 2's moves: {back} put back{(left > 0 ? $", {left} left alone (moved since)" : "")}.");
+    }
+
+    // The corner in five views (Edit Mode), before or after: the same views both times.
+    static void CornerPhotos(string folder, string when, NightZeroSet set, float doorX)
+    {
+        void Shot(string name, Vector3 from, Vector3 at, float fov) =>
+            NightWalkSteps.Capture(Path.Combine(folder, when + "-" + name + ".png"), from, at, fov, false);
+        Shot("1-from-behind-the-counter", new Vector3(5.1f, 1.7f, 14.6f), new Vector3(6.6f, 1.1f, WallInside), 55f);
+        Vector3 ace = set.insideDoor != null ? set.insideDoor.position : new Vector3(doorX, AceY, 16.9f);
+        Shot("2-from-where-ace-stands", new Vector3(ace.x - .35f, 1.65f, ace.z - .55f), new Vector3(doorX, 1.15f, WallInside), 60f);
+        Shot("3-the-side-wall-by-the-corner", new Vector3(5.3f, 1.65f, 16.2f), new Vector3(EastWallInside, 1.35f, 16.9f), 55f);
+        Shot("4-from-above", new Vector3(6.1f, 8.5f, 16.6f), new Vector3(6.1f, 0f, 17.15f), 50f);
+        Shot("5-the-door-from-back-street", new Vector3(doorX + .4f, 2.1f, 22.4f), new Vector3(doorX - .3f, 1.2f, WallOutside), 55f);
     }
 
     // ------------------------------------------------------------------ the dumpster's lids, cut free

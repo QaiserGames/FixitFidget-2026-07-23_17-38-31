@@ -25,6 +25,7 @@ public sealed class NightCarry : MonoBehaviour
 
     GameObject held;
     Vector3 hang;        // the prop's grip point below the hand, in the prop's own space
+    bool facesAce;       // someone, not something (Barnaby): in first person he looks back at Ace
     Transform hand;
     AceBody body;
     Transform handOf;    // the body the hand was found on (it changes when a body is put on)
@@ -67,6 +68,7 @@ public sealed class NightCarry : MonoBehaviour
         Bounds b = BoundsOf(held);
         hang = held.transform.InverseTransformPoint(new Vector3(b.center.x, b.max.y - Mathf.Min(.08f, b.size.y * .15f), b.center.z));
         HeldId = id ?? "";
+        facesAce = HeldId == NightThings.GraceGnome;
         Place();
         TrophyShelf.RefreshAll();   // a thing taken back off the shelf isn't on it while Ace holds it
         return held;
@@ -124,9 +126,11 @@ public sealed class NightCarry : MonoBehaviour
         Quaternion facing = Quaternion.Euler(0f, body != null && body.Worn ? body.BodyYaw : transform.eulerAngles.y, 0f);
         if (firstPerson)
         {
-            // Low on the right of the view, upright, the way Ace would hold it out of the way.
+            // Low on the right of the view, upright, the way Ace would hold it out of the way. Barnaby looks back at Ace,
+            // three-quarters on toward the middle of the view, rather than showing the back of his hat (6 Oct 2026,
+            // Mansoor's playtest: in first person "you can see inside the head"; the hat itself was inside out).
             Vector3 at = cam.ViewportToWorldPoint(new Vector3(.74f, .14f, .7f));
-            held.transform.rotation = Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f);
+            held.transform.rotation = Quaternion.Euler(0f, cam.transform.eulerAngles.y + (facesAce ? 215f : 0f), 0f);
             held.transform.position += at - held.transform.TransformPoint(hang) + Vector3.up * .1f;
             return;
         }

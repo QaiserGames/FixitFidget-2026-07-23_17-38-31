@@ -202,11 +202,11 @@ public sealed class NightCycle : MonoBehaviour
             yield return Tomorrow();
             yield break;
         }
-        // The man at the bins: hidden in the dumpster on Night 0, which opens the night at the back door; standing in
-        // it once met.
+        // The man at the bins: hidden in the dumpster every night (6 Oct): on Night 0 until the reveal, after it until the
+        // bag goes in (he pops out), and again whenever he's had his say (he comes up for Ace bringing what he asked for).
         Safely("the man at the bins", () =>
         {
-            Lodger man = Lodger.Expected(zero) ? Lodger.Arrive(hidden: zero) : null;
+            Lodger man = Lodger.Expected(zero) ? Lodger.Arrive(hidden: true) : null;
             if ((zero || bins) && NightZero.Begin(man) == null) Debug.LogWarning("[Night] The bins couldn't begin; the night goes on without them.");
         });
         yield return new WaitForSecondsRealtime(1.4f);

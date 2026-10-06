@@ -61,6 +61,7 @@ public class TicketRailUI : MonoBehaviour
             Sfx.Play2D("ticket.new");
             tickets.Add(b, t);
             ordered.Add(t);
+            born[t] = Time.unscaledTime;
         }
 
         PruneStale();
@@ -78,6 +79,8 @@ public class TicketRailUI : MonoBehaviour
         foreach (CustomerBrain b in stale)
         {
             ordered.Remove(tickets[b]);
+            born.Remove(tickets[b]);
+            shown.Remove(tickets[b]);
             if (tickets[b] != null) Destroy(tickets[b].gameObject);
             tickets.Remove(b);
         }
@@ -87,6 +90,7 @@ public class TicketRailUI : MonoBehaviour
     {
         if (railRect == null || canvas == null || !rail.gameObject.activeInHierarchy) return;
         if (authoredLayout != null) authoredLayout.enabled = false;
+        float dt = Time.unscaledDeltaTime;
         var canvasRect = canvas.transform as RectTransform;
         float width = canvasRect != null ? canvasRect.rect.width : 1920;
         float available = Mathf.Max(220, Mathf.Min(maxRailWidth, width - cornerReserve * 2));
@@ -108,12 +112,40 @@ public class TicketRailUI : MonoBehaviour
             var rect = (RectTransform)ordered[i].transform;
             rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1); rect.pivot = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(cardWidth, cardHeight);
-            rect.anchoredPosition = new Vector2(-rowWidth / 2 + column * (cardWidth + 8), -row * (cardHeight + 8));
+            Vector2 slot = new Vector2(-rowWidth / 2 + column * (cardWidth + 8), -row * (cardHeight + 8));
+            rect.anchoredPosition = Arrive(ordered[i], rect, slot, dt);
             ordered[i].SetCardSize(cardWidth, cardHeight);
         }
     }
     private void OnDisable()
     {
         if (authoredLayout != null) authoredLayout.enabled = layoutWasEnabled;
+    }
+
+    // JUICE (6 Oct 2026, Mansoor's playtest): a new ticket drops onto the rail from above with a little spring instead of
+    // appearing, and the others slide over to make room (or close the gap) rather than jumping.
+    private readonly Dictionary<JobTicket, float> born = new();
+    private readonly Dictionary<JobTicket, Vector2> shown = new();
+    private const float DropSeconds = .32f, DropFrom = 46f;
+
+    private Vector2 Arrive(JobTicket ticket, RectTransform rect, Vector2 slot, float dt)
+    {
+        if (!shown.TryGetValue(ticket, out Vector2 at)) at = slot;
+        at = Vector2.Lerp(at, slot, 1f - Mathf.Exp(-14f * dt));
+        if ((at - slot).sqrMagnitude < .25f) at = slot;
+        shown[ticket] = at;
+        float s = 1f;
+        Vector2 drop = Vector2.zero;
+        if (born.TryGetValue(ticket, out float since))
+        {
+            float t = Mathf.Clamp01((Time.unscaledTime - since) / DropSeconds);
+            float u = t - 1f;
+            float spring = 1f + 2.4f * u * u * u + 1.4f * u * u;   // past the end and back
+            drop = new Vector2(0f, DropFrom * (1f - spring));
+            s = Mathf.LerpUnclamped(.86f, 1f, spring);
+            if (t >= 1f) born.Remove(ticket);
+        }
+        rect.localScale = new Vector3(s, s, 1f);
+        return at + drop;
     }
 }

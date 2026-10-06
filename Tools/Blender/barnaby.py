@@ -152,6 +152,7 @@ def main(out_dir):
         'size (x, y, z): %s m; from %s to %s' % (st['size'], st['min'], st['max']),
         'materials: %s' % ', '.join(st['materials']),
         'parts (islands): %d; floating (more than 2 mm from any other): %s' % (n_islands, floating or 'none'),
+        'shells built inside out and turned the right way out: %d' % ob.get('fixit_shells_turned', 0),
     ]
     print('\n'.join(report))
     return ob, report

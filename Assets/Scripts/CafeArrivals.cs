@@ -867,6 +867,51 @@ public sealed class CafeArrivals : MonoBehaviour
         today.Clear();
     }
 
+    /// <summary>
+    /// Nightfall (NightWalk.QuietTheStreet, while the screen is dark): everyone still on their way, home through a front
+    /// door, to a car or off along a street, is home at once, and the café's cars are put away. The night pauses this
+    /// component, and with it the front doors it opens for people: anyone still walking home would wait on their doorstep
+    /// all night. (Mansoor's playtest, 6 Oct: Grace left at closing time and stood in her doorway all of Night 2, where Ace
+    /// walked through her to her cups.) Returns how many people were sent home.
+    /// </summary>
+    public int HomeForTheNight()
+    {
+        scratch.Clear();
+        foreach (var pair in visits) scratch.Add(pair.Key);
+        int sent = 0;
+        foreach (GameObject npc in scratch)
+        {
+            visits.TryGetValue(npc, out Visit visit);
+            visits.Remove(npc);
+            if (npc == null || visit == null) continue;
+            if (visit.door != null)
+            {
+                visit.door.Release(npc);
+                if (visit.journey != null) visit.door.Leave(visit.journey);
+            }
+            if (visit.journey != null)
+            {
+                visit.journey.ForgetDoor();
+                visit.journey.enabled = false;
+            }
+            if (visit.record != null && visit.leaving && string.IsNullOrEmpty(visit.record.wentTo)) visit.record.wentTo = "home for the night";
+            Destroy(npc);
+            sent++;
+        }
+        foreach (CafeCar car in cars)
+            if (car != null && car.State != CafeCar.Phase.Pooled) car.ReturnToPool();
+        Array.Clear(stallCar, 0, stallCar.Length);
+        lotUser = exitUser = announced = null;
+        SentHomeAtNightfall = sent;
+        return sent;
+    }
+
+    /// <summary>How many people were still on their way when the last night fell (HomeForTheNight), for checks.</summary>
+    public int SentHomeAtNightfall { get; private set; }
+
+    /// <summary>People this component is walking right now (to the café, home, or to a car), for checks.</summary>
+    public int Visiting => visits.Count;
+
     // Backstop against a walk that never ends (someone boxed in for good).
     private void WatchWalks()
     {

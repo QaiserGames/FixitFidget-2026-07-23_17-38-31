@@ -18,10 +18,11 @@ using UnityEngine;
 //   4. the deal (the Night lines' held scene): who he isn't, what he knows, the leverage, the turn, the notebook
 //      (his pages go in on its line: the inherited source), the first errand (Grace's gnome), and the cop who drinks
 //      Ace's coffee. Ace answers twice; each reply nudges his warmth (NightLedger);
-//   5. then the night proper: the clock runs, Ace's line ("I own a café and a man lives in my bins."), the night's
-//      notes, and he stays standing in the dumpster all night (Lodger).
+//   5. then the night proper: he ducks back into the dumpster (until Ace brings what he asked for: Lodger), the clock
+//      runs, Ace's line ("I own a café and a man lives in my bins."), and the night's notes.
 // Every night after the deal (session 3) opens the same way, without the reveal: the bag, the back door, "Bin it",
-// and he's already standing in the other half. He turns to Ace and says his verdict on the day just ended (if anything
+// and he pops out of the other half (6 Oct, Mansoor's playtest: a quick pop, a peek over the rim, or a slow rise, a night
+// each; Lodger.Pop). He turns to Ace and says his verdict on the day just ended (if anything
 // happened: a straight face that morning, the officer's question), then tonight's scene (LodgerStory.WhatTonight):
 // the ask for his next favour (held, Ace answers; warm, he says why), the ask again after a skip (colder, from code),
 // a night off, or nothing yet. Then the clock runs, and a note says where the thing is.
@@ -70,6 +71,8 @@ public sealed class NightZero : MonoBehaviour
     public string Replies { get; private set; } = "";
     /// <summary>Seconds of the reveal, from the bag going in to his first line (reports).</summary>
     public float RevealSeconds { get; private set; }
+    /// <summary>How he came up tonight, a night after the deal (reports, checks).</summary>
+    public Lodger.PopStyle Popped { get; private set; }
 
     NightZeroSet set;
     Lodger man;
@@ -189,11 +192,18 @@ public sealed class NightZero : MonoBehaviour
 
         if (!First)
         {
-            // Any night after the deal: he's already standing in the other half. He turns to Ace, and says his piece.
+            // Any night after the deal: a beat, and he pops out of the other half (a quick pop, a peek over the rim, or a slow
+            // rise, a night each); he turns to Ace, and says his piece.
             yield return new WaitForSeconds(.35f);
-            if (man != null) man.Face(ace.transform.position);
+            if (man != null)
+            {
+                Popped = Lodger.StyleFor(Night);
+                float up = man.Pop(Popped);
+                man.Face(ace.transform.position);
+                yield return new WaitForSeconds(up);
+            }
             if (aceBody != null && man != null) aceBody.FaceToward(man.Speaker.position);
-            yield return new WaitForSeconds(.45f);
+            yield return new WaitForSeconds(.35f);
             Now = Step.Deal;
             bool said = PlayTonight();
             PlayerMovement.Release(this);   // the scene holds Ace now (or, with no scene in the lines, nothing does)
@@ -361,6 +371,8 @@ public sealed class NightZero : MonoBehaviour
         if (First) ledger.Meet(Night);
         NightWalk walk = NightWalk.Instance;
         if (walk != null) walk.ClockHeld = false;
+        // His say done, he's back in the bin (he comes up again for Ace bringing what he asked for).
+        if (man != null) man.Duck(Lodger.DuckAfterSay);
         StartCoroutine(After());
     }
 
@@ -396,7 +408,7 @@ public sealed class NightZero : MonoBehaviour
 
     public string Describe() =>
         (First ? $"Night 0: {Now}; replies {(Replies.Length > 0 ? Replies : "none yet")}; the reveal took {RevealSeconds:0.0} s; "
-               : $"The bins: {Now}; tonight {Tonight}{(Verdict.Length > 0 ? ", his verdict " + Verdict : "")}; replies {(Replies.Length > 0 ? Replies : "none")}; ") +
+               : $"The bins: {Now}; he came up {Popped}; tonight {Tonight}{(Verdict.Length > 0 ? ", his verdict " + Verdict : "")}; replies {(Replies.Length > 0 ? Replies : "none")}; ") +
         $"his warmth {(ledger != null ? ledger.Warmth : 0)}; his favour {(ledger != null && ledger.Favour.Length > 0 ? ledger.Favour : "none")} " +
         $"(skips {(ledger != null ? ledger.Skips : 0)}); the clock {(NightWalk.Instance != null && NightWalk.Instance.ClockHeld ? "waiting" : "running")}.";
 }

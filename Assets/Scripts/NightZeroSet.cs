@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 // ---------------------------------------------------------------------------
@@ -68,6 +69,22 @@ public sealed class NightZeroSet : MonoBehaviour
     [Tooltip("His look: a city look nobody else wears (Character_BusinessMan_Suit: the other fixer, in a slept-in suit).")]
     public GameObject look;
 
+    /// <summary>Something Bins 2 moved to give the back door room: where it was, and where it went (to put it back).</summary>
+    [Serializable]
+    public struct Moved
+    {
+        public Transform what;
+        public Vector3 wasPosition;
+        public Quaternion wasRotation;
+        public Vector3 putAt;
+    }
+
+    // Bins 2's record (Fixit Fidget > Night > Bins 2): what moved round the back door, and the window sill it cut short (the
+    // sill's own mesh, to put back). Bins 1 - Take them out again reads it. Nothing at run time uses it.
+    [HideInInspector] public Moved[] cornerMoved = Array.Empty<Moved>();
+    [HideInInspector] public MeshFilter sill;
+    [HideInInspector] public Mesh sillWas;
+
     /// <summary>The middle of the dumpster on the ground (where the bins view centres): between the lids, level with his spot.</summary>
     public Vector3 Bins => nearLid != null && farLid != null && inside != null
         ? new Vector3((nearLid.position.x + farLid.position.x) * .5f, transform.position.y, inside.position.z)
@@ -89,8 +106,17 @@ public sealed class NightZeroSet : MonoBehaviour
     /// <summary>A lid's turn about its hinge: 0 shut, 1 open.</summary>
     public void SetLid(Transform hinge, float open)
     {
-        if (hinge != null) hinge.localRotation = Quaternion.Euler(Mathf.Clamp01(open) * lidOpen, 0f, 0f);
+        if (hinge == null) return;
+        open = Mathf.Clamp01(open);
+        if (hinge == farLid) farOpen = open;
+        else if (hinge == nearLid) nearOpen = open;
+        hinge.localRotation = Quaternion.Euler(open * lidOpen, 0f, 0f);
     }
+
+    /// <summary>How open a lid is (0 shut, 1 open), as SetLid last left it.</summary>
+    public float LidOpen(Transform hinge) => hinge == farLid ? farOpen : hinge == nearLid ? nearOpen : 0f;
+
+    float farOpen, nearOpen;
 
     public string Describe() =>
         $"The bins: back door {(insideDoor != null && outsideDoor != null ? "set" : "MISSING")}, dumpster lids {(nearLid != null && farLid != null ? "set" : "MISSING")}, " +

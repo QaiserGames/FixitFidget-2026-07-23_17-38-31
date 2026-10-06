@@ -34,6 +34,7 @@ public class ReplaceablePart : BenchInteractable
         if (brokenVisual != null) brokenVisual.SetActive(false);
         if (freshVisual != null) freshVisual.SetActive(true);
         IsReplaced = true;
+        Juice.Sparkle(transform.position);   // in it goes: a little burst of sparks
         Sfx.Play("part.replace", transform.position);   // "pull-out click, then magnetic snap"
         // Grace's camera: its new shutter fires once, so you hear the camera work again.
         GraceCameraRepairJob camera = GetComponentInParent<GraceCameraRepairJob>();

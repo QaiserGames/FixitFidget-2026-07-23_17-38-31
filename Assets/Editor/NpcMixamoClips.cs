@@ -96,6 +96,13 @@ public static class NpcMixamoClips
     const string CustomerPrefab = "Assets/AssetsPrefabs/Customer.prefab";
     const string PhonePrefab = "Assets/Synty/PolygonCity/Prefabs/Props/SM_Prop_SmartPhone_01.prefab";
     const string ClipPrefix = "Npc Mx ";
+    // 6 Oct 2026 (Mansoor's playtest: everyone at a café table reacted with the same lean, because the thumbs up and the laugh
+    // lean into a table and so play only on the sofas): those two are baked a second time, their back held as the breathing
+    // seated idle holds it (breathing with it), so the arms and the head do the gesture upright. Saved beside them in
+    // Baked/Sitting as "<clip> (upright)"; Mixamo 3 wires them like any other clip, and NpcBeats plays them at tables.
+    static readonly string[] UprightOf = { "Sitting Thumbs Up", "Sitting Laughing" };
+    const string UprightReference = "Sitting Idle - Breathing", UprightSuffix = " (upright)";
+    static readonly string[] HeldTorso = { "Body", "Abdomen", "Torso", "Chest" };
     const float FrameRate = 30f;
     // Most a collarbone may lower or pull back the shoulder joint from the café rig's T-pose, degrees.
     const float ShoulderSlack = 4f;
@@ -229,7 +236,10 @@ public static class NpcMixamoClips
         }
         Require(sources.Count > 0, "No Mixamo clips in " + SourceRoot + "/Standing or /Sitting. That folder is git-ignored, " +
                                    "so it only exists on the computer the clips were downloaded to.");
-        sources = sources.OrderBy(s => Array.IndexOf(Groups, s.group)).ThenBy(s => s.path, StringComparer.Ordinal).ToList();
+        // UprightReference first among the seated clips: the upright variants hold their backs as it does, frame by frame.
+        sources = sources.OrderBy(s => Array.IndexOf(Groups, s.group))
+            .ThenBy(s => ClipName(s.path) == ClipPrefix + UprightReference ? 0 : 1)
+            .ThenBy(s => s.path, StringComparer.Ordinal).ToList();
 
         var notes = new StringBuilder();
         int reimported = sources.Count(s => PrepareImport(s.path));
@@ -281,6 +291,7 @@ public static class NpcMixamoClips
 
             foreach (string group in Groups) EnsureFolder(BakedRoot + "/" + group);
             string lastRig = null;
+            List<Quaternion[]> breathing = null;   // UprightReference's back, frame by frame (for the upright variants)
             foreach (var (group, path) in sources)
             {
                 bool seated = group == "Sitting";
@@ -365,6 +376,7 @@ public static class NpcMixamoClips
                     float worstReach = 0f, worstSlack = 0f;
                     int settled = 0, armFixes = 0;
 
+                    int holdFrame = -1;   // an upright variant's frame: its back held as UprightReference holds it then
                     void Pose(float time)
                     {
                         clip.SampleAnimation(mx, time);
@@ -381,6 +393,11 @@ public static class NpcMixamoClips
                                 float excess = SettleCollarbone(beach.transform, B, bind, restPos, b.Substring(b.Length - 1));
                                 if (excess > 0f) { settled++; worstSlack = Mathf.Max(worstSlack, excess); }
                             }
+                        }
+                        if (holdFrame >= 0 && breathing != null && breathing.Count > 0)
+                        {
+                            Quaternion[] held = breathing[holdFrame % breathing.Count];
+                            for (int k = 0; k < HeldTorso.Length; k++) B[HeldTorso[k]].localRotation = held[k];
                         }
                         foreach (var (side, s) in Sides)
                         {
@@ -420,45 +437,68 @@ public static class NpcMixamoClips
                         settled = armFixes = 0;
                     }
 
-                    var curves = paths.Select(_ => new List<Keyframe>[7].Select(__ => new List<Keyframe>()).ToArray()).ToArray();
-                    var previous = new Quaternion[paths.Length];
-                    for (int f = 0; f < frames; f++)
+                    // The frames, their curves and the clip, saved. Run again for an upright variant (6 Oct 2026): its back held
+                    // as UprightReference holds it, frame by frame, so it breathes with it.
+                    void BakeFrames(string clipName, bool upright, List<Quaternion[]> record)
                     {
-                        float time = Mathf.Min(clip.length, f / FrameRate);
-                        Pose(time);
+                        var curves = paths.Select(_ => new List<Keyframe>[7].Select(__ => new List<Keyframe>()).ToArray()).ToArray();
+                        var previous = new Quaternion[paths.Length];
+                        for (int f = 0; f < frames; f++)
+                        {
+                            float time = Mathf.Min(clip.length, f / FrameRate);
+                            holdFrame = upright ? f : -1;
+                            Pose(time);
+                            holdFrame = -1;
+                            record?.Add(HeldTorso.Select(b => B[b].localRotation).ToArray());
+                            for (int i = 0; i < paths.Length; i++)
+                            {
+                                Transform t = paths[i].t;
+                                Vector3 p = t.localPosition;
+                                Quaternion q = t.localRotation;
+                                if (f > 0 && Quaternion.Dot(previous[i], q) < 0f) q = new Quaternion(-q.x, -q.y, -q.z, -q.w);
+                                previous[i] = q;
+                                float[] values = { p.x, p.y, p.z, q.x, q.y, q.z, q.w };
+                                for (int k = 0; k < 7; k++) curves[i][k].Add(new Keyframe(time, values[k]));
+                            }
+                        }
+                        var baked = new AnimationClip { name = clipName, frameRate = FrameRate };
+                        var bindings = new List<EditorCurveBinding>();
+                        var animationCurves = new List<AnimationCurve>();
                         for (int i = 0; i < paths.Length; i++)
-                        {
-                            Transform t = paths[i].t;
-                            Vector3 p = t.localPosition;
-                            Quaternion q = t.localRotation;
-                            if (f > 0 && Quaternion.Dot(previous[i], q) < 0f) q = new Quaternion(-q.x, -q.y, -q.z, -q.w);
-                            previous[i] = q;
-                            float[] values = { p.x, p.y, p.z, q.x, q.y, q.z, q.w };
-                            for (int k = 0; k < 7; k++) curves[i][k].Add(new Keyframe(time, values[k]));
-                        }
+                            for (int k = 0; k < 7; k++)
+                            {
+                                bindings.Add(EditorCurveBinding.FloatCurve(paths[i].path, typeof(Transform), properties[k]));
+                                animationCurves.Add(Smooth(curves[i][k]));
+                            }
+                        AnimationUtility.SetEditorCurves(baked, bindings.ToArray(), animationCurves.ToArray());
+                        baked.EnsureQuaternionContinuity();
+                        var settings = AnimationUtility.GetAnimationClipSettings(baked);
+                        settings.loopTime = true;
+                        settings.loopBlend = false;
+                        AnimationUtility.SetAnimationClipSettings(baked, settings);
+                        SaveClip(baked, BakedRoot + "/" + group + "/" + clipName + ".anim");
                     }
+
                     string name = ClipName(path);
-                    var baked = new AnimationClip { name = name, frameRate = FrameRate };
-                    var bindings = new List<EditorCurveBinding>();
-                    var animationCurves = new List<AnimationCurve>();
-                    for (int i = 0; i < paths.Length; i++)
-                        for (int k = 0; k < 7; k++)
-                        {
-                            bindings.Add(EditorCurveBinding.FloatCurve(paths[i].path, typeof(Transform), properties[k]));
-                            animationCurves.Add(Smooth(curves[i][k]));
-                        }
-                    AnimationUtility.SetEditorCurves(baked, bindings.ToArray(), animationCurves.ToArray());
-                    baked.EnsureQuaternionContinuity();
-                    var settings = AnimationUtility.GetAnimationClipSettings(baked);
-                    settings.loopTime = true;
-                    settings.loopBlend = false;
-                    AnimationUtility.SetAnimationClipSettings(baked, settings);
-                    SaveClip(baked, BakedRoot + "/" + group + "/" + name + ".anim");
+                    bool reference = seated && name == ClipPrefix + UprightReference;
+                    if (reference) breathing = new List<Quaternion[]>();
+                    BakeFrames(name, false, reference ? breathing : null);
                     notes.AppendLine($"{group}/{name}: {clip.length:0.00} s, {frames} frames{seat}" +
                                      (driftPerSecond.sqrMagnitude > 0f ? $", hips drift {drift.magnitude / hipU * hipB * 100f:0.0} cm removed" : "") +
                                      $", foot IK miss {worstReach * 1000f:0.0} mm" +
                                      (settled > 0 ? $", collarbones held in {settled} frame-sides (up to {worstSlack:0} deg past the limit)" : "") +
                                      (armFixes > 0 ? $", upper arms kept off the backrest in {armFixes} arm-frames" : ""));
+                    if (seated && UprightOf.Contains(name.Substring(ClipPrefix.Length)))
+                    {
+                        if (breathing == null || breathing.Count == 0)
+                            notes.AppendLine($"  NOTE: no upright version of {name}: {UprightReference} (whose back it holds) wasn't baked before it.");
+                        else
+                        {
+                            BakeFrames(name + UprightSuffix, true, null);
+                            notes.AppendLine($"{group}/{name}{UprightSuffix}: the same, its back ({string.Join(", ", HeldTorso)}) held as {UprightReference} " +
+                                             $"holds it ({breathing.Count} frames, breathing with it), so it plays at a table without leaning into it.");
+                        }
+                    }
                 }
                 finally { Object.DestroyImmediate(mx); }
             }
@@ -1058,6 +1098,7 @@ public static class NpcMixamoClips
         NpcBeats.Clip.SitBreathing, NpcBeats.Clip.SitHandsOnThighs, NpcBeats.Clip.SitLookAround, NpcBeats.Clip.SitTalking,
         NpcBeats.Clip.SitTalkShort, NpcBeats.Clip.SitLaughing, NpcBeats.Clip.SitImpatient, NpcBeats.Clip.SitTapping,
         NpcBeats.Clip.SitAngry, NpcBeats.Clip.SitThumbsUp, NpcBeats.Clip.Beckoning,
+        NpcBeats.Clip.SitThumbsUpUpright, NpcBeats.Clip.SitLaughingUpright,
     };
 
     // Where a city look's ears are, in its head bone's own space. On the head mesh (the vertices

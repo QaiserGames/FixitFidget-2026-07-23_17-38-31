@@ -34,6 +34,7 @@ public class ShopUI : MonoBehaviour
 
     private void Start()
     {
+        if (moneyText != null) moneyColour = moneyText.color;
         viewMode = interactor != null ? interactor.GetComponent<CafeViewMode>() : null;
         // Runtime-only UI: existing scenes need no new inspector wiring.
         DayOneGuideUI guide = GetComponent<DayOneGuideUI>();
@@ -118,6 +119,7 @@ public class ShopUI : MonoBehaviour
                 shownNightPrompt = nightPrompt; shownInteract = null;
                 shownPromptLine = string.IsNullOrEmpty(nightPrompt) ? "" : $"[{ControlHints.Interact}]  {nightPrompt}";
                 promptText.text = shownPromptLine;
+                PopPrompt(shownPromptLine);
             }
             if (crosshair != null)
                 crosshair.SetActive(viewMode != null && viewMode.WalkingFirstPerson && !viewMode.PointerReleased && Time.timeScale > 0);
@@ -150,11 +152,7 @@ public class ShopUI : MonoBehaviour
             }
         }
 
-        if (ShopEconomy.Instance != null && ShopEconomy.Instance.Money != shownMoney)
-        {
-            shownMoney = ShopEconomy.Instance.Money;
-            moneyText.text = $"${shownMoney}";
-        }
+        if (ShopEconomy.Instance != null) ShowMoney(ShopEconomy.Instance.Money);
 
         if (stockText != null && ShopInventory.Instance != null
             && (ShopInventory.Instance.Cups != shownCups || ShopInventory.Instance.Beans != shownBeans))
@@ -219,8 +217,74 @@ public class ShopUI : MonoBehaviour
             if (showDebug)
                 line += "\n" + interactor.DebugInfo;
 
+            if (line != shownPromptLine) PopPrompt(line);
             shownPromptLine = line;
             promptText.text = line;
+        }
+    }
+
+    // JUICE (6 Oct 2026, Mansoor's playtest): the money counts up (or down) to what's in the till with a bounce and a flash
+    // of colour, instead of jumping; a new prompt pops in. Only the number's text is built again, and only when it changes.
+    private const float MoneyCountSeconds = .5f, PromptPopSeconds = .2f;
+    private static readonly Color MoneyGain = new Color(1f, .86f, .36f, 1f), MoneySpend = new Color(1f, .5f, .45f, 1f);
+    private Color moneyColour = Color.white, moneyFlash;
+    private int moneyTarget, moneyFrom;
+    private float moneySince = -1f, promptSince = -1f;
+
+    private void ShowMoney(int money)
+    {
+        if (moneyText == null) return;
+        if (shownMoney == int.MinValue)
+        {
+            // The first look (a day loaded, a save restored): as it is, no counting.
+            shownMoney = moneyTarget = money;
+            moneyText.text = $"${money}";
+            return;
+        }
+        if (money != moneyTarget)
+        {
+            moneyFrom = shownMoney;
+            moneyTarget = money;
+            moneySince = Time.unscaledTime;
+            moneyFlash = money > moneyFrom ? MoneyGain : MoneySpend;
+        }
+        if (moneySince < 0f) return;
+        float t = Mathf.Clamp01((Time.unscaledTime - moneySince) / MoneyCountSeconds);
+        int now = Mathf.RoundToInt(Mathf.Lerp(moneyFrom, moneyTarget, 1f - (1f - t) * (1f - t)));
+        if (now != shownMoney)
+        {
+            shownMoney = now;
+            moneyText.text = $"${now}";
+        }
+        float punch = t < .2f ? Mathf.Lerp(1f, 1.24f, t / .2f) : Mathf.Lerp(1.24f, 1f, (t - .2f) / .8f);
+        moneyText.rectTransform.localScale = new Vector3(punch, punch, 1f);
+        moneyText.color = Color.Lerp(moneyFlash, moneyColour, t * t);
+        if (t >= 1f)
+        {
+            moneySince = -1f;
+            moneyText.rectTransform.localScale = Vector3.one;
+            moneyText.color = moneyColour;
+        }
+    }
+
+    private void PopPrompt(string line)
+    {
+        if (!string.IsNullOrEmpty(line)) promptSince = Time.unscaledTime;
+    }
+
+    // After Update's early returns: the prompt's pop plays out whatever the HUD is showing.
+    private void LateUpdate()
+    {
+        if (promptText == null || promptSince < 0f) return;
+        float t = Mathf.Clamp01((Time.unscaledTime - promptSince) / PromptPopSeconds);
+        // From a touch small, past full size and back (a spring).
+        float u = t - 1f;
+        float s = Mathf.LerpUnclamped(.9f, 1f, 1f + 2.4f * u * u * u + 1.4f * u * u);
+        promptText.rectTransform.localScale = new Vector3(s, s, 1f);
+        if (t >= 1f)
+        {
+            promptSince = -1f;
+            promptText.rectTransform.localScale = Vector3.one;
         }
     }
 

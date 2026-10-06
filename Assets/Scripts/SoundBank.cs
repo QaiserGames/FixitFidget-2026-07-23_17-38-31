@@ -176,5 +176,29 @@ public sealed class SoundBank : ScriptableObject
         // The break-ins (30 Sept): Ace lets themself in at Grace's front door.
         C("night.door.open", SoundBus.World, true, .35f, "Grace's front door opens for Ace at night: a latch, then a slow hinge (never a slam).", 1f, 10f, .5f, 1),
         C("night.door.locked", SoundBus.World, true, .3f, "Ace tries a locked front door at night: the handle rattles once.", 1f, 8f, .5f, 1),
+        C("night.door", SoundBus.World, false, .3f, "Ace through a door at night (the café's back door; a blink): a latch, the door, the latch.", 1.5f, 12f, .5f, 1),
+
+        // The man at the bins (6 Oct): named in the code since Night 0, listed here for the night pass.
+        C("bins.bag", SoundBus.World, true, .4f, "The bin bag goes into the dumpster: a soft heavy thump inside it.", 1f, 12f, .3f, 1),
+        C("bins.lid", SoundBus.World, true, .45f, "A dumpster lid dropping shut: a hollow plastic clunk.", 1f, 14f, .2f, 2),
+        C("bins.creak", SoundBus.World, true, .4f, "His lid creaking up (the reveal, a peek, a slow rise): a long hinge creak.", 1f, 14f, .5f, 1),
+        C("bins.rattle", SoundBus.World, true, .3f, "His lid lifting a crack and dropping as he talks from inside the bin: a small rattle.", 1f, 10f, .3f, 1),
+        C("lamp.flicker", SoundBus.World, true, .3f, "The lamp over the bins stutters (Night 0's reveal): a tick and a buzz.", 1f, 10f, .5f, 1),
+        C("lodger.pop", SoundBus.World, true, .4f, "He pops up out of the dumpster: the lid flung up, a quick rustle of his coat.", 1f, 14f, .3f, 1),
+        C("lodger.takes", SoundBus.World, true, .35f, "He takes what Ace brought him: a hand, a rustle.", 1f, 10f, .3f, 1),
+        C("lodger.gnome", SoundBus.World, true, .3f, "He turns the gnome on the trash can's lid to face the street: stone on metal.", 1f, 10f, .3f, 1),
+        C("lodger.cup", SoundBus.World, true, .3f, "He sets a cup out on the crate: a small ceramic clink (four in a row).", 1f, 10f, .1f, 2),
+        C("lodger.lesson", SoundBus.UI, false, .3f, "Ace learns one of his lessons: a quiet, low note.", 1.5f, 12f, .5f, 1),
+        C("notebook.handover", SoundBus.UI, false, .3f, "His notebook changes hands (Night 0): a thick notebook passed over.", 1.5f, 12f, .5f, 1),
+        C("notebook.page", SoundBus.UI, false, .25f, "A new line in the notebook: a pencil scratch and a page turning.", 1.5f, 12f, .3f, 1),
+        C("bark.choose", SoundBus.UI, false, .2f, "Ace picks one of the two replies: a soft tick.", 1.5f, 12f, .1f, 1),
+
+        // Juice (6 Oct): small feedback, drawn in code (Juice); each wants a small, soft sound.
+        C("juice.emote", SoundBus.World, true, .2f, "A badge pops up over someone's head (a heart, a star, a cup...): a soft pop.", 1f, 10f, .1f, 3),
+        C("juice.sparkle", SoundBus.World, true, .25f, "A spot of grime gone, a part fitted: a tiny twinkle.", .8f, 6f, .08f, 2),
+        C("juice.sparkle.big", SoundBus.World, true, .35f, "A whole repair finished: a brighter twinkle.", 1f, 8f, .3f, 1),
+        C("repair.fixed", SoundBus.UI, false, .35f, "A repair finished on the bench (\"Fixed!\"): a small happy chime (the signature family).", 1.5f, 12f, .5f, 1),
+        C("recap.count", SoundBus.UI, false, .15f, "Today's takings counting up on Ace's phone: soft ticks.", 1.5f, 12f, .05f, 1),
+        C("recap.counted", SoundBus.UI, false, .25f, "Today's takings counted: a settled coin.", 1.5f, 12f, .5f, 1),
     };
 }

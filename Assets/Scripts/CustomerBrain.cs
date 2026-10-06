@@ -1852,6 +1852,7 @@ public class CustomerBrain : MonoBehaviour
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, false);
+        Juice.Money(transform, basePay, tip);
         Sfx.Play("handover.drink", transform.position);
         Sfx.PlayLater("money.paid", transform.position, .25f);
         if (tip > 0) Sfx.PlayLater("money.tip", transform.position, .55f);
@@ -1863,6 +1864,8 @@ public class CustomerBrain : MonoBehaviour
         paidTip  += tip;
         wasServed = true;
 
+        // The cup flies to them in a short arc instead of vanishing from Ace's hand (Juice: a copy of it makes the trip).
+        Juice.HandOver(drink.gameObject, transform);
         carry.Consume();
         drinkOrdered = false;
         drinkStarted = false;
@@ -1937,6 +1940,7 @@ public class CustomerBrain : MonoBehaviour
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, true, grade);
+        Juice.Money(transform, basePay, tip);
         Sfx.Play("handover.repair", transform.position);
         Sfx.Play2DLater("repair.returned", .15f);
         Sfx.PlayLater("money.paid", transform.position, .3f);
@@ -1952,6 +1956,8 @@ public class CustomerBrain : MonoBehaviour
         foreach (DropSpot spot in FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude))
             spot.Release(activeJob);
 
+        // Back into their hands in a short arc (Juice: a copy of it makes the trip), from Ace's hand or the counter.
+        Juice.HandOver(activeJob.gameObject, transform);
         if (deliveryCarry != null) deliveryCarry.Consume();
         else Destroy(activeJob.gameObject);
         activeJob = null;
