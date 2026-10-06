@@ -1,5 +1,35 @@
 # Current handoff — September 12, 2026
 
+## October 6 (later) — Night 0 and the man at the bins (`2638fe6`), and Ace's body out of the counter close-up (`8e34269`); on `playtest-2`
+
+**Read this entry first.** Three commits on `playtest-2` after `dda7316`: session 2 of the foundation pass (`2638fe6`), a fix its check photos turned up (`8e34269`), and this entry. Nothing is pushed. The design is in the project docs: `claude/the-man-at-the-bins-story.md` (the night as a story, Mansoor's four calls, and §13 as built), `claude/night-0-and-the-favours-spec.md`, `claude/foundation-pass-build-plan.md`.
+
+**Mansoor's calls (6 Oct):** the story is a mystery with a heart; Ace answers and comes back to the bins, and the man keeps a corner of what Ace brings; a favour pays a lesson or a secret, never money; the night camera fix goes into this session. The café's green counters are left alone (he'll buy a town and café pack).
+
+**What changed:**
+
+1. **Night 0** (`NightZero`). Until Ace has met the man, the first night opens just inside the café's new back door with the bin bag in hand; the night's clock waits and only the bins' own things are offered. "Take the bins out" is a blink through the door onto Back Street. "Bin it": the near lid lifts, the bag goes in, the lamp flickers, the view pushes in, the far lid creaks up and he stands up out of the dumpster (5.3 s). The deal is a held scene: his pages go into the notebook on its hand-over line, and his errand is Grace's gnome. Calling it a night waits for the deal.
+2. **The man at the bins** (`Lodger`, `LodgerStory`): one body (the café patron's, in a suit nobody else wears; the walk-ins' outfit picker comes off it), barks pinned to his head, a line now and then as Ace passes, standing in the dumpster all night once met. The return: "Give him Barnaby" plays the return scene; the gnome leaves Ace's hand for his corner (the trash can's lid, at night), he turns it to face the street, teaches **Nerve** and gives a page ("Grace. Thursdays. Find out."), then the hook: "Tomorrow, her kitchen."
+3. **Ace answers** (`Barks`, `NightLines`): a held scene can have choices. Ace's two replies come up as chips beside the line they answer (1 / 2; X / Y on a pad), and each nudges the man's hidden warmth (±5). A reply never changes what happens. The press that ends a held scene can't also call it a night.
+4. **What a favour pays:** Nerve widens the straight face's green 1.45× (`MorningFace`; the meter says "Nerve"). His pages are the notebook's new "inherited" source, laid out first, in italics.
+5. **Carrying at night** (`NightCarry`): the bag, then the gnome, in Ace's right hand. A night ended with the gnome in hand puts it on the shelf, and "Take Barnaby off the shelf" gets it back for him.
+6. **The record** (`NightLedger`, `SaveData`; added fields, no version bump): met, warmth, lessons, given. A given thing is still Ace's deed, so Grace's morning is the same.
+7. **The night camera** (`NightSeeThrough`): it also fades what stands between the camera and the ground 6 m and 12 m in front of Ace, so the terrace south of the car park no longer covers the lower half of the screen.
+8. **The set:** `Night › Bins 1` puts "24 - The bins (Night 0)" on Back Street (the back door, POLYGON City's Skip_02 with its lids cut free into `Assets/Art/NightZero`, a lamp, a trash can, a reveal camera, places to stand checked for room). It moves the pot plant and the chalkboard and turns the rear lane's walker back at x 1.6. The scene is saved with it; `Bins 1 - Take them out again` undoes it.
+9. **Ace's body out of the counter close-up (`8e34269`).** Since the body came (29 Sept), the conversation camera behind the counter had been looking through the back of Ace's shirt: half the screen in every counter conversation, Grace's morning included. `AceBody` now draws the body only while the overhead view is on screen, and after a close-up only once the camera is 3 m clear.
+
+**Try it:** `Fixit Fidget › Night › Night 1 - Play from Day 1's recap (lab)`, then "Close up for the night": Night 0 opens at the back door. `Night 0 - Play check (lab, drives itself)` runs all of it.
+
+**Checks:** Night 0 play check 84 of 84 (`Logs/Night/night-zero-check-2026-10-06_070846`); Night 1 play checks 76 of 76 twice, with Night 0 skipped (after the fix: `night-one-check-straight-face-2026-10-06_070333`); Barks 2, 43 of 43; Grace's walk all clear (`grace-walk-2026-10-06_070612`); Bark rules 501 + 359, Night 1 rules 314, Notebook rules 54; the console tests (NightRules, NotebookRules, BarkRules, HomeRules) pass.
+
+**Seen, not changed:**
+
+- At night the editor logs "Reduced additional punctual light shadows resolution…" when two shadowed lamps are in view (from before this session; information only).
+- The night walk measures about 180 B of garbage a frame in the editor, the same near the man and far from him, and with or without barks (Barks 2 measured the same at 00:51). Worth a look in a build in the performance pass.
+- In the checks, nightfall's note is still on screen for the first seconds of the reveal, because the check walks straight to the dumpster.
+
+**Next:** Mansoor plays Night 0; then session 3: the favours as data (each return's line, lesson and secret), stalling, and the officer.
+
 ## October 6 — The lighting pass (`4104e06`), the house kit, barks, and Ace running straight; on `playtest-2`
 
 **Read this entry first.** Four commits on `playtest-2` after `4104e06`: the house kit, barks, Ace running straight, and this entry. `4104e06` (5 Oct, evening) went in without an entry and is summed up here too. Nothing is pushed. The plans are in the project docs: `claude/house-interiors-plan.md` (§9–§12), `claude/furniture-library.md` ("The house kit v1"), `claude/foundation-pass-build-plan.md` (the foundation pass: its order, and barks in §5), `claude/session-2026-10-05-notes.md` (the walking report).
