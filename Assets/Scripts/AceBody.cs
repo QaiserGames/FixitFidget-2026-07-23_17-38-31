@@ -42,6 +42,11 @@ using UnityEngine.Playables;
 // capsule's own mesh hides while the body is drawn; in first person and at a station the body hides,
 // as the capsule does. Without the purchased art (a fresh clone of the public repository, which never
 // has Synty files) or the clips, nothing changes: Ace stays the capsule.
+//
+// Close-ups (6 Oct 2026): a conversation at the counter, an item in hand and the counter's repair view are
+// seen from where Ace stands, so the body hides in them too, and stays hidden while the camera pulls back
+// out of one until it is a few metres off (Clear Of Camera). Since the body came (29 Sept), the
+// conversation's camera behind the counter had been looking through the back of Ace's shirt.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent, DefaultExecutionOrder(120)]
 public sealed class AceBody : MonoBehaviour
@@ -124,7 +129,7 @@ public sealed class AceBody : MonoBehaviour
 
     /// <summary>The body is on (by day and night, or as By Day says).</summary>
     public bool Worn { get; private set; }
-    /// <summary>The body is on and drawn (not first person, not at a station).</summary>
+    /// <summary>The body is on and drawn (not first person, not at a station, not in a close-up).</summary>
     public bool Drawn { get; private set; }
     /// <summary>The body on is the Sidekick Ace (else the stand-in, look 11).</summary>
     public bool WearsSidekick { get; private set; }
@@ -269,7 +274,7 @@ public sealed class AceBody : MonoBehaviour
     {
         if (!Worn) return;
         Place(Time.deltaTime);
-        Draw(view == null || view.ShowsAce);
+        Draw(Shown());
     }
 
     // ------------------------------------------------------------------ on and off
@@ -411,7 +416,8 @@ public sealed class AceBody : MonoBehaviour
         Worn = true;
         if (view != null) view.BodyStandsIn = true;
         Place(0f);
-        Draw(view == null || view.ShowsAce);
+        afterCloseUp = false;
+        Draw(Shown());
     }
 
     void TakeOff()
@@ -561,7 +567,32 @@ public sealed class AceBody : MonoBehaviour
         rigRoot.SetPositionAndRotation(new Vector3(middle.x, feetY, middle.z), Quaternion.Euler(0f, bodyYaw, 0f));
     }
 
-    // Drawn, or hidden (first person, a station): the body's own renderers (the Sidekick's, or the city look's).
+    // How far the camera has to be from the body before it is drawn again after a close-up, metres (the
+    // overhead view is never nearer than 8 m, inside a house).
+    const float ClearOfCamera = 3f;
+    // A close-up has had the screen, and the camera may still be pulling back out of it.
+    bool afterCloseUp;
+    Transform viewCamera;
+
+    // Drawn only while the overhead view is on screen: not in first person, at a station or in a close-up
+    // (CafeViewMode.OverheadShown), and not until the camera is clear of the body after one.
+    bool Shown()
+    {
+        if (view == null) return true;
+        if (!(view.isActiveAndEnabled ? view.OverheadShown : view.ShowsAce))
+        {
+            afterCloseUp = true;
+            return false;
+        }
+        if (!afterCloseUp) return true;
+        if (viewCamera == null && Camera.main != null) viewCamera = Camera.main.transform;
+        Vector3 middle = rigRoot != null ? rigRoot.position + Vector3.up * (Height > 0f ? Height * .6f : 1.2f) : transform.position;
+        if (viewCamera != null && (viewCamera.position - middle).sqrMagnitude < ClearOfCamera * ClearOfCamera) return false;
+        afterCloseUp = false;
+        return true;
+    }
+
+    // Drawn, or hidden (first person, a station, a close-up): the body's own renderers (the Sidekick's, or the city look's).
     void Draw(bool show)
     {
         if (WearsSidekick)
