@@ -22,8 +22,9 @@ using UnityEngine.UI;
 //          dumpster (since 6 Oct he pops up when the bag goes in: on Night 2, the peek over the rim);
 //       2. "Take the bins out", "Bin it": the near lid, the bag in; his verdict on the day (a straight face held) and the
 //          ask for the cups (warm: he says why); Ace answers (+1); the notebook learns where the cups are; the clock runs;
-//       3. Grace's house: the cups can't be taken from behind her kitchen wall; inside, at the worktop, "Take the
-//          reunion cups": in hand, the notebook says who for, Ace's line;
+//       3. Grace's house: the cups can't be taken from behind her kitchen wall; she's home (chunk C), so Ace waits on her
+//          stoop until she's asleep, and sneaks in; at the worktop, "Take the reunion cups": in hand, the notebook says who
+//          for, Ace's line; she sleeps through it;
 //       4. back at the bins, "Give him the reunion cups": the return (Ace answers, +1), four cups set out on the crate one
 //          by one, Doors learned, a page (her photos); calling it a night at the back door;
 //       5. Day 3: the save has it all; Grace comes in first about her cups (with Nerve the green is wider), and Ace keeps
@@ -259,11 +260,26 @@ public sealed class NightTwoCheck : MonoBehaviour
             $"behind her kitchen wall, a metre from the cups, they aren't offered (seen: {trophy.Seen}; the prompt \"{interactor.CurrentPrompt}\")");
         MoveAce(there);
         yield return Seconds(.3f);
+        // ---------- she's home (break-ins chunk C): Ace waits on her stoop until she's asleep, as a player would ----------
+        GraceAtHome atHome = GraceAtHome.Instance;
+        if (atHome != null && atHome.NightOn)
+        {
+            Check(atHome.Home && !atHome.Asleep, $"Grace is home and up ({atHome.Doing}; {atHome.LightsNow()})");
+            yield return Photo("04b-her-front-window-lit");
+            float waitFrom = Time.realtimeSinceStartup;
+            yield return Until(() => atHome.Asleep, 120f, "Ace waits on her stoop until she's asleep (her bedroom window goes dark)");
+            Note($"she was asleep {Time.realtimeSinceStartup - waitFrom:0} s later, at {GraceNight.Clock(NightWalk.Instance.Hour)}");
+            yield return Photo("04c-her-house-dark-she-is-asleep");
+        }
+        else Note("Grace isn't at home in this scene (no GraceAtHome): straight in");
         yield return Until(() => house.DoorPromptShown && house.DoorPrompt == "Let yourself in", 4f, "at her stoop the way in is offered");
         house.LetAceIn();
         yield return Until(() => house.door == null || house.door.IsOpen, 3f, "her door opened");
+        // Sneaking inside, as a player would with her asleep upstairs (walking, a step near the kitchen's back corner is within
+        // 4 m of her pillow).
+        movement.ScriptedSneak = true;
         yield return Walk(Plan(house, (1.11f, 4.05f), (1.11f, 3.35f), (2.06f, 3.20f), (2.45f, 2.75f), (2.22f, 2.08f), (3.00f, 2.02f), (3.28f, 1.50f), (3.20f, 1.30f)),
-            new List<float> { .35f, .3f, .3f, .3f, .3f, .3f, .3f, .25f }, "in at her door and through to the kitchen");
+            new List<float> { .35f, .3f, .3f, .3f, .3f, .3f, .3f, .25f }, "in at her door and through to the kitchen, sneaking");
         string take = "Take " + cups.name;
         yield return Until(() => interactor.CurrentPrompt == take, 3f, $"at the worktop the prompt reads \"{take}\" (Ace knows them from his ask)");
         Check(trophy.Seen, "in the kitchen Ace can see them");
@@ -282,7 +298,10 @@ public sealed class NightTwoCheck : MonoBehaviour
 
         // ---------- back to the bins ----------
         yield return Walk(Plan(house, (3.20f, 1.85f), (2.45f, 2.30f), (2.30f, 2.95f), (1.90f, 3.25f), (1.11f, 3.35f), (1.11f, 4.05f), (1.11f, 5.30f)),
-            new List<float> { .3f, .3f, .3f, .3f, .3f, .35f, .4f }, "out of the kitchen and out of her door");
+            new List<float> { .3f, .3f, .3f, .3f, .3f, .35f, .4f }, "out of the kitchen and out of her door, sneaking");
+        movement.ScriptedSneak = null;
+        if (atHome != null && atHome.NightOn)
+            Check(atHome.Asleep && atHome.Catches == 0 && atHome.Wakes == 0, $"she slept through it ({atHome.Doing}; woken {atHome.Wakes} times)");
         yield return Walk(new List<Vector3>
         {
             new Vector3(WestStreet, 0f, stoop.z), new Vector3(WestStreet, 0f, BackStreet), new Vector3(set.giveSpot.position.x, 0f, BackStreet), set.giveSpot.position,
@@ -668,7 +687,7 @@ public sealed class NightTwoCheck : MonoBehaviour
 
     void Finish()
     {
-        if (movement != null) movement.ScriptedInput = null;
+        if (movement != null) { movement.ScriptedInput = null; movement.ScriptedSneak = null; }
         report.AppendLine();
         if (NightCycle.Instance != null) report.AppendLine(NightCycle.Instance.Describe());
         if (LodgerDay.Instance != null) report.AppendLine(LodgerDay.Instance.Describe());
@@ -683,6 +702,6 @@ public sealed class NightTwoCheck : MonoBehaviour
 
     void OnDestroy()
     {
-        if (movement != null) movement.ScriptedInput = null;
+        if (movement != null) { movement.ScriptedInput = null; movement.ScriptedSneak = null; }
     }
 }

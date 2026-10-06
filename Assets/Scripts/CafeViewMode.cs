@@ -168,6 +168,11 @@ public sealed class CafeViewMode : MonoBehaviour
     public bool ShowsAce => !AtStation && !firstPerson;
     /// <summary>Set by AceBody while Ace's stand-in body is drawn instead of the capsule: the capsule's mesh hides.</summary>
     public bool BodyStandsIn { get; set; }
+    /// <summary>
+    /// Ace is hidden in a cupboard or a wardrobe (break-ins chunk C, GraceAtHome): nothing of Ace is drawn (the body, the
+    /// capsule, what's in Ace's hand), and the view can't be switched until Ace comes out; it stays where it is.
+    /// </summary>
+    public bool AceSetAside { get; set; }
     // The night's own limits apply only while following with the day's framing switched off.
     bool NightFraming => following && !followWithDayFraming;
     float PitchMin => NightFraming ? followPitchMin : 38f;
@@ -255,7 +260,7 @@ public sealed class CafeViewMode : MonoBehaviour
         var mouse = Mouse.current;
         if (!Application.isFocused || !CanChangeView) { acceptingLook = false; return; }
         // V, or the controller's View / Share / Minus button.
-        if (keyboard != null && keyboard.vKey.wasPressedThisFrame || PadInput.Pressed(PadButton.Select))
+        if ((keyboard != null && keyboard.vKey.wasPressedThisFrame || PadInput.Pressed(PadButton.Select)) && !AceSetAside)
         {
             SetFirstPerson(!firstPerson);
             return;
@@ -473,7 +478,7 @@ public sealed class CafeViewMode : MonoBehaviour
         RefreshCameraPose();
         RefreshCursor();
         if (bodyRenderer != null)
-            bodyRenderer.enabled = bodyWasVisible && !AtStation && !firstPerson && !BodyStandsIn;
+            bodyRenderer.enabled = bodyWasVisible && !AtStation && !firstPerson && !BodyStandsIn && !AceSetAside;
         RefreshCutawayWalls();
         RefreshOverheadFixtures();
     }

@@ -193,7 +193,7 @@ public class RecapUI : MonoBehaviour
         if (c == null || !c.DayOver || text == null) return;
 
         text.text =
-            $"DAY {c.Day} — CLOSED\n\n" +
+            $"{Weekdays.Label(c.Day).ToUpperInvariant()} — CLOSED\n\n" +
             $"People served         {c.Visitors}\n" +
             $"Customers lost        {c.Lost}\n" +
             $"Turned away           {c.Declined}\n" +

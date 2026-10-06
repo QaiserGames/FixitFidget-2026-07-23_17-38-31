@@ -10,7 +10,8 @@ using UnityEngine.Rendering;
 // Fixit Fidget > Night > Break-ins 1 - Build Grace's house inside (GraceHouseSteps).
 // This component runs them:
 //
-//   * at night her lamps are on (all night for now; her routine comes with chunk C);
+//   * at night her lamps are hers: with Grace at home (GraceAtHome, chunk C, 6 Oct) she switches them one by one as her
+//     night goes; without her (no GraceAtHome) they are all on all night, as before;
 //   * with the break-ins switched on (NightWalk.breakIns: on in the real game since 30 Sept;
 //     a lab can switch it off), her front door is Ace's way in: on the stoop the prompt reads
 //     "Let yourself in" (GraceDoorZone, a place made here while the night runs), E opens the
@@ -66,7 +67,7 @@ public sealed class GraceHouse : MonoBehaviour
     [Tooltip("Ceilings: hidden in the overhead view while Ace is inside, drawn in first person.")]
     public Renderer[] ceilings = Array.Empty<Renderer>();
     public Wall[] walls = Array.Empty<Wall>();
-    [Tooltip("Her lamps: on at night.")]
+    [Tooltip("Her lamps: on at night (switched one by one by GraceAtHome when she's at home).")]
     public Light[] nightLights = Array.Empty<Light>();
     [Tooltip("The first floor, above the ground floor (metres).")]
     public float firstFloorAt = 2.4f;
@@ -123,6 +124,9 @@ public sealed class GraceHouse : MonoBehaviour
     public bool Viewing => viewing;
     /// <summary>True while the first floor is the one shown (Ace is upstairs).</summary>
     public bool Upstairs => upstairs;
+    /// <summary>The first floor is hidden right now (Ace downstairs, the camera looking in from the street): anyone up there
+    /// is hidden with it (GraceAtHome).</summary>
+    public bool FirstFloorHidden => viewing && !upstairs && view != null && view.OverheadShown;
     public bool LightsOn => lightsOn;
     /// <summary>How often the stairs kept Ace on a flight going down, this session.</summary>
     public int StairCatches { get; private set; }
@@ -149,6 +153,7 @@ public sealed class GraceHouse : MonoBehaviour
     }
 
     static int labRequest;
+    GraceAtHome resident;
     CafeViewMode view;
     CafeDaylight daylight;
     CharacterController ace;
@@ -179,6 +184,7 @@ public sealed class GraceHouse : MonoBehaviour
     void OnEnable()
     {
         Instance = this;
+        resident = GetComponent<GraceAtHome>();
         if (house != null) NightHomes.RealGroundFloors.Add(house);
         leafCollider = door != null && door.hinge != null ? door.hinge.GetComponentInChildren<Collider>(true) : null;
         SetLights(false);
@@ -252,6 +258,8 @@ public sealed class GraceHouse : MonoBehaviour
     void SetLights(bool on)
     {
         lightsOn = on;
+        // With Grace at home her lamps are hers to switch, one by one (GraceAtHome).
+        if (resident != null && resident.isActiveAndEnabled) return;
         foreach (Light l in nightLights) if (l != null) l.enabled = on;
     }
 
@@ -607,6 +615,8 @@ public sealed class GraceHouse : MonoBehaviour
             Vector3 f = -door.Outward;
             view.OrbitTo(Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg, 50f, 26f);
         }
+        // The walk check walks every room at a run: she's out tonight (chunk C), so nobody sees or hears it.
+        if (request == 2 && resident != null) resident.OutAllNight("the walk check: nobody home, so Ace can walk every room");
         if (request == 2 && GetComponent<GraceHouseWalkCheck>() == null) gameObject.AddComponent<GraceHouseWalkCheck>();
         Debug.Log($"[Break-ins] Lab: the night at Grace's door, 12 West Street (the break-ins are on). Walk in: her door opens for Ace. " +
                   $"{(request == 2 ? "The walk check drives Ace round the house by itself: leave the mouse and keyboard alone." : "")}");

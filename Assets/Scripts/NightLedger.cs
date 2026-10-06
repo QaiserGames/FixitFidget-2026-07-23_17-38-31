@@ -24,7 +24,8 @@ using System.Collections.Generic;
 //     the next morning he sits in the café (VisitDay); the third in a row, a note on the counter instead (NoteDay),
 //     and the favour is dropped. Giving it to him (Give) brings the next one up, not yet asked;
 //   * the officer's questions (session 3): each asked once, on a day, kept or flinched at; a flinch makes him one
-//     step more suspicious, like a cracked straight face.
+//     step more suspicious, like a cracked straight face;
+//   * caught (break-ins chunk C, until getting caught has its own chunk): what Ace took that night goes back (PutBack).
 //
 // No Unity types: the Night 1 rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
 // ---------------------------------------------------------------------------
@@ -212,6 +213,28 @@ public sealed class NightLedger
         deeds.Add(new NightDeedData { thing = thing, owner = owner ?? "", night = Math.Max(0, night) });
         Changed?.Invoke();
         return true;
+    }
+
+    /// <summary>
+    /// Ace was caught on night <paramref name="night"/> (break-ins chunk C's placeholder, until getting caught has its own
+    /// chunk): whatever Ace took that night goes back, off the shelf and out of the deeds, so nobody comes in about it in
+    /// the morning. What Ace already gave the man at the bins stays his (his favour has moved on). The things put back,
+    /// oldest first.
+    /// </summary>
+    public List<string> PutBack(int night)
+    {
+        var back = new List<string>();
+        for (int i = 0; i < deeds.Count; i++)
+        {
+            NightDeedData deed = deeds[i];
+            if (deed == null || deed.night != night || deed.faced || given.Contains(deed.thing)) continue;
+            back.Add(deed.thing);
+            trophies.Remove(deed.thing);
+            deeds.RemoveAt(i);
+            i--;
+        }
+        if (back.Count > 0) Changed?.Invoke();
+        return back;
     }
 
     /// <summary>

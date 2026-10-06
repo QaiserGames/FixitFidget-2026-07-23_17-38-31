@@ -21,9 +21,10 @@ using UnityEngine.SceneManagement;
 //   * a couple of rooms flicker blue, like a TV; later in the night a few rooms light for a few
 //     minutes: someone up for a glass of water; and somewhere one light stays on nearly all night;
 //   * shop fronts stay dark (closed);
-//   * Grace's house has one warm room until about midnight, and nothing marks it;
-//     her ground floor has real rooms behind clear glass (the break-ins, GraceHouse), so her
-//     front window gets no pane of its own: her lamps light it;
+//   * Grace's house has one warm room until about midnight, and nothing marks it; since chunk C (6 Oct)
+//     she's at home (GraceAtHome) and her own bedside lamp lights her bays instead (Drive: her house's
+//     rooms follow what she switches, not the plan). Her ground floor has real rooms behind clear glass
+//     (the break-ins, GraceHouse), so her front window gets no pane of its own: her lamps light it;
 //   * houses whose neighbour is still out (NightNeighbours) are dark until they come home, then a
 //     room lights, and later one upstairs.
 //
@@ -43,7 +44,7 @@ public sealed class NightHomes : MonoBehaviour
         public MeshRenderer panes, curtainsLit, curtainsDark;
         public GameObject root;
         public readonly List<Vector2> on = new();    // (from, to): clock hours it is lit (23-28)
-        public bool lit, tv, wake, grace, shop, homecoming, owl;
+        public bool lit, tv, wake, grace, shop, homecoming, owl, driven;
         public Material tvPane;
         public float tvLevel = 1f, tvTarget = 1f, tvNext;
         public Color tvColour;
@@ -56,6 +57,48 @@ public sealed class NightHomes : MonoBehaviour
     /// ground-floor windows get no lit pane or curtains of their own; the house's own lamps light them.
     /// </summary>
     public static readonly HashSet<Transform> RealGroundFloors = new();
+
+    // Houses whose rooms someone at home switches as they go (Grace's: GraceAtHome), with the floors lit now (bit n: floor
+    // n). The night's plan leaves their rooms alone; each follows its floor's bit here.
+    static readonly Dictionary<Transform, int> driven = new();
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetDriven() => driven.Clear();
+
+    /// <summary>
+    /// Someone at home switches <paramref name="house"/>'s rooms by hand (GraceAtHome): <paramref name="floor"/>'s rooms
+    /// lit or dark from the next frame. The first call takes the house out of the night's plan (from the next night built).
+    /// </summary>
+    public static void Drive(Transform house, int floor, bool lit)
+    {
+        if (house == null || floor < 0 || floor > 30) return;
+        driven.TryGetValue(house, out int mask);
+        driven[house] = lit ? mask | (1 << floor) : mask & ~(1 << floor);
+    }
+
+    /// <summary>The house goes back to the night's plan (from the next night built).</summary>
+    public static void StopDriving(Transform house)
+    {
+        if (house != null) driven.Remove(house);
+    }
+
+    public static bool IsDriven(Transform house) => house != null && driven.ContainsKey(house);
+
+    /// <summary>How many of <paramref name="house"/>'s rooms on <paramref name="floor"/> are lit right now (for checks).</summary>
+    public int LitOn(Transform house, int floor)
+    {
+        int n = 0;
+        foreach (Room r in rooms) if (r.house == house && r.data.floor == floor && r.lit) n++;
+        return n;
+    }
+
+    /// <summary>How many rooms <paramref name="house"/> has on <paramref name="floor"/> (for checks).</summary>
+    public int RoomsOn(Transform house, int floor)
+    {
+        int n = 0;
+        foreach (Room r in rooms) if (r.house == house && r.data.floor == floor) n++;
+        return n;
+    }
     readonly List<Renderer> hiddenCurtains = new();
     readonly List<UnityEngine.Object> made = new();          // materials and textures to free
     readonly Dictionary<Material, Material> darkCurtains = new();
@@ -245,6 +288,12 @@ public sealed class NightHomes : MonoBehaviour
         {
             Transform house = pair.Key;
             List<Room> list = pair.Value;
+            if (driven.ContainsKey(house))
+            {
+                // Someone at home switches them (GraceAtHome): nothing planned.
+                foreach (Room r in list) r.driven = r.grace = true;
+                continue;
+            }
             if (house == graceHouse)
             {
                 // One warm room, until about midnight. Nothing marks it.
@@ -329,6 +378,7 @@ public sealed class NightHomes : MonoBehaviour
 
     static bool Wants(Room r, float hour)
     {
+        if (r.driven) return driven.TryGetValue(r.house, out int mask) && (mask & (1 << r.data.floor)) != 0;
         foreach (Vector2 span in r.on) if (hour >= span.x && hour < span.y) return true;
         return false;
     }
@@ -534,7 +584,12 @@ public sealed class NightHomes : MonoBehaviour
         sb.Append($"Houses: {Rooms} rooms in {Houses} houses ({shops} shop fronts, dark); lit now {LitNow} at {Clock(hour)} " +
                   $"(lit when the night began {LitAtStart}, most at once {MostLit}, {Changes} rooms switched since); {tv} TV rooms, " +
                   $"{wakes} rooms where someone gets up later, {owls} night owls, {homecoming} lit by a neighbour coming home; the houses' own curtains hidden: {hiddenCurtains.Count}.");
-        if (graceHouse != null)
+        if (graceHouse != null && IsDriven(graceHouse))
+        {
+            int lit = rooms.FindAll(r => r.driven && r.house == graceHouse && r.lit).Count;
+            sb.Append($" Grace's house '{graceHouse.name}': she's at home, and her lamps light her windows (GraceAtHome): {lit} lit now.");
+        }
+        else if (graceHouse != null)
         {
             Room lit = rooms.Find(r => r.grace && r.on.Count > 0);
             sb.Append($" Grace's house '{graceHouse.name}': room {hours.graceRoom} lit until {Clock(hours.graceBedtime)}" +

@@ -120,7 +120,7 @@ public sealed class NightCarry : MonoBehaviour
         if (held == null) return;
         if (cam == null || !cam.isActiveAndEnabled) cam = Camera.main;
         bool firstPerson = view != null && view.FirstPersonSelected && view.WalkingFirstPerson && cam != null;
-        bool show = firstPerson || view == null || view.ShowsAce;
+        bool show = (firstPerson || view == null || view.ShowsAce) && !(view != null && view.AceSetAside);
         if (held.activeSelf != show) held.SetActive(show);
         if (!show) return;
         Quaternion facing = Quaternion.Euler(0f, body != null && body.Worn ? body.BodyYaw : transform.eulerAngles.y, 0f);

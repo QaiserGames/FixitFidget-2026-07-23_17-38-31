@@ -153,7 +153,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(reviews.Contains("regular") && reviews.Contains("a walk-in") && !reviews.Contains("Walk-in 2"),
             "a regular is tagged, and a walk-in signs \"a walk-in\"");
         Check(reviews.IndexOf("average", StringComparison.OrdinalIgnoreCase) < 0, "no average anywhere");
-        Check(reviews.Contains($"DAY {day} · CLOSED") && reviews.Contains("$" + DayClock.Instance.Earned), "the takings card: the day, and what it earned");
+        Check(reviews.Contains(Weekdays.Label(day).ToUpperInvariant()) && reviews.Contains("$" + DayClock.Instance.Earned), "the takings card: the day (its weekday too), and what it earned");
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("01-reviews");
 

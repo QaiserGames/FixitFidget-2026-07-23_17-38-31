@@ -33,6 +33,11 @@ using UnityEngine.UI;
 // is on its other side. Since session 3 every night after the deal opens at the bins too (NightZero.Ritual): the bag,
 // then his verdict and tonight's ask; and the morning tells the night's record which night Ace came home from, so a
 // night that ends without the favour he asked for counts as a skip (NightLedger.CameHome).
+//
+// Caught (break-ins chunk C, 6 Oct 2026; the placeholder until getting caught has its own chunk, Mansoor's call): when
+// Grace's mark fills (GraceAtHome) she says "Ace?! What on earth—", the screen goes dark on "Caught.", whatever Ace took
+// tonight goes back (NightLedger.PutBack; the notebook crosses it out), and the night ends there, as dawn would. Nothing
+// else is lost yet, and the card says so. The captions name the day of the week (Day 1 is a Monday: Weekdays).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightCycle : MonoBehaviour
@@ -155,6 +160,12 @@ public sealed class NightCycle : MonoBehaviour
         Ensure().ShowNote(text, seconds);
     }
 
+    /// <summary>The note goes now (one put up for as long as something lasts: "Hidden. [E] Come out").</summary>
+    public static void ClearNote()
+    {
+        if (Instance != null) Instance.HideNote();
+    }
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -191,7 +202,7 @@ public sealed class NightCycle : MonoBehaviour
         // Night 0 (the first night, until the man at the bins is met) opens with one last job instead; every night
         // after it opens at the bins too.
         bool zero = NightZero.Due, bins = !zero && NightZero.Ritual;
-        Caption($"Night {day}", zero ? "The café is closed. One last job: the bins, out the back."
+        Caption(day > 0 ? Weekdays.Name(day) + " night" : "Night", zero ? "The café is closed. One last job: the bins, out the back."
             : bins ? "The café is closed. Take the bins out, and the night is yours."
             : "The café is closed. Walk where you like, and come back in through the café's door to call it a night.");
         if (!Safely("nightfall", Nightfall))
@@ -307,6 +318,55 @@ public sealed class NightCycle : MonoBehaviour
         yield return Tomorrow();
     }
 
+    /// <summary>
+    /// Grace has caught Ace (GraceAtHome). Her line shows for a moment, then the screen goes dark on "Caught.", whatever Ace
+    /// took tonight goes back, and the night ends there (Ace home, tomorrow opens, as after dawn). False when no night is
+    /// on to end.
+    /// </summary>
+    public bool Caught()
+    {
+        if (Now != Phase.Night || ending) return false;
+        ending = true;
+        StartCoroutine(CaughtTonight());
+        return true;
+    }
+
+    IEnumerator CaughtTonight()
+    {
+        Now = Phase.Dawn;
+        LastEnding = "caught";
+        HideNote();
+        PlayerMovement.Hold(this);
+        // Her "Ace?! What on earth—" first.
+        yield return new WaitForSecondsRealtime(1.3f);
+        Safely("the night's last sound", () => Sfx.Play2D("night.caught"));
+        yield return Fade(1f, .8f);
+        Caption("Caught.", "Grace saw Ace in her house. Whatever Ace took tonight goes back.\n" +
+                           "<size=80%>For now that's all: the cells, bail and the papers come later.</size>");
+        int night = DayClock.Instance != null ? DayClock.Instance.Day : 0;
+        Safely("putting back what Ace took", () => PutBack(night));
+        Safely("putting the night away", PutTheNightAway);
+        Safely("the night's record", () =>
+        {
+            if (SaveManager.Instance != null) SaveManager.Instance.Night.CameHome(night);
+        });
+        yield return new WaitForSecondsRealtime(2.6f);
+        PlayerMovement.Release(this);
+        yield return Tomorrow();
+    }
+
+    // Caught: out of Ace's hand, off the shelf, and crossed out of the notebook, whatever Ace took on this night.
+    static void PutBack(int night)
+    {
+        NightCarry carry = NightCarry.Current;
+        if (carry != null && carry.Holding) carry.Drop();
+        SaveManager saves = SaveManager.Instance;
+        if (saves == null) return;
+        var back = saves.Night.PutBack(night);
+        foreach (string thing in back) saves.Notebook.Forget(thing + ".taken");
+        if (back.Count > 0) Debug.Log("[Night] Caught: " + string.Join(", ", back) + " went back.");
+    }
+
     // After the night (or a night that couldn't begin): the recap's own Open Tomorrow. The morning is
     // saved with the night's doings, then opens; if it can't be saved, the recap comes back with the
     // error, and its button goes straight to tomorrow. Whatever happens, the screen comes back and the
@@ -323,7 +383,7 @@ public sealed class NightCycle : MonoBehaviour
         // An error opening tomorrow: the recap again, rather than a closed day with no way on.
         if (!opened && clock != null && clock.DayOver && recap != null)
             Safely("showing the recap again", recap.ShowAgain);
-        if (tomorrow) Caption($"Day {clock.Day}", "Morning");
+        if (tomorrow) Caption(Weekdays.Label(clock.Day), "Morning");
         yield return new WaitForSecondsRealtime(tomorrow ? 1.3f : .2f);
         yield return Fade(0f, .9f);
         Caption("", "");

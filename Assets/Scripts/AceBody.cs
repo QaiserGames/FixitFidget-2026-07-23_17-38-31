@@ -579,6 +579,8 @@ public sealed class AceBody : MonoBehaviour
     bool Shown()
     {
         if (view == null) return true;
+        // Hidden in a cupboard or a wardrobe (GraceAtHome): set aside, and back the moment Ace comes out.
+        if (view.AceSetAside) return false;
         if (!(view.isActiveAndEnabled ? view.OverheadShown : view.ShowsAce))
         {
             afterCloseUp = true;

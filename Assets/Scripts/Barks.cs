@@ -345,6 +345,9 @@ public sealed class Barks : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        // Made on first use, which can be in the middle of a night (Grace's "Hm?" in a lab, the night's first line): that
+        // isn't the night beginning, so the line that made it isn't cleared on its first frame (6 Oct, chunk C's check).
+        wasNight = NightWalk.Instance != null && NightWalk.Instance.Active;
         Build();
     }
 

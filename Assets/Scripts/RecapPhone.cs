@@ -687,6 +687,10 @@ public sealed class RecapPhone : MonoBehaviour
         return list;
     }
 
+    // "THURSDAY · DAY 4" over today's takings (6 Oct, break-ins chunk C: the days have names, Day 1 a Monday). "· CLOSED"
+    // made way for the weekday: the phone only comes out at closing, and the line has 230 px.
+    static string Kicker(int day) => Weekdays.Label(day).ToUpperInvariant();
+
     // Today's takings on a dark card, the day's full numbers behind Details, and a failed save in red.
     float TodayCard(float y)
     {
@@ -694,7 +698,7 @@ public sealed class RecapPhone : MonoBehaviour
         RectTransform card = Box("Today", content, Pad, y, ContentWidth, 10f);
         Paint(card, Ink, 18f);
         float right = ContentWidth - CardPadX;
-        TMP_Text kicker = Words(card, clock != null ? $"DAY {clock.Day} · CLOSED" : "CLOSED", CardPadX, 13f, 230f, 14f, DarkFaint,
+        TMP_Text kicker = Words(card, clock != null ? Kicker(clock.Day) : "CLOSED", CardPadX, 13f, 230f, 14f, DarkFaint,
             style: FontStyles.Bold, rich: false, spacing: 4f);
         TMP_Text earned = Words(card, "Earned today", CardPadX, Bottom(kicker.rectTransform) + 1f, 230f, 19f, DarkText,
             style: FontStyles.Bold, rich: false);

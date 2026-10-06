@@ -93,6 +93,18 @@ public sealed class Notebook
 
     public bool Knows(string id) => !string.IsNullOrEmpty(id) && byId.ContainsKey(id);
 
+    /// <summary>
+    /// The fact with this id is no longer true and goes (break-ins chunk C: caught, Ace puts back what was taken, so "took
+    /// her cups" is crossed out). True when there was one.
+    /// </summary>
+    public bool Forget(string id)
+    {
+        if (string.IsNullOrEmpty(id) || !byId.TryGetValue(id, out NotebookFactData fact)) return false;
+        byId.Remove(id);
+        facts.Remove(fact);
+        return true;
+    }
+
     /// <summary>The fact with this id, or null. Treat as read-only.</summary>
     public NotebookFactData Find(string id) =>
         !string.IsNullOrEmpty(id) && byId.TryGetValue(id, out NotebookFactData fact) ? fact : null;

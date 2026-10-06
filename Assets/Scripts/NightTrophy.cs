@@ -21,7 +21,8 @@ using UnityEngine;
 // Indoors (Grace's cups on her kitchen worktop, session 3), a thing needs to be seen to be taken (Needs Sight): from
 // overhead the interactor offers whatever is nearest within reach, which would include the cups through her kitchen
 // wall. One ray from Ace's eyes to the thing, only while it's a candidate (Ace within reach), once a frame at most;
-// anything that stops the ray right at the thing (its box, the worktop) doesn't hide it.
+// anything that stops the ray right at the thing (its box, the worktop) doesn't hide it. Taking a thing indoors rustles
+// (NightNoise, heard 3 m away: Grace in her armchair, 2.7 m from her cups, turns her head; break-ins chunk C).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightTrophy : NightInteractable
@@ -187,6 +188,8 @@ public sealed class NightTrophy : NightInteractable
         if (!Ledger.Take(thingId, Thing.owner, night)) return;
         if (heardOfIt) NotebookHooks.TookAtNight(Thing, forHim);
         Sfx.Play("night.take", transform.position + Vector3.up * .2f);
+        // Indoors, taking it rustles (a sleeve of cups out of its box): heard 3 m away (break-ins chunk C: Grace at home).
+        if (needsSight) NightNoise.Make(transform.position + Vector3.up * .1f, NoiseKind.Rustle);
         NightCarry carry = forHim && visual != null ? NightCarry.Ensure() : null;
         if (carry == null)
         {

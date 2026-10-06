@@ -101,9 +101,10 @@ public sealed class NightWalk : MonoBehaviour
         public float owlsUntil = 27.75f;
         [Tooltip("Grace's house: the one with the HomeDoor of this id. One warm room, nothing marks it.")]
         public string graceHomeId = "home.grace";
-        [Tooltip("Which of Grace's rooms is lit (0 is the ground floor's front window, 1 and 2 the first floor's bays).")]
+        [Tooltip("Which of Grace's rooms is lit (0 is the ground floor's front window, 1 and 2 the first floor's bays). " +
+                 "Only without GraceAtHome: with her at home, her own lamps light her windows.")]
         public int graceRoom = 1;
-        [Tooltip("When Grace's light goes out (24 = midnight).")]
+        [Tooltip("When Grace's light goes out (24 = midnight). Only without GraceAtHome.")]
         public float graceBedtime = 24f;
         [ColorUsage(false, true)] public Color roomGlow = new Color(1.2f, .84f, .46f);
         [ColorUsage(false, true)] public Color tvGlow = new Color(.5f, .66f, 1.25f);
@@ -222,6 +223,8 @@ public sealed class NightWalk : MonoBehaviour
 
     /// <summary>The night's clock, from nightHour to nightEndsAt (past 24 means after midnight: 25 is 1 AM).</summary>
     public float Hour { get; private set; }
+    /// <summary>How many times the clock has been moved on at once (SetHour): anyone following it settles (GraceAtHome).</summary>
+    public int Jumps { get; private set; }
     /// <summary>
     /// While true the night's clock waits (Night 0 at the bins, NightZero: the night keeps its full four minutes for
     /// the street once the deal is made). Each night begins with it off.
@@ -487,6 +490,7 @@ public sealed class NightWalk : MonoBehaviour
     {
         if (!Active) return;
         Hour = Mathf.Clamp(hour, nightHour, Mathf.Max(nightHour, nightEndsAt));
+        Jumps++;
         FollowTheClock();
         UpdateCity();
         if (neighbourWalks != null) neighbourWalks.SkipTo(Hour);

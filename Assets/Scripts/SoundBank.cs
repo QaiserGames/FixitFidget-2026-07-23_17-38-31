@@ -200,5 +200,23 @@ public sealed class SoundBank : ScriptableObject
         C("repair.fixed", SoundBus.UI, false, .35f, "A repair finished on the bench (\"Fixed!\"): a small happy chime (the signature family).", 1.5f, 12f, .5f, 1),
         C("recap.count", SoundBus.UI, false, .15f, "Today's takings counting up on Ace's phone: soft ticks.", 1.5f, 12f, .05f, 1),
         C("recap.counted", SoundBus.UI, false, .25f, "Today's takings counted: a settled coin.", 1.5f, 12f, .5f, 1),
+
+        // Grace at home (break-ins chunk C, 6 Oct): named in the code (GraceAtHome), silent until the Sonniss files.
+        C("grace.tv", SoundBus.World, true, .22f, "Her TV in the front room while she watches (a loop: voices and music, muffled through the house).", 1f, 9f, 0f, 1),
+        C("grace.kettle", SoundBus.World, true, .35f, "Her kettle going on the hob, then coming to the boil.", 1f, 9f, .5f, 1),
+        C("grace.tap", SoundBus.World, true, .3f, "Her kitchen tap running into a glass (2:40 AM).", 1f, 8f, .5f, 1),
+        C("grace.lamp", SoundBus.World, true, .25f, "A switch clicked in her house: a lamp, a light, the TV's button.", 1f, 8f, .1f, 2),
+        C("grace.door", SoundBus.World, true, .3f, "Her bedroom doors, opened or shut by her: a soft latch, no creak.", 1f, 8f, .3f, 1),
+        C("grace.bed", SoundBus.World, true, .25f, "Her bed as she gets in or out: springs, the quilt.", 1f, 7f, .3f, 1),
+        C("grace.notice", SoundBus.World, true, .35f, "Her mark passes a third (\"Hm?\"): a small questioning sting, so the danger reads.", 1.5f, 14f, .5f, 1),
+        C("grace.woken", SoundBus.World, true, .3f, "She wakes in bed: a startled breath, the bedclothes.", 1f, 10f, .5f, 1),
+        C("grace.caught", SoundBus.UI, false, .4f, "She catches Ace (\"Ace?! What on earth—\"): a sharp sting, comic rather than frightening.", 1.5f, 12f, 1f, 1),
+        C("night.caught", SoundBus.UI, false, .35f, "The screen goes dark on \"Caught.\": a low, deflating note.", 1.5f, 12f, 1f, 1),
+        C("night.stair.creak", SoundBus.World, true, .45f, "Ace on her creaky stair at a walk: a loud wooden creak (it wakes her).", 1f, 12f, .3f, 1),
+        C("night.stair.creak.soft", SoundBus.World, true, .3f, "Her creaky stair under a careful foot (Ace sneaking, or Grace herself): a small creak.", 1f, 8f, .3f, 1),
+        C("night.door.creak", SoundBus.World, true, .45f, "Ace opens her bedroom doors at a walk: a long hinge creak (it wakes her).", 1f, 12f, .3f, 1),
+        C("night.door.soft", SoundBus.World, true, .3f, "Ace eases her bedroom doors open, sneaking: a careful latch, almost silent.", 1f, 6f, .3f, 1),
+        C("night.hide", SoundBus.Ace, true, .3f, "Ace slips into the cupboard under her stairs or her wardrobe: a door drawn to from inside.", 1f, 8f, .3f, 1),
+        C("night.unhide", SoundBus.Ace, true, .3f, "Ace comes out of hiding: the door eased open.", 1f, 8f, .3f, 1),
     };
 }

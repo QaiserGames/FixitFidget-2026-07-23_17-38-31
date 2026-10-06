@@ -110,7 +110,7 @@ public class ShopUI : MonoBehaviour
                 if (minute != shownNightMinute || !shownNightClock)
                 {
                     shownNightMinute = minute; shownNightClock = true; shownMinute = int.MinValue;
-                    clockText.text = $"Night   {FormatHour(night.ClockHour)}";
+                    clockText.text = $"{NightLabel()}   {FormatHour(night.ClockHour)}";
                 }
             }
             string nightPrompt = interactor != null ? interactor.CurrentPrompt : "";
@@ -135,7 +135,7 @@ public class ShopUI : MonoBehaviour
                 if (c.Day != shownDay || minute != shownMinute || closing != shownClosingMinute || c.IsOpen != shownOpen || !shownCafeTime || shownNightClock)
                 {
                     shownDay = c.Day; shownMinute = minute; shownClosingMinute = closing; shownOpen = c.IsOpen; shownCafeTime = true; shownNightClock = false;
-                    clockText.text = $"Day {c.Day}   {FormatHour(c.CurrentHour)}\n<size=65%>"
+                    clockText.text = $"{Weekdays.Label(c.Day)}   {FormatHour(c.CurrentHour)}\n<size=65%>"
                         + (c.IsOpen ? $"Closes at {FormatHour(c.ClosingHour)}" : "Closed · finishing service") + "</size>";
                 }
             }
@@ -147,7 +147,7 @@ public class ShopUI : MonoBehaviour
                     shownDay = c.Day; shownMinute = second; shownOpen = c.IsOpen; shownCafeTime = false; shownNightClock = false;
                     int mins = Mathf.FloorToInt(c.TimeRemaining / 60f);
                     int secs = Mathf.FloorToInt(c.TimeRemaining % 60f);
-                    clockText.text = c.IsOpen ? $"Day {c.Day}   {mins}:{secs:00}" : $"Day {c.Day}   CLOSING";
+                    clockText.text = c.IsOpen ? $"{Weekdays.Label(c.Day)}   {mins}:{secs:00}" : $"{Weekdays.Label(c.Day)}   CLOSING";
                 }
             }
         }
@@ -294,6 +294,14 @@ public class ShopUI : MonoBehaviour
         if (promptText != null && shownPromptLine != "") promptText.text = "";
         shownPromptLine = "";
         shownInteract = null; shownNightPrompt = null;
+    }
+
+    // "Thursday night" (the night after Thursday's day: Day 1 is a Monday), or "Night" before the first day. Built when the
+    // night's minute changes, as the rest of the clock line is.
+    static string NightLabel()
+    {
+        string name = Weekdays.Name(DayClock.Instance != null ? DayClock.Instance.Day : 0);
+        return name.Length > 0 ? name + " night" : "Night";
     }
 
     public static string FormatHour(float hour)

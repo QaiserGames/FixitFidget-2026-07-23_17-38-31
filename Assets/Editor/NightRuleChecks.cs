@@ -284,6 +284,46 @@ public static class NightRuleChecks
         count += TheManAtTheBins();
         count += TheFavours();
         count += TheOfficer();
+        count += CaughtPutsItBack();
+        return count;
+    }
+
+    // ---------- caught (break-ins chunk C, 6 Oct 2026: the placeholder until getting caught has its own chunk) ----------
+    static int CaughtPutsItBack()
+    {
+        int count = 0;
+        void Check(bool ok, string why) { count++; if (!ok) throw new InvalidOperationException(why); }
+
+        var ledger = new NightLedger();
+        int changes = 0;
+        ledger.Take(NightThings.GraceGnome, "grace", 1);
+        ledger.Faced(ledger.Unfaced("grace", 2), false, 2);
+        ledger.Take(NightThings.GraceCups, "grace", 2);
+        ledger.Changed += () => changes++;
+        Check(ledger.PutBack(1).Count == 0 && changes == 0, "Caught on a night Ace took nothing: nothing goes back, and the shelf isn't told.");
+        List<string> back = ledger.PutBack(2);
+        Check(back.Count == 1 && back[0] == NightThings.GraceCups && !ledger.HasTrophy(NightThings.GraceCups) && changes == 1,
+            "Caught: what Ace took that night goes back (off the shelf), and the shelf and the street hear once.");
+        Check(ledger.HasTrophy(NightThings.GraceGnome) && ledger.Deeds.Count == 1 && ledger.Deeds[0].thing == NightThings.GraceGnome,
+            "What Ace took on an earlier night stays (and its morning is already done).");
+        Check(ledger.Unfaced("grace", 3) == null && ledger.OwnersDue(3).Count == 0, "Nobody comes in about the things put back.");
+        Check(ledger.Take(NightThings.GraceCups, "grace", 3), "What went back can be taken again another night.");
+
+        var given = new NightLedger();
+        given.Meet(1);
+        given.Take(NightThings.GraceGnome, "grace", 1);
+        Check(given.Give(NightThings.GraceGnome), "(Ace gives him the gnome.)");
+        given.Take(NightThings.GraceCups, "grace", 1);
+        List<string> givenBack = given.PutBack(1);
+        Check(givenBack.Count == 1 && givenBack[0] == NightThings.GraceCups && given.HasTrophy(NightThings.GraceGnome) && given.HasGiven(NightThings.GraceGnome),
+            "What Ace already gave the man that night stays his; only what's still Ace's goes back.");
+
+        var book = new Notebook();
+        NotebookFactData taken = NightThings.Taken(NightThings.CupsOfGrace, "Grace");
+        book.Learn(taken, 2);
+        Check(book.Forget(taken.id) && !book.Knows(taken.id) && book.Count == 0 && !book.Forget(taken.id),
+            "The notebook forgets that Ace took them (once).");
+        Check(book.Learn(taken, 3) && book.Find(taken.id).day == 3, "Taken again later, it's written again, on that day.");
         return count;
     }
 

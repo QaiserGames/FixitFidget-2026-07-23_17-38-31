@@ -5,7 +5,7 @@ using UnityEngine;
 // NOISE AT NIGHT (break-ins chunk B, 30 Sept 2026: claude/break-ins-spec.md §6)
 //
 // Every sound Ace makes that someone could hear goes through here, as a place, a radius and a kind:
-// anyone listening (Grace at home, chunk C) hears it if she is within the radius, whatever the walls
+// anyone listening (Grace at home, chunk C: GraceAtHome) hears it if she is within the radius, whatever the walls
 // (the spec's starting rule; to tune in play). The radii are the spec's starting numbers:
 //
 //   | Sound                    | Heard within |
@@ -36,7 +36,8 @@ public readonly struct NightNoiseEvent
         this.time = time;
     }
 
-    /// <summary>Whether a listener at <paramref name="ear"/> hears it (flat distance: floors apart still count, as the spec's first rule).</summary>
+    /// <summary>Whether a listener at <paramref name="ear"/> hears it: straight-line distance, so a floor between them takes most
+    /// of the reach (Grace in bed hears little of the kitchen).</summary>
     public bool HeardAt(Vector3 ear)
     {
         float dx = ear.x - position.x, dz = ear.z - position.z, dy = ear.y - position.y;

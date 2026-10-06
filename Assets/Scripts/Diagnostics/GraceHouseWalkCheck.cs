@@ -22,6 +22,8 @@ using UnityEngine;
 // Then sneaking (chunk B, 30 Sept): back on the pavement, Ace sneaks along the longest clear way (1.6 m/s,
 // crouched, the crouch walk showing, steps heard within 1 m), stops crouched, looks in first person (the eye
 // lower), stands and walks back (5 m/s, steps heard within 4 m).
+// Since chunk C (6 Oct 2026) Grace is at home at night: this lab sends her out for the night (GraceHouse.StartLab), so the
+// walk meets nobody; her own checks are Break-ins 7.
 // Report and photos: Logs/Night/grace-walk-<time>/. Play Mode stops by itself when it is done.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
@@ -131,6 +133,10 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         }
         report.AppendLine($"Ace: radius {capsule.radius:0.00}, height {capsule.height:0.00}, skin {capsule.skinWidth:0.00}, step {capsule.stepOffset:0.00}, slope limit {capsule.slopeLimit:0}°.");
         yield return new WaitForSeconds(1.5f);   // the night settles, the camera arrives
+        // Since chunk C (6 Oct) Grace is at home at night; this walk runs at a run through every room, so she's out tonight.
+        GraceAtHome grace = GraceAtHome.Instance;
+        Line(grace == null || grace.Away, grace == null ? "Grace isn't at home in this scene (no GraceAtHome): nobody to meet"
+            : $"Grace is out tonight, so the walk meets nobody ({grace.Doing}; {grace.Why})");
         report.AppendLine(body != null && body.Worn
             ? $"Ace's body: {body.BodyName}, about {body.Height:0.00} m tall (the capsule stays {2f * capsule.radius:0.0} m wide)."
             : "Ace's body: not worn (Ace is the capsule).");

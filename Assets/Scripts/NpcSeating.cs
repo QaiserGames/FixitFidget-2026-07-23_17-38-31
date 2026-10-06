@@ -377,12 +377,18 @@ public sealed class NpcSeating : MonoBehaviour
     /// seat's centre, a thigh's thickness above it, facing the seat's cup spot.
     /// Also used by the editor photo check.
     /// </summary>
-    public void Placement(TableSeat target, float floor, out Vector3 feet, out Quaternion facing)
+    public void Placement(TableSeat target, float floor, out Vector3 feet, out Quaternion facing) =>
+        Placement(target.SeatPose.position, target.FacingPoint, target.StandPoint.position, floor, out feet, out facing);
+
+    /// <summary>
+    /// As above, for a seat that isn't a café table's (Grace's armchair at home, GraceAtHome): the middle of its seat, what
+    /// the sitter faces, and where they'd stand before sitting.
+    /// </summary>
+    public void Placement(Vector3 seatCentre, Vector3 facingPoint, Vector3 standPoint, float floor, out Vector3 feet, out Quaternion facing)
     {
-        Vector3 seatCentre = target.SeatPose.position;
-        Vector3 toTable = target.FacingPoint - seatCentre;
+        Vector3 toTable = facingPoint - seatCentre;
         toTable.y = 0f;
-        if (toTable.sqrMagnitude < 1e-4f) { toTable = seatCentre - target.StandPoint.position; toTable.y = 0f; }
+        if (toTable.sqrMagnitude < 1e-4f) { toTable = seatCentre - standPoint; toTable.y = 0f; }
         if (toTable.sqrMagnitude < 1e-4f) toTable = transform.forward;
         Vector3 forward = toTable.normalized;
         facing = Quaternion.LookRotation(forward, Vector3.up);
