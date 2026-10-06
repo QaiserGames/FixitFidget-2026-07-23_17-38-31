@@ -1,5 +1,39 @@
 # Current handoff — September 12, 2026
 
+## October 6 (evening) — The favours, stalling and the officer (`234eedc`); on `playtest-2`
+
+**Read this entry first.** Two commits on `playtest-2` after `e9b3f8f`: session 3 of the foundation pass (`234eedc`) and this entry. Nothing is pushed. The build note is in the project docs: `claude/session-3-favours-stalling-officer.md` (with `claude/the-man-at-the-bins-story.md` and `claude/night-0-and-the-favours-spec.md` for the design).
+
+**Mansoor's calls (6 Oct):** Night 2's cups are takeable now, so Night 2 plays end to end; the officer comes this session (Day 1's coffee and joke, Day 3's question, the man's cop line on Night 0). Every line is still a placeholder.
+
+**What changed:**
+
+1. **Every night after the deal opens at the bins** (`NightZero.Ritual`): the back door and the bag, "Take the bins out", "Bin it" (no reveal: he is already standing in the far half). Then a held scene: his verdict on the day just ended (a straight face held or cracked; from Day 3, the officer's question kept or flinched at), and tonight's scene: the ask for the next favour with Ace's two replies (warm, he says why first), the ask again (colder, after a skip), a night off (Nights 4 and 7), or "Nothing tonight" when the next favour isn't in the game yet (Night 3's cones). Then a note says where the thing is.
+2. **The favours as data** (`LodgerStory.Favours`: the gnome, the cups, the cones), each with its ask, return, lesson, page, Ace's line, note and corner. `NightLedger` keeps the favour, the nights it was asked, skips, the visit and note days, dropped favours and the officer's questions (`SaveData`: added fields, no version bump; an older save picks up where it was).
+3. **Night 2, Grace's cups** (`NightThings.CupsOfGrace`): a sleeve on her reunion cups' box on her kitchen worktop. Taking needs line of sight (`NightTrophy.needsSight`), so never through her kitchen wall. In hand back to the bins, "Give him the reunion cups": he sets four paper cups out on his crate one by one, teaches **Doors** and gives a page (her photos). Day 3: Grace tells Ace about her cups (a harder meter; Nerve helps).
+4. **Stalling, never a fail state** (`LodgerDay`): a night that ends without the favour he asked for is a skip. The next morning he comes into the café a quarter of the way through the day, on foot in his suit, sits a minute, orders and pays nothing, and says one line when Ace passes (warm, plain or cold). The third skip in a row: his note on the counter instead (on screen, and in the notebook as one of his pages), and the next favour comes up.
+5. **The officer** (`OfficerStory`; `Night › The officer 1` makes `Assets/Data/Regulars/Regular_Officer.asset` once and never overwrites it): a regular in `Character_Male_Police`, added to the café customer's looks and kept for him. Coffee, black. Story visits on the open scene's own days (`DayDefinition.storyVisits`): Day 1 at 0.35 (the playtest scene's Day 1 is Grace's camera day, `Assets/GraceShowcase/Day_01_GraceCamera.asset`) with the joke about the second batch; Day 3 at 0.25, when after his order he asks "Have you seen a man of this description?" and the meter runs as "Say nothing" ("Said nothing." / "You flinched."). A flinch makes him one step more suspicious; his description goes in the notebook either way.
+6. **The deal ends with the cop line** ("That cop who drinks your coffee? He's looking for me." / "Keep him happy.").
+7. **The set:** `Night › Night 2 1` puts "25 - Night 2 (Grace's cups)" in the scene (the sleeve on her box, his crate by the trash can with four cups switched off, a place for the cups on Ace's shelf). The scene is saved with it.
+8. **Found and fixed while checking:**
+   - `The officer 1` had put his Day 1 visit on `Day_01_LearnTheShop`, which no scene plays (the playtest scene's Days 1 and 2 are Grace's showcase copies). It now uses the open scene's own schedule, and `Day_01_LearnTheShop` is back as committed.
+   - The Night 0 and Night 1 play checks took any trophy for the gnome; with the cups in the scene the Night 0 check found the cups and walked into her kitchen. They find the gnome by its id.
+   - The night's note sent Ace to where the thing had been even when it was already on Ace's shelf (a night that ended with it in hand, or taken before he asked). It now says "He wants what's already on Ace's shelf, behind the counter: …". On a night off it says nothing of errands.
+
+**Try it:** `Fixit Fidget › Night › Night 2 - Play from Day 2's recap (lab)`, then "Close up for the night". `Night 2 - Play check (lab, drives itself)` runs Night 2 and Day 3; the two "stalling" checks run a skip and the third skip. Or `Playtest › Play the whole game from Day 1 (test save)`.
+
+**Checks:** Night 2 play check 92 of 92 (`Logs/Night/night-two-check-cups-2026-10-06_113830`); stalling, his visit 52 of 52 (`night-two-check-visit-2026-10-06_111158`); his note 43 of 43 (`night-two-check-note-2026-10-06_111645`); Night 0 84 of 84 (`night-zero-check-2026-10-06_112842`); Night 1 76 of 76 twice; Barks 2, 43 of 43; Night 1 rules 413, Bark rules 501 + 585, Notebook rules 54; the console tests (NightRules, NotebookRules, BarkRules, HomeRules) pass.
+
+**Seen, not changed:**
+
+- **Doors** is learned and noted but does nothing yet; its edge (spare keys in the notebook) comes with the keys in chunk D. Recommendation for Mansoor: make Night 2's lesson "The straight face" instead (it would widen the officer's meter the very next morning) and move Doors to the keys. A two-line data change.
+- Night 3 is "Nothing tonight" until the cones exist (sessions 4–6).
+- `City pack › NPC looks 3` would take the police look off `Customer.prefab` again: run `The officer 1` after it.
+- In the "his note" check's made-up save (asked twice, the notebook never told), the note reads "A sleeve of cups are on…". In play the first ask always names them, so it reads "The reunion cups are on…".
+- The stray `Assets/Scripts/Diagnostics/AceTurnCheck-1.cs` (and its .meta) is not committed: Mansoor deletes it.
+
+**Next:** Mansoor plays Days 1–3 (Night 0, Night 2, Day 3's officer). Then sessions 4–6 of the plan: chunks C and D (Grace at home), and Night 3's cones.
+
 ## October 6 (later) — Night 0 and the man at the bins (`2638fe6`), and Ace's body out of the counter close-up (`8e34269`); on `playtest-2`
 
 **Read this entry first.** Three commits on `playtest-2` after `dda7316`: session 2 of the foundation pass (`2638fe6`), a fix its check photos turned up (`8e34269`), and this entry. Nothing is pushed. The design is in the project docs: `claude/the-man-at-the-bins-story.md` (the night as a story, Mansoor's four calls, and §13 as built), `claude/night-0-and-the-favours-spec.md`, `claude/foundation-pass-build-plan.md`.
