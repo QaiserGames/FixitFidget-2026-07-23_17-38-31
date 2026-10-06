@@ -29,6 +29,13 @@ using UnityEngine.UI;
 //   Barks.Play(sceneId, who)            a scene from the asset: lines in order; Ace held if the scene says
 //   Barks.PlayLines(lines, hold, who)   the same, from code
 //
+// Ace answers (6 Oct 2026, claude/the-man-at-the-bins-story.md §4): where a held scene from the asset has a choice
+// after one of its lines, the scene waits once that line is up and Ace's two replies come up as chips where Ace's
+// own line would be (over Ace's head; at the bottom in first person): 1 or 2 on the keyboard, X or Y on a pad
+// (the pad's labels follow the pad). The reply picked is said by Ace, then the line said back, and the scene goes
+// on; the caller hears which (to nudge the man's warmth). E never picks one: a press meant to move a line on
+// can't answer for Ace.
+//
 // Built in code on a screen canvas of its own (nothing in the scene changes). One object per Play session.
 // The pinning (head point, edge clamp, arrow) is what chunk C's mark ("?" over Grace) will use too.
 // ---------------------------------------------------------------------------
@@ -82,12 +89,27 @@ public sealed class Barks : MonoBehaviour
     {
         public readonly List<string> speakers = new List<string>();
         public readonly List<string> texts = new List<string>();
+        public readonly List<string> ids = new List<string>();   // the lines' ids ("" for a line made in code)
+        public NightLines.Scene from;                             // the asset's scene (for its choices), or null
         public bool hold;
         public Func<string, Transform> who;
         public Action<int, string> onLine;
+        public Action<string> onLineId;
+        public Action<NightLines.Choice, int> onReply;
         public Action onDone;
         public int index = -1;
         public float startedAt, lineStarted, lineEnds;
+        public NightLines.Choice choosing;                        // waiting for Ace's reply to the line that's up
+        public float choiceFrom;                                  // when the replies come up (seconds of barks)
+    }
+
+    // Ace's two replies while a scene waits for one (the chips).
+    sealed class Chip
+    {
+        public RectTransform root;
+        public Image band, accent;
+        public TextMeshProUGUI text;
+        public Vector2 size;
     }
 
     public static Barks Instance { get; private set; }
@@ -97,7 +119,11 @@ public sealed class Barks : MonoBehaviour
     Canvas canvas;
     RectTransform canvasRect;
     readonly View[] views = new View[ViewCount];
-    readonly View[] order = new View[ViewCount];
+    readonly View[] order = new View[ViewCount + 1];   // the lines up, and the replies' chips while Ace answers
+    readonly Chip[] chips = new Chip[2];
+    View chipStack;                                     // where the chips sit, placed like one of Ace's lines
+    CanvasGroup chipsGroup;
+    bool chipsUp;
     Sprite rounded, triangle;
     Material textMaterial;
     TMP_FontAsset font;
@@ -161,21 +187,25 @@ public sealed class Barks : MonoBehaviour
     /// <summary>
     /// Plays a scene from the Night lines asset: its lines in order, each for its reading time (E moves on
     /// sooner), Ace held still if the scene says so. <paramref name="who"/> gives each speaker's transform (Ace
-    /// is found by itself). False if another scene is playing or the scene isn't there.
+    /// is found by itself). <paramref name="onLineId"/> hears each line's id as it comes up (what happens on a
+    /// line: the notebook changing hands), and <paramref name="onReply"/> which reply Ace picked at a choice (0 or
+    /// 1). False if another scene is playing or the scene isn't there.
     /// </summary>
-    public static bool Play(string sceneId, Func<string, Transform> who, Action<int, string> onLine = null, Action onDone = null)
+    public static bool Play(string sceneId, Func<string, Transform> who, Action<int, string> onLine = null, Action onDone = null,
+                            Action<string> onLineId = null, Action<NightLines.Choice, int> onReply = null)
     {
         Barks b = Ensure();
         NightLines lines = NightLines.Current;
         NightLines.Scene s = lines != null ? lines.FindScene(sceneId) : null;
         if (b == null || s == null || b.scene != null) return false;
-        var play = new ScenePlay { hold = s.holdAce, who = who, onLine = onLine, onDone = onDone };
+        var play = new ScenePlay { hold = s.holdAce, who = who, onLine = onLine, onDone = onDone, onLineId = onLineId, onReply = onReply, from = s };
         foreach (string id in s.lines)
         {
             NightLines.Line line = lines.FindLine(id);
             if (line == null || string.IsNullOrWhiteSpace(line.text)) continue;
             play.speakers.Add(line.speaker);
             play.texts.Add(line.text);
+            play.ids.Add(line.id);
         }
         return b.Begin(play);
     }
@@ -192,15 +222,55 @@ public sealed class Barks : MonoBehaviour
             if (string.IsNullOrWhiteSpace(texts[i])) continue;
             play.speakers.Add(speakerIds[i]);
             play.texts.Add(texts[i]);
+            play.ids.Add("");
         }
         return b.Begin(play);
     }
 
     public static bool ScenePlaying => Instance != null && Instance.scene != null;
+    /// <summary>The scene waits for Ace's reply (its chips are up, or about to be).</summary>
+    public static bool Choosing => Instance != null && Instance.scene != null && Instance.scene.choosing != null;
+    /// <summary>The replies' chips are on screen and can be picked.</summary>
+    public static bool ChipsUp => Instance != null && Instance.chipsUp;
+    /// <summary>The text of reply 0 or 1 while Ace is choosing (for the checks), or "".</summary>
+    public static string ReplyText(int reply)
+    {
+        NightLines.Choice c = Instance != null && Instance.scene != null ? Instance.scene.choosing : null;
+        NightLines.Line line = c != null && NightLines.Current != null ? NightLines.Current.FindLine(reply == 0 ? c.first.line : c.second.line) : null;
+        return line != null ? line.text : "";
+    }
+    /// <summary>Pick reply 0 or 1 now, as 1 or 2 would (for the checks). False if Ace isn't choosing.</summary>
+    public static bool Choose(int reply)
+    {
+        if (!Choosing || reply < 0 || reply > 1) return false;
+        Instance.Pick(reply);
+        return true;
+    }
+    /// <summary>
+    /// The frame a scene that held Ace ended: the press that moved its last line on was the scene's, so nothing else
+    /// takes it that frame (PlayerInteractor: "Call it a night" never answers the deal's last E).
+    /// </summary>
+    public static int SceneEndedFrame { get; private set; } = -1;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetSceneEnd() => SceneEndedFrame = -1;
+
+    /// <summary>Where the replies' chips are on screen, in pixels (for the checks); empty while they're down.</summary>
+    public static Rect ChipsOnScreen
+    {
+        get
+        {
+            if (Instance == null || !Instance.chipsUp || Instance.chipStack == null || Instance.chipStack.root == null) return Rect.zero;
+            var corners = new Vector3[4];
+            Instance.chipStack.root.GetWorldCorners(corners);
+            return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
+        }
+    }
+
     /// <summary>The line the scene is on (0-based; -1 with no scene).</summary>
     public static int SceneLine => Instance != null && Instance.scene != null ? Instance.scene.index : -1;
-    /// <summary>Move the scene on, as E does (for the checks).</summary>
-    public static void Advance() { if (Instance != null && Instance.scene != null) Instance.NextLine(); }
+    /// <summary>Move the scene on, as E does (for the checks). Not while Ace is choosing: only a reply moves that on.</summary>
+    public static void Advance() { if (Instance != null && Instance.scene != null && Instance.scene.choosing == null) Instance.NextLine(); }
     public static void StopScene() { if (Instance != null) Instance.EndScene(false); }
     /// <summary>Every line off the screen, the scene stopped.</summary>
     public static void ClearAll() { if (Instance != null) Instance.Clear(); }
@@ -375,6 +445,7 @@ public sealed class Barks : MonoBehaviour
             v.group.alpha = v.alpha;
             if (clock >= v.holdUntil && v.alpha <= 0f) Retire(v);
         }
+        if (chipsUp && chipsGroup.alpha < 1f) chipsGroup.alpha = Mathf.MoveTowards(chipsGroup.alpha, 1f, dt / Mathf.Max(.01f, fadeIn));
     }
 
     bool ShouldHide()
@@ -427,18 +498,78 @@ public sealed class Barks : MonoBehaviour
     void StepScene()
     {
         if (scene == null) return;
-        bool asked = false;
+        if (scene.choosing != null) { StepChoice(); return; }
         // E moves a scene on only while it holds Ace; otherwise E is Ace's (the scene keeps its reading pace).
-        if (scene.hold && clock - scene.startedAt >= .3f && clock - scene.lineStarted >= sceneMinLine)
-        {
-            Keyboard keys = Keyboard.current;
-            Mouse mouse = Mouse.current;
-            asked = Application.isFocused && (keys != null && (keys.eKey.wasPressedThisFrame || keys.enterKey.wasPressedThisFrame
-                                                              || keys.numpadEnterKey.wasPressedThisFrame)
-                                              || mouse != null && mouse.leftButton.wasPressedThisFrame)
-                    || PadInput.Pressed(PadButton.South);
-        }
+        bool asked = scene.hold && clock - scene.startedAt >= .3f && clock - scene.lineStarted >= sceneMinLine && MoveOnPressed();
         if (asked || clock >= scene.lineEnds) NextLine();
+    }
+
+    static bool MoveOnPressed()
+    {
+        Keyboard keys = Keyboard.current;
+        Mouse mouse = Mouse.current;
+        return Application.isFocused && (keys != null && (keys.eKey.wasPressedThisFrame || keys.enterKey.wasPressedThisFrame
+                                                         || keys.numpadEnterKey.wasPressedThisFrame)
+                                         || mouse != null && mouse.leftButton.wasPressedThisFrame)
+               || PadInput.Pressed(PadButton.South);
+    }
+
+    // Waiting for Ace's reply: the line being answered stays up; a moment after it came up (or at once, with E) the
+    // two replies come up, and a moment after that 1 / 2 (X / Y) picks one.
+    void StepChoice()
+    {
+        ScenePlay play = scene;
+        foreach (View v in views)
+            if (v.active && v.scene && !v.answered && v.holdUntil < clock + .5f) v.holdUntil = clock + .5f;
+        if (!chipsUp)
+        {
+            if (clock < play.choiceFrom && !(clock - play.lineStarted >= sceneMinLine && MoveOnPressed())) return;
+            ShowChips(play.choosing);
+            play.choiceFrom = clock;
+            return;
+        }
+        if (clock - play.choiceFrom < .2f || !Application.isFocused) return;
+        Keyboard keys = Keyboard.current;
+        int pick = -1;
+        if (keys != null && (keys.digit1Key.wasPressedThisFrame || keys.numpad1Key.wasPressedThisFrame) || PadInput.Pressed(PadButton.West)) pick = 0;
+        else if (keys != null && (keys.digit2Key.wasPressedThisFrame || keys.numpad2Key.wasPressedThisFrame) || PadInput.Pressed(PadButton.North)) pick = 1;
+        if (pick >= 0) Pick(pick);
+    }
+
+    // Ace says the reply picked, then the line said back (if any), and the scene goes on from there.
+    void Pick(int reply)
+    {
+        ScenePlay play = scene;
+        NightLines.Choice c = play != null ? play.choosing : null;
+        if (c == null) return;
+        play.choosing = null;
+        HideChips();
+        NightLines lines = NightLines.Current;
+        NightLines.Reply r = reply == 0 ? c.first : c.second;
+        int at = play.index + 1;
+        NightLines.Line said = lines != null && r != null ? lines.FindLine(r.line) : null;
+        if (said != null && !string.IsNullOrWhiteSpace(said.text)) Insert(play, at++, AceId, said.text, said.id);
+        NightLines.Line back = lines != null && r != null ? lines.FindLine(r.answer) : null;
+        if (back != null && !string.IsNullOrWhiteSpace(back.text)) Insert(play, at, back.speaker, back.text, back.id);
+        Sfx.Play2D("bark.choose");
+        play.onReply?.Invoke(c, reply);
+        NextLine();
+    }
+
+    static void Insert(ScenePlay play, int at, string speaker, string text, string id)
+    {
+        play.speakers.Insert(at, speaker);
+        play.texts.Insert(at, text);
+        play.ids.Insert(at, id ?? "");
+    }
+
+    // Both replies are lines that exist and say something: otherwise the scene doesn't stop for them.
+    static bool CanAnswer(NightLines.Choice c)
+    {
+        NightLines lines = NightLines.Current;
+        if (c == null || lines == null || c.first == null || c.second == null) return false;
+        NightLines.Line a = lines.FindLine(c.first.line), b = lines.FindLine(c.second.line);
+        return a != null && b != null && !string.IsNullOrWhiteSpace(a.text) && !string.IsNullOrWhiteSpace(b.text);
     }
 
     void NextLine()
@@ -457,7 +588,16 @@ public sealed class Barks : MonoBehaviour
         Show(speaker, speakerId, text, reading + sceneBeat + 2f, scene: true, self: self, needHearing: false);
         play.lineStarted = clock;
         play.lineEnds = clock + reading + sceneBeat;
+        string id = play.ids[play.index];
+        // Does Ace answer this one? Then the scene waits for the reply (held scenes from the asset only).
+        NightLines.Choice choice = play.hold && play.from != null ? play.from.ChoiceAfter(id) : null;
+        if (CanAnswer(choice))
+        {
+            play.choosing = choice;
+            play.choiceFrom = clock + Mathf.Min(reading, .9f);
+        }
         play.onLine?.Invoke(play.index, text);
+        if (id.Length > 0) play.onLineId?.Invoke(id);
     }
 
     void EndScene(bool finished)
@@ -465,7 +605,13 @@ public sealed class Barks : MonoBehaviour
         ScenePlay play = scene;
         if (play == null) return;
         scene = null;
-        if (play.hold) PlayerMovement.Release(play);
+        play.choosing = null;
+        HideChips();
+        if (play.hold)
+        {
+            PlayerMovement.Release(play);
+            SceneEndedFrame = Time.frameCount;
+        }
         // The scene's lines fade now rather than linger.
         foreach (View v in views) if (v.active && v.scene) v.holdUntil = Mathf.Min(v.holdUntil, clock + .6f);
         if (finished) play.onDone?.Invoke();
@@ -473,7 +619,7 @@ public sealed class Barks : MonoBehaviour
 
     // ================================================================== where a line sits
 
-    const float TailHeight = 10f, TailGap = 6f, PadLeft = 25f, PadRight = 18f, PadY = 7f;
+    const float TailHeight = 10f, TailGap = 6f, PadLeft = 25f, PadRight = 18f, PadY = 7f, ChipGap = 14f;
 
     // Runs just before the canvases are drawn, after every camera has moved this frame.
     void Place()
@@ -532,6 +678,26 @@ public sealed class Barks : MonoBehaviour
                 Rect other = order[j].placed;
                 if (v.placed.Overlaps(other)) v.placed.y = other.yMax + 6f;
             }
+        }
+
+        // Ace's replies: beside the line they answer (to its right, or its left near the screen's edge), level with
+        // its top. Never over Ace or the speaker: from the street's camera the two stand one behind the other.
+        if (chipsUp)
+        {
+            View asking = null;
+            for (int i = 0; i < n; i++)
+                if (order[i].scene && !order[i].answered && (asking == null || order[i].placed.y > asking.placed.y)) asking = order[i];
+            Vector2 chips = chipStack.size;
+            Rect at;
+            if (asking != null)
+            {
+                Rect line = asking.placed;
+                float x = line.xMax + ChipGap;
+                if (x + chips.x > safe.xMax) x = line.xMin - ChipGap - chips.x;
+                at = Inside(new Rect(x, line.yMax - chips.y, chips.x, chips.y), safe);
+            }
+            else at = Inside(new Rect(size.x * .5f - chips.x * .5f, selfLineY, chips.x, chips.y), safe);
+            chipStack.root.anchoredPosition = new Vector2(at.center.x, at.y);
         }
 
         for (int i = 0; i < n; i++)
@@ -630,6 +796,95 @@ public sealed class Barks : MonoBehaviour
         rounded = RoundedSprite();
         triangle = TriangleSprite();
         for (int i = 0; i < ViewCount; i++) views[i] = MakeView(i);
+        MakeChips();
+    }
+
+    // Ace's two replies: a small band each, the key in Ace's colour, stacked (the first on top) in one holder that
+    // Place puts where Ace's own line would go.
+    void MakeChips()
+    {
+        chipStack = new View { self = true, active = true };
+        chipStack.root = new GameObject("Ace's replies", typeof(RectTransform)).GetComponent<RectTransform>();
+        chipStack.root.SetParent(canvasRect, false);
+        chipStack.root.anchorMin = chipStack.root.anchorMax = Vector2.zero;
+        chipStack.root.pivot = new Vector2(.5f, 0f);
+        chipsGroup = chipStack.root.gameObject.AddComponent<CanvasGroup>();
+        chipsGroup.blocksRaycasts = false;
+        chipsGroup.interactable = false;
+        for (int i = 0; i < chips.Length; i++)
+        {
+            var c = new Chip();
+            c.root = Part("Reply " + (i + 1), chipStack.root, new Vector2(.5f, 0f), new Vector2(.5f, 0f));
+            c.band = c.root.gameObject.AddComponent<Image>();
+            c.band.sprite = rounded;
+            c.band.type = Image.Type.Sliced;
+            c.band.color = bandColour;
+            c.band.raycastTarget = false;
+            RectTransform accent = Part("Ace's colour", c.root, Vector2.zero, new Vector2(0f, .5f));
+            accent.anchorMin = new Vector2(0f, 0f);
+            accent.anchorMax = new Vector2(0f, 1f);
+            accent.offsetMin = new Vector2(8f, 7f);
+            accent.offsetMax = new Vector2(13f, -7f);
+            c.accent = accent.gameObject.AddComponent<Image>();
+            c.accent.raycastTarget = false;
+            RectTransform line = Part("Text", c.root, Vector2.zero, Vector2.zero);
+            line.anchorMin = Vector2.zero;
+            line.anchorMax = Vector2.one;
+            line.offsetMin = new Vector2(PadLeft, PadY);
+            line.offsetMax = new Vector2(-PadRight, -PadY);
+            c.text = line.gameObject.AddComponent<TextMeshProUGUI>();
+            if (font != null) c.text.font = font;
+            if (textMaterial != null) c.text.fontSharedMaterial = textMaterial;
+            c.text.fontSize = fontSize * .9f;
+            c.text.color = textColour;
+            c.text.alignment = TextAlignmentOptions.MidlineLeft;
+            c.text.textWrappingMode = TextWrappingModes.NoWrap;
+            c.text.overflowMode = TextOverflowModes.Ellipsis;
+            c.text.richText = true;
+            c.text.raycastTarget = false;
+            chips[i] = c;
+        }
+        chipStack.root.gameObject.SetActive(false);
+    }
+
+    // Sized to their words once, when they come up (never per frame).
+    void ShowChips(NightLines.Choice choice)
+    {
+        NightLines lines = NightLines.Current;
+        if (choice == null || lines == null) return;
+        Color colour = ColourOf(AceId);
+        string hex = ColorUtility.ToHtmlStringRGB(colour);
+        float textMax = maxWidth - PadLeft - PadRight;
+        float lineHeight = fontSize * .9f * 1.32f;
+        float width = 0f, height = 0f;
+        const float Gap = 6f;
+        for (int i = 0; i < chips.Length; i++)
+        {
+            Chip c = chips[i];
+            NightLines.Line line = lines.FindLine(i == 0 ? choice.first.line : choice.second.line);
+            string key = i == 0 ? ControlHints.Say("1", PadInput.Label(PadButton.West)) : ControlHints.Say("2", PadInput.Label(PadButton.North));
+            c.text.text = $"<color=#{hex}><b>{key}</b></color>   {(line != null ? line.text : "")}";
+            c.accent.color = colour;
+            Vector2 preferred = c.text.GetPreferredValues(c.text.text, textMax, 0f);
+            c.size = new Vector2(Mathf.Min(textMax, Mathf.Ceil(preferred.x) + 2f) + PadLeft + PadRight, lineHeight + 2f * PadY);
+            c.root.sizeDelta = c.size;
+            width = Mathf.Max(width, c.size.x);
+            height += c.size.y + (i > 0 ? Gap : 0f);
+        }
+        // The second reply at the bottom, the first above it.
+        chips[1].root.anchoredPosition = Vector2.zero;
+        chips[0].root.anchoredPosition = new Vector2(0f, chips[1].size.y + Gap);
+        chipStack.size = new Vector2(width, height);
+        chipStack.root.sizeDelta = chipStack.size;
+        chipsGroup.alpha = 0f;
+        chipStack.root.gameObject.SetActive(true);
+        chipsUp = true;
+    }
+
+    void HideChips()
+    {
+        chipsUp = false;
+        if (chipStack != null && chipStack.root != null) chipStack.root.gameObject.SetActive(false);
     }
 
     View MakeView(int index)

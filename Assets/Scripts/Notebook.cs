@@ -26,6 +26,8 @@ public sealed class Notebook
     public static class Sources
     {
         public const string Told = "told", Overheard = "overheard", Seen = "seen", Read = "read", Found = "found";
+        /// <summary>Written by someone else: the man at the bins' pages, handed over with the notebook on Night 0 (LodgerStory).</summary>
+        public const string Inherited = "inherited";
     }
 
     /// <summary>How sure Ace is. Only ever rises.</summary>

@@ -8,6 +8,8 @@ using UnityEngine;
 // Rule checks for the Night 1 slice (claude/ace-after-dark.md §3.2): the night's ledger (trophies,
 // the mornings still to come, suspicion), the straight-face meter, and the gnome's words. Pure: no
 // scene, no save file, no assets. Also compiled by Tests/NightRules.
+// Since 6 Oct, the man at the bins (claude/the-man-at-the-bins-story.md): meeting him, his warmth, his lessons
+// (Nerve widens the straight face), what Ace gives him (his corner, off Ace's shelf), his pages and the errand.
 public static class NightRuleChecks
 {
 #if UNITY_EDITOR
@@ -38,6 +40,21 @@ public static class NightRuleChecks
         old.ValidateAndMigrate();
         Check(old.night != null && old.night.trophies.Length == 0 && old.night.deeds.Length == 0 && old.night.nights == 0,
             "A save from before the nights loads with an empty record.");
+        // The man at the bins, through Unity's JSON too.
+        var met = new NightLedger();
+        met.Meet();
+        met.Warm(2);
+        met.Learn(LodgerStory.Nerve);
+        met.Take(NightThings.GraceGnome, "grace", 1);
+        met.Give(NightThings.GraceGnome);
+        var round = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(new SaveData { day = 2, night = met.Snapshot() }));
+        round.ValidateAndMigrate();
+        var metAgain = new NightLedger();
+        metAgain.Restore(round.night);
+        Check(metAgain.MetHim && metAgain.Warmth == 2 && metAgain.Knows(LodgerStory.Nerve) && metAgain.HasGiven(NightThings.GraceGnome)
+              && !metAgain.OnShelf(NightThings.GraceGnome), "The man at the bins survives Unity's JSON: met, warmth, lessons, his corner.");
+        Check(!old.night.metHim && old.night.warmth == 0 && old.night.lessons.Length == 0 && old.night.given.Length == 0,
+            "A save from before him: not met, no warmth, no lessons, nothing given.");
         return n;
     }
 #endif
@@ -226,6 +243,82 @@ public static class NightRuleChecks
         var book = new Notebook();
         Check(book.Learn(mentioned, 1) && book.Learn(taken, 1) && !book.Learn(mentioned, 2) && book.Find("grace.gnome").confirmedDay == 2,
             "The notebook learns them like any other fact.");
+        NotebookFactData takenFor = NightThings.Taken(gnome, "Grace", forHim: true);
+        Check(takenFor.id == taken.id && takenFor.text == gnome.notebookTakenFor && takenFor.text != taken.text,
+            "Taken for the man at the bins: the same secret, saying who it was for (not the shelf).");
+
+        count += TheManAtTheBins();
+        return count;
+    }
+
+    // ---------- the man at the bins (6 Oct 2026) ----------
+    static int TheManAtTheBins()
+    {
+        int count = 0;
+        void Check(bool ok, string why) { count++; if (!ok) throw new InvalidOperationException(why); }
+
+        var ledger = new NightLedger();
+        int changes = 0;
+        ledger.Changed += () => changes++;
+        Check(!ledger.MetHim && ledger.Warmth == 0 && ledger.Lessons.Count == 0 && ledger.Given.Count == 0, "Nobody has met him yet.");
+        Check(LodgerStory.Errand(ledger) == "", "No errand before the deal.");
+        Check(ledger.Meet() && !ledger.Meet() && ledger.MetHim && changes == 1, "The deal is made once.");
+        Check(LodgerStory.Errand(ledger) == NightThings.GraceGnome, "After the deal his errand is Grace's gnome.");
+
+        // Warmth: nudged by Ace's replies, kept within the limits, never shown.
+        Check(ledger.Warm(1) == 1 && ledger.Warm(-2) == -1, "A reply nudges his warmth up or down.");
+        for (int i = 0; i < 20; i++) ledger.Warm(1);
+        Check(ledger.Warmth == NightSaveData.MaxWarmth, "Warmth stops at the top.");
+        for (int i = 0; i < 40; i++) ledger.Warm(-1);
+        Check(ledger.Warmth == -NightSaveData.MaxWarmth, "And at the bottom.");
+        int before = changes;
+        ledger.Warm(-1);
+        Check(changes == before, "A nudge that changes nothing tells nobody.");
+
+        // Giving him something: only what Ace has taken, once; it leaves Ace's shelf for his corner.
+        Check(!ledger.Give(NightThings.GraceGnome), "Ace can't give him what Ace hasn't taken.");
+        ledger.Take(NightThings.GraceGnome, "grace", 1);
+        Check(ledger.OnShelf(NightThings.GraceGnome), "Taken and not given: it's on Ace's shelf.");
+        Check(ledger.Give(NightThings.GraceGnome) && !ledger.Give(NightThings.GraceGnome), "Given once.");
+        Check(ledger.HasGiven(NightThings.GraceGnome) && !ledger.OnShelf(NightThings.GraceGnome) && ledger.HasTrophy(NightThings.GraceGnome),
+            "Given: in his corner, not on Ace's shelf, and still Ace's deed.");
+        Check(ledger.Unfaced("grace", 2) != null, "Grace still comes in the next morning: it was Ace who took it.");
+        Check(LodgerStory.Errand(ledger) == "", "The errand is done once he has it.");
+
+        // Lessons.
+        Check(ledger.Learn(LodgerStory.Nerve) && !ledger.Learn(LodgerStory.Nerve) && ledger.Knows(LodgerStory.Nerve), "A lesson is learned once.");
+        Check(!ledger.Learn("") && !ledger.Learn(null), "Nothing without an id is learned.");
+        Check(LodgerStory.LessonFor(NightThings.GraceGnome) == LodgerStory.Nerve && LodgerStory.FindLesson(LodgerStory.Nerve) != null,
+            "Bringing the gnome back teaches Nerve.");
+        Check(LodgerStory.Green(.22f, false) == .22f && Math.Abs(LodgerStory.Green(.22f, true) - .22f * LodgerStory.NerveWidens) < 1e-5f,
+            "Nerve widens the straight face's green.");
+        Check(LodgerStory.Green(.5f, true) <= .6f && LodgerStory.Near(.15f, true) <= .2f, "Never so wide the meter is pointless.");
+        var steady = new StraightFaceMeter(1f, LodgerStory.Green(.22f, true), LodgerStory.Near(.03f, true), 6f, .5f);
+        var shaky = new StraightFaceMeter(1f, .22f, .03f, 6f, .5f);
+        float edge = .5f + .22f * .5f + .03f + .01f;   // just outside the plain meter's "near enough"
+        Check(steady.InGreen(edge) && !shaky.InGreen(edge), "With Nerve, a stop just outside the old green still holds.");
+
+        // Round trip through the record.
+        var back = new NightLedger();
+        back.Restore(ledger.Snapshot());
+        Check(back.MetHim && back.Warmth == ledger.Warmth && back.Knows(LodgerStory.Nerve) && back.HasGiven(NightThings.GraceGnome),
+            "The record keeps all of it.");
+        var odd = new NightSaveData { metHim = true, warmth = 99, lessons = new[] { "nerve", "", "nerve" }, given = new[] { NightThings.GraceGnome } };
+        var oddBack = new NightLedger();
+        oddBack.Restore(odd);
+        Check(oddBack.Warmth == NightSaveData.MaxWarmth && oddBack.Lessons.Count == 1 && !oddBack.HasGiven(NightThings.GraceGnome),
+            "A restored record is tidied: warmth in its limits, lessons once, nothing given that was never taken.");
+
+        // His pages: the notebook's first pages, in his hand.
+        var pages = new List<NotebookFactData>(LodgerStory.Pages());
+        Check(pages.Count >= 3, "He hands over a few pages.");
+        var pageIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (NotebookFactData page in pages)
+            Check(page.source == Notebook.Sources.Inherited && page.who == LodgerStory.PagesWho && page.sure == Notebook.Sureness.Sure
+                  && !string.IsNullOrWhiteSpace(page.text) && pageIds.Add(page.id), "Each page is his (inherited), sure, and unique.");
+        NotebookFactData thursdays = LodgerStory.PageFor(NightThings.GraceGnome);
+        Check(thursdays != null && thursdays.source == Notebook.Sources.Inherited && !pageIds.Contains(thursdays.id),
+            "The gnome pays a page of its own, not one of the first.");
         return count;
     }
 }

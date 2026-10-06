@@ -89,6 +89,13 @@ public class NightSaveData
     public string[] trophies = new string[0];                  // on Ace's shelf, in the order taken
     public NightDeedData[] deeds = new NightDeedData[0];
     public SuspicionData[] suspicion = new SuspicionData[0];
+
+    // The man at the bins (claude/the-man-at-the-bins-story.md; additive, 6 Oct 2026, no version bump).
+    public const int MaxWarmth = 5;                            // warmth stays within plus or minus this
+    public bool metHim;                                        // Night 0 is behind Ace: the deal at the bins was made
+    public int warmth;                                         // how warm he is to Ace (hidden; Ace's replies move it)
+    public string[] lessons = new string[0];                   // what he has taught Ace ("nerve"), in order
+    public string[] given = new string[0];                     // what Ace has brought him (his corner): thing ids
 }
 
 // A completed day's figures are a snapshot, not a replay of payouts/events.
@@ -199,6 +206,9 @@ public class SaveData
             : Array.FindAll(night.deeds, deed => deed != null && !string.IsNullOrEmpty(deed.thing));
         night.suspicion = night.suspicion == null ? new SuspicionData[0]
             : Array.FindAll(night.suspicion, who => who != null && !string.IsNullOrEmpty(who.who));
+        night.lessons = night.lessons == null ? new string[0] : Array.FindAll(night.lessons, lesson => !string.IsNullOrEmpty(lesson));
+        night.given = night.given == null ? new string[0] : Array.FindAll(night.given, thing => !string.IsNullOrEmpty(thing));
+        night.warmth = Math.Max(-NightSaveData.MaxWarmth, Math.Min(NightSaveData.MaxWarmth, night.warmth));
         reputation = Math.Max(0, reputation);
         starsEarned = Math.Max(0, Math.Min(5, starsEarned));
         if (recap != null)

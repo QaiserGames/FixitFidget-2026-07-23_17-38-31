@@ -299,8 +299,8 @@ public class PlayerInteractor : MonoBehaviour
     private void PerformInteraction(int hand)
     {
         if (lastInteractionFrame == Time.frameCount || Time.timeScale <= 0) return;
-        // A scene holding Ace still (Barks) owns E: it moves the scene on.
-        if (PlayerMovement.Held) return;
+        // A scene holding Ace still (Barks) owns E: it moves the scene on, and the press that ended it was its too.
+        if (PlayerMovement.Held || Barks.SceneEndedFrame == Time.frameCount) return;
         if (NightIsOn) { NightInteract(); return; }
         if (viewMode != null && viewMode.SuppressWalkingInteraction) return;
         if (DayClock.Instance != null && DayClock.Instance.DayOver) return;

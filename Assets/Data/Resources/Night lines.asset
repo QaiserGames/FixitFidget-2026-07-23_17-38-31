@@ -186,12 +186,79 @@ MonoBehaviour:
     speaker: neighbour
     situation: neighbour.window
     text: Go home!
+  - id: ace.night0.02b
+    speaker: ace
+    situation: night0.deal
+    text: You were in my bin.
+  - id: lodger.night0.01a
+    speaker: lodger
+    situation: night0.deal
+    text: Good. Quick.
+  - id: lodger.night0.01b
+    speaker: lodger
+    situation: night0.deal
+    text: And now I'm not. Keep up.
+  - id: ace.night0.10a
+    speaker: ace
+    situation: night0.deal
+    text: Fine.
+  - id: lodger.night0.11a
+    speaker: lodger
+    situation: night0.deal
+    text: Good. Don't drop him.
+  - id: lodger.night1.r01
+    speaker: lodger
+    situation: night1.return
+    text: There he is.
+  - id: ace.night1.r02a
+    speaker: ace
+    situation: night1.return
+    text: Here. Happy?
+  - id: ace.night1.r02b
+    speaker: ace
+    situation: night1.return
+    text: What's he even for?
+  - id: lodger.night1.r03a
+    speaker: lodger
+    situation: night1.return
+    text: Very.
+  - id: lodger.night1.r03b
+    speaker: lodger
+    situation: night1.return
+    text: Watch.
+  - id: lodger.night1.r04
+    speaker: lodger
+    situation: night1.return
+    text: It was watching me. Now it watches for me.
+  - id: lodger.night1.r05
+    speaker: lodger
+    situation: night1.return
+    text: You kept your nerve. Keep it tomorrow, when she asks.
+  - id: lodger.night1.r06
+    speaker: lodger
+    situation: night1.return
+    text: And a page for your notebook.
+  - id: lodger.night1.r07
+    speaker: lodger
+    situation: night1.return
+    text: Tomorrow, her kitchen.
+  - id: lodger.beckon.01
+    speaker: lodger
+    situation: lodger.beckon
+    text: Over here.
+  - id: lodger.beckon.02
+    speaker: lodger
+    situation: lodger.beckon
+    text: Bring him here.
+  - id: lodger.beckon.03
+    speaker: lodger
+    situation: lodger.beckon
+    text: That's the one.
   scenes:
   - id: night0.deal
     holdAce: 1
     lines:
     - lodger.night0.01
-    - ace.night0.02
     - lodger.night0.03
     - lodger.night0.04
     - lodger.night0.05
@@ -199,20 +266,58 @@ MonoBehaviour:
     - lodger.night0.07
     - lodger.night0.08
     - lodger.night0.09
-    - ace.night0.10
-    - lodger.night0.11
+    choices:
+    - after: lodger.night0.01
+      first:
+        line: ace.night0.02
+        answer: lodger.night0.01a
+        warmth: 1
+      second:
+        line: ace.night0.02b
+        answer: lodger.night0.01b
+        warmth: -1
+    - after: lodger.night0.09
+      first:
+        line: ace.night0.10a
+        answer: lodger.night0.11a
+        warmth: 1
+      second:
+        line: ace.night0.10
+        answer: lodger.night0.11
+        warmth: 0
   - id: night2.ask
     holdAce: 0
     lines:
     - lodger.night2.01
     - ace.night2.02
     - lodger.night2.03
+    choices: []
   - id: night3.ask
     holdAce: 0
     lines:
     - lodger.night3.01
     - lodger.night3.02
+    choices: []
   - id: night.off
     holdAce: 0
     lines:
     - lodger.off.01
+    choices: []
+  - id: night1.return
+    holdAce: 1
+    lines:
+    - lodger.night1.r01
+    - lodger.night1.r04
+    - lodger.night1.r05
+    - lodger.night1.r06
+    - lodger.night1.r07
+    choices:
+    - after: lodger.night1.r01
+      first:
+        line: ace.night1.r02a
+        answer: lodger.night1.r03a
+        warmth: 1
+      second:
+        line: ace.night1.r02b
+        answer: lodger.night1.r03b
+        warmth: 0

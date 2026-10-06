@@ -11,6 +11,8 @@
     <Compile Include="../../Assets/Scripts/Notebook.cs" Link="Notebook.cs" />
     <Compile Include="../../Assets/Scripts/GraceCameraEpisode.cs" Link="GraceCameraEpisode.cs" />
     <Compile Include="../../Assets/Scripts/SaveData.cs" Link="SaveData.cs" />
+    <Compile Include="../../Assets/Scripts/LodgerStory.cs" Link="LodgerStory.cs" />
+    <Compile Include="../../Assets/Scripts/StreetNames.cs" Link="StreetNames.cs" />
     <Compile Include="../../Assets/Editor/NightRuleChecks.cs" Link="NightRuleChecks.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>

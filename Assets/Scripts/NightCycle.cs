@@ -26,6 +26,11 @@ using UnityEngine.UI;
 //
 // Made while playing (never saved in the scene); it also draws the fades, the captions and the
 // night's short notes ("Barnaby is coming home with Ace").
+//
+// The man at the bins (6 Oct 2026): at nightfall he's at the bins behind the café once Ace has met him, or, the
+// first time, hidden in the dumpster while Night 0 opens the night at the café's back door (Lodger, NightZero).
+// Until the deal is made, Ace can't call it a night. The back door is a blink (Through): a dip to black, and Ace
+// is on its other side.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightCycle : MonoBehaviour
@@ -79,7 +84,27 @@ public sealed class NightCycle : MonoBehaviour
     /// Ace can call it a night (at the café's door): the night is on, a moment has passed since it began
     /// (the press that closed the recap mustn't also end it), and Ace has been out since.
     /// </summary>
-    public bool CanCallItANight => Now == Phase.Night && Time.unscaledTime >= readyAt && beenOut;
+    public bool CanCallItANight => Now == Phase.Night && Time.unscaledTime >= readyAt && beenOut && !NightZero.Pending && !blinking;
+
+    /// <summary>
+    /// "Call it a night", and what happens to the thing in Ace's hand if Ace does: the man's errand, still to give him,
+    /// goes on Ace's shelf for now ("Call it a night (Barnaby goes on the shelf)").
+    /// </summary>
+    public static string CallItANightPrompt
+    {
+        get
+        {
+            NightCarry carry = NightCarry.Current;
+            NightThing thing = carry != null && carry.Holding ? NightThings.Find(carry.HeldId) : null;
+            if (thing == null) return "Call it a night";
+            Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+            string name = notebook != null && notebook.Knows(thing.id) ? thing.name : thing.unknownName;
+            // Read every frame while Ace is at a door: made again only when the name changes.
+            if (!ReferenceEquals(name, shelfPromptFor)) { shelfPromptFor = name; shelfPrompt = $"Call it a night ({name} goes on the shelf)"; }
+            return shelfPrompt;
+        }
+    }
+    static string shelfPromptFor, shelfPrompt = "";
     /// <summary>Ace has left the café since this night began (reports and checks).</summary>
     public bool BeenOut => beenOut;
     /// <summary>Nights begun in this Play session, and how the last one ended (reports).</summary>
@@ -93,6 +118,7 @@ public sealed class NightCycle : MonoBehaviour
     float readyAt;
     bool ending;
     bool beenOut;
+    bool blinking;
 
     CanvasGroup curtain;
     TMP_Text title, subtitle, note;
@@ -160,7 +186,10 @@ public sealed class NightCycle : MonoBehaviour
         Now = Phase.Dusk;
         int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         yield return Fade(1f, .6f);
-        Caption($"Night {day}", "The café is closed. Walk where you like, and come back in through the café's door to call it a night.");
+        // Night 0 (the first night, until the man at the bins is met) opens with one last job instead.
+        bool zero = NightZero.Due;
+        Caption($"Night {day}", zero ? "The café is closed. One last job: the bins, out the back."
+            : "The café is closed. Walk where you like, and come back in through the café's door to call it a night.");
         if (!Safely("nightfall", Nightfall))
         {
             // No night, then: put away whatever of it began, and on to tomorrow.
@@ -169,12 +198,20 @@ public sealed class NightCycle : MonoBehaviour
             yield return Tomorrow();
             yield break;
         }
+        // The man at the bins: hidden in the dumpster on Night 0, which opens the night at the back door; standing in
+        // it once met.
+        Safely("the man at the bins", () =>
+        {
+            Lodger man = Lodger.Expected(zero) ? Lodger.Arrive(hidden: zero) : null;
+            if (zero && NightZero.Begin(man) == null) Debug.LogWarning("[Night] Night 0 couldn't begin; the night goes on without it.");
+        });
         yield return new WaitForSecondsRealtime(1.4f);
         BeginNight();
         yield return Fade(0f, .9f);
         Caption("", "");
         bool first = SaveManager.Instance == null || SaveManager.Instance.Night.Nights == 0;
-        if (first)
+        if (NightZero.Pending) Note("Last job of the day: the bins. Out the back door.", 6f);
+        else if (first)
             Note($"What Ace learned today is in the notebook ({ControlHints.NotebookPage}). " +
                  $"{ControlHints.Torch} is the torch. Back inside the café's door, {ControlHints.Interact} calls it a night.", 9f);
     }
@@ -317,14 +354,51 @@ public sealed class NightCycle : MonoBehaviour
     // CharacterController off for the jump.
     static void GoHome()
     {
+        if (haveHome) Put(homePosition, homeRotation);
+    }
+
+    /// <summary>Ace, put at <paramref name="spot"/> and facing its way (the body too, at once): the back door, Night 0's start.</summary>
+    public static void Put(Transform spot)
+    {
+        if (spot != null) Put(spot.position, Quaternion.Euler(0f, spot.eulerAngles.y, 0f));
+    }
+
+    static void Put(Vector3 position, Quaternion rotation)
+    {
         PlayerMovement ace = FindAnyObjectByType<PlayerMovement>();
-        if (ace == null || !haveHome) return;
+        if (ace == null) return;
         var controller = ace.GetComponent<CharacterController>();
         bool was = controller != null && controller.enabled;
         if (controller != null) controller.enabled = false;
-        ace.transform.SetPositionAndRotation(homePosition, homeRotation);
+        ace.transform.SetPositionAndRotation(position, rotation);
         if (controller != null) controller.enabled = was;
         ace.ClearInput();
+        AceBody body = ace.GetComponent<AceBody>();
+        if (body != null) body.FaceToward(position + rotation * Vector3.forward, snap: true);
+    }
+
+    /// <summary>
+    /// Through a door at night (the café's back door): a quick dip to black, and Ace is at <paramref name="to"/>, facing
+    /// its way. False while another is under way, or with no night on.
+    /// </summary>
+    public static bool Through(Transform to)
+    {
+        if (to == null || Instance == null || Instance.Now != Phase.Night || Instance.blinking || Instance.ending) return false;
+        Instance.StartCoroutine(Instance.Blink(to));
+        return true;
+    }
+
+    IEnumerator Blink(Transform to)
+    {
+        blinking = true;
+        PlayerMovement.Hold(this);
+        Safely("the door's sound", () => Sfx.Play2D("night.door"));
+        yield return Fade(1f, .16f);
+        Safely("going through the door", () => Put(to));
+        yield return new WaitForSecondsRealtime(.08f);
+        yield return Fade(0f, .24f);
+        PlayerMovement.Release(this);
+        blinking = false;
     }
 
     void MakeTheDoorway()
@@ -455,5 +529,6 @@ public sealed class NightCycle : MonoBehaviour
 
     public string Describe() =>
         $"Night cycle: {Now}; {NightsThisSession} night(s) this session, the last one ended: {(LastEnding.Length > 0 ? LastEnding : "not yet")}; " +
-        $"call it a night {(HasDoorway ? "inside the café's door" + (beenOut ? "" : " (once Ace has been out)") : "not offered")}; follows the day: {FollowsTheDay}.";
+        $"call it a night {(HasDoorway ? "inside the café's door" + (beenOut ? "" : " (once Ace has been out)") : "not offered")}; follows the day: {FollowsTheDay}." +
+        (NightZero.Instance != null ? " " + NightZero.Instance.Describe() : "") + (Lodger.Instance != null ? " " + Lodger.Instance.Describe() : "");
 }

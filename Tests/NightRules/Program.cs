@@ -41,6 +41,22 @@ internal static class Program
         old.ValidateAndMigrate();
         Check(old.night != null && old.night.deeds.Length == 0 && SaveData.CurrentVersion == 5,
             "A save from before the nights loads with an empty record, and the save version is unchanged.");
+
+        // The man at the bins (6 Oct 2026): added fields, no version bump.
+        var met = new NightLedger();
+        met.Meet();
+        met.Warm(-1);
+        met.Learn(LodgerStory.Nerve);
+        met.Take(NightThings.GraceGnome, "grace", 1);
+        met.Give(NightThings.GraceGnome);
+        var metBack = JsonSerializer.Deserialize<SaveData>(JsonSerializer.Serialize(new SaveData { day = 2, night = met.Snapshot() }, options), options);
+        metBack.ValidateAndMigrate();
+        var metAgain = new NightLedger();
+        metAgain.Restore(metBack.night);
+        Check(metAgain.MetHim && metAgain.Warmth == -1 && metAgain.Knows(LodgerStory.Nerve) && metAgain.HasGiven(NightThings.GraceGnome),
+            "The man at the bins survives a save round trip: met, warmth, lessons, his corner.");
+        Check(!old.night.metHim && old.night.warmth == 0 && old.night.lessons.Length == 0 && old.night.given.Length == 0,
+            "A save from before him: not met, no warmth, nothing learned or given.");
         return n;
     }
 }

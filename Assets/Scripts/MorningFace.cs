@@ -17,7 +17,9 @@ using UnityEngine.InputSystem;
 // The scene owns the conversation while it runs: there's no stepping away or turning them away in
 // the middle of it (it's about ten seconds). If the conversation closes some other way before the
 // meter is stopped (the day ends), nothing is recorded and the scene waits for the next time they talk.
-// The words and the meter's difficulty come from the thing (NightThings).
+// The words and the meter's difficulty come from the thing (NightThings). Once the man at the bins has
+// taught Ace Nerve (LodgerStory, 6 Oct 2026), the green and its "near enough" are wider, and the meter's
+// title says so.
 // ---------------------------------------------------------------------------
 public sealed class MorningFace
 {
@@ -34,6 +36,9 @@ public sealed class MorningFace
     StraightFaceMeter meter;
     float meterAt = -1f;
     float resultSince = -1f;
+    string stopHint = "";   // made once when the meter starts (not every frame)
+    /// <summary>Ace has Nerve (the man's lesson): the green was wider this time.</summary>
+    public bool Nerve { get; private set; }
 
     // A beat to take in what they said before the needle starts (E starts it at once).
     const float MeterBeat = .6f;
@@ -81,7 +86,8 @@ public sealed class MorningFace
         if (notebook != null)
         {
             if (!notebook.Knows(thing.id)) NotebookHooks.HeardComplaint(who.CustomerName, thing);
-            if (!notebook.Knows(thing.id + ".taken")) NotebookHooks.TookAtNight(thing);
+            NightLedger night = SaveManager.Instance.Night;
+            if (!notebook.Knows(thing.id + ".taken")) NotebookHooks.TookAtNight(thing, night != null && night.HasGiven(thing.id));
         }
     }
 
@@ -114,7 +120,7 @@ public sealed class MorningFace
                 if (stop) meter.Stop();
                 else meter.Tick(deltaTime);
                 if (meter.Stopped) Finish();
-                else StraightFaceUI.Draw(meter, StopHint);
+                else StraightFaceUI.Draw(meter, stopHint);
                 return;
 
             case Step.Result:
@@ -147,16 +153,19 @@ public sealed class MorningFace
     static float ReadTime(string line) => Mathf.Clamp((line ?? "").Length / 30f, 1.6f, 4f);
 
     static string StopKey => ControlHints.Say("Space", PadInput.Label(PadButton.West));
-    static string StopHint => $"[{StopKey}]  Keep a straight face";
 
     void StartMeter()
     {
-        meter = StraightFaceMeter.Rolled(thing.sweepSeconds, thing.green, thing.near, thing.patience, Rng);
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        Nerve = night != null && night.Knows(LodgerStory.Nerve);
+        meter = StraightFaceMeter.Rolled(thing.sweepSeconds, LodgerStory.Green(thing.green, Nerve), LodgerStory.Near(thing.near, Nerve),
+            thing.patience, Rng);
+        stopHint = $"[{StopKey}]  Keep a straight face" + (Nerve ? "   <color=#A6A6A6>Nerve</color>" : "");
         Now = Step.Meter;
         // The meter takes the place of Ace's replies (bottom right) and gives its key itself
         // (StraightFaceUI), so it sits beside the person's line instead of over it or their face.
         ui.SetOptions("");
-        StraightFaceUI.Draw(meter, StopHint);
+        StraightFaceUI.Draw(meter, stopHint);
     }
 
     void Finish()
@@ -175,7 +184,7 @@ public sealed class MorningFace
         Now = Step.Result;
     }
 
-    public string Describe() => $"Morning scene with {who?.CustomerName ?? "nobody"} about {thing?.name ?? "?"}: {Now}" +
+    public string Describe() => $"Morning scene with {who?.CustomerName ?? "nobody"} about {thing?.name ?? "?"}: {Now}{(Nerve ? " (Nerve)" : "")}" +
         (meter == null ? "" : $"; needle {meter.Needle:0.00}, green {meter.GreenLeft:0.00}-{meter.GreenRight:0.00}, " +
          $"{(meter.Stopped ? (meter.Held ? "held" : meter.TimedOut ? "cracked (never stopped)" : "cracked") : "running")} after {meter.Elapsed:0.0} s");
 }

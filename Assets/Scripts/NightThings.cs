@@ -57,6 +57,8 @@ public sealed class NightThing
     public string notebookComplaint = "";
     /// <summary>Ace's own note after taking it (a secret, found at night).</summary>
     public string notebookTaken = "";
+    /// <summary>The same when Ace took it for the man at the bins (his errand: LodgerStory), not for the shelf.</summary>
+    public string notebookTakenFor = "";
     /// <summary>After a crack: what the owner said (told).</summary>
     public string notebookCracked = "";
 
@@ -91,6 +93,7 @@ public static class NightThings
         notebookMention = "Has a garden gnome, Barnaby, on the front step of the saffron house on the corner. Twenty years. Polishes him.",
         notebookComplaint = "Had a garden gnome, Barnaby, on her front step. Twenty years.",
         notebookTaken = "Took Barnaby from her front step. He's on the shelf now.",
+        notebookTakenFor = "Took Barnaby from her front step, for the man at the bins.",
         notebookCracked = "Asked if you were smiling about Barnaby. Watching her front step now.",
         sweepSeconds = 1.1f,
         green = .22f,
@@ -133,9 +136,10 @@ public static class NightThings
     public static NotebookFactData Complained(NightThing thing, string ownerName) =>
         Fact(thing, thing?.id, ownerName, Notebook.Kinds.Possession, thing?.notebookComplaint, Notebook.Sources.Told);
 
-    /// <summary>Ace took it at night: Ace's own secret.</summary>
-    public static NotebookFactData Taken(NightThing thing, string ownerName) =>
-        Fact(thing, thing != null ? thing.id + ".taken" : null, ownerName, Notebook.Kinds.Secret, thing?.notebookTaken, Notebook.Sources.Found);
+    /// <summary>Ace took it at night: Ace's own secret (<paramref name="forHim"/>: for the man at the bins, not the shelf).</summary>
+    public static NotebookFactData Taken(NightThing thing, string ownerName, bool forHim = false) =>
+        Fact(thing, thing != null ? thing.id + ".taken" : null, ownerName, Notebook.Kinds.Secret,
+            forHim && !string.IsNullOrWhiteSpace(thing?.notebookTakenFor) ? thing.notebookTakenFor : thing?.notebookTaken, Notebook.Sources.Found);
 
     /// <summary>Ace cracked when the owner told the story: they said they'd be watching.</summary>
     public static NotebookFactData Suspects(NightThing thing, string ownerName) =>

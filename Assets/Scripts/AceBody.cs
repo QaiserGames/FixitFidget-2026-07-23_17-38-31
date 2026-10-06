@@ -185,6 +185,24 @@ public sealed class AceBody : MonoBehaviour
     Vector3 lastPosition;
     float speed, wIdle = 1f, wWalk, wRun, wCrouchIdle, wCrouchWalk, idleTime, phase, crouchIdleTime, crouchPhase, bodyYaw, feetY, feetVelocity;
     bool placed;
+    // A scene turns Ace, standing still, to face whoever speaks (FaceToward); walking off cancels it.
+    float faceYaw;
+    bool facing;
+
+    /// <summary>
+    /// While Ace stands still, turn the body to face <paramref name="point"/> (the man at the bins, as a scene begins);
+    /// with <paramref name="snap"/>, at once. Ace walking off cancels it; in first person the view decides, as ever.
+    /// </summary>
+    public void FaceToward(Vector3 point, bool snap = false)
+    {
+        Vector3 d = point - transform.position;
+        d.y = 0f;
+        if (d.sqrMagnitude < .01f) return;
+        faceYaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+        facing = !snap;
+        // At once (Ace put somewhere behind a fade: through a door).
+        if (snap) bodyYaw = faceYaw;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ReadLabRequest()
@@ -448,6 +466,7 @@ public sealed class AceBody : MonoBehaviour
         if (firstPerson) bodyYaw = transform.eulerAngles.y;
         if (raw > .3f && distance <= 3f && !firstPerson)
         {
+            facing = false;
             float toward = Mathf.Atan2(moved.x, moved.z) * Mathf.Rad2Deg;
             // At least Turn Speed; and the further there is to go, the faster: Quick Turn times the gap a second, as
             // an exponential, so a turn takes the same time at 60 fps as at 240.
@@ -456,7 +475,18 @@ public sealed class AceBody : MonoBehaviour
             bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, toward, step);
             FacingError = Mathf.Abs(Mathf.DeltaAngle(bodyYaw, toward));
         }
-        else FacingError = 0f;
+        else
+        {
+            FacingError = 0f;
+            // Turning to face someone, standing: unhurried, like a person who has just been spoken to.
+            if (facing && !firstPerson)
+            {
+                float left = Mathf.Abs(Mathf.DeltaAngle(bodyYaw, faceYaw));
+                float step = Mathf.Max(turnSpeed * .5f * dt, left * (1f - Mathf.Exp(-8f * dt)));
+                bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, faceYaw, step);
+                if (left <= step) facing = false;
+            }
+        }
 
         // The legs go at Ace's speed; but while the body is still swinging round (a stick flicked from up to down:
         // the capsule has already turned back), they leave the run for a quick step, so Ace never runs sideways.

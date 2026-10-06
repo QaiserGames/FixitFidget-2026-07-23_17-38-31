@@ -9,6 +9,9 @@ using UnityEngine;
 // the customers don't go. Each slot is one thing Ace can take at night; its copy stands on the shelf
 // once the night's ledger has it, by day and by night. Put in the scene by Fixit Fidget > Night >
 // Night 1 - Put Grace's gnome and Ace's trophy shelf in the scene.
+//
+// Since the man at the bins (6 Oct 2026): a thing Ace has given him is in his corner, not here, and a thing in Ace's
+// hand (NightCarry) isn't on the shelf while Ace holds it.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class TrophyShelf : MonoBehaviour
@@ -58,13 +61,28 @@ public sealed class TrophyShelf : MonoBehaviour
         listening = true;
     }
 
+    /// <summary>Every shelf looks again (what's in Ace's hand changed).</summary>
+    public static void RefreshAll()
+    {
+        foreach (TrophyShelf shelf in FindObjectsByType<TrophyShelf>(FindObjectsInactive.Exclude)) shelf.Refresh();
+    }
+
+    /// <summary>The shelf's copy of <paramref name="thingId"/> (shown or not), or null: what Ace takes in hand from it.</summary>
+    public GameObject CopyOf(string thingId)
+    {
+        foreach (Slot slot in slots)
+            if (slot != null && slot.thingId == thingId && slot.shown != null) return slot.shown;
+        return null;
+    }
+
     public void Refresh()
     {
         Showing = 0;
+        NightCarry carry = NightCarry.Current;
         foreach (Slot slot in slots)
         {
             if (slot == null || slot.shown == null) continue;
-            bool on = ledger != null && ledger.HasTrophy(slot.thingId);
+            bool on = ledger != null && ledger.OnShelf(slot.thingId) && (carry == null || carry.HeldId != slot.thingId);
             if (slot.shown.activeSelf != on) slot.shown.SetActive(on);
             if (on) Showing++;
         }

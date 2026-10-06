@@ -8,6 +8,7 @@ using UnityEngine;
 
 // Rule checks for Ace's notebook (claude/night-notebook-spec.md). Pure: no
 // scene, no save file, no assets. Also compiled by Tests/NotebookRules.
+// Since 6 Oct: the man at the bins' pages (the inherited source) come first, in italics.
 public static class NotebookRuleChecks
 {
 #if UNITY_EDITOR
@@ -198,6 +199,19 @@ public static class NotebookRuleChecks
         Check(NotebookRecap.People(null).Count == 0 && NotebookRecap.People(new Notebook()).Count == 0, "No notebook, no pages.");
         Check(NotebookRecap.Page(phoneBook).StartsWith("<b>Grace</b>\n<size=92%><indent=4%>Came out of the saffron house. <color=#A6A6A6>(likely)</color></indent></size>\n",
             StringComparison.Ordinal), "The night's page still reads as before: the name, then where they live, marked as a guess.");
+
+        // ---------- his pages (the man at the bins, 6 Oct 2026): the notebook's first pages, in his hand ----------
+        var handed = new Notebook();
+        foreach (NotebookFactData fact in NotebookEntries.GraceIntake("Grace")) handed.Learn(fact, 1);
+        handed.Learn(new NotebookFactData { id = "lodger.page.test", who = "lodger.pages", name = "His pages", kind = Notebook.Kinds.Schedule,
+            text = "Lights out by midnight.", source = Notebook.Sources.Inherited, sure = Notebook.Sureness.Sure }, 1);
+        List<NotebookPerson> handedPeople = NotebookRecap.People(handed);
+        Check(handedPeople.Count == 2 && handedPeople[0].who == "lodger.pages" && handedPeople[0].name == "His pages" && handedPeople[1].who == "grace"
+              && handedPeople.Sum(p => p.facts.Count) == handed.Count, "His pages come first, though Ace learned about Grace before the notebook changed hands.");
+        string handedPage = NotebookRecap.Page(handed);
+        Check(handedPage.StartsWith("<b>His pages</b>\n<size=92%><indent=4%><i>Lights out by midnight.</i></indent></size>\n<b>Grace</b>", StringComparison.Ordinal),
+            "On the page his lines are in his hand (italics), under his heading, before everyone else.");
+        Check(Count(handedPage, "<i>") == 1 && Count(handedPage, "</i>") == 1, "Only his lines are in italics.");
 
         return count;
     }

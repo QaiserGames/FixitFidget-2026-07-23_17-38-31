@@ -20,6 +20,11 @@ using UnityEngine;
 // and waiting lines, Ace's line of each night, Grace's reactions, a neighbour at a window). It never changes a
 // line that's already there, so his sister's rewrites stay when it runs again. Nothing in the scene changes.
 //
+// Since 6 Oct (claude/the-man-at-the-bins-story.md: replies and returns): Ace's replies and his answers, Night 1's
+// return to the bins with the gnome (a held scene with a choice), and his "over here" lines. The deal gets its two
+// choices once: only if it is still exactly the 5 Oct placeholder (the "Why?" exchange becomes the second choice's
+// second reply). A deal someone has rewritten is left alone, and the report says so.
+//
 // Barks 2 starts a night walk lab (the Day 5 test save, never the playtest save) with the bark check, which
 // photographs and checks the lines on screen (Logs/Night/barks-check-<time>/).
 // ---------------------------------------------------------------------------
@@ -78,6 +83,26 @@ internal static class BarkSteps
         ("ace.line.night2", "ace", "ace.night", "If she wakes up I'm a burglar. If not, a guest."),
         ("ace.line.night3", "ace", "ace.night", "Stupidest thing I've ever done. Quite well done."),
         ("ace.line.day5", "ace", "ace.night", "I'm getting good at this. That's the worrying part."),
+        // Night 0's replies (6 Oct): Ace answers twice in the deal; each reply has a line said back.
+        ("ace.night0.02b", "ace", "night0.deal", "You were in my bin."),
+        ("lodger.night0.01a", "lodger", "night0.deal", "Good. Quick."),
+        ("lodger.night0.01b", "lodger", "night0.deal", "And now I'm not. Keep up."),
+        ("ace.night0.10a", "ace", "night0.deal", "Fine."),
+        ("lodger.night0.11a", "lodger", "night0.deal", "Good. Don't drop him."),
+        // Night 1's return: Ace brings the gnome back to the bins.
+        ("lodger.night1.r01", "lodger", "night1.return", "There he is."),
+        ("ace.night1.r02a", "ace", "night1.return", "Here. Happy?"),
+        ("ace.night1.r02b", "ace", "night1.return", "What's he even for?"),
+        ("lodger.night1.r03a", "lodger", "night1.return", "Very."),
+        ("lodger.night1.r03b", "lodger", "night1.return", "Watch."),
+        ("lodger.night1.r04", "lodger", "night1.return", "It was watching me. Now it watches for me."),
+        ("lodger.night1.r05", "lodger", "night1.return", "You kept your nerve. Keep it tomorrow, when she asks."),
+        ("lodger.night1.r06", "lodger", "night1.return", "And a page for your notebook."),
+        ("lodger.night1.r07", "lodger", "night1.return", "Tomorrow, her kitchen."),
+        // His pool while Ace has his thing in hand.
+        ("lodger.beckon.01", "lodger", "lodger.beckon", "Over here."),
+        ("lodger.beckon.02", "lodger", "lodger.beckon", "Bring him here."),
+        ("lodger.beckon.03", "lodger", "lodger.beckon", "That's the one."),
         // Grace at home (chunk C): noticing, and catching.
         ("grace.notice.01", "grace", "grace.notice", "Hm?"),
         ("grace.notice.02", "grace", "grace.notice", "Is someone there?"),
@@ -89,13 +114,34 @@ internal static class BarkSteps
         ("neighbour.window.03", "neighbour", "neighbour.window", "Go home!"),
     };
 
+    // The deal as Barks 1 first made it (5 Oct), and as it is with Ace's replies (6 Oct): his "...I didn't see you."
+    // and "Why?" become choices, each answered.
+    static readonly string[] DealOfFifthOctober =
+    {
+        "lodger.night0.01", "ace.night0.02", "lodger.night0.03", "lodger.night0.04", "lodger.night0.05",
+        "lodger.night0.06", "lodger.night0.07", "lodger.night0.08", "lodger.night0.09", "ace.night0.10", "lodger.night0.11",
+    };
+    static readonly string[] DealWithReplies =
+    {
+        "lodger.night0.01", "lodger.night0.03", "lodger.night0.04", "lodger.night0.05",
+        "lodger.night0.06", "lodger.night0.07", "lodger.night0.08", "lodger.night0.09",
+    };
+
     static readonly (string id, bool hold, string[] lines)[] Scenes =
     {
-        ("night0.deal", true, new[] { "lodger.night0.01", "ace.night0.02", "lodger.night0.03", "lodger.night0.04", "lodger.night0.05",
-                                      "lodger.night0.06", "lodger.night0.07", "lodger.night0.08", "lodger.night0.09", "ace.night0.10", "lodger.night0.11" }),
+        ("night0.deal", true, DealWithReplies),
+        ("night1.return", true, new[] { "lodger.night1.r01", "lodger.night1.r04", "lodger.night1.r05", "lodger.night1.r06", "lodger.night1.r07" }),
         ("night2.ask", false, new[] { "lodger.night2.01", "ace.night2.02", "lodger.night2.03" }),
         ("night3.ask", false, new[] { "lodger.night3.01", "lodger.night3.02" }),
         ("night.off", false, new[] { "lodger.off.01" }),
+    };
+
+    // Each scene's choices: after which line, then each reply's line, the line said back and its warmth.
+    static readonly (string scene, string after, string a, string aBack, int aWarm, string b, string bBack, int bWarm)[] Choices =
+    {
+        ("night0.deal", "lodger.night0.01", "ace.night0.02", "lodger.night0.01a", 1, "ace.night0.02b", "lodger.night0.01b", -1),
+        ("night0.deal", "lodger.night0.09", "ace.night0.10a", "lodger.night0.11a", 1, "ace.night0.10", "lodger.night0.11", 0),
+        ("night1.return", "lodger.night1.r01", "ace.night1.r02a", "lodger.night1.r03a", 1, "ace.night1.r02b", "lodger.night1.r03b", 0),
     };
 
     // ================================================================== Barks 1
@@ -136,8 +182,21 @@ internal static class BarkSteps
             foreach (var (id, hold, ids) in Scenes)
             {
                 if (sceneList.Any(s => s != null && s.id == id)) continue;
-                sceneList.Add(new NightLines.Scene { id = id, holdAce = hold, lines = ids.ToArray() });
+                sceneList.Add(new NightLines.Scene { id = id, holdAce = hold, lines = ids.ToArray(), choices = ChoicesOf(id) });
                 scenes++;
+            }
+            // The deal of 5 Oct, untouched since: its lines as they are with Ace's replies, and the replies.
+            string dealNote = "";
+            NightLines.Scene deal = sceneList.FirstOrDefault(x => x != null && x.id == "night0.deal");
+            if (deal != null && (deal.choices == null || deal.choices.Length == 0))
+            {
+                if (deal.lines != null && deal.lines.SequenceEqual(DealOfFifthOctober))
+                {
+                    deal.lines = DealWithReplies.ToArray();
+                    deal.choices = ChoicesOf("night0.deal");
+                    dealNote = " The deal now has Ace's two replies.";
+                }
+                else dealNote = " The deal has been rewritten since 5 Oct, so its replies were not added: add them in its Choices.";
             }
             asset.speakers = speakerList.ToArray();
             asset.lines = lineList.ToArray();
@@ -146,7 +205,7 @@ internal static class BarkSteps
             AssetDatabase.SaveAssets();
             Selection.activeObject = asset;
             Debug.Log(Tag + $"{(made ? "Made" : "Updated")} {AssetPath}: {speakers} speaker(s), {lines} line(s) and {scenes} scene(s) added " +
-                      $"({asset.speakers.Length} speakers, {asset.lines.Length} lines, {asset.scenes.Length} scenes in all; nothing already there was changed). " +
+                      $"({asset.speakers.Length} speakers, {asset.lines.Length} lines, {asset.scenes.Length} scenes in all; no line already there was changed).{dealNote} " +
                       "All placeholder copy. Next: Fixit Fidget > Checks > Bark rules, then Barks 2.");
         }
         catch (Exception e)
@@ -154,6 +213,13 @@ internal static class BarkSteps
             Debug.LogError(Tag + "The night lines FAILED: " + e.Message + "\n" + e);
         }
     }
+
+    static NightLines.Choice[] ChoicesOf(string scene) => Choices.Where(c => c.scene == scene).Select(c => new NightLines.Choice
+    {
+        after = c.after,
+        first = new NightLines.Reply { line = c.a, answer = c.aBack, warmth = c.aWarm },
+        second = new NightLines.Reply { line = c.b, answer = c.bBack, warmth = c.bWarm },
+    }).ToArray();
 
     static Color ColourFor(string id, string hex)
     {

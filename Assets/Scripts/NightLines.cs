@@ -16,7 +16,12 @@ using UnityEngine;
 //     the world says one of them at a time (BarkRules: every line once before any repeats).
 //   * Scenes: a few lines in order, between speakers (Night 0's deal), and whether Ace is held still
 //     while it plays.
+//   * Choices (6 Oct 2026, claude/the-man-at-the-bins-story.md §4): after one of a held scene's lines, Ace
+//     answers with one of two replies (1 or 2 on the keyboard; X or Y on a pad). Each reply is a line of
+//     Ace's, then optionally the line said back, and how much warmer (or, below 0, colder) the man is for it.
+//     A reply never changes what happens next, only what is said.
 // The writing rule is 60 characters a line (two lines on screen); the Bark rules check warns above it.
+// A reply is shown as a small chip before Ace says it, so it keeps to 32 characters.
 // All of it is placeholder copy until Mansoor and his sister write the cast.
 // ---------------------------------------------------------------------------
 [CreateAssetMenu(fileName = ResourceName, menuName = "Fixit Fidget/Night lines")]
@@ -49,6 +54,25 @@ public sealed class NightLines : ScriptableObject
     }
 
     [Serializable]
+    public sealed class Reply
+    {
+        [Tooltip("Ace's reply: a line id (Ace's line). Its text is the chip the player picks.")]
+        public string line = "";
+        [Tooltip("What is said back: a line id, or empty for none. Then the scene goes on.")]
+        public string answer = "";
+        [Tooltip("How much warmer the man is for it (below 0: colder). Never shown; it changes how he talks later.")]
+        public int warmth;
+    }
+
+    [Serializable]
+    public sealed class Choice
+    {
+        [Tooltip("The line (id) Ace answers: the two replies come up once it has been said.")]
+        public string after = "";
+        public Reply first = new Reply(), second = new Reply();
+    }
+
+    [Serializable]
     public sealed class Scene
     {
         public string id = "";
@@ -56,7 +80,20 @@ public sealed class NightLines : ScriptableObject
         public bool holdAce = true;
         [Tooltip("Line ids, in order.")]
         public string[] lines = Array.Empty<string>();
+        [Tooltip("Where Ace answers: after the line named, a choice of two replies (held scenes only).")]
+        public Choice[] choices = Array.Empty<Choice>();
+
+        /// <summary>The choice that comes after line <paramref name="lineId"/>, or null.</summary>
+        public Choice ChoiceAfter(string lineId)
+        {
+            if (string.IsNullOrEmpty(lineId) || choices == null) return null;
+            foreach (Choice c in choices) if (c != null && c.after == lineId) return c;
+            return null;
+        }
     }
+
+    /// <summary>A reply's chip: 32 characters at most (the Bark rules check warns above it).</summary>
+    public const int ReplyRule = 32;
 
     public Speaker[] speakers = Array.Empty<Speaker>();
     public Line[] lines = Array.Empty<Line>();

@@ -13,6 +13,10 @@ using UnityEngine;
 // The prompt names it the way Ace knows it: "Take Barnaby" once Grace has mentioned him, "Take the
 // garden gnome" before. While it's the thing E would take, a soft light catches it (small things are
 // hard to see from above at night).
+//
+// The man at the bins (6 Oct 2026): when it's the thing he asked for (LodgerStory.Errand), Ace carries it in hand
+// (NightCarry) back to the bins to give him, and mutters the night's line; it only goes on Ace's shelf if the night
+// ends with it still in hand. Grace's morning is the same either way: it was Ace who took it.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightTrophy : NightInteractable
@@ -41,14 +45,18 @@ public sealed class NightTrophy : NightInteractable
 
     protected override bool AvailableTonight => Thing != null && !Taken;
 
+    // The interactor reads the prompt every frame while Ace is near: made again only when the name changes.
+    string promptFor, prompt = "";
+
     public override string Prompt
     {
         get
         {
             if (Thing == null) return "";
             Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
-            bool heardOfIt = notebook != null && notebook.Knows(Thing.id);
-            return "Take " + (heardOfIt ? Thing.name : Thing.unknownName);
+            string name = notebook != null && notebook.Knows(Thing.id) ? Thing.name : Thing.unknownName;
+            if (!ReferenceEquals(name, promptFor)) { promptFor = name; prompt = "Take " + name; }
+            return prompt;
         }
     }
 
@@ -109,9 +117,21 @@ public sealed class NightTrophy : NightInteractable
         int night = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
         bool heardOfIt = notebook != null && notebook.Knows(Thing.id);
+        bool forHim = LodgerStory.Errand(Ledger) == thingId;
         if (!Ledger.Take(thingId, Thing.owner, night)) return;
-        if (heardOfIt) NotebookHooks.TookAtNight(Thing);
+        if (heardOfIt) NotebookHooks.TookAtNight(Thing, forHim);
         Sfx.Play("night.take", transform.position + Vector3.up * .2f);
-        NightCycle.Note(heardOfIt ? Thing.takenNote : Thing.takenNoteUnknown);
+        NightCarry carry = forHim && visual != null ? NightCarry.Ensure() : null;
+        if (carry == null)
+        {
+            NightCycle.Note(heardOfIt ? Thing.takenNote : Thing.takenNoteUnknown);
+            return;
+        }
+        // His errand: in Ace's hand, back to the bins.
+        carry.Hold(visual, thingId);
+        NightCycle.Note($"Bring {(heardOfIt ? Thing.name : Thing.unknownName)} back to the man at the bins.");
+        NightLines lines = NightLines.Current;
+        NightLines.Line mine = lines != null ? lines.FindLine(LodgerStory.AceNightOne) : null;
+        if (mine != null) Barks.SayAce(mine.text);
     }
 }

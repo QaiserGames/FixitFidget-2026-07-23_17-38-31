@@ -222,6 +222,11 @@ public sealed class NightWalk : MonoBehaviour
 
     /// <summary>The night's clock, from nightHour to nightEndsAt (past 24 means after midnight: 25 is 1 AM).</summary>
     public float Hour { get; private set; }
+    /// <summary>
+    /// While true the night's clock waits (Night 0 at the bins, NightZero: the night keeps its full four minutes for
+    /// the street once the deal is made). Each night begins with it off.
+    /// </summary>
+    public bool ClockHeld { get; set; }
     /// <summary>The clock as it reads: 0-24.</summary>
     public float ClockHour => Mathf.Repeat(Hour, 24f);
     public float HoursPerSecond => Mathf.Max(0f, nightEndsAt - nightHour) / Mathf.Max(6f, nightMinutes * 60f);
@@ -325,6 +330,7 @@ public sealed class NightWalk : MonoBehaviour
     {
         if (Active) return;
         Active = true;
+        ClockHeld = false;
         Hour = nightHour;
         daylight = FindAnyObjectByType<CafeDaylight>();
         daylightHour = Hour;
@@ -377,6 +383,7 @@ public sealed class NightWalk : MonoBehaviour
     {
         if (!Active) return;
         Active = false;
+        ClockHeld = false;
         // The see-through buildings first: they wear copies of the night's materials, which come off below.
         if (seeThrough != null) { seeThrough.Clear(); Destroy(seeThrough); seeThrough = null; }
         if (neighbourWalks != null) { neighbourWalks.Clear(); Destroy(neighbourWalks); neighbourWalks = null; }
@@ -457,7 +464,7 @@ public sealed class NightWalk : MonoBehaviour
     void Update()
     {
         if (!Active) return;
-        if (Time.deltaTime > 0f && Hour < nightEndsAt) Hour = Mathf.Min(nightEndsAt, Hour + Time.deltaTime * HoursPerSecond);
+        if (Time.deltaTime > 0f && Hour < nightEndsAt && !ClockHeld) Hour = Mathf.Min(nightEndsAt, Hour + Time.deltaTime * HoursPerSecond);
         FollowTheClock();
         UpdateCity();
         if (homes != null) homes.Tick(Hour);

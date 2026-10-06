@@ -31,7 +31,7 @@ using Object = UnityEngine.Object;
 //   ... > Night 1 - Check the scene (read-only).
 //   ... > Night 1 - Play from Day 1's recap (lab): a café lab session (a test save; your playtest save is not
 //         used) that opens on the recap of a made-up Day 1 on which Grace brought her camera in and
-//         mentioned Barnaby. The recap's button leads into the night.
+//         mentioned Barnaby. The recap's button leads into the night (since 6 Oct, Night 0 first: the bins).
 //   ... > Night 1 - Play check, keeping a straight face (lab, drives itself)
 //   ... > Night 1 - Play check, cracking (lab, drives itself): the same lab, driven by NightOneCheck from the
 //         recap to Grace's visit on Day 2. Report and photos: Logs/Night/night-one-check-<time>/.
@@ -361,15 +361,17 @@ internal static class NightOneSteps
         Debug.Log(Tag + (check > 0
             ? $"Night 1 play check ({(check == (int)NightOneCheck.Mode.Crack ? "cracking" : "keeping a straight face")}): it drives itself from Day {day}'s recap " +
               $"to Grace's visit on Day {day + 1} (two or three minutes). Keep the Game view in front and leave the mouse and keyboard alone."
-            : "Night 1 lab: Day 1's recap. Its button (Close up for the night) leads into the night; Barnaby is on the front step of " +
-              "Grace's saffron house on the corner (12 West Street), and E inside the café's door calls it a night.")
+            : "Night 1 lab: Day 1's recap. Its button (Close up for the night) leads into the night: the first night opens with Night 0 " +
+              "(the bins, out the café's back door) when the bins are in the scene; the man at the bins then asks for Barnaby, who is on the " +
+              "front step of Grace's saffron house on the corner (12 West Street). E inside the café's door, or at the back door, calls it a night.")
             + $" Test save {path}; your playtest save is not used.");
         EditorApplication.EnterPlaymode();
     }
 
     // A made-up Day 1 for the lab only: Grace brought her camera in (done well: a Good), told Ace about it
     // and mentioned Barnaby; the day is closed and its recap is on screen. The playtest save is never touched.
-    static SaveData DayOneRecap()
+    // (Night 0's play check starts from it too: NightZeroSteps.)
+    internal static SaveData DayOneRecap()
     {
         var facts = new List<NotebookFactData>(GraceIntake());
         NotebookFactData barnaby = NightThings.Mentioned(NightThings.GnomeOfGrace, NotebookEntries.GraceName);

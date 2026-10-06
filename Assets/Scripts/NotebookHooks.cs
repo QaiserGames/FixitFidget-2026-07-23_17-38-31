@@ -90,11 +90,11 @@ public static class NotebookHooks
         return notebook != null && fact != null && notebook.Learn(fact, Today);
     }
 
-    /// <summary>Ace took <paramref name="thing"/> at night: Ace's own secret.</summary>
-    public static bool TookAtNight(NightThing thing)
+    /// <summary>Ace took <paramref name="thing"/> at night: Ace's own secret (<paramref name="forHim"/>: for the man at the bins).</summary>
+    public static bool TookAtNight(NightThing thing, bool forHim = false)
     {
         Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
-        NotebookFactData fact = NightThings.Taken(thing, NameOf(notebook, thing != null ? thing.owner : null));
+        NotebookFactData fact = NightThings.Taken(thing, NameOf(notebook, thing != null ? thing.owner : null), forHim);
         return notebook != null && fact != null && notebook.Learn(fact, Today);
     }
 

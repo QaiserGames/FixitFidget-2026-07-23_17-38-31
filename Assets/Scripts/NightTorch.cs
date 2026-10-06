@@ -79,7 +79,8 @@ public sealed class NightTorch : MonoBehaviour
 
     void Update()
     {
-        if (beam == null || ace == null || Time.timeScale <= 0f) return;
+        // A scene holding Ace still owns the buttons (on a pad, X / Square picks Ace's first reply: Barks).
+        if (beam == null || ace == null || Time.timeScale <= 0f || PlayerMovement.Held) return;
         bool pressed = Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame || PadInput.Pressed(PadButton.West);
         if (pressed) Switch(!beam.enabled);
     }

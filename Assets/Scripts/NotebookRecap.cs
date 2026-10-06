@@ -17,6 +17,10 @@ using System.Text;
 // The recap phone's Notes app (playtest 2, step 2) lays the same notebook out
 // person by person from People, the grouping the night's page (Page) uses too.
 //
+// The man at the bins' pages (6 Oct 2026; the inherited source, LodgerStory) come first wherever the
+// notebook is laid out: they are the notebook's first pages, in his hand, so the page shows them in
+// italics under his heading. What Ace learned sits under them.
+//
 // No Unity types: Tests/NotebookRules and Tests/HomeRules compile this file.
 // ---------------------------------------------------------------------------
 
@@ -89,8 +93,11 @@ public static class NotebookRecap
             if (text.Length > 0) text.Append('\n');
             text.Append("<b>").Append(person.name).Append("</b>");
             foreach (NotebookFactData fact in person.facts)
-                text.Append('\n').Append(Small).Append("<indent=4%>").Append(Sentence(fact.text)).Append(Marker(fact.sure, ""))
-                    .Append("</indent></size>");
+            {
+                bool his = fact.source == Notebook.Sources.Inherited;
+                text.Append('\n').Append(Small).Append("<indent=4%>").Append(his ? "<i>" : "").Append(Sentence(fact.text))
+                    .Append(his ? "</i>" : "").Append(Marker(fact.sure, "")).Append("</indent></size>");
+            }
         }
         return text.ToString();
     }
@@ -106,14 +113,17 @@ public static class NotebookRecap
         var people = new List<NotebookPerson>();
         if (notebook == null) return people;
         var byWho = new Dictionary<string, NotebookPerson>();
-        foreach (NotebookFactData fact in notebook.Facts)
-        {
-            string who = fact.who ?? "";
-            if (byWho.ContainsKey(who)) continue;
-            var person = new NotebookPerson { who = who, name = string.IsNullOrWhiteSpace(fact.name) ? who : fact.name };
-            byWho[who] = person;
-            people.Add(person);
-        }
+        // His pages first (they are the notebook's first pages), then everyone else as Ace met them.
+        for (int pass = 0; pass < 2; pass++)
+            foreach (NotebookFactData fact in notebook.Facts)
+            {
+                if ((fact.source == Notebook.Sources.Inherited) != (pass == 0)) continue;
+                string who = fact.who ?? "";
+                if (byWho.ContainsKey(who)) continue;
+                var person = new NotebookPerson { who = who, name = string.IsNullOrWhiteSpace(fact.name) ? who : fact.name };
+                byWho[who] = person;
+                people.Add(person);
+            }
         for (int pass = 0; pass < 2; pass++)
             foreach (NotebookFactData fact in notebook.Facts)
             {

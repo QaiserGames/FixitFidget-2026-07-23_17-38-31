@@ -8,7 +8,9 @@ using UnityEngine;
 // Rule checks for barks (claude/foundation-pass-build-plan.md §5): how long a line stays up, the ambient
 // throttle, and the pools. Pure: no scene, no save, no assets. Also compiled by Tests/BarkRules. The
 // in-Editor menu (Fixit Fidget > Checks > Bark rules) also checks the Night lines asset: ids, speakers,
-// scenes, blank lines, and the 60-character writing rule (a warning, not a failure).
+// scenes, blank lines, and the 60-character writing rule (a warning, not a failure). Since 6 Oct, Ace's replies
+// too: each choice in a held scene, after one of its lines, both replies Ace's lines (32 characters for a chip:
+// a warning), the lines said back there, the warmth small; and the scenes the man at the bins plays (LodgerStory).
 public static class BarkRuleChecks
 {
 #if UNITY_EDITOR
@@ -62,7 +64,29 @@ public static class BarkRuleChecks
             Check(scenes.Add(s.id), $"Scene '{s.id}' is listed once.");
             Check(s.lines != null && s.lines.Length > 0, $"Scene '{s.id}' has lines.");
             foreach (string id in s.lines) Check(ids.Contains(id), $"Scene '{s.id}': its line '{id}' is in the asset.");
+            foreach (NightLines.Choice c in s.choices ?? Array.Empty<NightLines.Choice>())
+            {
+                Check(c != null && Array.IndexOf(s.lines, c.after) >= 0, $"Scene '{s.id}': a choice comes after one of its own lines ('{c?.after}').");
+                Check(s.holdAce, $"Scene '{s.id}': a scene with a choice holds Ace (only a held scene waits for the reply).");
+                foreach (NightLines.Reply r in new[] { c.first, c.second })
+                {
+                    NightLines.Line said = lines.FindLine(r?.line);
+                    Check(said != null && said.speaker == "ace", $"Scene '{s.id}', after '{c.after}': each reply is one of Ace's lines ('{r?.line}').");
+                    Check(string.IsNullOrEmpty(r.answer) || ids.Contains(r.answer), $"Scene '{s.id}', after '{c.after}': the line said back ('{r.answer}') is in the asset.");
+                    Check(Math.Abs(r.warmth) <= 2, $"Scene '{s.id}', after '{c.after}': a reply moves his warmth by 2 at most.");
+                    if (said.text.Length > NightLines.ReplyRule)
+                        warnings.Add($"Reply '{said.id}' is {said.text.Length} characters (a chip holds {NightLines.ReplyRule}): \"{said.text}\"");
+                }
+            }
         }
+        // The man at the bins plays these, and does things on these lines (LodgerStory).
+        Check(scenes.Contains(LodgerStory.DealScene) && scenes.Contains(LodgerStory.ReturnScene), "The deal and the return are scenes in the asset (Barks 1 adds them).");
+        Check(Array.IndexOf(lines.FindScene(LodgerStory.DealScene).lines, LodgerStory.HandOverLine) >= 0, "The deal says the line on which the notebook changes hands.");
+        foreach (string id in new[] { LodgerStory.TakesItLine, LodgerStory.TurnsItLine, LodgerStory.LessonLine, LodgerStory.PageLine })
+            Check(Array.IndexOf(lines.FindScene(LodgerStory.ReturnScene).lines, id) >= 0, $"The return says '{id}' (what he does happens on it).");
+        foreach (string pool in new[] { LodgerStory.Waiting, LodgerStory.Beckon, LodgerStory.Done })
+            Check(lines.Pool(LodgerStory.SpeakerId, pool).Count > 0, $"He has lines for '{pool}'.");
+        Check(ids.Contains(LodgerStory.AceNightZero) && ids.Contains(LodgerStory.AceNightOne), "Ace's lines of Nights 0 and 1 are in the asset.");
         return n;
     }
 #endif

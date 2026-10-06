@@ -34,6 +34,8 @@ using UnityEngine.UI;
 // Ace is driven like a player: PlayerMovement.ScriptedInput stands in for the keys (as in NightTour), and
 // E goes through the interactor's own input message. A photo at each step and report.txt go to the
 // check's folder. Nothing is saved in the scene; the lab save is the only file written (by the game).
+// The night here is Night 1's slice on its own: Night 0 (the bins, the man at the bins) is skipped for
+// this Play session (NightZero.SkipForLab); NightZeroCheck drives that, and the errand.
 // ---------------------------------------------------------------------------
 public sealed class NightOneCheck : MonoBehaviour
 {
@@ -101,6 +103,7 @@ public sealed class NightOneCheck : MonoBehaviour
     // failure rather than leaving it hanging.
     IEnumerator Start()
     {
+        NightZero.SkipForLab = true;   // the slice on its own (see above)
         started = Time.realtimeSinceStartup;
         if (string.IsNullOrEmpty(folder))
             folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night", $"night-one-check-{DateTime.Now:yyyy-MM-dd_HHmmss}"));

@@ -26,7 +26,7 @@ public sealed class NightDoorway : NightInteractable
         }
     }
 
-    public override string Prompt => "Call it a night";
+    public override string Prompt => NightCycle.CallItANightPrompt;
 
     public override void Interact(PlayerInteractor player)
     {

@@ -14,7 +14,11 @@ using System.Collections.Generic;
 //     owner comes in the next morning (CustomerSpawner) and tells Ace at the counter, and Ace has
 //     to keep a straight face (MorningFace);
 //   * suspicion: a cracked straight face makes that one person suspicious. It never touches stars
-//     (claude/reputation-spec.md §5): one mistake, one consequence.
+//     (claude/reputation-spec.md §5): one mistake, one consequence;
+//   * the man at the bins (claude/the-man-at-the-bins-story.md, 6 Oct 2026): whether Ace has met him (Night 0's
+//     deal), how warm he is to Ace (Ace's replies nudge it; hidden), the lessons he has taught Ace (they pay off
+//     by day: Nerve widens the straight face's green) and what Ace has brought him (his corner by the bins).
+//     A thing Ace gives him leaves Ace's shelf for his corner; it is still Ace's deed, so the morning is the same.
 //
 // No Unity types: the Night 1 rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
 // ---------------------------------------------------------------------------
@@ -23,6 +27,8 @@ public sealed class NightLedger
     readonly List<string> trophies = new();
     readonly List<NightDeedData> deeds = new();
     readonly Dictionary<string, int> suspicion = new(StringComparer.Ordinal);
+    readonly List<string> lessons = new();
+    readonly List<string> given = new();
 
     /// <summary>Something changed (a trophy taken, a morning scene played, a restore): shelves and streets look again.</summary>
     public event Action Changed;
@@ -35,6 +41,65 @@ public sealed class NightLedger
     public IReadOnlyList<NightDeedData> Deeds => deeds;
 
     public bool HasTrophy(string thing) => !string.IsNullOrEmpty(thing) && trophies.Contains(thing);
+
+    // ---------- the man at the bins ----------
+
+    /// <summary>Night 0's deal is behind Ace: the man at the bins has made himself known.</summary>
+    public bool MetHim { get; private set; }
+    /// <summary>How warm he is to Ace: Ace's replies nudge it, within plus or minus NightSaveData.MaxWarmth. Never shown.</summary>
+    public int Warmth { get; private set; }
+    /// <summary>What he has taught Ace, in order. Treat as read-only.</summary>
+    public IReadOnlyList<string> Lessons => lessons;
+    /// <summary>What Ace has brought him, in order (his corner). Treat as read-only.</summary>
+    public IReadOnlyList<string> Given => given;
+
+    /// <summary>The deal at the bins is made. True the first time.</summary>
+    public bool Meet()
+    {
+        if (MetHim) return false;
+        MetHim = true;
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>A reply nudges how warm he is (negative: colder), kept within the limits. The new warmth.</summary>
+    public int Warm(int by)
+    {
+        int next = Math.Max(-NightSaveData.MaxWarmth, Math.Min(NightSaveData.MaxWarmth, Warmth + by));
+        if (next == Warmth) return Warmth;
+        Warmth = next;
+        Changed?.Invoke();
+        return Warmth;
+    }
+
+    public bool Knows(string lesson) => !string.IsNullOrEmpty(lesson) && lessons.Contains(lesson);
+
+    /// <summary>He teaches Ace <paramref name="lesson"/>. True when it's new.</summary>
+    public bool Learn(string lesson)
+    {
+        if (string.IsNullOrEmpty(lesson) || lessons.Contains(lesson)) return false;
+        lessons.Add(lesson);
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>Ace has brought him <paramref name="thing"/>.</summary>
+    public bool HasGiven(string thing) => !string.IsNullOrEmpty(thing) && given.Contains(thing);
+
+    /// <summary>
+    /// Ace gives him <paramref name="thing"/>: it joins his corner and leaves Ace's shelf. Only a thing Ace has taken,
+    /// and only once. True when it's new.
+    /// </summary>
+    public bool Give(string thing)
+    {
+        if (!HasTrophy(thing) || given.Contains(thing)) return false;
+        given.Add(thing);
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>On Ace's shelf: taken and not given to him.</summary>
+    public bool OnShelf(string thing) => HasTrophy(thing) && !HasGiven(thing);
 
     /// <summary>
     /// Ace takes <paramref name="thing"/> from <paramref name="owner"/> on the night after day
@@ -102,7 +167,11 @@ public sealed class NightLedger
         trophies.Clear();
         deeds.Clear();
         suspicion.Clear();
+        lessons.Clear();
+        given.Clear();
         Nights = saved != null ? Math.Max(0, saved.nights) : 0;
+        MetHim = saved != null && saved.metHim;
+        Warmth = saved != null ? Math.Max(-NightSaveData.MaxWarmth, Math.Min(NightSaveData.MaxWarmth, saved.warmth)) : 0;
         if (saved != null)
         {
             foreach (string thing in saved.trophies ?? Array.Empty<string>())
@@ -112,6 +181,11 @@ public sealed class NightLedger
                 if (deed != null && !string.IsNullOrEmpty(deed.thing) && seen.Add(deed.thing)) deeds.Add(deed.Copy());
             foreach (SuspicionData who in saved.suspicion ?? Array.Empty<SuspicionData>())
                 if (who != null && !string.IsNullOrEmpty(who.who) && who.level > 0) suspicion[who.who] = who.level;
+            foreach (string lesson in saved.lessons ?? Array.Empty<string>())
+                if (!string.IsNullOrEmpty(lesson) && !lessons.Contains(lesson)) lessons.Add(lesson);
+            // Only what Ace has taken can be his.
+            foreach (string thing in saved.given ?? Array.Empty<string>())
+                if (!string.IsNullOrEmpty(thing) && trophies.Contains(thing) && !given.Contains(thing)) given.Add(thing);
         }
         Changed?.Invoke();
     }
@@ -124,6 +198,10 @@ public sealed class NightLedger
             nights = Nights,
             trophies = trophies.ToArray(),
             deeds = new NightDeedData[deeds.Count],
+            metHim = MetHim,
+            warmth = Warmth,
+            lessons = lessons.ToArray(),
+            given = given.ToArray(),
         };
         for (int i = 0; i < deeds.Count; i++) data.deeds[i] = deeds[i].Copy();
         var list = new List<SuspicionData>();

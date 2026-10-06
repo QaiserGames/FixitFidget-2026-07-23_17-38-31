@@ -21,7 +21,12 @@ using UnityEngine.Rendering;
 //     (CafeViewMode), and the ground, the hill and the skyline never fade.
 //   * In the way: any of five sightlines from the camera to Ace (knees, middle,
 //     head, and either side) passes through one of the building's pieces (their
-//     bounding boxes; cheap enough to test every frame).
+//     bounding boxes; cheap enough to test every frame). Since 6 Oct 2026 also the
+//     ground in front of Ace (Ahead): two more sightlines, to points 6 m and 12 m
+//     from Ace toward the camera, so a roof between the camera and the street Ace
+//     is walking toward fades too (at the home view and far zoom, the terrace south
+//     of the car park covered the lower half of the screen with Ace on the front
+//     street).
 //   * How it fades: a screen-door dither (the shader "Fixit Fidget/Night
 //     see-through", URP's Lit with the dots added). Each material a building
 //     wears gets a copy with that shader (SeeThroughMaterials: made once per
@@ -57,6 +62,9 @@ public sealed class NightSeeThrough : MonoBehaviour
     public float clusterWidth = 8f;
     [Tooltip("Wider than this is ground, not a building: it never fades (metres).")]
     public float maxWidth = 45f;
+    [Tooltip("The ground in front of Ace, toward the camera, stays in view too: what stands between the camera and these two " +
+             "points (metres from Ace, a metre up) fades as well. 0 switches a point off.")]
+    public Vector2 ahead = new Vector2(6f, 12f);
 
     public const string DitherShaderName = SeeThroughMaterials.DitherShaderName;
     static readonly int SeeThroughId = SeeThroughMaterials.SeeThroughId;
@@ -84,7 +92,8 @@ public sealed class NightSeeThrough : MonoBehaviour
     readonly HashSet<string> everFaded = new();
     readonly HashSet<Transform> leftAlone = new();
     MaterialPropertyBlock block;
-    readonly Vector3[] aim = new Vector3[5];
+    readonly Vector3[] aim = new Vector3[7];
+    int aims = 5;
 
     public int Groups => groups.Count;
     public int Renderers { get; private set; }
@@ -254,6 +263,16 @@ public sealed class NightSeeThrough : MonoBehaviour
         aim[2] = feet + Vector3.up * 1.7f;
         aim[3] = aim[1] + across;
         aim[4] = aim[1] - across;
+        // The ground ahead of Ace on screen: toward the camera, along the ground.
+        aims = 5;
+        Vector3 toward = eye - feet;
+        toward.y = 0f;
+        if (toward.sqrMagnitude > 1e-4f)
+        {
+            toward.Normalize();
+            if (ahead.x > 0f) aim[aims++] = feet + toward * ahead.x + Vector3.up;
+            if (ahead.y > 0f) aim[aims++] = feet + toward * ahead.y + Vector3.up;
+        }
         foreach (var g in groups)
         {
             g.blocking = false;
@@ -265,8 +284,9 @@ public sealed class NightSeeThrough : MonoBehaviour
 
     bool AnyHit(Bounds box, Vector3 eye)
     {
-        foreach (var target in aim)
+        for (int i = 0; i < aims; i++)
         {
+            Vector3 target = aim[i];
             Vector3 d = target - eye;
             float length = d.magnitude;
             // Something right at Ace (a wall Ace stands against) counts; the ground under Ace doesn't reach this high.
