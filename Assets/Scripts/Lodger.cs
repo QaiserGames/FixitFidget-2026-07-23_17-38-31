@@ -581,13 +581,11 @@ public sealed class Lodger : MonoBehaviour
         }
         else if (id == returned.page)
         {
-            NotebookFactData page = LodgerStory.PageFor(thing);
+            // The page goes in with the notebook's sound; his line points at it, and the notebook (N) has it. No note:
+            // the lesson's is the beat's one note (playtest 3). A page about something not in the game yet isn't paid.
+            NotebookFactData page = LodgerStory.PageFor(thing, NightZero.InTheGame);
             Notebook notebook = SaveManager.Instance.Notebook;
-            if (page != null && notebook != null && notebook.Learn(page, NotebookHooks.Today))
-            {
-                Sfx.Play2D("notebook.page");
-                NightCycle.Note($"In his pages: \"{page.text}\" ({ControlHints.NotebookPage})", 6f);
-            }
+            if (page != null && notebook != null && notebook.Learn(page, NotebookHooks.Today)) Sfx.Play2D("notebook.page");
             paid = true;
         }
     }

@@ -19,7 +19,8 @@ using System.Collections.Generic;
 // EVERY WORD HERE IS A PLACEHOLDER. Grace's canon is Mansoor's: the gnome's name, what she says about
 // it on Day 1 (when Ace asks about her plans, at the counter over her camera), her complaint the morning
 // after, her two reactions and the notebook's shorthand of them are drafts to rewrite. Change the words here; keep the ids
-// (saves hold them). The meter's numbers are the thing's difficulty: a stolen gnome is easy.
+// (saves hold them). The meter's numbers are the thing's difficulty: a stolen gnome is easy. The notes and the notebook's
+// lines keep to the word budget (WordBudget: 12 words; the Night rules check fails on more).
 //
 // No Unity types: the Night 1 rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
 // ---------------------------------------------------------------------------
@@ -93,8 +94,8 @@ public static class NightThings
         held = "Thank you for not laughing, dear. The postman laughed.",
         cracked = "Ace. Are you smiling?\n...Hm. I'll be keeping an eye on my front step.",
         takenNote = "Barnaby is coming home with Ace. He'll go on the shelf.",
-        takenNoteUnknown = "The garden gnome is coming home with Ace. It'll go on the shelf.",
-        notebookMention = "Has a garden gnome, Barnaby, on the front step of the saffron house on the corner. Twenty years. Polishes him.",
+        takenNoteUnknown = "The garden gnome's coming home with Ace. On the shelf.",
+        notebookMention = "Barnaby, her gnome: twenty years on the saffron house's front step.",
         notebookComplaint = "Had a garden gnome, Barnaby, on her front step. Twenty years.",
         notebookTaken = "Took Barnaby from her front step. He's on the shelf now.",
         notebookTakenFor = "Took Barnaby from her front step, for the man at the bins.",
@@ -120,12 +121,12 @@ public static class NightThings
             + "Who breaks into a house for paper cups, Ace?",
         held = "You're right, it's silly. Still. Twelve cups.",
         cracked = "Ace. Are you laughing at me?\nI'll be counting my cups from now on.",
-        takenNote = "A sleeve of Grace's reunion cups is coming home with Ace. It'll go on the shelf.",
-        takenNoteUnknown = "A sleeve of cups is coming home with Ace. It'll go on the shelf.",
-        notebookMention = "Has a box of reunion cups in her kitchen: three sleeves of twelve, on the worktop. (His word.)",
+        takenNote = "A sleeve of Grace's cups is coming home with Ace.",
+        takenNoteUnknown = "A sleeve of cups is coming home with Ace.",
+        notebookMention = "Reunion cups in her kitchen: a box on the worktop. His word.",
         notebookComplaint = "Someone took a sleeve of her reunion cups.",
         notebookTaken = "Took a sleeve of her reunion cups. It's on the shelf.",
-        notebookTakenFor = "Took a sleeve of her reunion cups, for the man at the bins.",
+        notebookTakenFor = "Took a sleeve of her cups for the man at the bins.",
         notebookCracked = "Smiled when she told me about her cups. She's counting them now.",
         sweepSeconds = .95f,
         green = .19f,

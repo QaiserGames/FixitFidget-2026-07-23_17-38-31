@@ -26,13 +26,15 @@ using UnityEngine.UI;
 //          stoop until she's asleep, and sneaks in; at the worktop, "Take the reunion cups": in hand, the notebook says who
 //          for, Ace's line; she sleeps through it;
 //       4. back at the bins, "Give him the reunion cups": the return (Ace answers, +1), four cups set out on the crate one
-//          by one, Doors learned, a page (her photos); calling it a night at the back door;
+//          by one, Soft feet learned (no page: her photos aren't in the game yet); calling it a night at the back door;
 //       5. Day 3: the save has it all; Grace comes in first about her cups (with Nerve the green is wider), and Ace keeps
 //          a straight face; the officer comes in, orders, and after his order asks about the man: "Say nothing", held.
-//   * Visit: the ask, then calling it a night without the cups: a skip. On Day 3 he comes into the café on foot in his
-//     own look, sits, says one line when Ace is near, and leaves after a minute.
-//   * Note: he has asked twice before: tonight he asks again, colder (no reply); calling it a night is the third skip.
-//     On Day 3 there's no visit: his note is on screen and in the notebook, and he's moved on to his next favour.
+//   * Visit (one skip): the ask, then calling it a night without the cups: a skip. On Day 3 he comes into the café at
+//     opening on foot in his own look, takes a table, says one line when Ace is near, and sits until about 1:30 PM.
+//   * Note (the third skip; playtest 3): he has asked twice before: tonight he asks again, colder (no reply); calling it
+//     a night is the third skip. Day 3 opens with his mess (a dirty cup on every seat, cleared with E), his planted
+//     one-star review in the day, his note on the counter (and in the notebook), his table, and the officer coming in
+//     for his word, a harder question. The cups are still what he wants.
 // A photo at each step and report.txt go to Logs/Night/night-two-check-<mode>-<time>/. Nothing is saved in the scene;
 // the lab save is the only file written (by the game).
 // ---------------------------------------------------------------------------
@@ -145,7 +147,7 @@ public sealed class NightTwoCheck : MonoBehaviour
             "the Night lines have the cups' ask, its warm one and the return (Barks 1)");
         Check(ledger.MetHim && ledger.Favour == cups.id && ledger.HasGiven(NightThings.GraceGnome) && ledger.Knows(LodgerStory.Nerve) && ledger.Warmth == 2,
             $"Day 2's record: met, Barnaby given, Nerve, warmth {ledger.Warmth}; his favour now the cups");
-        Check(mode == Mode.Note ? ledger.AskedOn > 0 && ledger.Skips == LodgerStory.SkipsBeforeDropped - 1 : ledger.AskedOn == 0 && ledger.Skips == 0,
+        Check(mode == Mode.Note ? ledger.AskedOn > 0 && ledger.Skips == LodgerStory.WordAtSkips - 1 : ledger.AskedOn == 0 && ledger.Skips == 0,
             mode == Mode.Note ? $"he has asked for them before, and been let down {ledger.Skips} time(s)" : "he hasn't asked for them yet");
         CheckTheOfficerIsSetUp();
         if (trophy == null || shelf == null || house == null) yield break;
@@ -170,6 +172,17 @@ public sealed class NightTwoCheck : MonoBehaviour
         yield return Seconds(1.6f);
         yield return Until(() => interactor.CurrentPrompt == "Take the bins out", 4f, "the prompt reads \"Take the bins out\"");
         yield return Photo("02-night-2-at-the-back-door");
+        // Any door (playtest 3): out the front with the bag, the step follows Ace; back in, the back door is the way again.
+        Vector3 insideBefore = movement.transform.position;
+        MoveAce(new Vector3(.12f, 0f, -2.2f));
+        yield return null;
+        yield return null;
+        Check(zero.Now == NightZero.Step.Outside && zero.CanBinIt, "out the front door with the bag, \"Bin it\" would be offered at the dumpster");
+        MoveAce(insideBefore);
+        yield return null;
+        yield return null;
+        Check(zero.Now == NightZero.Step.AtTheDoor, "back inside, the back door is the way again");
+        yield return Until(() => interactor.CurrentPrompt == "Take the bins out", 3f, "…and its prompt is back");
         Press();
         yield return Until(() => zero.Now == NightZero.Step.Outside, 3f, "E took Ace out on Back Street");
         yield return Seconds(1f);
@@ -334,16 +347,16 @@ public sealed class NightTwoCheck : MonoBehaviour
             yield return Seconds(1.6f);   // long enough for the cups to go out one by one
             mostCups = Mathf.Max(mostCups, man.CupsOut);
             if (!cupsPhoto && man.CupsOut == 4) { cupsPhoto = true; yield return Photo("08-four-cups-on-the-crate"); }
-            if (cupsWhenPaid < 0 && ledger.Knows(LodgerStory.Doors)) cupsWhenPaid = man.CupsOut;
+            if (cupsWhenPaid < 0 && ledger.Knows(LodgerStory.Feet)) cupsWhenPaid = man.CupsOut;
             if (!Barks.Choosing) Barks.Advance();
         }
         yield return Until(() => !man.Returning, 3f, "the return ended");
         Check(replied && ledger.Warmth == warmth + 1, $"Ace answered once, warmly (+1: his warmth {ledger.Warmth})");
         Check(mostCups == 4 && man.CupsOut == 4, $"he set four cups out on the crate ({mostCups})");
-        Check(ledger.Knows(LodgerStory.Doors), "he taught Ace Doors");
-        Check(saves.Notebook.Knows("lodger.page.grace.photos"), "and gave Ace a page: her photos");
+        Check(ledger.Knows(LodgerStory.Feet) && !ledger.Knows(LodgerStory.Doors), "he taught Ace Soft feet (Doors waits for the keys)");
+        Check(!saves.Notebook.Knows("lodger.page.grace.photos"), "no page about her photos: they aren't in the game yet");
         Check(ledger.Favour == LodgerStory.Cones && LodgerStory.Errand(ledger) == "", "the cups are done: his next favour comes up (the cones, not in the game yet)");
-        Note($"Doors came with {cupsWhenPaid} cup(s) out");
+        Note($"Soft feet came with {cupsWhenPaid} cup(s) out");
         yield return Until(() => man.Hidden, 4f, "a moment after the return he's back in the bin, the lid shut");
         yield return Seconds(.4f);
         yield return Photo("09-his-corner");
@@ -355,15 +368,15 @@ public sealed class NightTwoCheck : MonoBehaviour
         yield return Until(() => NightCycle.Instance.Now == NightCycle.Phase.Day && DayClock.Instance.Day == 3 && !DayClock.Instance.DayOver, 15f,
             "E called it a night: Day 3 opened");
         if (!lastWait) yield break;
-        Check(ledger.Nights == 2 && ledger.HasGiven(cups.id) && ledger.Knows(LodgerStory.Doors) && ledger.Skips == 0 && !ledger.VisitDue(3),
-            $"the night's record: two nights, the cups given, Doors, no skip (warmth {ledger.Warmth})");
+        Check(ledger.Nights == 2 && ledger.HasGiven(cups.id) && ledger.Knows(LodgerStory.Feet) && ledger.Skips == 0 && !ledger.VisitDue(3) && !ledger.MessDue(3),
+            $"the night's record: two nights, the cups given, Soft feet, no skip and nothing due (warmth {ledger.Warmth})");
         Check(shelf.Showing == 0 && !set.cornerCups.activeSelf && !trophy.visual.activeSelf, "by day: nothing on Ace's shelf, his corner put away, her worktop without the sleeve");
         SaveData disk = null;
         try { disk = SaveCheckpointStorage.Read(Path.Combine(Application.persistentDataPath, CafeLab.SaveFileName)); }
         catch (Exception e) { Note("could not read the lab save: " + e.Message); }
-        Check(disk != null && disk.day == 3 && disk.night.given.Contains(cups.id) && disk.night.lessons.Contains(LodgerStory.Doors)
+        Check(disk != null && disk.day == 3 && disk.night.given.Contains(cups.id) && disk.night.lessons.Contains(LodgerStory.Feet)
               && disk.night.favour == LodgerStory.Cones && disk.night.deeds.Any(d => d.thing == cups.id && !d.faced),
-            "Day 3's save has it all (the cups given, Doors, his next favour, Grace still to come in)");
+            "Day 3's save has it all (the cups given, Soft feet, his next favour, Grace still to come in)");
         yield return Seconds(2.2f);
         yield return Photo("10-day-3-morning");
 
@@ -432,7 +445,7 @@ public sealed class NightTwoCheck : MonoBehaviour
         report.AppendLine("The night's ledger now: " + JsonUtility.ToJson(ledger.Snapshot()));
     }
 
-    // Visit and Note: the night ends without the cups.
+    // Visit and Note: the night ends without the cups, and the morning after costs the day (playtest 3).
     IEnumerator Stalling(Lodger man)
     {
         yield return Walk(new List<Vector3> { new Vector3(6.25f, 0f, 20.2f), set.outsideDoor.position }, new List<float> { .35f, .3f }, "straight back to the back door");
@@ -444,37 +457,126 @@ public sealed class NightTwoCheck : MonoBehaviour
         LodgerDay day = LodgerDay.Instance;
         Check(day != null, "the man by day is looked after (LodgerDay, on the patron spawner)");
         if (day == null) yield break;
+        float length = Field<object>(DayClock.Instance, "dayLengthSeconds") is float g ? g : 180f;
+        LodgerStory.Favour cups = LodgerStory.FindFavour(NightThings.GraceCups);
 
         if (mode == Mode.Note)
         {
-            Check(ledger.Dropped.Contains(NightThings.GraceCups) && ledger.NoteDue(3) && !ledger.VisitDue(3) && ledger.Favour == LodgerStory.Cones,
-                $"the third skip: the cups dropped, his note due on Day 3, no visit; his next favour {ledger.Favour}");
-            yield return Until(() => day.NoteShown, 12f, "his note is on the counter when the day opens");
-            LodgerStory.Favour cups = LodgerStory.FindFavour(NightThings.GraceCups);
+            Check(ledger.Skips == LodgerStory.WordAtSkips && ledger.VisitDue(3) && ledger.MessDue(3) && ledger.WordDue(3) && ledger.NoteDue(3)
+                  && ledger.Favour == NightThings.GraceCups && ledger.Dropped.Count == 0,
+                $"the third skip: his table, his mess, his word and his note all due on Day 3; the cups are still what he wants");
+
+            // His mess: a used cup on every seat near the door, the seats out of play, sorted into tables with a badge over
+            // each; one note that names him; then his note on the counter, a beat later.
+            yield return Until(() => day.CupsLaid > 0, 6f, "the café opens with his mess");
+            if (!lastWait) yield break;
+            TableSeat[] seats = FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude);
+            int dirty = seats.Count(t => t.IsDirty);
+            Check(day.CupsLaid == Mathf.Min(seats.Length, LodgerStory.MessCupsAtMost) && dirty == day.CupsLaid && seats.Where(t => t.IsDirty).All(t => !t.IsAvailable),
+                $"a used cup on every table seat near the door ({day.CupsLaid} of {seats.Length}); a seat with a cup can't be sat in");
+            // The tables, seat by seat: the seats don't know their tables, so a wrong guess shows here.
+            foreach (MessTable t in day.Tables)
+                Note($"a table with {t.cups.Count} of his cups: " + string.Join(", ", t.cups.Where(c => c != null).Select(c => $"{c.seat.name} {Where(c.transform.position)}")));
+            int tables = day.Tables.Count;
+            Check(tables >= 1 && tables < day.CupsLaid && day.Tables.Sum(t => t.cups.Count) == day.CupsLaid && day.TablesLeft == tables,
+                $"his cups sorted into {tables} table(s), every cup on exactly one");
+            yield return Seconds(.4f);   // the badges spring up
+            int badges = day.Tables.Count(t => Juice.MarkShowing(t.Badge, out _));
+            Check(badges == tables && Juice.MarksUp == tables, $"a badge over each table ({badges} of {tables} showing; {Juice.MarksUp} up)");
+            yield return Until(() => NoteShowing().Contains(LodgerStory.MessNote), 6f, "the note says so, and whose mess it is");
+            Note($"the note: \"{NoteShowing()}\"");
+            yield return Photo("05-his-mess");
+            yield return Until(() => day.NoteShown, 14f, "then his note on the counter");
             Check(NoteShowing().Contains(cups.note), $"on screen (\"{Short(NoteShowing())}\")");
             NotebookFactData page = saves.Notebook.Find("lodger.note." + NightThings.GraceCups);
             Check(page != null && page.source == Notebook.Sources.Inherited && page.text == cups.note, "and in the notebook, as one of his pages");
-            yield return Photo("05-his-note");
-            float dayLength = Field<object>(DayClock.Instance, "dayLengthSeconds") is float f ? f : 180f;
-            yield return Until(() => DayClock.Instance.NormalizedDay > LodgerStory.VisitFrom + .08f, dayLength * .4f, "a quarter of the day goes by");
-            Check(day.Visitor == null && !day.VisitPending, "and he doesn't come in");
+            yield return Photo("06-his-note");
+
+            // His review, in the day's reviews already.
+            Check(day.ReviewPlanted && saves.Reputation.Count(Review.NeverAgain) >= 1 && saves.Reputation.TodayChange <= -2,
+                $"his one-star review is in the day already (today {ReputationRecap.Signed(saves.Reputation.TodayChange)})");
+
+            // Ace clears one table: E at any cup on it clears every cup on it (one press a table).
+            DirtyCup cup = FindObjectsByType<DirtyCup>(FindObjectsInactive.Exclude).OrderBy(c => Flat(c.transform.position - new Vector3(0f, 0f, 9f)).sqrMagnitude).FirstOrDefault();
+            Check(cup != null && cup.seat != null && cup.table != null, "one of his cups is on a table");
+            if (cup == null || cup.table == null) yield break;
+            MessTable table = cup.table;
+            List<TableSeat> tableSeats = table.cups.Where(c => c != null && c.seat != null).Select(c => c.seat).ToList();
+            int onIt = table.CupsLeft, left = day.CupsLeft, tablesLeft = day.TablesLeft, badge = table.Badge;
+            Vector3 fromCup = Flat(new Vector3(0f, 0f, 9f) - cup.transform.position).normalized;
+            MoveAce(cup.transform.position + fromCup * .9f);
+            yield return Until(() => interactor.CurrentPrompt == LodgerStory.ClearPrompt, 4f, $"at the table the prompt reads \"{LodgerStory.ClearPrompt}\"");
+            Press();
+            yield return Until(() => tableSeats.All(t => !t.IsDirty), 3f, $"one press clears the whole table: its {onIt} seat(s) are free again");
+            Check(day.CupsLeft == left - onIt && day.TablesLeft == tablesLeft - 1,
+                $"{day.CupsLeft} of his cups left (from {left}), on {day.TablesLeft} table(s) (from {tablesLeft})");
+            yield return null;
+            Check(badge != 0 && !Juice.MarkShowing(badge, out _) && Juice.MarksUp == day.TablesLeft
+                  && day.Tables.Where(t => !t.Cleared).All(t => Juice.MarkShowing(t.Badge, out _)),
+                $"its badge comes down; the other tables keep theirs ({Juice.MarksUp} up)");
+            yield return Photo("07-one-table-cleared");
+
+            // His table, from opening.
+            yield return Until(() => day.Visitor != null, length * .15f + 30f, "he comes in from opening and takes a table");
+            if (!lastWait) yield break;
+            Check(day.Visitor.GetComponent<CustomerBrain>() == null, "he isn't a customer (no order, no ticket)");
+
+            // The officer, for his word: a harder question after his order.
+            // The schedule brings him in on Day 3 anyway (The officer 1): the word rides on that visit, no second one.
+            CustomerSpawner spawner = FindAnyObjectByType<CustomerSpawner>();
+            Check(spawner != null && spawner.WordVisitor == null && !spawner.WordVisitorCame, "the schedule brings the officer in today anyway: no second visit for the word");
+            CustomerBrain officer = null;
+            yield return Until(() => (officer = FindRegular(OfficerStory.ProfileId)) != null, length * .3f + 90f, "the officer comes in on Day 3");
+            if (!lastWait) yield break;
+            yield return Until(() => officer == null || officer.CanHearIntake, 150f, "he reaches the counter");
+            if (!lastWait || officer == null) yield break;
+            conversation.Begin(officer);
+            yield return null;
+            yield return Until(() => conversation.RepliesShowing, 8f, $"he orders (\"{Short(conversation.CurrentLine)}\")");
+            conversation.ChooseReply(0);
+            yield return null;
+            MorningFace question = conversation.Face;
+            string wordId = OfficerStory.WordQuestionId(NightThings.GraceCups);
+            Check(question != null && question.AfterOrder && question.Question != null && question.Question.id == wordId && question.Question.afterWord,
+                $"after his order, the word: \"{Short(question != null && question.Question != null ? question.Question.question.Replace("\n", " ") : "")}\"");
+            if (question == null) yield break;
+            yield return Until(() => question.Now == MorningFace.Step.Meter, 15f, "the meter appears");
+            if (!lastWait) yield break;
+            OfficerStory.Question description = OfficerStory.Find("officer.description");
+            Check(question.Meter.Green < LodgerStory.Green(description.green, true) + .001f, $"harder than his description ({question.Meter.Green:0.000})");
+            yield return Seconds(.35f);
+            yield return Photo("08-his-word");
+            yield return Hold(question.Meter);
+            yield return Until(() => question.Now == MorningFace.Step.Result, 4f, "the needle stopped");
+            Check(question.Meter.Held, "Ace said nothing");
+            yield return Until(() => !conversation.InConversation, 10f, "after his answer the conversation closes");
+            Check(ledger.HasAsked(wordId) && ledger.QuestionOn(3)?.id == wordId && saves.Notebook.Knows(wordId),
+                "the record and the notebook have the word, asked on Day 3");
+            Check(!day.TableNoteShown, "with his mess on the tables, no second note about his table (one note a beat)");
             yield break;
         }
 
-        Check(ledger.Skips == 1 && ledger.VisitDue(3) && ledger.Favour == NightThings.GraceCups, "a skip: his visit is due on Day 3; the cups are still his favour");
-        float length = Field<object>(DayClock.Instance, "dayLengthSeconds") is float g ? g : 180f;
-        yield return Until(() => day.Visitor != null, length * .3f + 30f, "a quarter of the way through Day 3 he comes in");
+        Check(ledger.Skips == 1 && ledger.VisitDue(3) && !ledger.MessDue(3) && !ledger.WordDue(3) && !ledger.NoteDue(3) && ledger.Favour == NightThings.GraceCups,
+            "a skip: his table is due on Day 3, nothing more; the cups are still his favour");
+        yield return Until(() => day.Visitor != null, length * .15f + 30f, "he comes in as the day opens");
         if (!lastWait) yield break;
-        Check(DayClock.Instance.NormalizedDay >= LodgerStory.VisitFrom - .01f, $"not before the Build phase ({DayClock.Instance.NormalizedDay:0.00} of the day)");
+        Check(day.CupsLaid == 0, "no mess after one skip");
+        Check(DayClock.Instance.NormalizedDay >= LodgerStory.VisitFrom - .01f && DayClock.Instance.NormalizedDay < .15f,
+            $"from opening ({DayClock.Instance.NormalizedDay:0.00} of the day)");
         GameObject visitor = day.Visitor;
         PatronBrain brain = visitor.GetComponent<PatronBrain>();
         PolygonNpcVisual look = visitor.GetComponent<PolygonNpcVisual>();
         yield return Until(() => look == null || look.VisualInstance != null, 5f, "his look is on");
         Check(look != null && look.ActiveAppearanceName == (set.look != null ? set.look.name : "?"), $"in his own look ({(look != null ? look.ActiveAppearanceName : "none")})");
         Check(visitor.GetComponent<CustomerBrain>() == null, "he isn't a customer (no order, no ticket)");
-        yield return Until(() => visitor == null || brain.IsSeated, 120f, "he takes a seat");
+        yield return Until(() => visitor == null || brain.IsSeated, 120f, "he takes a table");
         if (!lastWait || visitor == null) yield break;
-        float seatedAt = Time.time;
+        float seatedAt = Time.time, seatedDay = DayClock.Instance.NormalizedDay;
+        // No mess to say it, so a note does: he's taken a table, and why.
+        yield return Until(() => day.TableNoteShown, 3f, "once he's sat down, a note is put up");
+        yield return Until(() => NoteShowing() == LodgerStory.TableNote, 12f, "...and shows, after any note already up");
+        Note($"the note: \"{NoteShowing()}\"");
+        yield return Photo("05a-his-table-note");
         // Ace walks past his table.
         Vector3 at = visitor.transform.position;
         Vector3 toRoom = Flat(new Vector3(0f, 0f, 9f) - at).normalized;
@@ -484,10 +586,11 @@ public sealed class NightTwoCheck : MonoBehaviour
         Check(new[] { LodgerStory.Visit, LodgerStory.VisitWarm, LodgerStory.VisitCold }.Any(p => lines.Pool(LodgerStory.SpeakerId, p).Any(l => l.text == line)),
             $"one of his lines in the café: \"{line}\" (warmth {ledger.Warmth}: {LodgerStory.VisitPool(ledger.Warmth)})");
         yield return Seconds(.3f);
-        yield return Photo("05-his-visit");
-        yield return Until(() => visitor == null || brain.IsLeaving, LodgerStory.VisitSeconds + 20f, "after a minute he gets up and goes");
-        float sat = Time.time - seatedAt;
-        Check(sat > LodgerStory.VisitSeconds - 10f && sat < LodgerStory.VisitSeconds + 10f, $"he sat for about a minute ({sat:0} s)");
+        yield return Photo("05-his-table");
+        yield return Until(() => visitor == null || brain.IsLeaving, length * (LodgerStory.VisitUntil - seatedDay) + 25f, "he gets up and goes about 1:30 PM");
+        float sat = Time.time - seatedAt, dayWhenUp = DayClock.Instance.NormalizedDay;
+        Check(dayWhenUp > LodgerStory.VisitUntil - .08f && dayWhenUp < LodgerStory.VisitUntil + .08f,
+            $"he sat all morning: {sat:0} s, up at {dayWhenUp:0.00} of the day (about {LodgerStory.VisitUntil:0.00})");
         yield return Seconds(2f);
         yield return Photo("06-he-leaves");
     }

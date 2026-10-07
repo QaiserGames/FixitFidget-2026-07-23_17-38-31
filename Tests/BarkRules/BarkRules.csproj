@@ -7,6 +7,7 @@
   <ItemGroup>
     <Compile Include="../../Assets/Scripts/BarkRules.cs" Link="BarkRules.cs" />
     <Compile Include="../../Assets/Editor/BarkRuleChecks.cs" Link="BarkRuleChecks.cs" />
+    <Compile Include="../../Assets/Scripts/WordBudget.cs" Link="WordBudget.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

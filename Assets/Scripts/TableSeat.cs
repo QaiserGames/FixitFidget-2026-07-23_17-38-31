@@ -73,6 +73,9 @@ public class TableSeat : WaitingSpot
 
     public bool IsDirty => dirtyCup != null;
 
+    /// <summary>Whether <paramref name="cup"/> is what makes it dirty (a cup going mustn't clean up after a newer one).</summary>
+    public bool IsDirtyWith(GameObject cup) => dirtyCup != null && cup != null && dirtyCup == cup;
+
     // THE LINE THAT MAKES BUSSING A MECHANIC.
     //
     // A dirty seat is not available, so it can't be claimed, so the next

@@ -10,6 +10,8 @@ public sealed class ReviewEntry
     public string thing = "";   // the device they brought, or the drink they came for
     public string drink = "";   // a drink they wanted alongside a repair, if any
     public bool regular;
+    /// <summary>A line already written (the planted review): used as it is, instead of one of the writers' lines.</summary>
+    public string line = "";
 }
 
 /// <summary>
@@ -247,6 +249,34 @@ public sealed class ReputationLedger
         return picked;
     }
 
+    /// <summary>
+    /// The three review cards worth a line on the closing screen, by the rule the quotes use (PickQuotes): the best,
+    /// the worst (only if worse than the best), then a regular's if neither was one. Ties go to regulars, then to
+    /// whoever left first. Empty for none.
+    /// </summary>
+    public static List<ReviewCard> PickCards(IReadOnlyList<ReviewCard> cards)
+    {
+        var picked = new List<ReviewCard>(3);
+        if (cards == null || cards.Count == 0) return picked;
+        ReviewCard best = null, worst = null;
+        foreach (ReviewCard c in cards)
+        {
+            if (c == null || c.review == Review.None) continue;
+            if (best == null || c.review > best.review || (c.review == best.review && c.regular && !best.regular)) best = c;
+            if (worst == null || c.review < worst.review || (c.review == worst.review && c.regular && !worst.regular)) worst = c;
+        }
+        if (best == null) return picked;
+        picked.Add(best);
+        if (worst != null && worst.review < best.review) picked.Add(worst);
+        if (!picked.Exists(p => p.regular))
+            for (int i = cards.Count - 1; i >= 0; i--)
+            {
+                ReviewCard c = cards[i];
+                if (c != null && c.regular && c.review != Review.None && !picked.Contains(c)) { picked.Add(c); break; }
+            }
+        return picked;
+    }
+
     private void ClearToday(int day)
     {
         Day = Math.Max(1, day);
@@ -343,6 +373,7 @@ public static class ReputationRecap
     {
         if (cards == null || cards.Count == 0) return "";
         bool Any(ReviewReason reason) { foreach (ReviewCard c in cards) if (c.reason == reason) return true; return false; }
+        if (Any(ReviewReason.Planted)) return "A one-star review from nobody you served. Someone is making a point.";
         if (Any(ReviewReason.WalkedOutAfterAccepting)) return "Walk-outs after you'd taken the job cost the most.";
         if (Any(ReviewReason.RejectedRepair)) return "A repair went back still broken. That costs the most.";
         if (Any(ReviewReason.WalkedOutInQueue)) return "Some gave up in the queue before you got to them.";

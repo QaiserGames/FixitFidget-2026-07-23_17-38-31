@@ -350,6 +350,7 @@ public class SaveManager : MonoBehaviour
     // always the same one for the same day and customer.
     private string WriteQuote(ReviewEntry entry, int position)
     {
+        if (!string.IsNullOrWhiteSpace(entry.line)) return ReputationRules.Quote(entry.line, entry.name);   // written already (planted)
         ReviewLines lines = reviewLines != null ? reviewLines : FallbackLines();
         string[] pool = lines.For(entry.reason);
         if (pool == null || pool.Length == 0) return null;
@@ -363,6 +364,7 @@ public class SaveManager : MonoBehaviour
     // review's quote does, so the day's best review reads the same on both.
     private string WriteCard(ReviewEntry entry)
     {
+        if (!string.IsNullOrWhiteSpace(entry.line)) return entry.line.Trim();   // written already (planted)
         ReviewLines lines = reviewLines != null ? reviewLines : FallbackLines();
         string[] pool = lines.For(entry.reason);
         if (pool == null || pool.Length == 0) return null;

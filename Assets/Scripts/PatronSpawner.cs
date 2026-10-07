@@ -144,11 +144,12 @@ public class PatronSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// The man at the bins comes in for his morning visit after a skip (LodgerDay; claude/session-3-favours-stalling-
-    /// officer.md §4): a patron in <paramref name="look"/>, on foot, who sits for <paramref name="stay"/> seconds,
-    /// orders nothing and pays nothing. Null if there's no patron body to make him from.
+    /// The man at the bins comes in the morning after a skip (LodgerDay; claude/session-3-favours-stalling-officer.md §4;
+    /// playtest 3): a patron in <paramref name="look"/>, on foot, who sits for <paramref name="stay"/> seconds, or, with
+    /// <paramref name="untilDay"/> given, until the day is that far through (his table all morning); orders nothing and
+    /// pays nothing. Null if there's no patron body to make him from.
     /// </summary>
-    public GameObject SpawnTheMan(GameObject look, float stay)
+    public GameObject SpawnTheMan(GameObject look, float stay, float untilDay = -1f)
     {
         if (patronPrefab == null || spawnPoint == null) return null;
         GameObject go = Instantiate(patronPrefab, ScatteredSpawn(), spawnPoint.rotation);
@@ -169,7 +170,8 @@ public class PatronSpawner : MonoBehaviour
         if (visual != null && look != null) visual.Configure(new[] { look }, 0f, 0, 0f);
         PatronBrain brain = go.GetComponent<PatronBrain>();
         if (brain == null) brain = go.AddComponent<PatronBrain>();
-        brain.StayFor(stay);
+        if (untilDay >= 0f) brain.StayUntil(untilDay);   // the morning at his table (playtest 3): until the day is this far through
+        else brain.StayFor(stay);
         // On foot, never out of a car (he lives in the bins); in at the door with no payment (he orders nothing).
         if (CafeArrivals.TryArriveOnFoot(go, CafeArrivals.Kind.Patron, () => { if (brain != null) brain.Init(exitPoint); })) return go;
         brain.Init(exitPoint);

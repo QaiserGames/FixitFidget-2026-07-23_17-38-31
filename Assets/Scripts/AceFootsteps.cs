@@ -83,8 +83,11 @@ public sealed class AceFootsteps : MonoBehaviour
         if (sneaking) SneakSteps++;
         surfaces[surface] = (surfaces.TryGetValue(surface, out int n) ? n : 0) + 1;
         Sfx.Play(Cue(surface), feet + Vector3.up * .05f, sneaking ? SneakVolume : 1f);
-        // Heard at night: 4 m walking, 1 m sneaking (NightNoise does nothing by day).
-        NightNoise.Make(feet, sneaking ? NoiseKind.SneakStep : NoiseKind.Step);
+        // Heard at night: 4 m walking, 1 m sneaking (NightNoise does nothing by day); half as far once the man at the bins
+        // has taught Ace Soft feet (LodgerStory.Feet, the cups' lesson).
+        NoiseKind kind = sneaking ? NoiseKind.SneakStep : NoiseKind.Step;
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        NightNoise.Make(feet, LodgerStory.StepReach(NightNoise.RadiusOf(kind), night != null && night.Knows(LodgerStory.Feet)), kind);
     }
 
     // The three cues' names, made once (a step used to build its name each time: a little garbage per step).

@@ -15,6 +15,7 @@
     <Compile Include="../../Assets/Scripts/OfficerStory.cs" Link="OfficerStory.cs" />
     <Compile Include="../../Assets/Scripts/StreetNames.cs" Link="StreetNames.cs" />
     <Compile Include="../../Assets/Editor/NightRuleChecks.cs" Link="NightRuleChecks.cs" />
+    <Compile Include="../../Assets/Scripts/WordBudget.cs" Link="WordBudget.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

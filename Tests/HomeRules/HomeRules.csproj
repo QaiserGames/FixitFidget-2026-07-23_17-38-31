@@ -10,6 +10,7 @@
     <Compile Include="../../Assets/Scripts/Notebook.cs" Link="Notebook.cs" />
     <Compile Include="../../Assets/Scripts/NotebookEntries.cs" Link="NotebookEntries.cs" />
     <Compile Include="../../Assets/Scripts/NotebookRecap.cs" Link="NotebookRecap.cs" />
+    <Compile Include="../../Assets/Scripts/WordBudget.cs" Link="WordBudget.cs" />
     <Compile Include="../../Assets/Scripts/GraceCameraEpisode.cs" Link="GraceCameraEpisode.cs" />
     <Compile Include="../../Assets/Scripts/SaveData.cs" Link="SaveData.cs" />
     <Compile Include="../../Assets/Editor/HomeRuleChecks.cs" Link="HomeRuleChecks.cs" />

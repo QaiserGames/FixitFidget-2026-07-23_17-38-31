@@ -53,7 +53,7 @@ MonoBehaviour:
   - id: lodger.night0.05
     speaker: lodger
     situation: night0.deal
-    text: "A caf\xE9 whose owner talks doesn't stay open long."
+    text: "Grace likes you. Caf\xE9 owners who talk don't last."
   - id: lodger.night0.06
     speaker: lodger
     situation: night0.deal
@@ -69,7 +69,7 @@ MonoBehaviour:
   - id: lodger.night0.09
     speaker: lodger
     situation: night0.deal
-    text: There's a gnome on the corner step. Bring it to me.
+    text: A gnome on the corner step. Bring it here.
   - id: ace.night0.10
     speaker: ace
     situation: night0.deal
@@ -81,7 +81,7 @@ MonoBehaviour:
   - id: lodger.night2.01
     speaker: lodger
     situation: night2.ask
-    text: Grace has cups. A box of them. Get me a sleeve.
+    text: Grace has a box of cups. Get me a sleeve.
   - id: ace.night2.02
     speaker: ace
     situation: night2.ask
@@ -141,7 +141,7 @@ MonoBehaviour:
   - id: ace.line.night0
     speaker: ace
     situation: ace.night
-    text: "I own a caf\xE9 and a man lives in my bins."
+    text: "I own a caf\xE9. A man lives in my bins."
   - id: ace.line.night1
     speaker: ace
     situation: ace.night
@@ -149,7 +149,7 @@ MonoBehaviour:
   - id: ace.line.night2
     speaker: ace
     situation: ace.night
-    text: If she wakes up I'm a burglar. If not, a guest.
+    text: If she wakes, I'm a burglar. Otherwise, a guest.
   - id: ace.line.night3
     speaker: ace
     situation: ace.night
@@ -233,15 +233,15 @@ MonoBehaviour:
   - id: lodger.night1.r05
     speaker: lodger
     situation: night1.return
-    text: You kept your nerve. Keep it tomorrow, when she asks.
+    text: You kept your nerve. Keep it when she asks.
   - id: lodger.night1.r06
     speaker: lodger
     situation: night1.return
-    text: And a page for your notebook.
+    text: A page for you. Grace's Thursdays.
   - id: lodger.night1.r07
     speaker: lodger
     situation: night1.return
-    text: Tomorrow, her kitchen.
+    text: We've both got something on each other now. Mine's bigger.
   - id: lodger.beckon.01
     speaker: lodger
     situation: lodger.beckon
@@ -261,7 +261,7 @@ MonoBehaviour:
   - id: lodger.night0.13
     speaker: lodger
     situation: night0.deal
-    text: Keep him happy.
+    text: Keep him happy. And don't get caught.
   - id: ace.night2.02a
     speaker: ace
     situation: night2.ask
@@ -309,11 +309,11 @@ MonoBehaviour:
   - id: lodger.night2.r04
     speaker: lodger
     situation: night2.return
-    text: Four cups. Old habit. There used to be four of us.
+    text: Four cups. There used to be four of us.
   - id: lodger.night2.r05
     speaker: lodger
     situation: night2.return
-    text: Doors. Every house has a key. People tell you where.
+    text: You walk like a cop. I can fix that.
   - id: lodger.night2.r06
     speaker: lodger
     situation: night2.return
@@ -349,7 +349,7 @@ MonoBehaviour:
   - id: lodger.verdict.cracked.01
     speaker: lodger
     situation: lodger.verdict.cracked
-    text: You smiled at her this morning. She'll remember.
+    text: You smiled at her. She'll remember.
   - id: lodger.verdict.cracked.02
     speaker: lodger
     situation: lodger.verdict.cracked
@@ -357,11 +357,11 @@ MonoBehaviour:
   - id: lodger.verdict.quiet.01
     speaker: lodger
     situation: lodger.verdict.quiet
-    text: The cop asked about me. You said nothing. Good.
+    text: The cop asked. You said nothing. Good.
   - id: lodger.verdict.flinched.01
     speaker: lodger
     situation: lodger.verdict.flinched
-    text: The cop asked. You flinched. He'll be back.
+    text: Flinched at the cop. He'll be back.
   - id: lodger.visit.01
     speaker: lodger
     situation: lodger.visit
@@ -373,22 +373,20 @@ MonoBehaviour:
   - id: lodger.visit.warm.01
     speaker: lodger
     situation: lodger.visit.warm
-    text: Nice place. Take your time. Not too much.
+    text: Nice place. Don't take too long.
   - id: lodger.visit.cold.01
     speaker: lodger
     situation: lodger.visit.cold
-    text: Nice place. Be a shame if people asked questions.
+    text: Nice place. Shame if people asked questions.
   scenes:
   - id: night0.deal
     holdAce: 1
     lines:
     - lodger.night0.01
     - lodger.night0.03
-    - lodger.night0.04
     - lodger.night0.05
     - lodger.night0.06
     - lodger.night0.07
-    - lodger.night0.08
     - lodger.night0.09
     - lodger.night0.12
     - lodger.night0.13
@@ -477,8 +475,6 @@ MonoBehaviour:
     - lodger.night2.r01
     - lodger.night2.r04
     - lodger.night2.r05
-    - lodger.night2.r06
-    - lodger.night2.r07
     choices:
     - after: lodger.night2.r01
       first:

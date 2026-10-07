@@ -15,12 +15,19 @@ using System.Collections.Generic;
 //     a skip), a night off (Nights 4 and 7), or nothing yet (the next favour isn't in the game);
 //   * what a favour pays: never money (the 25 Sept rule). A lesson (Nerve: the straight face's green is wider; Doors:
 //     its edge comes with the keys) and a page (a secret for the notebook). Given to him, the thing joins his corner;
-//   * stalling, never a fail state: a favour he asked for that the night ends without is a skip (NightLedger). The
-//     morning after, he sits in the café for a minute (LodgerDay); after the third skip in a row he leaves a note on the
-//     counter and stops asking for it.
+//   * stalling, never a fail state (playtest 3, 6 Oct 2026: claude/playtest-3-notes-and-plan.md §5.2): a favour he asked
+//     for that the night ends without is a skip (NightLedger), and the morning after costs the day, by skips in a row:
+//     he takes a table all morning (one skip); the café opens with his mess, a dirty cup on every seat (two and on); a
+//     one-star review under a made-up name, a word to the officer, and his note on the counter (the third, once a
+//     favour). The favour stays until it's done, and the costs stop the morning after it is. Never money, never a star
+//     back, never an ending. He never drops a favour now (the old note that dropped one is gone; saves that hold a
+//     dropped favour keep it).
+//   * the hold (the same note): once Ace has brought him the gnome, Ace is complicit, and he says so once, on the
+//     return's last line (HoldLine). From then on his costs mean something.
 // The scenes and lines named below are the asset's ids; BarkSteps' Barks 1 makes them (Bark rules checks they're there).
 //
-// EVERY WORD HERE IS A PLACEHOLDER: Mansoor and his sister write him. Keep the ids (saves hold them).
+// EVERY WORD HERE IS A PLACEHOLDER: Mansoor and his sister write him. Keep the ids (saves hold them). Every line keeps to
+// the word budget (WordBudget: a note or a page 12 words; the Night rules check fails on more).
 // No Unity types: the Night rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
 // ---------------------------------------------------------------------------
 public static class LodgerStory
@@ -38,6 +45,8 @@ public static class LodgerStory
     /// <summary>The gnome's return lines: he takes it; turns it to face the street; teaches the lesson; gives the page.</summary>
     public const string TakesItLine = "lodger.night1.r01", TurnsItLine = "lodger.night1.r04",
                         LessonLine = "lodger.night1.r05", PageLine = "lodger.night1.r06";
+    /// <summary>The return's last line, the hold: "We've both got something on each other now. Mine's bigger."</summary>
+    public const string HoldLine = "lodger.night1.r07";
     /// <summary>What he says when Ace passes the bins: before the errand is done, with the thing in hand, and after.</summary>
     public const string Waiting = "lodger.waiting", Beckon = "lodger.beckon", Done = "lodger.done";
     /// <summary>Ace's own line of the night: after the deal, and on picking up the gnome.</summary>
@@ -57,12 +66,25 @@ public static class LodgerStory
 
     /// <summary>From this warmth up he's warm (he volunteers the why when he asks; a kinder visit); from ColdFrom down, cold.</summary>
     public const int WarmFrom = 2, ColdFrom = -2;
-    /// <summary>Skips in a row before he gives up on a favour (a note on the counter instead of a visit).</summary>
-    public const int SkipsBeforeDropped = 3;
-    /// <summary>How long he sits in the café the morning after a skip.</summary>
-    public const float VisitSeconds = 60f;
-    /// <summary>The Build phase: he comes in a quarter of the way through the day.</summary>
-    public const float VisitFrom = .25f;
+    /// <summary>Skips in a row from which the café opens with his mess (a dirty cup on every seat), and at which, once a
+    /// favour, a one-star review appears, the officer gets a word, and his note is on the counter.</summary>
+    public const int MessFromSkips = 2, WordAtSkips = 3;
+    /// <summary>Skips in a row are tidied to this on load (the costs stop growing at WordAtSkips anyway).</summary>
+    public const int SkipsCap = 9;
+    /// <summary>The morning after a skip he takes a table from opening (VisitFrom of the day) until VisitUntil (about 1:30 PM).</summary>
+    public const float VisitFrom = .02f, VisitUntil = .4f;
+    /// <summary>A dirty cup on every table seat at opening, from the second skip: this many at most.</summary>
+    public const int MessCupsAtMost = 8;
+
+    /// <summary>The review he plants on the third skip: one star, under a name that isn't anyone's.</summary>
+    public const string PlantedName = "Anonymous", PlantedReview = "Owner talks too much. One star.";
+    /// <summary>The note at opening on a morning with his mess (it names him: the morning's cost says whose it is).</summary>
+    public const string MessNote = "The man at the bins left his mess. Clear the tables.";
+    /// <summary>The note once he's sat down, on a morning he visits without his mess (the first skip in a row): a seat
+    /// gone in a busy café is easy to miss, and this is the cost that says skipping is noticed.</summary>
+    public const string TableNote = "The man at the bins took a table, waiting on his favour.";
+    /// <summary>The prompt on one of his cups (E clears every cup on that table).</summary>
+    public const string ClearPrompt = "Clear the table";
 
     /// <summary>Nights off (claude/night-0-and-the-favours-spec.md §10, call 4): nothing asked, nothing skipped.</summary>
     public static bool NightOff(int night) => night == 4 || night == 7;
@@ -86,17 +108,22 @@ public static class LodgerStory
         public string teaches = "";
         /// <summary>The page it pays: a secret for the notebook, in his hand.</summary>
         public string pageId = "", pageText = "";
+        /// <summary>The page is only paid once this thing (a NightThings id) is in the game: a page about something you
+        /// can't act on reads as nonsense (playtest 3). "" means always.</summary>
+        public string pageNeeds = "";
         /// <summary>Ace's own line as Ace takes it (Ace muttering), an id in the Night lines.</summary>
         public string aceLine = "";
         /// <summary>The night's note once he has asked: where it is. {Thing} is its name as Ace knows it, capitalised.</summary>
         public string hint = "";
-        /// <summary>His note on the counter after the third skip in a row.</summary>
+        /// <summary>His note on the counter the morning of the third skip in a row (with the review and the officer's word).</summary>
         public string note = "";
         /// <summary>What stands in his corner once he has it (NightZeroSet: "gnome", "cups").</summary>
         public string corner = "";
     }
 
     public const string Cones = "street.cones";
+    /// <summary>Her photos (break-ins chunk D): the cups' page waits for them to be a thing in the game.</summary>
+    public const string GracePhotos = "grace.photos";
 
     static readonly Favour[] favours =
     {
@@ -104,25 +131,27 @@ public static class LodgerStory
         {
             id = NightThings.GraceGnome, ask = "", askWarm = "", firstLine = "", remind = "lodger.remind.gnome",
             returnScene = ReturnScene, takes = TakesItLine, sets = TurnsItLine, lesson = LessonLine, page = PageLine,
-            teaches = "nerve", pageId = "lodger.page.grace.thursdays", pageText = "Grace. Thursdays. Find out.",
-            aceLine = AceNightOne, hint = "{Thing} is on Grace's front step: the saffron house on the corner.",
-            note = "Forget the gnome. I'll find my own eyes. Next time: something bigger.", corner = "gnome",
+            teaches = Nerve, pageId = "lodger.page.grace.thursdays", pageText = "Grace is out every Thursday. Back at 1:30.",
+            aceLine = AceNightOne, hint = "{Thing}: Grace's front step, the saffron house on the corner.",
+            note = "Reviews are easy. Bring the gnome.", corner = "gnome",
         },
         new Favour
         {
             id = NightThings.GraceCups, ask = "night2.ask", askWarm = "night2.ask.warm", firstLine = "lodger.night2.01",
             remind = "lodger.remind.cups", returnScene = "night2.return",
             takes = "lodger.night2.r01", sets = "lodger.night2.r04", lesson = "lodger.night2.r05", page = "lodger.night2.r06",
-            teaches = "doors", pageId = "lodger.page.grace.photos", pageText = "Grace's photos. She's in none of them. Ask yourself why.",
-            aceLine = "ace.line.night2",
-            hint = "{Thing} are on Grace's kitchen worktop: the saffron house on the corner. Let yourself in at her front door.",
-            note = "Forget the cups. Next time: something bigger.", corner = "cups",
+            // Soft feet, not Doors: Doors has nothing behind it until the keys (break-ins chunk D), and a lesson that
+            // changes nothing for you broke the rule. Her photos are chunk D too: the page waits for them.
+            teaches = Feet, pageId = "lodger.page.grace.photos", pageText = "Grace's photos. She's in none of them.",
+            pageNeeds = GracePhotos, aceLine = "ace.line.night2",
+            hint = "{Thing}: Grace's kitchen worktop. Her front door opens.",
+            note = "Reviews are easy. Bring the cups.", corner = "cups",
         },
         new Favour
         {
             id = Cones, ask = "night3.ask", askWarm = "", firstLine = "", remind = "lodger.remind.cones", returnScene = "",
             teaches = "routines", aceLine = "ace.line.night3", hint = "Two spots on West Street. The road works have cones.",
-            note = "Forget the cars. Next time: something bigger.", corner = "cones",
+            note = "Reviews are easy. Bring the cones.", corner = "cones",
         },
     };
 
@@ -204,9 +233,11 @@ public static class LodgerStory
 
     // ---------- lessons ----------
 
-    public const string Nerve = "nerve", Doors = "doors";
+    public const string Nerve = "nerve", Feet = "feet", Doors = "doors";
     /// <summary>With Nerve the straight face's green, and its "near enough", are this much wider.</summary>
     public const float NerveWidens = 1.45f;
+    /// <summary>With Soft feet, Ace's steps are heard this fraction as far (walking 2 m, sneaking 0.5 m).</summary>
+    public const float FeetQuieten = .5f;
 
     public sealed class Lesson
     {
@@ -221,8 +252,10 @@ public static class LodgerStory
     static readonly Lesson[] lessons =
     {
         new Lesson { id = Nerve, name = "Nerve", learned = "Learned: Nerve. Your straight face holds a little longer." },
-        // Its edge (spare keys in the notebook, learned by day) comes with the keys (break-ins chunk D).
-        new Lesson { id = Doors, name = "Doors", learned = "Learned: Doors. Every house has a key somewhere; people tell you where." },
+        new Lesson { id = Feet, name = "Soft feet", learned = "Learned: Soft feet. Ace's steps carry half as far." },
+        // Nobody pays it yet: its edge (spare keys in the notebook, learned by day) comes with the keys (break-ins chunk D).
+        // Kept so a save that learned it (before 6 Oct's rewrite) still finds it.
+        new Lesson { id = Doors, name = "Doors", learned = "Learned: Doors. Every house has a key somewhere." },
     };
 
     public static IReadOnlyList<Lesson> Lessons => lessons;
@@ -242,33 +275,45 @@ public static class LodgerStory
     /// <summary>The straight face's "near enough" either side of the green: wider with Nerve too.</summary>
     public static float Near(float near, bool nerve) => nerve ? Math.Min(.2f, near * NerveWidens) : near;
 
+    /// <summary>How far one of Ace's steps is heard, given its own reach: half as far with Soft feet.</summary>
+    public static float StepReach(float radius, bool feet) => feet ? radius * FeetQuieten : radius;
+
     // ---------- his pages ----------
 
     /// <summary>Whose his pages are in the notebook: a heading of their own, laid out first.</summary>
     public const string PagesWho = "lodger.pages";
     public const string PagesName = "His pages";
 
-    /// <summary>The pages that come with the notebook on Night 0 (what he has seen from the bins in two weeks).</summary>
-    public static IEnumerable<NotebookFactData> Pages()
+    /// <summary>
+    /// The pages that come with the notebook on Night 0 (what he has seen from the bins in two weeks): only the ones
+    /// about something <paramref name="inTheGame"/> (the parking page waits for the cones; null: every page).
+    /// </summary>
+    public static IEnumerable<NotebookFactData> Pages(Func<string, bool> inTheGame = null)
     {
         yield return Page("lodger.page.grace", Notebook.Kinds.Schedule,
-            "Grace. The saffron house on the corner. Lights out by midnight.");
+            "Grace: the saffron house on the corner. Asleep by 12:30.");
         yield return Page("lodger.page.gnome", Notebook.Kinds.Possession,
-            "A gnome on her step. It faces the alley. I don't like it.");
+            "A gnome on her step. It faces the alley.");
         yield return Page("lodger.page.windows", Notebook.Kinds.Schedule,
-            "The street's windows go dark one by one. All of them by three.");
-        yield return Page("lodger.page.parking", Notebook.Kinds.Claim,
-            "Nobody parks on " + StreetNames.Token("west") + " at night. Nobody.");
+            "The street's windows go dark one by one. All by three.");
+        if (inTheGame == null || inTheGame(Cones))
+            yield return Page("lodger.page.parking", Notebook.Kinds.Claim,
+                "Nobody parks on " + StreetNames.Token("west") + " at night.");
     }
 
-    /// <summary>The page bringing <paramref name="thing"/> back pays, or null.</summary>
-    public static NotebookFactData PageFor(string thing)
+    /// <summary>
+    /// The page bringing <paramref name="thing"/> back pays, or null: none while what it's about isn't
+    /// <paramref name="inTheGame"/> yet (null: pay it whatever it's about).
+    /// </summary>
+    public static NotebookFactData PageFor(string thing, Func<string, bool> inTheGame = null)
     {
         Favour f = FindFavour(thing);
-        return f != null && !string.IsNullOrEmpty(f.pageId) ? Page(f.pageId, Notebook.Kinds.Secret, f.pageText) : null;
+        if (f == null || string.IsNullOrEmpty(f.pageId)) return null;
+        if (inTheGame != null && !string.IsNullOrEmpty(f.pageNeeds) && !inTheGame(f.pageNeeds)) return null;
+        return Page(f.pageId, Notebook.Kinds.Secret, f.pageText);
     }
 
-    /// <summary>His note on the counter, kept as one of his pages: the favour he gave up on.</summary>
+    /// <summary>His note on the counter (the third skip in a row), kept as one of his pages.</summary>
     public static NotebookFactData NotePage(string favour)
     {
         Favour f = FindFavour(favour);

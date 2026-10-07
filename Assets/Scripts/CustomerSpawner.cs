@@ -107,6 +107,12 @@ public class CustomerSpawner : MonoBehaviour
     // Session 3: named regulars who also come in today at an authored time (DayDefinition.storyVisits: the officer),
     // each once; which of today's have come.
     private bool[] storySpawned = System.Array.Empty<bool>();
+    // Playtest 3 (6 Oct 2026): the morning the man at the bins has had a word with the officer (NightLedger.WordDue), the
+    // officer comes in for his harder question, like the morning's visitor, after 30% of the day; not on a day he's
+    // already due by the schedule.
+    private CustomerProfile wordVisitor;
+    private bool wordVisitorSpawned;
+    private const float WordVisitorArrivesAt = .3f;
     private const float FirstThingWaitsAtMost = 60f;
     private readonly CustomerVisitRoster roster = new();
 
@@ -211,6 +217,8 @@ public class CustomerSpawner : MonoBehaviour
             morningVisitor = ResolveMorningVisitor(lastSeenDay);
             morningVisitorSpawned = false;
             storySpawned = today != null ? new bool[today.StoryVisitsOn(lastSeenDay).Length] : System.Array.Empty<bool>();
+            wordVisitor = ResolveWordVisitor(lastSeenDay);
+            wordVisitorSpawned = false;
             firstThing = null;
             openingCustomer = null;
             openingDrink = ResolveOpeningDrink();
@@ -329,8 +337,12 @@ public class CustomerSpawner : MonoBehaviour
         bool morningDue = !featuredDue && morningVisitor != null && !morningVisitorSpawned
                           && !opening.IsActive && roster.CanVisit(morningVisitor.PersistentId);
 
-        // A story visit (the officer) whose time has come takes the next slot after those two.
-        int storyDue = featuredDue || morningDue ? -1 : StoryVisitDue();
+        // The officer, on the morning the man at the bins has had a word with him: the next slot after those two.
+        bool wordDue = !featuredDue && !morningDue && wordVisitor != null && !wordVisitorSpawned && !opening.IsActive
+                       && roster.CanVisit(wordVisitor.PersistentId) && opening.AllowsFeatured(DayFraction, WordVisitorArrivesAt);
+
+        // A story visit (the officer) whose time has come takes the next slot after those.
+        int storyDue = featuredDue || morningDue || wordDue ? -1 : StoryVisitDue();
 
         if (featuredDue)
         {
@@ -341,6 +353,11 @@ public class CustomerSpawner : MonoBehaviour
         {
             profile = morningVisitor;
             morningVisitorSpawned = true;
+        }
+        else if (wordDue)
+        {
+            profile = wordVisitor;
+            wordVisitorSpawned = true;
         }
         else if (storyDue >= 0)
         {
@@ -456,6 +473,33 @@ public class CustomerSpawner : MonoBehaviour
 
     /// <summary>Who is coming in this morning to tell Ace about last night, or null (reports).</summary>
     public CustomerProfile MorningVisitor => morningVisitorSpawned ? null : morningVisitor;
+
+    /// <summary>The officer, still to come in today for the man's word (NightLedger.WordDue), or null (reports and checks).</summary>
+    public CustomerProfile WordVisitor => wordVisitorSpawned ? null : wordVisitor;
+    /// <summary>The officer has come in today for the man's word.</summary>
+    public bool WordVisitorCame => wordVisitorSpawned;
+
+    // The officer's profile, on a word's day only, found among the regulars or the schedule's story visits; null when the
+    // schedule brings him in today anyway (his question comes with that visit).
+    private CustomerProfile ResolveWordVisitor(int day)
+    {
+        NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+        if (night == null || !night.WordDue(day)) return null;
+        if (today != null)
+            foreach (StoryVisit visit in today.StoryVisitsOn(day))
+                if (visit != null && visit.who != null && visit.who.PersistentId == OfficerStory.ProfileId) return null;
+        if (regulars != null)
+            foreach (CustomerProfile profile in regulars)
+                if (profile != null && profile.PersistentId == OfficerStory.ProfileId) return profile;
+        if (schedule != null)
+            foreach (DayDefinition authored in schedule)
+            {
+                if (authored == null || authored.storyVisits == null) continue;
+                foreach (StoryVisit visit in authored.storyVisits)
+                    if (visit != null && visit.who != null && visit.who.PersistentId == OfficerStory.ProfileId) return visit.who;
+            }
+        return null;
+    }
 
     // A regular with a deed of Ace's still to tell (NightLedger): the morning's visitor, or today's
     // featured regular whose thing went missing last night.

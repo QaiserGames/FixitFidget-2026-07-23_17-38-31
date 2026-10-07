@@ -160,6 +160,18 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return Until(() => interactor.CurrentPrompt == "Take the bins out", 4f, "the prompt reads \"Take the bins out\"");
         yield return Photo("02-night-0-at-the-back-door");
 
+        // ---------- any door (playtest 3): out the front with the bag, the dumpster would take it; back in, the back door offers the way ----------
+        Vector3 insideBefore = movement.transform.position;
+        MoveAce(new Vector3(.12f, 0f, -2.2f));   // on the street in front of the café's door
+        yield return null;
+        yield return null;
+        Check(zero.Now == NightZero.Step.Outside && zero.CanBinIt, "out the front door with the bag, the step follows Ace: \"Bin it\" would be offered at the dumpster");
+        MoveAce(insideBefore);
+        yield return null;
+        yield return null;
+        Check(zero.Now == NightZero.Step.AtTheDoor, "back inside, the back door is the way again");
+        yield return Until(() => interactor.CurrentPrompt == "Take the bins out", 3f, "…and its prompt is back");
+
         // ---------- out the back ----------
         Press();
         yield return Until(() => zero.Now == NightZero.Step.Outside && Flat(movement.transform.position - set.outsideDoor.position).magnitude < .3f, 3f,
@@ -237,15 +249,19 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return Until(() => zero.Now == NightZero.Step.Done, 2f, "the deal is made: Night 0 is over");
         Check(ledger.MetHim && !NightZero.Pending, "Ace has met him (the night's record)");
         Check(!NightWalk.Instance.ClockHeld, "the night's clock runs");
-        var pages = LodgerStory.Pages().ToList();
-        Check(pages.All(p => saves.Notebook.Knows(p.id) && saves.Notebook.Find(p.id).source == Notebook.Sources.Inherited),
-            $"his pages are in the notebook ({pages.Count}), in his hand");
+        var pages = LodgerStory.Pages(NightZero.InTheGame).ToList();
+        Check(pages.Count == 3 && pages.All(p => saves.Notebook.Knows(p.id) && saves.Notebook.Find(p.id).source == Notebook.Sources.Inherited)
+              && !saves.Notebook.Knows("lodger.page.parking"),
+            $"his pages are in the notebook ({pages.Count}), in his hand; the parking page waits for the cones");
+        foreach (NotebookFactData p in pages)
+            Check(!WordBudget.Over(p.text, WordBudget.Page), $"\"{p.text}\" keeps to the budget ({WordBudget.Report(p.text, WordBudget.Page)})");
         string page = NotebookRecap.Page(saves.Notebook);
         Check(page.StartsWith("<b>" + LodgerStory.PagesName + "</b>", StringComparison.Ordinal) && page.Contains("<i>"),
             "the notebook's page opens with his pages, in italics");
         Check(LodgerStory.Errand(ledger) == barnaby.id, "his errand: Grace's gnome");
         yield return Seconds(4f);   // Ace's line, then the night's note
-        Check(NoteShowing().Contains("Grace's front step"), $"the note says where the gnome is (\"{Short(NoteShowing())}\")");
+        Check(NoteShowing().Contains("Grace's front step") && !WordBudget.Over(NoteShowing(), WordBudget.Note),
+            $"the note says where the gnome is, within the budget (\"{Short(NoteShowing())}\": {WordBudget.Report(NoteShowing(), WordBudget.Note)})");
         Check(man.Hidden && set.LidOpen(set.farLid) < .01f, $"his say done, he ducked back into the dumpster and the lid dropped ({man.Describe()})");
         Check(interactor.CurrentPrompt != "Call it a night",
             $"at the dumpster after the deal the back door isn't offered (it's two metres away; the prompt reads \"{interactor.CurrentPrompt}\")");

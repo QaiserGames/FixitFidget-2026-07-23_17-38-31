@@ -166,6 +166,26 @@ public sealed class NightCycle : MonoBehaviour
         if (Instance != null) Instance.HideNote();
     }
 
+    /// <summary>
+    /// A note for the next beat: shown <paramref name="after"/> seconds from now, for <paramref name="seconds"/> (the first
+    /// night's keys, once the player has read where to go). One note on screen at a time, so it never stacks on the one
+    /// before it; a note put up in the meantime isn't cut short (this one waits for it).
+    /// </summary>
+    public static void NoteThen(string text, float after, float seconds = 4.5f)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !Application.isPlaying) return;
+        NightCycle cycle = Ensure();
+        cycle.StartCoroutine(cycle.ShowNoteLater(text, after, seconds));
+    }
+
+    IEnumerator ShowNoteLater(string text, float after, float seconds)
+    {
+        yield return new WaitForSecondsRealtime(Mathf.Max(0f, after));
+        float giveUp = Time.unscaledTime + 10f;
+        while (noteBox != null && noteBox.gameObject.activeSelf && Time.unscaledTime < noteUntil && Time.unscaledTime < giveUp) yield return null;
+        if (Now == Phase.Night || Now == Phase.Day) ShowNote(text, seconds);   // never over a fade
+    }
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -202,9 +222,9 @@ public sealed class NightCycle : MonoBehaviour
         // Night 0 (the first night, until the man at the bins is met) opens with one last job instead; every night
         // after it opens at the bins too.
         bool zero = NightZero.Due, bins = !zero && NightZero.Ritual;
-        Caption(day > 0 ? Weekdays.Name(day) + " night" : "Night", zero ? "The café is closed. One last job: the bins, out the back."
-            : bins ? "The café is closed. Take the bins out, and the night is yours."
-            : "The café is closed. Walk where you like, and come back in through the café's door to call it a night.");
+        Caption(day > 0 ? Weekdays.Name(day) + " night" : "Night", zero ? "The café is closed. One last job: the bins."
+            : bins ? "The café is closed. The bins first, then the night is yours."
+            : "The café is closed. The night is yours.");
         if (!Safely("nightfall", Nightfall))
         {
             // No night, then: put away whatever of it began, and on to tomorrow.
@@ -225,10 +245,10 @@ public sealed class NightCycle : MonoBehaviour
         yield return Fade(0f, .9f);
         Caption("", "");
         bool first = SaveManager.Instance == null || SaveManager.Instance.Night.Nights == 0;
-        if (NightZero.Pending) Note("Last job of the day: the bins. Out the back door.", 6f);
-        else if (first)
-            Note($"What Ace learned today is in the notebook ({ControlHints.NotebookPage}). " +
-                 $"{ControlHints.Torch} is the torch. Back inside the café's door, {ControlHints.Interact} calls it a night.", 9f);
+        // One note a beat, within the budget (WordBudget.Note): where to go now; the keys come on the first night once
+        // the deal is done (NightZero.After), or here when a lab skips the bins.
+        if (NightZero.Pending) Note("Last job: the bins. Out the back.", 6f);
+        else if (first) Note(NightZero.KeysNote, 8f);
     }
 
     static void Nightfall()
@@ -308,7 +328,7 @@ public sealed class NightCycle : MonoBehaviour
         Safely("the night's last sound", () => Sfx.Play2D(dawn ? "night.dawn" : "night.home"));
         yield return Fade(1f, dawn ? 1.4f : .7f);
         Caption(dawn ? "Dawn" : "Home",
-            dawn ? "The sky pales, and Ace hurries home before the street wakes." : "Ace calls it a night.");
+            dawn ? "The sky pales. Ace hurries home before the street wakes." : "Ace calls it a night.");
         Safely("putting the night away", PutTheNightAway);
         Safely("the night's record", () =>
         {
@@ -342,7 +362,7 @@ public sealed class NightCycle : MonoBehaviour
         Safely("the night's last sound", () => Sfx.Play2D("night.caught"));
         yield return Fade(1f, .8f);
         Caption("Caught.", "Grace saw Ace in her house. Whatever Ace took tonight goes back.\n" +
-                           "<size=80%>For now that's all: the cells, bail and the papers come later.</size>");
+                           "<size=80%>For now that's all. The cells come later.</size>");
         int night = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         Safely("putting back what Ace took", () => PutBack(night));
         Safely("putting the night away", PutTheNightAway);
@@ -443,6 +463,10 @@ public sealed class NightCycle : MonoBehaviour
         AceBody body = ace.GetComponent<AceBody>();
         if (body != null) body.FaceToward(position + rotation * Vector3.forward, snap: true);
     }
+
+    /// <summary>A blink through a door is under way (Ace is on one side or the other, behind the black): what follows Ace's
+    /// side of the door waits for it (NightZero's step).</summary>
+    public static bool Blinking => Instance != null && Instance.blinking;
 
     /// <summary>
     /// Through a door at night (the café's back door): a quick dip to black, and Ace is at <paramref name="to"/>, facing

@@ -14,12 +14,15 @@ using UnityEngine;
 // terms of juice", and "a lot of people ... react the same way, they just do like a little leaning in the chair")
 //
 // On the Day 5 lab save, the lab's autopilot keeping the café busy, the view pulled in close, once three people sit in view:
-//   1. the badges, all eight, over their heads: each pinned over its head, a newer one taking an older one's place;
+//   1. the badges, every one (nine since the used cup, 7 Oct), over their heads: each pinned over its head, a newer one
+//      taking an older one's place;
 //   2. a drink served to each of them in turn: how they react (NpcBeats), and how many different reactions the room shows;
 //   3. paying: "+$6" and "+$3 tip" over one of them;
 //   4. the money in the corner counting up when the till takes $25 (ShopUI), and landing on the till's sum;
 //   5. handing over: a cup flies from Ace to one of them and pops into their hands;
 //   6. a repair done: the big sparkle and "Fixed!";
+//   7. a lasting badge (the man at the bins' mess on a table, playtest 3): up over a point, still up after a pop would
+//      have gone, and gone when it's taken down;
 // and nothing logs an error the whole time. A photo for each and report.txt go to Logs/Juice/juice-check-<time>/. Nothing is
 // saved in the scene; the lab save is the only file written (by the game). The view goes back where it was at the end.
 // ---------------------------------------------------------------------------
@@ -252,6 +255,25 @@ public sealed class JuiceCheck : MonoBehaviour
         yield return Photo("60-fixed");
         yield return Seconds(1.6f);
         Note($"a moment later: {Juice.SparksUp} sparks, {Juice.PopsUp} pops up (the café's own may be among them)");
+
+        // ---------- 7. a lasting badge (playtest 3: the man at the bins' mess on a table) ----------
+        people = StillSitting(people, cam);
+        Vector3 markAt = people.Count > 0 && people[0].Seat != null ? people[0].Seat.CupSpot.position + Vector3.up * .3f
+                       : ace.transform.position + Flat(ace.transform.forward).normalized * 1.2f + Vector3.up * .8f;
+        int upBefore = Juice.MarksUp;
+        int mark = Juice.Mark(markAt, Juice.Icon.Mess);
+        yield return Seconds(.5f);
+        bool showing = Juice.MarkShowing(mark, out Vector2 markScreen);
+        Vector3 wanted = cam.WorldToScreenPoint(markAt);
+        float mdx = markScreen.x - wanted.x, mdy = markScreen.y - wanted.y;
+        Check(mark != 0 && showing && Juice.MarksUp == upBefore + 1 && Mathf.Abs(mdx) < 10f && Mathf.Abs(mdy) < 12f,
+            $"a lasting badge stays over a point ({mdx:0}, {mdy:0} px from it)");
+        yield return Photo("70-lasting-badge");
+        yield return Seconds(2.2f);   // longer than any pop lives
+        Check(Juice.MarkShowing(mark, out _), "...still up after a pop would have gone");
+        Juice.Unmark(mark);
+        yield return null;
+        Check(!Juice.MarkShowing(mark, out _) && Juice.MarksUp == upBefore, "...and gone when it's taken down");
 
         Check(errors == 0, errors == 0 ? "nothing logged an error the whole time" : $"{errors} error(s) logged: {string.Join(" | ", errorLines)}");
     }

@@ -28,6 +28,11 @@ using UnityEngine;
 // a night off, or nothing yet. Then the clock runs, and a note says where the thing is.
 // Nothing is saved during a night: quitting part way comes back to the recap, and the bins again.
 //
+// Any door (playtest 3, 6 Oct 2026): the step follows where Ace is while the bag is in hand. Inside the café it is
+// AtTheDoor ("Take the bins out" at the back door, the obvious way); outside it is Outside ("Bin it" at the dumpster),
+// whichever door Ace used. If the goal is to bin the bag, the route is the player's. The notes keep to the word budget
+// (WordBudget.Note), one a beat.
+//
 // Made by NightCycle at nightfall, only when it's due (Due, Ritual); a lab that checks the night proper skips it
 // (Skip For Lab: NightOneCheck). Without the set in the scene (Fixit Fidget > Night > Bins 1) there are no bins.
 // ---------------------------------------------------------------------------
@@ -78,6 +83,7 @@ public sealed class NightZero : MonoBehaviour
     Lodger man;
     PlayerMovement ace;
     AceBody aceBody;
+    CafeViewMode view;
     NightLedger ledger;
     float lampIntensity;
     LodgerStory.Favour asked;
@@ -128,8 +134,22 @@ public sealed class NightZero : MonoBehaviour
     {
         NightWalk walk = NightWalk.Instance;
         if (walk == null || !walk.Active) { Destroy(gameObject); return; }
+        // With the bag in hand the step follows Ace: inside the café, the back door offers the way out; outside, the
+        // dumpster offers "Bin it", whichever door Ace came out of. Not mid-blink: the back door has already said where
+        // Ace is going, and Ace is still on this side behind the black for a moment.
+        if ((Now == Step.AtTheDoor || Now == Step.Outside) && !NightCycle.Blinking)
+            Now = AceInsideTheCafe ? Step.AtTheDoor : Step.Outside;
         // A scene that stopped some other way (a check clearing the screen): the night must not stay waiting.
         if (Now == Step.Deal && !Barks.ScenePlaying) SceneDone();
+    }
+
+    bool AceInsideTheCafe
+    {
+        get
+        {
+            if (view == null) view = FindAnyObjectByType<CafeViewMode>();
+            return view != null ? view.AceInsideCafe : CafeDaylight.CafeInside.Contains(new Vector2(ace.transform.position.x, ace.transform.position.z));
+        }
     }
 
     // ---------- the back door ----------
@@ -287,10 +307,10 @@ public sealed class NightZero : MonoBehaviour
             Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
             int learned = 0;
             if (notebook != null)
-                foreach (NotebookFactData page in LodgerStory.Pages())
+                foreach (NotebookFactData page in LodgerStory.Pages(InTheGame))   // the parking page waits for the cones
                     if (notebook.Learn(page, NotebookHooks.Today)) learned++;
             Sfx.Play2D("notebook.handover");
-            if (learned > 0) NightCycle.Note($"His notebook now: everything he's seen from the bins. {ControlHints.NotebookPage} to read it.", 6f);
+            if (learned > 0) NightCycle.Note($"His notebook is yours now. {ControlHints.NotebookPage} to read it.", 6f);
         }
         else if (id == "lodger.night0.05" && man != null) man.Beat(NpcBeats.Clip.Dismissing);
     }
@@ -345,8 +365,9 @@ public sealed class NightZero : MonoBehaviour
         }
     }
 
-    // A favour is in the game when there's something to take for it: a thing in the scene, or one Ace already has.
-    static bool InTheGame(string favour)
+    /// <summary>A favour (or a page's subject) is in the game when there's something to take for it: a thing in the scene,
+    /// or one Ace already has. Her photos (a page's subject) aren't yet.</summary>
+    public static bool InTheGame(string favour)
     {
         if (NightThings.Find(favour) == null) return false;
         NightLedger night = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
@@ -376,7 +397,10 @@ public sealed class NightZero : MonoBehaviour
         StartCoroutine(After());
     }
 
-    // Ace's line of the night (Night 0), then what the night is for.
+    /// <summary>The keys, said once on the first night (a beat after where to go).</summary>
+    public static string KeysNote => $"{ControlHints.Torch} torch · {ControlHints.NotebookPage} notebook · {ControlHints.Interact} at a café door: home.";
+
+    // Ace's line of the night (Night 0), then what the night is for: one note a beat (the budget: 12 words).
     IEnumerator After()
     {
         yield return new WaitForSeconds(.6f);
@@ -389,8 +413,9 @@ public sealed class NightZero : MonoBehaviour
             yield return new WaitForSeconds(3.2f);
             NightThing gnome = NightThings.Find(LodgerStory.FirstErrand);
             string name = gnome == null ? "the gnome" : notebook != null && notebook.Knows(gnome.id) ? gnome.name : gnome.unknownName;
-            NightCycle.Note($"{Capital(name)} is on Grace's front step: the saffron house on the corner. {ControlHints.Torch} is the torch, " +
-                            $"{ControlHints.NotebookPage} the notebook. Back inside the café, {ControlHints.Interact} calls it a night.", 9f);
+            // Where to go; then, as it fades, the keys.
+            NightCycle.Note(LodgerStory.Hint(LodgerStory.Favours[0], name), 7f);
+            NightCycle.NoteThen(KeysNote, 7.5f, 6f);
             yield break;
         }
         LodgerStory.Favour errand = LodgerStory.FindFavour(ledger.Errand);
@@ -398,10 +423,11 @@ public sealed class NightZero : MonoBehaviour
         string known = thing == null ? "" : notebook != null && notebook.Knows(thing.id) ? thing.name : thing.unknownName;
         // A night off is a night off, whatever he's still waiting for. Already Ace's (a night that ended with it in hand, or
         // taken before he asked): it's on Ace's shelf, behind the counter (NightShelfTake hands it back), not where it was.
-        string hint = thing == null || Tonight == LodgerStory.Tonight.Off ? $"The night is yours. {ControlHints.Torch} is the torch, {ControlHints.NotebookPage} the notebook."
-            : ledger.OnShelf(thing.id) ? $"He wants what's already on Ace's shelf, behind the counter: {known}."
+        string hint = Tonight == LodgerStory.Tonight.Off ? "Night off. The street is yours."
+            : thing == null ? "Nothing tonight. The street is yours."
+            : ledger.OnShelf(thing.id) ? $"{Capital(known)} is on Ace's shelf, behind the counter."
             : LodgerStory.Hint(errand, known);
-        NightCycle.Note($"{hint} {ControlHints.Interact} at the back door calls it a night.", 8f);
+        NightCycle.Note(hint, 7f);
     }
 
     static string Capital(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);

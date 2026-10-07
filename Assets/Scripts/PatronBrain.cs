@@ -82,13 +82,25 @@ public class PatronBrain : MonoBehaviour
     public bool IsLeaving => state == State.Leaving;
 
     /// <summary>
-    /// Stay exactly <paramref name="seconds"/> once seated (the man at the bins' visit: a minute), instead of the
-    /// usual 40-90 s. Call before Init.
+    /// Stay exactly <paramref name="seconds"/> once seated, instead of the usual 40-90 s. Call before Init.
     /// </summary>
     public void StayFor(float seconds)
     {
         minStay = maxStay = Mathf.Max(1f, seconds);
     }
+
+    /// <summary>
+    /// Stay until the day is <paramref name="dayFraction"/> through (DayClock.NormalizedDay; the man at the bins' morning
+    /// at a table, until about 1:30 PM: playtest 3), however long the walk to the seat took. Call before Init.
+    /// </summary>
+    public void StayUntil(float dayFraction)
+    {
+        untilDay = Mathf.Clamp01(dayFraction);
+        minStay = maxStay = 1e6f;
+    }
+
+    // Leave when the day reaches this (StayUntil), or -1 for the stay in seconds.
+    private float untilDay = -1f;
 
     private void Awake()
     {
@@ -199,7 +211,7 @@ public class PatronBrain : MonoBehaviour
                 // disabled spot clears its occupant — so re-check rather than
                 // trusting the reference to still mean anything.
                 if (seat == null || seat.Occupant != this) { Leave(); break; }
-                if (Time.time >= leaveAt) Leave();
+                if (untilDay >= 0f ? DayClock.Instance == null || DayClock.Instance.NormalizedDay >= untilDay : Time.time >= leaveAt) Leave();
                 break;
 
             case State.Leaving:

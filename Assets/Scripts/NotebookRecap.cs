@@ -135,6 +135,41 @@ public static class NotebookRecap
     }
 
     /// <summary>
+    /// The one fact to show for <paramref name="person"/> when there's room for one (the phone's Notes list, the closing
+    /// screen): the latest learned on <paramref name="day"/>, else the latest of all (the last learned, as the notebook
+    /// keeps them); null for nobody or no facts.
+    /// </summary>
+    public static NotebookFactData OneLine(NotebookPerson person, int day)
+    {
+        if (person == null || person.facts.Count == 0) return null;
+        NotebookFactData latest = null, today = null;
+        foreach (NotebookFactData fact in person.facts)
+        {
+            if (fact == null) continue;
+            if (latest == null || fact.day >= latest.day) latest = fact;
+            if (fact.day == day && (today == null || fact.day >= today.day)) today = fact;
+        }
+        return today ?? latest;
+    }
+
+    /// <summary>
+    /// The one line of notebook for the closing screen, or null: the newest fact learned today, his pages first (a page
+    /// of his says what tonight is for), then anyone else's; nothing when nothing was learned today.
+    /// </summary>
+    public static NotebookFactData Tonight(Notebook notebook, int day)
+    {
+        if (notebook == null) return null;
+        NotebookFactData his = null, anyone = null;
+        foreach (NotebookFactData fact in notebook.Facts)
+        {
+            if (fact == null || fact.day != day) continue;
+            if (fact.source == Notebook.Sources.Inherited) his = fact;
+            else anyone = fact;
+        }
+        return his ?? anyone;
+    }
+
+    /// <summary>
     /// How sure Ace is of <paramref name="fact"/>, in the notebook's words, or "" for a fact Ace was
     /// told: "hunch" or "likely" for a guess, and for a fact Ace became surer of on
     /// <paramref name="day"/> (learned earlier), "likely now" or "sure now". The words the recap

@@ -18,6 +18,11 @@ using UnityEngine.UI;
 //   Juice.Words(point, "Fixed!")        a word pops at a point and floats up
 //   Juice.HandOver(item, to)            what Ace hands over flies to them in a short arc and pops into their hands
 //                                       instead of vanishing (a copy of what's drawn; the real thing goes at once, as before)
+//   Juice.Mark(point, Juice.Icon.Mess)  a badge that stays over a point until Juice.Unmark: the man at the bins' mess on a
+//                                       table (playtest 3: his cups are a few pixels from the overhead camera, so the table
+//                                       gets a used-cup badge that bobs over it until Ace clears it). Out of the way while
+//                                       Ace is busy (talking, at a station or the counter's repair view, holding something
+//                                       up to look at), paused, or once the day is over
 //
 // A repair finished on the bench gets its sparkle and "Fixed!" by itself (the item being worked on is watched).
 // Built in code on a screen canvas of its own, sorted under the barks; the icons are drawn in code too: nothing in the scene
@@ -28,9 +33,11 @@ using UnityEngine.UI;
 [DefaultExecutionOrder(910)]
 public sealed class Juice : MonoBehaviour
 {
-    public enum Icon { Heart, Star, Cup, Tick, Dots, Cloud, Drop, Burst }
+    /// <summary>The badges. Saved nowhere, so new ones go on the end.</summary>
+    public enum Icon { Heart, Star, Cup, Tick, Dots, Cloud, Drop, Burst, Mess }
 
-    const int PopCount = 16, SparkCount = 40;
+    const int PopCount = 16, SparkCount = 40, MarkerCount = 12;
+    const float MarkerSize = 46f;
     const float EmoteLife = 1.5f, MoneyLife = 1.35f, WordsLife = 1.4f, SparkLife = .55f, BigSparkLife = .85f;
     const float IconSize = 58f, Rise = 46f;
 
@@ -41,6 +48,7 @@ public sealed class Juice : MonoBehaviour
     {
         instance = null;
         sprites = null;
+        nextMarker = 0;
     }
 
     sealed class Pop
@@ -66,8 +74,22 @@ public sealed class Juice : MonoBehaviour
         public float born, life, spin, size;
     }
 
+    // A badge that stays where it's put until it's taken down (Mark, Unmark).
+    sealed class Marker
+    {
+        public RectTransform root;
+        public Image image;
+        public CanvasGroup group;
+        public bool active;
+        public int id;
+        public Vector3 point;
+        public float born;
+    }
+
     readonly Pop[] pops = new Pop[PopCount];
     readonly Spark[] sparks = new Spark[SparkCount];
+    readonly Marker[] markers = new Marker[MarkerCount];
+    static int nextMarker;
     Canvas canvas;
     RectTransform canvasRect;
     Camera cam;
@@ -170,6 +192,96 @@ public sealed class Juice : MonoBehaviour
         if (j == null) return;
         GameObject ghost = Ghost(item);
         if (ghost != null) j.StartCoroutine(j.Fly(ghost, to, seconds));
+    }
+
+    /// <summary>
+    /// A badge that stays over <paramref name="point"/> (a point in the world) until <see cref="Unmark"/>: it pops up,
+    /// then bobs gently. The handle to take it down by, or 0 when nothing can show (no camera, or every marker in use).
+    /// </summary>
+    public static int Mark(Vector3 point, Icon icon)
+    {
+        if (!Application.isPlaying) return 0;
+        Juice j = Ensure();
+        if (j == null) return 0;
+        foreach (Marker m in j.markers)
+        {
+            if (m.active) continue;
+            m.active = true;
+            m.id = ++nextMarker;
+            m.point = point;
+            m.born = Time.unscaledTime;
+            m.image.sprite = Sprites[(int)icon];
+            m.group.alpha = 0f;
+            m.root.localScale = Vector3.zero;
+            m.root.gameObject.SetActive(true);
+            return m.id;
+        }
+        return 0;
+    }
+
+    /// <summary>Takes down the badge <see cref="Mark"/> put up (nothing for 0 or one already down).</summary>
+    public static void Unmark(int id)
+    {
+        if (id == 0 || instance == null) return;
+        foreach (Marker m in instance.markers)
+            if (m.active && m.id == id)
+            {
+                m.active = false;
+                m.root.gameObject.SetActive(false);
+            }
+    }
+
+    // Whether the lasting badges keep off the screen: paused, the day over, someone talking to Ace, or Ace at a station
+    // (the bench, the espresso machine), in the counter's repair view or holding something up to look at. Only asked
+    // while a badge is up; Ace's parts are found once.
+    PlayerInteractor busyPlayer;
+    ItemInspector busyInspector;
+    CounterRepairView busyCounter;
+
+    bool MarksQuiet()
+    {
+        bool any = false;
+        foreach (Marker m in markers) if (m != null && m.active) { any = true; break; }
+        if (!any) return false;
+        if (Time.timeScale <= 0f || ConversationController.AnyOpen) return true;
+        if (DayClock.Instance != null && DayClock.Instance.DayOver) return true;
+        if (busyPlayer == null)
+        {
+            PlayerCarry carry = PlayerCarry.Instance;
+            if (carry == null) return false;
+            busyPlayer = carry.GetComponent<PlayerInteractor>();
+            busyInspector = carry.GetComponent<ItemInspector>();
+            busyCounter = carry.GetComponent<CounterRepairView>();
+        }
+        return busyPlayer != null && busyPlayer.IsAtStation
+            || busyInspector != null && busyInspector.IsHoldingItem
+            || busyCounter != null && busyCounter.OwnsInput;
+    }
+
+    /// <summary>How many lasting badges are up (checks).</summary>
+    public static int MarksUp
+    {
+        get
+        {
+            int n = 0;
+            if (instance != null) foreach (Marker m in instance.markers) if (m != null && m.active) n++;
+            return n;
+        }
+    }
+
+    /// <summary>Whether the lasting badge <paramref name="id"/> is up, and where on the screen (pixels) it was last drawn.</summary>
+    public static bool MarkShowing(int id, out Vector2 screen)
+    {
+        screen = default;
+        if (id == 0 || instance == null) return false;
+        float scale = instance.canvas.scaleFactor > 0f ? instance.canvas.scaleFactor : 1f;
+        foreach (Marker m in instance.markers)
+            if (m.active && m.id == id)
+            {
+                screen = m.root.anchoredPosition * scale;
+                return m.group.alpha > .5f;
+            }
+        return false;
     }
 
     // ================================================================== for checks (JuiceCheck)
@@ -279,6 +391,24 @@ public sealed class Juice : MonoBehaviour
                 textMaterial.SetFloat("_UnderlayDilate", .6f);
                 textMaterial.SetFloat("_UnderlaySoftness", .55f);
             }
+        }
+        // The lasting badges first, so a pop or a spark draws over them.
+        for (int i = 0; i < MarkerCount; i++)
+        {
+            var root = new GameObject("Marker " + i, typeof(RectTransform), typeof(CanvasGroup)).GetComponent<RectTransform>();
+            root.SetParent(canvasRect, false);
+            root.anchorMin = root.anchorMax = Vector2.zero;
+            root.pivot = new Vector2(.5f, 0f);
+            root.sizeDelta = new Vector2(MarkerSize, MarkerSize);
+            var image = new GameObject("Icon", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            image.rectTransform.SetParent(root, false);
+            Stretch(image.rectTransform);
+            image.raycastTarget = false;
+            image.preserveAspect = true;
+            root.gameObject.SetActive(false);
+            markers[i] = new Marker { root = root, image = image, group = root.GetComponent<CanvasGroup>() };
+            markers[i].group.blocksRaycasts = false;
+            markers[i].group.interactable = false;
         }
         for (int i = 0; i < PopCount; i++)
         {
@@ -405,6 +535,19 @@ public sealed class Juice : MonoBehaviour
         if (cam == null || !cam.isActiveAndEnabled) cam = Camera.main;
         float now = Time.unscaledTime;
         float scale = canvas.scaleFactor > 0f ? canvas.scaleFactor : 1f;
+        // The lasting badges: up with the same spring as a pop, then a slow bob; out of the way while Ace is busy.
+        bool quiet = MarksQuiet();
+        foreach (Marker m in markers)
+        {
+            if (!m.active) continue;
+            Vector3 s = cam != null ? cam.WorldToScreenPoint(m.point) : new Vector3(0f, 0f, -1f);
+            if (quiet || s.z < 0f) { m.group.alpha = 0f; continue; }
+            float t = now - m.born;
+            float grow = t < .14f ? Mathf.Lerp(0f, 1.2f, t / .14f) : t < .28f ? Mathf.Lerp(1.2f, 1f, (t - .14f) / .14f) : 1f;
+            m.root.localScale = new Vector3(grow, grow, 1f);
+            m.group.alpha = t < .1f ? t / .1f : 1f;
+            m.root.anchoredPosition = new Vector2(s.x / scale, s.y / scale + 5f * Mathf.Sin(t * 2.6f));
+        }
         foreach (Pop p in pops)
         {
             if (!p.active) { if (p.root.gameObject.activeSelf) p.root.gameObject.SetActive(false); continue; }
@@ -520,7 +663,7 @@ public sealed class Juice : MonoBehaviour
 
     static Sprite[] DrawIcons()
     {
-        var all = new Sprite[8];
+        var all = new Sprite[9];
         all[(int)Icon.Heart] = Badge(p => Heart(p), new Color(.91f, .31f, .36f));
         all[(int)Icon.Star] = Badge(p => Star(p, 5, .34f, .15f), new Color(.97f, .72f, .2f));
         all[(int)Icon.Cup] = Badge(Cup, new Color(.55f, .37f, .24f));
@@ -529,6 +672,7 @@ public sealed class Juice : MonoBehaviour
         all[(int)Icon.Cloud] = Badge(Cloud, new Color(.55f, .6f, .68f));
         all[(int)Icon.Drop] = Badge(Drop, new Color(.35f, .64f, .91f));
         all[(int)Icon.Burst] = Badge(p => Star(p, 9, .36f, .22f), new Color(.88f, .3f, .22f));
+        all[(int)Icon.Mess] = Badge(Mess, new Color(.47f, .43f, .26f));
         return all;
     }
 
@@ -649,6 +793,17 @@ public sealed class Juice : MonoBehaviour
             steam = Mathf.Min(steam, Segment(p, new Vector2(x - .015f, .07f), new Vector2(x + .015f, .2f), .022f));
         }
         return Mathf.Min(Mathf.Min(body, handle), steam);
+    }
+
+    // A used cup, no steam, standing in what it spilled, and a drop beside it: his mess on a table. A muddier colour than
+    // the order's cup, and no steam, so the two don't read alike.
+    static float Mess(Vector2 p)
+    {
+        float body = RoundBox(p, new Vector2(-.05f, -.01f), new Vector2(.12f, .11f), .04f);
+        float handle = Mathf.Abs(Circle(p, new Vector2(.08f, 0f), .055f)) - .022f;
+        float spill = RoundBox(p, new Vector2(.02f, -.15f), new Vector2(.22f, .035f), .035f);
+        float drop = Circle(p, new Vector2(.2f, -.05f), .03f);
+        return Mathf.Min(Mathf.Min(body, handle), Mathf.Min(spill, drop));
     }
 
     static float Tick(Vector2 p) =>

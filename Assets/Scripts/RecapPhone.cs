@@ -12,8 +12,16 @@ using Object = UnityEngine.Object;
 // ---------------------------------------------------------------------------
 // THE RECAP AS ACE'S PHONE (claude/playtest-2-plan.md §4.3 and §9: the second playtest's note 5)
 //
-// At closing Ace checks the phone, instead of reading three columns of text. Four apps on a tab bar:
+// At closing Ace checks the phone, instead of reading three columns of text. It opens on one screen (playtest 3,
+// 6 Oct 2026, claude/playtest-3-notes-and-plan.md §5.3: "WAYYY too many words"), with four apps behind a tap:
 //
+//   Tonight    the closing screen, no scrolling, no tab bar: the day and its takings (counting up), the café's stars
+//              (and a new one), how many reviews and what they did; the three review lines worth reading (the best,
+//              the worst, a regular's: ReputationLedger.PickCards); one line of notebook (today's newest fact, his
+//              pages first, under whose it is, as a review line is under its name); a low-stock line only when true;
+//              Close up for the night; and under it "More", which opens the apps (and says how many notes are new; the
+//              low stock is already on the screen). At most WordBudget.ClosingScreen words before the review lines
+//              (the check counts).
 //   Reviews    today's takings on a dark card (the day's full numbers behind Details, and a failed
 //              save in red), a summary with five bars, and every review of the day as a card, newest
 //              first: an avatar, the name, 1-5 stars, "today" and the line. No average anywhere, so
@@ -22,7 +30,9 @@ using Object = UnityEngine.Object;
 //              today (with one line about the day's worst kind of review).
 //   Shop       what the café has (cups and beans, low under 10), the restock and the upgrades. Buying
 //              works as it always did: only at closing, and saved at once (UpgradeShopUI.TryBuy).
-//   Notes      the notebook, person by person, where they live first; today's facts marked NEW.
+//   Notes      the notebook as a list of people, one line each (today's newest fact, else the latest known) and how
+//              much is new; tap a person for all their facts, where they live first, today's marked NEW; tap again
+//              to close. His pages first.
 //
 // "Close up for the night" sits above the tab bar in every app. It IS the recap's button: RecapUI takes
 // it over with its own wiring (the night first, then tomorrow) and its own label ("Open Tomorrow" once
@@ -45,8 +55,9 @@ using Object = UnityEngine.Object;
 [DisallowMultipleComponent]
 public sealed class RecapPhone : MonoBehaviour
 {
-    public enum App { Reviews, Franchise, Shop, Notes }
-    public static readonly string[] AppNames = { "Reviews", "Franchise", "Shop", "Notes" };
+    public enum App { Tonight, Reviews, Franchise, Shop, Notes }
+    public static readonly string[] AppNames = { "Tonight", "Reviews", "Franchise", "Shop", "Notes" };
+    public const int Apps = 5;
 
     /// <summary>Over the night's notebook (40) and the straight face (45), under the circuit (80) and the night's fade (90).</summary>
     public const int SortingOrder = 60;
@@ -94,8 +105,10 @@ public sealed class RecapPhone : MonoBehaviour
     public Button CloseButton { get; private set; }
     public TMP_Text CloseLabel { get; private set; }
 
-    public App Current { get; private set; } = App.Reviews;
+    public App Current { get; private set; } = App.Tonight;
     public bool DetailsOpen { get; private set; }
+    /// <summary>Whose facts are open in Notes (a NotebookPerson.who), or "" for the list alone.</summary>
+    public string OpenPerson { get; private set; } = "";
 
     // What the phone showed when it was last built (for the checks and reports).
     public bool FranchiseDot { get; private set; }
@@ -103,16 +116,20 @@ public sealed class RecapPhone : MonoBehaviour
     public int NotesNew { get; private set; }
     public int ReviewCardsShown { get; private set; }
     public int Builds { get; private set; }
+    /// <summary>Tonight, as last built: its words before the review lines (the budget), the review lines shown, the people listed in Notes.</summary>
+    public int TonightWords { get; private set; }
+    public int TonightLines { get; private set; }
+    public int PeopleListed { get; private set; }
 
     TMP_FontAsset font;
-    RectTransform phoneBody, viewport, content, focusRing;
+    RectTransform phoneBody, viewport, content, focusRing, tabBar, closeRect;
     ScrollRect scroll;
     TMP_Text clockText, hintText;
-    readonly Button[] tabs = new Button[4];
-    readonly Image[] tabIcons = new Image[4];
-    readonly TMP_Text[] tabLabels = new TMP_Text[4];
-    readonly GameObject[] badges = new GameObject[4];
-    readonly TMP_Text[] badgeTexts = new TMP_Text[4];
+    readonly Button[] tabs = new Button[Apps];
+    readonly Image[] tabIcons = new Image[Apps];
+    readonly TMP_Text[] tabLabels = new TMP_Text[Apps];
+    readonly GameObject[] badges = new GameObject[Apps];
+    readonly TMP_Text[] badgeTexts = new TMP_Text[Apps];
     readonly List<Button> contentButtons = new List<Button>();
     readonly Dictionary<Button, string> buttonKeys = new Dictionary<Button, string>();
     readonly List<Object> made = new List<Object>();    // textures and sprites made while playing
@@ -127,7 +144,7 @@ public sealed class RecapPhone : MonoBehaviour
     const float CountSeconds = .9f;
     GameObject lastRevealed;
     ReputationLedger preview;   // a made-up day (Fixit Fidget > Reputation > Preview), until the phone closes
-    Sprite rounded, ring, circle, star, house, bag, note, tick, cupBody, cupLid, bean, beanCrease;
+    Sprite rounded, ring, circle, star, house, bag, note, tick, cupBody, cupLid, bean, beanCrease, moon;
 
     // ------------------------------------------------------------------ making it
 
@@ -168,6 +185,7 @@ public sealed class RecapPhone : MonoBehaviour
         BuildContentArea(display);
         BuildCloseButton(display);
         BuildTabs(display);
+        Layout();
 
         focusRing = Anchored("Selected (pad)", screen, new Vector2(.5f, .5f), Vector2.zero, new Vector2(10f, 10f));
         var ringImage = focusRing.gameObject.AddComponent<Image>();
@@ -221,6 +239,7 @@ public sealed class RecapPhone : MonoBehaviour
     void BuildCloseButton(RectTransform display)
     {
         RectTransform rect = Box("Close up", display, Pad, DisplayHeight - TabsHeight - CloseGap - CloseHeight, ContentWidth, CloseHeight);
+        closeRect = rect;
         Image back = Paint(rect, Ink, 16f);
         CloseButton = Pressable(rect, back, null, null, dark: true);
         CloseLabel = Words(rect, RecapUI.NightLabel, 0f, 0f, ContentWidth, 20f, Color.white, TextAlignmentOptions.Center,
@@ -231,12 +250,13 @@ public sealed class RecapPhone : MonoBehaviour
     void BuildTabs(RectTransform display)
     {
         RectTransform bar = Box("Tabs", display, 0f, DisplayHeight - TabsHeight, DisplayWidth, TabsHeight);
+        tabBar = bar;
         Paint(bar, Color.white, 0f);
         Paint(Box("Top line", bar, 0f, 0f, DisplayWidth, 1f), Line, 0f);
-        float cell = DisplayWidth / 4f;
-        Sprite[] icons = { star, house, bag, note };
-        Color[] badgeColours = { Accent, Gold, Red, Accent };
-        for (int i = 0; i < 4; i++)
+        float cell = DisplayWidth / Apps;
+        Sprite[] icons = { moon, star, house, bag, note };
+        Color[] badgeColours = { Accent, Accent, Gold, Red, Accent };
+        for (int i = 0; i < Apps; i++)
         {
             RectTransform tab = Box(AppNames[i], bar, i * cell, 1f, cell, TabsHeight - 9f);
             Image hit = Paint(tab, new Color(1f, 1f, 1f, 0f), 0f, hits: true);
@@ -264,6 +284,16 @@ public sealed class RecapPhone : MonoBehaviour
         }
     }
 
+    // Tonight has no tab bar: the closing screen is the whole phone, and Close up sits at its foot. The apps have the bar.
+    void Layout()
+    {
+        bool tonight = Current == App.Tonight;
+        if (tabBar != null && tabBar.gameObject.activeSelf != !tonight) tabBar.gameObject.SetActive(!tonight);
+        float closeTop = tonight ? DisplayHeight - 14f - CloseHeight : DisplayHeight - TabsHeight - CloseGap - CloseHeight;
+        if (closeRect != null) Place(closeRect, Pad, closeTop, ContentWidth, CloseHeight);
+        if (viewport != null) Place(viewport, 0f, StatusHeight, DisplayWidth, closeTop - 8f - StatusHeight);
+    }
+
     // ------------------------------------------------------------------ what RecapUI and the checks call
 
     /// <summary>The apps are built again from the game's data before the next frame is drawn (while the phone is up).</summary>
@@ -276,16 +306,18 @@ public sealed class RecapPhone : MonoBehaviour
         else dirty = true;
     }
 
-    /// <summary>A new day's recap: back to Reviews, Details closed, at the top.</summary>
+    /// <summary>A new day's recap: back to Tonight, Details closed, Notes' list closed, at the top.</summary>
     public void NewEvening()
     {
         countDue = true;
-        Current = App.Reviews;
+        Current = App.Tonight;
         DetailsOpen = false;
+        OpenPerson = "";
         preview = null;
         scrollToTop = true;
         dirty = true;
         UpdateTabs();
+        Layout();
     }
 
     /// <summary>Opens one of the apps, at its top.</summary>
@@ -294,11 +326,19 @@ public sealed class RecapPhone : MonoBehaviour
         Current = app;
         scrollToTop = true;
         UpdateTabs();
+        Layout();
         RebuildNow();
     }
 
+    /// <summary>Opens Notes on one person's facts (the closing screen's notebook line).</summary>
+    public void OpenPersonIn(string who)
+    {
+        OpenPerson = who ?? "";
+        Open(App.Notes);
+    }
+
     /// <summary>The next app to the right (1) or the left (-1), wrapping round.</summary>
-    public void Step(int by) => Tap((App)((((int)Current + by) % 4 + 4) % 4));
+    public void Step(int by) => Tap((App)((((int)Current + by) % Apps + Apps) % Apps));
 
     public void ToggleDetails()
     {
@@ -311,9 +351,10 @@ public sealed class RecapPhone : MonoBehaviour
     public void Preview(ReputationLedger sample)
     {
         preview = sample;
-        Current = App.Reviews;
+        Current = App.Tonight;
         scrollToTop = true;
         UpdateTabs();
+        Layout();
         RebuildNow();
     }
 
@@ -329,7 +370,8 @@ public sealed class RecapPhone : MonoBehaviour
     public bool FocusRingShowing => focusRing != null && focusRing.gameObject.activeSelf;
     public string HintText => hintText != null ? hintText.text : "";
 
-    /// <summary>A button in the current app by its key: "details", "restock", "upgrade:&lt;asset name&gt;". Null if it isn't there.</summary>
+    /// <summary>A button in the current app by its key: "details", "restock", "upgrade:&lt;asset name&gt;", "more", "notebook",
+    /// "stock", "person:&lt;who&gt;". Null if it isn't there.</summary>
     public Button ContentButton(string key)
     {
         foreach (KeyValuePair<Button, string> pair in buttonKeys)
@@ -418,7 +460,7 @@ public sealed class RecapPhone : MonoBehaviour
         {
             if (keys.qKey.wasPressedThisFrame || keys.leftArrowKey.wasPressedThisFrame) step--;
             if (keys.eKey.wasPressedThisFrame || keys.rightArrowKey.wasPressedThisFrame) step++;
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < Apps; i++)
                 if (keys[Key.Digit1 + i].wasPressedThisFrame || keys[Key.Numpad1 + i].wasPressedThisFrame)
                 {
                     Tap((App)i);
@@ -486,9 +528,9 @@ public sealed class RecapPhone : MonoBehaviour
         hintWritten = true;
         hintForPad = pad;
         hintText.text = pad
-            ? $"{PadInput.Label(PadButton.LeftShoulder)} / {PadInput.Label(PadButton.RightShoulder)}  Switch apps        Right stick  Scroll" +
+            ? $"{PadInput.Label(PadButton.LeftShoulder)} / {PadInput.Label(PadButton.RightShoulder)}  Apps        Right stick  Scroll" +
               $"        D-pad  Move        {PadInput.Label(PadButton.South)}  Press"
-            : "Q / E  Switch apps        1-4  Jump to an app        W / S  Scroll        Click  Press";
+            : "Q / E  Apps        1-5  Jump        W / S  Scroll        Click  Press";
     }
 
     void Tap(App app)
@@ -553,10 +595,11 @@ public sealed class RecapPhone : MonoBehaviour
         float y = 8f;
         switch (Current)
         {
+            case App.Reviews: y = BuildReviews(y); break;
             case App.Franchise: y = BuildFranchise(y); break;
             case App.Shop: y = BuildShop(y); break;
             case App.Notes: y = BuildNotes(y); break;
-            default: y = BuildReviews(y); break;
+            default: y = BuildTonight(y); break;
         }
         content.sizeDelta = new Vector2(DisplayWidth, y + 8f);
         SetScroll(offset);
@@ -598,21 +641,21 @@ public sealed class RecapPhone : MonoBehaviour
         {
             mode = Navigation.Mode.Explicit,
             selectOnUp = live.Count > 0 ? live[live.Count - 1] : null,
-            selectOnDown = tabs[(int)Current]
+            selectOnDown = tabBar != null && tabBar.gameObject.activeSelf ? tabs[(int)Current] : null   // Tonight has no tab bar
         };
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < Apps; i++)
             tabs[i].navigation = new Navigation
             {
                 mode = Navigation.Mode.Explicit,
                 selectOnLeft = i > 0 ? tabs[i - 1] : null,
-                selectOnRight = i < 3 ? tabs[i + 1] : null,
+                selectOnRight = i < Apps - 1 ? tabs[i + 1] : null,
                 selectOnUp = CloseButton
             };
     }
 
     void UpdateTabs()
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < Apps; i++)
         {
             Color colour = i == (int)Current ? Accent : TabOff;
             if (tabIcons[i] != null) tabIcons[i].color = colour;
@@ -628,6 +671,7 @@ public sealed class RecapPhone : MonoBehaviour
         FranchiseDot = rep != null && rep.EarnedStarToday;
         ShopAlert = stock != null && (stock.CupsLow || stock.BeansLow);
         NotesNew = book != null ? book.LearnedOn(Today).Count : 0;
+        Badge(App.Tonight, false, null);
         Badge(App.Reviews, false, null);
         Badge(App.Franchise, FranchiseDot, null);
         Badge(App.Shop, ShopAlert, "!");
@@ -646,6 +690,183 @@ public sealed class RecapPhone : MonoBehaviour
         ((RectTransform)badges[i].transform).sizeDelta = new Vector2(dot ? size : Mathf.Max(size, 11f + 7.5f * text.Length), size);
         badgeTexts[i].gameObject.SetActive(!dot);
         badgeTexts[i].text = dot ? "" : text;
+    }
+
+    // ------------------------------------------------------------------ Tonight (the closing screen)
+
+    // One screen, no scrolling: the day's three numbers, the three review lines worth reading, one line of notebook, the
+    // stock only when it's low, and the way to the apps. Everything but the review lines is counted against the budget.
+    float BuildTonight(float y)
+    {
+        TonightWords = 0;
+        TonightLines = 0;
+        DayClock clock = DayClock.Instance;
+        ReputationLedger rep = Ledger;
+        y = TonightCard(y, clock, rep);
+        List<ReviewCard> three = ReputationLedger.PickCards(CardsOf(rep));
+        foreach (ReviewCard card in three)
+        {
+            y = ReviewLine(y, card);
+            TonightLines++;
+        }
+        NotebookFactData fact = NotebookRecap.Tonight(Book, Today);
+        if (fact != null) y = NotebookLine(y, fact);
+        ShopInventory stock = ShopInventory.Instance;
+        if (stock != null && (stock.CupsLow || stock.BeansLow)) y = StockLine(y, stock);
+        return MoreRow(y);
+    }
+
+    // The day on a dark card: what it earned (counting up), the café's stars (a new one in gold), the reviews and
+    // what they did; and a failed save in red.
+    float TonightCard(float y, DayClock clock, ReputationLedger rep)
+    {
+        RectTransform card = Box("Tonight", content, Pad, y, ContentWidth, 10f);
+        Paint(card, Ink, 18f);
+        float right = ContentWidth - CardPadX;
+        TMP_Text kicker = Counted(Words(card, clock != null ? Kicker(clock.Day) : "CLOSED", CardPadX, 14f, 230f, 14f, DarkFaint,
+            style: FontStyles.Bold, rich: false, spacing: 4f));
+        float top = Bottom(kicker.rectTransform) + 6f;
+
+        // The takings, large, counting up into their own space from the left.
+        TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned : 0), 0f, 0f, 0f, 40f, DarkText, wrap: false,
+            style: FontStyles.Bold, rich: false);
+        Vector2 moneySize = money.rectTransform.sizeDelta;
+        money.horizontalAlignment = HorizontalAlignmentOptions.Left;
+        todayMoney = money;
+        todayEarned = clock != null ? clock.Earned : 0;
+        if (countDue)
+        {
+            countDue = false;
+            countSince = Time.unscaledTime + .25f;
+            todayShown = 0;
+        }
+        if (countSince >= 0f) money.text = "$" + todayShown;
+        Place(money.rectTransform, CardPadX, top, Mathf.Max(moneySize.x, 150f), moneySize.y);
+        TonightWords += 1;
+        TMP_Text earned = Counted(Words(card, "earned today", CardPadX, Bottom(money.rectTransform) - 2f, 180f, 15f, DarkFaint, rich: false));
+
+        // The café's stars, top right, and under them a new star or how many.
+        const float starSize = 20f, starGap = 3f;
+        float starsWidth = 5f * starSize + 4f * starGap;
+        int stars = rep != null ? Mathf.Clamp(rep.StarsEarned, 0, ReputationRules.MaxStars) : 0;
+        Stars(card, right - starsWidth, top + 8f, starSize, starGap, stars);
+        float underStars = top + 8f + starSize + 7f;
+        if (rep != null && rep.EarnedStarToday)
+        {
+            RectTransform pill = Tag(card, "New star!", 0f, 0f, GoldSoft, GoldInk, 13f);
+            Place(pill, right - pill.sizeDelta.x, underStars, pill.sizeDelta.x, pill.sizeDelta.y);
+            TonightWords += 2;
+            underStars += pill.sizeDelta.y;
+        }
+        else
+        {
+            TMP_Text count = Counted(Words(card, stars == 0 ? "no stars yet" : stars == 1 ? "1 star" : stars + " stars", 0f, 0f, 0f, 15f, DarkFaint,
+                wrap: false, rich: false));
+            Place(count.rectTransform, right - count.rectTransform.sizeDelta.x, underStars, count.rectTransform.sizeDelta.x, count.rectTransform.sizeDelta.y);
+            underStars = Bottom(count.rectTransform);
+        }
+
+        // The reviews, and what they did to the reputation.
+        float cy = Mathf.Max(Bottom(earned.rectTransform), underStars) + 12f;
+        Paint(Box("Rule", card, CardPadX, cy, ContentWidth - 2f * CardPadX, 1f), DarkLine, 0f);
+        cy += 10f;
+        int n = rep != null ? rep.ReviewCount : 0;
+        string reviews = n == 0 ? "No reviews today." : $"{n} review{(n == 1 ? "" : "s")} today  ·  {ReputationRecap.Signed(rep.TodayChange)} reputation";
+        cy = Bottom(Counted(Words(card, reviews, CardPadX, cy, ContentWidth - 2f * CardPadX, 16.5f, DarkText, rich: false)).rectTransform);
+
+        string error = SaveManager.Instance != null ? SaveManager.Instance.LastSaveError : "";
+        if (!string.IsNullOrEmpty(error))
+            cy = Bottom(Words(card, "<b>Save failed:</b> <noparse>" + error + "</noparse>", CardPadX, cy + 9f, ContentWidth - 2f * CardPadX, 15f, SaveFailed).rectTransform);
+        card.sizeDelta = new Vector2(ContentWidth, cy + 14f);
+        return y + card.sizeDelta.y + CardGap;
+    }
+
+    // One review worth reading: the avatar, the name and its stars on one row, the line under them.
+    float ReviewLine(float y, ReviewCard review)
+    {
+        RectTransform card = CardBox("Review line", y);
+        Avatar(card, CardPadX, 12f, 32f, review.name);
+        float x = CardPadX + 44f, width = ContentWidth - x - CardPadX;
+        TMP_Text name = Words(card, review.name, x, 10f, 0f, 15.5f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        float nameWidth = name.rectTransform.sizeDelta.x;
+        if (nameWidth > width - 5f * 16f - 10f)
+        {
+            Object.Destroy(name.gameObject);
+            name = Words(card, review.name, x, 10f, width - 5f * 16f - 10f, 15.5f, Ink, style: FontStyles.Bold, rich: false);
+            nameWidth = name.rectTransform.sizeDelta.x;
+        }
+        Stars(card, x + nameWidth + 8f, 10f + name.rectTransform.sizeDelta.y / 2f - 6.5f, 13f, 3f, review.Stars);
+        TMP_Text line = Words(card, review.line, x, Bottom(name.rectTransform) + 2f, width, 15.5f, Soft, rich: false);
+        return FinishCard(card, Mathf.Max(12f + 32f, Bottom(line.rectTransform)) + 11f, y);
+    }
+
+    // The one line of notebook: today's newest fact (his pages first), under whose it is, like a review line under its
+    // name (the third playtest: a fact without a name was a riddle). Everything on Tonight is today's, so no NEW tag.
+    // Tap: Notes, open on that person.
+    float NotebookLine(float y, NotebookFactData fact)
+    {
+        RectTransform card = CardBox("Notebook line", y);
+        RectTransform square = Box("Icon", card, CardPadX, 11f, 32f, 32f);
+        Paint(square, Hex(0xece7f5), 9f);
+        Picture(square, note, Hex(0x6b5aa0), 7f, 7f, 18f, 18f);
+        float x = CardPadX + 44f, width = ContentWidth - x - CardPadX;
+        bool his = fact.source == Notebook.Sources.Inherited;
+        string whose = string.IsNullOrWhiteSpace(fact.name) ? fact.who ?? "" : fact.name;
+        TMP_Text name = Counted(Words(card, whose, x, 10f, width, 15.5f, Ink, style: FontStyles.Bold, rich: false));
+        TMP_Text words = Counted(Words(card, NotebookRecap.Sentence(fact.text), x, Bottom(name.rectTransform) + 2f, width, 15.5f, Soft,
+            style: his ? FontStyles.Italic : FontStyles.Normal, rich: false));
+        string who = fact.who ?? "";
+        Pressable(card, card.GetComponent<Image>(), "notebook", () => OpenPersonIn(who), dark: false);
+        return FinishCard(card, Mathf.Max(11f + 32f, Bottom(words.rectTransform)) + 12f, y);
+    }
+
+    // Only when the café is low: one line, and a tap opens the Shop.
+    float StockLine(float y, ShopInventory stock)
+    {
+        string what = stock.CupsLow && stock.BeansLow ? "cups and beans" : stock.CupsLow ? "cups" : "beans";
+        RectTransform box = Box("Low stock", content, Pad, y, ContentWidth, 10f);
+        Image face = Paint(box, AccentSoft, 12f);
+        TMP_Text words = Counted(Words(box, $"Low on {what}. Restock in Shop.", 12f, 9f, ContentWidth - 24f, 15.5f, Accent, rich: false));
+        box.sizeDelta = new Vector2(ContentWidth, Bottom(words.rectTransform) + 9f);
+        Pressable(box, face, "stock", () => Tap(App.Shop), dark: false);
+        return y + box.sizeDelta.y + CardGap;
+    }
+
+    // The way to the apps, and what's waiting there (the low stock has its own line above, so it isn't said twice).
+    float MoreRow(float y)
+    {
+        string label = "More";
+        if (NotesNew > 0) label += $"  ·  {NotesNew} new note{(NotesNew == 1 ? "" : "s")}";
+        label += "  ›";
+        RectTransform rect = Box("Button: more", content, Pad, y + 2f, ContentWidth, 44f);
+        Image face = Paint(rect, ButtonOff, 16f);
+        TMP_Text words = Counted(Words(rect, label, 0f, 0f, ContentWidth, 15.5f, Soft, TextAlignmentOptions.Center, wrap: false,
+            style: FontStyles.Bold, rich: false));
+        Place(words.rectTransform, 0f, 0f, ContentWidth, 44f);
+        Pressable(rect, face, "more", () => Tap(App.Reviews), dark: false);
+        return y + 2f + 44f + CardGap;
+    }
+
+    // Words on the closing screen count against the budget (the review lines don't: they're the day's own words).
+    TMP_Text Counted(TMP_Text words)
+    {
+        TonightWords += WordBudget.Words(Plain(words.text));
+        return words;
+    }
+
+    /// <summary>Text without its rich-text tags (for counting words as they read).</summary>
+    public static string Plain(string rich)
+    {
+        if (string.IsNullOrEmpty(rich)) return "";
+        var plain = new StringBuilder(rich.Length);
+        bool inTag = false;
+        foreach (char c in rich)
+        {
+            if (c == '<') { inTag = true; continue; }
+            if (c == '>') { inTag = false; plain.Append(' '); continue; }
+            if (!inTag) plain.Append(c);
+        }
+        return plain.ToString();
     }
 
     // ------------------------------------------------------------------ Reviews
@@ -1023,15 +1244,52 @@ public sealed class RecapPhone : MonoBehaviour
 
     float BuildNotes(float y)
     {
-        y = AppHeader(y, note, Hex(0xece7f5), Hex(0x6b5aa0), "Notes", "Everything Ace knows");
+        y = AppHeader(y, note, Hex(0xece7f5), Hex(0x6b5aa0), "Notes", "One line a person. Tap for everything.");
         List<NotebookPerson> people = NotebookRecap.People(Book);
+        PeopleListed = people.Count;
         if (people.Count == 0) return MessageCard(y, "Nothing written down yet.");
         int day = Today;
-        foreach (NotebookPerson person in people) y = PersonCard(y, person, day);
+        foreach (NotebookPerson person in people)
+            y = person.who == OpenPerson ? PersonCard(y, person, day) : PersonRow(y, person, day);
         return y;
     }
 
-    // One person: an avatar, the name (and how much is new today), then every fact, where they live first.
+    void TogglePerson(string who)
+    {
+        OpenPerson = OpenPerson == who ? "" : who ?? "";
+        Sfx.Play2D("phone.tap");
+        RebuildNow();
+    }
+
+    // One person, one line: the avatar, the name and how much is new, the latest thing known (today's if there is one),
+    // in his hand for his pages. The whole row is the button that opens them.
+    float PersonRow(float y, NotebookPerson person, int day)
+    {
+        RectTransform card = CardBox("Person", y);
+        Avatar(card, CardPadX, 12f, 36f, person.name);
+        float x = CardPadX + 48f, width = ContentWidth - x - CardPadX - 18f;
+        TMP_Text name = Words(card, person.name, x, 11f, 0f, 17f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        int fresh = person.LearnedOn(day);
+        if (fresh > 0) Tag(card, fresh + " new", x + name.rectTransform.sizeDelta.x + 8f, 11f + name.rectTransform.sizeDelta.y / 2f, AccentSoft, Accent);
+        float bottom = Bottom(name.rectTransform);
+        NotebookFactData fact = NotebookRecap.OneLine(person, day);
+        if (fact != null)
+        {
+            bool his = fact.source == Notebook.Sources.Inherited;
+            bottom = Bottom(Words(card, "<noparse>" + NotebookRecap.Sentence(fact.text) + "</noparse>", x, bottom + 1f, width, 15.5f, Soft,
+                style: his ? FontStyles.Italic : FontStyles.Normal).rectTransform);
+        }
+        float height = Mathf.Max(12f + 36f, bottom) + 12f;
+        TMP_Text chevron = Words(card, "›", 0f, 0f, 0f, 24f, Faint, wrap: false, rich: false);
+        Place(chevron.rectTransform, ContentWidth - CardPadX - chevron.rectTransform.sizeDelta.x + 2f, height / 2f - chevron.rectTransform.sizeDelta.y / 2f,
+            chevron.rectTransform.sizeDelta.x, chevron.rectTransform.sizeDelta.y);
+        string who = person.who;
+        Pressable(card, card.GetComponent<Image>(), "person:" + who, () => TogglePerson(who), dark: false);
+        return FinishCard(card, height, y);
+    }
+
+    // One person, open: an avatar, the name (and how much is new today), then every fact, where they live first. The
+    // card is the button that closes it again.
     float PersonCard(float y, NotebookPerson person, int day)
     {
         RectTransform card = CardBox("Person", y);
@@ -1042,6 +1300,9 @@ public sealed class RecapPhone : MonoBehaviour
         Place(name.rectTransform, x, 34f - nameSize.y / 2f, nameSize.x, nameSize.y);
         int fresh = person.LearnedOn(day);
         if (fresh > 0) Tag(card, fresh + " new", x + nameSize.x + 8f, 34f, AccentSoft, Accent);
+        TMP_Text chevron = Words(card, "×", 0f, 0f, 0f, 22f, Faint, wrap: false, rich: false);
+        Place(chevron.rectTransform, ContentWidth - CardPadX - chevron.rectTransform.sizeDelta.x + 2f, 34f - chevron.rectTransform.sizeDelta.y / 2f + 4f,
+            chevron.rectTransform.sizeDelta.x, chevron.rectTransform.sizeDelta.y);
         float cy = 14f + 40f + 4f;
         float textX = CardPadX + 16f, width = ContentWidth - textX - CardPadX;
         for (int i = 0; i < person.facts.Count; i++)
@@ -1052,10 +1313,13 @@ public sealed class RecapPhone : MonoBehaviour
             string sure = NotebookRecap.Sureness(fact, day);
             if (sure.Length > 0) text += $" <color={FaintHex}>({sure})</color>";
             if (fact.day == day) text += $"  <color={AccentHex}><size=78%><b>NEW</b></size></color>";
-            TMP_Text line = Words(card, text, textX, cy, width, 17.5f, Ink);
+            TMP_Text line = Words(card, text, textX, cy, width, 17.5f, Ink,
+                style: fact.source == Notebook.Sources.Inherited ? FontStyles.Italic : FontStyles.Normal);
             Picture(card, circle, Accent, CardPadX + 1f, cy + 7.5f, 7f, 7f);
             cy = Bottom(line.rectTransform) + 10f;
         }
+        string who = person.who;
+        Pressable(card, card.GetComponent<Image>(), "person:" + who, () => TogglePerson(who), dark: false);
         return FinishCard(card, cy + 2f, y);
     }
 
@@ -1339,6 +1603,11 @@ public sealed class RecapPhone : MonoBehaviour
         cupLid = MakeSprite(Drawn("Cup lid", 64, Rectangle(4f, 3f, 20f, 6.2f)), 0f);
         bean = MakeSprite(Drawn("Bean", 64, Ellipse(12f, 12f, 7f, 9.5f, 30f)), 0f);
         beanCrease = MakeSprite(Drawn("Bean crease", 64, Band(V(8f, 17f), V(11f, 14f), V(13f, 10f), V(15f, 6f), .9f)), 0f);
+        // A crescent (Tonight): the night side of a disc, its inner edge another disc's.
+        var crescent = new List<Vector2>();
+        crescent.AddRange(Arc(11f, 12f, 9f, 62.34f, 297.66f, 28));
+        crescent.AddRange(Arc(14.5f, 12f, 8f, 274.87f, 85.13f, 24));
+        moon = MakeSprite(Drawn("Moon", 64, crescent.ToArray()), 0f);
     }
 
     Sprite MakeSprite(Texture2D texture, float border)

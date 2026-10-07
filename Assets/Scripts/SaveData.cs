@@ -103,10 +103,12 @@ public class NightSaveData
     public int askedOn;                                        // the night he first asked for it (0: not yet)
     public int lastAsked;                                      // the last night he asked for it
     public int skips;                                          // nights in a row he asked and the night ended without it
-    public int visitDay;                                       // the day he sits in the café (the morning after a skip), 0 none
-    public int noteDay;                                        // the day his note is on the counter (the third skip), 0 none
-    public string noteFavour = "";                             // ...and the favour it gives up on
-    public string[] dropped = new string[0];                   // favours he stopped asking for
+    public int visitDay;                                       // the day he sits at a table all morning (the morning after a skip), 0 none
+    public int messDay;                                        // the day the café opens with his mess (the second skip in a row and on), 0 none
+    public int wordDay;                                        // the day of his planted review and the officer's word (the third skip), 0 none
+    public int noteDay;                                        // the day his note is on the counter (the same morning), 0 none
+    public string noteFavour = "";                             // ...and the favour it's about
+    public string[] dropped = new string[0];                   // favours he stopped asking for (before 6 Oct 2026; nothing adds to it now)
     public QuestionData[] questions = new QuestionData[0];     // what the officer has asked Ace, oldest first
 }
 

@@ -32,6 +32,11 @@ using UnityEngine;
 // the deal gets the cop line; Night 2's ask becomes held, with a reply; the night off holds Ace. One line's words are
 // changed the same way, only if untouched: "Bring him here." (the gnome) becomes "Bring it here." (any favour).
 //
+// Playtest 3 (6 Oct 2026, claude/playtest-3-notes-and-plan.md §5.1): every placeholder to the word budget (WordBudget),
+// the deal to eight lines, the gnome's return ending on the hold, the cups' return without the page and the cars.
+// Rewordings (Retexts) and reshapings (Rescenes) happen once, only to a line or scene still exactly as Barks 1 made it;
+// anything rewritten since is left alone and the report says so.
+//
 // Barks 2 starts a night walk lab (the Day 5 test save, never the playtest save) with the bark check, which
 // photographs and checks the lines on screen (Logs/Night/barks-check-<time>/).
 // ---------------------------------------------------------------------------
@@ -55,20 +60,18 @@ internal static class BarkSteps
 
     static readonly (string id, string speaker, string situation, string text)[] Lines =
     {
-        // Night 0: the deal at the bins (the spec's §3, in its order).
+        // Night 0: the deal at the bins (the spec's §3, in its order; eight lines since playtest 3: 04 and 08 folded into 05 and 13).
         ("lodger.night0.01", "lodger", "night0.deal", "You didn't see me."),
         ("ace.night0.02", "ace", "night0.deal", "...I didn't see you."),
         ("lodger.night0.03", "lodger", "night0.deal", "You open at nine. You burn the second batch."),
-        ("lodger.night0.04", "lodger", "night0.deal", "Grace likes you."),
-        ("lodger.night0.05", "lodger", "night0.deal", "A café whose owner talks doesn't stay open long."),
+        ("lodger.night0.05", "lodger", "night0.deal", "Grace likes you. Café owners who talk don't last."),
         ("lodger.night0.06", "lodger", "night0.deal", "But I like you. So here's the thing."),
         ("lodger.night0.07", "lodger", "night0.deal", "Everything I know about this street. Learn the rest."),
-        ("lodger.night0.08", "lodger", "night0.deal", "And don't get caught."),
-        ("lodger.night0.09", "lodger", "night0.deal", "There's a gnome on the corner step. Bring it to me."),
+        ("lodger.night0.09", "lodger", "night0.deal", "A gnome on the corner step. Bring it here."),
         ("ace.night0.10", "ace", "night0.deal", "Why?"),
         ("lodger.night0.11", "lodger", "night0.deal", "Don't ask why. Ask how."),
         // The asks of Nights 2 and 3, and a night off.
-        ("lodger.night2.01", "lodger", "night2.ask", "Grace has cups. A box of them. Get me a sleeve."),
+        ("lodger.night2.01", "lodger", "night2.ask", "Grace has a box of cups. Get me a sleeve."),
         ("ace.night2.02", "ace", "night2.ask", "Cups? Why cups?"),
         ("lodger.night2.03", "lodger", "night2.ask", "A man needs cups."),
         ("lodger.night3.01", "lodger", "night3.ask", "Two cars parked on West Street last night."),
@@ -85,9 +88,9 @@ internal static class BarkSteps
         ("lodger.done.02", "lodger", "lodger.done", "Not bad. Not bad at all."),
         ("lodger.done.03", "lodger", "lodger.done", "See? Easy."),
         // Ace's line of the night (the spec's §7), one a night.
-        ("ace.line.night0", "ace", "ace.night", "I own a café and a man lives in my bins."),
+        ("ace.line.night0", "ace", "ace.night", "I own a café. A man lives in my bins."),
         ("ace.line.night1", "ace", "ace.night", "It's a gnome. It's just a gnome."),
-        ("ace.line.night2", "ace", "ace.night", "If she wakes up I'm a burglar. If not, a guest."),
+        ("ace.line.night2", "ace", "ace.night", "If she wakes, I'm a burglar. Otherwise, a guest."),
         ("ace.line.night3", "ace", "ace.night", "Stupidest thing I've ever done. Quite well done."),
         ("ace.line.day5", "ace", "ace.night", "I'm getting good at this. That's the worrying part."),
         // Night 0's replies (6 Oct): Ace answers twice in the deal; each reply has a line said back.
@@ -103,12 +106,12 @@ internal static class BarkSteps
         ("lodger.night1.r03a", "lodger", "night1.return", "Very."),
         ("lodger.night1.r03b", "lodger", "night1.return", "Watch."),
         ("lodger.night1.r04", "lodger", "night1.return", "It was watching me. Now it watches for me."),
-        ("lodger.night1.r05", "lodger", "night1.return", "You kept your nerve. Keep it tomorrow, when she asks."),
-        ("lodger.night1.r06", "lodger", "night1.return", "And a page for your notebook."),
-        ("lodger.night1.r07", "lodger", "night1.return", "Tomorrow, her kitchen."),
+        ("lodger.night1.r05", "lodger", "night1.return", "You kept your nerve. Keep it when she asks."),
+        ("lodger.night1.r06", "lodger", "night1.return", "A page for you. Grace's Thursdays."),
+        ("lodger.night1.r07", "lodger", "night1.return", "We've both got something on each other now. Mine's bigger."),
         // His pool while Ace has his thing in hand.
         ("lodger.beckon.01", "lodger", "lodger.beckon", "Over here."),
-        ("lodger.beckon.02", "lodger", "lodger.beckon", "Bring him here."),
+        ("lodger.beckon.02", "lodger", "lodger.beckon", "Bring it here."),
         ("lodger.beckon.03", "lodger", "lodger.beckon", "That's the one."),
         // Grace at home (chunk C): noticing, and catching.
         ("grace.notice.01", "grace", "grace.notice", "Hm?"),
@@ -121,7 +124,7 @@ internal static class BarkSteps
         ("neighbour.window.03", "neighbour", "neighbour.window", "Go home!"),
         // Session 3: the cop line at the end of the deal (the officer drinks Ace's coffee from Day 1).
         ("lodger.night0.12", "lodger", "night0.deal", "That cop who drinks your coffee? He's looking for me."),
-        ("lodger.night0.13", "lodger", "night0.deal", "Keep him happy."),
+        ("lodger.night0.13", "lodger", "night0.deal", "Keep him happy. And don't get caught."),
         // Night 2's ask: Ace answers; warm, he says why before Ace asks.
         ("ace.night2.02a", "ace", "night2.ask", "One sleeve. Fine."),
         ("lodger.night2.03a", "lodger", "night2.ask", "Good. Don't wake her."),
@@ -135,8 +138,8 @@ internal static class BarkSteps
         ("ace.night2.r02b", "ace", "night2.return", "So what are they for?"),
         ("lodger.night2.r03a", "lodger", "night2.return", "As asked. I like that."),
         ("lodger.night2.r03b", "lodger", "night2.return", "Watch."),
-        ("lodger.night2.r04", "lodger", "night2.return", "Four cups. Old habit. There used to be four of us."),
-        ("lodger.night2.r05", "lodger", "night2.return", "Doors. Every house has a key. People tell you where."),
+        ("lodger.night2.r04", "lodger", "night2.return", "Four cups. There used to be four of us."),
+        ("lodger.night2.r05", "lodger", "night2.return", "You walk like a cop. I can fix that."),
         ("lodger.night2.r06", "lodger", "night2.return", "And a page. Her photos. Look who isn't in them."),
         ("lodger.night2.r07", "lodger", "night2.return", "Two cars on West Street. I want them gone."),
         // A night with nothing to ask yet (the next favour isn't in the game).
@@ -148,15 +151,15 @@ internal static class BarkSteps
         // His verdict on the day just ended, before tonight's ask.
         ("lodger.verdict.held.01", "lodger", "lodger.verdict.held", "She asked. You held. Good."),
         ("lodger.verdict.held.02", "lodger", "lodger.verdict.held", "Straight face this morning. I saw."),
-        ("lodger.verdict.cracked.01", "lodger", "lodger.verdict.cracked", "You smiled at her this morning. She'll remember."),
+        ("lodger.verdict.cracked.01", "lodger", "lodger.verdict.cracked", "You smiled at her. She'll remember."),
         ("lodger.verdict.cracked.02", "lodger", "lodger.verdict.cracked", "Your face this morning. Work on it."),
-        ("lodger.verdict.quiet.01", "lodger", "lodger.verdict.quiet", "The cop asked about me. You said nothing. Good."),
-        ("lodger.verdict.flinched.01", "lodger", "lodger.verdict.flinched", "The cop asked. You flinched. He'll be back."),
+        ("lodger.verdict.quiet.01", "lodger", "lodger.verdict.quiet", "The cop asked. You said nothing. Good."),
+        ("lodger.verdict.flinched.01", "lodger", "lodger.verdict.flinched", "Flinched at the cop. He'll be back."),
         // In the café, the morning after a skip: one line when Ace passes, by how warm he is.
         ("lodger.visit.01", "lodger", "lodger.visit", "Nice place. Shame about last night."),
         ("lodger.visit.02", "lodger", "lodger.visit", "Good coffee. I'll wait."),
-        ("lodger.visit.warm.01", "lodger", "lodger.visit.warm", "Nice place. Take your time. Not too much."),
-        ("lodger.visit.cold.01", "lodger", "lodger.visit.cold", "Nice place. Be a shame if people asked questions."),
+        ("lodger.visit.warm.01", "lodger", "lodger.visit.warm", "Nice place. Don't take too long."),
+        ("lodger.visit.cold.01", "lodger", "lodger.visit.cold", "Nice place. Shame if people asked questions."),
     };
 
     // The deal as Barks 1 first made it (5 Oct), and as it is with Ace's replies (6 Oct): his "...I didn't see you."
@@ -178,6 +181,15 @@ internal static class BarkSteps
         "lodger.night0.01", "lodger.night0.03", "lodger.night0.04", "lodger.night0.05",
         "lodger.night0.06", "lodger.night0.07", "lodger.night0.08", "lodger.night0.09", "lodger.night0.12", "lodger.night0.13",
     };
+    // The deal at eight lines (playtest 3): "Grace likes you" joins the talkers' line, "don't get caught" joins the cop's.
+    static readonly string[] DealEight =
+    {
+        "lodger.night0.01", "lodger.night0.03", "lodger.night0.05", "lodger.night0.06",
+        "lodger.night0.07", "lodger.night0.09", "lodger.night0.12", "lodger.night0.13",
+    };
+    // The cups' return as session 3 made it, and without the page (her photos wait for chunk D) and the cars (the cones).
+    static readonly string[] CupsReturnOfSessionThree = { "lodger.night2.r01", "lodger.night2.r04", "lodger.night2.r05", "lodger.night2.r06", "lodger.night2.r07" };
+    static readonly string[] CupsReturn = { "lodger.night2.r01", "lodger.night2.r04", "lodger.night2.r05" };
     // Night 2's ask as Barks 1 first made it (5 Oct: not held, Ace's "Why cups?" a line of the scene), and as it is now.
     static readonly string[] NightTwoAskOfFifthOctober = { "lodger.night2.01", "ace.night2.02", "lodger.night2.03" };
     static readonly string[] NightTwoAsk = { "lodger.night2.01", "lodger.night2.04" };
@@ -185,11 +197,11 @@ internal static class BarkSteps
 
     static readonly (string id, bool hold, string[] lines)[] Scenes =
     {
-        ("night0.deal", true, DealWithTheCop),
+        ("night0.deal", true, DealEight),
         ("night1.return", true, new[] { "lodger.night1.r01", "lodger.night1.r04", "lodger.night1.r05", "lodger.night1.r06", "lodger.night1.r07" }),
         ("night2.ask", true, NightTwoAsk),
         ("night2.ask.warm", true, new[] { "lodger.night2.01", "lodger.night2.w02", "lodger.night2.04" }),
-        ("night2.return", true, new[] { "lodger.night2.r01", "lodger.night2.r04", "lodger.night2.r05", "lodger.night2.r06", "lodger.night2.r07" }),
+        ("night2.return", true, CupsReturn),
         ("night3.ask", false, new[] { "lodger.night3.01", "lodger.night3.02" }),
         ("night.off", true, NightOff),
         ("night.wait", true, new[] { "lodger.wait.01" }),
@@ -199,6 +211,30 @@ internal static class BarkSteps
     static readonly (string id, string was, string now)[] Retexts =
     {
         ("lodger.beckon.02", "Bring him here.", "Bring it here."),
+        // Playtest 3: to the word budget; the hold; Soft feet.
+        ("lodger.night0.05", "A café whose owner talks doesn't stay open long.", "Grace likes you. Café owners who talk don't last."),
+        ("lodger.night0.09", "There's a gnome on the corner step. Bring it to me.", "A gnome on the corner step. Bring it here."),
+        ("lodger.night0.13", "Keep him happy.", "Keep him happy. And don't get caught."),
+        ("lodger.night1.r05", "You kept your nerve. Keep it tomorrow, when she asks.", "You kept your nerve. Keep it when she asks."),
+        ("lodger.night1.r06", "And a page for your notebook.", "A page for you. Grace's Thursdays."),
+        ("lodger.night1.r07", "Tomorrow, her kitchen.", "We've both got something on each other now. Mine's bigger."),
+        ("lodger.night2.01", "Grace has cups. A box of them. Get me a sleeve.", "Grace has a box of cups. Get me a sleeve."),
+        ("lodger.night2.r04", "Four cups. Old habit. There used to be four of us.", "Four cups. There used to be four of us."),
+        ("lodger.night2.r05", "Doors. Every house has a key. People tell you where.", "You walk like a cop. I can fix that."),
+        ("ace.line.night0", "I own a café and a man lives in my bins.", "I own a café. A man lives in my bins."),
+        ("ace.line.night2", "If she wakes up I'm a burglar. If not, a guest.", "If she wakes, I'm a burglar. Otherwise, a guest."),
+        ("lodger.verdict.cracked.01", "You smiled at her this morning. She'll remember.", "You smiled at her. She'll remember."),
+        ("lodger.verdict.quiet.01", "The cop asked about me. You said nothing. Good.", "The cop asked. You said nothing. Good."),
+        ("lodger.verdict.flinched.01", "The cop asked. You flinched. He'll be back.", "Flinched at the cop. He'll be back."),
+        ("lodger.visit.warm.01", "Nice place. Take your time. Not too much.", "Nice place. Don't take too long."),
+        ("lodger.visit.cold.01", "Nice place. Be a shame if people asked questions.", "Nice place. Shame if people asked questions."),
+    };
+
+    // A scene's lines changed once, only if they are still exactly as they were made (the choices stay).
+    static readonly (string id, string[] was, string[] now, string note)[] Rescenes =
+    {
+        ("night0.deal", DealWithTheCop, DealEight, "The deal is eight lines now."),
+        ("night2.return", CupsReturnOfSessionThree, CupsReturn, "The cups' return is three lines now (no page, no cars)."),
     };
 
     // Each scene's choices: after which line, then each reply's line, the line said back and its warmth.
@@ -292,12 +328,23 @@ internal static class BarkSteps
             NightLines.Scene off = sceneList.FirstOrDefault(x => x != null && x.id == "night.off");
             if (off != null && !off.holdAce && off.lines != null && off.lines.SequenceEqual(NightOff)) off.holdAce = true;
             int retexts = 0;
+            var kept = new List<string>();
             foreach (var (id, was, now) in Retexts)
             {
                 NightLines.Line line = lineList.FirstOrDefault(l => l != null && l.id == id);
-                if (line != null && line.text == was) { line.text = now; retexts++; }
+                if (line == null || line.text == now) continue;
+                if (line.text == was) { line.text = now; retexts++; }
+                else kept.Add(id);
             }
             if (retexts > 0) dealNote += $" {retexts} placeholder line(s) reworded.";
+            if (kept.Count > 0) dealNote += $" Rewritten since, so left alone: {string.Join(", ", kept)}.";
+            foreach (var (id, was, now, note) in Rescenes)
+            {
+                NightLines.Scene scene = sceneList.FirstOrDefault(x => x != null && x.id == id);
+                if (scene == null || scene.lines == null || scene.lines.SequenceEqual(now)) continue;
+                if (scene.lines.SequenceEqual(was)) { scene.lines = now.ToArray(); dealNote += " " + note; }
+                else dealNote += $" Scene '{id}' has been reshaped since, so it was left alone ({note.TrimEnd('.')} would have been applied).";
+            }
             asset.speakers = speakerList.ToArray();
             asset.lines = lineList.ToArray();
             asset.scenes = sceneList.ToArray();

@@ -10,8 +10,11 @@ using UnityEngine;
 // scene, no save file, no assets. Also compiled by Tests/NightRules.
 // Since 6 Oct, the man at the bins (claude/the-man-at-the-bins-story.md): meeting him, his warmth, his lessons
 // (Nerve widens the straight face), what Ace gives him (his corner, off Ace's shelf), his pages and the errand.
-// Session 3 (claude/session-3-favours-stalling-officer.md): his favours in order, what he says each night, skips
-// (the visit, the note, a favour dropped), nights off, his verdicts, Grace's cups, and the officer's question.
+// Session 3 (claude/session-3-favours-stalling-officer.md): his favours in order, what he says each night, skips,
+// nights off, his verdicts, Grace's cups, and the officer's question. Playtest 3 (claude/playtest-3-notes-and-plan.md
+// §5): stalling costs the day by skips in a row (his table, his mess, the planted review and the officer's word) and
+// the favour stays; his pages are gated to what is in the game; every note, page, hint and lesson keeps to the word
+// budget (WordBudget).
 public static class NightRuleChecks
 {
 #if UNITY_EDITOR
@@ -85,9 +88,22 @@ public static class NightRuleChecks
         return ledger;
     }
 
+    /// <summary>The same, three skips on: his mess and his word are due on Day 6.</summary>
+    public static NightLedger Stalled()
+    {
+        NightLedger ledger = Favoured();
+        ledger.Ask(3);
+        ledger.CameHome(3);
+        ledger.CameHome(4);   // a night off
+        ledger.Ask(5);
+        ledger.CameHome(5);
+        return ledger;
+    }
+
     /// <summary>Two ledgers agree on his favours and the questions.</summary>
     public static bool SameFavours(NightLedger a, NightLedger b) =>
         a.Favour == b.Favour && a.AskedOn == b.AskedOn && a.LastAsked == b.LastAsked && a.Skips == b.Skips && a.VisitDay == b.VisitDay
+        && a.MessDay == b.MessDay && a.WordDay == b.WordDay
         && a.NoteDay == b.NoteDay && a.NoteFavour == b.NoteFavour && a.Dropped.Count == b.Dropped.Count && a.Questions.Count == b.Questions.Count
         && (a.Questions.Count == 0 || a.Questions[0].id == b.Questions[0].id && a.Questions[0].cracked == b.Questions[0].cracked
             && a.Questions[0].day == b.Questions[0].day && a.Questions[0].who == b.Questions[0].who)
@@ -446,7 +462,9 @@ public static class NightRuleChecks
         ledger.CameHome(2);
         Check(ledger.Skips == 0 && !ledger.VisitDue(3), "A night that ends with his favour given is no skip.");
 
-        // The cups: the ask (warm: he says why), skips, a night off, the third skip drops it.
+        // The cups: the ask (warm: he says why), then stalling. Every skip costs the day after, by skips in a row (playtest 3):
+        // his table (any), his mess (from the second), the planted review, the officer's word and his note (the third, once).
+        // The favour stays his ask until it's given; nothing is dropped.
         Check(LodgerStory.WhatTonight(ledger, 3, Everything) == LodgerStory.Tonight.Ask, "Night 3 asks for the cups.");
         LodgerStory.Favour cups = LodgerStory.FindFavour(NightThings.GraceCups);
         Check(LodgerStory.AskScene(cups, 0) == cups.ask && LodgerStory.AskScene(cups, LodgerStory.WarmFrom) == cups.askWarm
@@ -454,25 +472,37 @@ public static class NightRuleChecks
         ledger.Ask(3);
         Check(ledger.Errand == NightThings.GraceCups && ledger.AskedOn == 3, "Asked: the cups are Ace's errand.");
         ledger.CameHome(3);
-        Check(ledger.Skips == 1 && ledger.VisitDay == 4, "Skipped once: a visit on Day 4.");
+        Check(ledger.Skips == 1 && ledger.VisitDay == 4 && ledger.VisitDue(4) && !ledger.MessDue(4) && !ledger.WordDue(4) && !ledger.NoteDue(4),
+            "Skipped once: his table on Day 4, nothing more.");
         Check(LodgerStory.WhatTonight(ledger, 4, Everything) == LodgerStory.Tonight.Off, "Night 4 is off.");
         ledger.CameHome(4);
-        Check(ledger.Skips == 1 && ledger.VisitDay == 4, "A night off is never a skip.");
+        Check(ledger.Skips == 1 && ledger.VisitDay == 4 && !ledger.VisitDue(5), "A night off is never a skip, and costs nothing the next day.");
         Check(LodgerStory.WhatTonight(ledger, 5, Everything) == LodgerStory.Tonight.AskAgain, "Night 5 asks again.");
         ledger.Ask(5);
         ledger.CameHome(5);
-        Check(ledger.Skips == 2 && ledger.VisitDay == 6 && ledger.NoteDay == 0, "Skipped twice: a visit on Day 6.");
+        Check(ledger.Skips == 2 && ledger.VisitDue(6) && ledger.MessDue(6) && !ledger.WordDue(6) && !ledger.NoteDue(6),
+            "Skipped twice: his table and his mess on Day 6.");
+        Check(ledger.Favour == NightThings.GraceCups && ledger.Errand == NightThings.GraceCups, "The favour stays his ask.");
         ledger.Ask(6);
         ledger.CameHome(6);
-        Check(ledger.NoteDay == 7 && ledger.NoteDue(7) && ledger.NoteFavour == NightThings.GraceCups && ledger.Dropped.Count == 1
-              && ledger.Dropped[0] == NightThings.GraceCups && ledger.VisitDay == 6,
-            "The third skip in a row: a note on the counter on Day 7, no visit, and the cups are dropped.");
-        Check(ledger.Favour == LodgerStory.Cones && ledger.AskedOn == 0 && ledger.Skips == 0 && ledger.Errand == "", "The next favour comes up.");
-        Check(LodgerStory.WhatTonight(ledger, 8, id => id != LodgerStory.Cones) == LodgerStory.Tonight.Wait
-              && LodgerStory.WhatTonight(ledger, 8, Everything) == LodgerStory.Tonight.Ask,
+        Check(ledger.Skips == 3 && ledger.VisitDue(7) && ledger.MessDue(7) && ledger.WordDue(7) && ledger.NoteDue(7) && ledger.NoteFavour == NightThings.GraceCups,
+            "The third skip in a row: his table, his mess, his word to the officer and his note on the counter on Day 7.");
+        Check(ledger.Favour == NightThings.GraceCups && ledger.Dropped.Count == 0 && ledger.Errand == NightThings.GraceCups,
+            "Nothing is dropped: the cups are still what he wants.");
+        Check(ledger.WordQuestion(7) == OfficerStory.WordQuestionId(NightThings.GraceCups) && ledger.WordQuestion(6) == "",
+            "The officer's word that day is about the cups, and only that day.");
+        ledger.Ask(7);
+        ledger.CameHome(7);
+        Check(ledger.Skips == 4 && ledger.VisitDue(8) && ledger.MessDue(8) && !ledger.WordDue(8) && !ledger.NoteDue(8),
+            "A fourth skip: his table and his mess again; the review and the word were once.");
+        ledger.Take(NightThings.GraceCups, GraceCameraEpisode.ProfileId, 8);
+        Check(ledger.Give(NightThings.GraceCups) && ledger.Favour == LodgerStory.Cones && ledger.Skips == 0 && ledger.AskedOn == 0 && ledger.Errand == "",
+            "Given at last: the cones come up, not asked yet, and the skips are gone.");
+        ledger.CameHome(8);
+        Check(!ledger.VisitDue(9) && !ledger.MessDue(9) && !ledger.WordDue(9) && !ledger.NoteDue(9), "The costs stop the morning after the favour is done.");
+        Check(LodgerStory.WhatTonight(ledger, 9, id => id != LodgerStory.Cones) == LodgerStory.Tonight.Wait
+              && LodgerStory.WhatTonight(ledger, 9, Everything) == LodgerStory.Tonight.Ask,
             "A favour not in the game yet (the cones): nothing tonight; once it is, he asks.");
-        ledger.Take(NightThings.GraceCups, GraceCameraEpisode.ProfileId, 9);
-        Check(ledger.Give(NightThings.GraceCups) && ledger.Favour == LodgerStory.Cones, "A dropped favour given late changes nothing he asks for.");
         NotebookFactData note = LodgerStory.NotePage(NightThings.GraceCups);
         Check(note != null && note.source == Notebook.Sources.Inherited && note.who == LodgerStory.PagesWho && note.text == cups.note,
             "His note on the counter goes in the notebook as one of his pages.");
@@ -480,7 +510,19 @@ public static class NightRuleChecks
         none.Restore(new NightSaveData { metHim = true, trophies = new[] { NightThings.GraceGnome, NightThings.GraceCups },
             given = new[] { NightThings.GraceGnome, NightThings.GraceCups }, dropped = new[] { LodgerStory.Cones } });
         Check(none.Favour == "" && LodgerStory.WhatTonight(none, 9, Everything) == LodgerStory.Tonight.Wait && none.Errand == "",
-            "Every favour done with: nothing to ask.");
+            "Every favour done with (a save that dropped the cones, from before 6 Oct): nothing to ask.");
+        // The costs' words and dials.
+        Check(LodgerStory.MessFromSkips == 2 && LodgerStory.WordAtSkips == 3 && LodgerStory.MessFromSkips < LodgerStory.WordAtSkips
+              && LodgerStory.WordAtSkips < LodgerStory.SkipsCap, "His mess from the second skip, his word at the third, within the cap.");
+        Check(LodgerStory.VisitFrom < .1f && LodgerStory.VisitUntil > LodgerStory.VisitFrom && LodgerStory.VisitUntil <= .5f,
+            "He takes his table from opening until about the middle of the day.");
+        Check(!string.IsNullOrWhiteSpace(LodgerStory.PlantedReview) && !string.IsNullOrWhiteSpace(LodgerStory.PlantedName)
+              && !WordBudget.Over(LodgerStory.PlantedReview, WordBudget.Note) && !WordBudget.Over(LodgerStory.MessNote, WordBudget.Note),
+            "The planted review and the mess note are written, within the budget.");
+        // The mornings name him (playtest 3: a cost nobody can tie to the skip teaches nothing).
+        Check(!WordBudget.Over(LodgerStory.TableNote, WordBudget.Note) && LodgerStory.TableNote.Contains("man at the bins")
+              && LodgerStory.MessNote.Contains("man at the bins") && LodgerStory.TableNote != LodgerStory.MessNote,
+            $"The table note and the mess note say whose they are, within the budget ({WordBudget.Report(LodgerStory.TableNote, WordBudget.Note)}).");
 
         // Saves: a save from before the favours picks up where it was; nonsense is tidied.
         var before = new NightLedger();
@@ -498,6 +540,13 @@ public static class NightRuleChecks
             dropped = new[] { "", null, "x", "x" }, questions = new[] { null, new QuestionData { id = "q" }, new QuestionData { id = "q" }, new QuestionData() } });
         Check(odd.Favour == NightThings.GraceGnome && odd.Skips == 0 && odd.VisitDay == 0 && odd.Dropped.Count == 1 && odd.Questions.Count == 1,
             "A damaged save's favour, skips, days, drops and questions are tidied.");
+        var many = new NightLedger();
+        many.Restore(new NightSaveData { metHim = true, favour = NightThings.GraceGnome, askedOn = 1, skips = 40, messDay = 9, wordDay = 9, noteDay = 9 });
+        Check(many.Skips == LodgerStory.SkipsCap && many.MessDue(9) && many.WordDue(9) && many.NoteDue(9), "Skips are tidied to the cap; the cost days are kept.");
+        var stalled = new NightLedger();
+        stalled.Restore(NightRuleChecks.Stalled().Snapshot());
+        Check(NightRuleChecks.SameFavours(NightRuleChecks.Stalled(), stalled) && stalled.Skips == 3 && stalled.MessDue(6) && stalled.WordDue(6),
+            "The record keeps the costs' days: his mess and his word due on Day 6 after three skips.");
         var midway = NightRuleChecks.Favoured();
         var copy = new NightLedger();
         copy.Restore(midway.Snapshot());
@@ -522,9 +571,36 @@ public static class NightRuleChecks
         // His tone in the café, and the night's note.
         Check(LodgerStory.VisitPool(LodgerStory.WarmFrom) == LodgerStory.VisitWarm && LodgerStory.VisitPool(0) == LodgerStory.Visit
               && LodgerStory.VisitPool(LodgerStory.ColdFrom) == LodgerStory.VisitCold, "Warm, plain or cold, by his warmth.");
-        Check(LodgerStory.Hint(LodgerStory.Favours[0], "Barnaby").StartsWith("Barnaby is", StringComparison.Ordinal)
-              && LodgerStory.Hint(cups, "the reunion cups").StartsWith("The reunion cups are", StringComparison.Ordinal)
+        Check(LodgerStory.Hint(LodgerStory.Favours[0], "Barnaby").StartsWith("Barnaby:", StringComparison.Ordinal)
+              && LodgerStory.Hint(cups, "the reunion cups").StartsWith("The reunion cups:", StringComparison.Ordinal)
               && LodgerStory.Hint(null, "x") == "", "The night's note names the thing as Ace knows it.");
+        foreach (LodgerStory.Favour f in LodgerStory.Favours)
+        {
+            Check(!WordBudget.Over(LodgerStory.Hint(f, "the reunion cups"), WordBudget.Note), $"Favour '{f.id}': its hint keeps to the budget ({WordBudget.Report(LodgerStory.Hint(f, "the reunion cups"), WordBudget.Note)}).");
+            Check(!WordBudget.Over(f.note, WordBudget.Note), $"Favour '{f.id}': his note on the counter keeps to the budget.");
+            Check(string.IsNullOrEmpty(f.pageText) || !WordBudget.Over(f.pageText, WordBudget.Page), $"Favour '{f.id}': its page keeps to the budget.");
+        }
+        foreach (LodgerStory.Lesson l in LodgerStory.Lessons)
+            Check(!WordBudget.Over(l.learned, WordBudget.Note), $"Lesson '{l.id}': its note keeps to the budget ({WordBudget.Report(l.learned, WordBudget.Note)}).");
+        foreach (NotebookFactData page in LodgerStory.Pages())
+            Check(!WordBudget.Over(page.text, WordBudget.Page), $"Page '{page.id}' keeps to the budget ({WordBudget.Report(page.text, WordBudget.Page)}).");
+        foreach (NightThing thing in NightThings.All)
+            foreach (string line in new[] { thing.takenNote, thing.takenNoteUnknown, thing.notebookMention, thing.notebookComplaint, thing.notebookTaken,
+                         thing.notebookTakenFor, thing.notebookCracked })
+                Check(!WordBudget.Over(line, WordBudget.Note), $"'{thing.id}': \"{line}\" keeps to the budget ({WordBudget.Report(line, WordBudget.Note)}).");
+
+        // His pages are gated to what is in the game: the parking page waits for the cones; the cups' page for her photos.
+        int all = 0, live = 0;
+        foreach (NotebookFactData page in LodgerStory.Pages()) all++;
+        foreach (NotebookFactData page in LodgerStory.Pages(id => id != LodgerStory.Cones)) live++;
+        Check(all == 4 && live == 3, "Without the cones, three of his four pages come with the notebook.");
+        Check(LodgerStory.PageFor(NightThings.GraceGnome, id => false) != null, "The gnome's page (her Thursdays) is paid whatever else exists.");
+        Check(LodgerStory.PageFor(NightThings.GraceCups, id => id != LodgerStory.GracePhotos) == null && LodgerStory.PageFor(NightThings.GraceCups) != null,
+            "The cups' page waits for her photos.");
+        Check(LodgerStory.FindLesson(LodgerStory.Feet) != null && cups.teaches == LodgerStory.Feet && LodgerStory.FindLesson(LodgerStory.Doors) != null,
+            "The cups pay Soft feet; Doors is still known (for saves that learned it).");
+        Check(Math.Abs(LodgerStory.StepReach(4f, true) - 2f) < 1e-4f && Math.Abs(LodgerStory.StepReach(1f, true) - .5f) < 1e-4f
+              && Math.Abs(LodgerStory.StepReach(4f, false) - 4f) < 1e-4f, "With Soft feet a step carries half as far.");
 
         // Grace's cups: hers, written, and a little harder to keep a straight face about than the gnome.
         NightThing gnome = NightThings.GnomeOfGrace, sleeve = NightThings.CupsOfGrace;
@@ -580,6 +656,23 @@ public static class NightRuleChecks
         flinched.Questioned(due.id, due.asker, 3, true);
         Check(flinched.Suspicion(OfficerStory.ProfileId) == 1 && flinched.Questions[0].cracked, "A flinch makes him one step more suspicious.");
         Check(!flinched.Questioned("", "officer", 3, true) && !flinched.Questioned(null, "officer", 3, true), "Nothing without an id is asked.");
+
+        // The word (playtest 3): only on the day the man has had one, about that favour, once a favour.
+        var word = NightRuleChecks.Stalled();
+        Check(word.WordDue(6) && OfficerStory.Due(OfficerStory.ProfileId, 6, word)?.id == OfficerStory.WordQuestionId(NightThings.GraceCups),
+            "On the word's day the officer asks about the company Ace keeps.");
+        OfficerStory.Question theWord = OfficerStory.Due(OfficerStory.ProfileId, 6, word);
+        Check(theWord.afterWord && theWord.green < due.green && OfficerStory.Find(theWord.id) != null && OfficerStory.Find(theWord.id).id == theWord.id,
+            "It's harder than his description, and found again by its id.");
+        Check(word.Questioned(theWord.id, theWord.asker, 6, false) && OfficerStory.Due(OfficerStory.ProfileId, 6, word) == null,
+            "Asked once: nothing more that day (his description was asked on Day 3).");
+        Check(OfficerStory.Due(OfficerStory.ProfileId, 7, word) == null, "The next day there's no word to ask about.");
+        var noWord = NightRuleChecks.Favoured();
+        Check(OfficerStory.Due(OfficerStory.ProfileId, 3, noWord) == null && OfficerStory.Word("") == null && OfficerStory.WordQuestionId("") == "",
+            "Without a word due, no word question; nothing without a favour.");
+        foreach (OfficerStory.Question q in OfficerStory.Questions)
+            foreach (string line in new[] { q.notebookAsked, q.notebookCracked })
+                Check(!WordBudget.Over(line, WordBudget.Page), $"Question '{q.id}': its notebook line keeps to the budget ({WordBudget.Report(line, WordBudget.Page)}).");
 
         NotebookFactData asked = OfficerStory.Asked(due, "Officer"), noticed = OfficerStory.Flinched(due, null);
         Check(asked.id == due.id && asked.who == OfficerStory.ProfileId && asked.name == "Officer" && asked.source == Notebook.Sources.Told

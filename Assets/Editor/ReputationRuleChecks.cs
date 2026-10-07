@@ -229,6 +229,22 @@ public static class ReputationRuleChecks
         picks = ReputationLedger.PickQuotes(new[] { E(Review.LovedIt, "A"), E(Review.LetDown, "B"), E(Review.LikedIt, "Grace", true), E(Review.Fine, "Grace2", true) });
         Check(picks.Count == 3 && picks[2].name == "Grace2", "A regular's review is added, the latest one.");
         Check(ReputationLedger.PickQuotes(Array.Empty<ReviewEntry>()).Count == 0 && ReputationLedger.PickQuotes(null).Count == 0, "No reviews, no quotes.");
+        // The closing screen's three lines pick from the cards by the same rule (playtest 3).
+        ReviewCard Card(Review r, string name, bool regular = false) => new ReviewCard { review = r, name = name, line = "x", regular = regular };
+        var three = ReputationLedger.PickCards(new[] { Card(Review.LikedIt, "A"), Card(Review.LovedIt, "B"), Card(Review.LovedIt, "C", true), Card(Review.Fine, "D") });
+        Check(three.Count == 2 && three[0].name == "C" && three[1].name == "D", "The closing screen's picks: ties for best go to regulars; the worst follows.");
+        three = ReputationLedger.PickCards(new[] { Card(Review.LovedIt, "A"), Card(Review.LetDown, "B"), Card(Review.LikedIt, "Grace", true), Card(Review.Fine, "Grace2", true) });
+        Check(three.Count == 3 && three[0].name == "A" && three[1].name == "B" && three[2].name == "Grace2", "...and a regular's is added, the latest one: three lines at most.");
+        Check(ReputationLedger.PickCards(Array.Empty<ReviewCard>()).Count == 0 && ReputationLedger.PickCards(null).Count == 0, "No cards, no lines.");
+        var planted = new ReputationLedger();
+        planted.Restore(40, 1, 6, false, null);
+        Check(planted.Record(new ReviewEntry { review = Review.NeverAgain, reason = ReviewReason.Planted, name = "Anonymous", line = "Owner talks too much. One star." })
+              && planted.TodayChange == -2, "His planted review counts like any one-star review: -2.");
+        planted.Settle(6, (e, i) => e.line, e => e.line);
+        Check(planted.Cards.Count == 1 && planted.Cards[0].name == "Anonymous" && planted.Cards[0].reason == ReviewReason.Planted
+              && planted.Cards[0].line == "Owner talks too much. One star." && planted.StarsEarned == ReputationRules.StarsFor(40, 1) && planted.Reputation == 38,
+            "It's a card under his made-up name; never a star back.");
+        Check(ReputationRecap.Lesson(planted.Cards).Contains("nobody you served"), "The Franchise app's line says a stranger planted it.");
 
         // ---------- the recap text ----------
         var fresh = new ReputationLedger();

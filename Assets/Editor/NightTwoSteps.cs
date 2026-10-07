@@ -436,16 +436,16 @@ internal static class NightTwoSteps
     [MenuItem(Menu + "Night 2 - Play check (lab, drives itself)")]
     static void PlayCheck() => StartLab((int)NightTwoCheck.Mode.Cups);
 
-    [MenuItem(Menu + "Night 2 - Play check, stalling: his visit (lab, drives itself)")]
+    [MenuItem(Menu + "Night 2 - Play check, stalling: one skip, his table (lab, drives itself)")]
     static void PlayCheckVisit() => StartLab((int)NightTwoCheck.Mode.Visit);
 
-    [MenuItem(Menu + "Night 2 - Play check, stalling: his note (lab, drives itself)")]
+    [MenuItem(Menu + "Night 2 - Play check, stalling: the third skip (lab, drives itself)")]
     static void PlayCheckNote() => StartLab((int)NightTwoCheck.Mode.Note);
 
     [MenuItem(Menu + "Night 2 - Play from Day 2's recap (lab)", true)]
     [MenuItem(Menu + "Night 2 - Play check (lab, drives itself)", true)]
-    [MenuItem(Menu + "Night 2 - Play check, stalling: his visit (lab, drives itself)", true)]
-    [MenuItem(Menu + "Night 2 - Play check, stalling: his note (lab, drives itself)", true)]
+    [MenuItem(Menu + "Night 2 - Play check, stalling: one skip, his table (lab, drives itself)", true)]
+    [MenuItem(Menu + "Night 2 - Play check, stalling: the third skip (lab, drives itself)", true)]
     static bool CanPlay() => !EditorApplication.isPlayingOrWillChangePlaymode;
 
     static void StartLab(int check)
@@ -508,7 +508,7 @@ internal static class NightTwoSteps
         };
         data.regularMemories = new[] { grace, officer };
         var facts = data.notebook.ToList();
-        foreach (NotebookFactData page in LodgerStory.Pages()) { page.day = 1; facts.Add(page); }
+        foreach (NotebookFactData page in LodgerStory.Pages(id => id != LodgerStory.Cones)) { page.day = 1; facts.Add(page); }
         NotebookFactData taken = NightThings.Taken(NightThings.GnomeOfGrace, NotebookEntries.GraceName, forHim: true);
         taken.day = 1;
         facts.Add(taken);

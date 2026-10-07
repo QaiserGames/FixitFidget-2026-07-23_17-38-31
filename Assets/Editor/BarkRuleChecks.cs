@@ -13,6 +13,9 @@ using UnityEngine;
 // a warning), the lines said back there, the warmth small; and the scenes the man at the bins plays (LodgerStory).
 // Session 3: every favour's ask (and its warm one), its line to say again, its return and the lines things happen on;
 // a night off and a night with nothing yet; his cold, verdict and visit pools; Ace's line for each favour.
+// Playtest 3 (6 Oct 2026, claude/playtest-3-notes-and-plan.md §5): the word budget (WordBudget) is a failure, not a warning:
+// a pool line over 7 words, a scene line over 10, a scene with more than 5 of its speaker's lines (the deal 8), the hold
+// line in the gnome's return.
 public static class BarkRuleChecks
 {
 #if UNITY_EDITOR
@@ -58,7 +61,13 @@ public static class BarkRuleChecks
             Check(!string.IsNullOrWhiteSpace(l.situation), $"Line '{l.id}' has a situation.");
             if (l.text.Length > BarkRules.LengthRule)
                 warnings.Add($"'{l.id}' is {l.text.Length} characters (the rule is {BarkRules.LengthRule}): \"{l.text}\"");
+            Check(!WordBudget.Over(l.text, WordBudget.SceneLine), $"Line '{l.id}' keeps to the budget: {WordBudget.Report(l.text, WordBudget.SceneLine)}: \"{l.text}\"");
         }
+        // A pool line (one the world says on its own: its situation isn't a scene) is a bark: 7 words. Ace's lines of the
+        // night (ace.night) are said once each, like a scene's.
+        foreach (NightLines.Line l in lines.lines)
+            if (l != null && lines.FindScene(l.situation) == null && l.situation != "ace.night")
+                Check(!WordBudget.Over(l.text, WordBudget.Bark), $"Bark '{l.id}' keeps to the budget: {WordBudget.Report(l.text, WordBudget.Bark)}: \"{l.text}\"");
         var scenes = new HashSet<string>(StringComparer.Ordinal);
         foreach (NightLines.Scene s in lines.scenes)
         {
@@ -66,6 +75,8 @@ public static class BarkRuleChecks
             Check(scenes.Add(s.id), $"Scene '{s.id}' is listed once.");
             Check(s.lines != null && s.lines.Length > 0, $"Scene '{s.id}' has lines.");
             foreach (string id in s.lines) Check(ids.Contains(id), $"Scene '{s.id}': its line '{id}' is in the asset.");
+            int most = s.id == LodgerStory.DealScene ? WordBudget.Deal : WordBudget.Scene;
+            Check(s.lines.Length <= most, $"Scene '{s.id}' has {s.lines.Length} lines (the rule is {most}; Ace's replies aren't counted).");
             foreach (NightLines.Choice c in s.choices ?? Array.Empty<NightLines.Choice>())
             {
                 Check(c != null && Array.IndexOf(s.lines, c.after) >= 0, $"Scene '{s.id}': a choice comes after one of its own lines ('{c?.after}').");
@@ -84,8 +95,10 @@ public static class BarkRuleChecks
         // The man at the bins plays these, and does things on these lines (LodgerStory).
         Check(scenes.Contains(LodgerStory.DealScene) && scenes.Contains(LodgerStory.ReturnScene), "The deal and the return are scenes in the asset (Barks 1 adds them).");
         Check(Array.IndexOf(lines.FindScene(LodgerStory.DealScene).lines, LodgerStory.HandOverLine) >= 0, "The deal says the line on which the notebook changes hands.");
-        foreach (string id in new[] { LodgerStory.TakesItLine, LodgerStory.TurnsItLine, LodgerStory.LessonLine, LodgerStory.PageLine })
+        foreach (string id in new[] { LodgerStory.TakesItLine, LodgerStory.TurnsItLine, LodgerStory.LessonLine, LodgerStory.PageLine, LodgerStory.HoldLine })
             Check(Array.IndexOf(lines.FindScene(LodgerStory.ReturnScene).lines, id) >= 0, $"The return says '{id}' (what he does happens on it).");
+        string[] gnomeReturn = lines.FindScene(LodgerStory.ReturnScene).lines;
+        Check(gnomeReturn[gnomeReturn.Length - 1] == LodgerStory.HoldLine, "The hold is the return's last line.");
         foreach (string pool in new[] { LodgerStory.Waiting, LodgerStory.Beckon, LodgerStory.Done, LodgerStory.Cold,
                      LodgerStory.VerdictHeld, LodgerStory.VerdictCracked, LodgerStory.VerdictQuiet, LodgerStory.VerdictFlinched,
                      LodgerStory.Visit, LodgerStory.VisitWarm, LodgerStory.VisitCold })
@@ -110,8 +123,13 @@ public static class BarkRuleChecks
             }
             NightLines.Scene back = lines.FindScene(f.returnScene);
             Check(back != null && back.holdAce && back.choices != null && back.choices.Length > 0, $"Favour '{f.id}': its return '{f.returnScene}' is a held scene where Ace answers.");
-            foreach (string id in new[] { f.takes, f.sets, f.lesson, f.page })
-                Check(Array.IndexOf(back.lines, id) >= 0, $"Favour '{f.id}': its return says '{id}' (what he does happens on it).");
+            // The page's line only while the favour pays its page (the cups' waits for her photos: the scene says no line for it).
+            bool pageLive = string.IsNullOrEmpty(f.pageNeeds) || NightThings.Find(f.pageNeeds) != null;
+            foreach (string id in new[] { f.takes, f.sets, f.lesson, pageLive ? f.page : "" })
+                if (!string.IsNullOrEmpty(id))
+                    Check(Array.IndexOf(back.lines, id) >= 0, $"Favour '{f.id}': its return says '{id}' (what he does happens on it).");
+            if (!pageLive && !string.IsNullOrEmpty(f.page))
+                Check(Array.IndexOf(back.lines, f.page) < 0, $"Favour '{f.id}': its return doesn't promise a page ('{f.page}') while what it's about isn't in the game.");
         }
         return n;
     }
@@ -176,8 +194,16 @@ public static class BarkRuleChecks
         for (int k = 0; k < 3; k++) { a.Add(rules.Next("grace/notice", 3)); b.Add(rules.Next("neighbour/window", 3)); }
         Check(a.Count == 3 && b.Count == 3, "Each pool keeps its own round.");
 
-        // ---------- the writing rule ----------
+        // ---------- the writing rule, and the word budget ----------
         Check(BarkRules.LengthRule == 60, "The writing rule is 60 characters a line (two lines on screen).");
+        Check(WordBudget.Words("You didn't see me.") == 4 && WordBudget.Words("  Hm?  ") == 1 && WordBudget.Words("") == 0 && WordBudget.Words(null) == 0
+              && WordBudget.Words("a\nb\tc d") == 4 && WordBudget.Words("5 reviews today  ·  +8 reputation") == 5 && WordBudget.Words("More  ›") == 1
+              && WordBudget.Words("— · ›") == 0, "Words are runs between white space with a letter or a digit in them.");
+        Check(WordBudget.Over("one two three four five six seven eight", WordBudget.Bark) && !WordBudget.Over("one two three four five six seven", WordBudget.Bark),
+            "A bark is at most 7 words.");
+        Check(WordBudget.Bark == 7 && WordBudget.SceneLine == 10 && WordBudget.Scene == 5 && WordBudget.Deal == 8 && WordBudget.Note == 12
+              && WordBudget.Page == 12 && WordBudget.ClosingScreen == 40, "The budget: 7 a bark, 10 a scene line, 5 lines a scene (the deal 8), 12 a note or a page, 40 the closing screen.");
+        Check(WordBudget.Report("one two", 7) == "2 words (the rule is 7)" && WordBudget.Report("one", 7) == "1 word (the rule is 7)", "A report reads plainly.");
         return count;
     }
 }

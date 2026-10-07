@@ -8,7 +8,9 @@ using System.Collections.Generic;
 // shorthand of what the person actually said - no new character canon.
 // Wording approved by Mansoor, 27 Sept 2026. To change what the notebook says,
 // change it here (the ids must stay the same, or saved notebooks would learn
-// the same thing twice).
+// the same thing twice). Three of Grace's lines were cut to the notebook's word
+// budget (WordBudget.Page, 12) after the third playtest, 7 Oct 2026; a notebook
+// that already has them keeps the longer wording (what was written stays).
 //
 // No Unity types: Tests/NotebookRules compiles this file.
 // ---------------------------------------------------------------------------
@@ -23,11 +25,11 @@ public static class NotebookEntries
     {
         name = string.IsNullOrWhiteSpace(name) ? GraceName : name;
         yield return Told("grace.camera.strap", GraceId, name, Notebook.Kinds.Possession,
-            "A camera with a scratched strap. Wants the strap left exactly as it is.");
+            "A camera with a scratched strap. Wants the strap left alone.");
         yield return Told("grace.husband.strap", GraceId, name, Notebook.Kinds.Relationship,
             "Her husband carried that strap everywhere.");
         yield return Told("grace.reunion.date", GraceId, name, Notebook.Kinds.Schedule,
-            "Family reunion tomorrow. First time she might let someone put her in the picture.");
+            "Family reunion tomorrow. She might let someone put her in the picture.");
         yield return Told("grace.behind.camera", GraceId, name, Notebook.Kinds.Claim,
             "Usually stays behind the camera.");
     }
@@ -58,7 +60,7 @@ public static class NotebookEntries
         return outcome switch
         {
             GracePhotoOutcome.Clear => Told("grace.reunion.photo", GraceId, name, Notebook.Kinds.Possession,
-                "In the middle of the reunion photo. Left a print for the shop."),
+                "In the middle of the reunion photo. Left the shop a print."),
             GracePhotoOutcome.Imperfect => Told("grace.reunion.photo", GraceId, name, Notebook.Kinds.Claim,
                 "Reunion photo has a smudge. Told everyone it was artistic."),
             GracePhotoOutcome.Missed => Told("grace.reunion.photo", GraceId, name, Notebook.Kinds.Claim,

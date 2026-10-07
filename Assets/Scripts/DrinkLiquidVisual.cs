@@ -3,10 +3,14 @@ using UnityEngine;
 
 // Only cups taken from the new dispenser opt in. Geometry is in metres, with an
 // open rim and an independent liquid surface: the cup itself never changes colour.
+// The shell, the surface and the paper are shared with the man at the bins' used
+// cups (DirtyCup), so his mess is the café's own cups.
 [DisallowMultipleComponent]
 public sealed class DrinkLiquidVisual : MonoBehaviour
 {
     public const float Height = .112f;
+    /// <summary>The cup's paper and a fresh drink's surface.</summary>
+    public static readonly Color PaperColour = new Color(.91f, .85f, .70f), SurfaceColour = new Color(.19f, .075f, .025f);
     private Transform visualRoot, liquid;
     private LineRenderer ripple;
     private Material shellMaterial, liquidMaterial, rippleMaterial;
@@ -28,8 +32,8 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
         Vector3 scale = transform.lossyScale;
         visualRoot.localScale = new Vector3(1 / Mathf.Max(.001f, Mathf.Abs(scale.x)),
             1 / Mathf.Max(.001f, Mathf.Abs(scale.y)), 1 / Mathf.Max(.001f, Mathf.Abs(scale.z)));
-        shellMaterial = MakeMaterial("Warm ivory paper", new Color(.91f, .85f, .70f), .08f);
-        liquidMaterial = MakeMaterial("Drink surface", new Color(.19f, .075f, .025f), .68f);
+        shellMaterial = MakeMaterial("Warm ivory paper", PaperColour, .08f);
+        liquidMaterial = MakeMaterial("Drink surface", SurfaceColour, .68f);
         shellMesh = BuildShell();
         MeshObject("Tapered open shell and rolled rim", visualRoot, shellMesh, shellMaterial);
         liquidMesh = BuildDisc();
@@ -79,7 +83,7 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
         return new Color(.12f, .045f, .012f);
     }
 
-    private static Material MakeMaterial(string label, Color color, float smoothness)
+    public static Material MakeMaterial(string label, Color color, float smoothness)
     {
         Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var material = new Material(shader) { name = label, color = color };
@@ -93,7 +97,8 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
         item.GetComponent<MeshFilter>().sharedMesh = mesh; item.GetComponent<MeshRenderer>().sharedMaterial = material;
         return item;
     }
-    private static Mesh BuildShell()
+    /// <summary>The open paper cup: tapered wall, rolled rim, a floor 8 mm up, no lid (metres; base at 0).</summary>
+    public static Mesh BuildShell()
     {
         const int sides = 40;
         // Cross section goes up the outer wall, over the rolled lip, then down
@@ -120,7 +125,8 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
         mesh.SetVertices(vertices); mesh.SetTriangles(triangles, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
         return mesh;
     }
-    private static Mesh BuildDisc()
+    /// <summary>A flat disc of radius 1 facing up: the drink's surface, scaled to the cup where it's poured to.</summary>
+    public static Mesh BuildDisc()
     {
         const int sides = 40;
         var vertices = new Vector3[sides + 1]; var triangles = new int[sides * 3];

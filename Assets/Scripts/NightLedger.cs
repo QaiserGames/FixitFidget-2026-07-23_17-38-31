@@ -20,9 +20,12 @@ using System.Collections.Generic;
 //     by day: Nerve widens the straight face's green) and what Ace has brought him (his corner by the bins).
 //     A thing Ace gives him leaves Ace's shelf for his corner; it is still Ace's deed, so the morning is the same;
 //   * his favours (session 3): the one he's asking for now (LodgerStory.Favours, in order), the night he first asked
-//     and last asked, and the skips in a row. A night that ends without the favour he asked for that night is a skip:
-//     the next morning he sits in the café (VisitDay); the third in a row, a note on the counter instead (NoteDay),
-//     and the favour is dropped. Giving it to him (Give) brings the next one up, not yet asked;
+//     and last asked, and the skips in a row. A night that ends without the favour he asked for that night is a skip,
+//     and the morning after costs the day (playtest 3, 6 Oct 2026): he sits at a table all morning (VisitDay, every
+//     skip); the café opens with his mess (MessDay, from the second); a planted review, a word to the officer and his
+//     note on the counter (WordDay and NoteDay, at the third, once a favour). The favour stays until it's given (Give),
+//     which brings the next one up, not yet asked, and ends the costs. (Until 6 Oct the third skip dropped the favour:
+//     Dropped keeps what older saves dropped, and nothing is added to it now.)
 //   * the officer's questions (session 3): each asked once, on a day, kept or flinched at; a flinch makes him one
 //     step more suspicious, like a cracked straight face;
 //   * caught (break-ins chunk C, until getting caught has its own chunk): what Ace took that night goes back (PutBack).
@@ -86,12 +89,16 @@ public sealed class NightLedger
     public int LastAsked { get; private set; }
     /// <summary>Nights in a row he asked for it and the night ended without it.</summary>
     public int Skips { get; private set; }
-    /// <summary>The day he sits in the café (the morning after a skip), or 0.</summary>
+    /// <summary>The day he sits at a table in the café all morning (the morning after any skip), or 0.</summary>
     public int VisitDay { get; private set; }
-    /// <summary>The day his note is on the counter (the morning after the third skip), or 0; and the favour it gives up.</summary>
+    /// <summary>The day the café opens with his mess, a dirty cup on every seat (the morning after the second skip in a row and on), or 0.</summary>
+    public int MessDay { get; private set; }
+    /// <summary>The day of his planted review and the officer's word (the morning after the third skip in a row), or 0.</summary>
+    public int WordDay { get; private set; }
+    /// <summary>The day his note is on the counter (the same morning as WordDay), or 0; and the favour it's about.</summary>
     public int NoteDay { get; private set; }
     public string NoteFavour { get; private set; } = "";
-    /// <summary>Favours he stopped asking for. Treat as read-only.</summary>
+    /// <summary>Favours he stopped asking for (saves from before 6 Oct's rewrite; nothing adds to it now). Treat as read-only.</summary>
     public IReadOnlyList<string> Dropped => dropped;
 
     /// <summary>The thing Ace is out to get for him: his favour, once asked for, until it's given; or "".</summary>
@@ -111,7 +118,11 @@ public sealed class NightLedger
     }
 
     public bool VisitDue(int day) => day > 0 && VisitDay == day;
+    public bool MessDue(int day) => day > 0 && MessDay == day;
+    public bool WordDue(int day) => day > 0 && WordDay == day;
     public bool NoteDue(int day) => day > 0 && NoteDay == day;
+    /// <summary>The officer's word question for the favour of <paramref name="day"/>'s word, or "" (its id is one a favour).</summary>
+    public string WordQuestion(int day) => WordDue(day) && NoteFavour.Length > 0 ? OfficerStory.WordQuestionId(NoteFavour) : "";
 
     // The favour is done or dropped: the next one comes up, not asked yet.
     void MoveOn()
@@ -279,8 +290,9 @@ public sealed class NightLedger
 
     /// <summary>
     /// Ace is home from night <paramref name="night"/>: one more night done. If he asked for his favour tonight and the
-    /// night ends without it, that's a skip: he sits in the café the next morning, or, the third in a row, leaves a note
-    /// on the counter and stops asking for it (the next one comes up).
+    /// night ends without it, that's a skip, and the morning after costs the day by skips in a row: his table (every
+    /// skip), his mess (from the second), and once a favour (the third) the planted review, the officer's word and his
+    /// note on the counter. The favour stays his ask.
     /// </summary>
     public void CameHome(int night = 0)
     {
@@ -288,14 +300,13 @@ public sealed class NightLedger
         if (night > 0 && MetHim && Favour.Length > 0 && LastAsked == night && !HasGiven(Favour))
         {
             Skips++;
-            if (Skips >= LodgerStory.SkipsBeforeDropped)
+            VisitDay = night + 1;
+            if (Skips >= LodgerStory.MessFromSkips) MessDay = night + 1;
+            if (Skips == LodgerStory.WordAtSkips)
             {
-                NoteDay = night + 1;
+                WordDay = NoteDay = night + 1;
                 NoteFavour = Favour;
-                if (!dropped.Contains(Favour)) dropped.Add(Favour);
-                MoveOn();
             }
-            else VisitDay = night + 1;
         }
         Changed?.Invoke();
     }
@@ -344,8 +355,10 @@ public sealed class NightLedger
         Favour = saved?.favour ?? "";
         AskedOn = saved != null ? Math.Max(0, saved.askedOn) : 0;
         LastAsked = saved != null ? Math.Max(0, saved.lastAsked) : 0;
-        Skips = saved != null ? Math.Max(0, Math.Min(LodgerStory.SkipsBeforeDropped - 1, saved.skips)) : 0;
+        Skips = saved != null ? Math.Max(0, Math.Min(LodgerStory.SkipsCap, saved.skips)) : 0;
         VisitDay = saved != null ? Math.Max(0, saved.visitDay) : 0;
+        MessDay = saved != null ? Math.Max(0, saved.messDay) : 0;
+        WordDay = saved != null ? Math.Max(0, saved.wordDay) : 0;
         NoteDay = saved != null ? Math.Max(0, saved.noteDay) : 0;
         NoteFavour = saved?.noteFavour ?? "";
         if (!MetHim)
@@ -380,6 +393,8 @@ public sealed class NightLedger
             lastAsked = LastAsked,
             skips = Skips,
             visitDay = VisitDay,
+            messDay = MessDay,
+            wordDay = WordDay,
             noteDay = NoteDay,
             noteFavour = NoteFavour,
             dropped = dropped.ToArray(),

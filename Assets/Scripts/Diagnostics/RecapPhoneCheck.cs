@@ -19,14 +19,18 @@ using UnityEngine.UI;
 // player uses it:
 //   1. it is up and the scene's three-column recap isn't; the HUD hides behind it; its button is the
 //      recap's button (what the Night 1 checks press) and reads "Close up for the night";
-//   2. Reviews: a card for every review, newest first, the summary, no average; Details opens and closes;
-//   3. the badges: Franchise's dot (a star was earned today), Shop's "!" (beans are low), Notes' count;
-//   4. switching apps by key (E, Q, 3, the arrows) and by clicking a tab; Franchise, Shop and Notes read right;
-//   5. Shop: a restock and an upgrade bought with clicks, saved at once (in the lab save), the badge gone
+//   2. Tonight (playtest 3): one screen, no tab bar, nothing to scroll, within the word budget: the day and its
+//      takings, a new star, the reviews' count, the three lines worth reading, one line of notebook, the low stock,
+//      and More, which opens the apps;
+//   3. Reviews: a card for every review, newest first, the summary, no average; Details opens and closes;
+//   4. the badges: Franchise's dot (a star was earned today), Shop's "!" (beans are low), Notes' count;
+//   5. switching apps by key (E, Q, 4, the arrows) and by clicking a tab; Franchise, Shop and Notes read right;
+//      Notes is a list, one line a person, and a tap opens one;
+//   6. Shop: a restock and an upgrade bought with clicks, saved at once (in the lab save), the badge gone
 //      and the prices moved on;
-//   6. W/S scroll, and a pad (a virtual one, added for the check and removed after): LB/RB, the right
+//   7. W/S scroll, and a pad (a virtual one, added for the check and removed after): LB/RB, the right
 //      stick, the D-pad and A, and the gold ring that shows the pad's selection;
-//   7. Close up puts the phone away, and the night begins.
+//   8. back on Tonight, Close up puts the phone away, and the night begins.
 // A key that never reaches the game (the Game view didn't have the keyboard) is noted and done directly,
 // so the phone is still checked. A photo of every app and report.txt go to the check's folder. Nothing is
 // saved in the scene; the lab save is the only file written (by the game), and the playtest save is checked
@@ -138,9 +142,41 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(Time.timeScale == 0f, "the world holds still");
         string over = DrawnOverThePhone();
         Check(over.Length == 0, "nothing else draws over the phone" + (over.Length == 0 ? "" : $" ({over} does)"));
-        Check(phone.Current == RecapPhone.App.Reviews, "it opens on Reviews");
+        Check(phone.Current == RecapPhone.App.Tonight, "it opens on Tonight");
         Check(!PadInput.UsingPad || Note("a pad was the last device used before the check"), "the keyboard and mouse are in use");
         Check(phone.HintText.Contains("Q / E"), $"the hint under it is the keyboard's (\"{phone.HintText}\")");
+
+        // ---------- Tonight: one screen ----------
+        yield return Until(() => phone.ContentText().Contains("$" + DayClock.Instance.Earned), 3f, "the takings count up to the day's figure");
+        string tonight = phone.ContentText();
+        Check(!phone.Tab(RecapPhone.App.Reviews).gameObject.activeInHierarchy, "no tab bar on Tonight");
+        Check(phone.ScrollRange <= .5f, $"nothing to scroll ({phone.ScrollRange:0} over)");
+        Check(phone.TonightWords <= WordBudget.ClosingScreen, $"within the budget: {phone.TonightWords} words before the review lines (the rule is {WordBudget.ClosingScreen})");
+        Check(tonight.Contains(Weekdays.Label(day).ToUpperInvariant()) && tonight.Contains("$" + DayClock.Instance.Earned) && tonight.Contains("earned today"),
+            "the day (its weekday too), and what it earned");
+        Check(rep.EarnedStarToday && tonight.Contains("New star!"), "a new star, in gold");
+        Check(tonight.Contains($"{rep.ReviewCount} reviews today") && tonight.Contains(ReputationRecap.Signed(rep.TodayChange) + " reputation"),
+            "how many reviews, and the reputation they made");
+        List<ReviewCard> picks = ReputationLedger.PickCards(rep.Cards);
+        Check(picks.Count >= 1 && picks.Count <= 3 && phone.TonightLines == picks.Count && picks.All(p => tonight.Contains(p.line) && tonight.Contains(p.name)),
+            $"the {picks.Count} review lines worth reading (the best, the worst, a regular's), each with its name");
+        NotebookFactData todays = NotebookRecap.Tonight(saves.Notebook, day);
+        Check(todays != null && tonight.Contains(NotebookRecap.Sentence(todays.text)) && phone.ContentButton("notebook") != null,
+            $"one line of notebook, today's newest (\"{(todays != null ? NotebookRecap.Sentence(todays.text) : "")}\")");
+        string whose = todays == null ? "" : string.IsNullOrWhiteSpace(todays.name) ? todays.who : todays.name;
+        Check(todays != null && whose.Length > 0 && tonight.Contains(whose) && Count(tonight, ">NEW<") == 0,
+            $"...under whose it is ({whose}), with no NEW tag (everything on Tonight is today's)");
+        Check(stock.BeansLow && tonight.Contains("Low on beans") && phone.ContentButton("stock") != null, "the low beans, one line, a tap from the Shop");
+        Button more = phone.ContentButton("more");
+        Check(more != null && Clickable(more), "More can be clicked (nothing covers it)");
+        string moreSays = more != null ? string.Join(" ", more.GetComponentsInChildren<TMP_Text>(true).Select(t => t.text)) : "";
+        Check(moreSays.StartsWith("More") && !moreSays.Contains("low stock"), $"More doesn't say the low stock twice (\"{moreSays}\")");
+        Check(Fits(), "every line fits the phone's width");
+        yield return Photo("01-tonight");
+        Click(more);
+        yield return null;
+        Check(phone.Current == RecapPhone.App.Reviews && phone.Tab(RecapPhone.App.Reviews).gameObject.activeInHierarchy,
+            "More opens the apps (Reviews first), with the tab bar");
 
         // ---------- Reviews ----------
         string reviews = phone.ContentText();
@@ -155,7 +191,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(reviews.IndexOf("average", StringComparison.OrdinalIgnoreCase) < 0, "no average anywhere");
         Check(reviews.Contains(Weekdays.Label(day).ToUpperInvariant()) && reviews.Contains("$" + DayClock.Instance.Earned), "the takings card: the day (its weekday too), and what it earned");
         Check(Fits(), "every line fits the phone's width");
-        yield return Photo("01-reviews");
+        yield return Photo("02-reviews");
 
         Button details = phone.ContentButton("details");
         Check(details != null && Clickable(details), "Details can be clicked (nothing covers it)");
@@ -164,7 +200,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         string opened = phone.ContentText();
         Check(phone.DetailsOpen && opened.Contains("People served") && opened.Contains("Closing till") && opened.Contains("Passable"),
             "Details shows the day's full numbers");
-        yield return Photo("02-reviews-details");
+        yield return Photo("03-reviews-details");
         Click(phone.ContentButton("details"));
         yield return null;
         Check(!phone.DetailsOpen && !phone.ContentText().Contains("Closing till"), "…and a second click hides them");
@@ -176,7 +212,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(stock.BeansLow && phone.BadgeShowing(RecapPhone.App.Shop) && phone.BadgeText(RecapPhone.App.Shop) == "!",
             "Shop has a \"!\": the beans are low");
         Check(fresh > 0 && phone.BadgeText(RecapPhone.App.Notes) == fresh.ToString(), $"Notes shows how many facts are new today ({fresh})");
-        Check(!phone.BadgeShowing(RecapPhone.App.Reviews), "Reviews has no badge");
+        Check(!phone.BadgeShowing(RecapPhone.App.Reviews) && !phone.BadgeShowing(RecapPhone.App.Tonight), "Reviews and Tonight have no badge");
 
         // ---------- switching apps by key ----------
         yield return PressKey(Key.E, RecapPhone.App.Franchise, "E opens the next app (Franchise)");
@@ -189,10 +225,10 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         string lesson = ReputationRecap.Lesson(rep.Cards);
         Check(franchise.Contains("WHAT CHANGED TODAY") && lesson.Length > 0 && franchise.Contains(lesson), $"what changed today, and its line (\"{lesson}\")");
         Check(Fits(), "every line fits the phone's width");
-        yield return Photo("03-franchise");
+        yield return Photo("04-franchise");
 
         yield return PressKey(Key.Q, RecapPhone.App.Reviews, "Q goes back (Reviews)");
-        yield return PressKey(Key.Digit3, RecapPhone.App.Shop, "3 jumps to the third app (Shop)");
+        yield return PressKey(Key.Digit4, RecapPhone.App.Shop, "4 jumps to the fourth app (Shop)");
         string shop = phone.ContentText();
         Check(shop.Contains("In the till: $" + till.Money), "Shop: what's in the till");
         Check(shop.Contains("Paper cups") && shop.Contains("Coffee beans") && shop.Contains($"+{stock.RestockAdds} each"),
@@ -204,31 +240,49 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         int catalogue = upgrades.Catalogue.Count(d => d != null);
         Check(rows == catalogue, $"a row for every upgrade ({rows} of {catalogue})");
         Check(Fits(), "every line fits the phone's width");
-        yield return Photo("04-shop");
+        yield return Photo("05-shop");
 
-        // ---------- clicking a tab ----------
+        // ---------- clicking a tab; Notes as a list ----------
         Check(Clickable(phone.Tab(RecapPhone.App.Notes)), "the Notes tab can be clicked");
         Click(phone.Tab(RecapPhone.App.Notes));
         yield return null;
         Check(phone.Current == RecapPhone.App.Notes, "clicking a tab opens its app (Notes)");
         string notes = phone.ContentText();
         List<NotebookPerson> people = NotebookRecap.People(saves.Notebook);
-        Check(people.Count > 0 && notes.Contains(people[0].name), $"Notes, person by person ({people.Count})");
-        if (people.Count > 0 && people[0].facts.Count > 1)
+        Check(people.Count > 0 && phone.PeopleListed == people.Count && people.All(p => notes.Contains(p.name)), $"Notes lists everyone ({people.Count}), one line each");
+        Check(people.All(p => NotebookRecap.OneLine(p, day) == null || notes.Contains(NotebookRecap.Sentence(NotebookRecap.OneLine(p, day).text))),
+            "each line is the latest thing known about them (today's if there is one)");
+        Check(phone.OpenPerson == "" && Count(notes, ">NEW<") == 0 && notes.Contains(" new"), "nobody is open yet: what's new today is a count, not the facts");
+        int sentences = people.Sum(p => p.facts.Count(f => notes.Contains(NotebookRecap.Sentence(f.text))));
+        Check(sentences == people.Count, $"one fact a person on the list, not every fact ({sentences} for {people.Count}; the notebook has {saves.Notebook.Count})");
+        Check(Fits(), "every line fits the phone's width");
+        yield return Photo("06-notes-list");
+        NotebookPerson guessed = people.FirstOrDefault(p => p.facts.Any(f => f.sure == Notebook.Sureness.Hunch)) ?? people[0];
+        Button row = phone.ContentButton("person:" + guessed.who);
+        Check(row != null && Clickable(row), $"{guessed.name}'s row can be tapped");
+        Click(row);
+        yield return null;
+        string open = phone.ContentText();
+        Check(phone.OpenPerson == guessed.who && guessed.facts.All(f => open.Contains(NotebookRecap.Sentence(f.text))),
+            $"a tap opens {guessed.name}: every fact ({guessed.facts.Count})");
+        if (guessed.facts.Count > 1)
         {
-            string first = NotebookRecap.Sentence(people[0].facts[0].text), second = NotebookRecap.Sentence(people[0].facts[1].text);
-            Check(people[0].facts[0].kind == Notebook.Kinds.Address && notes.IndexOf(first, StringComparison.Ordinal) >= 0
-                  && notes.IndexOf(first, StringComparison.Ordinal) < notes.IndexOf(second, StringComparison.Ordinal),
+            string first = NotebookRecap.Sentence(guessed.facts[0].text), second = NotebookRecap.Sentence(guessed.facts[1].text);
+            Check(guessed.facts[0].kind == Notebook.Kinds.Address && open.IndexOf(first, StringComparison.Ordinal) >= 0
+                  && open.IndexOf(first, StringComparison.Ordinal) < open.IndexOf(second, StringComparison.Ordinal),
                 $"where they live comes first (\"{first}\")");
         }
-        Check(notes.Contains("(hunch)"), "a guess says so (\"hunch\")");
-        Check(Count(notes, ">NEW<") == fresh, $"today's facts are marked NEW ({Count(notes, ">NEW<")} of {fresh})");
+        Check(open.Contains("(hunch)"), "a guess says so (\"hunch\")");
+        Check(Count(open, ">NEW<") == guessed.LearnedOn(day), $"their facts from today are marked NEW ({Count(open, ">NEW<")} of {guessed.LearnedOn(day)})");
         Check(Fits(), "every line fits the phone's width");
-        yield return Photo("05-notes");
+        yield return Photo("07-notes-open");
+        Click(phone.ContentButton("person:" + guessed.who));
+        yield return null;
+        Check(phone.OpenPerson == "" && Count(phone.ContentText(), ">NEW<") == 0, "…and a second tap closes them");
 
-        yield return PressKey(Key.RightArrow, RecapPhone.App.Reviews, "the right arrow wraps round to Reviews");
+        yield return PressKey(Key.RightArrow, RecapPhone.App.Tonight, "the right arrow wraps round to Tonight");
         yield return PressKey(Key.LeftArrow, RecapPhone.App.Notes, "the left arrow goes back to Notes");
-        yield return PressKey(Key.Digit3, RecapPhone.App.Shop, "3 goes back to Shop");
+        yield return PressKey(Key.Digit4, RecapPhone.App.Shop, "4 goes back to Shop");
 
         // ---------- buying: a restock, then an upgrade ----------
         string labSave = Path.Combine(Application.persistentDataPath, CafeLab.SaveFileName);
@@ -264,10 +318,10 @@ public sealed class RecapPhoneCheck : MonoBehaviour
                 $"its row shows the level, and the button the next price, greyed out of reach (\"{label}\")");
             Check(phone.ContentText().Contains("In the till: $" + till.Money), "the till on the phone follows");
         }
-        yield return Photo("06-shop-after-buying");
+        yield return Photo("08-shop-after-buying");
 
         // ---------- scrolling with W and S, on Reviews (five cards: longer than the window) ----------
-        yield return PressKey(Key.Digit1, RecapPhone.App.Reviews, "1 jumps to Reviews");
+        yield return PressKey(Key.Digit2, RecapPhone.App.Reviews, "2 jumps to Reviews");
         Check(phone.ScrollRange > 1f, $"Reviews is longer than the phone's window ({phone.ScrollRange:0} to scroll)");
         float top = phone.ScrollOffset;
         yield return Hold(Key.S, .35f);
@@ -275,25 +329,27 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         if (down > top + 1f)
         {
             Check(true, $"S scrolls down ({top:0} to {down:0})");
-            yield return Photo("07-reviews-scrolled");
+            yield return Photo("09-reviews-scrolled");
             yield return Hold(Key.W, .6f);
             Check(phone.ScrollOffset < down && phone.ScrollOffset <= .5f, $"W scrolls back up to the top ({phone.ScrollOffset:0})");
         }
         else Note("S didn't reach the game (the Game view didn't have the keyboard?): scrolling by key not checked.");
-        yield return PressKey(Key.Digit3, RecapPhone.App.Shop, "3 goes back to Shop");
+        yield return PressKey(Key.Digit4, RecapPhone.App.Shop, "4 goes back to Shop");
 
         // ---------- a pad ----------
         yield return PadSteps(stock, till);
 
-        // ---------- Close up ----------
-        yield return PressKey(Key.Digit4, RecapPhone.App.Notes, "4 jumps to Notes");
-        Check(Clickable(phone.CloseButton), "Close up can be clicked (nothing covers it)");
+        // ---------- Close up, from Tonight ----------
+        yield return PressKey(Key.Digit1, RecapPhone.App.Tonight, "1 goes back to Tonight");
+        Check(phone.Root.activeInHierarchy && phone.Current == RecapPhone.App.Tonight && !phone.Tab(RecapPhone.App.Reviews).gameObject.activeInHierarchy
+              && phone.ScrollRange <= .5f, "Tonight again: the phone up, no tab bar, nothing to scroll");
+        Check(Clickable(phone.CloseButton), $"Close up can be clicked (nothing covers it; on top: {LastHit})");
         Click(phone.CloseButton);
         yield return Until(() => !RecapUI.Showing, 5f, "Close up for the night puts the phone away");
         yield return Until(() => NightCycle.Instance != null && NightCycle.Instance.Now == NightCycle.Phase.Night, 12f, "…and the night begins");
         yield return Seconds(1.6f);
         Check(!HudHidden(), "the HUD is back");
-        yield return Photo("10-night-begins");
+        yield return Photo("12-night-begins");
         report.AppendLine();
         report.AppendLine(phone.Describe());
     }
@@ -313,7 +369,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         GameObject selected = Selected();
         Check(selected == phone.CloseButton.gameObject, $"a pad starts on Close up (on {Name(selected)})");
         Check(phone.FocusRingShowing, "a gold ring shows where the pad is");
-        yield return Photo("08-pad-close-up");
+        yield return Photo("10-pad-close-up");
 
         // Up from Close up: the app's last button that can be pressed. With the upgrades out of reach now, that's the restock.
         yield return PadPress(GamepadButton.DpadUp);
@@ -321,7 +377,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Button restock = phone.ContentButton("restock");
         Check(restock != null && Selected() == restock.gameObject, $"the D-pad goes up to the restock (on {Name(Selected())})");
         Check(restock != null && phone.IsFullyVisible((RectTransform)restock.transform) && phone.FocusRingShowing, "…scrolled into view, with the ring on it");
-        yield return Photo("09-pad-on-the-restock");
+        yield return Photo("11-pad-on-the-restock");
         int cups = stock.Cups, money = till.Money;
         yield return PadPress(GamepadButton.South);
         yield return Frames(2);
@@ -330,9 +386,19 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(again != null && Selected() == again.gameObject, "…and the pad stays on the restock after the phone rebuilds");
 
         yield return PadPress(GamepadButton.DpadDown);
+        yield return Frames(2);
+        Note($"one down from the restock: on {Name(Selected())}; Close up's down leads to {Name(phone.CloseButton.navigation.selectOnDown?.gameObject)}; " +
+             $"the tab bar is {(phone.Tab(RecapPhone.App.Shop).gameObject.activeInHierarchy ? "on" : "off")}, its Shop tab {(phone.Tab(RecapPhone.App.Shop).IsInteractable() ? "pressable" : "not pressable")}");
         yield return PadPress(GamepadButton.DpadDown);
         yield return Frames(2);
         Check(Selected() == phone.Tab(RecapPhone.App.Shop).gameObject, $"down past Close up to the tab bar (on {Name(Selected())})");
+        if (Selected() != phone.Tab(RecapPhone.App.Shop).gameObject)
+        {
+            Note("the pad isn't on the tab bar: the rest of the pad's steps are skipped (A would press whatever is selected)");
+            InputSystem.RemoveDevice(pad);
+            pad = null;
+            yield break;
+        }
         yield return PadPress(GamepadButton.DpadLeft);
         yield return PadPress(GamepadButton.South);
         yield return Frames(2);
@@ -410,14 +476,18 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         ExecuteEvents.Execute(go, data, ExecuteEvents.pointerExitHandler);
     }
 
-    // True when a click at the middle of target would land on it: the topmost thing there is it (or its label).
+    // True when a click at the middle of target would land on it: the topmost thing there is it (or its label). What was
+    // on top instead is kept for the message (LastHit).
+    static string LastHit = "";
     static bool Clickable(Selectable target)
     {
         EventSystem events = EventSystem.current;
-        if (target == null || events == null) return false;
+        if (target == null || events == null) { LastHit = "no target or event system"; return false; }
         var hits = new List<RaycastResult>();
         events.RaycastAll(new PointerEventData(events) { position = Centre(target) }, hits);
-        return hits.Count > 0 && hits[0].gameObject != null && hits[0].gameObject.transform.IsChildOf(target.transform);
+        bool ok = hits.Count > 0 && hits[0].gameObject != null && hits[0].gameObject.transform.IsChildOf(target.transform);
+        LastHit = hits.Count == 0 ? "nothing under the pointer" : hits[0].gameObject != null ? hits[0].gameObject.name + (hits[0].gameObject.transform.parent != null ? " in " + hits[0].gameObject.transform.parent.name : "") : "?";
+        return ok;
     }
 
     // On an overlay canvas, a point's world position is where it is on the screen.

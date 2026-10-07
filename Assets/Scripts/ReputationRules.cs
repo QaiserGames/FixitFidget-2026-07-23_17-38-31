@@ -54,7 +54,10 @@ public enum ReviewReason
     WalkedOutInQueue,
     UnservedAtClose,
     WalkedOutAfterAccepting,
-    RejectedRepair
+    RejectedRepair,
+    /// <summary>Not a customer's: the man at the bins' one-star review, planted the morning after the third skip in a row
+    /// (playtest 3, 6 Oct 2026; LodgerStory.PlantedReview). Saved by number: keep it last.</summary>
+    Planted
 }
 
 /// <summary>The facts CustomerBrain.Depart already knows, and nothing else.</summary>

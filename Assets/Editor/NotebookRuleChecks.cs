@@ -197,6 +197,13 @@ public static class NotebookRuleChecks
               && NotebookRecap.Sureness(null, 1) == "", "Sureness in words: a guess says so, a fact made surer today says \"now\", a told fact says nothing.");
         Check(NotebookRecap.Sentence("works nights.") == "Works nights." && NotebookRecap.Sentence(null) == "", "A fact reads as a sentence of its own.");
         Check(NotebookRecap.People(null).Count == 0 && NotebookRecap.People(new Notebook()).Count == 0, "No notebook, no pages.");
+        // One line a person (the phone's Notes list, playtest 3): today's newest, else the newest of all.
+        Check(NotebookRecap.OneLine(people[0], 3).id == "grace.reunion.photo" && NotebookRecap.OneLine(people[0], 2).id == "grace.home"
+              && NotebookRecap.OneLine(people[0], 9).id == "grace.reunion.photo" && NotebookRecap.OneLine(people[1], 3).id == "tomas.job"
+              && NotebookRecap.OneLine(null, 3) == null && NotebookRecap.OneLine(new NotebookPerson(), 3) == null,
+            "One line a person: what was learned today, else the latest thing known.");
+        Check(NotebookRecap.Tonight(phoneBook, 3).id == "grace.reunion.photo" && NotebookRecap.Tonight(phoneBook, 7) == null && NotebookRecap.Tonight(null, 3) == null,
+            "The closing screen's one line is today's newest fact, or nothing.");
         Check(NotebookRecap.Page(phoneBook).StartsWith("<b>Grace</b>\n<size=92%><indent=4%>Came out of the saffron house. <color=#A6A6A6>(likely)</color></indent></size>\n",
             StringComparison.Ordinal), "The night's page still reads as before: the name, then where they live, marked as a guess.");
 
@@ -212,6 +219,20 @@ public static class NotebookRuleChecks
         Check(handedPage.StartsWith("<b>His pages</b>\n<size=92%><indent=4%><i>Lights out by midnight.</i></indent></size>\n<b>Grace</b>", StringComparison.Ordinal),
             "On the page his lines are in his hand (italics), under his heading, before everyone else.");
         Check(Count(handedPage, "<i>") == 1 && Count(handedPage, "</i>") == 1, "Only his lines are in italics.");
+
+        // ---------- the word budget (playtest 3): a notebook line reads at a glance, as it reads on the phone ----------
+        var written = new List<NotebookFactData>(NotebookEntries.GraceIntake("Grace"));
+        foreach (GracePhotoOutcome outcome in new[] { GracePhotoOutcome.Clear, GracePhotoOutcome.Imperfect, GracePhotoOutcome.Missed })
+            written.Add(NotebookEntries.GraceReturn("Grace", outcome));
+        written.Add(NotebookEntries.RegularRepair("priya", "Priya", "Espresso Machine", "Leaks under pressure"));
+        written.Add(NotebookEntries.HomeSeen("grace", "Grace", "the saffron house", "12", "west", true, Notebook.Sureness.Hunch));
+        written.Add(NotebookEntries.HomeSeen("tomas", "Tomas", "the blue house", "", "west", false, Notebook.Sureness.Hunch));
+        foreach (NotebookFactData line in written)
+        {
+            string said = NotebookRecap.Sentence(line.text);
+            Check(!WordBudget.Over(said, WordBudget.Page),
+                $"A notebook line is at most {WordBudget.Page} words: \"{said}\" is {WordBudget.Report(said, WordBudget.Page)}.");
+        }
 
         return count;
     }
