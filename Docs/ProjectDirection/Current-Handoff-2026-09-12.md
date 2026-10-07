@@ -1,5 +1,47 @@
 # Current handoff — September 12, 2026
 
+## October 7 (small hours) — Playtest 3, session 1: the words, the man's pull, the bins from any door (`2591594`); on `playtest-2`
+
+**Read this entry first.** Three commits on `playtest-2` after `8ce5872` (chunk C's handoff entry): Mansoor's scene save on its own (`940c81f`), session 1 (`2591594`), and this entry. Nothing is pushed. The plan is `claude/playtest-3-notes-and-plan.md` in the project docs: §0 the scene, §1 Mansoor's notes after Days 1–3 with what each is in the code, §2 his four calls (all as recommended), §3 the order of the six sessions, §4 the writing rules, §5 this session exactly, with the before-and-after of every line, and §5.6 the second pass (what a review of the build found and what changed). The story doc has a new §16 (`claude/the-man-at-the-bins-story.md`).
+
+**Mansoor's calls (6 Oct, late), all as recommended:** the man's pull is complicity and petty costs (never hard pressure); houses get the capsule and cover now and interior cells with the Town Pack; stations become reach, not rooms; words and the man first.
+
+**Mansoor's scene save (`940c81f`, his change, committed alone):** 50 rooftop props that stood inside the city blocks are gone (17 `SM_Prop_Roof_Aircon_02`, 9 `SM_Prop_Water_Tower_01`, 6 `SM_Prop_SatDish_01`, 6 `SM_Prop_Roof_Aircon_03`, 5 `SM_Prop_Vents_Straight_01`, 4 `SM_Prop_Skylight_01`, 2 `SM_Prop_Roof_Aircon_01`, 1 `SM_Bld_Roof_Access_01`). With the save came Grace's way home serialized on `GraceAtHome` (`wayHome`) and one empty slot in `NightWalk`'s lit buildings (index 92 of 432): harmless, the night skips an empty entry and every other building keeps its bedtime.
+
+**What changed (`2591594`):**
+
+1. **A word budget, in code** (`WordBudget`, pure): a bark 7 words, a scene line 10, a scene 5 of its speaker's lines (Night 0's deal 8), a note or a notebook page 12, the phone's closing screen 40 before the review lines. The Bark rules fail on any line in the Night lines asset over it; the Night rules on any hint, note, lesson, page or question text; the Notebook rules on any line the notebook writes (her intake, her return, a regular's repair, a home sighting); the recap phone check counts the closing screen. One number each, in one place.
+2. **Every placeholder rewritten to it** (`BarkSteps`: `Barks 1` reworded 16 lines and reshaped two scenes, each only because it was still exactly as made). The deal is eight lines; the gnome's return ends on **the hold** ("We've both got something on each other now. Mine's bigger."); the cups' return is three lines. Every note is one a beat and at most 12 words; the first night's keys come as a second note once the first has been read (`NightCycle.NoteThen`). Three of Grace's notebook lines were over the page budget and are cut (ids kept; **wording he approved on 27 Sept, his to put back**): "A camera with a scratched strap. Wants the strap left alone." · "Family reunion tomorrow. She might let someone put her in the picture." · "In the middle of the reunion photo. Left the shop a print."
+3. **His pages say only what is in the game:** the parking page waits for the cones, the cups' page for her photos; the gnome pays "Grace is out every Thursday. Back at 1:30." The cups pay **Soft feet** (Ace's steps carry half as far: walking 2 m, sneaking 0.5 m; `AceFootsteps`) instead of Doors; Doors stays defined for saves that learned it.
+4. **Stalling costs the day, by skips in a row, and stops the morning after the favour is done** (`NightLedger.CameHome`, `LodgerDay`, `DirtyCup`, `OfficerStory`, `CustomerSpawner`, `ReputationLedger`): the favour is never dropped now.
+   - **Every skip:** he takes a table from opening to about 1:30 PM and says one line when Ace passes; on a morning without his mess, once he sits, a note: "The man at the bins took a table, waiting on his favour."
+   - **From the second:** the café opens with his mess: one of the café's own paper cups, dregs in, on every table seat near the door (up to eight), each seat out of play. **E at any cup clears its whole table** (`MessTable`: spots within 1 m are a table), and a used-cup badge floats over each table until it's cleared (`Juice.Mark`, a new `Mess` icon). Note: "The man at the bins left his mess. Clear the tables."
+   - **The third, once a favour:** a one-star review under "Anonymous" (−2 reputation, never a star back), the officer in that day with a harder question ("Someone says you keep odd company, Ace."), and his note on the counter ("Reviews are easy. Bring the cups.").
+   - The save grows `messDay` and `wordDay` (additive; older saves load as before).
+5. **The phone opens on one screen** (`RecapPhone`, a fifth app, **Tonight**, no tab bar): the weekday, the takings counting up, the café's stars, the reviews' count and what they did; the three review lines worth reading (`ReputationLedger.PickCards`); one notebook line under whose fact it is (`NotebookRecap.Tonight`; no NEW tag); the low stock only when true; Close up for the night; and More ("N new notes"), which opens the apps. Notes is a list, one line a person (`NotebookRecap.OneLine`). 35 words on the lab's Day 3.
+6. **The bins from any door** (`NightZero`): with the bag in hand the step follows where Ace is, and holds still while a door blinks (`NightCycle.Blinking`).
+7. **He follows the franchise:** written into the story doc (§16) as a rule for the franchise session; nothing to build yet.
+8. **Small things from the review:** his cups no longer copy the drink prefab (that woke its scripts for a frame and leaked a material per part; they're built from the serving cup's shell, `DrinkLiquidVisual`'s builders, now shared); a seat knows which cup dirtied it (`TableSeat.IsDirtyWith`); a lasting badge keeps out of the way while Ace is talking, at a station, in the counter's repair view or inspecting, paused, or after closing.
+
+**Try it:** `Night › Night 2 - Play check, stalling: the third skip (lab, drives itself)` shows a morning with his mess (the badges, one press a table), his note, his table and the officer's word; `...one skip, his table` shows the table note. `Night › Night 2 - Play from Day 2's recap (lab)` shows the new phone. In the real game: skip his favour one night and open the café the next morning, then skip again.
+
+**Checks (7 Oct, all green):** console tests GraceRules 1031, NightRules 486 + 6, NotebookRules 62 + 2, HomeRules 38 + 62 + 2, BarkRules 505, ReputationRules 19697 + 5. Unity rule checks: Notebook 66, Night 1 492, Home 40, Bark 505 + 709 Night lines, Reputation 19705, Grace at home 1031. Labs: Night 2 third skip 72/72, one skip 61/61, cups 103/103; Night 0 95/95; Night 1 straight face 76/76; the recap phone 107/107; the juice check 28/28; Barks 2 43/43; Grace at home night 80/80 and Thursday 22/22. Compile: 0 errors, the two old CS0414 warnings.
+
+**Choices made inside the plan (his to overrule):**
+
+- Soft feet instead of Doors for the cups; Doors returns with the keys.
+- The deal at eight lines rather than three: it is the reveal.
+- The hold line's words; "Anonymous" as the review's name and −2 as its cost; 1:30 PM as the end of his table; a cup per seat near the door, eight at most, cleared a table at a time; the table note only on a morning without the mess (one note a beat); the officer's extra visit arrives like the morning's visitor and rides on his scheduled visit when he has one that day; the page comes without a note.
+- A word is a run of characters with a letter or a digit in it: "·" and "›" between words don't count.
+- The three Grace lines cut to the page budget (above).
+
+**Seen, not changed:**
+
+- Two orphan lines stay in the asset (`lodger.night0.04` "Grace likes you.", `lodger.night0.08` "And don't get caught.", and the cups' `r06`, `r07`): no scene says them; harmless, and his sister may want them.
+- The stray `Assets/Scripts/Diagnostics/AceTurnCheck-1.cs` (and its .meta) is still not committed: Mansoor deletes it.
+
+**Next:** session 2 of the plan (interaction: stations as reach, aim assist, the capsule and the crouch), then 3 (the UI skin), 4 (the bench), 5 (cover and the houses), 6 (the café).
+
 ## October 6 (late night) — Grace at home, break-ins chunk C (`0c55831`); on `playtest-2`
 
 **Read this entry first.** Two commits on `playtest-2` after `c003d67` (the upright table reactions, wired with `NPC › Mixamo 3` once Mansoor had seen the photos): chunk C (`0c55831`) and this entry. Nothing is pushed. The plan is `claude/chunk-c-grace-at-home-plan.md` in the project docs (its "As built" section at the end), with `claude/break-ins-spec.md` §6.
