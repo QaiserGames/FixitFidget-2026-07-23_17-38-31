@@ -278,7 +278,8 @@ public static class CafeDrinksCorner
         var cc = player != null ? player.GetComponent<CharacterController>() : null;
         if (cc == null) return "no player controller";
         Physics.SyncTransforms();
-        float radius = cc.radius * Mathf.Max(Mathf.Abs(cc.transform.lossyScale.x), Mathf.Abs(cc.transform.lossyScale.z));
+        // Ace's capsule as the game runs it (0.35 since playtest 3; the scene's controller still says 0.5).
+        float radius = PlayerMovement.RadiusFor(cc);
         float height = Mathf.Max(cc.height * Mathf.Abs(cc.transform.lossyScale.y), radius * 2f);
         Vector3 foot = station.StandPoint.position;
         foot.y = 0f;

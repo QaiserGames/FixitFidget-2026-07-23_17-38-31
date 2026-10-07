@@ -189,6 +189,31 @@ public sealed class GraceHouse : MonoBehaviour
         leafCollider = door != null && door.hinge != null ? door.hinge.GetComponentInChildren<Collider>(true) : null;
         SetLights(false);
         SetSolid(false);
+        if (Application.isPlaying) KeepAceOffTheStairwellEdge();
+    }
+
+    // A SLIMMER ACE AT THE TOP OF HER STAIRS (playtest 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §2.4)
+    //
+    // Upstairs, the floor in front of her stairwell is drawn from Y 2.90 but solid only from Y 3.40, so that Ace climbing
+    // the lower flight below has headroom (GraceHouseSteps: HeadroomFrom). The stairwell's front wall (Y 2.90-2.95) kept
+    // the old 1.16 m capsule's middle at Y 3.53 or more, on the solid floor. Ace is 0.77 m across now: his middle could
+    // reach Y 3.34, over the strip that only looks like floor, and he would drop through it into the stairwell. So an
+    // invisible wall stands at Y 3.07-3.10 across the stairwell's width (X 0-1.46), from 0.30 above the first floor to
+    // the ceiling, as the front wall's solid part does: his middle stays at Y 3.45 or more upstairs, and a capsule
+    // climbing below still passes under it. Made while playing; nothing in the scene changes.
+    const string StairwellEdgeName = "Stairwell edge (made while playing: keeps Ace on the solid floor upstairs)";
+    const float StairwellEdgeY = 3.07f, StairwellEdgeThick = .03f, StairwellWidth = 1.46f, EdgeLift = .30f, TopCeiling = 4.85f;
+
+    void KeepAceOffTheStairwellEdge()
+    {
+        if (transform.Find(StairwellEdgeName) != null) return;
+        var edge = new GameObject(StairwellEdgeName);
+        edge.transform.SetParent(transform, false);
+        var box = edge.AddComponent<BoxCollider>();
+        float bottom = firstFloorAt + EdgeLift, height = Mathf.Max(.5f, TopCeiling - bottom);
+        // This object's own space is (-X, z, Y).
+        box.center = new Vector3(-StairwellWidth * .5f, bottom + height * .5f, StairwellEdgeY + StairwellEdgeThick * .5f);
+        box.size = new Vector3(StairwellWidth, height, StairwellEdgeThick);
     }
 
     void OnDisable()

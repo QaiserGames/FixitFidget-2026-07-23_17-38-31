@@ -684,8 +684,10 @@ public class CustomerBrain : MonoBehaviour
             HoldCallJob call = activeJob as HoldCallJob;
             if (call == null || !call.WantsPlayerPresent) return spotRate;
 
+            // Ace with them, looking at them or their phone (the crosshair in first person, or the nearest thing in
+            // reach from above). Until playtest 3 this also needed Ace stepped up to a station; nothing is now.
             if (player == null) player = FindAnyObjectByType<PlayerInteractor>();
-            if (player == null || !player.IsAtStation) return spotRate;
+            if (player == null) return spotRate;
 
             Interactable f = player.Focused;
             if (f == null) return spotRate;

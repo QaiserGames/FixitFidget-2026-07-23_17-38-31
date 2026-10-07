@@ -11,6 +11,11 @@ using UnityEngine.UI;
 /// circuit's Retry) is pressed directly; gameplay reads the cursor through
 /// GamePointer, exactly as it reads the mouse.
 ///
+/// Aim help (playtest 3, 7 Oct 2026: "very hard to get the controller cursor onto an item"): the view offers the
+/// points worth landing on each frame (OfferSnapPoints: the bench's parts, grime and tools), and when the stick lets go
+/// within about 60 px of one (on a 1080p screen) the cursor glides onto it. The view can also glide it somewhere
+/// (GlideTo: the bench's D-pad steps). With aim help switched off (AimAssist.Enabled) it never snaps.
+///
 /// Why not a virtual Mouse device: PlayerInput auto-switches control schemes
 /// when a "mouse" moves, which would unpair the very pad driving it. A cursor
 /// that lives in script space has no such side effects.
@@ -30,6 +35,15 @@ public sealed class PadCursor : MonoBehaviour
     private bool active;
     private Vector2 position;
     private Vector2 delta;
+    // Aim help: the points offered this frame or last, a glide under way, and whether the stick was moving last frame.
+    private static readonly List<Vector2> snapPoints = new();
+    private static int snapFrame = -10;
+    private bool gliding, stickMoving;
+    private Vector2 glideTo;
+    /// <summary>How near a point (pixels on a 1080p screen) the stick must let go for the cursor to settle on it.</summary>
+    public const float SnapPixels = 60f;
+    /// <summary>The glide's time constant, seconds (about three of these to land).</summary>
+    public const float GlideSeconds = .03f;
     private int consumedFrame = -1;
     private bool consumedHold;
     private Canvas canvas;
@@ -49,11 +63,32 @@ public sealed class PadCursor : MonoBehaviour
     /// <summary>Views that need a pointer call this every frame they want one.</summary>
     public static void Request() => requestedFrame = Time.frameCount;
 
+    /// <summary>The points worth landing on (screen pixels), offered each frame by the view that asked for the cursor.</summary>
+    public static void OfferSnapPoints(List<Vector2> points)
+    {
+        snapPoints.Clear();
+        if (points != null) snapPoints.AddRange(points);
+        snapFrame = Time.frameCount;
+    }
+
+    /// <summary>Glides the cursor to <paramref name="screen"/> (pixels), unless the stick takes over first.</summary>
+    public static void GlideTo(Vector2 screen)
+    {
+        if (instance == null || !instance.active) return;
+        instance.glideTo = screen;
+        instance.gliding = true;
+    }
+
+    /// <summary>A glide is under way (checks).</summary>
+    public static bool Gliding => instance != null && instance.gliding;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
         instance = null;
         requestedFrame = -10;
+        snapPoints.Clear();
+        snapFrame = -10;
     }
 
     private void Awake()
@@ -77,7 +112,7 @@ public sealed class PadCursor : MonoBehaviour
         // for it run after this component.
         bool wanted = requestedFrame >= Time.frameCount - 1 && PadInput.UsingPad && PadInput.Connected
             && Application.isFocused;
-        if (wanted && !active) position = new Vector2(Screen.width * .5f, Screen.height * .5f);
+        if (wanted && !active) { position = new Vector2(Screen.width * .5f, Screen.height * .5f); gliding = false; stickMoving = false; }
         active = wanted;
         delta = Vector2.zero;
         if (!PadInput.Held(PadButton.RightTrigger)) consumedHold = false;
@@ -86,7 +121,31 @@ public sealed class PadCursor : MonoBehaviour
         {
             float scale = Mathf.Max(.5f, Screen.height / 1080f);
             Vector2 stick = PadInput.Curved(PadInput.RightStick);
-            Vector2 next = position + stick * speed * scale * Time.unscaledDeltaTime;
+            Vector2 next = position;
+            if (stick != Vector2.zero)
+            {
+                // The stick has the cursor: any glide stops.
+                gliding = false;
+                stickMoving = true;
+                next = position + stick * speed * scale * Time.unscaledDeltaTime;
+            }
+            else
+            {
+                // Just let go near something worth landing on: settle onto it.
+                if (stickMoving && AimAssist.Enabled && snapFrame >= Time.frameCount - 1
+                    && Nearest(position, SnapPixels * scale, out Vector2 snap))
+                {
+                    glideTo = snap;
+                    gliding = true;
+                }
+                stickMoving = false;
+                if (gliding)
+                {
+                    float k = 1f - Mathf.Exp(-Time.unscaledDeltaTime / GlideSeconds);
+                    next = Vector2.Lerp(position, glideTo, k);
+                    if ((glideTo - next).sqrMagnitude < .25f) { next = glideTo; gliding = false; }
+                }
+            }
             next.x = Mathf.Clamp(next.x, 0f, Mathf.Max(0f, Screen.width - 1f));
             next.y = Mathf.Clamp(next.y, 0f, Mathf.Max(0f, Screen.height - 1f));
             delta = next - position;
@@ -98,6 +157,20 @@ public sealed class PadCursor : MonoBehaviour
             }
         }
         Draw();
+    }
+
+    // The offered point nearest the cursor, within a radius (pixels).
+    private static bool Nearest(Vector2 from, float radius, out Vector2 point)
+    {
+        point = from;
+        float best = radius * radius;
+        bool found = false;
+        foreach (Vector2 p in snapPoints)
+        {
+            float d = (p - from).sqrMagnitude;
+            if (d <= best) { best = d; point = p; found = true; }
+        }
+        return found;
     }
 
     private bool PressUiAt(Vector2 screen)

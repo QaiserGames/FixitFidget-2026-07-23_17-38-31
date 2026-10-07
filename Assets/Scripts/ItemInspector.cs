@@ -1,7 +1,25 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 
+// ---------------------------------------------------------------------------
+// WORKING ON AN ITEM AT THE BENCH
+//
+// The inspection close-up: the item moves to the inspect point, which the inspection camera frames with the tool rail,
+// the tray and the screw bin; tools are picked off the rail and used on the item with the pointer (the mouse, or the
+// pad's cursor, PadCursor).
+//
+// STATIONS AS REACH (playtest 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §2.1). Getting here used to take
+// F at the bench (a camera of its own), then aiming the crosshair at the item and clicking it. Now nothing is stepped up
+// to: in first person, click or RT on a device on the bench (PlayerInteractor); from above, E on it (when it isn't
+// finished). The close-up itself is kept as it was: B, Esc or right-click step back (the tool first, then the item),
+// and E picks the item up and steps back in one press.
+//
+// Aim help on a pad (§2.3): when the stick lets go within about 60 px of a part, a tool or grime, the cursor settles on
+// it (PadCursor), and D-pad left or right steps the cursor to the next part in the order the work goes (screws, cover,
+// grime, parts).
+// ---------------------------------------------------------------------------
 public class ItemInspector : MonoBehaviour
 {
     [SerializeField] private Transform inspectPoint;
@@ -28,10 +46,12 @@ public class ItemInspector : MonoBehaviour
     private PlayerInteractor interaction;
     private CircuitPuzzle[] focusedCircuits = System.Array.Empty<CircuitPuzzle>();
     private bool rotateGesture;
+    // The frame the item was picked up to work on: that press was the press that began it, not one on the item.
+    private int begunFrame = -1;
 
     public bool IsHoldingItem => focusedItem != null;
-    public bool IsAtWorkbench => interaction != null && interaction.IsAtStation
-        && interaction.CurrentStation != null && interaction.CurrentStation.IsWorkSurface;
+    /// <summary>Working on an item at the bench (the inspection close-up is up). Was "docked at the bench" until playtest 3.</summary>
+    public bool IsAtWorkbench => focusedItem != null;
     public JobBase FocusedItem => focusedItem;
     public ToolType CurrentTool => currentTool;
     public string CurrentJobCard { get; private set; }
@@ -73,60 +93,51 @@ public class ItemInspector : MonoBehaviour
         // The mouse, or the controller's on-screen cursor (see GamePointer).
         if (!GamePointer.Available) return;
 
-        // Leaving the station, or the item dying, always releases focus.
-        if (focusedItem == null || !interaction.IsAtStation)
+        // Nothing in hand (or the item gone): no close-up.
+        if (focusedItem == null)
         {
-            if (focusedItem != null || inspectCam.Priority > 0) Release();
-            HandleSelect();
+            if (inspectCam != null && inspectCam.Priority > 0) Release();
+            HoverName = ""; HoverAction = ""; CurrentJobCard = "";
             return;
         }
 
+        // The press that began the work is not a press on the item.
+        if (Time.frameCount == begunFrame) return;
         HandleBench();
     }
 
-    // ---------- CHOOSING: crosshair-aimed, work surfaces only ----------
+    // ---------- STARTING: from the interactor (click or RT in first person, E from above) ----------
 
-    private void HandleSelect()
+    /// <summary>
+    /// Takes <paramref name="item"/> (a device on the bench) into the inspection close-up: it moves to the inspect point and
+    /// the inspection camera takes over, from whatever view Ace is in. False when something is already in hand, the day is
+    /// over, or the bench's camera isn't set up.
+    /// </summary>
+    public bool BeginInspection(JobBase item)
     {
-        HoverName = "";
-        HoverAction = "";
-        CurrentJobCard = "";
+        if (item == null || focusedItem != null || inspectPoint == null || inspectCam == null || Time.timeScale <= 0f
+            || DayClock.Instance != null && DayClock.Instance.DayOver) return false;
+        if (cam == null) cam = Camera.main;
+        focusedItem = item;
+        focusedCircuits = item.GetComponentsInChildren<CircuitPuzzle>();
+        rotateGesture = false;
+        restPosition = item.transform.position;
+        restRotation = item.transform.rotation;
+        begunFrame = Time.frameCount;
+        railTools = null;
 
-        if (!interaction.IsAtStation) return;
+        item.transform.position = inspectPoint.position;
+        inspectCam.Priority = 30;
+        CurrentJobCard = item.JobCard;
 
-        // Repairs happen at the bench, not the counter.
-        if (interaction.CurrentStation == null || !interaction.CurrentStation.IsWorkSurface) return;
-
-        Vector2 centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-        Ray ray = cam.ScreenPointToRay(centre);
-        if (!Physics.Raycast(ray, out RaycastHit hit, benchReach)) return;
-
-        JobBase item = hit.collider.GetComponentInParent<JobBase>();
-        if (item == null) return;
-
-        HoverName = item.JobCard;
-        HoverAction = "Work on this";
-
-        // Left click, or RT on a controller.
-        if (GamePointer.PrimaryPressed)
-        {
-            focusedItem = item;
-            focusedCircuits = item.GetComponentsInChildren<CircuitPuzzle>();
-            rotateGesture = false;
-            restPosition = item.transform.position;
-            restRotation = item.transform.rotation;
-
-            item.transform.position = inspectPoint.position;
-            inspectCam.Priority = 30;
-
-            // Now we're manipulating, not choosing — give the cursor back.
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        // Manipulating, not aiming: the pointer is free (CafeViewMode keeps it so while this is up).
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = !PadInput.UsingPad;
+        return true;
     }
 
-    // Cancelling for the recap never returns cursor ownership to a workbench.
-    public void CancelInspection() => Release(false);
+    // Cancelling for the recap leaves the cursor as the recap wants it.
+    public void CancelInspection() => Release();
 
     // Right-click, Esc or a controller's B: put the tool down first, then the item.
     public void StepBack()
@@ -152,7 +163,9 @@ public class ItemInspector : MonoBehaviour
         return carry.Contains(item);
     }
 
-    private void Release(bool returnToStation = true)
+    // The item goes back where it was and the close-up comes down. The cursor is the view's to set again (CafeViewMode
+    // locks it in first person and frees it above): nothing here locks it.
+    private void Release()
     {
         foreach (CircuitPuzzle puzzle in focusedCircuits)
             if (puzzle != null) puzzle.HideForInspection();
@@ -170,22 +183,17 @@ public class ItemInspector : MonoBehaviour
         CurrentJobCard = "";
         HoverName = "";
         HoverAction = "";
-
-        // Back to choosing — crosshair returns.
-        if (returnToStation && interaction != null && interaction.IsAtStation
-            && !(DayClock.Instance != null && DayClock.Instance.DayOver))
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
     }
 
     // ---------- MANIPULATING: cursor-aimed ----------
 
     private void HandleBench()
     {
+        if (cam == null) cam = Camera.main;
+        if (cam == null) return;
         // A controller gets its own on-screen cursor while an item is in hand.
         GamePointer.WantCursor();
+        OfferAimHelp();
         Vector2 pointer = GamePointer.Position;
 
         // UI uses the existing Input System EventSystem. Raw bench input must
@@ -300,6 +308,101 @@ public class ItemInspector : MonoBehaviour
         }
 
         if (!held) rotateGesture = false;
+    }
+
+    // ---------- aim help on a pad (playtest 3, §2.3) ----------
+
+    // The points the pad's cursor settles on (every part, grime spot and tool on screen), and D-pad left / right: the
+    // cursor glides to the next part in the order the work goes.
+    private readonly List<Vector2> snapPoints = new();
+    private ToolPickup[] railTools;   // the bench's tools, found once an item is taken up (they don't come and go)
+    private readonly List<(int order, Vector2 screen)> workPoints = new();
+
+    private void OfferAimHelp()
+    {
+        if (!GamePointer.PadCursorActive || !AimAssist.Enabled) return;
+        snapPoints.Clear();
+        workPoints.Clear();
+        GatherWork(focusedItem.transform);
+        foreach (GameObject part in focusedItem.DetachedParts)
+            if (part != null) GatherWork(part.transform);
+        foreach (var w in workPoints) snapPoints.Add(w.screen);
+        if (railTools == null) railTools = FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude);
+        foreach (ToolPickup tool in railTools)
+            if (tool != null && OnScreen(BoundsCentre(tool.transform), out Vector2 s)) snapPoints.Add(s);
+        PadCursor.OfferSnapPoints(snapPoints);
+
+        int direction = PadInput.Pressed(PadButton.DpadRight) ? 1 : PadInput.Pressed(PadButton.DpadLeft) ? -1 : 0;
+        if (direction == 0 || workPoints.Count == 0) return;
+        // In the work's order (screws, covers, grime, parts, tiles), left to right within each kind.
+        workPoints.Sort((a, b) => a.order != b.order ? a.order.CompareTo(b.order) : a.screen.x.CompareTo(b.screen.x));
+        Vector2 at = GamePointer.Position;
+        int nearest = 0;
+        float best = float.PositiveInfinity;
+        for (int i = 0; i < workPoints.Count; i++)
+        {
+            float d = (workPoints[i].screen - at).sqrMagnitude;
+            if (d < best) { best = d; nearest = i; }
+        }
+        // On a part already (within 30 px): the next one that way; on none: the first of the work (right) or the last (left).
+        bool onOne = best <= 30f * 30f * Scale * Scale;
+        int next = onOne ? (nearest + direction + workPoints.Count) % workPoints.Count
+            : direction > 0 ? 0 : workPoints.Count - 1;
+        PadCursor.GlideTo(workPoints[next].screen);
+    }
+
+    private static float Scale => Mathf.Max(.5f, Screen.height / 1080f);
+
+    // Each part of the item that work can be done on now, with its place in the order the work goes: screws out, the
+    // cover off, the grime, the parts, the circuit, then the cover back on and the screws back in.
+    private void GatherWork(Transform root)
+    {
+        foreach (BenchInteractable part in root.GetComponentsInChildren<BenchInteractable>())
+        {
+            if (!part.isActiveAndEnabled || !part.CanInteract) continue;
+            if (OnScreen(BoundsCentre(part.transform), out Vector2 s)) workPoints.Add((WorkOrder(part), s));
+        }
+        // Grime counts once it can be reached: nothing (the cover) between the camera and it.
+        foreach (GrimeSpot grime in root.GetComponentsInChildren<GrimeSpot>())
+            if (grime.isActiveAndEnabled && OnScreen(BoundsCentre(grime.transform), out Vector2 s) && Uncovered(grime))
+                workPoints.Add((2, s));
+    }
+
+    private bool Uncovered(GrimeSpot grime)
+    {
+        Vector3 to = BoundsCentre(grime.transform) - cam.transform.position;
+        if (!Physics.Raycast(cam.transform.position, to.normalized, out RaycastHit hit, to.magnitude + .05f)) return true;
+        return hit.collider.GetComponentInParent<GrimeSpot>() == grime;
+    }
+
+    /// <summary>A part's place in the order the work goes (0 first): screws out, the cover off, the grime (2), the parts,
+    /// the circuit, the cover back on, the screws back in.</summary>
+    public static int WorkOrder(BenchInteractable part)
+    {
+        if (part is ScrewTarget)
+        {
+            Screw screw = part.GetComponent<Screw>();
+            return screw != null && screw.IsOut ? 6 : 0;
+        }
+        if (part is RemovablePart cover) return cover.IsRemoved ? 5 : 1;
+        if (part is ReplaceablePart) return 3;
+        if (part is CircuitTile) return 4;
+        return 7;
+    }
+
+    private bool OnScreen(Vector3 world, out Vector2 screen)
+    {
+        Vector3 p = cam.WorldToScreenPoint(world);
+        screen = p;
+        return p.z > cam.nearClipPlane && p.x >= 0f && p.y >= 0f && p.x <= Screen.width && p.y <= Screen.height;
+    }
+
+    private static Vector3 BoundsCentre(Transform t)
+    {
+        var c = t.GetComponentInChildren<Collider>();
+        if (c != null && c.enabled) return c.bounds.center;
+        var r = t.GetComponentInChildren<Renderer>();
+        return r != null ? r.bounds.center : t.position;
     }
 
     // Controller tool selection: bare hands, then each bench tool in turn.

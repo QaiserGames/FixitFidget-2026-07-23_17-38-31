@@ -15,6 +15,11 @@ public class CustomerInteractable : Interactable
                           brain.CanApologiseForDrink || brain.CanRequestFocus || brain.HasColdDrinkForOrder ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
+    // What only happens across the counter: hearing them, their decision, and the counter phone. Since playtest 3
+    // (stations as reach) nothing is stepped up to: from behind the counter (PlayerInteractor.BehindCounter) E talks,
+    // to whoever the crosshair is on in first person and to whoever has waited longest from above.
+    public bool CounterBusiness => brain != null && (brain.CanHearIntake || brain.CanDecide || brain.CanFixAtCounter);
+
     // Which of those actions can be done from the shop floor, rather than only
     // from behind the counter. Intake is a proper conversation and stays
     // counter-only; handing things over and reassuring people happen wherever
@@ -41,7 +46,7 @@ public class CustomerInteractable : Interactable
             // made, calming them down only postpones the same dead end.
             if (brain.CanApologiseForDrink)
                 return $"Sorry, we're out of {brain.WantedDrinkName}";
-            if (brain.CanHearIntake || brain.CanDecide) return "Talk to them";
+            if (brain.CanHearIntake || brain.CanDecide) return $"Talk to {brain.CustomerName}";
             if (brain.CanFixAtCounter) return brain.HumanConversation.Finished ? "Return the phone" : "Check the mute switch";
             // The grade is shown BEFORE you commit. This is the whole point:
             // without it, handing back a half-done repair is a nasty surprise

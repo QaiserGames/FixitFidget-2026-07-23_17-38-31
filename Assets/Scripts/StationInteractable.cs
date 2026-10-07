@@ -28,6 +28,32 @@ public class StationInteractable : Interactable
     // written in stickLookSpeed. Measured once from the binding itself.
     private float stickScale = 1f;
 
+    // Every station in the scene (there are three: the counter, the bench and the dispenser): asked by the items on a
+    // bench (BenchHolds) and by the interactor, which finds the counter and the dispenser here once.
+    private static readonly System.Collections.Generic.List<StationInteractable> all = new();
+    /// <summary>The stations in the scene, enabled ones only.</summary>
+    public static System.Collections.Generic.IReadOnlyList<StationInteractable> All => all;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => all.Clear();
+
+    private void OnEnable() { if (!all.Contains(this)) all.Add(this); }
+
+    /// <summary>
+    /// Whether <paramref name="job"/> sits on a work surface's slots (the repair bench): what E (overhead) and click or RT
+    /// (first person) work on without stepping up to the bench (stations as reach, playtest 3).
+    /// </summary>
+    public static bool BenchHolds(JobBase job)
+    {
+        if (job == null) return false;
+        foreach (StationInteractable s in all)
+            if (s != null && s.isWorkSurface && s.dropSpot != null && s.dropSpot.Holds(job)) return true;
+        return false;
+    }
+
+    /// <summary>The dispenser's station (it has a BeverageStation): the one station that still has a close-up of its own.</summary>
+    public bool IsDrinks => GetComponent<BeverageStation>() != null;
+
     private void Awake()
     {
         player = FindAnyObjectByType<PlayerInteractor>();
@@ -106,6 +132,7 @@ public class StationInteractable : Interactable
 
     private void OnDisable()
     {
+        all.Remove(this);
         if (lookInput != null) lookInput.enabled = false;
         lookReady = false;
     }
@@ -153,8 +180,8 @@ public class StationInteractable : Interactable
         }
     }
 
-    // Dropping just drops. The player presses F when THEY decide to start working —
-    // we don't guess, because "still ferrying" and "ready to work" are both valid.
+    // Dropping just drops. Work starts when the player chooses it (E on the device from above, click or RT on it in
+    // first person): we don't guess, because "still ferrying" and "ready to work" are both valid.
     public override void Interact(PlayerInteractor player)
     {
         PlayerCarry c = player.GetComponent<PlayerCarry>();

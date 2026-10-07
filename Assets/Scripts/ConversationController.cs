@@ -45,7 +45,7 @@ public sealed class ConversationReply
 //   * take it: "I'll take a look." / "Coming right up." (highlighted first, so E, E still takes the job);
 //   * up to two things to ask, regulars only (CustomerIdentity.Topics): they answer and it greys out;
 //   * turn them away: "Not today." (Q at any time);
-//   * step away (Esc, F or Tab).
+//   * step away (Esc or Tab; F stepped away too until playtest 3 retired F by day).
 // W/S, the arrow keys or the mouse wheel move the highlight; E, Enter or a click picks it; 1-4 pick one
 // directly. On a controller: the stick or D-pad, A picks, Y turns them away, B steps away.
 // Dialogue gates the decision: nothing can be picked until their line is up, and an E pressed before
@@ -64,8 +64,8 @@ public class ConversationController : MonoBehaviour
              "them at the counter longer.")]
     [SerializeField] private float closingPause = 1.2f;
 
-    // Keep ownership through the closing frame, so F/Escape cannot also move
-    // the player out of a station later in that same frame.
+    // Keep ownership through the closing frame, so Escape cannot also move
+    // the player out of something else later in that same frame.
     public bool InConversation => conversationOpen || Time.frameCount == closedAtFrame;
 
     /// <summary>
@@ -245,10 +245,9 @@ public class ConversationController : MonoBehaviour
             return;
         }
 
-        // Controller: B (or X, like F) steps away. Tab too, as in Skyrim.
-        bool stepAway = ready && (kb != null && (kb.fKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame
-                                                 || kb.tabKey.wasPressedThisFrame)
-            || PadInput.Pressed(PadButton.East) || PadInput.Pressed(PadButton.West));
+        // Controller: B steps away. Tab too, as in Skyrim. (F and X did as well, until playtest 3 retired them by day.)
+        bool stepAway = ready && (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.tabKey.wasPressedThisFrame)
+            || PadInput.Pressed(PadButton.East));
         if (stepAway) { End(); return; }
 
         // Still talking: E shows everything they're saying and brings the replies up, never an answer.

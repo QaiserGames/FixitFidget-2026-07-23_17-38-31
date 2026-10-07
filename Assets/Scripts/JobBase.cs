@@ -89,6 +89,16 @@ public abstract class JobBase : MonoBehaviour
         }
     }
 
+    /// <summary>The parts off it right now (screws and covers in the tray): what the bench's D-pad steps through too.</summary>
+    public IReadOnlyList<GameObject> DetachedParts
+    {
+        get
+        {
+            RemoveMissingDetachedParts();
+            return detached;
+        }
+    }
+
     public bool HasDetachedComponent<T>() where T : Component
     {
         RemoveMissingDetachedParts();

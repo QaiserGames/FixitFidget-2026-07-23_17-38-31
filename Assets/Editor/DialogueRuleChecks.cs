@@ -122,7 +122,10 @@ public static class DialogueRuleChecks
             lint.Bubble($"Grace's camera hand-back ({grade})", GraceCameraEpisode.CompletionLine(grade));
         foreach (NightThing thing in NightThings.All)
         {
-            lint.Reply(thing.id + ", the question", thing.topic);
+            // A thing nobody talks about by day has no question to ask (the reunion cups: Ace first hears of them from the
+            // man at the bins, NightThings). One that is talked about must have its question.
+            if (!string.IsNullOrWhiteSpace(thing.topic) || !string.IsNullOrWhiteSpace(thing.mention))
+                lint.Reply(thing.id + ", the question", thing.topic);
             lint.Speech(thing.id + ", the mention", thing.mention);
             lint.Bubble(thing.id + ", mentioned while waiting", thing.waitingMention);
             lint.Speech(thing.id + ", the complaint", thing.complaint);

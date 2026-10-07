@@ -396,7 +396,7 @@ internal static class NightTwoSteps
         p.lines = new DialogueSet
         {
             intake = new[] { "Coffee, black. That's all, Ace." },
-            orderedDrink = new[] { "Coffee, black. First batch, if it's going.\nThe second batch here is always burnt." },
+            orderedDrink = new[] { "Coffee, black. First batch; the second batch is always burnt." },   // said in the room: one line
             accepted = new[] { "Thanks. I'll take it by the window." },
             completed = new[] { "Good coffee. Don't tell the second batch." },
             declined = new[] { "Fair enough. Another time." },

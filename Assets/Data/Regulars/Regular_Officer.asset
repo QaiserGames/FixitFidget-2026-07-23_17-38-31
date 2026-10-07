@@ -55,10 +55,7 @@ MonoBehaviour:
     stormedOut:
     - I'll get one on the beat.
     orderedDrink:
-    - 'Coffee, black. First batch, if it''s going.
-
-      The second batch here is
-      always burnt.'
+    - Coffee, black. First batch; the second batch is always burnt.
     drinkOrder: []
   returnLines:
     intake:

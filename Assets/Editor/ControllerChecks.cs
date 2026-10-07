@@ -16,9 +16,10 @@ using UnityEngine.InputSystem.LowLevel;
 //
 // Plugs in a virtual gamepad (nothing to hold, nothing saved into the scene)
 // and drives it the way a player would: orbit, zoom and re-centre the overhead
-// view, switch to first person and look and walk, then step up to the counter,
-// the drink station and the repair bench and look around at each. The player
-// is put back where they started. Results go to the Console and to
+// view, switch to first person and look and walk, then (stations as reach,
+// playtest 3) open the dispenser's close-up with A from above, look round it,
+// walk out of it, and stand behind the counter and across it. The player is put
+// back where they started. Results go to the Console and to
 // <project>/Logs/ControllerCheck/controller-check.txt.
 public static class ControllerChecks
 {
@@ -233,64 +234,75 @@ public static class ControllerChecks
         yield return Press(GamepadButton.Select);
         Check(!view.FirstPersonSelected, "View button switches back to the overhead view");
 
-        // ---------- stations ----------
-        foreach (StationInteractable station in UnityEngine.Object.FindObjectsByType<StationInteractable>(FindObjectsInactive.Exclude))
+        // ---------- stations as reach (playtest 3, 7 Oct 2026) ----------
+        // Nothing is stepped up to any more: X does nothing by day. From above, A at the dispenser opens its close-up,
+        // the right stick looks round it, and the left stick walks out of it (B steps back too); behind the counter Ace
+        // counts as behind it, and across it he doesn't. (The bench and the counter's conversations need a device and a
+        // customer: Fixit Fidget > Playtest > Stations as reach plays those.)
+        StationInteractable drinks = interactor.DrinksStation, counter = interactor.CounterStation;
+        if (drinks == null || drinks.StandPoint == null)
+            Check(false, "The dispenser's station is in the scene, with a stand point");
+        else
         {
-            if (station.StandPoint == null) continue;
-            bool drinks = station.GetComponent<BeverageStation>() != null;
-            string label = drinks ? "drink station" : station.IsWorkSurface ? "repair bench" : "counter";
-            Teleport(station.StandPoint.position);
+            Teleport(drinks.StandPoint.position);
             yield return Frames(6);
-            StationInteractable near = Get<StationInteractable>(interactor, "nearbyStation");
-            Vector3 offset = view.transform.position - station.StandPoint.position;
-            offset.y = 0f;
-            report.AppendLine($"      at the {label}: {offset.magnitude:0.00} m from its stand point, nearest station "
-                + (near != null ? near.StationLabel : "none"));
             TMP_Text prompt = PromptText();
-            string stepUp = "[" + PadInput.Label(PadButton.West) + "]";
-            if (prompt != null)
-                Check(prompt.text.Contains(stepUp), $"Beside the {label} the prompt offers {stepUp}: \"{Flatten(prompt.text)}\"");
-
+            string a = "[" + PadInput.Label(PadButton.South) + "]", x = "[" + PadInput.Label(PadButton.West) + "]";
+            string text = prompt != null ? Flatten(prompt.text) : "";
+            Check(text.Contains(a) && text.Contains(drinks.StationLabel), $"At the dispenser the prompt offers {a} {drinks.StationLabel}: \"{text}\"");
+            Check(!text.Contains(x), $"and offers no {x}: stepping up is retired by day");
             yield return Press(GamepadButton.West);
-            Check(interactor.CurrentStation == station, $"X steps up to the {label}");
+            Check(!interactor.IsAtStation, "X steps up to nothing by day");
+            yield return Press(GamepadButton.South);
+            Check(interactor.CurrentStation == drinks, "A at the dispenser opens its close-up");
             yield return AfterBlend();
 
-            if (drinks)
+            BeverageLook look = drinks.GetComponentInChildren<BeverageLook>();
+            if (look != null)
             {
-                BeverageLook look = null;
-                foreach (BeverageLook candidate in UnityEngine.Object.FindObjectsByType<BeverageLook>(FindObjectsInactive.Exclude))
-                    if (candidate.station == station) look = candidate;
-                if (look != null)
-                {
-                    Quaternion rest = look.transform.rotation;
-                    Hold(new GamepadState { rightStick = new Vector2(1f, 0f) });
-                    yield return Seconds(.35f);
-                    Release();
-                    yield return Frames(3);
-                    float angle = Quaternion.Angle(rest, look.transform.rotation);
-                    Check(angle > 5f, $"Right stick looks around the {label} ({angle:0} degrees)");
-                }
-            }
-            else
-            {
-                CinemachineCamera camera = Get<CinemachineCamera>(station, "stationCamera");
-                CinemachinePanTilt panTilt = camera != null ? camera.GetComponent<CinemachinePanTilt>() : null;
-                if (panTilt != null)
-                {
-                    float pan0 = panTilt.PanAxis.Value;
-                    Hold(new GamepadState { rightStick = new Vector2(1f, 0f) });
-                    yield return Seconds(.35f);
-                    Release();
-                    yield return Frames(3);
-                    float panned = Mathf.Abs(Mathf.DeltaAngle(pan0, panTilt.PanAxis.Value));
-                    Check(panned > 5f && panned < 90f,
-                        $"Right stick looks around the {label} at a controllable speed ({panned:0} degrees in 0.35 s)");
-                }
+                Quaternion rest = look.transform.rotation;
+                Hold(new GamepadState { rightStick = new Vector2(1f, 0f) });
+                yield return Seconds(.35f);
+                Release();
+                yield return Frames(3);
+                float angle = Quaternion.Angle(rest, look.transform.rotation);
+                Check(angle > 5f, $"Right stick looks around the dispenser ({angle:0} degrees)");
             }
 
-            yield return Press(GamepadButton.East);
-            Check(!interactor.IsAtStation, $"B steps back from the {label}");
+            Hold(new GamepadState { leftStick = new Vector2(0f, -1f) });
+            yield return Frames(8);
+            Release();
             yield return Frames(4);
+            Check(!interactor.IsAtStation, "The left stick walks out of the close-up");
+            yield return AfterBlend();
+
+            Teleport(drinks.StandPoint.position);
+            yield return Frames(6);
+            yield return Press(GamepadButton.South);
+            Check(interactor.CurrentStation == drinks, "A opens it again");
+            yield return AfterBlend();
+            yield return Press(GamepadButton.East);
+            Check(!interactor.IsAtStation, "B steps back from the close-up");
+            yield return Frames(4);
+        }
+
+        if (counter == null || counter.StandPoint == null)
+            Check(false, "The counter's station is in the scene, with a stand point");
+        else
+        {
+            Teleport(counter.StandPoint.position);
+            yield return Frames(6);
+            Check(interactor.BehindCounter, "At the till Ace is behind the counter");
+            CounterQueue queue = UnityEngine.Object.FindAnyObjectByType<CounterQueue>();
+            if (queue != null && queue.SlotCount > 0)
+            {
+                Teleport(queue.SlotPoint(queue.SlotCount / 2).position);
+                yield return Frames(6);
+                Check(!interactor.BehindCounter, "Where the customers stand, he isn't");
+            }
+            TMP_Text prompt = PromptText();
+            string x = "[" + PadInput.Label(PadButton.West) + "]";
+            Check(prompt == null || !prompt.text.Contains(x), "The counter offers no X");
         }
     }
 

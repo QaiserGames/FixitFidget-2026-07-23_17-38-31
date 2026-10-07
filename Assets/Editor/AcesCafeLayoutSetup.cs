@@ -205,8 +205,8 @@ public static class AcesCafeLayoutSetup
             .Where(s => s.gameObject.scene == scene).Select(s => s.StandPoint)
             .Concat(Find("CounterQueue").transform.Cast<Transform>()).Where(t => t != null).Distinct().ToArray();
         var occupied = targets.Select(t => new Vector2(t.position.x, t.position.z)).ToArray();
-        float radius = player.radius * Mathf.Max(Mathf.Abs(player.transform.lossyScale.x),
-            Mathf.Abs(player.transform.lossyScale.z));
+        // Ace's capsule as the game runs it (0.35 since playtest 3; the scene's controller still says 0.5).
+        float radius = PlayerMovement.RadiusFor(player);
         float height = Mathf.Max(player.height * Mathf.Abs(player.transform.lossyScale.y), radius * 2f);
         const float step = .20f;
         const float minX = -7.2f;

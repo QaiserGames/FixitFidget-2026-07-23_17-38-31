@@ -253,7 +253,8 @@ public sealed class Juice : MonoBehaviour
             busyInspector = carry.GetComponent<ItemInspector>();
             busyCounter = carry.GetComponent<CounterRepairView>();
         }
-        return busyPlayer != null && busyPlayer.IsAtStation
+        // Ace in a close-up (the drinks close-up, an item at the bench, the counter phone: PlayerInteractor.InCloseUp).
+        return busyPlayer != null && busyPlayer.InCloseUp
             || busyInspector != null && busyInspector.IsHoldingItem
             || busyCounter != null && busyCounter.OwnsInput;
     }

@@ -23,9 +23,9 @@ public class HoverTooltipUI : MonoBehaviour
     {
         // Update and raw mouse input still run at timeScale 0. A scaled fade
         // cannot clear yesterday's tooltip once the recap has paused the day.
+        // The dispenser has its own card (BeverageStation), its close-up or its controls under the crosshair alike.
         if (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.DayOver
-            || interactor != null && interactor.CurrentStation != null
-                && interactor.CurrentStation.GetComponent<BeverageStation>() != null)
+            || interactor != null && interactor.UsingDrinks)
         {
             HideImmediately();
             return;
@@ -45,11 +45,8 @@ public class HoverTooltipUI : MonoBehaviour
             title = inspector.HoverName;
             action = inspector.HoverAction;
         }
-        else if (interactor != null && interactor.IsAtStation)
-        {
-            action = interactor.CurrentPrompt;
-            title = string.IsNullOrEmpty(action) ? "" : "Customer";
-        }
+        // (Until playtest 3 a station's own camera showed "Customer" and the prompt here, which read "Customer / Pick
+        // up" while choosing an item at the bench. Nothing is stepped up to now: the HUD's prompt line says it.)
 
         bool wantsShow = !string.IsNullOrEmpty(title) || !string.IsNullOrEmpty(action);
 

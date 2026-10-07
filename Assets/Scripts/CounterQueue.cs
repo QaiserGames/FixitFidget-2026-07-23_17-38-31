@@ -69,6 +69,11 @@ public class CounterQueue : MonoBehaviour
 
     public Transform SlotPoint(int index) => slots[index];
 
+    /// <summary>Who stands in slot <paramref name="index"/> (null when it's free): the interactor finds who has waited
+    /// longest here (stations as reach: E from behind the counter, playtest 3).</summary>
+    public CustomerBrain Occupant(int index) =>
+        occupants != null && index >= 0 && index < occupants.Length ? occupants[index] : null;
+
     // Clear the slot and stop. Nobody is asked to move.
     //
     // WHAT USED TO HAPPEN, AND WHY IT'S GONE

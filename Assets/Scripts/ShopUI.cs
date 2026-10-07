@@ -169,13 +169,15 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        // This view uses a small centre reticle and its own concise action caption.
-        // Suppress the shared large E/F line while keeping the aimed controls clear.
-        if (interactor.CurrentStation != null
-            && interactor.CurrentStation.GetComponent<BeverageStation>() != null)
+        // The dispenser (its close-up from above, or its controls under the crosshair in first person) has a small
+        // centre reticle and its own concise action caption (BeverageStation). Suppress the shared large prompt line
+        // while keeping the aimed controls clear.
+        if (interactor.UsingDrinks)
         {
             ClearPrompt();
-            if (crosshair != null) crosshair.SetActive(Time.timeScale > 0);
+            if (crosshair != null)
+                crosshair.SetActive(Time.timeScale > 0 && (interactor.IsAtStation
+                    || viewMode != null && viewMode.WalkingFirstPerson && !viewMode.PointerReleased));
             return;
         }
 
@@ -192,7 +194,9 @@ public class ShopUI : MonoBehaviour
         }
 
         string interact = interactor.CurrentPrompt;
-        string action = interactor.StationPrompt;
+        // The second verb, on a click or RT (a device on the bench in first person: "Work on it"). There is no station
+        // to step up to by day any more (playtest 3), so F has no line.
+        string action = interactor.WorkPrompt;
         bool pad = PadInput.UsingPad;
         bool holding = pad && inspector != null && inspector.IsHoldingItem;
         string toolName = holding ? inspector.CurrentToolName : null;
@@ -204,11 +208,11 @@ public class ShopUI : MonoBehaviour
             shownInteract = interact; shownAction = action; shownPromptPad = pad; shownPromptHolding = holding;
             shownToolName = toolName; shownPromptHand = hand; shownPromptDebug = showDebug; shownNightPrompt = null;
             string line = "";
-            // Keys follow the device in use: [E] / [F] on a keyboard, the pad's
+            // Keys follow the device in use: [E] / [Click] on a keyboard and mouse, the pad's
             // own labels once a controller is being used (see ControlHints).
             if (!string.IsNullOrEmpty(interact)) line += $"[{ControlHints.Interact}]  {interact}";
             if (!string.IsNullOrEmpty(action))
-                line += (line.Length > 0 ? "        " : "") + $"[{ControlHints.Station}]  {action}";
+                line += (line.Length > 0 ? "        " : "") + $"[{ControlHints.Use}]  {action}";
             // Working on an item with a controller: say how to change tools and put things down.
             if (holding)
                 line += $"\n[{ControlHints.Tools}]  {toolName}        [{ControlHints.Use}]  Use        [{ControlHints.Back}]  "

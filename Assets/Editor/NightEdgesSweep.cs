@@ -556,7 +556,7 @@ internal static class NightEdgesSweep
 
     static Body AceBody()
     {
-        var body = new Body { radius = .5f, height = 2f, step = .3f, slope = 45f, from = "defaults (no Player CharacterController found)" };
+        var body = new Body { radius = PlayerMovement.CapsuleRadius, height = PlayerMovement.StandingHeight, step = .3f, slope = 45f, from = "defaults (no Player CharacterController found)" };
         var player = SceneManager.GetActiveScene().GetRootGameObjects()
             .SelectMany(g => g.GetComponentsInChildren<CharacterController>(true))
             .FirstOrDefault(c => c.gameObject.layer == LayerMask.NameToLayer("Player") || c.gameObject.name == "Player");
@@ -565,11 +565,12 @@ internal static class NightEdgesSweep
             float scale = Mathf.Max(Mathf.Abs(player.transform.lossyScale.x), Mathf.Abs(player.transform.lossyScale.z));
             body = new Body
             {
-                radius = player.radius * scale,
+                // As the game runs it (0.35 since playtest 3; the scene's controller still says 0.5).
+                radius = PlayerMovement.RadiusFor(player),
                 height = player.height * Mathf.Abs(player.transform.lossyScale.y),
                 step = player.stepOffset,
                 slope = player.slopeLimit,
-                from = $"'{PathOf(player.transform)}' (height {player.height:0.##}, radius {player.radius:0.##}, step {player.stepOffset:0.##}, slope {player.slopeLimit:0}°, skin {player.skinWidth:0.##})",
+                from = $"'{PathOf(player.transform)}' (height {player.height:0.##}, radius {PlayerMovement.CapsuleRadius:0.##} as played, step {player.stepOffset:0.##}, slope {player.slopeLimit:0}°, skin {PlayerMovement.CapsuleSkin:0.###})",
             };
         }
         return body;

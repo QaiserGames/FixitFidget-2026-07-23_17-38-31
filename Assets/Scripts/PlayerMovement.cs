@@ -6,6 +6,26 @@ public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 5f;
 
+    // A SLIMMER ACE, AND A CROUCH THAT'S REAL (playtest 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §2.4)
+    //
+    // Mansoor's note: Grace's house "is small and cramped" and the hide button "didn't fit Ace". Ace's collision capsule
+    // was 0.5 m in radius with Unity's default 8 cm skin: 1.16 m across, in a 5.42 x 4.02 m house. A person's shoulders
+    // are about half that. It is now 0.35 m in radius with a 3.5 cm skin (Unity's recommended tenth of the radius):
+    // 0.77 m across. Crouching (sneaking) used to lower the eye and the body but not the capsule, so a crouched Ace fit
+    // under nothing; now the capsule crouches too, to 1.0 m tall with the feet where they are, and the eye drops to
+    // 0.92 m, below the crouched capsule's top. Standing up again is checked: under anything lower than standing height,
+    // Ace stays crouched until there is room ("Too low to stand").
+    //
+    // The shape is set here, in code, when the game starts, rather than in the scene, so the scene doesn't change and
+    // there is one place that says how big Ace is. The edit-mode checks that measure room for Ace read these numbers
+    // (CapsuleRadius, CapsuleSkin) instead of the scene's CharacterController.
+    /// <summary>Ace's capsule: radius and skin (metres). Across: 2 x (radius + skin) = 0.77 m.</summary>
+    public const float CapsuleRadius = .35f, CapsuleSkin = .035f;
+    /// <summary>Ace's capsule standing and crouched (metres); the feet stay where they are.</summary>
+    public const float StandingHeight = 2f, CrouchedHeight = 1f;
+    /// <summary>How wide Ace is with the skin: what the checks and the NPCs' personal space allow for (metres).</summary>
+    public const float BodyRadius = CapsuleRadius + CapsuleSkin;
+
     // WHY FIRST-PERSON WALKING IS SMOOTHED
     //
     // The first-person camera is bolted to the capsule, so every change in the
@@ -67,25 +87,30 @@ public class PlayerMovement : MonoBehaviour
     // At night Ace can sneak: held Ctrl or C on the keyboard; on a controller the left stick's click
     // switches it on and off (holding a stick down while steering with it is a cramp, so the pad
     // toggles). Sneaking is 1.6 m/s instead of 5, crouched: the body lowers (AceBody plays the
-    // crouch clips) and the first-person eye drops, but the capsule stays exactly as it is (call 1),
-    // so nothing has to check headroom when Ace stands up. Steps are quieter and heard within 1 m
-    // instead of 4 (AceFootsteps, NightNoise). By day it's off: C switches hands in the café.
+    // crouch clips), the first-person eye drops, and (playtest 3, 7 Oct) the capsule crouches to
+    // 1.0 m, so Ace fits under things about 1.2 m up. Standing back up waits until there is room.
+    // Steps are quieter and heard within 1 m instead of 4 (AceFootsteps, NightNoise). By day it's
+    // off: C switches hands in the café.
     [Header("Sneaking (at night)")]
     [Tooltip("Sneaking speed, m/s (the break-ins spec: 1.6; walking is Move Speed).")]
     [SerializeField, Min(.2f)] private float sneakSpeed = 1.6f;
     [Tooltip("Seconds to crouch down, or to stand back up.")]
     [SerializeField, Range(.05f, 1f)] private float crouchSeconds = .25f;
-    [Tooltip("How far the first-person eye drops when crouched, metres.")]
-    [SerializeField, Range(0f, 1f)] private float crouchEyeDrop = .55f;
+    // Renamed on 7 Oct (it was crouchEyeDrop, 0.55): the scene's old value is left behind on purpose, so this default
+    // applies. 1.65 standing less 0.92 crouched, below the crouched capsule's 1.0 m top.
+    [Tooltip("How far the first-person eye drops when crouched, metres (1.65 standing to 0.92 crouched).")]
+    [SerializeField, Range(0f, 1f)] private float crouchedEyeDrop = .73f;
     [Tooltip("Sneaking by day too (the café). Off: only at night (by day C switches hands).")]
     [SerializeField] private bool sneakByDay;
 
-    /// <summary>Ace is sneaking (held Ctrl or C, or the pad's toggle), at night.</summary>
+    /// <summary>Ace is sneaking (held Ctrl or C, or the pad's toggle), at night; or kept crouched under something low.</summary>
     public bool Sneaking { get; private set; }
     /// <summary>How crouched Ace is, 0 standing to 1 crouched (eased over Crouch Seconds). AceBody and the eye follow it.</summary>
     public float Crouch { get; private set; }
+    /// <summary>Ace wants to stand but is under something lower than standing height: kept crouched until there's room.</summary>
+    public bool TooLowToStand { get; private set; }
     /// <summary>How far the first-person eye is lowered right now, metres.</summary>
-    public float EyeDrop => Crouch * crouchEyeDrop;
+    public float EyeDrop => Crouch * crouchedEyeDrop;
     /// <summary>The speed Ace walks at right now, m/s: Move Speed standing, Sneak Speed crouched, eased with the crouch.</summary>
     public float TopSpeed => Mathf.Lerp(moveSpeed, sneakSpeed, Crouch);
     /// <summary>Diagnostics: while set, it stands in for the sneak key (the checks sneak on their own).</summary>
@@ -93,7 +118,9 @@ public class PlayerMovement : MonoBehaviour
     /// <summary>The settings, for checks: walking and sneaking speed (m/s), and how far the eye drops crouched (m).</summary>
     public float WalkSpeed => moveSpeed;
     public float SneakSpeed => sneakSpeed;
-    public float CrouchEyeDrop => crouchEyeDrop;
+    public float CrouchEyeDrop => crouchedEyeDrop;
+    /// <summary>The capsule's height right now (metres): 2.0 standing, 1.0 crouched (for checks).</summary>
+    public float CapsuleHeight => controller != null ? controller.height : StandingHeight;
     bool padSneak;
 
     /// <summary>The player's setting, kept between sessions; the Inspector's value is the default.</summary>
@@ -132,6 +159,9 @@ public class PlayerMovement : MonoBehaviour
 
     private CharacterController controller;
     private Vector2 moveInput;
+    // The capsule's feet below the player's origin (metres, negative): kept as the capsule crouches and stands.
+    private float feetOffset = -1f;
+    private float appliedHeight = -1f;
 
     // Diagnostics only (the café lab walks Ace along the aisle for footage and
     // stress runs). While set, it stands in for the stick/WASD input and goes
@@ -140,11 +170,19 @@ public class PlayerMovement : MonoBehaviour
     private Vector2 walkInput;
     private ConversationController conversation;
     private CafeViewMode viewMode;
+    private PlayerInteractor interactor;
 
     // The horizontal velocity handed to the CharacterController this frame.
     // Read by the walking-feel check to separate "what we asked for" from
     // "what the capsule actually did" (collisions, stalls, pops).
     public Vector3 CommandedVelocity { get; private set; }
+
+    /// <summary>
+    /// A close-up has the screen (a conversation, the drinks close-up, an item at the bench, the counter phone): Ace's legs
+    /// stop, but E still works and what's held on the keys isn't forgotten, so leaving the drinks close-up by walking walks
+    /// on at once (PlayerInteractor).
+    /// </summary>
+    public bool StoppedByCloseUp => interactor != null && interactor.InCloseUp;
 
     private void Awake()
     {
@@ -153,6 +191,7 @@ public class PlayerMovement : MonoBehaviour
         controller = GetComponent<CharacterController>();
         conversation = GetComponent<ConversationController>();
         viewMode = GetComponent<CafeViewMode>();
+        interactor = GetComponent<PlayerInteractor>();
 
         // MIN MOVE DISTANCE MUST BE ZERO.
         //
@@ -167,7 +206,32 @@ public class PlayerMovement : MonoBehaviour
         // Fixit Fidget > Checks > Walking feel. Unity's own guidance is to
         // leave this at 0, so it is enforced here rather than trusted to every
         // scene's Inspector.
-        if (controller != null) controller.minMoveDistance = 0f;
+        if (controller != null)
+        {
+            controller.minMoveDistance = 0f;
+            ApplyCapsule();
+        }
+    }
+
+    // The slimmer capsule (see the note at the top), with the feet kept where the scene put them.
+    private void ApplyCapsule()
+    {
+        feetOffset = controller.center.y - controller.height * .5f;
+        controller.radius = CapsuleRadius;
+        controller.skinWidth = CapsuleSkin;
+        // The step a capsule can climb must fit inside it (Unity: no more than its height plus its diameter).
+        controller.stepOffset = Mathf.Min(controller.stepOffset, CrouchedHeight * .5f);
+        SetHeight(StandingHeight);
+    }
+
+    private void SetHeight(float height)
+    {
+        if (controller == null || Mathf.Abs(height - appliedHeight) < .001f) return;
+        appliedHeight = height;
+        controller.height = height;
+        Vector3 centre = controller.center;
+        centre.y = feetOffset + height * .5f;
+        controller.center = centre;
     }
 
     // Called automatically by the Player Input component whenever
@@ -181,8 +245,7 @@ public class PlayerMovement : MonoBehaviour
             ? Vector2.zero : value.Get<Vector2>();
     }
 
-    // Stations disable this component. Coming back, walking starts from rest
-    // rather than resuming whatever was held when you stepped up to the bench.
+    // Disabled (a check, the recap): walking starts from rest when it comes back.
     private void OnDisable() => ClearInput();
 
     private void OnApplicationFocus(bool focused)
@@ -198,15 +261,17 @@ public class PlayerMovement : MonoBehaviour
     }
 
     // Sneaking: at night only (unless Sneak By Day), held Ctrl or C, or the pad's toggle, or a check's
-    // ScriptedSneak. Crouch eases toward it, and the speed follows the crouch (see TopSpeed).
+    // ScriptedSneak. Crouch eases toward it, and the speed follows the crouch (see TopSpeed). Wanting to
+    // stand under something lower than standing height keeps Ace crouched (and sneaking) until there's room.
     private void UpdateSneak()
     {
         NightWalk night = NightWalk.Instance;
         bool allowed = sneakByDay || night != null && night.Active;
+        bool wants;
         if (!allowed)
         {
             padSneak = false;
-            Sneaking = false;
+            wants = false;
         }
         else
         {
@@ -214,9 +279,35 @@ public class PlayerMovement : MonoBehaviour
             Keyboard keys = Keyboard.current;
             bool held = keys != null && Application.isFocused
                 && (keys.leftCtrlKey.isPressed || keys.rightCtrlKey.isPressed || keys.cKey.isPressed);
-            Sneaking = ScriptedSneak ?? (held || padSneak);
+            wants = ScriptedSneak ?? (held || padSneak);
         }
+        TooLowToStand = !wants && Crouch > 0f && !RoomToStand();
+        Sneaking = wants || TooLowToStand;
         Crouch = Mathf.MoveTowards(Crouch, Sneaking ? 1f : 0f, Time.deltaTime / Mathf.Max(.01f, crouchSeconds));
+        SetHeight(Mathf.Lerp(StandingHeight, CrouchedHeight, Crouch));
+    }
+
+    static readonly Collider[] Overlaps = new Collider[16];
+
+    /// <summary>
+    /// Whether a standing Ace would fit here: the space the capsule grows into, from the crouched capsule's top up to
+    /// standing height, is clear of anything solid but Ace (triggers don't count).
+    /// </summary>
+    public bool RoomToStand()
+    {
+        if (controller == null) return true;
+        float r = controller.radius;
+        Vector3 feet = transform.position + Vector3.up * feetOffset;
+        Vector3 low = feet + Vector3.up * (CrouchedHeight - r);
+        Vector3 high = feet + Vector3.up * (StandingHeight - r);
+        int n = Physics.OverlapCapsuleNonAlloc(low, high, r * .95f, Overlaps, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
+        {
+            Collider c = Overlaps[i];
+            if (c == null || c.transform.IsChildOf(transform)) continue;
+            return false;
+        }
+        return true;
     }
 
     private void Update()
@@ -233,6 +324,16 @@ public class PlayerMovement : MonoBehaviour
         {
             // A scene holds Ace: stand still (gravity still applies), and start from rest after.
             ClearInput();
+            if (controller != null && controller.enabled) controller.SimpleMove(Vector3.zero);
+            return;
+        }
+
+        if (StoppedByCloseUp)
+        {
+            // A close-up: stand still (gravity still applies). The keys held are kept (moveInput), so walking away
+            // from the drinks close-up carries straight on.
+            walkInput = Vector2.zero;
+            CommandedVelocity = Vector3.zero;
             if (controller != null && controller.enabled) controller.SimpleMove(Vector3.zero);
             return;
         }
@@ -282,6 +383,29 @@ public class PlayerMovement : MonoBehaviour
         controller.SimpleMove(CommandedVelocity);
     }
 
+    /// <summary>
+    /// What the walking keys or the left stick ask for right now (the larger of the two; the lab's scripted input when
+    /// set), whether or not Ace is free to walk: PlayerInteractor leaves the drinks close-up when this moves.
+    /// </summary>
+    public Vector2 WalkIntent
+    {
+        get
+        {
+            if (ScriptedInput.HasValue) return ScriptedInput.Value;
+            Vector2 keys = Vector2.zero;
+            Keyboard k = Keyboard.current;
+            if (k != null && Application.isFocused)
+            {
+                if (k.wKey.isPressed || k.upArrowKey.isPressed) keys.y += 1f;
+                if (k.sKey.isPressed || k.downArrowKey.isPressed) keys.y -= 1f;
+                if (k.dKey.isPressed || k.rightArrowKey.isPressed) keys.x += 1f;
+                if (k.aKey.isPressed || k.leftArrowKey.isPressed) keys.x -= 1f;
+            }
+            Vector2 stick = PadInput.LeftStick;
+            return stick.sqrMagnitude > keys.sqrMagnitude ? stick : keys;
+        }
+    }
+
     // The world direction pulled onto the nearest room axis or screen axis (see the note above). The
     // magnitude is kept: the assist turns the walk, it never slows it.
     Vector3 Assisted(Vector3 move, float cameraYaw)
@@ -312,4 +436,11 @@ public class PlayerMovement : MonoBehaviour
 
     /// <summary>The assist's bands, for checks: room-axis core and edge, screen-axis core and edge (degrees).</summary>
     public Vector4 AssistBands => new Vector4(assistAxisCore, Mathf.Max(assistAxisCore, assistAxisEdge), assistScreenCore, Mathf.Max(assistScreenCore, assistScreenEdge));
+
+    /// <summary>
+    /// Ace's capsule radius as the game runs it (CapsuleRadius, scaled like the controller), for edit-mode checks that
+    /// measure room for Ace: the scene's CharacterController still says 0.5 until Play starts.
+    /// </summary>
+    public static float RadiusFor(CharacterController cc) =>
+        CapsuleRadius * (cc != null ? Mathf.Max(Mathf.Abs(cc.transform.lossyScale.x), Mathf.Abs(cc.transform.lossyScale.z)) : 1f);
 }

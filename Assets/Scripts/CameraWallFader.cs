@@ -88,7 +88,7 @@ public class CameraWallFader : MonoBehaviour
     private bool ShouldCheckForObstructions()
     {
         if (gameplayCamera == null || target == null) return false;
-        if (interactor != null && interactor.IsAtStation) return false;
+        if (interactor != null && interactor.InCloseUp) return false;
         if (conversation != null && conversation.InConversation) return false;
         return true;
     }

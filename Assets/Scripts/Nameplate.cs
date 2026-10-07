@@ -11,6 +11,7 @@ public class Nameplate : MonoBehaviour
 
     private Camera cam;
     private PlayerInteractor player;
+    private CafeViewMode view;
     private float alpha;
 
     private void Awake()
@@ -25,8 +26,11 @@ public class Nameplate : MonoBehaviour
         if (player == null) player = FindAnyObjectByType<PlayerInteractor>();
         if (cam == null) return;
 
-        // Only ever visible from a station view — never in isometric.
-        bool couldShow = player != null && player.IsAtStation;
+        // Only ever from up close, never from above: across the counter in first person (where the counter's own
+        // camera used to show them, before stations became reach in playtest 3), or in the drinks close-up.
+        if (player != null && view == null) view = player.GetComponent<CafeViewMode>();
+        bool couldShow = player != null && (player.IsAtStation
+            || view != null && view.WalkingFirstPerson && player.BehindCounter);
         float target = 0f;
 
         if (couldShow)

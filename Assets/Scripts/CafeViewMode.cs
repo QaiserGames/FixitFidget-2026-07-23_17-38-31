@@ -253,12 +253,33 @@ public sealed class CafeViewMode : MonoBehaviour
         }
     }
 
+    // Aim help in first person (AimAssist): the view's own state, and what it may draw the crosshair to this frame.
+    readonly AimAssist.State aim = new AimAssist.State();
+    readonly List<AimAssist.Target> aimTargets = new List<AimAssist.Target>(32);
+
+    /// <summary>The first-person view's aim help as it goes (checks).</summary>
+    public AimAssist.State Aim => aim;
+
+    /// <summary>A D-pad step in first person (PlayerInteractor): the view glides to look at <paramref name="point"/>.</summary>
+    public void StepAimTo(Vector3 point) => aim.StepTo(point);
+
+    // Where the first-person eye is (as RefreshCameraPose puts it).
+    Vector3 Eye
+    {
+        get
+        {
+            float floorOffset = capsule != null ? capsule.center.y - capsule.height * .5f : -1;
+            float crouchDrop = movement != null ? movement.EyeDrop : 0f;
+            return transform.position + Vector3.up * (floorOffset + eyeHeight - crouchDrop);
+        }
+    }
+
     void Update()
     {
         if (counterRepair == null) counterRepair = GetComponent<CounterRepairView>();
         var keyboard = Keyboard.current;
         var mouse = Mouse.current;
-        if (!Application.isFocused || !CanChangeView) { acceptingLook = false; return; }
+        if (!Application.isFocused || !CanChangeView) { acceptingLook = false; aim.Reset(); return; }
         // V, or the controller's View / Share / Minus button.
         if ((keyboard != null && keyboard.vKey.wasPressedThisFrame || PadInput.Pressed(PadButton.Select)) && !AceSetAside)
         {
@@ -283,20 +304,35 @@ public sealed class CafeViewMode : MonoBehaviour
                 return;
             }
             if (brain != null && brain.IsBlending)
-            { acceptingLook = false; return; }
+            { acceptingLook = false; aim.Reset(); return; }
             // Ignore the first delta after a blend, cursor lock or focus change.
             if (!acceptingLook) { acceptingLook = true; return; }
+            // The mouse turns the view by the distance it travelled, untouched by the aim help.
             Vector2 delta = mouse != null ? mouse.delta.ReadValue() * lookSensitivity : Vector2.zero;
+            yaw = Mathf.Repeat(yaw + delta.x, 360);
+            pitch = Mathf.Clamp(pitch - delta.y, -75, 75);
             // The stick is a turn RATE (degrees per second), unlike the mouse's
             // travelled distance, so it is scaled by frame time.
             Vector2 stick = PadInput.Curved(PadInput.RightStick);
-            if (stick != Vector2.zero)
+            Vector2 turn = stick == Vector2.zero ? Vector2.zero
+                : new Vector2(stick.x * padLookYawSpeed * padDelta, -stick.y * padLookPitchSpeed * padDelta * (invertPadLookY ? -1f : 1f));
+            if (AimAssist.Active && interactor != null)
             {
-                delta.x += stick.x * padLookYawSpeed * padDelta;
-                delta.y += stick.y * padLookPitchSpeed * padDelta * (invertPadLookY ? -1f : 1f);
+                // Aim help (a pad only; playtest 3): slower over a target, drawn toward its middle while turning, settled
+                // onto it when the stick lets go, and the D-pad's steps (PlayerInteractor asks: StepAimTo).
+                bool moving = stick != Vector2.zero;
+                if (aim.WantsTargets(moving)) interactor.AimTargets(aimTargets);
+                else aimTargets.Clear();
+                Vector2 view = AimAssist.Steer(Eye, new Vector2(yaw, pitch), turn, stick.magnitude, padDelta, aimTargets, aim);
+                yaw = Mathf.Repeat(view.x, 360);
+                pitch = Mathf.Clamp(view.y, -75, 75);
             }
-            yaw = Mathf.Repeat(yaw + delta.x, 360);
-            pitch = Mathf.Clamp(pitch - delta.y, -75, 75);
+            else
+            {
+                aim.Reset();
+                yaw = Mathf.Repeat(yaw + turn.x, 360);
+                pitch = Mathf.Clamp(pitch + turn.y, -75, 75);
+            }
             transform.rotation = Quaternion.Euler(0, yaw, 0);
         }
         else
@@ -487,11 +523,9 @@ public sealed class CafeViewMode : MonoBehaviour
     {
         if (firstPersonCamera != null)
         {
-            // Player origin is at the capsule centre, not its feet. Crouched (sneaking), the eye drops with Ace's head.
-            float floorOffset = capsule != null ? capsule.center.y - capsule.height * .5f : -1;
-            float crouchDrop = movement != null ? movement.EyeDrop : 0f;
-            Vector3 eye = transform.position + Vector3.up * (floorOffset + eyeHeight - crouchDrop);
-            firstPersonCamera.transform.SetPositionAndRotation(eye, Quaternion.Euler(pitch, yaw, 0));
+            // Player origin is at the capsule centre, not its feet. Crouched (sneaking), the eye drops with Ace's head
+            // (the capsule crouches with it from 7 Oct, its feet kept where they are, so the floor stays where it was).
+            firstPersonCamera.transform.SetPositionAndRotation(Eye, Quaternion.Euler(pitch, yaw, 0));
             firstPersonCamera.Priority = firstPerson ? 15 : 0;
         }
         if (isometricCamera != null)

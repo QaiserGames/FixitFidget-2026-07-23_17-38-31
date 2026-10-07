@@ -13,6 +13,7 @@ public class DayOneGuideUI : MonoBehaviour
     private ItemInspector inspector;
     private ConversationController conversation;
     private GameObject recap;
+    private CafeViewMode view;
     private CustomerSpawner spawner;
     private PlayerCarry carry;
     private EspressoMachine machine;
@@ -32,8 +33,15 @@ public class DayOneGuideUI : MonoBehaviour
         conversation = dialogue != null ? dialogue : (player != null ? player.GetComponent<ConversationController>() : null);
         recap = recapPanel;
         carry = player != null ? player.GetComponent<PlayerCarry>() : null;
+        view = player != null ? player.GetComponent<CafeViewMode>() : null;
         drops = FindObjectsByType<DropSpot>(FindObjectsInactive.Exclude);
     }
+
+    // STATIONS AS REACH (playtest 3, 7 Oct 2026): nothing is stepped up to any more, so no line says "press F". The
+    // steps are "walk up and ...", in the words of the view in use: first person aims (look at it, click or RT), the
+    // overhead view uses E on what's in reach (the dispenser's close-up, a device on the bench).
+    private bool FirstPerson => view != null && view.FirstPersonSelected;
+    private bool AtDrinks => interactor != null && (interactor.IsAtBeverageStation || interactor.NearDrinks);
 
     private void LateUpdate()
     {
@@ -102,9 +110,7 @@ public class DayOneGuideUI : MonoBehaviour
             return "Repair returned. " + DrinkAction(customer);
         if (customer.Record != null && customer.Record.kind == JobKind.Drink)
             return DrinkAction(customer);
-        if (customer.HasDrinkOrder && (customer.CanReceiveDrink
-            || (interactor != null && interactor.CurrentStation != null
-                && interactor.CurrentStation.GetComponent<BeverageStation>() != null)))
+        if (customer.HasDrinkOrder && (customer.CanReceiveDrink || AtDrinks))
             return DrinkAction(customer);
         return RepairAction(customer);
     }
@@ -115,17 +121,16 @@ public class DayOneGuideUI : MonoBehaviour
             return "A customer is on the way. Start with one request.";
         if (!customer.WasAccepted)
         {
-            if (interactor != null && interactor.CurrentStation != null && interactor.CurrentStation.IsWorkSurface)
-                return $"Press {F} to leave the bench. Head behind the service counter.";
-            if (interactor == null || interactor.CurrentStation == null
-                || interactor.CurrentStation.IsWorkSurface)
-                return $"Press {F} behind the service counter to take orders.";
+            if (interactor == null || !interactor.BehindCounter)
+                return "Walk behind the service counter to take orders.";
             if (customer.OutOfStock)
                 return $"No stock: {E} to talk, then {Q} to apologise.";
             if (customer.ShelfFull)
                 return "Shelf full. Move an item to a free bench slot.";
             if (customer.CanHearIntake || customer.CanDecide)
-                return $"Aim at {customer.CustomerName}. {E} talks; when your replies appear, {E} takes the job.";
+                return FirstPerson
+                    ? $"Look at {customer.CustomerName}. {E} talks; when your replies appear, {E} takes the job."
+                    : $"{E} talks to {customer.CustomerName}; when your replies appear, {E} takes the job.";
             return $"Wait for {customer.CustomerName} to reach the counter.";
         }
         return drinkLesson ? DrinkAction(customer) : RepairAction(customer);
@@ -140,7 +145,7 @@ public class DayOneGuideUI : MonoBehaviour
         if (carry != null)
             for (int i = 0; i < carry.Count; i++)
                 if (carry.GetItem(i) is DrinkJob cup && cup.CanHandBack && cup.Drink == wanted)
-                    return $"{F} steps back. Walk to {customer.CustomerName}; {E} serves the matching drink.";
+                    return $"Walk to {customer.CustomerName}; {E} serves the matching drink.";
         if (customer.CanApologiseForDrink)
             return $"No stock. {E} near {customer.CustomerName} apologises; restock after closing.";
         if (FindAnyObjectByType<BeverageStation>() != null)
@@ -148,10 +153,10 @@ public class DayOneGuideUI : MonoBehaviour
             if (held != null && !held.IsEmpty && !held.CanHandBack)
                 return "That drink is cold. Use the discard tray; the cup and ingredients are lost.";
             if (held != null && held.CanHandBack && held.Drink == wanted)
-                return $"{F} steps back. Walk to {customer.CustomerName}; {E} serves the matching drink.";
-            if (interactor == null || interactor.CurrentStation == null
-                || interactor.CurrentStation.GetComponent<BeverageStation>() == null)
-                return $"Walk to the drink station. {F} brings the dispenser into view.";
+                return $"Walk to {customer.CustomerName}; {E} serves the matching drink.";
+            if (!AtDrinks)
+                return FirstPerson ? "Walk to the drink station and look at the dispenser."
+                    : $"Walk to the drink station. {E} brings the dispenser into view.";
             foreach (var section in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
             {
                 if (section.drink != wanted) continue;
@@ -160,8 +165,8 @@ public class DayOneGuideUI : MonoBehaviour
                     return Pad ? $"Cup placed. Aim at the {customer.WantedDrinkName} paddle and press {E} to pour."
                         : $"Cup placed. Look at the {customer.WantedDrinkName} paddle and click to pour.";
                 if (section.Cup != null && section.Cup.CanHandBack)
-                    return Pad ? $"{customer.WantedDrinkName} is ready. Aim at its section and press {E} to collect it; {ControlHints.Back} steps back."
-                        : $"{customer.WantedDrinkName} is ready. Click its section to collect it; F steps back.";
+                    return Pad ? $"{customer.WantedDrinkName} is ready. Aim at its section and press {E} to collect it."
+                        : $"{customer.WantedDrinkName} is ready. Click its section to collect it.";
             }
             if (held != null && held.IsEmpty)
                 return Pad ? $"Aim under the {customer.WantedDrinkName} nozzle. {E} places your cup; its named paddle starts the pour."
@@ -172,11 +177,7 @@ public class DayOneGuideUI : MonoBehaviour
                 : "Look at the cup stack. Left click takes a cup in your left hand; right click uses your right hand. E chooses automatically.";
         }
         if (held != null && !held.IsEmpty && held.Drink == wanted)
-        {
-            if (interactor != null && interactor.IsAtStation)
-                return $"Press {F} to step back, then {E} near {customer.CustomerName} to serve.";
             return $"Take the {customer.WantedDrinkName} to {customer.CustomerName}. {E} serves it.";
-        }
         if (carry != null && carry.IsCarrying && (held == null || !held.IsEmpty))
             return "Hands full. Set the item down or return your cup.";
 
@@ -232,12 +233,8 @@ public class DayOneGuideUI : MonoBehaviour
                     ? "Fixed! Free a hand before collecting the item."
                     : $"Fixed! Press {E} to pick up the item and step back from inspection.";
             if (carrying)
-            {
-                if (interactor != null && interactor.IsAtStation)
-                    return $"Press {F} to step back. {E} near the customer returns their item.";
                 return $"{job.Grade} repair. Take it to {customer.CustomerName}; {E} hands it back."
                     + (job.Grade == JobGrade.Perfect ? "" : " You can keep repairing for a higher grade.");
-            }
             return $"Press {E} to pick up the repaired item for delivery.";
         }
 
@@ -248,11 +245,7 @@ public class DayOneGuideUI : MonoBehaviour
             return Pad ? $"At the counter, press {E} to flip the orange mute switch and turn sound on. {ControlHints.Cancel} steps away."
                 : "At the counter, click the orange mute switch to turn sound on. Right-click steps away.";
         if (carrying)
-        {
-            if (interactor != null && interactor.IsAtStation)
-                return $"Press {F} to step back. {E} at the bench sets items down.";
             return $"Carry the item to the repair bench. {E} sets it down.";
-        }
         if (carry != null && carry.IsCarrying)
             return "Hands full. Set the item down or return your cup.";
         if (inspecting)
@@ -265,12 +258,10 @@ public class DayOneGuideUI : MonoBehaviour
                     onBench = true;
         if (!onBench)
             return $"Press {E} to pick up the customer's item from the intake shelf.";
-        if (interactor != null && interactor.CurrentStation != null && !interactor.CurrentStation.IsWorkSurface)
-            return $"Press {F} to step back. Head to the repair bench.";
-        if (interactor == null || interactor.CurrentStation == null || !interactor.CurrentStation.IsWorkSurface)
-            return $"Item placed. Press {F} at the repair bench to work there.";
-        return Pad ? $"Aim the centre crosshair at the item. Press {ControlHints.Use} to inspect."
-            : "Aim the centre crosshair at the item. Left-click to inspect.";
+        if (!FirstPerson)
+            return $"Item placed. {E} on it at the bench works on it.";
+        return Pad ? $"Item placed. Look at it on the bench and press {ControlHints.Use} to work on it."
+            : "Item placed. Look at it on the bench and click to work on it.";
     }
 
     private string RepairBenchAction(JobBase job)
@@ -339,7 +330,6 @@ public class DayOneGuideUI : MonoBehaviour
     // keyboard these read exactly as the original hints did.
     private static bool Pad => PadInput.UsingPad;
     private static string E => ControlHints.Interact;
-    private static string F => ControlHints.Station;
     private static string Q => ControlHints.Refuse;
     private static string Aim(string target) => Pad ? $"Press {ControlHints.Use} on {target}" : $"Click {target}";
     private static string Select(string tool) => Pad ? $"Select the {tool} with {ControlHints.Tools}" : $"Select the {tool}";

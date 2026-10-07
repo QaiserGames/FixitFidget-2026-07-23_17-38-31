@@ -6,6 +6,10 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 // Counter-only presentation. ItemInspector's fuse/bench path is unchanged.
+//
+// Stations as reach (playtest 3, 7 Oct 2026): the phone opens from behind the counter in either view (E on its owner:
+// CustomerInteractable, or straight after the conversation), in front of whichever camera is up; nothing is stepped up
+// to first. Ace's legs stop while it's up (PlayerInteractor.InCloseUp), so it isn't closed by walking off.
 public sealed class CounterRepairView : MonoBehaviour
 {
     [SerializeField, Min(.2f)] private float confirmationSeconds = 1.2f;
@@ -35,15 +39,15 @@ public sealed class CounterRepairView : MonoBehaviour
     // The phone has a single control, so a controller needs no cursor here:
     // the switch is always the target and A or RT flips it.
     private static string ControlsLine => PadInput.UsingPad
-        ? $"{ControlHints.Interact} / {ControlHints.Use} switch · {ControlHints.Cancel} put down · {ControlHints.Station} step back"
-        : "Click switch · Right-click put down · F step back";
+        ? $"{ControlHints.Interact} / {ControlHints.Use} switch · {ControlHints.Cancel} put down"
+        : "Click switch · Right-click or Esc put down";
 
     public bool Open(CustomerBrain owner)
     {
         player = GetComponent<PlayerInteractor>();
         cam = Camera.main;
         if (OwnsInput || owner == null || !owner.CanFixAtCounter || cam == null || player == null
-            || !player.IsAtStation || player.CurrentStation.IsWorkSurface || Time.timeScale <= 0f) return false;
+            || Time.timeScale <= 0f) return false;
         customer = owner; fault = owner.HumanConversation;
         display = new GameObject("Counter phone inspection");
         if (fault.PresentationPrefab != null)
@@ -104,7 +108,7 @@ public sealed class CounterRepairView : MonoBehaviour
     private void Update()
     {
         if (!IsOpen) return;
-        if (customer == null || customer.IsLeaving || fault == null || !player.IsAtStation
+        if (customer == null || customer.IsLeaving || fault == null
             || (DayClock.Instance != null && DayClock.Instance.DayOver)) { Close(); return; }
         if (Time.timeScale <= 0f) { if (speaker != null) speaker.Pause(); return; }
         if (speaker != null) speaker.UnPause();

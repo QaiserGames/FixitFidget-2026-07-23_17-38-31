@@ -15,13 +15,17 @@ using UnityEngine.InputSystem.Controls;
 /// through PlayerInput's Move action.
 ///
 /// Layout (Xbox names; PlayStation and Nintendo pads get their own labels):
-///   Left stick   walk                       Right stick  look / orbit
+///   Left stick   walk (and leave the drinks close-up)   Right stick  look / orbit
 ///   A            interact (E)               B            back (Esc / right-click)
-///   X            step up / step back (F)    Y            turn away (Q)
-///   RB           switch hands (C)           LB / RB      left / right hand at the drink station
-///   RT           use / click                LT           hold to speed up a circuit (Space)
+///   X            the torch at night (F)     Y            turn away (Q)
+///   RB           switch hands (C)           LB / RB      left / right hand at the dispenser
+///   RT           use / click; in first person, work on a device on the bench
+///   LT           hold to speed up a circuit (Space)
 ///   LT / RT      zoom the overhead view     View         first person / overhead (V)
 ///   R3           re-centre the overhead view
+///   D-pad L / R  by day, step the aim to the next thing to use (aim help); D-pad up: the notebook at night
+/// X stepped up to (and back from) the counter, the bench and the dispenser until playtest 3 (7 Oct 2026): stations
+/// are reach now, and nothing is stepped up to.
 ///
 /// UsingPad remembers which device the player touched last, so prompts can
 /// say "A" instead of "E" and the mouse cursor can hide while a pad is in use.

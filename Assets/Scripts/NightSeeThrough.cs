@@ -257,7 +257,9 @@ public sealed class NightSeeThrough : MonoBehaviour
         Vector3 eye = view.isometricCamera.transform.position;
         Vector3 feet = view.AceFeet;
         Vector3 across = Vector3.Cross(Vector3.up, feet - eye);
-        across = across.sqrMagnitude > 1e-6f ? across.normalized * .45f : Vector3.right * .45f;
+        // Ace's sides: his capsule's radius (0.35 since playtest 3; these were 0.45 when it was 0.5).
+        float side = PlayerMovement.CapsuleRadius;
+        across = across.sqrMagnitude > 1e-6f ? across.normalized * side : Vector3.right * side;
         aim[0] = feet + Vector3.up * .4f;
         aim[1] = feet + Vector3.up * 1f;
         aim[2] = feet + Vector3.up * 1.7f;

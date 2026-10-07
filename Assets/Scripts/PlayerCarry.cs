@@ -136,10 +136,11 @@ public class PlayerCarry : MonoBehaviour
         bool canSwitch = Time.timeScale > 0 && (DayClock.Instance == null || !DayClock.Instance.DayOver)
             && (dialogue == null || !dialogue.InConversation) && (inspector == null || !inspector.IsHoldingItem)
             && (counterRepair == null || !counterRepair.OwnsInput);
-        // C, or RB on a controller. At the drink station LB / RB already pick
-        // a hand for each action (see PlayerInteractor), so RB is theirs there.
+        // C, or RB on a controller. At the dispenser LB / RB already pick a hand
+        // for each action (the close-up, or its controls under the crosshair in
+        // first person: PlayerInteractor.UsingDrinks), so RB is theirs there.
         bool padSwitch = PadInput.Pressed(PadButton.RightShoulder)
-            && (interaction == null || !interaction.IsAtBeverageStation);
+            && (interaction == null || !interaction.UsingDrinks);
         if (canSwitch && (Keyboard.current != null && Keyboard.current.cKey.wasPressedThisFrame || padSwitch)) SelectNext();
     }
     private void LateUpdate() => RefreshPresentation();

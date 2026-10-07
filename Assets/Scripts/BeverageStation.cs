@@ -38,23 +38,31 @@ public sealed class BeverageStation : MonoBehaviour
         action.textWrappingMode = TextWrappingModes.NoWrap;
         controls = RepairOverlayUI.Text("Controls", card, new Vector2(12, -66),
             new Vector2(502, 22), 15, RepairOverlayUI.Muted);
-        controls.text = ControlsLine;
+        controls.text = ControlsLine(true);
         controls.alignment = TextAlignmentOptions.Center;
         Refresh();
     }
 
     private void LateUpdate() => Refresh();
 
+    // In first person the card shows while the crosshair is on the dispenser (stations as reach, playtest 3), and
+    // stays a moment after it slips off, so it doesn't flicker as the crosshair crosses the gaps between controls.
+    private const float Linger = .5f;
+    private float aimedAt = -10f;
+
     private void Refresh()
     {
         if (canvas == null) return;
-        bool show = player != null && player.CurrentStation == station && Time.timeScale > 0
+        if (player != null && player.AimingAtDrinks) aimedAt = Time.unscaledTime;
+        bool here = player != null && (player.CurrentStation == station
+            || player.CurrentStation == null && Time.unscaledTime - aimedAt < Linger);
+        bool show = here && Time.timeScale > 0
             && (DayClock.Instance == null || !DayClock.Instance.DayOver)
             && (dialogue == null || !dialogue.InConversation);
         canvas.gameObject.SetActive(show);
         if (!show) return;
         scaler.scaleFactor = Mathf.Clamp(Mathf.Min(Screen.width / 1440f, Screen.height / 900f), .6f, 1.4f);
-        string line = ControlsLine;
+        string line = ControlsLine(player.CurrentStation == station);
         if (controls.text != line) controls.text = line;
         var focused = player.Focused;
         var control = focused != null ? focused.GetComponentInParent<BeverageControl>() : null;
@@ -80,7 +88,9 @@ public sealed class BeverageStation : MonoBehaviour
 
     private void OnDisable() { if (canvas != null) canvas.gameObject.SetActive(false); }
 
-    private static string ControlsLine => PadInput.UsingPad
-        ? $"{ControlHints.LeftHand} · left hand   {ControlHints.RightHand} · right hand   {ControlHints.Interact} · use   {ControlHints.Back} · step back"
-        : "Left click · left hand   Right click · right hand   E · use   F · step back";
+    // The close-up is left by walking away (or B / Esc); in first person there is nothing to leave.
+    private static string ControlsLine(bool closeUp) => PadInput.UsingPad
+        ? $"{ControlHints.LeftHand} · left hand   {ControlHints.RightHand} · right hand   {ControlHints.Interact} · use"
+          + (closeUp ? $"   {ControlHints.Back} or walk · step back" : "")
+        : "Left click · left hand   Right click · right hand   E · use" + (closeUp ? "   Esc or walk · step back" : "");
 }

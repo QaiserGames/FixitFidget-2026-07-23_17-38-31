@@ -1187,7 +1187,8 @@ public sealed class GraceAtHome : MonoBehaviour
         Vector3 probe = here + (d.sqrMagnitude > 1e-4f ? d.normalized * .7f : Vector3.zero);
         Vector3 a = aceT.position - probe;
         a.y = 0f;
-        return a.magnitude < .75f;
+        // Ace's capsule with its skin (0.385 since playtest 3) and about her own half-width.
+        return a.magnitude < PlayerMovement.BodyRadius + .25f;
     }
 
     // The ground under a point (the night's solid pavement and her steps), looked for from just above it: the bay over her

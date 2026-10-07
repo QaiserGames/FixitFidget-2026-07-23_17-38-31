@@ -73,7 +73,8 @@ internal static class NightZeroSteps
 
     // Ace's body: the CharacterController (radius 0.5, 2 m tall, its middle 1 m up). Checked a touch thinner, and
     // from 0.15 m up, so the floor and a kerb's lip don't count.
-    const float AceRadius = .45f, AceY = 1f;
+    // Ace's capsule with its skin (0.385 since playtest 3's slimmer Ace; 0.45 before).
+    const float AceRadius = PlayerMovement.BodyRadius, AceY = 1f;
 
     // ------------------------------------------------------------------ put it in the scene
 

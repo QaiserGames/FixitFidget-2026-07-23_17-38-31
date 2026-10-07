@@ -18,7 +18,7 @@ using Object = UnityEngine.Object;
 //   * her door: 1.30 m, its hinge, its leaf and its thin collider, the dark hall put away, the hall marker at
 //     the foot of her stairs, the other markers where they were;
 //   * her rooms: the pieces, the walls in two parts, the ceilings, the lamps (off in the scene);
-//   * Ace's capsule (radius 0.5 and Unity's 8 cm skin: 1.16 m across) stands clear at every place Ace needs
+//   * Ace's capsule (radius 0.35 and a 3.5 cm skin since playtest 3: 0.77 m across; it was 0.5 and 8 cm, 1.16 m) stands clear at every place Ace needs
 //     to get to on both floors and on both flights, and sweeps clear along the flat ways between them;
 //   * photos: the street by day (to compare with the "before" ones: only her door and window change), her
 //     rooms from the street side as the break-ins show them (each floor), and a look in first person.
@@ -26,7 +26,7 @@ using Object = UnityEngine.Object;
 internal static class GraceHouseCheck
 {
     const string Tag = "[Break-ins] ";
-    const float Radius = .5f, Skin = .08f, Height = 2f;
+    const float Radius = PlayerMovement.CapsuleRadius, Skin = PlayerMovement.CapsuleSkin, Height = PlayerMovement.StandingHeight;
 
     // Where Ace must be able to stand: plan X, Y and the floor's height there (the flights: on the ramp, 39.8°).
     // The stops and the ways between them follow the walkable space worked out from the pieces' real bounds
@@ -148,7 +148,7 @@ internal static class GraceHouseCheck
             // ---- Ace's capsule ----
             Physics.SyncTransforms();
             report.AppendLine();
-            report.AppendLine("Where Ace needs to stand (Ace's capsule, 1.16 m across with its skin):");
+            report.AppendLine($"Where Ace needs to stand (Ace's capsule, {2f * (Radius + Skin):0.00} m across with its skin):");
             foreach (var s in Spots)
             {
                 Vector3 feet = built.World(s.X, s.Y, s.z);

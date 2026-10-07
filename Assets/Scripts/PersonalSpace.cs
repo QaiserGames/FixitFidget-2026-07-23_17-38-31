@@ -46,7 +46,7 @@ public sealed class PersonalSpace : MonoBehaviour
     [SerializeField, Range(.2f, 4f)] private float maxSlideSpeed = 1.6f;
     [Tooltip("An NPC that wants to move slower than this (metres per second) counts as standing still.")]
     [SerializeField, Range(.02f, .5f)] private float stillSpeed = .12f;
-    [Tooltip("Radius kept clear round the player's body, metres (his controller is 0.5; a little overlap while brushing past is fine).")]
+    [Tooltip("Radius kept clear round the player's body, metres, at most (his controller was 0.5; since playtest 3 it is 0.35, and that is used when it's smaller: a little overlap while brushing past is fine).")]
     [SerializeField, Range(.2f, .8f)] private float playerRadius = .45f;
     [Tooltip("Fastest an NPC standing still steps aside for the player, metres per second.")]
     [SerializeField, Range(.2f, 3f)] private float stillGiveWaySpeed = .9f;
@@ -170,7 +170,8 @@ public sealed class PersonalSpace : MonoBehaviour
         Vector3 away = me - ace.position;
         if (Mathf.Abs(away.y) > 1.6f) return Vector3.zero;
         away.y = 0f;
-        float apart = away.magnitude, wanted = BodyRadius + playerRadius;
+        // Ace's own capsule (0.35, playtest 3's slimmer Ace) when it's smaller than the setting.
+        float apart = away.magnitude, wanted = BodyRadius + Mathf.Min(playerRadius, PlayerMovement.CapsuleRadius);
         if (apart >= wanted) return Vector3.zero;
         float depth = wanted - apart;
         Vector3 radial = apart > 1e-3f ? away / apart : transform.right;
