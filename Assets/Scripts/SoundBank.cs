@@ -201,6 +201,11 @@ public sealed class SoundBank : ScriptableObject
         C("recap.count", SoundBus.UI, false, .15f, "Today's takings counting up on Ace's phone: soft ticks.", 1.5f, 12f, .05f, 1),
         C("recap.counted", SoundBus.UI, false, .25f, "Today's takings counted: a settled coin.", 1.5f, 12f, .5f, 1),
 
+        // The HUD and the phone by day (playtest 3, session 3, 7 Oct): named in the code, silent until the Sonniss files.
+        C("hud.lastorders", SoundBus.UI, false, .3f, "The HUD's hanging sign turns to LAST ORDERS, an hour before closing: a soft two-note chime (a warning, never an alarm).", 1.5f, 12f, 2f, 1),
+        C("phone.open", SoundBus.UI, false, .25f, "Ace takes the phone out (the pause, by day or at night): a soft slide and a tap.", 1.5f, 12f, .2f, 1),
+        C("phone.close", SoundBus.UI, false, .2f, "The phone put away: the same, softer and back the other way.", 1.5f, 12f, .2f, 1),
+
         // Grace at home (break-ins chunk C, 6 Oct): named in the code (GraceAtHome), silent until the Sonniss files.
         C("grace.tv", SoundBus.World, true, .22f, "Her TV in the front room while she watches (a loop: voices and music, muffled through the house).", 1f, 9f, 0f, 1),
         C("grace.kettle", SoundBus.World, true, .35f, "Her kettle going on the hob, then coming to the boil.", 1f, 9f, .5f, 1),

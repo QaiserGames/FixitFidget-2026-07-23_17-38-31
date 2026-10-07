@@ -296,7 +296,8 @@ public class SaveManager : MonoBehaviour
     {
         if (customer == null || !reviewedToday.Add(customer)) return;
         Judgement judgement = ReputationRules.Judge(facts);
-        if (judgement.review != Review.None) reputation.Record(ReviewOf(customer, judgement));
+        // Written now as well as at closing (the same line both times): the phone by day shows today's reviews live.
+        if (judgement.review != Review.None) reputation.Record(ReviewOf(customer, judgement), WriteCard);
     }
 
     /// <summary>Reviews are posted at closing. Counts today's reviews into the
@@ -318,7 +319,7 @@ public class SaveManager : MonoBehaviour
                 accepted = customer.WasAccepted,
                 patienceAtExit = customer.PatienceFraction
             });
-            if (judgement.review != Review.None) reputation.Record(ReviewOf(customer, judgement));
+            if (judgement.review != Review.None) reputation.Record(ReviewOf(customer, judgement), WriteCard);
         }
 
         reputation.Settle(day, WriteQuote, WriteCard);

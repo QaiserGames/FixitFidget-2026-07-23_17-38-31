@@ -138,7 +138,8 @@ public sealed class SoundPlayer : MonoBehaviour
         Shape(source, cue, flat);
         source.clip = clip;
         source.loop = false;
-        source.volume = Mathf.Clamp01(cue.volume * Wobble(cue.volumeWobble) * volumeScale);
+        // The player's music and effects volumes (GameSettings: the phone's Settings) scale the bus.
+        source.volume = Mathf.Clamp01(cue.volume * Wobble(cue.volumeWobble) * volumeScale * GameSettings.BusVolume(cue.bus));
         source.pitch = cue.pitch * Wobble(cue.pitchWobble);
         source.panStereo = flat || !cue.threeD ? Mathf.Clamp(pan, -1f, 1f) : 0f;
         source.transform.position = at;
@@ -225,7 +226,7 @@ public sealed class SoundPlayer : MonoBehaviour
         AudioClip clip = Pick(cue);
         if (clip == null) return fallback;
         if (source != null) Shape(source, cue, false);
-        volume = Mathf.Clamp01(cue.volume * Wobble(cue.volumeWobble));
+        volume = Mathf.Clamp01(cue.volume * Wobble(cue.volumeWobble) * GameSettings.BusVolume(cue.bus));
         Count(heard, cueName);
         return clip;
     }
@@ -410,7 +411,7 @@ public sealed class SfxLoop
         }
         float want = target * (gamePaused && bed ? DuckedBeds : 1f);
         level = Mathf.MoveTowards(level, want, dt / fadeSeconds);
-        source.volume = cue.volume * level;
+        source.volume = cue.volume * level * GameSettings.BusVolume(cue.bus);   // live: the Settings sliders move it
         if (lowPass != null) lowPass.cutoffFrequency = Mathf.Lerp(lowPass.cutoffFrequency, cutoff, 1f - Mathf.Exp(-dt * 4f));
         if (stopping && level <= .0001f)
         {

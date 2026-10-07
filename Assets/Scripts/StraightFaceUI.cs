@@ -18,12 +18,13 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class StraightFaceUI : MonoBehaviour
 {
-    static readonly Color Backing = new Color(.075f, .07f, .065f, .92f);
-    static readonly Color Ink = new Color(.95f, .92f, .85f);
-    static readonly Color Track = new Color(.24f, .22f, .21f, 1f);
-    static readonly Color GreenMark = new Color(.46f, .74f, .44f, 1f);
-    static readonly Color NearBand = new Color(.46f, .74f, .44f, .38f);
-    static readonly Color HeldInk = new Color(.62f, .9f, .58f);
+    // The UI skin's (playtest 3, session 3): its band, its writing, the brand's green for the band to stop in.
+    static readonly Color Backing = new Color(UiSkin.Ink.r, UiSkin.Ink.g, UiSkin.Ink.b, .92f);
+    static readonly Color Ink = UiSkin.BandText;
+    static readonly Color Track = UiSkin.BandLine;
+    static readonly Color GreenMark = UiSkin.BrandBright;
+    static readonly Color NearBand = new Color(UiSkin.BrandBright.r, UiSkin.BrandBright.g, UiSkin.BrandBright.b, .34f);
+    static readonly Color HeldInk = UiSkin.BrandBright;
     static readonly Color CrackedInk = new Color(1f, .62f, .52f);
     static string InkHex => ColorUtility.ToHtmlStringRGB(Ink);
 
@@ -134,15 +135,17 @@ public sealed class StraightFaceUI : MonoBehaviour
         // speaker's face.)
         RectTransform box = Rect("Meter", canvasObject.transform, new Vector2(1f, 0f), new Vector2(-56f, 44f), new Vector2(580f, 78f));
         box.pivot = new Vector2(1f, 0f);
-        Image backing = box.gameObject.AddComponent<Image>();
-        backing.color = Backing;
-        backing.raycastTarget = false;
+        UiSkin.Paint(box, Backing, UiSkin.Radius);
+        var lift = box.gameObject.AddComponent<Shadow>();
+        lift.effectColor = new Color(0f, 0f, 0f, .35f);
+        lift.effectDistance = new Vector2(0f, -3f);
         panel = box.gameObject;
 
         RectTransform titleRect = Rect("Title", box, new Vector2(.5f, 1f), new Vector2(0f, -21f), new Vector2(560f, 34f));
         title = titleRect.gameObject.AddComponent<TextMeshProUGUI>();
-        TMP_FontAsset font = HudFont();
+        TMP_FontAsset font = UiSkin.Font;
         if (font != null) title.font = font;
+        title.fontStyle = FontStyles.Bold;
         title.fontSize = 25f;
         title.alignment = TextAlignmentOptions.Center;
         title.color = Ink;
@@ -150,10 +153,12 @@ public sealed class StraightFaceUI : MonoBehaviour
 
         RectTransform bar = Rect("Bar", box, new Vector2(.5f, 0f), new Vector2(0f, 22f), new Vector2(540f, 20f));
         Fill(bar, Track);
+        UiSkin.Round(bar.GetComponent<Image>(), 6f);
         near = Band("Near enough", bar, NearBand);
         green = Band("Green", bar, GreenMark);
         needle = Rect("Needle", bar, new Vector2(0f, .5f), Vector2.zero, new Vector2(6f, 34f));
         Fill(needle, Ink);
+        UiSkin.Round(needle.GetComponent<Image>(), 3f);
         panel.SetActive(false);
     }
 
@@ -184,14 +189,5 @@ public sealed class StraightFaceUI : MonoBehaviour
         Image image = rect.gameObject.AddComponent<Image>();
         image.color = colour;
         image.raycastTarget = false;
-    }
-
-    // The HUD's own lettering (as NightNotebook does).
-    static TMP_FontAsset HudFont()
-    {
-        ShopUI hud = FindAnyObjectByType<ShopUI>();
-        TMP_Text any = hud != null ? hud.GetComponentInChildren<TMP_Text>(true) : null;
-        if (any == null) any = FindAnyObjectByType<TextMeshProUGUI>();
-        return any != null && any.font != null ? any.font : TMP_Settings.defaultFontAsset;
     }
 }

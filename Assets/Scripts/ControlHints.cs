@@ -38,4 +38,6 @@ public static class ControlHints
     public static string Sneak => Pad ? PadInput.Label(PadButton.LeftStickPress) : "Ctrl";
     /// <summary>A pad's aim steps (D-pad left / right, by day): to the next thing to use that side.</summary>
     public static string AimStep => Pad ? "D-pad" : "";
+    /// <summary>The phone and the pause (PausePhone, playtest 3 session 3): Esc, or the pad's Start / Options / Plus.</summary>
+    public static string Pause => Pad ? PadInput.Label(PadButton.Start) : "Esc";
 }

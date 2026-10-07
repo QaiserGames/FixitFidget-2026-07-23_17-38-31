@@ -313,6 +313,24 @@ public static class ReputationRuleChecks
             "The day's line picks its worst kind of review.");
         Check(ReputationRules.StarsOf(Review.None) == 0 && ReputationRules.StarsOf(Review.Fine) == 3 && ReputationRules.StarsOf(Review.LovedIt) == 5,
             "No review, no stars; Fine is three.");
+
+        // ---------- live cards (the phone by day, playtest 3 session 3) ----------
+        var liveDay = new ReputationLedger();
+        liveDay.Restore(40, 1, 7, false, null);
+        string Writer(ReviewEntry e) => e.name == "Grace" ? "" : e.name + " wrote this.";
+        Check(liveDay.TodayCards.Count == 0, "A day starts with no live cards.");
+        liveDay.Record(E(Review.LovedIt, "Tomas"), Writer);
+        liveDay.Record(new ReviewEntry { review = Review.LikedIt, reason = ReviewReason.WaitedLong, name = "Grace", regular = true }, Writer);
+        liveDay.Record(E(Review.None, "Nobody"), Writer);
+        liveDay.Record(E(Review.Fine, "Ali"));   // a writer isn't required: no live card, still counted
+        Check(liveDay.TodayCards.Count == 2 && liveDay.TodayCards[0].line == "Tomas wrote this." && liveDay.TodayCards[1].line == "Liked it."
+            && liveDay.TodayCards[1].regular && liveDay.Cards.Count == 0 && liveDay.ReviewCount == 3,
+            "Reviews show as cards the moment they're written, before closing (Cards stays the settled day's).");
+        liveDay.Settle(7, (e, i) => "x", Writer);
+        Check(liveDay.TodayCards.Count == 3 && liveDay.TodayCards[0].line == "Tomas wrote this." && liveDay.TodayCards[1].line == "Liked it."
+            && ReferenceEquals(liveDay.TodayCards, liveDay.Cards), "Once settled, today's cards are the settled cards, with the same lines.");
+        liveDay.BeginDay(8);
+        Check(liveDay.TodayCards.Count == 0, "A new day's live cards start empty.");
         Check(ReputationRules.SplitQuote(ReputationRules.Quote("My watch works.", "Walk-in 2"), out string splitLine, out string splitName)
             && splitLine == "My watch works." && splitName == "a walk-in" && !ReputationRules.SplitQuote("plain text", out _, out _),
             "An older recap's quote splits back into its line and its signature.");

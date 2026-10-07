@@ -25,6 +25,11 @@ using UnityEngine.UI;
 //                                       up to look at), paused, or once the day is over
 //
 // A repair finished on the bench gets its sparkle and "Fixed!" by itself (the item being worked on is watched).
+//
+// LEVELLED UP (playtest 3, session 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §3.3): money pops in a chip of the
+// brand's green (no more yellow), the badges have thicker symbols and a rim in their own colour, they bounce in on a
+// spring, and a heart or a star throws a tiny burst of its colour as it lands. The lettering and its shadow are the UI
+// skin's (UiSkin), and everything times itself on the UI's own clock (UiClock), so it holds while the phone pauses.
 // Built in code on a screen canvas of its own, sorted under the barks; the icons are drawn in code too: nothing in the scene
 // changes and no asset is added. Pinned the way barks are (Barks.HeadPointOf), the same size at any zoom. Hidden while the
 // recap has the screen. Every call is safe anywhere: without a camera nothing shows. The sounds named here (Sfx) are
@@ -54,7 +59,7 @@ public sealed class Juice : MonoBehaviour
     sealed class Pop
     {
         public RectTransform root;
-        public Image image;
+        public Image image, chip;
         public TextMeshProUGUI text;
         public CanvasGroup group;
         public bool active, pinned;
@@ -70,7 +75,7 @@ public sealed class Juice : MonoBehaviour
         public Image image;
         public bool active;
         public Vector3 point;
-        public Vector2 velocity;
+        public Vector2 velocity, offset;
         public float born, life, spin, size;
     }
 
@@ -93,8 +98,6 @@ public sealed class Juice : MonoBehaviour
     Canvas canvas;
     RectTransform canvasRect;
     Camera cam;
-    TMP_FontAsset font;
-    Material textMaterial;
     ItemInspector inspector;
     JobBase watched;
     bool watchedDone, hidden;
@@ -117,10 +120,14 @@ public sealed class Juice : MonoBehaviour
         Pop pop = j.Take();
         pop.image.enabled = true;
         pop.image.sprite = Sprites[(int)icon];
+        pop.chip.enabled = false;
         pop.text.enabled = false;
         pop.root.sizeDelta = new Vector2(IconSize, IconSize);
         j.Show(pop, who, Vector3.zero, Vector2.zero, EmoteLife);
         Sfx.Play("juice.emote", who.position, .6f);
+        // A heart or a star throws a tiny burst of its colour as it lands (round the badge's middle).
+        if (icon == Icon.Heart || icon == Icon.Star)
+            j.Burst(Barks.HeadPointOf(who), new Vector2(0f, IconSize * .5f), icon == Icon.Heart ? HeartColour : StarColour);
     }
 
     /// <summary>"+$<paramref name="amount"/>" pops over <paramref name="who"/> as they pay (with "+$tip tip"), and floats up.</summary>
@@ -132,12 +139,20 @@ public sealed class Juice : MonoBehaviour
         Pop pop = j.Take();
         pop.image.enabled = false;
         pop.text.enabled = true;
-        pop.text.text = tip > 0 ? $"+${amount}\n<size=62%><color=#FFE9A8>+${tip} tip</color></size>" : $"+${amount}";
-        pop.text.fontSize = 36f;
-        pop.text.color = new Color(1f, .83f, .3f, 1f);
-        pop.root.sizeDelta = new Vector2(220f, 90f);
+        // In a chip of the brand's green: the money's colour everywhere now (the cash stack's pop is the same chip).
+        pop.text.text = tip > 0 ? $"+${amount}  <size=72%><color={TipColour}>+${tip} tip</color></size>" : $"+${amount}";
+        pop.text.fontSize = 32f;
+        pop.text.color = UiSkin.Paper;
+        pop.text.alignment = TextAlignmentOptions.Center;
+        Vector2 words = pop.text.GetPreferredValues(pop.text.text, 999f, 999f);
+        pop.root.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 30f, 46f);
+        pop.chip.enabled = true;
+        pop.chip.color = UiSkin.Brand;
         j.Show(pop, who, Vector3.zero, new Vector2(78f, -6f), MoneyLife);
     }
+
+    static readonly string TipColour = UiSkin.HexOf(UiSkin.GoldSoft);
+    static readonly Color HeartColour = new Color(.91f, .31f, .36f), StarColour = UiSkin.Gold;
 
     /// <summary>A word pops at <paramref name="point"/> and floats up ("Fixed!").</summary>
     public static void Words(Vector3 point, string words, Color colour)
@@ -147,10 +162,12 @@ public sealed class Juice : MonoBehaviour
         if (j == null) return;
         Pop pop = j.Take();
         pop.image.enabled = false;
+        pop.chip.enabled = false;
         pop.text.enabled = true;
         pop.text.text = words;
         pop.text.fontSize = 40f;
         pop.text.color = colour;
+        pop.text.alignment = TextAlignmentOptions.Bottom;
         pop.root.sizeDelta = new Vector2(320f, 70f);
         j.Show(pop, null, point, new Vector2(0f, 26f), WordsLife);
     }
@@ -162,7 +179,7 @@ public sealed class Juice : MonoBehaviour
         Juice j = Ensure();
         if (j == null) return;
         int n = big ? 16 : 7;
-        float now = Time.unscaledTime;
+        float now = UiClock.Now;
         for (int i = 0; i < n; i++)
         {
             Spark s = j.TakeSpark();
@@ -174,6 +191,7 @@ public sealed class Juice : MonoBehaviour
             s.life = (big ? BigSparkLife : SparkLife) * Random.Range(.8f, 1.1f);
             s.spin = Random.Range(-300f, 300f);
             s.size = (big ? 30f : 22f) * Random.Range(.7f, 1.15f);
+            s.offset = Vector2.zero;
             s.image.color = i % 3 == 0 ? new Color(1f, .97f, .78f, 1f) : new Color(1f, .82f, .35f, 1f);
             s.active = true;
             s.root.gameObject.SetActive(true);
@@ -209,7 +227,7 @@ public sealed class Juice : MonoBehaviour
             m.active = true;
             m.id = ++nextMarker;
             m.point = point;
-            m.born = Time.unscaledTime;
+            m.born = UiClock.Now;
             m.image.sprite = Sprites[(int)icon];
             m.group.alpha = 0f;
             m.root.localScale = Vector3.zero;
@@ -364,7 +382,29 @@ public sealed class Juice : MonoBehaviour
     void OnDestroy()
     {
         if (instance == this) instance = null;
-        if (textMaterial != null) Destroy(textMaterial);
+    }
+
+    // A tiny burst of <colour> round a point (a badge landing): small sparks, a beat after it pops, to land with it.
+    void Burst(Vector3 point, Vector2 offset, Color colour)
+    {
+        float now = UiClock.Now;
+        const int n = 7;
+        for (int i = 0; i < n; i++)
+        {
+            Spark s = TakeSpark();
+            float a = (i + Random.value * .5f) / n * Mathf.PI * 2f;
+            s.point = point;
+            s.offset = offset;
+            s.velocity = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Random.Range(120f, 170f);
+            s.born = now + .1f;
+            s.life = .42f * Random.Range(.85f, 1.1f);
+            s.spin = Random.Range(-240f, 240f);
+            s.size = Random.Range(13f, 18f);
+            s.image.color = i % 2 == 0 ? colour : Color.Lerp(colour, Color.white, .55f);
+            s.active = true;
+            s.root.gameObject.SetActive(true);
+            s.image.enabled = false;
+        }
     }
 
     void Build()
@@ -379,20 +419,6 @@ public sealed class Juice : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = .5f;
         canvasRect = canvasObject.GetComponent<RectTransform>();
-        font = HudFont();
-        if (font != null && font.material != null)
-        {
-            // One soft dark underlay behind every word, as the HUD's prompt has (ShopUI.ShadowBehind).
-            textMaterial = new Material(font.material) { name = "Juice words (while playing)" };
-            if (textMaterial.HasProperty("_UnderlayColor"))
-            {
-                textMaterial.EnableKeyword("UNDERLAY_ON");
-                textMaterial.SetColor("_UnderlayColor", new Color(0f, 0f, 0f, .75f));
-                textMaterial.SetFloat("_UnderlayOffsetY", -.35f);
-                textMaterial.SetFloat("_UnderlayDilate", .6f);
-                textMaterial.SetFloat("_UnderlaySoftness", .55f);
-            }
-        }
         // The lasting badges first, so a pop or a spark draws over them.
         for (int i = 0; i < MarkerCount; i++)
         {
@@ -422,18 +448,28 @@ public sealed class Juice : MonoBehaviour
             Stretch(image.rectTransform);
             image.raycastTarget = false;
             image.preserveAspect = true;
+            // The money's chip, behind its words (off for badges and words).
+            var chip = new GameObject("Chip", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            chip.rectTransform.SetParent(root, false);
+            Stretch(chip.rectTransform);
+            UiSkin.Round(chip, 23f);
+            chip.raycastTarget = false;
+            chip.enabled = false;
+            var chipShadow = chip.gameObject.AddComponent<Shadow>();
+            chipShadow.effectColor = new Color(0f, 0f, 0f, .32f);
+            chipShadow.effectDistance = new Vector2(0f, -3f);
             var text = new GameObject("Words", typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
             text.rectTransform.SetParent(root, false);
             Stretch(text.rectTransform);
             text.raycastTarget = false;
-            if (font != null) text.font = font;
-            if (textMaterial != null) text.fontSharedMaterial = textMaterial;
+            UiSkin.UseFont(text);
+            UiSkin.Shadowed(text);
             text.alignment = TextAlignmentOptions.Bottom;
             text.fontStyle = FontStyles.Bold;
             text.textWrappingMode = TextWrappingModes.NoWrap;
             text.richText = true;
             root.gameObject.SetActive(false);
-            pops[i] = new Pop { root = root, image = image, text = text, group = root.GetComponent<CanvasGroup>() };
+            pops[i] = new Pop { root = root, image = image, chip = chip, text = text, group = root.GetComponent<CanvasGroup>() };
             pops[i].group.blocksRaycasts = false;
             pops[i].group.interactable = false;
         }
@@ -484,7 +520,7 @@ public sealed class Juice : MonoBehaviour
         pop.pinned = who != null;
         pop.point = point;
         pop.offset = offset;
-        pop.born = Time.unscaledTime;
+        pop.born = UiClock.Now;
         pop.life = life;
         pop.active = true;
         pop.group.alpha = 0f;
@@ -506,9 +542,9 @@ public sealed class Juice : MonoBehaviour
     // The item being worked on at the bench: the moment it's finished (perfect), sparks and "Fixed!".
     void WatchTheBench()
     {
-        if (Time.unscaledTime >= nextInspectorLook && inspector == null)
+        if (UiClock.Now >= nextInspectorLook && inspector == null)
         {
-            nextInspectorLook = Time.unscaledTime + 2f;
+            nextInspectorLook = UiClock.Now + 2f;
             inspector = FindAnyObjectByType<ItemInspector>();
         }
         JobBase item = inspector != null ? inspector.FocusedItem : null;
@@ -534,7 +570,7 @@ public sealed class Juice : MonoBehaviour
     {
         if (canvas == null || hidden) return;
         if (cam == null || !cam.isActiveAndEnabled) cam = Camera.main;
-        float now = Time.unscaledTime;
+        float now = UiClock.Now;
         float scale = canvas.scaleFactor > 0f ? canvas.scaleFactor : 1f;
         // The lasting badges: up with the same spring as a pop, then a slow bob; out of the way while Ace is busy.
         bool quiet = MarksQuiet();
@@ -544,7 +580,7 @@ public sealed class Juice : MonoBehaviour
             Vector3 s = cam != null ? cam.WorldToScreenPoint(m.point) : new Vector3(0f, 0f, -1f);
             if (quiet || s.z < 0f) { m.group.alpha = 0f; continue; }
             float t = now - m.born;
-            float grow = t < .14f ? Mathf.Lerp(0f, 1.2f, t / .14f) : t < .28f ? Mathf.Lerp(1.2f, 1f, (t - .14f) / .14f) : 1f;
+            float grow = Spring(t);
             m.root.localScale = new Vector3(grow, grow, 1f);
             m.group.alpha = t < .1f ? t / .1f : 1f;
             m.root.anchoredPosition = new Vector2(s.x / scale, s.y / scale + 5f * Mathf.Sin(t * 2.6f));
@@ -559,8 +595,8 @@ public sealed class Juice : MonoBehaviour
             Vector3 s = cam.WorldToScreenPoint(world);
             if (s.z < 0f) { p.group.alpha = 0f; continue; }
             float k = t / p.life;
-            // Up with a spring (past full size and back), then drifting up, fading at the end.
-            float grow = t < .12f ? Mathf.Lerp(0f, 1.18f, t / .12f) : t < .24f ? Mathf.Lerp(1.18f, 1f, (t - .12f) / .12f) : 1f;
+            // Up on a spring (past full size, a touch under, and settling), then drifting up, fading at the end.
+            float grow = Spring(t);
             float up = Rise * (1f - (1f - k) * (1f - k));
             p.root.localScale = new Vector3(grow, grow, 1f);
             p.group.alpha = t < .08f ? t / .08f : k > .72f ? Mathf.Clamp01((1f - k) / .28f) : 1f;
@@ -571,18 +607,23 @@ public sealed class Juice : MonoBehaviour
             if (!sp.active) continue;
             float t = now - sp.born;
             if (t >= sp.life || cam == null) { sp.active = false; sp.root.gameObject.SetActive(false); continue; }
+            if (t < 0f) { sp.image.enabled = false; continue; }   // a burst's beat before it goes
             Vector3 s = cam.WorldToScreenPoint(sp.point);
             if (s.z < 0f) { sp.image.enabled = false; continue; }
             sp.image.enabled = true;
             float k = t / sp.life;
             // Out fast and slowing, a little fall, shrinking to nothing.
             Vector2 travelled = sp.velocity * (t - .5f * t * t / sp.life) + new Vector2(0f, -60f * t * t);
-            sp.root.anchoredPosition = new Vector2(s.x / scale, s.y / scale) + travelled;
+            sp.root.anchoredPosition = new Vector2(s.x / scale, s.y / scale) + sp.offset + travelled;
             float size = sp.size * (k < .15f ? k / .15f : 1f - (k - .15f) / .85f);
             sp.root.sizeDelta = new Vector2(size, size);
             sp.root.localRotation = Quaternion.Euler(0f, 0f, sp.spin * t);
         }
     }
+
+    // A damped spring from nothing to full size: past it (about 1.2 at 0.18 s), a touch under (0.96), and settled by
+    // about half a second.
+    static float Spring(float t) => t <= 0f ? 0f : t >= .6f ? 1f : 1f - Mathf.Exp(-9f * t) * Mathf.Cos(17f * t);
 
     // ================================================================== handing over
 
@@ -658,27 +699,27 @@ public sealed class Juice : MonoBehaviour
     static Sprite[] Sprites => sprites ??= DrawIcons();
     static Sprite SparkSprite => sparkSprite != null ? sparkSprite : sparkSprite = DrawSpark();
 
-    const int Px = 96;
-    static readonly Color Ink = new Color(.16f, .15f, .19f, 1f);
-    static readonly Color Paper = new Color(1f, .985f, .95f, 1f);
+    const int Px = 128;
+    static readonly Color Paper = UiSkin.Paper;
 
     static Sprite[] DrawIcons()
     {
         var all = new Sprite[9];
-        all[(int)Icon.Heart] = Badge(p => Heart(p), new Color(.91f, .31f, .36f));
-        all[(int)Icon.Star] = Badge(p => Star(p, 5, .34f, .15f), new Color(.97f, .72f, .2f));
+        all[(int)Icon.Heart] = Badge(p => Heart(p), HeartColour);
+        all[(int)Icon.Star] = Badge(p => Star(p, 5, .34f, .15f), StarColour);
         all[(int)Icon.Cup] = Badge(Cup, new Color(.55f, .37f, .24f));
-        all[(int)Icon.Tick] = Badge(Tick, new Color(.24f, .72f, .42f));
+        all[(int)Icon.Tick] = Badge(Tick, UiSkin.Brand);
         all[(int)Icon.Dots] = Badge(Dots, new Color(.52f, .55f, .6f));
         all[(int)Icon.Cloud] = Badge(Cloud, new Color(.55f, .6f, .68f));
         all[(int)Icon.Drop] = Badge(Drop, new Color(.35f, .64f, .91f));
-        all[(int)Icon.Burst] = Badge(p => Star(p, 9, .36f, .22f), new Color(.88f, .3f, .22f));
+        all[(int)Icon.Burst] = Badge(p => Star(p, 9, .36f, .22f), UiSkin.Red);
         all[(int)Icon.Mess] = Badge(Mess, new Color(.47f, .43f, .26f));
         return all;
     }
 
-    // A round paper badge with a dark rim, the symbol in its colour inside. Distances in the badge's own units: its
-    // radius is .5 (the texture spans -.5 to .5).
+    // A round paper badge with a rim in its own colour (darker), the symbol inside in its colour, drawn a touch bolder
+    // (dilated), and a soft light across the paper's top. Distances in the badge's own units: its radius is .5 (the
+    // texture spans -.5 to .5).
     static Sprite Badge(System.Func<Vector2, float> symbol, Color colour)
     {
         var tex = new Texture2D(Px, Px, TextureFormat.RGBA32, false)
@@ -687,16 +728,18 @@ public sealed class Juice : MonoBehaviour
         };
         var pixels = new Color[Px * Px];
         float aa = 1.2f / Px;
+        Color rim = Color.Lerp(colour, Color.black, .18f);
         for (int y = 0; y < Px; y++)
             for (int x = 0; x < Px; x++)
             {
                 var p = new Vector2((x + .5f) / Px - .5f, (y + .5f) / Px - .5f);
-                float disc = p.magnitude - .44f;
-                float shadow = (p + new Vector2(0f, .025f)).magnitude - .45f;
-                Color c = new Color(0f, 0f, 0f, .28f * Mathf.Clamp01(.5f - shadow / (aa * 4f)));
-                c = Over(c, Ink, Mathf.Clamp01(.5f - (disc - .0f) / aa));
-                c = Over(c, Paper, Mathf.Clamp01(.5f - (disc + .035f) / aa));
-                c = Over(c, colour, Mathf.Clamp01(.5f - symbol(p) / aa));
+                float disc = p.magnitude - .45f;
+                float shadow = (p + new Vector2(0f, .03f)).magnitude - .455f;
+                Color c = new Color(0f, 0f, 0f, .3f * Mathf.Clamp01(.5f - shadow / (aa * 5f)));
+                c = Over(c, rim, Mathf.Clamp01(.5f - disc / aa));
+                Color paper = Color.Lerp(Paper, Color.white, Mathf.Clamp01(p.y * 2.2f));
+                c = Over(c, paper, Mathf.Clamp01(.5f - (disc + .062f) / aa));
+                c = Over(c, colour, Mathf.Clamp01(.5f - (symbol(p) - .016f) / aa));
                 pixels[y * Px + x] = c;
             }
         tex.SetPixels(pixels);
@@ -836,11 +879,4 @@ public sealed class Juice : MonoBehaviour
         return Mathf.Min(round, cone);
     }
 
-    static TMP_FontAsset HudFont()
-    {
-        ShopUI hud = FindAnyObjectByType<ShopUI>();
-        TMP_Text any = hud != null ? hud.GetComponentInChildren<TMP_Text>(true) : null;
-        if (any == null) any = FindAnyObjectByType<TextMeshProUGUI>();
-        return any != null && any.font != null ? any.font : TMP_Settings.defaultFontAsset;
-    }
 }

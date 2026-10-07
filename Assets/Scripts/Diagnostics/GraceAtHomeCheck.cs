@@ -615,11 +615,13 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
     int BaysAll() => night.Homes != null ? night.Homes.RoomsOn(house.house, 1) : -1;
     string Clock() => GraceNight.Clock(night.Hour);
 
+    // By day the clock is under the HUD's sign (HudCorners, playtest 3 session 3); at night it's the clock line, top right.
     string HudClock()
     {
+        if (HudCorners.Instance != null && HudCorners.Instance.Showing) return HudCorners.Instance.ClockLine;
         ShopUI hud = FindAnyObjectByType<ShopUI>();
         TMP_Text clock = Field<TMP_Text>(hud, "clockText");
-        return clock != null ? clock.text ?? "" : "";
+        return clock != null && clock.gameObject.activeInHierarchy ? clock.text ?? "" : "";
     }
 
     string NoteShowing()

@@ -24,8 +24,10 @@ public sealed class BeverageStation : MonoBehaviour
         slots = GetComponentsInChildren<BeverageSlot>();
         canvas = RepairOverlayUI.Canvas("Drink station action", transform, 12);
         scaler = canvas.GetComponent<UnityEngine.UI.CanvasScaler>();
-        var card = RepairOverlayUI.Panel("Current action", canvas.transform, Vector2.zero,
-            new Vector2(526, 94), new Color(.045f, .065f, .065f, .83f)).rectTransform;
+        UnityEngine.UI.Image cardImage = RepairOverlayUI.Panel("Current action", canvas.transform, Vector2.zero,
+            new Vector2(526, 94), RepairOverlayUI.Background);
+        UiSkin.Round(cardImage, UiSkin.Radius);
+        var card = cardImage.rectTransform;
         card.anchorMin = card.anchorMax = new Vector2(.5f, 0);
         card.pivot = new Vector2(.5f, 0);
         card.anchoredPosition = new Vector2(0, 20);

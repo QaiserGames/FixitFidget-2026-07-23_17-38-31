@@ -34,7 +34,8 @@ public static class NeighborhoodRefreshChecks
 
         var seats = InScene<TableSeat>().Where(s => s.isActiveAndEnabled).ToArray();
         var spots = InScene<WaitingSpot>().Where(s => s.isActiveAndEnabled).ToArray();
-        Require(seats.Length == 16, "Expected the existing 16 active table seats.");
+        // 21 since the café's furnishing pass (the 23 Sept baseline had 16); counted again in playtest 3 (7 Oct).
+        Require(seats.Length == 21, $"Expected the café's 21 active table seats (found {seats.Length}).");
         Require(spots.Any(s => s.Kind == WaitingSpot.SpotKind.Loiter), "No active loiter spots remain.");
         // Loiter spots have no separate stand point by design: WaitingSpot.StandPoint
         // falls back to the spot itself (six loiter spots, recorded that way in the
@@ -44,8 +45,12 @@ public static class NeighborhoodRefreshChecks
         foreach (var seat in seats)
         {
             var serialized = new SerializedObject(seat);
-            Require(seat.Kind == WaitingSpot.SpotKind.Seat && Mathf.Approximately(seat.DrainMultiplier, .6f),
-                seat.name + " lost its seat/patience settings.");
+            // Table seats drain patience at 0.6; the lounge's five (two sofas and the tub chair, NPC pass 2 step 4,
+            // 26 Sept) at 0.55, a little comfier. The 23 Sept baseline only knew the table seats.
+            bool lounge = seat.transform.parent != null && seat.transform.parent.name == "Lounge seats (pass 2)";
+            float drain = lounge ? .55f : .6f;
+            Require(seat.Kind == WaitingSpot.SpotKind.Seat && Mathf.Approximately(seat.DrainMultiplier, drain),
+                seat.name + $" lost its seat/patience settings (drain {seat.DrainMultiplier:0.00}, expected {drain:0.00}).");
             Require(serialized.FindProperty("standPoint").objectReferenceValue != null
                 && serialized.FindProperty("cupSpot").objectReferenceValue != null
                 && serialized.FindProperty("seatPose").objectReferenceValue != null, seat.name + " lost a stand, cup or sitting anchor.");
@@ -82,7 +87,7 @@ public static class NeighborhoodRefreshChecks
         string circulation = AcesCafeLayoutSetup.ValidateOccupiedCirculationV2();
         Require(paths.Contains("PASS"), paths);
         Require(circulation.Contains("PASS"), circulation);
-        return "Neighborhood refresh: PASS — 16 seats, " + spots.Length
+        return "Neighborhood refresh: PASS — 21 seats, " + spots.Length
             + " waiting spots, original save/log paths, no probes or missing scripts, preserved walking settings, 16 signal heads/48 lenses.\n"
             + paths + "\n" + circulation;
     }

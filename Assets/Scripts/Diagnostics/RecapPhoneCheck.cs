@@ -358,7 +358,20 @@ public sealed class RecapPhoneCheck : MonoBehaviour
     // ring, the D-pad down and up the app, A to buy, the right stick to scroll.
     IEnumerator PadSteps(ShopInventory stock, ShopEconomy till)
     {
+        // The keyboard lets go of everything first: W, S and the arrows also move the UI's selection, and a key the
+        // game still thinks is down (its release lost while the editor wasn't in front) would fight the D-pad.
+        if (Keyboard.current != null) { InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState()); yield return null; yield return null; }
         pad = InputSystem.AddDevice<Gamepad>("Recap phone check pad");
+        // The UI's D-pad steps come through PlayerInput's actions, which listen only to the devices of the control scheme
+        // it last switched to. A player's first press on a pad switches it (auto-switch); a pad made in code a moment
+        // ago may not have been switched to yet (the keys just pressed above switched it to the keyboard), and then the
+        // D-pad's first step is lost. So the check switches it, as that first press would.
+        var playerInput = FindAnyObjectByType<PlayerInput>();
+        if (playerInput != null && !playerInput.devices.Contains(pad))
+        {
+            bool switched = playerInput.SwitchCurrentControlScheme(pad);
+            Note($"PlayerInput switched to the check's pad ({(switched ? playerInput.currentControlScheme : "it wouldn't")})");
+        }
         yield return PadPress(GamepadButton.RightShoulder);
         Check(PadInput.UsingPad && phone.Current == RecapPhone.App.Notes, $"a pad's RB opens the next app (Notes; it's on {phone.Current})");
         Check(phone.HintText.Contains("RB") || phone.HintText.Contains("R1") || phone.HintText.Contains("R "),
@@ -372,11 +385,32 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         yield return Photo("10-pad-close-up");
 
         // Up from Close up: the app's last button that can be pressed. With the upgrades out of reach now, that's the restock.
+        Selectable upFromClose = phone.CloseButton.navigation.selectOnUp;
+        string routes = ($"before the D-pad: Close up's up leads to {Name(upFromClose != null ? upFromClose.gameObject : null)}" +
+             (upFromClose != null ? $" ({(upFromClose.IsActive() ? "active" : "not active")}, {(upFromClose.IsInteractable() ? "pressable" : "not pressable")})" : "") +
+             $", its routes {phone.CloseButton.navigation.mode}; selected {Name(Selected())}; event system {(EventSystem.current != null ? EventSystem.current.name : "none")}" +
+             $" (navigation events {(EventSystem.current != null && EventSystem.current.sendNavigationEvents ? "on" : "off")}, module {(EventSystem.current != null && EventSystem.current.currentInputModule != null ? EventSystem.current.currentInputModule.GetType().Name : "none")})");
+        var probe = phone.CloseButton.gameObject.AddComponent<MoveProbe>();
         yield return PadPress(GamepadButton.DpadUp);
         yield return Frames(2);
+        string heard = probe.heard.Count == 0 ? "none" : string.Join(", ", probe.heard);
+        Destroy(probe);
         Button restock = phone.ContentButton("restock");
+        if (restock != null && Selected() != restock.gameObject) Note("moves Close up heard: " + heard);
+        if (restock != null && Selected() != restock.gameObject)
+            Note(routes + $"; after the D-pad: selected {Name(Selected())}; the restock is {(restock.IsActive() ? "active" : "not active")}, " +
+                 $"{(restock.IsInteractable() ? "pressable" : "not pressable")}, its routes {restock.navigation.mode} (down to {Name(restock.navigation.selectOnDown != null ? restock.navigation.selectOnDown.gameObject : null)})");
         Check(restock != null && Selected() == restock.gameObject, $"the D-pad goes up to the restock (on {Name(Selected())})");
-        Check(restock != null && phone.IsFullyVisible((RectTransform)restock.transform) && phone.FocusRingShowing, "…scrolled into view, with the ring on it");
+        if (restock == null || Selected() != restock.gameObject)
+        {
+            // A would press whatever is selected: on Close up, that closes the evening and every check after it means nothing.
+            Note("the D-pad's steps, frame by frame: " + padTrace);
+            Note("the pad isn't on the restock: the rest of the pad's steps are skipped (A would press Close up)");
+            InputSystem.RemoveDevice(pad);
+            pad = null;
+            yield break;
+        }
+        Check(phone.IsFullyVisible((RectTransform)restock.transform) && phone.FocusRingShowing, "…scrolled into view, with the ring on it");
         yield return Photo("11-pad-on-the-restock");
         int cups = stock.Cups, money = till.Money;
         yield return PadPress(GamepadButton.South);
@@ -392,6 +426,8 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         yield return PadPress(GamepadButton.DpadDown);
         yield return Frames(2);
         Check(Selected() == phone.Tab(RecapPhone.App.Shop).gameObject, $"down past Close up to the tab bar (on {Name(Selected())})");
+        if (Selected() != phone.Tab(RecapPhone.App.Shop).gameObject || padTrace.ToString().Contains("not in use"))
+            Note("the D-pad's steps, frame by frame: " + padTrace);
         if (Selected() != phone.Tab(RecapPhone.App.Shop).gameObject)
         {
             Note("the pad isn't on the tab bar: the rest of the pad's steps are skipped (A would press whatever is selected)");
@@ -402,7 +438,8 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         yield return PadPress(GamepadButton.DpadLeft);
         yield return PadPress(GamepadButton.South);
         yield return Frames(2);
-        Check(phone.Current == RecapPhone.App.Franchise, "left along the tabs and A opens Franchise");
+        Check(phone.Current == RecapPhone.App.Franchise, $"left along the tabs and A opens Franchise (on {phone.Current}, {Name(Selected())} selected)");
+        if (phone.Current != RecapPhone.App.Franchise) Note("the pad's steps, frame by frame: " + padTrace);
 
         yield return PadPress(GamepadButton.LeftShoulder);   // to Reviews, longer than the window
         float before = phone.ScrollOffset;
@@ -454,13 +491,46 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         yield return null;
     }
 
+    // What the UI's own "move" reads (the event system's input module), for the trace.
+    static string UiMove()
+    {
+        var module = EventSystem.current != null ? EventSystem.current.currentInputModule as UnityEngine.InputSystem.UI.InputSystemUIInputModule : null;
+        if (module == null) return "no Input System UI module";
+        InputAction move = module.move != null ? module.move.action : null;
+        if (move == null) return "the UI module has no move action";
+        Keyboard keys = Keyboard.current;
+        string held = keys == null ? "" : string.Join(" ", new[] { Key.W, Key.S, Key.A, Key.D, Key.UpArrow, Key.DownArrow }
+            .Where(k => keys[k].isPressed).Select(k => k.ToString()));
+        return $"UI move {move.actionMap?.name}/{move.name} {(move.enabled ? "on" : "OFF")} reads {move.ReadValue<Vector2>()}" +
+               (held.Length > 0 ? $", keys held: {held}" : "");
+    }
+
+    sealed class MoveProbe : MonoBehaviour, IMoveHandler
+    {
+        public readonly List<string> heard = new List<string>();
+        public void OnMove(AxisEventData data) => heard.Add($"{data.moveDir} at frame {Time.frameCount}");
+    }
+
+    // A trace of the pad's D-pad steps, frame by frame (what's selected, whether the game reads the pad), for the report
+    // when a step doesn't land.
+    readonly StringBuilder padTrace = new StringBuilder();
+
     IEnumerator PadPress(GamepadButton button)
     {
         if (pad == null) yield break;
+        bool trace = button == GamepadButton.DpadUp || button == GamepadButton.DpadDown || button == GamepadButton.DpadLeft
+                     || button == GamepadButton.South;
+        if (trace) padTrace.Append($"[{button} at frame {Time.frameCount}: on {Name(Selected())}, pad {(PadInput.UsingPad ? "in use" : "not in use")}");
+        // Held for three frames and let go for three, the way a thumb does it (PlayLab's press). A one-frame press was
+        // lost now and then: Unity's UI skips its navigation for any frame the editor isn't focused (another window
+        // coming forward on the desktop), and a press that short could fall entirely inside one.
         InputSystem.QueueStateEvent(pad, new GamepadState(button));
-        yield return null;
+        for (int i = 0; i < 3; i++) yield return null;
+        if (trace) padTrace.Append($"; pressed, frame {Time.frameCount}: on {Name(Selected())}, pad {(PadInput.UsingPad ? "in use" : "not in use")}, " +
+                                   $"D-pad {pad.dpad.ReadValue()}, the editor {(Application.isFocused ? "focused" : "NOT focused")}, {UiMove()}");
         InputSystem.QueueStateEvent(pad, new GamepadState());
-        yield return null;
+        for (int i = 0; i < 3; i++) yield return null;
+        if (trace) padTrace.Append($"; let go, frame {Time.frameCount}: on {Name(Selected())}, pad {(PadInput.UsingPad ? "in use" : "not in use")}] ");
     }
 
     // A click as the mouse makes one: the pointer's events on the button itself.
@@ -509,11 +579,12 @@ public sealed class RecapPhoneCheck : MonoBehaviour
 
     // ---------- what's on screen ----------
 
-    // The HUD's money, clock, stock and prompt, all hidden behind the recap.
+    // The HUD's money, clock, stock and prompt, and its corners (playtest 3, session 3), all hidden behind the recap.
     bool HudHidden()
     {
         ShopUI hud = FindAnyObjectByType<ShopUI>();
         if (hud == null) return false;
+        if (HudCorners.Instance != null && HudCorners.Instance.Showing) return false;
         foreach (string field in new[] { "moneyText", "clockText", "stockText", "promptText" })
         {
             TMP_Text text = Field<TMP_Text>(hud, field);

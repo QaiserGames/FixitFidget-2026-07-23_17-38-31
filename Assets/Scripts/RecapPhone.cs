@@ -51,27 +51,59 @@ using Object = UnityEngine.Object;
 // The hint for the device in use sits under the phone.
 //
 // Placeholder copy (the apps' names, HQ's requests, the day's lines) is Mansoor's to rewrite.
+//
+// THE PHONE BY DAY (playtest 3, session 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §3.4). A second phone, made
+// by PausePhone, is the pause: Esc (or Start) when nothing else is open brings it up and holds the game still. It is
+// this phone in another mode, so it looks, scrolls and steers the same, with fewer apps:
+//
+//   Today      (by day; the Reviews tab, renamed) today so far on the dark card: the takings, what's in the till (the
+//              HUD shows only today's), the café's stars and the time; then the reviews as they come in (the
+//              reputation's live cards), newest first.
+//   Notes      the notebook, as at closing.
+//   Settings   sound, controls and picture (GameSettings), and Quit, which says plainly that the day so far isn't kept.
+//
+// At night it opens on Notes, with Settings. Its bottom button is "Back to work" ("Back to the night"), and Esc, Start
+// or B put it away too (PausePhone). It draws over everything but the pad's cursor (95).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class RecapPhone : MonoBehaviour
 {
-    public enum App { Tonight, Reviews, Franchise, Shop, Notes }
-    public static readonly string[] AppNames = { "Tonight", "Reviews", "Franchise", "Shop", "Notes" };
-    public const int Apps = 5;
+    public enum App { Tonight, Reviews, Franchise, Shop, Notes, Settings }
+    public static readonly string[] AppNames = { "Tonight", "Reviews", "Franchise", "Shop", "Notes", "Settings" };
+    public const int Apps = 6;
+
+    /// <summary>What this phone is for: the closing recap, or the pause by day or at night (PausePhone).</summary>
+    public enum Mode { Recap, Pause, NightPause }
+    public Mode Kind { get; private set; } = Mode.Recap;
+
+    // The apps each mode shows, in tab order.
+    static readonly App[] RecapApps = { App.Tonight, App.Reviews, App.Franchise, App.Shop, App.Notes };
+    static readonly App[] DayPauseApps = { App.Reviews, App.Notes, App.Settings };
+    static readonly App[] NightPauseApps = { App.Notes, App.Settings };
+    App[] Visible => Kind == Mode.Recap ? RecapApps : Kind == Mode.Pause ? DayPauseApps : NightPauseApps;
+    /// <summary>The apps on the tab bar now, in order.</summary>
+    public IReadOnlyList<App> VisibleApps => Visible;
+    /// <summary>An app's name on its tab: the Reviews app is "Today" on the phone by day.</summary>
+    public string LabelOf(App app) => Kind != Mode.Recap && app == App.Reviews ? "Today" : AppNames[(int)app];
 
     /// <summary>Over the night's notebook (40) and the straight face (45), under the circuit (80) and the night's fade (90).</summary>
     public const int SortingOrder = 60;
+    /// <summary>The phone by day (the pause): over everything but the pad's cursor (5000).</summary>
+    public const int PauseSortingOrder = 95;
 
     // ------------------------------------------------------------------ the look (the mock-up's colours)
 
     static Color Hex(int rgb) => new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, 1f);
 
-    static readonly Color Ink = Hex(0x1f1b17), Soft = Hex(0x6b645c), Faint = Hex(0xa39b91), Line = Hex(0xece6de),
-        CardWhite = Color.white, ScreenColour = Hex(0xf7f3ee), Accent = Hex(0xc9702d), AccentSoft = Hex(0xf6e3d3),
-        Gold = Hex(0xf2a61f), GoldSoft = Hex(0xfdebd0), GoldInk = Hex(0xa8620f), StarOff = Hex(0xd9d2c8),
-        Green = Hex(0x3f8a54), GreenSoft = Hex(0xdcefe1), Red = Hex(0xb8483c), Track = Hex(0xefe9e1), TabOff = Hex(0xa79d91),
-        ButtonOff = Hex(0xe6dfd6), Bezel = Hex(0x111111), DarkText = Hex(0xf7efe6), DarkFaint = Hex(0xcbbfb2),
-        DarkLine = Hex(0x3a332d), IconBox = Hex(0xf3ede6), Cream = Hex(0xe9dfd3), SaveFailed = Hex(0xffb3a7);
+    // The UI skin (playtest 3, session 3; UiSkin) was made from these; the shared ones come from it now, so the phone and
+    // the rest of the game can't drift apart. Its green is the brand's (#2E7D5B): money, as on the HUD's cash stack.
+    static readonly Color Ink = UiSkin.Ink, Soft = UiSkin.InkSoft, Faint = UiSkin.InkFaint, Line = UiSkin.Rule,
+        CardWhite = UiSkin.Card, ScreenColour = UiSkin.Paper, Accent = UiSkin.Accent, AccentSoft = UiSkin.AccentSoft,
+        Gold = UiSkin.Gold, GoldSoft = UiSkin.GoldSoft, GoldInk = UiSkin.GoldInk, StarOff = Hex(0xd9d2c8),
+        StarOffDark = new Color(1f, 1f, 1f, .16f),
+        Green = UiSkin.Brand, GreenSoft = UiSkin.BrandSoft, Red = UiSkin.Red, Track = UiSkin.Track, TabOff = Hex(0xa79d91),
+        ButtonOff = Hex(0xe6dfd6), Bezel = Hex(0x111111), DarkText = UiSkin.BandText, DarkFaint = UiSkin.BandFaint,
+        DarkLine = UiSkin.BandLine, IconBox = Hex(0xf3ede6), Cream = Hex(0xe9dfd3), SaveFailed = Hex(0xffb3a7);
     const string FaintHex = "#A39B91", AccentHex = "#C9702D";
 
     static readonly Color[] AvatarColours =
@@ -136,6 +168,13 @@ public sealed class RecapPhone : MonoBehaviour
     static readonly Vector3[] corners = new Vector3[4];
 
     bool dirty = true, scrollToTop = true, hintForPad, hintWritten;
+    // The pad's routes: every pressable thing in the current app in build order, and which row it's on (a row of pills
+    // shares one: the D-pad goes along it left and right).
+    readonly List<Selectable> navOrder = new List<Selectable>();
+    readonly List<int> navRows = new List<int>();
+    readonly Dictionary<Slider, string> sliderKeys = new Dictionary<Slider, string>();
+    int navRow;
+    bool sameRow;
     // Today's takings count up from $0 the first time an evening's phone shows them (6 Oct 2026, juice).
     TMP_Text todayMoney;
     int todayEarned, todayShown;
@@ -144,22 +183,29 @@ public sealed class RecapPhone : MonoBehaviour
     const float CountSeconds = .9f;
     GameObject lastRevealed;
     ReputationLedger preview;   // a made-up day (Fixit Fidget > Reputation > Preview), until the phone closes
-    Sprite rounded, ring, circle, star, house, bag, note, tick, cupBody, cupLid, bean, beanCrease, moon;
+    Sprite rounded, ring, circle, star, house, bag, note, tick, cupBody, cupLid, bean, beanCrease, moon, gear;
 
     // ------------------------------------------------------------------ making it
 
     /// <summary>Builds the phone on a canvas of its own, closed. RecapUI calls this once, in Start.</summary>
-    public static RecapPhone Create()
+    public static RecapPhone Create() => Create(Mode.Recap);
+
+    /// <summary>Builds a phone for <paramref name="kind"/>, closed: the recap's (RecapUI) or the pause's (PausePhone).</summary>
+    public static RecapPhone Create(Mode kind)
     {
-        var go = new GameObject("Recap phone (while playing)", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        bool recap = kind == Mode.Recap;
+        var go = new GameObject(recap ? "Recap phone (while playing)" : "Pause phone (while playing)",
+            typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         var canvas = go.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = SortingOrder;
+        canvas.sortingOrder = recap ? SortingOrder : PauseSortingOrder;
         var scaler = go.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 1f;   // the phone is tall: it keeps fitting the screen's height at any shape
         var phone = go.AddComponent<RecapPhone>();
+        phone.Kind = kind;
+        if (!recap) phone.Current = App.Reviews;
         phone.Build();
         return phone;
     }
@@ -242,8 +288,8 @@ public sealed class RecapPhone : MonoBehaviour
         closeRect = rect;
         Image back = Paint(rect, Ink, 16f);
         CloseButton = Pressable(rect, back, null, null, dark: true);
-        CloseLabel = Words(rect, RecapUI.NightLabel, 0f, 0f, ContentWidth, 20f, Color.white, TextAlignmentOptions.Center,
-            wrap: false, style: FontStyles.Bold, rich: false);
+        CloseLabel = Words(rect, Kind == Mode.Recap ? RecapUI.NightLabel : "Back to work", 0f, 0f, ContentWidth, 20f, Color.white,
+            TextAlignmentOptions.Center, wrap: false, style: FontStyles.Bold, rich: false);
         Place(CloseLabel.rectTransform, 0f, 0f, ContentWidth, CloseHeight);
     }
 
@@ -253,9 +299,9 @@ public sealed class RecapPhone : MonoBehaviour
         tabBar = bar;
         Paint(bar, Color.white, 0f);
         Paint(Box("Top line", bar, 0f, 0f, DisplayWidth, 1f), Line, 0f);
-        float cell = DisplayWidth / Apps;
-        Sprite[] icons = { moon, star, house, bag, note };
-        Color[] badgeColours = { Accent, Accent, Gold, Red, Accent };
+        float cell = DisplayWidth / Visible.Length;
+        Sprite[] icons = { moon, star, house, bag, note, gear };
+        Color[] badgeColours = { Accent, Accent, Gold, Red, Accent, Accent };
         for (int i = 0; i < Apps; i++)
         {
             RectTransform tab = Box(AppNames[i], bar, i * cell, 1f, cell, TabsHeight - 9f);
@@ -281,6 +327,28 @@ public sealed class RecapPhone : MonoBehaviour
             badgeTexts[i] = count;
             badges[i] = badge.gameObject;
             badge.gameObject.SetActive(false);
+        }
+        PlaceTabs();
+    }
+
+    // The mode's apps along the bar, evenly; the rest put away. (The pause phone has three by day and two at night.)
+    void PlaceTabs()
+    {
+        App[] shown = Visible;
+        float cell = DisplayWidth / shown.Length;
+        for (int i = 0; i < Apps; i++)
+        {
+            if (tabs[i] == null) continue;
+            int at = Array.IndexOf(shown, (App)i);
+            GameObject tab = tabs[i].gameObject;
+            if (tab.activeSelf != at >= 0) tab.SetActive(at >= 0);
+            if (at < 0) continue;
+            Place((RectTransform)tab.transform, at * cell, 1f, cell, TabsHeight - 9f);
+            Place(tabIcons[i].rectTransform, cell / 2f - 13f, 10f, 26f, 26f);
+            tabLabels[i].text = LabelOf((App)i);
+            Place(tabLabels[i].rectTransform, 0f, 40f, cell, tabLabels[i].rectTransform.sizeDelta.y);
+            var badge = (RectTransform)badges[i].transform;
+            Place(badge, cell / 2f + 7f, 4f, badge.sizeDelta.x, badge.sizeDelta.y);
         }
     }
 
@@ -324,6 +392,7 @@ public sealed class RecapPhone : MonoBehaviour
     public void Open(App app)
     {
         Current = app;
+        quitArmed = false;   // anything else opened takes Quit's question back
         scrollToTop = true;
         UpdateTabs();
         Layout();
@@ -337,8 +406,76 @@ public sealed class RecapPhone : MonoBehaviour
         Open(App.Notes);
     }
 
-    /// <summary>The next app to the right (1) or the left (-1), wrapping round.</summary>
-    public void Step(int by) => Tap((App)((((int)Current + by) % Apps + Apps) % Apps));
+    /// <summary>The next app to the right (1) or the left (-1) along the tab bar, wrapping round.</summary>
+    public void Step(int by)
+    {
+        App[] shown = Visible;
+        int at = Mathf.Max(0, Array.IndexOf(shown, Current));
+        Tap(shown[((at + by) % shown.Length + shown.Length) % shown.Length]);
+    }
+
+    // ------------------------------------------------------------------ the phone by day (PausePhone)
+
+    /// <summary>"Quit" pressed twice in Settings (PausePhone quits).</summary>
+    public event Action QuitPressed;
+    bool quitArmed;
+    /// <summary>True after Quit's first press, until anything else is opened.</summary>
+    public bool QuitArmed => quitArmed;
+
+    /// <summary>Opens the pause phone: by day on Today, at night on Notes.</summary>
+    public void OpenPause(bool night)
+    {
+        if (Kind == Mode.Recap) return;
+        Kind = night ? Mode.NightPause : Mode.Pause;
+        Current = night ? App.Notes : App.Reviews;
+        DetailsOpen = false;
+        OpenPerson = "";
+        quitArmed = false;
+        scrollToTop = true;
+        dirty = true;
+        hintWritten = false;
+        CloseLabel.text = night ? "Back to the night" : "Back to work";
+        PlaceTabs();
+        UpdateTabs();
+        Layout();
+        Root.SetActive(true);
+    }
+
+    /// <summary>Puts the pause phone away.</summary>
+    public void ClosePause()
+    {
+        quitArmed = false;
+        if (Root != null) Root.SetActive(false);
+    }
+
+    /// <summary>Scrolls the current app just far enough to show the button or slider with this key (checks' photos).</summary>
+    public bool RevealKey(string key)
+    {
+        Selectable target = ContentButton(key);
+        if (target == null) target = ContentSlider(key);
+        if (target == null) return false;
+        Canvas.ForceUpdateCanvases();
+        Reveal((RectTransform)target.transform);
+        return true;
+    }
+
+    /// <summary>A slider in the current app by its key ("master", "music", "effects", "look", "padlook"), or null.</summary>
+    public Slider ContentSlider(string key)
+    {
+        foreach (KeyValuePair<Slider, string> pair in sliderKeys)
+            if (pair.Key != null && pair.Value == key) return pair.Key;
+        return null;
+    }
+
+    /// <summary>The first thing a pad can press in the current app (or the bottom button).</summary>
+    public Selectable FirstSelectable
+    {
+        get
+        {
+            foreach (Selectable s in navOrder) if (s != null && s.IsInteractable() && s.gameObject.activeInHierarchy) return s;
+            return CloseButton;
+        }
+    }
 
     public void ToggleDetails()
     {
@@ -402,7 +539,8 @@ public sealed class RecapPhone : MonoBehaviour
     public string Describe()
     {
         if (Root == null) return "Recap phone: not built.";
-        return $"Recap phone: {(Root.activeInHierarchy ? "open" : "closed")} on {AppNames[(int)Current]}, built {Builds} times; " +
+        return $"{(Kind == Mode.Recap ? "Recap" : Kind == Mode.Pause ? "Pause (day)" : "Pause (night)")} phone: " +
+               $"{(Root.activeInHierarchy ? "open" : "closed")} on {LabelOf(Current)}, built {Builds} times; " +
                $"{ReviewCardsShown} review cards when Reviews was last built; badges: Franchise {(FranchiseDot ? "dot" : "none")}, " +
                $"Shop {(ShopAlert ? "!" : "none")}, Notes {NotesNew}; the app is {content.rect.height:0} tall in a {viewport.rect.height:0} window, " +
                $"scrolled {ScrollOffset:0}.";
@@ -460,10 +598,11 @@ public sealed class RecapPhone : MonoBehaviour
         {
             if (keys.qKey.wasPressedThisFrame || keys.leftArrowKey.wasPressedThisFrame) step--;
             if (keys.eKey.wasPressedThisFrame || keys.rightArrowKey.wasPressedThisFrame) step++;
-            for (int i = 0; i < Apps; i++)
+            App[] shown = Visible;
+            for (int i = 0; i < shown.Length; i++)
                 if (keys[Key.Digit1 + i].wasPressedThisFrame || keys[Key.Numpad1 + i].wasPressedThisFrame)
                 {
-                    Tap((App)i);
+                    Tap(shown[i]);
                     return;
                 }
         }
@@ -527,6 +666,14 @@ public sealed class RecapPhone : MonoBehaviour
         if (hintWritten && pad == hintForPad) return;
         hintWritten = true;
         hintForPad = pad;
+        if (Kind != Mode.Recap)
+        {
+            hintText.text = pad
+                ? $"{PadInput.Label(PadButton.Start)}  Back        {PadInput.Label(PadButton.LeftShoulder)} / {PadInput.Label(PadButton.RightShoulder)}  Apps" +
+                  $"        D-pad  Move, adjust        {PadInput.Label(PadButton.South)}  Press"
+                : $"Esc  Back        Q / E  Apps        1-{Visible.Length}  Jump        W / S  Scroll        Click  Press";
+            return;
+        }
         hintText.text = pad
             ? $"{PadInput.Label(PadButton.LeftShoulder)} / {PadInput.Label(PadButton.RightShoulder)}  Apps        Right stick  Scroll" +
               $"        D-pad  Move        {PadInput.Label(PadButton.South)}  Press"
@@ -536,6 +683,7 @@ public sealed class RecapPhone : MonoBehaviour
     void Tap(App app)
     {
         Sfx.Play2D("phone.tap");
+        quitArmed = false;
         Open(app);
     }
 
@@ -580,6 +728,11 @@ public sealed class RecapPhone : MonoBehaviour
 
         contentButtons.Clear();
         buttonKeys.Clear();
+        navOrder.Clear();
+        navRows.Clear();
+        sliderKeys.Clear();
+        navRow = 0;
+        sameRow = false;
         for (int i = content.childCount - 1; i >= 0; i--)
         {
             GameObject old = content.GetChild(i).gameObject;
@@ -588,17 +741,21 @@ public sealed class RecapPhone : MonoBehaviour
             Destroy(old);
         }
 
-        clockText.text = DayClock.Instance != null ? ShopUI.FormatHour(DayClock.Instance.CurrentHour) : "";
+        // The status bar's time: the night's own while the night runs (the pause phone at night).
+        NightWalk night = NightWalk.Instance != null && NightWalk.Instance.Active ? NightWalk.Instance : null;
+        clockText.text = night != null ? ShopUI.FormatHour(night.ClockHour)
+            : DayClock.Instance != null ? ShopUI.FormatHour(DayClock.Instance.CurrentHour) : "";
         UpdateBadges();
         UpdateTabs();
 
         float y = 8f;
         switch (Current)
         {
-            case App.Reviews: y = BuildReviews(y); break;
+            case App.Reviews: y = Kind == Mode.Recap ? BuildReviews(y) : BuildToday(y); break;
             case App.Franchise: y = BuildFranchise(y); break;
             case App.Shop: y = BuildShop(y); break;
             case App.Notes: y = BuildNotes(y); break;
+            case App.Settings: y = BuildSettings(y); break;
             default: y = BuildTonight(y); break;
         }
         content.sizeDelta = new Vector2(DisplayWidth, y + 8f);
@@ -608,7 +765,8 @@ public sealed class RecapPhone : MonoBehaviour
         EventSystem events = EventSystem.current;
         if (keep != null && PadInput.UsingPad && events != null)
         {
-            Button again = ContentButton(keep);
+            Selectable again = ContentButton(keep);
+            if (again == null) again = ContentSlider(keep);
             if (again != null && again.interactable) events.SetSelectedGameObject(again.gameObject);
         }
         lastRevealed = null;
@@ -621,34 +779,59 @@ public sealed class RecapPhone : MonoBehaviour
         if (selected == null) return null;
         foreach (KeyValuePair<Button, string> pair in buttonKeys)
             if (pair.Key != null && pair.Key.gameObject == selected) return pair.Value;
+        foreach (KeyValuePair<Slider, string> pair in sliderKeys)
+            if (pair.Key != null && pair.Key.gameObject == selected) return pair.Value;
         return null;
     }
 
-    // The D-pad's routes: down the app's buttons (the ones that can be pressed), then Close up, then the
-    // tab bar; up the same way back. Built after every rebuild, since the app's buttons are new each time.
+    // A pressable thing joins the D-pad's routes: on a row of its own, or on the row before it (sameRow: pills side by side).
+    void AddNav(Selectable selectable)
+    {
+        navOrder.Add(selectable);
+        navRows.Add(sameRow && navRows.Count > 0 ? navRows[navRows.Count - 1] : ++navRow);
+    }
+
+    // The D-pad's routes: down the app's rows of pressable things (the ones that can be pressed), then the bottom
+    // button, then the tab bar; up the same way back; along a row left and right. A slider is a row of its own with no
+    // neighbours either side, so left and right move it (Unity's slider does that when nothing is there). Built after
+    // every rebuild, since the app's buttons are new each time.
     void WireNavigation()
     {
-        var live = new List<Button>();
-        foreach (Button button in contentButtons) if (button != null && button.interactable) live.Add(button);
-        for (int i = 0; i < live.Count; i++)
-            live[i].navigation = new Navigation
-            {
-                mode = Navigation.Mode.Explicit,
-                selectOnUp = i > 0 ? live[i - 1] : null,
-                selectOnDown = i < live.Count - 1 ? live[i + 1] : CloseButton
-            };
+        var rows = new List<List<Selectable>>();
+        int lastRow = int.MinValue;
+        for (int i = 0; i < navOrder.Count; i++)
+        {
+            Selectable s = navOrder[i];
+            if (s == null || !s.interactable) continue;
+            if (navRows[i] != lastRow) { rows.Add(new List<Selectable>()); lastRow = navRows[i]; }
+            rows[rows.Count - 1].Add(s);
+        }
+        for (int r = 0; r < rows.Count; r++)
+        {
+            List<Selectable> row = rows[r];
+            for (int c = 0; c < row.Count; c++)
+                row[c].navigation = new Navigation
+                {
+                    mode = Navigation.Mode.Explicit,
+                    selectOnUp = r > 0 ? rows[r - 1][Mathf.Min(c, rows[r - 1].Count - 1)] : null,
+                    selectOnDown = r < rows.Count - 1 ? rows[r + 1][Mathf.Min(c, rows[r + 1].Count - 1)] : CloseButton,
+                    selectOnLeft = c > 0 ? row[c - 1] : null,
+                    selectOnRight = c < row.Count - 1 ? row[c + 1] : null
+                };
+        }
         CloseButton.navigation = new Navigation
         {
             mode = Navigation.Mode.Explicit,
-            selectOnUp = live.Count > 0 ? live[live.Count - 1] : null,
+            selectOnUp = rows.Count > 0 ? rows[rows.Count - 1][0] : null,
             selectOnDown = tabBar != null && tabBar.gameObject.activeSelf ? tabs[(int)Current] : null   // Tonight has no tab bar
         };
-        for (int i = 0; i < Apps; i++)
-            tabs[i].navigation = new Navigation
+        App[] shown = Visible;
+        for (int i = 0; i < shown.Length; i++)
+            tabs[(int)shown[i]].navigation = new Navigation
             {
                 mode = Navigation.Mode.Explicit,
-                selectOnLeft = i > 0 ? tabs[i - 1] : null,
-                selectOnRight = i < Apps - 1 ? tabs[i + 1] : null,
+                selectOnLeft = i > 0 ? tabs[(int)shown[i - 1]] : null,
+                selectOnRight = i < shown.Length - 1 ? tabs[(int)shown[i + 1]] : null,
                 selectOnUp = CloseButton
             };
     }
@@ -676,6 +859,7 @@ public sealed class RecapPhone : MonoBehaviour
         Badge(App.Franchise, FranchiseDot, null);
         Badge(App.Shop, ShopAlert, "!");
         Badge(App.Notes, NotesNew > 0, NotesNew > 9 ? "9+" : NotesNew.ToString());
+        Badge(App.Settings, false, null);
     }
 
     // A dot (no text) or a small count.
@@ -749,7 +933,7 @@ public sealed class RecapPhone : MonoBehaviour
         const float starSize = 20f, starGap = 3f;
         float starsWidth = 5f * starSize + 4f * starGap;
         int stars = rep != null ? Mathf.Clamp(rep.StarsEarned, 0, ReputationRules.MaxStars) : 0;
-        Stars(card, right - starsWidth, top + 8f, starSize, starGap, stars);
+        Stars(card, right - starsWidth, top + 8f, starSize, starGap, stars, dark: true);
         float underStars = top + 8f + starSize + 7f;
         if (rep != null && rep.EarnedStarToday)
         {
@@ -1323,6 +1507,272 @@ public sealed class RecapPhone : MonoBehaviour
         return FinishCard(card, cy + 2f, y);
     }
 
+    // ------------------------------------------------------------------ Today (the phone by day)
+
+    // Today so far: the dark card; then, once there are any, the reviews' bars and every review as it came in, newest
+    // first. Before the first one the dark card says so in one line (it used to be said three times, with five empty bars).
+    float BuildToday(float y)
+    {
+        y = LiveCard(y);
+        ReputationLedger rep = Ledger;
+        IReadOnlyList<ReviewCard> cards = rep != null ? rep.TodayCards : null;
+        ReviewCardsShown = 0;
+        if (cards == null || cards.Count == 0) return y;
+        y = SummaryCard(y, rep);
+        for (int i = cards.Count - 1; i >= 0; i--)
+        {
+            y = ReviewCardView(y, cards[i]);
+            ReviewCardsShown++;
+        }
+        return y;
+    }
+
+    // The day so far on the dark card: today's takings (the HUD's cash stack), what's in the till (the HUD shows only
+    // today's now), the café's stars as they stand, and the reviews so far (the time is the status bar's).
+    float LiveCard(float y)
+    {
+        DayClock clock = DayClock.Instance;
+        ReputationLedger rep = Ledger;
+        RectTransform card = Box("Today so far", content, Pad, y, ContentWidth, 10f);
+        Paint(card, Ink, 18f);
+        float right = ContentWidth - CardPadX, width = ContentWidth - 2f * CardPadX;
+        string when = clock != null ? Kicker(clock.Day) : "TODAY";   // the time is the status bar's, just above
+        TMP_Text kicker = Words(card, when, CardPadX, 14f, width, 14f, DarkFaint, style: FontStyles.Bold, rich: false, spacing: 4f);
+        float top = Bottom(kicker.rectTransform) + 6f;
+        TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned : 0), CardPadX, top, 0f, 40f, DarkText, wrap: false,
+            style: FontStyles.Bold, rich: false);
+        TMP_Text label = Words(card, "earned so far today", CardPadX, Bottom(money.rectTransform) - 2f, 220f, 15f, DarkFaint, rich: false);
+
+        const float starSize = 20f, starGap = 3f;
+        float starsWidth = 5f * starSize + 4f * starGap;
+        int stars = rep != null ? Mathf.Clamp(rep.StarsEarned, 0, ReputationRules.MaxStars) : 0;
+        Stars(card, right - starsWidth, top + 8f, starSize, starGap, stars, dark: true);
+        TMP_Text count = Words(card, stars == 0 ? "no stars yet" : stars == 1 ? "1 star" : stars + " stars", 0f, 0f, 0f, 15f, DarkFaint,
+            wrap: false, rich: false);
+        Vector2 countSize = count.rectTransform.sizeDelta;
+        Place(count.rectTransform, right - countSize.x, top + 8f + starSize + 7f, countSize.x, countSize.y);
+
+        float cy = Mathf.Max(Bottom(label.rectTransform), Bottom(count.rectTransform)) + 12f;
+        Paint(Box("Rule", card, CardPadX, cy, width, 1f), DarkLine, 0f);
+        cy += 10f;
+        int till = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
+        TMP_Text tillLabel = Words(card, "In the till", CardPadX, cy, width, 16.5f, DarkText, rich: false);
+        Words(card, "$" + till, CardPadX, cy, width, 16.5f, DarkText, TextAlignmentOptions.TopRight, style: FontStyles.Bold, rich: false);
+        cy = Bottom(tillLabel.rectTransform) + 4f;
+        int n = rep != null ? rep.ReviewCount : 0;
+        string reviews = n == 0 ? "No reviews yet: they come in as people leave."
+            : $"{n} review{(n == 1 ? "" : "s")} so far  ·  {ReputationRecap.Signed(rep.TodayChange)} reputation";
+        cy = Bottom(Words(card, reviews, CardPadX, cy, width, 15.5f, DarkFaint, rich: false).rectTransform);
+        card.sizeDelta = new Vector2(ContentWidth, cy + 14f);
+        return y + card.sizeDelta.y + CardGap;
+    }
+
+    // ------------------------------------------------------------------ Settings (the phone by day and at night)
+
+    // Sound, controls and the picture, each kept as it changes (GameSettings); then Quit.
+    float BuildSettings(float y)
+    {
+        y = AppHeader(y, gear, Hex(0xe6edf0), Hex(0x4f6a7a), "Settings", "Kept for next time.");
+
+        y = Section(y, "SOUND");
+        RectTransform sound = CardBox("Sound", y);
+        float cy = 12f;
+        cy = SliderRow(sound, cy, "Everything", GameSettings.Master, 0f, 1f, Percent, v => GameSettings.Master = v, "master");
+        cy = Rule(sound, cy);
+        cy = SliderRow(sound, cy, "Music", GameSettings.Music, 0f, 1f, Percent, v => GameSettings.Music = v, "music");
+        cy = Rule(sound, cy);
+        cy = SliderRow(sound, cy, "Effects", GameSettings.Effects, 0f, 1f, Percent, v => GameSettings.Effects = v, "effects");
+        y = FinishCard(sound, cy + 2f, y);
+
+        y = Section(y, "CONTROLS");
+        RectTransform controls = CardBox("Controls", y);
+        cy = 12f;
+        cy = SliderRow(controls, cy, "Look sensitivity", GameSettings.LookScale, GameSettings.LookMin, GameSettings.LookMax, Times,
+            v => GameSettings.LookScale = v, "look");
+        cy = Rule(controls, cy);
+        cy = SliderRow(controls, cy, "Pad look speed", GameSettings.PadLookScale, GameSettings.PadLookMin, GameSettings.PadLookMax, Times,
+            v => GameSettings.PadLookScale = v, "padlook");
+        cy = Rule(controls, cy);
+        cy = SwitchRow(controls, cy, "Invert Y", "Looking up and down, turned over.", GameSettings.InvertY,
+            () => Flip(() => GameSettings.InvertY = !GameSettings.InvertY), "invert");
+        cy = Rule(controls, cy);
+        cy = SwitchRow(controls, cy, "Aim help", "On a pad: the view slows and settles on things.", GameSettings.AimHelp,
+            () => Flip(() => GameSettings.AimHelp = !GameSettings.AimHelp), "aimhelp");
+        cy = Rule(controls, cy);
+        cy = SwitchRow(controls, cy, "Movement help", "On a pad: walking straightens along the café.", GameSettings.MovementHelp,
+            () => Flip(() => GameSettings.MovementHelp = !GameSettings.MovementHelp), "movehelp");
+        y = FinishCard(controls, cy + 2f, y);
+
+        y = Section(y, "PICTURE");
+        RectTransform picture = CardBox("Picture", y);
+        cy = QualityRow(picture, 12f);
+        y = FinishCard(picture, cy + 2f, y);
+
+        y = Section(y, "LEAVING");
+        return QuitCard(y);
+    }
+
+    static string Percent(float v) => Mathf.RoundToInt(v * 100f) + "%";
+    static string Times(float v) => v.ToString("0.0") + "x";
+
+    void Flip(Action change)
+    {
+        change();
+        quitArmed = false;
+        Sfx.Play2D("phone.tap");
+        RebuildNow();
+    }
+
+    // A name and its value on one line, the slider under them: drag it, click along it, or with a pad select it and
+    // press the D-pad left and right (a tenth of the way a press).
+    float SliderRow(RectTransform card, float cy, string label, float value, float min, float max, Func<float, string> format,
+                    Action<float> set, string key)
+    {
+        float width = ContentWidth - 2f * CardPadX;
+        TMP_Text name = Words(card, label, CardPadX, cy, width * .7f, 17f, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text shown = Words(card, format(value), CardPadX, cy, width, 16f, Soft, TextAlignmentOptions.TopRight, rich: false);
+        float top = Bottom(name.rectTransform) + 6f;
+
+        const float height = 30f, knob = 26f, trackHeight = 8f;
+        RectTransform rect = Box("Slider: " + key, card, CardPadX, top, width, height);
+        Paint(rect, new Color(1f, 1f, 1f, 0f), 0f, hits: true);   // the whole strip takes the pointer
+        Paint(Box("Track", rect, 0f, (height - trackHeight) / 2f, width, trackHeight), Track, trackHeight / 2f);
+        RectTransform fillArea = Box("Fill area", rect, 0f, (height - trackHeight) / 2f, width, trackHeight);
+        RectTransform fill = Box("Fill", fillArea, 0f, 0f, 0f, trackHeight);
+        Paint(fill, Green, trackHeight / 2f);
+        fill.anchorMin = Vector2.zero;
+        fill.anchorMax = new Vector2(0f, 1f);
+        fill.pivot = new Vector2(.5f, .5f);
+        fill.offsetMin = fill.offsetMax = Vector2.zero;
+        // The Slider stretches its handle over the handle area's height (it sets the handle's anchors to (v, 0)-(v, 1)), so
+        // the area is a line along the track's middle and the knob's own size is all of its height: a round knob, not a
+        // tall one reaching up into the label.
+        RectTransform handleArea = Box("Handle area", rect, knob / 2f, height / 2f, width - knob, 0f);
+        RectTransform handle = Box("Handle", handleArea, 0f, 0f, knob, knob);
+        handle.anchorMin = new Vector2(0f, 0f);
+        handle.anchorMax = new Vector2(0f, 1f);
+        handle.pivot = new Vector2(.5f, .5f);
+        handle.anchoredPosition = Vector2.zero;
+        handle.sizeDelta = new Vector2(knob, knob);
+        Image face = handle.gameObject.AddComponent<Image>();
+        face.sprite = circle;
+        face.color = Color.white;
+        var lift = handle.gameObject.AddComponent<Shadow>();
+        lift.effectColor = new Color(0f, 0f, 0f, .28f);
+        lift.effectDistance = new Vector2(0f, -2f);
+        var edge = handle.gameObject.AddComponent<Outline>();
+        edge.effectColor = new Color(0f, 0f, 0f, .12f);
+        edge.effectDistance = new Vector2(1f, -1f);
+
+        var slider = rect.gameObject.AddComponent<Slider>();
+        slider.fillRect = fill;
+        slider.handleRect = handle;
+        slider.targetGraphic = face;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = min;
+        slider.maxValue = max;
+        slider.wholeNumbers = false;
+        slider.SetValueWithoutNotify(Mathf.Clamp(value, min, max));
+        ColorBlock colours = slider.colors;
+        colours.normalColor = Color.white;
+        colours.highlightedColor = new Color(.94f, .94f, .94f, 1f);
+        colours.pressedColor = new Color(.86f, .86f, .86f, 1f);
+        colours.selectedColor = Color.white;   // the gold ring shows a pad's selection
+        colours.colorMultiplier = 1f;
+        colours.fadeDuration = .06f;
+        slider.colors = colours;
+        slider.navigation = new Navigation { mode = Navigation.Mode.None };   // wired after each build
+        slider.onValueChanged.AddListener(v =>
+        {
+            set(v);
+            quitArmed = false;
+            shown.text = format(v);
+        });
+        sliderKeys[slider] = key;
+        AddNav(slider);
+        return top + height + 10f;
+    }
+
+    // A name (and a line saying what it does) with a switch on the right: green and knob right when on.
+    float SwitchRow(RectTransform card, float cy, string label, string detail, bool on, UnityAction flip, string key)
+    {
+        float width = ContentWidth - 2f * CardPadX, textWidth = width - 70f;
+        TMP_Text name = Words(card, label, CardPadX, cy, textWidth, 17f, Ink, style: FontStyles.Bold, rich: false);
+        float bottom = Bottom(name.rectTransform);
+        if (!string.IsNullOrEmpty(detail))
+            bottom = Bottom(Words(card, detail, CardPadX, bottom + 1f, textWidth, 14.5f, Soft, rich: false).rectTransform);
+        const float w = 52f, h = 30f;
+        float mid = (cy + bottom) / 2f;
+        RectTransform toggle = Box("Button: " + key, card, CardPadX + width - w, mid - h / 2f, w, h);
+        Image track = Paint(toggle, on ? Green : ButtonOff, h / 2f);
+        RectTransform knob = Box("Knob", toggle, on ? w - h + 3f : 3f, 3f, h - 6f, h - 6f);
+        Image dot = Paint(knob, Color.white, (h - 6f) / 2f);
+        var lift = dot.gameObject.AddComponent<Shadow>();
+        lift.effectColor = new Color(0f, 0f, 0f, .25f);
+        lift.effectDistance = new Vector2(0f, -1.5f);
+        Pressable(toggle, track, key, flip, dark: on);
+        return Mathf.Max(bottom, mid + h / 2f) + 10f;
+    }
+
+    // Low, Medium and High side by side (one row for the D-pad: left and right along it); the one in force in green.
+    float QualityRow(RectTransform card, float cy)
+    {
+        float width = ContentWidth - 2f * CardPadX;
+        TMP_Text name = Words(card, "Quality", CardPadX, cy, width, 17f, Ink, style: FontStyles.Bold, rich: false);
+        float top = Bottom(name.rectTransform) + 2f;
+        top = Bottom(Words(card, "Lower runs smoother on a laptop.", CardPadX, top, width, 14.5f, Soft, rich: false).rectTransform) + 9f;
+        const float gap = 8f, height = 38f;
+        float each = (width - 2f * gap) / 3f;
+        string current = GameSettings.Quality;
+        for (int i = 0; i < QualityPreset.Names.Length; i++)
+        {
+            string level = QualityPreset.Names[i];
+            bool on = current == level;
+            RectTransform pill = Box("Button: quality:" + level, card, CardPadX + i * (each + gap), top, each, height);
+            Image face = Paint(pill, on ? Green : ButtonOff, height / 2f);
+            TMP_Text words = Words(pill, level, 0f, 0f, each, 15.5f, on ? Color.white : Soft, TextAlignmentOptions.Center, wrap: false,
+                style: FontStyles.Bold, rich: false);
+            Place(words.rectTransform, 0f, 0f, each, height);
+            sameRow = i > 0;
+            Pressable(pill, face, "quality:" + level, () => Flip(() => GameSettings.Quality = level), dark: on);
+            sameRow = false;
+        }
+        return top + height + 12f;
+    }
+
+    // Quit, saying plainly what isn't kept. The first press asks again (in red); the second quits (PausePhone).
+    float QuitCard(float y)
+    {
+        RectTransform card = CardBox("Quit", y);
+        float width = ContentWidth - 2f * CardPadX;
+        TMP_Text title = Words(card, "Quit the game", CardPadX, 14f, width, 17f, Ink, style: FontStyles.Bold, rich: false);
+        string note = Kind == Mode.NightPause
+            ? "Today and tonight aren't kept: the game saves when you open tomorrow."
+            : "The day so far isn't kept: the game saves when you open tomorrow.";
+        TMP_Text words = Words(card, note, CardPadX, Bottom(title.rectTransform) + 2f, width, 15.5f, quitArmed ? Red : Soft, rich: false);
+        float top = Bottom(words.rectTransform) + 12f;
+        RectTransform rect = Box("Button: quit", card, CardPadX, top, width, 44f);
+        Image face = Paint(rect, quitArmed ? Red : UiSkin.RedSoft, 16f);
+        TMP_Text label = Words(rect, quitArmed ? "Press again to quit" : "Quit", 0f, 0f, width, 16f, quitArmed ? Color.white : Red,
+            TextAlignmentOptions.Center, wrap: false, style: FontStyles.Bold, rich: false);
+        Place(label.rectTransform, 0f, 0f, width, 44f);
+        Pressable(rect, face, "quit", PressQuit, dark: quitArmed);
+        return FinishCard(card, top + 44f + 14f, y);
+    }
+
+    void PressQuit()
+    {
+        Sfx.Play2D("phone.tap");
+        if (!quitArmed)
+        {
+            quitArmed = true;
+            RebuildNow();
+            return;
+        }
+        quitArmed = false;
+        QuitPressed?.Invoke();
+    }
+
     // ------------------------------------------------------------------ parts every app uses
 
     // An app's icon, its name and a line under it.
@@ -1384,9 +1834,11 @@ public sealed class RecapPhone : MonoBehaviour
         return y + height + CardGap;
     }
 
-    void Stars(RectTransform parent, float x, float y, float size, float gap, int filled)
+    // Five stars, the first filled in gold. On the dark cards an empty star is a faint outline of light, not the
+    // light cards' grey (which reads as five white stars on the dark: "no stars yet" under five stars).
+    void Stars(RectTransform parent, float x, float y, float size, float gap, int filled, bool dark = false)
     {
-        for (int i = 0; i < 5; i++) Picture(parent, star, i < filled ? Gold : StarOff, x + i * (size + gap), y, size, size);
+        for (int i = 0; i < 5; i++) Picture(parent, star, i < filled ? Gold : dark ? StarOffDark : StarOff, x + i * (size + gap), y, size, size);
     }
 
     void Avatar(RectTransform parent, float x, float y, float size, string name)
@@ -1464,6 +1916,7 @@ public sealed class RecapPhone : MonoBehaviour
         {
             contentButtons.Add(button);
             buttonKeys[button] = key;
+            AddNav(button);
         }
         return button;
     }
@@ -1561,14 +2014,8 @@ public sealed class RecapPhone : MonoBehaviour
         return rect;
     }
 
-    // The HUD's own lettering, so the phone looks like part of the game; TextMesh Pro's default otherwise.
-    static TMP_FontAsset HudFont()
-    {
-        ShopUI hud = FindAnyObjectByType<ShopUI>();
-        TMP_Text any = hud != null ? hud.GetComponentInChildren<TMP_Text>(true) : null;
-        if (any == null) any = FindAnyObjectByType<TextMeshProUGUI>();
-        return any != null && any.font != null ? any.font : TMP_Settings.defaultFontAsset;
-    }
+    // The game's lettering: the UI skin's (its swap point, else the HUD's own, else TextMesh Pro's default).
+    static TMP_FontAsset HudFont() => UiSkin.Font;
 
     // ------------------------------------------------------------------ the pictures, drawn in code
 
@@ -1608,6 +2055,20 @@ public sealed class RecapPhone : MonoBehaviour
         crescent.AddRange(Arc(11f, 12f, 9f, 62.34f, 297.66f, 28));
         crescent.AddRange(Arc(14.5f, 12f, 8f, 274.87f, 85.13f, 24));
         moon = MakeSprite(Drawn("Moon", 64, crescent.ToArray()), 0f);
+        // A gear (Settings): eight teeth round a ring, a hole in the middle (even-odd).
+        var teeth = new List<Vector2>();
+        for (int t = 0; t < 8; t++)
+        {
+            float a = t * 45f;
+            foreach (float d in new[] { -15f, -9f, 9f, 15f })
+            {
+                float r = Mathf.Abs(d) < 10f ? 10.5f : 8.2f;
+                float rad = (a + d) * Mathf.Deg2Rad;
+                teeth.Add(V(12f + r * Mathf.Cos(rad), 12f + r * Mathf.Sin(rad)));
+            }
+        }
+        var hole = new List<Vector2>(Arc(12f, 12f, 3.6f, 0f, 360f, 28));
+        gear = MakeSprite(Drawn("Gear", 64, teeth.ToArray(), hole.ToArray()), 0f);
     }
 
     Sprite MakeSprite(Texture2D texture, float border)

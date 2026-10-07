@@ -203,24 +203,31 @@ public sealed class JuiceCheck : MonoBehaviour
         yield return Photo("30-paying");
         yield return Seconds(1.2f);
 
-        // ---------- 4. the money in the corner ----------
-        ShopUI hud = FindAnyObjectByType<ShopUI>();
-        TMP_Text moneyText = Field<TMP_Text>(hud, "moneyText");
-        Check(moneyText != null, "the HUD's money is on screen");
-        if (moneyText != null)
+        // ---------- 4. the money in the corner: today's takings, as a cash stack (playtest 3, session 3) ----------
+        HudCorners corners = HudCorners.Instance;
+        Check(corners != null && corners.Showing, "the HUD's corners are on screen (today's takings top right)");
+        if (corners != null && DayClock.Instance != null)
         {
-            int before = ShopEconomy.Instance.Money;
+            int before = DayClock.Instance.Earned;
+            int edgesBefore = corners.EdgesShown;
+            // As a customer paying does: the till and today's takings both go up.
             ShopEconomy.Instance.AddMoney(25);
+            DayClock.Instance.RecordPatronIncome(25);
             yield return Seconds(.18f);
-            string mid = moneyText.text;
-            float punch = moneyText.rectTransform.localScale.x;
+            string mid = corners.TakingsShown;
+            float punch = corners.TakingsPunch;
             yield return Photo("40-money-counting-up");
             yield return Seconds(.9f);
-            string end = moneyText.text;
-            int till = ShopEconomy.Instance.Money;
-            Check(end == "$" + till, $"the money counted up from ${before} and landed on the till's sum ({end}; the till ${till})");
-            Check(punch > 1.01f || mid != "$" + before && mid != "$" + till,
+            string end = corners.TakingsShown;
+            int today = DayClock.Instance.Earned;
+            Check(end == "$" + today, $"today's takings counted up from ${before} and landed on the day's sum ({end}; today ${today})");
+            Check(punch > 1.01f || mid != "$" + before && mid != "$" + today,
                 $"...moving on the way: {mid} at 0.18 s, {punch:0.00} times its size");
+            Check(corners.BillShowing, "a bill lies on top of the stack once there's money today");
+            Check(corners.EdgesShown == Mathf.Min(10, today / 24) && corners.EdgesShown >= edgesBefore,
+                $"the stack grows by the day's takings: {corners.EdgesShown} edge(s) under the bill for ${today} (one per $24, ten at most)");
+            Check(!string.IsNullOrEmpty(corners.SignWord) && corners.ClockLine.Contains(Weekdays.Label(DayClock.Instance.Day)),
+                $"the sign reads {corners.SignWord}, and under it \"{corners.ClockLine}\"");
         }
 
         // ---------- 5. handing over ----------

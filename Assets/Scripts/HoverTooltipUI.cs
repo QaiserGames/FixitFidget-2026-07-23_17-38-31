@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 using TMPro;
 
 public class HoverTooltipUI : MonoBehaviour
@@ -18,6 +19,33 @@ public class HoverTooltipUI : MonoBehaviour
 
     private string lastTitle = "";
     private float hoverTime;
+
+    // The UI skin (playtest 3, session 3): the tooltip is a card of the skin's band, its name in the skin's cream and
+    // its action in the brand's light green, in the skin's lettering. Dressed once while playing; the scene keeps its own.
+    private void Start()
+    {
+        if (panel != null)
+        {
+            Image card = panel.GetComponent<Image>();
+            if (card != null)
+            {
+                UiSkin.Round(card, 10f);
+                card.color = UiSkin.Band;
+                card.raycastTarget = false;
+            }
+        }
+        if (nameText != null)
+        {
+            UiSkin.UseFont(nameText);
+            nameText.color = UiSkin.BandText;
+            nameText.fontStyle = FontStyles.Bold;
+        }
+        if (actionText != null)
+        {
+            UiSkin.UseFont(actionText);
+            actionText.color = UiSkin.BrandBright;
+        }
+    }
 
     private void Update()
     {

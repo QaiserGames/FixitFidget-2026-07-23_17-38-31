@@ -16,6 +16,7 @@ using TMPro;
 //     answers, which keeps "dialogue gates the decision".
 // The placeholder portrait box and the name above it stay as they were (Mansoor, 28 Sept). The line and
 // the replies are placed and given a shadow while playing (Look), so the scene is not rebuilt for it.
+// The UI skin (playtest 3, session 3): the skin's lettering and its one shadow, the band in the phone's warm ink.
 // ---------------------------------------------------------------------------
 public class ConversationUI : MonoBehaviour
 {
@@ -120,6 +121,7 @@ public class ConversationUI : MonoBehaviour
             host.transform.SetParent(portrait.transform, false);
             fallbackFace = host.GetComponent<TextMeshProUGUI>();
             fallbackFace.font = nameText != null ? nameText.font : TMP_Settings.defaultFontAsset;
+            UiSkin.UseFont(fallbackFace);
             fallbackFace.fontSize = 30f;
             fallbackFace.enableAutoSizing = true;
             fallbackFace.fontSizeMin = 12f;
@@ -304,6 +306,8 @@ public class ConversationUI : MonoBehaviour
     // bottom line, over a soft dark band so they read against the bright windows.
     private void Look()
     {
+        UiSkin.UseFont(nameText);
+        if (fallbackFace != null) UiSkin.UseFont(fallbackFace);
         if (dialogueText != null)
         {
             RectTransform line = dialogueText.rectTransform;
@@ -312,9 +316,11 @@ public class ConversationUI : MonoBehaviour
             line.anchoredPosition = new Vector2(-140f, 44f);
             line.sizeDelta = new Vector2(860f, 250f);
             dialogueText.alignment = TextAlignmentOptions.Bottom;
+            UiSkin.UseFont(dialogueText);
             dialogueText.fontSize = 30f;
+            dialogueText.color = UiSkin.BandText;
             dialogueText.textWrappingMode = TextWrappingModes.Normal;
-            Shadow(dialogueText);
+            UiSkin.Shadowed(dialogueText);
         }
         if (optionsText != null)
         {
@@ -324,28 +330,14 @@ public class ConversationUI : MonoBehaviour
             replies.anchoredPosition = new Vector2(-56f, 44f);
             replies.sizeDelta = new Vector2(560f, 330f);
             optionsText.alignment = TextAlignmentOptions.BottomLeft;
+            UiSkin.UseFont(optionsText);
             optionsText.fontSize = 27f;
-            optionsText.color = Color.white;
+            optionsText.color = UiSkin.BandText;
             optionsText.lineSpacing = 14f;
             optionsText.textWrappingMode = TextWrappingModes.Normal;
-            Shadow(optionsText);
+            UiSkin.Shadowed(optionsText);
         }
         Band();
-    }
-
-    // A soft drop shadow (TextMesh Pro's underlay) on a copy of the font's material, for these two only.
-    private static void Shadow(TMP_Text text)
-    {
-        Material shared = text.fontSharedMaterial;
-        if (shared == null || !shared.HasProperty(ShaderUtilities.ID_UnderlayColor)) return;
-        var material = new Material(shared) { name = shared.name + " (conversation shadow)" };
-        material.EnableKeyword(ShaderUtilities.Keyword_Underlay);
-        material.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(0f, 0f, 0f, .85f));
-        material.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, .45f);
-        material.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -.45f);
-        material.SetFloat(ShaderUtilities.ID_UnderlayDilate, .25f);
-        material.SetFloat(ShaderUtilities.ID_UnderlaySoftness, .35f);
-        text.fontSharedMaterial = material;
     }
 
     // A dark band along the bottom of the screen, behind everything in the panel (it fades with it).
@@ -365,10 +357,11 @@ public class ConversationUI : MonoBehaviour
         image.raycastTarget = false;
         const int height = 64;
         var texture = new Texture2D(1, height, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontSave };
+        Color ink = UiSkin.Ink;
         for (int y = 0; y < height; y++)
         {
             float up = y / (height - 1f);
-            texture.SetPixel(0, y, new Color(0f, 0f, 0f, .62f * Mathf.Pow(1f - up, 1.6f)));
+            texture.SetPixel(0, y, new Color(ink.r, ink.g, ink.b, .66f * Mathf.Pow(1f - up, 1.6f)));
         }
         texture.Apply();
         image.sprite = Sprite.Create(texture, new Rect(0, 0, 1, height), new Vector2(.5f, 0f));

@@ -96,7 +96,9 @@ public sealed class CounterRepairView : MonoBehaviour
         // A separate canvas keeps the caption upright while the phone moves.
         overlay = RepairOverlayUI.Canvas("Counter repair caption", null, 55);
         overlayScaler = overlay.GetComponent<CanvasScaler>();
-        var panel = RepairOverlayUI.Panel("Caption", overlay.transform, Vector2.zero, new Vector2(480, 74), RepairOverlayUI.Background).rectTransform;
+        Image panelImage = RepairOverlayUI.Panel("Caption", overlay.transform, Vector2.zero, new Vector2(480, 74), RepairOverlayUI.Background);
+        UiSkin.Round(panelImage, UiSkin.Radius);
+        var panel = panelImage.rectTransform;
         panel.anchorMin = panel.anchorMax = new Vector2(.5f, 0); panel.pivot = new Vector2(.5f, 0);
         panel.anchoredPosition = new Vector2(0, 88);
         caption = RepairOverlayUI.Text("Customer", panel, new Vector2(18, -5), new Vector2(444, 28), 23, Color.white);

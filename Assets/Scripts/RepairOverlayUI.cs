@@ -3,12 +3,14 @@ using UnityEngine;
 using UnityEngine.UI;
 
 // Small non-interactive HUD primitives. These overlays never intercept input.
+// Their colours and lettering are the UI skin's (playtest 3, session 3; UiSkin): the band, its faint writing, the brand's
+// light green, gold.
 public static class RepairOverlayUI
 {
-    public static readonly Color Background = new Color(.065f, .085f, .095f, .96f);
-    public static readonly Color Muted = new Color(.70f, .77f, .77f);
-    public static readonly Color Mint = new Color(.45f, .88f, .70f);
-    public static readonly Color Amber = new Color(1f, .73f, .32f);
+    public static readonly Color Background = UiSkin.Band;
+    public static readonly Color Muted = UiSkin.BandFaint;
+    public static readonly Color Mint = UiSkin.BrandBright;
+    public static readonly Color Amber = UiSkin.Gold;
 
     public static Canvas Canvas(string name, Transform parent, int order)
     {
@@ -42,6 +44,7 @@ public static class RepairOverlayUI
     {
         var rect = Rect(name, parent, new Vector2(0, 1), new Vector2(0, 1), position, size);
         var text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        UiSkin.UseFont(text);
         text.fontSize = fontSize; text.color = color; text.raycastTarget = false;
         text.richText = false; text.overflowMode = TextOverflowModes.Ellipsis;
         text.alignment = TextAlignmentOptions.MidlineLeft;

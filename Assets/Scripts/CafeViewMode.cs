@@ -130,12 +130,15 @@ public sealed class CafeViewMode : MonoBehaviour
             int key = (CanChangeView ? 1 : 0) | (PadInput.UsingPad ? 2 : 0) | (firstPerson ? 4 : 0) | (pointerReleased ? 8 : 0) | ((int)PadInput.Kind << 4);
             if (key == hintKey) return hintCache;
             hintKey = key;
+            // Esc (Start on a pad) brings up the phone and pauses (PausePhone, playtest 3 session 3); it no longer frees
+            // the cursor in first person, the phone does that while it's up.
+            string pause = $"    {ControlHints.Pause}  Pause";
             hintCache = !CanChangeView ? "" : PadInput.UsingPad
-                ? firstPerson ? $"{ControlHints.View}  Isometric"
-                    : $"{ControlHints.View}  First person    Right stick  Orbit    {ControlHints.Zoom}  Zoom"
+                ? firstPerson ? $"{ControlHints.View}  Isometric" + pause
+                    : $"{ControlHints.View}  First person    Right stick  Orbit    {ControlHints.Zoom}  Zoom" + pause
                 : firstPerson
-                    ? pointerReleased ? "Click to look around    V  Isometric" : "V  Isometric    Esc  Free cursor"
-                    : "V  First person    Middle-drag  Orbit    Scroll  Zoom";
+                    ? pointerReleased ? "Click to look around    V  Isometric" + pause : "V  Isometric" + pause
+                    : "V  First person    Middle-drag  Orbit    Scroll  Zoom" + pause;
             return hintCache;
         }
     }
@@ -290,8 +293,6 @@ public sealed class CafeViewMode : MonoBehaviour
         float padDelta = Mathf.Min(Time.unscaledDeltaTime, .1f);
         if (firstPerson)
         {
-            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
-            { pointerReleased = true; acceptingLook = false; RefreshCursor(); return; }
             if (pointerReleased)
             {
                 bool clickResume = mouse != null && mouse.leftButton.wasPressedThisFrame && !PointerOverUI();
@@ -307,15 +308,18 @@ public sealed class CafeViewMode : MonoBehaviour
             { acceptingLook = false; aim.Reset(); return; }
             // Ignore the first delta after a blend, cursor lock or focus change.
             if (!acceptingLook) { acceptingLook = true; return; }
-            // The mouse turns the view by the distance it travelled, untouched by the aim help.
-            Vector2 delta = mouse != null ? mouse.delta.ReadValue() * lookSensitivity : Vector2.zero;
+            // The mouse turns the view by the distance it travelled, untouched by the aim help. The player's look
+            // sensitivity and invert Y (GameSettings, the phone's Settings) apply on top of the view's own.
+            Vector2 delta = mouse != null ? mouse.delta.ReadValue() * lookSensitivity * GameSettings.LookScale : Vector2.zero;
             yaw = Mathf.Repeat(yaw + delta.x, 360);
-            pitch = Mathf.Clamp(pitch - delta.y, -75, 75);
+            pitch = Mathf.Clamp(pitch - delta.y * GameSettings.YSign, -75, 75);
             // The stick is a turn RATE (degrees per second), unlike the mouse's
-            // travelled distance, so it is scaled by frame time.
+            // travelled distance, so it is scaled by frame time (and by the player's pad look speed).
             Vector2 stick = PadInput.Curved(PadInput.RightStick);
+            float padLook = GameSettings.PadLookScale;
             Vector2 turn = stick == Vector2.zero ? Vector2.zero
-                : new Vector2(stick.x * padLookYawSpeed * padDelta, -stick.y * padLookPitchSpeed * padDelta * (invertPadLookY ? -1f : 1f));
+                : new Vector2(stick.x * padLookYawSpeed * padLook * padDelta,
+                    -stick.y * padLookPitchSpeed * padLook * padDelta * (invertPadLookY ? -1f : 1f) * GameSettings.YSign);
             if (AimAssist.Active && interactor != null)
             {
                 // Aim help (a pad only; playtest 3): slower over a target, drawn toward its middle while turning, settled
@@ -343,8 +347,8 @@ public sealed class CafeViewMode : MonoBehaviour
                 {
                     Vector2 delta = mouse.delta.ReadValue();
                     if (delta != Vector2.zero) turning = false;
-                    isoYaw = Mathf.Repeat(isoYaw + delta.x * .18f, 360);
-                    isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f, PitchMin, PitchMax);
+                    isoYaw = Mathf.Repeat(isoYaw + delta.x * .18f * GameSettings.LookScale, 360);
+                    isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f * GameSettings.LookScale * GameSettings.YSign, PitchMin, PitchMax);
                 }
                 float scroll = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > .01f)
@@ -359,8 +363,8 @@ public sealed class CafeViewMode : MonoBehaviour
             if (orbit != Vector2.zero)
             {
                 turning = false;
-                isoYaw = Mathf.Repeat(isoYaw + orbit.x * padOrbitSpeed * padDelta, 360);
-                isoPitch = Mathf.Clamp(isoPitch - orbit.y * padTiltSpeed * padDelta, PitchMin, PitchMax);
+                isoYaw = Mathf.Repeat(isoYaw + orbit.x * padOrbitSpeed * GameSettings.PadLookScale * padDelta, 360);
+                isoPitch = Mathf.Clamp(isoPitch - orbit.y * padTiltSpeed * GameSettings.PadLookScale * padDelta * GameSettings.YSign, PitchMin, PitchMax);
             }
             float zoom = PadInput.RightTrigger - PadInput.LeftTrigger;
             if (Mathf.Abs(zoom) > .01f)

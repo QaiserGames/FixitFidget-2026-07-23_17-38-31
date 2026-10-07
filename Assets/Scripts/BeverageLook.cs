@@ -60,11 +60,13 @@ public sealed class BeverageLook : MonoBehaviour
         { acceptingInput = false; return; }
         // Cursor locking and focus changes can deliver a stale mouse delta.
         if (!acceptingInput) { acceptingInput = true; return; }
-        Vector2 delta = Mouse.current != null ? Mouse.current.delta.ReadValue() * sensitivity : Vector2.zero;
+        // The player's look sensitivity, pad look speed and invert Y (GameSettings) on top of the look's own.
+        Vector2 delta = Mouse.current != null ? Mouse.current.delta.ReadValue() * sensitivity * GameSettings.LookScale : Vector2.zero;
+        delta.y *= GameSettings.YSign;
         // The right stick is a turn rate, so it is scaled by frame time.
         Vector2 stick = PadInput.Curved(PadInput.RightStick);
         float dt = Mathf.Min(Time.unscaledDeltaTime, .1f);
-        Vector2 turn = new Vector2(stick.x * stickSpeed.x, stick.y * stickSpeed.y) * dt;
+        Vector2 turn = new Vector2(stick.x * stickSpeed.x, stick.y * stickSpeed.y * GameSettings.YSign) * dt * GameSettings.PadLookScale;
         if (!AimAssist.Active)
         {
             aim.Reset();

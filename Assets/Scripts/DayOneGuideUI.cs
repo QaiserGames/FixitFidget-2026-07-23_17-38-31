@@ -19,8 +19,9 @@ public class DayOneGuideUI : MonoBehaviour
     private EspressoMachine machine;
     private DropSpot[] drops;
     private GameObject panel;
+    private RectTransform panelRect;
     private TMP_Text hint;
-    private float nextRefresh;
+    private float nextRefresh, panelY = float.NaN;
     private int hintDay = -1;
     private readonly DayOneHintTimer toast = new();
 
@@ -66,11 +67,15 @@ public class DayOneGuideUI : MonoBehaviour
             return;
         }
 
-        // Expire on time even between the slower state refreshes below.
-        if (!toast.IsVisible(Time.unscaledTime)) Show(false);
+        // Under the tabs (top left, TicketRailUI), gliding when a tab comes or goes.
+        Follow();
+        // Expire on time even between the slower state refreshes below. On the UI's own clock (UiClock): it holds while
+        // the phone pauses the game, so a hint can't run out behind it.
+        float now = UiClock.Now;
+        if (!toast.IsVisible(now)) Show(false);
         // Hints need no per-frame scene searches or string/layout rebuilding.
-        if (Time.unscaledTime < nextRefresh) return;
-        nextRefresh = Time.unscaledTime + 0.15f;
+        if (now < nextRefresh) return;
+        nextRefresh = now + 0.15f;
         if (spawner == null) spawner = FindAnyObjectByType<CustomerSpawner>();
         CustomerProfile featured = spawner != null ? spawner.FeaturedHintProfile : null;
         if (spawner == null || (!spawner.IsGuidedOpening && featured == null)
@@ -87,12 +92,12 @@ public class DayOneGuideUI : MonoBehaviour
         string title = featured != null ? $"DAY {clock.Day} · {featured.characterName.ToUpperInvariant()}"
             : drinkLesson ? "FIRST DRINK" : "FIRST REPAIR";
         string next = featured != null ? FeaturedAction(customer, featured) : NextAction(customer, drinkLesson);
-        string text = $"<b>{title}</b>\n{next}";
+        string text = $"<color={TitleColour}><b>{title}</b></color>\n{next}";
         // These messages describe stable actions, never the hovered part.
         // Title separates the two lessons, so shared instructions can appear
         // once for each visit without repeating when the player moves around.
-        if (toast.Observe(text, Time.unscaledTime, spawner.OpeningHintDuration)) hint.text = text;
-        Show(toast.IsVisible(Time.unscaledTime));
+        if (toast.Observe(text, now, spawner.OpeningHintDuration)) hint.text = text;
+        Show(toast.IsVisible(now));
     }
 
     private string FeaturedAction(CustomerBrain customer, CustomerProfile profile)
@@ -334,6 +339,23 @@ public class DayOneGuideUI : MonoBehaviour
     private static string Aim(string target) => Pad ? $"Press {ControlHints.Use} on {target}" : $"Click {target}";
     private static string Select(string tool) => Pad ? $"Select the {tool} with {ControlHints.Tools}" : $"Select the {tool}";
 
+    // THE UI SKIN (playtest 3, session 3): a card of the phone's paper with dark ink, its title in the brand's green,
+    // under the tabs in the top left corner (they moved there from the top middle), clear of them as they come and go.
+    private static readonly string TitleColour = UiSkin.HexOf(UiSkin.Brand);
+    private const float Below = 16f;
+
+    private float WantedY() => -(TicketRailUI.BottomEdge > 0f ? TicketRailUI.BottomEdge + Below : 24f);
+
+    private void Follow()
+    {
+        if (panelRect == null) return;
+        float want = WantedY();
+        if (float.IsNaN(panelY) || !panel.activeSelf) panelY = want;
+        else panelY = Mathf.Lerp(panelY, want, 1f - Mathf.Exp(-12f * UiClock.Delta));
+        if (Mathf.Abs(panelY - want) < .5f) panelY = want;
+        panelRect.anchoredPosition = new Vector2(UiSkin.Margin, panelY);
+    }
+
     private bool CreatePanel()
     {
         Canvas canvas = sourceText.GetComponentInParent<Canvas>();
@@ -341,15 +363,26 @@ public class DayOneGuideUI : MonoBehaviour
         canvas = canvas.rootCanvas;
         panel = new GameObject("Next action hint (runtime)", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = panel.GetComponent<RectTransform>();
+        panelRect = rect;
         rect.SetParent(canvas.transform, false);
         rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f);
-        rect.anchoredPosition = new Vector2(24f, -24f);
+        rect.anchoredPosition = new Vector2(UiSkin.Margin, WantedY());
         RectTransform canvasRect = canvas.GetComponent<RectTransform>();
         rect.sizeDelta = new Vector2(Mathf.Min(460f, canvasRect.rect.width * 0.34f), 104f);
-        Image background = panel.GetComponent<Image>();
-        background.color = new Color(0.08f, 0.09f, 0.10f, 0.9f);
-        background.raycastTarget = false;
+        Image background = UiSkin.Paint(rect, new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .96f), UiSkin.Radius);
+        var shadow = panel.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, .3f);
+        shadow.effectDistance = new Vector2(0f, -3f);
+        // The brand's green down the card's left edge.
+        Image edge = UiSkin.Paint(new GameObject("Edge", typeof(RectTransform)).GetComponent<RectTransform>(), UiSkin.Brand, 3f);
+        RectTransform edgeRect = edge.rectTransform;
+        edgeRect.SetParent(rect, false);
+        edgeRect.anchorMin = new Vector2(0f, 0f);
+        edgeRect.anchorMax = new Vector2(0f, 1f);
+        edgeRect.pivot = new Vector2(0f, .5f);
+        edgeRect.offsetMin = new Vector2(7f, 12f);
+        edgeRect.offsetMax = new Vector2(12f, -12f);
 
         GameObject label = new GameObject("Hint", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         RectTransform labelRect = label.GetComponent<RectTransform>();
@@ -358,13 +391,15 @@ public class DayOneGuideUI : MonoBehaviour
         labelRect.anchorMax = Vector2.one;
         labelRect.offsetMin = new Vector2(16f, 10f);
         labelRect.offsetMax = new Vector2(-16f, -10f);
+        labelRect.offsetMin = new Vector2(24f, 10f);
         hint = label.GetComponent<TextMeshProUGUI>();
         hint.font = sourceText.font;
+        UiSkin.UseFont(hint);
         hint.fontSize = 23f;
         hint.enableAutoSizing = true;
         hint.fontSizeMin = 16f;
         hint.fontSizeMax = 23f;
-        hint.color = Color.white;
+        hint.color = UiSkin.Ink;
         hint.alignment = TextAlignmentOptions.MidlineLeft;
         hint.raycastTarget = false;
         return true;

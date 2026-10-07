@@ -181,8 +181,8 @@ public sealed class NightCycle : MonoBehaviour
     IEnumerator ShowNoteLater(string text, float after, float seconds)
     {
         yield return new WaitForSecondsRealtime(Mathf.Max(0f, after));
-        float giveUp = Time.unscaledTime + 10f;
-        while (noteBox != null && noteBox.gameObject.activeSelf && Time.unscaledTime < noteUntil && Time.unscaledTime < giveUp) yield return null;
+        float giveUp = UiClock.Now + 10f;
+        while (noteBox != null && noteBox.gameObject.activeSelf && UiClock.Now < noteUntil && UiClock.Now < giveUp) yield return null;
         if (Now == Phase.Night || Now == Phase.Day) ShowNote(text, seconds);   // never over a fade
     }
 
@@ -299,7 +299,8 @@ public sealed class NightCycle : MonoBehaviour
                 if (walk.Hour >= walk.nightEndsAt - .001f) EndTheNight(true);
             }
         }
-        if (note != null && noteBox.gameObject.activeSelf && Time.unscaledTime >= noteUntil) noteBox.gameObject.SetActive(false);
+        // On the UI's own clock (UiClock): a note holds while the phone pauses the game, so it can't run out behind it.
+        if (note != null && noteBox.gameObject.activeSelf && UiClock.Now >= noteUntil) noteBox.gameObject.SetActive(false);
     }
 
     // ---------- the morning ----------
@@ -533,8 +534,14 @@ public sealed class NightCycle : MonoBehaviour
     {
         if (note == null) return;
         note.text = text;
+        // As wide as its words (the skin's band, not a bar across the screen), one or two lines.
+        Vector2 words = note.GetPreferredValues(text, NoteTextWidth, 0f);
+        float width = Mathf.Clamp(Mathf.Ceil(words.x) + 2f * NotePadX, 360f, NoteTextWidth + 2f * NotePadX);
+        float height = Mathf.Max(64f, Mathf.Ceil(words.y) + 2f * NotePadY);
+        noteBox.sizeDelta = new Vector2(width, height);
+        note.rectTransform.sizeDelta = new Vector2(width - 2f * NotePadX, height - 2f * NotePadY);
         noteBox.gameObject.SetActive(true);
-        noteUntil = Time.unscaledTime + Mathf.Max(1f, seconds);
+        noteUntil = UiClock.Now + Mathf.Max(1f, seconds);
     }
 
     void HideNote()
@@ -553,7 +560,8 @@ public sealed class NightCycle : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = .5f;
-        TMP_FontAsset font = HudFont();
+        // The UI skin (playtest 3, session 3): its lettering, the curtain a warm near-black, the note on the skin's band.
+        TMP_FontAsset font = UiSkin.Font;
 
         RectTransform curtainRect = Stretch("Curtain", canvasObject.transform);
         curtain = curtainRect.gameObject.AddComponent<CanvasGroup>();
@@ -561,9 +569,11 @@ public sealed class NightCycle : MonoBehaviour
         curtain.blocksRaycasts = false;
         curtain.interactable = false;
         var black = curtainRect.gameObject.AddComponent<Image>();
-        black.color = new Color(.02f, .02f, .035f, 1f);
-        title = Label("Title", curtainRect, new Vector2(0f, 40f), new Vector2(1400f, 110f), 76f, new Color(.95f, .92f, .85f), font);
-        subtitle = Label("Subtitle", curtainRect, new Vector2(0f, -40f), new Vector2(1300f, 90f), 30f, new Color(.72f, .7f, .66f), font);
+        black.color = new Color(.035f, .03f, .028f, 1f);
+        title = Label("Title", curtainRect, new Vector2(0f, 40f), new Vector2(1400f, 110f), 76f, UiSkin.BandText, font);
+        title.fontStyle = FontStyles.Bold;
+        title.characterSpacing = 4f;
+        subtitle = Label("Subtitle", curtainRect, new Vector2(0f, -40f), new Vector2(1300f, 90f), 30f, UiSkin.BandFaint, font);
 
         // Above the prompt ("[E]  Take Barnaby", "[F]  Serve at counter": bottom middle, about 180-220 up),
         // so a note never sits on it: by day too, when Grace's print is noted as her conversation closes.
@@ -572,13 +582,16 @@ public sealed class NightCycle : MonoBehaviour
         noteBox.anchorMin = noteBox.anchorMax = new Vector2(.5f, 0f);
         noteBox.pivot = new Vector2(.5f, 0f);
         noteBox.anchoredPosition = new Vector2(0f, 250f);
-        noteBox.sizeDelta = new Vector2(1180f, 64f);
-        var backing = noteBox.gameObject.AddComponent<Image>();
-        backing.color = new Color(.075f, .07f, .065f, .86f);
-        backing.raycastTarget = false;
-        note = Label("Text", noteBox, Vector2.zero, new Vector2(1140f, 60f), 25f, new Color(.95f, .92f, .85f), font);
+        noteBox.sizeDelta = new Vector2(NoteTextWidth + 2f * NotePadX, 64f);
+        UiSkin.Paint(noteBox, UiSkin.Band, UiSkin.Radius);
+        var lift = noteBox.gameObject.AddComponent<Shadow>();
+        lift.effectColor = new Color(0f, 0f, 0f, .35f);
+        lift.effectDistance = new Vector2(0f, -3f);
+        note = Label("Text", noteBox, Vector2.zero, new Vector2(NoteTextWidth, 60f), 25f, UiSkin.BandText, font);
         noteBox.gameObject.SetActive(false);
     }
+
+    const float NoteTextWidth = 1100f, NotePadX = 30f, NotePadY = 14f;
 
     static RectTransform Stretch(string name, Transform parent)
     {
@@ -607,15 +620,6 @@ public sealed class NightCycle : MonoBehaviour
         text.raycastTarget = false;
         text.richText = true;
         return text;
-    }
-
-    // The HUD's own lettering, so the screen looks like part of the game (as NightNotebook does).
-    static TMP_FontAsset HudFont()
-    {
-        ShopUI hud = FindAnyObjectByType<ShopUI>();
-        TMP_Text any = hud != null ? hud.GetComponentInChildren<TMP_Text>(true) : null;
-        if (any == null) any = FindAnyObjectByType<TextMeshProUGUI>();
-        return any != null && any.font != null ? any.font : TMP_Settings.defaultFontAsset;
     }
 
     public string Describe() =>

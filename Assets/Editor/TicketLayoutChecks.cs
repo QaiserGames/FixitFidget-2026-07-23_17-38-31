@@ -74,6 +74,12 @@ public static class TicketLayoutChecks
             Invoke(manager, "LateUpdate");
             CheckRail(tickets, railRect, 1);
             Require(Mathf.Approximately(railRect.rect.height, 118), "Six tickets occupy only 118 pixels of height at 1920.");
+            // The tabs sit in the top left corner (the HUD spec's), running right, and stop short of today's takings.
+            Require(railRect.anchorMin == new Vector2(0, 1) && railRect.pivot == new Vector2(0, 1)
+                && Mathf.Approximately(railRect.anchoredPosition.x, UiSkin.Margin), "The tabs start at the top left corner.");
+            Require(UiSkin.Margin + railRect.rect.width <= 1920 - TicketRailUI.RightReserve + .01f,
+                "Six tabs stop short of the top right corner (today's takings).");
+            Require(Mathf.Approximately(TicketRailUI.BottomEdge, 20 + 118), "The guide under the tabs knows where they end.");
             foreach (var ticket in tickets)
             {
                 Require(Get<Image>(ticket, "background").color.a < .95f, "Card paper is translucent.");
@@ -131,8 +137,8 @@ public static class TicketLayoutChecks
 
             canvasRect.sizeDelta = new Vector2(1280, 720);
             Invoke(manager, "LateUpdate");
-            CheckRail(tickets, railRect, 3);
-            Debug.Log("[Ticket layout] PASS: real prefab, six-card rail, narrow wrapping, live portrait/fallback, patience, separate drinks, full constraints, support countdown and handback. No scenes or saves changed.");
+            CheckRail(tickets, railRect, 2);
+            Debug.Log("[Ticket layout] PASS: real prefab, six same-width tabs in the top left corner clear of today's takings, narrow wrapping, live portrait/fallback, patience, separate drinks, full constraints, support countdown and handback. No scenes or saves changed.");
         }
         finally
         {
@@ -152,8 +158,9 @@ public static class TicketLayoutChecks
             var rect = (RectTransform)tickets[i].transform;
             rows.Add(rect.anchoredPosition.y);
             Require(Mathf.Approximately(rect.rect.height, 118) && rect.rect.width >= 150, "Cards retain the compact readable minimum.");
+            Require(Mathf.Approximately(rect.rect.width, TicketRailUI.CardWidth), "Every tab is the same width, whatever the count.");
             Rect bounds = LocalRect(rect);
-            Require(bounds.xMin >= -rail.rect.width * .5f - .01f && bounds.xMax <= rail.rect.width * .5f + .01f,
+            Require(bounds.xMin >= -.01f && bounds.xMax <= rail.rect.width + .01f,
                 "Every ticket stays inside the available rail width.");
             for (int j = 0; j < i; j++) Require(!bounds.Overlaps(LocalRect((RectTransform)tickets[j].transform)), "Ticket cards do not overlap.");
         }

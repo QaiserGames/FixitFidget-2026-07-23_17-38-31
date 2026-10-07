@@ -64,7 +64,7 @@ public sealed class NoticeMark : MonoBehaviour
     {
         if (speaker != null) who = speaker;
         mark = Mathf.Clamp01(mark);
-        if (amount < GraceNight.Third && mark >= GraceNight.Third) popAt = Time.unscaledTime;
+        if (amount < GraceNight.Third && mark >= GraceNight.Third) popAt = UiClock.Now;
         amount = mark;
         wanted = mark > .005f && who != null ? 1f : 0f;
     }
@@ -123,7 +123,7 @@ public sealed class NoticeMark : MonoBehaviour
         glyph.alignment = TextAlignmentOptions.Center;
         glyph.raycastTarget = false;
         glyph.color = Ink;
-        TMP_FontAsset font = HudFont();
+        TMP_FontAsset font = UiSkin.Font;
         if (font != null) glyph.font = font;
     }
 
@@ -153,7 +153,8 @@ public sealed class NoticeMark : MonoBehaviour
             hidden = hide;
             canvas.enabled = !hide;
         }
-        shown = Mathf.MoveTowards(shown, wanted, Time.unscaledDeltaTime / (wanted > shown ? .12f : .45f));
+        // On the UI's own clock (UiClock): it holds while the phone pauses the game.
+        shown = Mathf.MoveTowards(shown, wanted, UiClock.Delta / (wanted > shown ? .12f : .45f));
     }
 
     // Just before the canvases are drawn, after every camera has moved this frame (as the barks and the juice do).
@@ -169,7 +170,7 @@ public sealed class NoticeMark : MonoBehaviour
         Vector3 s = cam.WorldToScreenPoint(Barks.HeadPointOf(who));
         if (s.z < 0f) { group.alpha = 0f; return; }
         float scale = canvas.scaleFactor > 0f ? canvas.scaleFactor : 1f;
-        float now = Time.unscaledTime;
+        float now = UiClock.Now;
         // A pop as it passes a third; full, a slow pulse.
         float t = now - popAt;
         float grow = t < .1f ? Mathf.Lerp(1f, 1.35f, t / .1f) : t < .3f ? Mathf.Lerp(1.35f, 1f, (t - .1f) / .2f) : 1f;
@@ -182,18 +183,11 @@ public sealed class NoticeMark : MonoBehaviour
         glyph.color = amount >= GraceNight.Third ? Paper : Ink;
     }
 
-    static TMP_FontAsset HudFont()
-    {
-        ShopUI hud = FindAnyObjectByType<ShopUI>();
-        TMP_Text any = hud != null ? hud.GetComponentInChildren<TMP_Text>(true) : null;
-        return any != null && any.font != null ? any.font : TMP_Settings.defaultFontAsset;
-    }
-
     // ---------------------------------------------------------------- the badge, drawn in code (as Juice draws its own)
 
     const int Px = 96;
-    static readonly Color Ink = new Color(.16f, .15f, .19f, 1f);
-    static readonly Color Paper = new Color(1f, .985f, .95f, 1f);
+    static readonly Color Ink = UiSkin.Ink;      // the UI skin's (playtest 3, session 3)
+    static readonly Color Paper = UiSkin.Paper;
     static Sprite paperSprite, fillSprite;
 
     // The paper disc with its dark rim and soft shadow; or (fill) the disc inside the rim, white, to be tinted.

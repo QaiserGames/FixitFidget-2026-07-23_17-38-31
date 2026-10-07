@@ -48,6 +48,7 @@ public sealed class ReputationLedger
     private readonly List<string> quotes = new();
     private readonly List<Review> quoteReviews = new();
     private readonly List<ReviewCard> cards = new();
+    private readonly List<ReviewCard> live = new();   // today's cards as they come in (the phone by day)
 
     public int Reputation { get; private set; }
     public int StarsEarned { get; private set; }
@@ -68,6 +69,10 @@ public sealed class ReputationLedger
     /// <summary>Every review of the settled day, in the order they were written (the recap phone).
     /// Empty before closing, and for a recap saved before every review got a line.</summary>
     public IReadOnlyList<ReviewCard> Cards => cards;
+
+    /// <summary>Today's reviews as cards, as they come in (playtest 3, session 3: the phone by day): each written when it
+    /// is recorded, with the same line closing gives it (the writer is deterministic). Once settled, the settled cards.</summary>
+    public IReadOnlyList<ReviewCard> TodayCards => Settled ? cards : live;
 
     public int Count(Review review) => review == Review.None ? 0 : counts[(int)review];
 
@@ -133,15 +138,28 @@ public sealed class ReputationLedger
     /// <summary>Tomorrow has been saved: start collecting its reviews.</summary>
     public void BeginDay(int day) => ClearToday(day);
 
-    /// <summary>Adds one review to today. Ignored after closing and for "no review".</summary>
-    public bool Record(ReviewEntry entry)
+    /// <summary>Adds one review to today. Ignored after closing and for "no review". <paramref name="writeCard"/>, if
+    /// given, writes its card's line now (the phone by day shows it at once).</summary>
+    public bool Record(ReviewEntry entry, Func<ReviewEntry, string> writeCard = null)
     {
         if (Settled || entry == null || entry.review == Review.None) return false;
         today.Add(entry);
         counts[(int)entry.review]++;
         TodayChange += ReputationRules.Points(entry.review);
+        if (writeCard != null) live.Add(CardOf(entry, writeCard(entry)));
         return true;
     }
+
+    // A review's card: as signed, its verdict, and its line (or the verdict's label when no line was written).
+    private static ReviewCard CardOf(ReviewEntry r, string line) => new ReviewCard
+    {
+        name = ReputationRules.Attribution(r.name),
+        review = r.review,
+        reason = r.reason,
+        // A kind of visit with no lines written still shows its verdict.
+        line = string.IsNullOrWhiteSpace(line) ? ReputationRules.Label(r.review) + "." : line.Trim(),
+        regular = r.regular
+    };
 
     /// <summary>Counts today's reviews into the café's reputation. Once per day.
     /// <paramref name="write"/> turns a quoted review into its line of text; it
@@ -173,16 +191,7 @@ public sealed class ReputationLedger
             foreach (ReviewEntry r in today)
             {
                 if (r == null || r.review == Review.None) continue;
-                string line = writeCard(r);
-                cards.Add(new ReviewCard
-                {
-                    name = ReputationRules.Attribution(r.name),
-                    review = r.review,
-                    reason = r.reason,
-                    // A kind of visit with no lines written still shows its verdict.
-                    line = string.IsNullOrWhiteSpace(line) ? ReputationRules.Label(r.review) + "." : line.Trim(),
-                    regular = r.regular
-                });
+                cards.Add(CardOf(r, writeCard(r)));
             }
 
         Settled = true;
@@ -285,6 +294,7 @@ public sealed class ReputationLedger
         quotes.Clear();
         quoteReviews.Clear();
         cards.Clear();
+        live.Clear();
         TodayChange = 0;
         Settled = false;
         StarsBefore = StarsEarned;

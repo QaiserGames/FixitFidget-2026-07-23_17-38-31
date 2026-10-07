@@ -51,8 +51,9 @@ public sealed class Barks : MonoBehaviour
     public float fontSize = 30f;
     [Tooltip("The widest a band can be; longer lines wrap to a second line, then end with an ellipsis.")]
     public float maxWidth = 560f;
-    public Color bandColour = new Color(.055f, .055f, .07f, .76f);
-    public Color textColour = new Color(.96f, .95f, .92f, 1f);
+    // The UI skin's band and its writing (playtest 3, session 3): the phone's warm ink, see-through, and its cream.
+    public Color bandColour = UiSkin.Band;
+    public Color textColour = UiSkin.BandText;
     [Tooltip("Lines in a scene that someone else has answered stay up at this strength until they go.")]
     [Range(.2f, 1f)] public float answeredAlpha = .55f;
     [Header("Where it sits")]
@@ -126,8 +127,7 @@ public sealed class Barks : MonoBehaviour
     View chipStack;                                     // where the chips sit, placed like one of Ace's lines
     CanvasGroup chipsGroup;
     bool chipsUp;
-    Sprite rounded, triangle;
-    Material textMaterial;
+    Sprite triangle;
     TMP_FontAsset font;
     Camera cam;
     CafeViewMode viewMode;
@@ -362,9 +362,8 @@ public sealed class Barks : MonoBehaviour
     void OnDestroy()
     {
         if (Instance == this) Instance = null;
-        if (rounded != null) { Destroy(rounded.texture); Destroy(rounded); }
+        // The rounded sprite and the shadowed material are the UI skin's, shared: only the triangle is ours.
         if (triangle != null) { Destroy(triangle.texture); Destroy(triangle); }
-        if (textMaterial != null) Destroy(textMaterial);
     }
 
     Transform Ace
@@ -818,8 +817,7 @@ public sealed class Barks : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = .5f;
         canvasRect = canvasObject.GetComponent<RectTransform>();
-        font = HudFont();
-        rounded = RoundedSprite();
+        font = UiSkin.Font;
         triangle = TriangleSprite();
         for (int i = 0; i < ViewCount; i++) views[i] = MakeView(i);
         MakeChips();
@@ -842,8 +840,7 @@ public sealed class Barks : MonoBehaviour
             var c = new Chip();
             c.root = Part("Reply " + (i + 1), chipStack.root, new Vector2(.5f, 0f), new Vector2(.5f, 0f));
             c.band = c.root.gameObject.AddComponent<Image>();
-            c.band.sprite = rounded;
-            c.band.type = Image.Type.Sliced;
+            UiSkin.Round(c.band, 10f);
             c.band.color = bandColour;
             c.band.raycastTarget = false;
             RectTransform accent = Part("Ace's colour", c.root, Vector2.zero, new Vector2(0f, .5f));
@@ -860,7 +857,7 @@ public sealed class Barks : MonoBehaviour
             line.offsetMax = new Vector2(-PadRight, -PadY);
             c.text = line.gameObject.AddComponent<TextMeshProUGUI>();
             if (font != null) c.text.font = font;
-            if (textMaterial != null) c.text.fontSharedMaterial = textMaterial;
+            UiSkin.Shadowed(c.text);
             c.text.fontSize = fontSize * .9f;
             c.text.color = textColour;
             c.text.alignment = TextAlignmentOptions.MidlineLeft;
@@ -927,8 +924,7 @@ public sealed class Barks : MonoBehaviour
 
         v.bandRect = Part("Band", v.root, new Vector2(.5f, 0f), new Vector2(.5f, 0f));
         v.band = v.bandRect.gameObject.AddComponent<Image>();
-        v.band.sprite = rounded;
-        v.band.type = Image.Type.Sliced;
+        UiSkin.Round(v.band, 10f);
         v.band.color = bandColour;
         v.band.raycastTarget = false;
 
@@ -948,8 +944,7 @@ public sealed class Barks : MonoBehaviour
         v.textRect.offsetMax = new Vector2(-PadRight, -PadY);
         v.text = v.textRect.gameObject.AddComponent<TextMeshProUGUI>();
         if (font != null) v.text.font = font;
-        if (textMaterial == null) textMaterial = Shadow(v.text);
-        if (textMaterial != null) v.text.fontSharedMaterial = textMaterial;
+        UiSkin.Shadowed(v.text);
         v.text.fontSize = fontSize;
         v.text.color = textColour;
         v.text.alignment = TextAlignmentOptions.MidlineLeft;
@@ -1008,25 +1003,6 @@ public sealed class Barks : MonoBehaviour
         return rect;
     }
 
-    // A rounded box (9-sliced), drawn once.
-    static Sprite RoundedSprite()
-    {
-        const int size = 32, radius = 10;
-        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave };
-        for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-            {
-                float cx = Mathf.Clamp(x + .5f, radius, size - radius), cy = Mathf.Clamp(y + .5f, radius, size - radius);
-                float d = Vector2.Distance(new Vector2(x + .5f, y + .5f), new Vector2(cx, cy));
-                texture.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(radius - d + .5f)));
-            }
-        texture.Apply();
-        var sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(.5f, .5f), 100f, 0, SpriteMeshType.FullRect,
-                                   new Vector4(radius + 1, radius + 1, radius + 1, radius + 1));
-        sprite.hideFlags = HideFlags.DontSave;
-        return sprite;
-    }
-
     // A triangle pointing right (the tail and the arrow turn it).
     static Sprite TriangleSprite()
     {
@@ -1044,29 +1020,5 @@ public sealed class Barks : MonoBehaviour
         var sprite = Sprite.Create(texture, new Rect(0, 0, w, h), new Vector2(.5f, .5f), 100f);
         sprite.hideFlags = HideFlags.DontSave;
         return sprite;
-    }
-
-    // The subtitles' soft shadow (ConversationUI), on one copy of the font's material shared by every line.
-    static Material Shadow(TMP_Text text)
-    {
-        Material shared = text.fontSharedMaterial;
-        if (shared == null || !shared.HasProperty(ShaderUtilities.ID_UnderlayColor)) return null;
-        var material = new Material(shared) { name = shared.name + " (bark shadow)", hideFlags = HideFlags.DontSave };
-        material.EnableKeyword(ShaderUtilities.Keyword_Underlay);
-        material.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(0f, 0f, 0f, .85f));
-        material.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, .45f);
-        material.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -.45f);
-        material.SetFloat(ShaderUtilities.ID_UnderlayDilate, .25f);
-        material.SetFloat(ShaderUtilities.ID_UnderlaySoftness, .35f);
-        return material;
-    }
-
-    // The HUD's own lettering (as NightCycle and NightNotebook use).
-    static TMP_FontAsset HudFont()
-    {
-        ShopUI hud = FindAnyObjectByType<ShopUI>();
-        TMP_Text any = hud != null ? hud.GetComponentInChildren<TMP_Text>(true) : null;
-        if (any == null) any = FindAnyObjectByType<TextMeshProUGUI>();
-        return any != null && any.font != null ? any.font : TMP_Settings.defaultFontAsset;
     }
 }

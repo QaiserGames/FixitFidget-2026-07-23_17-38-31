@@ -16,9 +16,13 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private TMP_Text callState, callSeconds, detailText;
     private bool wasSupport, pointerOver;
     private float cardWidth = 220, cardHeight = 118;
-    private static readonly Color Ink = new(.10f, .14f, .16f);
-    private static readonly Color MutedInk = new(.30f, .35f, .36f);
-    private static readonly Color UrgentInk = new(.63f, .14f, .08f);
+    // The UI skin (playtest 3, session 3): the phone's cream paper and dark ink, the customer's colour as a strip of tape
+    // across the top corner (the spec's tab, claude/hud-spec.md §3), one chunky patience meter on a track.
+    private static readonly Color Ink = UiSkin.Ink;
+    private static readonly Color MutedInk = UiSkin.InkSoft;
+    private static readonly Color UrgentInk = UiSkin.Red;
+    private Image tape, patienceTrack;
+    private bool skinned;
 
     public CustomerBrain Target { get; private set; }
 
@@ -34,11 +38,14 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (slotText != null) slotText.text = brain.CustomerName;
         if (background != null)
         {
-            // Only the small card takes pointer hits; the room shows through its paper.
-            Color c = brain.JobColor;
-            background.color = new Color(Mathf.Lerp(1f, c.r, .15f),
-                Mathf.Lerp(1f, c.g, .15f), Mathf.Lerp(1f, c.b, .15f), .87f);
+            // Only the small card takes pointer hits; the room shows through its paper a little.
+            background.color = new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .93f);
             background.raycastTarget = true;
+        }
+        if (tape != null)
+        {
+            Color c = brain.JobColor;
+            tape.color = new Color(c.r, c.g, c.b, .92f);
         }
         Refresh();
     }
@@ -78,7 +85,7 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                 ? Mathf.CeilToInt(call.SecondsRemaining) + "s"
                 : phase == HoldCallRun.State.Done ? "Return phone"
                 : phase == HoldCallRun.State.NeedsDialing ? (call.MissedCalls > 0 ? "Redial" : "Dial phone") : "…";
-            callState.color = phase == HoldCallRun.State.Ringing ? new Color(.24f, 1f, .46f) : Color.white;
+            callState.color = phase == HoldCallRun.State.Ringing ? UiSkin.BrandBright : UiSkin.BandText;
         }
         else
         {
@@ -101,7 +108,8 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (patienceFill != null)
         {
             patienceFill.fillAmount = patience;
-            patienceFill.color = Color.Lerp(new Color(.85f, .2f, .2f), new Color(.3f, .75f, .35f), patience);
+            patienceFill.color = patience < .5f ? Color.Lerp(UiSkin.Red, UiSkin.Gold, patience * 2f)
+                : Color.Lerp(UiSkin.Gold, UiSkin.Brand, (patience - .5f) * 2f);
         }
         // Details use the pointer only when existing game controls have released it.
         bool showDetails = pointerOver && Cursor.lockState != CursorLockMode.Locked;
@@ -112,22 +120,54 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private void EnsureIdentity()
     {
         if (portrait != null) return;
+        Skin();
         portraitFrame = RepairOverlayUI.Panel("Customer portrait frame", transform,
             new Vector2(6, -3), new Vector2(34, 34), MutedInk);
+        UiSkin.Round(portraitFrame, 9f);
         portrait = RepairOverlayUI.Panel("Customer portrait", portraitFrame.transform,
             new Vector2(1, -1), new Vector2(32, 32), Color.white);
         portrait.preserveAspect = true;
         portraitInitial = RepairOverlayUI.Text("Customer initial", portraitFrame.transform,
             Vector2.zero, new Vector2(34, 34), 22, Ink);
         portraitInitial.alignment = TextAlignmentOptions.Center;
+        portraitInitial.fontStyle = FontStyles.Bold;
         moodText = RepairOverlayUI.Text("Customer mood", transform,
             new Vector2(46, -24), new Vector2(cardWidth - 54, 14), 11, MutedInk);
         moodText.textWrappingMode = TextWrappingModes.NoWrap;
         drinkText = RepairOverlayUI.Text("Drink obligation", transform,
             new Vector2(8, -90), new Vector2(cardWidth - 16, 18), 14, Ink);
         drinkText.textWrappingMode = TextWrappingModes.NoWrap;
-        if (slotText != null) { portraitInitial.font = slotText.font; moodText.font = slotText.font; }
-        if (jobText != null) drinkText.font = jobText.font;
+        drinkText.fontStyle = FontStyles.Bold;
+        foreach (TMP_Text t in new[] { portraitInitial, moodText, drinkText }) UiSkin.UseFont(t);
+    }
+
+    // The card in the skin, once: rounded paper with a soft shadow, the tape, the meter's track, the skin's lettering.
+    private void Skin()
+    {
+        if (skinned) return;
+        skinned = true;
+        if (background != null)
+        {
+            UiSkin.Round(background, 10f);
+            var shadow = background.GetComponent<Shadow>();
+            if (shadow == null) shadow = background.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, .3f);
+            shadow.effectDistance = new Vector2(0f, -3f);
+        }
+        // Stuck over the card's top edge, as tape is.
+        tape = RepairOverlayUI.Panel("Tape (the customer's colour)", transform, new Vector2(cardWidth - 52, 9), new Vector2(40, 13), Color.white);
+        UiSkin.Round(tape, 2f);
+        tape.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -7f);
+        if (patienceFill != null)
+        {
+            // The fill is a plain bar on a rounded track drawn just behind it.
+            patienceFill.sprite = null;
+            patienceTrack = RepairOverlayUI.Panel("Patience track", patienceFill.transform.parent, Vector2.zero, Vector2.one, UiSkin.Track);
+            patienceTrack.transform.SetSiblingIndex(patienceFill.transform.GetSiblingIndex());
+            UiSkin.Round(patienceTrack, 4f);
+        }
+        foreach (TMP_Text t in new[] { slotText, jobText }) UiSkin.UseFont(t);
+        if (slotText != null) slotText.fontStyle = FontStyles.Bold;
     }
 
     private void RefreshIdentity(float patience)
@@ -188,8 +228,15 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             patienceFill.raycastTarget = false;
             RectTransform track = patienceFill.transform.parent as RectTransform;
             Place(track != null && track != transform ? track : patienceFill.rectTransform,
-                new Vector2(8, -cardHeight + 10), new Vector2(cardWidth - 16, 6));
+                new Vector2(8, -cardHeight + 10), new Vector2(cardWidth - 16, 7));
+            if (patienceTrack != null)
+            {
+                // Round the bar: a pixel of track shows on every side.
+                RectTransform bar = track != null && track != transform ? track : patienceFill.rectTransform;
+                Place(patienceTrack.rectTransform, bar.anchoredPosition + new Vector2(-1, 1), bar.sizeDelta + new Vector2(2, 2));
+            }
         }
+        if (tape != null) Place(tape.rectTransform, new Vector2(cardWidth - 52, 9), new Vector2(40, 13));
         if (callLine != null)
         {
             Place(callLine, new Vector2(8, -72), new Vector2(cardWidth - 16, 32));
@@ -209,28 +256,33 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     private void BuildCallLine()
     {
-        callLine = RepairOverlayUI.Panel("Support call obligation", transform, new Vector2(8, -72),
-            new Vector2(cardWidth - 16, 32), RepairOverlayUI.Background).rectTransform;
+        Image callBand = RepairOverlayUI.Panel("Support call obligation", transform, new Vector2(8, -72),
+            new Vector2(cardWidth - 16, 32), UiSkin.Band);
+        UiSkin.Round(callBand, 8f);
+        callLine = callBand.rectTransform;
         var rect = RepairOverlayUI.Rect("Phone", callLine, new Vector2(0, 1), new Vector2(.5f, .5f),
             new Vector2(15, -16), new Vector2(28, 28));
         callIcon = rect.gameObject.AddComponent<SupportCallIcon>(); callIcon.raycastTarget = false;
         callState = RepairOverlayUI.Text("Call state", callLine, new Vector2(32, 0), new Vector2(cardWidth - 52, 16), 13, Color.white);
-        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(32, -16), new Vector2(cardWidth - 52, 16), 13, RepairOverlayUI.Muted);
+        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(32, -16), new Vector2(cardWidth - 52, 16), 13, UiSkin.BandFaint);
         callState.textWrappingMode = callSeconds.textWrappingMode = TextWrappingModes.NoWrap;
-        if (jobText != null) { callState.font = jobText.font; callSeconds.font = jobText.font; }
+        UiSkin.UseFont(callState);
+        UiSkin.UseFont(callSeconds);
     }
 
     private void RefreshDetails(HoldCallJob call)
     {
         if (detailPanel == null)
         {
-            detailPanel = RepairOverlayUI.Panel("Full ticket details", transform, Vector2.zero,
-                new Vector2(320, 80), RepairOverlayUI.Background).rectTransform;
+            Image detailBand = RepairOverlayUI.Panel("Full ticket details", transform, Vector2.zero,
+                new Vector2(320, 80), UiSkin.Band);
+            UiSkin.Round(detailBand, UiSkin.Radius);
+            detailPanel = detailBand.rectTransform;
             detailText = RepairOverlayUI.Text("Full task text", detailPanel, new Vector2(12, -10),
-                new Vector2(296, 60), 16, Color.white);
+                new Vector2(296, 60), 16, UiSkin.BandText);
             detailText.textWrappingMode = TextWrappingModes.Normal;
             detailText.alignment = TextAlignmentOptions.TopLeft;
-            if (jobText != null) detailText.font = jobText.font;
+            UiSkin.UseFont(detailText);
             // Draw above neighbours without a raycaster or input capture.
             var layer = detailPanel.gameObject.AddComponent<Canvas>();
             var parentCanvas = GetComponentInParent<Canvas>();

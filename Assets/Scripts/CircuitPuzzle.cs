@@ -313,22 +313,22 @@ public sealed class CircuitPuzzle : MonoBehaviour
         hudRect.anchorMin = hudRect.anchorMax = new Vector2(0.5f, 0f);
         hudRect.pivot = new Vector2(0.5f, 0f);
         hudRect.anchoredPosition = new Vector2(0, 24); hudRect.sizeDelta = new Vector2(760, 148);
-        hudRect.GetComponent<Image>().color = new Color(0.055f, 0.075f, 0.08f, 0.97f);
+        // The UI skin (playtest 3, session 3): its band, its lettering, its colours.
+        UiSkin.Paint(hudRect, new Color(UiSkin.Ink.r, UiSkin.Ink.g, UiSkin.Ink.b, .95f), UiSkin.Radius);
         status = HudTopText(new Vector2(22, -16), new Vector2(400, 30), 25);
         resultLabel = HudTopText(new Vector2(422, -18), new Vector2(316, 28), 20);
         resultLabel.alignment = TextAlignmentOptions.Right;
         instruction = HudTopText(new Vector2(22, -54), new Vector2(716, 30), 21);
-        instruction.color = new Color(0.86f, 0.87f, 0.82f);
+        instruction.color = UiSkin.BandText;
         progressLabel = HudTopText(new Vector2(22, -108), new Vector2(250, 24), 18);
-        progressLabel.color = new Color(0.7f, 0.78f, 0.76f);
+        progressLabel.color = UiSkin.BandFaint;
         boostLabel = HudTopText(new Vector2(282, -108), new Vector2(456, 24), 18);
         boostLabel.alignment = TextAlignmentOptions.Right;
         var track = new GameObject("Verified progress", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
         track.SetParent(hudRect, false);
         track.anchorMin = track.anchorMax = track.pivot = new Vector2(0, 1);
         track.anchoredPosition = new Vector2(22, -94); track.sizeDelta = new Vector2(716, 6);
-        track.GetComponent<Image>().color = new Color(0.18f, 0.23f, 0.23f);
-        track.GetComponent<Image>().raycastTarget = false;
+        UiSkin.Paint(track, UiSkin.BandLine, 3f);
         progressFill = new GameObject("Fill", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
         progressFill.SetParent(track, false);
         progressFill.anchorMin = Vector2.zero; progressFill.anchorMax = new Vector2(0, 1);
@@ -337,11 +337,11 @@ public sealed class CircuitPuzzle : MonoBehaviour
         progressFill.GetComponent<Image>().raycastTarget = false;
         retryCost = HudText(hudRect, new Vector2(22, 18), new Vector2(444, 40), 18);
         retryCost.alignment = TextAlignmentOptions.MidlineLeft;
-        retryCost.color = new Color(0.86f, 0.87f, 0.82f);
+        retryCost.color = UiSkin.BandText;
         RectTransform button = new GameObject("Retry", typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<RectTransform>();
         button.SetParent(hudRect, false); button.anchorMin = button.anchorMax = Vector2.zero;
         button.pivot = Vector2.zero; button.anchoredPosition = new Vector2(488, 18); button.sizeDelta = new Vector2(250, 40);
-        button.GetComponent<Image>().color = new Color(0.14f, 0.27f, 0.32f);
+        UiSkin.Paint(button, UiSkin.Brand, 10f, true);
         retry = button.GetComponent<Button>(); retry.targetGraphic = button.GetComponent<Image>();
         // Mouse-only for this prototype: Space belongs to pulse acceleration,
         // never to a previously selected Retry button via the UI Submit action.
@@ -364,7 +364,8 @@ public sealed class CircuitPuzzle : MonoBehaviour
         text.rectTransform.SetParent(parent, false);
         text.rectTransform.anchorMin = text.rectTransform.anchorMax = Vector2.zero;
         text.rectTransform.pivot = Vector2.zero; text.rectTransform.anchoredPosition = pos;
-        text.rectTransform.sizeDelta = size; text.fontSize = fontSize; text.color = Color.white;
+        text.rectTransform.sizeDelta = size; text.fontSize = fontSize; text.color = UiSkin.BandText;
+        UiSkin.UseFont(text);
         text.raycastTarget = false;
         return text;
     }
@@ -378,7 +379,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
     private void UpdateStatus()
     {
         status.text = run.Finished ? "Signal restored" : run.Halted ? "Signal blocked" : "Reconnect the circuit";
-        status.color = run.Finished ? liveColor : run.Halted ? warningColor : Color.white;
+        status.color = run.Finished ? liveColor : run.Halted ? warningColor : UiSkin.BandText;
         instruction.text = run.Finished ? "Circuit complete. Finish any remaining repairs."
             : run.Halted ? $"Connect the white ports on tile {run.Reached + 1}, then retry."
             : run.RouteClear ? $"Wires all connected. Hold {BoostKey} to speed up the charge."
@@ -390,7 +391,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
             : IsBoosting ? $"[{BoostKey}] Fast-forwarding"
             : boostRequiresRelease && BoostHeld
                 ? $"Release {BoostKey}, then hold to speed up" : $"Hold [{BoostKey}] to speed up pulse";
-        boostLabel.color = IsBoosting ? new Color(1f, 0.86f, 0.4f) : new Color(0.7f, 0.78f, 0.76f);
+        boostLabel.color = IsBoosting ? UiSkin.Gold : UiSkin.BandFaint;
         resultLabel.text = $"Repair result: {job.Grade}";
         progressFill.anchorMax = new Vector2((float)run.BestReached / run.Count, 1);
         hudRect.sizeDelta = new Vector2(760, run.Halted ? 208 : 148);

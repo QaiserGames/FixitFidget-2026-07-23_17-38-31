@@ -772,3 +772,523 @@ MonoBehaviour:
     minGap: 0.5
     maxAtOnce: 1
     bus: 0
+  - name: night.door
+    when: "Ace through a door at night (the caf\xE9's back door; a blink): a latch,
+      the door, the latch."
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: bins.bag
+    when: 'The bin bag goes into the dumpster: a soft heavy thump inside it.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 12
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: bins.lid
+    when: 'A dumpster lid dropping shut: a hollow plastic clunk.'
+    clips: []
+    volume: 0.45
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 14
+    minGap: 0.2
+    maxAtOnce: 2
+    bus: 0
+  - name: bins.creak
+    when: 'His lid creaking up (the reveal, a peek, a slow rise): a long hinge creak.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 14
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: bins.rattle
+    when: 'His lid lifting a crack and dropping as he talks from inside the bin:
+      a small rattle.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: lamp.flicker
+    when: 'The lamp over the bins stutters (Night 0''s reveal): a tick and a buzz.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: lodger.pop
+    when: 'He pops up out of the dumpster: the lid flung up, a quick rustle of his
+      coat.'
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 14
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: lodger.takes
+    when: 'He takes what Ace brought him: a hand, a rustle.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: lodger.gnome
+    when: 'He turns the gnome on the trash can''s lid to face the street: stone on
+      metal.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: lodger.cup
+    when: 'He sets a cup out on the crate: a small ceramic clink (four in a row).'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 2
+    bus: 0
+  - name: lodger.lesson
+    when: 'Ace learns one of his lessons: a quiet, low note.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: notebook.handover
+    when: 'His notebook changes hands (Night 0): a thick notebook passed over.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: notebook.page
+    when: 'A new line in the notebook: a pencil scratch and a page turning.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 2
+  - name: bark.choose
+    when: 'Ace picks one of the two replies: a soft tick.'
+    clips: []
+    volume: 0.2
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.1
+    maxAtOnce: 1
+    bus: 2
+  - name: juice.emote
+    when: 'A badge pops up over someone''s head (a heart, a star, a cup...): a soft
+      pop.'
+    clips: []
+    volume: 0.2
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 3
+    bus: 0
+  - name: juice.sparkle
+    when: 'A spot of grime gone, a part fitted: a tiny twinkle.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.08
+    maxAtOnce: 2
+    bus: 0
+  - name: juice.sparkle.big
+    when: 'A whole repair finished: a brighter twinkle.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: repair.fixed
+    when: 'A repair finished on the bench ("Fixed!"): a small happy chime (the signature
+      family).'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: recap.count
+    when: 'Today''s takings counting up on Ace''s phone: soft ticks.'
+    clips: []
+    volume: 0.15
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.05
+    maxAtOnce: 1
+    bus: 2
+  - name: recap.counted
+    when: 'Today''s takings counted: a settled coin.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: hud.lastorders
+    when: 'The HUD''s hanging sign turns to LAST ORDERS, an hour before closing:
+      a soft two-note chime (a warning, never an alarm).'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 2
+    maxAtOnce: 1
+    bus: 2
+  - name: phone.open
+    when: 'Ace takes the phone out (the pause, by day or at night): a soft slide
+      and a tap.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.2
+    maxAtOnce: 1
+    bus: 2
+  - name: phone.close
+    when: 'The phone put away: the same, softer and back the other way.'
+    clips: []
+    volume: 0.2
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.2
+    maxAtOnce: 1
+    bus: 2
+  - name: grace.tv
+    when: 'Her TV in the front room while she watches (a loop: voices and music,
+      muffled through the house).'
+    clips: []
+    volume: 0.22
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 9
+    minGap: 0
+    maxAtOnce: 1
+    bus: 0
+  - name: grace.kettle
+    when: Her kettle going on the hob, then coming to the boil.
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 9
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: grace.tap
+    when: Her kitchen tap running into a glass (2:40 AM).
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: grace.lamp
+    when: 'A switch clicked in her house: a lamp, a light, the TV''s button.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.1
+    maxAtOnce: 2
+    bus: 0
+  - name: grace.door
+    when: 'Her bedroom doors, opened or shut by her: a soft latch, no creak.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: grace.bed
+    when: 'Her bed as she gets in or out: springs, the quilt.'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 7
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: grace.notice
+    when: 'Her mark passes a third ("Hm?"): a small questioning sting, so the danger
+      reads.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1.5
+    far: 14
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: grace.woken
+    when: 'She wakes in bed: a startled breath, the bedclothes.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: grace.caught
+    when: "She catches Ace (\"Ace?! What on earth\u2014\"): a sharp sting, comic
+      rather than frightening."
+    clips: []
+    volume: 0.4
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 1
+    maxAtOnce: 1
+    bus: 2
+  - name: night.caught
+    when: 'The screen goes dark on "Caught.": a low, deflating note.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 1
+    maxAtOnce: 1
+    bus: 2
+  - name: night.stair.creak
+    when: 'Ace on her creaky stair at a walk: a loud wooden creak (it wakes her).'
+    clips: []
+    volume: 0.45
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 12
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: night.stair.creak.soft
+    when: 'Her creaky stair under a careful foot (Ace sneaking, or Grace herself):
+      a small creak.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: night.door.creak
+    when: 'Ace opens her bedroom doors at a walk: a long hinge creak (it wakes her).'
+    clips: []
+    volume: 0.45
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 12
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: night.door.soft
+    when: 'Ace eases her bedroom doors open, sneaking: a careful latch, almost silent.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 6
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: night.hide
+    when: 'Ace slips into the cupboard under her stairs or her wardrobe: a door drawn
+      to from inside.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 1
+  - name: night.unhide
+    when: 'Ace comes out of hiding: the door eased open.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 1

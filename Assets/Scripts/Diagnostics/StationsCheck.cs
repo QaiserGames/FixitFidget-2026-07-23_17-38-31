@@ -156,8 +156,10 @@ public sealed class StationsCheck : PlayLab
         if (job == null) yield break;
         yield return Repair(job);
         if (!lastWait) yield break;
+        // Taken back is the device leaving Ace's hands for theirs; they go home only when nobody owes them anything, so a
+        // drink still to come keeps them in their seat (CustomerBrain.CompleteJob).
         yield return Hand(owner, () => owner.JobReady, "hand it back", "they take their device back",
-            () => owner == null || owner.IsLeaving);
+            () => owner == null || owner.IsLeaving || owner.ActiveJob == null);
         opening.FinishVisit();
         Check(!interactor.InCloseUp && !inspector.IsHoldingItem && !conversation.InConversation,
             "after the repair nothing is left open (no close-up, no item, no conversation)");
