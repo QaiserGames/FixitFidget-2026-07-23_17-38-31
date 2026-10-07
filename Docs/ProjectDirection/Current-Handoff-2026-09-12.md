@@ -1,5 +1,62 @@
 # Current handoff — September 12, 2026
 
+## October 7 (afternoon) — Playtest 3, sessions 2 and 3: stations as reach, aim help, a slimmer Ace; one UI skin, the HUD's corners, the phone by day (`04a091b`, `638b318`); on `playtest-2`
+
+**Read this entry first.** Three commits on `playtest-2` after `b1d419e` (session 1's handoff): session 2 (`04a091b`), session 3 (`638b318`) and this entry. Nothing is pushed. The plan is `claude/playtest-3-sessions-2-6-plan.md` in the project docs (§2 session 2, §3 session 3), written and agreed before either was built; Mansoor's answers are its §10 (build straight through, no stops; interior cells after the playtest; E on the station; keep the cloth).
+
+### Session 2 (`04a091b`): interaction
+
+1. **Stations as reach.** Nothing is docked by day. In first person the counter, the drinks and the bench work on Ace's own crosshair within reach: E talks to whoever is waiting, the hands work the drinks (left click / LB the left hand, right click / RB the right), a click or RT works on a device on the bench. From above, **E at the dispenser opens its close-up** (`StationCloseUp`; the left stick or WASD, B, Esc or right-click leave it) and E on a device on the bench works on it. F is retired by day (it stays the torch at night). One word for "Ace is busy", `InCloseUp`, replaces "docked" wherever it meant busy. The Day 1 guide's steps are "walk up and …".
+2. **Aim help on a pad** (`AimAssist`): friction near things to use, magnetism while turning, a settle when the stick lets go, D-pad left/right steps between targets (and between a device's parts at the bench); the bench cursor snaps. The mouse is never helped. On by default; its switch is in the phone's Settings (session 3).
+3. **A slimmer Ace:** the capsule 0.35 m round with a 0.035 m skin (0.77 m across; it was 1.16), crouched 1.0 m tall with the feet kept, the crouched eye 0.92 m, and "Too low to stand" under anything low. Every copy of the old size is updated; Grace's stairwell gets a collider for the thinner Ace.
+4. **The officer's order** is one line said in the room, keeping the joke about the second batch.
+5. **New labs** (`Fixit Fidget › Playtest`): stations as reach in each view (the presses counted: 0 station presses in first person, 1 per station from above), aim help, the capsule and the crouch. `PlayLab` is their shared base.
+
+**Checks (session 2):** stations overhead 53, first person 52, aim help 26, capsule 18, controller 28, juice 28, recap phone 107, Night 0 95, Night 1 cracking 76 and straight face 76, Night 2 third skip 72 (cups 103 and one skip 61 once the officer's line was fixed), Grace at home night 80 and Thursday 22, the Break-ins 3 walk.
+
+### Session 3 (`638b318`): the UI
+
+1. **One skin** (`UiSkin`): the recap phone's paper and ink with the brand's green `#2E7D5B` (money, the sign's OPEN, the keys in a prompt), gold for warnings and stars, red for closing and quitting; one font swap point (`Resources/UI/UI font`, else the HUD's font: **still LiberationSans**, see the choices); one shadow (a shared TMP underlay); one corner radius; rounded sprites made in code. Every surface is on it: the prompt and the view's hint (keys in light green), the tabs, the Day 1 guide, barks, the conversation panel, tooltips, the night's notes (sized to their words) and the notebook page, the straight-face meter, the circuit's panel, the repair overlay, the drinks and counter captions, the "?" mark, and the phone. `UiClock` is the screen's own clock: it stands still while the phone pauses the game.
+2. **The HUD's corners** (`HudCorners`, the HUD spec of 24 Aug, `claude/hud-spec.md`):
+   - **Top right, today's takings as a cash stack:** a bill on top, an edge under it for every $24 (ten at most), the figure beside it. It empties each morning (the till's total is on the phone). A payment: a green "+$6" chip pops up under the stack and rises into it, the stack jolts, the bill drops and settles, a glow, the figure counts up and punches.
+   - **Bottom left, the hanging sign:** OPEN, swaying; **LAST ORDERS** for the café's last hour (amber, a quicker sway, a soft amber pulse round the screen's edge; only a warning, arrivals still stop at closing); at closing it flips to **CLOSED** with a red glow that blooms and fades. Under it the day's bar (green, amber, red) and the day and the time.
+   - **Top left, the tabs** (the ticket rail moved there). **Bottom right, stock chips**, only when cups or beans run low.
+   - Hidden at night (the night's clock is top right) and behind the recap; the bottom corners step aside for a conversation or the counter phone. The old money, clock and stock lines are put away by day.
+3. **Juice:** money pops in the brand's green with the tip in it ("+$6 +$3 tip"); the badges are bigger, with a rim coloured by mood, a bounce-in and a small burst on the heart and the star.
+4. **The phone by day** (`PausePhone`, the recap's phone in a pause mode): **Esc, or Start on a pad, when nothing else is open**, brings it up and holds the game still (`Time.timeScale` 0, the screen's clock, the cameras' input; the pointer is free). Esc still steps back out of things first, and it won't come up over a close-up, a conversation, the recap, a night's fade or a scene's hold. Esc, Start, B or "Back to work" put it away, exactly as it was.
+   - **Today:** what's earned so far, what's in the till, the café's stars, and the day's reviews as they come in (`ReputationLedger` now writes each review's card when the review happens).
+   - **Notes:** the notebook, as at closing.
+   - **Settings** (`GameSettings`, kept in PlayerPrefs): everything, music and effects volumes; look sensitivity and pad look speed; invert Y; aim help and movement help; quality Low/Medium/High.
+   - **Quit:** says plainly that the day so far isn't kept (the game saves at Open Tomorrow), and asks again before quitting.
+   - At night the phone opens on Notes, with Settings and Quit.
+   - In first person Esc no longer frees the cursor: it pauses. The view's hint names the pause key.
+5. **Sound:** three named cues (`hud.lastorders`, `phone.open`, `phone.close`), silent until the Sonniss pass. `Sound › Create or update the sound bank` added 39 cue slots that were already in the code but not in `Sound bank.asset` (additive). There is no mixer asset (`Assets/Audio/Game.mixer`), so the volumes scale the sound player's buses in code.
+6. **Found by the labs and fixed:**
+   - **The pocket watch's new mainspring pointed into the phone's prefab.** `Part_Extra_Mainspring` (made by the fault expansion from the phone's screen) kept the phone's "Fresh" as its new part: a mended watch showed no new part, and each mended watch switched on the phone prefab's own Fresh, in the asset, written to disk at the next save of assets (the stray `m_IsActive` in `PhoneRepair.prefab`, seen twice). `Fixit Fidget › Playtest › The pocket watch's new mainspring - give it its own (prefab)` made the watch its own (run once, committed); `Checks › Device parts keep to their own prefab (read-only)` guards it.
+   - **The neighborhood guard** expected the 16 seats of 23 Sept at a 0.6 drain: the café has 21 since the furnishing pass, and the lounge's five drain at 0.55.
+   - **The labs:** the recap phone check switches PlayerInput to its own pad (the UI's D-pad listens only to the devices PlayerInput has paired, and a pad made in code right after keys were pressed wasn't paired yet, so its first step was lost), holds each press three frames, traces a missed step, and stops instead of pressing A on Close up. The stations lab counts a device as taken back when it leaves Ace's hands (a customer still owed a drink stays in their seat).
+7. **New lab:** `Fixit Fidget › Playtest › The phone by day - pause and HUD check (lab, drives itself)`: the corners, a payment, a low-stock chip, the phone at three moments (nothing moves, nothing expires, the view holds), the apps and Settings, Quit asking again, not over a close-up, last orders, closing. Photos in `Logs/Pause/`.
+
+**Try it:** play a day and press Esc (or Start) at any time; walk into the café's last hour; let a customer pay. `Fixit Fidget › Playtest › The phone by day …` drives all of it.
+
+**Checks (7 Oct, afternoon):** labs: pause and HUD 72/72 (`Logs/Pause/pause-2026-10-07_151741`), juice 31/31, recap phone 107/107, controller 28/28, aim help 23/23, stations first person 52/52 and overhead 53/53, Night 0 95/95, Night 1 straight face 76/76, Night 2 third skip 72/72, Grace at home night 80/80 and Thursday 22/22. Edit-mode checks all pass (Circuit rules 58,804; Support call 891,949; Reputation 19,709; Grace at home 1031; Night 1 492; Bark 505 + 709; Notebook 66; Home 40; Device parts 2 prefabs, 65 references) **except the neighborhood guard's occupied circulation**: 27 of 28 customer positions can be served with everything occupied; the front sofa's seat A can't, as since the lounge seats came in on 26 Sept (the realism pass recorded 24/28). Console tests: GraceRules 1031, NightRules 486 + 6, NotebookRules 62 + 2, HomeRules 38 + 62 + 2, BarkRules 505, ReputationRules 19,701 + 5. Compile: 0 errors, the two old CS0414 warnings.
+
+**Choices made inside the plan (his to overrule):**
+
+- **The font** is still LiberationSans, behind one swap point. The plan's mockup-and-pick step became my call under "build straight through"; the face I'd pick is **Baloo 2** (a rounded, free Google Font). It needs a download into `Assets/Fonts` and a TMP font asset; that's his to allow.
+- The colours (the brand's green for money and OPEN, gold for last orders, red for closing).
+- The volumes in code, not mixer parameters (there's no mixer yet).
+- Quit doesn't save the day; last orders only warns; the paid chip rises into the stack from under it (at the top of the screen it went straight off it); the corners hide at night.
+
+**Seen, not changed:**
+
+- The neighborhood guard's front sofa (above): a café-layout question for session 6.
+- `Content › 12 · Stability check` counts the lounge's 0.55 drain as wrong, and its fix (`11 · Fix waiting-spot drain rates`) would set them back to 0.6.
+- In the overhead labs a customer's name floats mid-floor (the lab's pointer sits mid-screen); the conversation portrait shows its fallback ("G / Concerned") where no portrait is made.
+- The stray `Assets/Scripts/Diagnostics/AceTurnCheck-1.cs` (and its .meta) is still not committed: Mansoor deletes it.
+
+**Next:** the Blender session (the five tools, about 1,800 triangles; Grace's kitchen island and box stack, at least 1.1 m tall), then session 4 (the bench's feel and the cloth), 5 (cover and her house), 6 (the café), then the playtest together.
+
 ## October 7 (small hours) — Playtest 3, session 1: the words, the man's pull, the bins from any door (`2591594`); on `playtest-2`
 
 **Read this entry first.** Three commits on `playtest-2` after `8ce5872` (chunk C's handoff entry): Mansoor's scene save on its own (`940c81f`), session 1 (`2591594`), and this entry. Nothing is pushed. The plan is `claude/playtest-3-notes-and-plan.md` in the project docs: §0 the scene, §1 Mansoor's notes after Days 1–3 with what each is in the code, §2 his four calls (all as recommended), §3 the order of the six sessions, §4 the writing rules, §5 this session exactly, with the before-and-after of every line, and §5.6 the second pass (what a review of the build found and what changed). The story doc has a new §16 (`claude/the-man-at-the-bins-story.md`).
