@@ -127,10 +127,12 @@ public sealed class SoundPlayer : MonoBehaviour
         if (lastPlayed.TryGetValue(cueName, out float last) && now - last < gap) return false;
         lastPlayed[cueName] = now;
         Count(requested, cueName);
-        if (cue == null || !cue.HasClips) return false;
-        if (gamePaused && cue.bus != SoundBus.UI) return false;   // the world holds still while paused
-        AudioClip clip = Pick(cue);
+        // A cue without a file plays its placeholder, if it has one (PlaceholderSounds: the bench's beats, made in code,
+        // until the Sonniss pass); otherwise it is silent, as before.
+        AudioClip clip = cue != null && cue.HasClips ? Pick(cue) : PlaceholderSounds.For(cueName);
         if (clip == null) return false;
+        if (cue == null) cue = PlaceholderSounds.CueFor(cueName);
+        if (gamePaused && cue.bus != SoundBus.UI) return false;   // the world holds still while paused
 
         Voice voice = FreeVoice(cue);
         AudioSource source = voice.source;

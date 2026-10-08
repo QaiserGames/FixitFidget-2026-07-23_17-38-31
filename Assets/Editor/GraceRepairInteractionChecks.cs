@@ -30,6 +30,7 @@ public static class GraceRepairInteractionChecks
             camera.GetComponent<DeviceDefinition>().ApplyFault(0);
             var job = camera.GetComponent<GraceCameraRepairJob>();
             var shutter = job.Shutter;
+            Call(shutter, "Awake");   // edit mode: the part learns its seat, its device and which way is out (the bench, v2)
             foreach (Renderer renderer in shutter.GetComponentsInChildren<Renderer>(true))
                 if (renderer.sharedMaterial != null && !AssetDatabase.Contains(renderer.sharedMaterial))
                     generatedMaterials.Add(renderer.sharedMaterial);
@@ -49,12 +50,12 @@ public static class GraceRepairInteractionChecks
             Require(resolved.part == shutter && resolved.grime == null && resolved.tool == null,
                 "The visible blade resolves to its containing replacement task.");
             Press(inspector, resolved);
-            Require(!shutter.IsReplaced && !(bool)Get(inspector, "rotateGesture"),
-                "Clicking the shutter with bare hands neither replaces it nor starts rotating the camera.");
+            Require(!shutter.IsReplaced && inspector.HoldTarget == null && !(bool)Get(inspector, "rotateGesture"),
+                "Clicking the shutter with bare hands neither takes hold of it nor starts rotating the camera.");
             Press(inspector, Resolve(brush.GetComponentInChildren<Collider>()));
             Press(inspector, resolved);
-            Require(inspector.CurrentTool == ToolType.Brush && !shutter.IsReplaced,
-                "The brush cannot perform a tweezers replacement.");
+            Require(inspector.CurrentTool == ToolType.Brush && inspector.HoldTarget == null && !shutter.IsReplaced,
+                "The brush cannot take hold of a part the tweezers replace.");
 
             // Clean the camera the way the brush does. The inspector scrubs only
             // what the view ray hits FIRST, so every spot is brushed through real
@@ -72,37 +73,59 @@ public static class GraceRepairInteractionChecks
             Press(inspector, Resolve(tweezers.GetComponentInChildren<Collider>()));
             Require(inspector.CurrentTool == ToolType.Tweezers, "Clicking a tool's child handle selects the tweezers.");
             Time.timeScale = 0f; Press(inspector, resolved);
-            Require(!shutter.IsReplaced, "Paused bench clicks cannot perform a replacement.");
+            Require(inspector.HoldTarget == null && !shutter.IsReplaced, "Paused bench presses cannot begin work on a part.");
             Time.timeScale = 1f;
             var clock = Child(host, "Ended day").AddComponent<DayClock>();
             typeof(DayClock).GetProperty("DayOver").SetValue(clock, true); Instance(clock);
             Press(inspector, resolved);
-            Require(!shutter.IsReplaced, "The recap also blocks a queued replacement click.");
+            Require(inspector.HoldTarget == null && !shutter.IsReplaced, "The recap also blocks a press on a part.");
             Instance<DayClock>(null);
             Press(inspector, resolved);
-            Require(shutter.IsReplaced && job.Grade == JobGrade.Perfect && job.IsComplete,
-                "The same resolved click and selected-tool action used by the inspector finishes the cleaned camera as Perfect.");
-            Require(!blade.gameObject.activeSelf && shutter.transform.Find("Working shutter blade").gameObject.activeSelf,
-                "Repair visibly replaces the bent blade with the working blade.");
-            Press(inspector, Resolve(shutter.transform.Find("Working shutter blade").GetComponent<Collider>()));
+            Require(inspector.HoldTarget == shutter && !shutter.IsReplaced,
+                "The same resolved press with the tweezers in hand takes hold of the shutter (the bench, v2: a hold, not an instant swap).");
+
+            // The hold, done by hand (edit mode has no frames): the pinch takes, the jammed mechanism lifts out and is
+            // dropped; the fresh blade is presented and seated. What a player does over about a second at the bench.
+            var hand = new BenchHand { deltaTime = .3f, tool = ToolType.Tweezers };
+            shutter.HoldTick(hand);
+            Require(shutter.State == ReplaceablePart.PartState.HeldBroken && shutter.transform.parent == null,
+                "Holding the tweezers on the shutter pinches the jammed mechanism out of the camera.");
+            Require(!job.CanHandBack, "With its mechanism out, the camera can't be handed back.");
+            shutter.HoldEnd(hand, false);
+            Require(shutter.State == ReplaceablePart.PartState.Removed && job.Quality == 0f,
+                "Let go, the jammed mechanism is dropped, and the grade hasn't moved for taking it out.");
+            shutter.PresentFresh();
+            Require(shutter.Fresh != null && shutter.Fresh.transform.parent == null && job.CanHandBack == false,
+                "The working blade waits loose, on its own, as the fresh part.");
+            shutter.SeatFresh();
+            Require(shutter.IsReplaced && job.Grade == JobGrade.Perfect && job.IsComplete && job.CanHandBack,
+                "Seated, the fresh blade finishes the cleaned camera as Perfect, in one piece (the scrap in the tray doesn't count against it).");
+            var workingBlade = shutter.Fresh == null ? camera.transform.Find("Working shutter blade") : null;
+            if (workingBlade == null) foreach (Transform t in camera.GetComponentsInChildren<Transform>(true)) if (t.name == "Working shutter blade") workingBlade = t;
+            Require(workingBlade != null && workingBlade.gameObject.activeSelf && workingBlade.IsChildOf(camera.transform) && !blade.transform.IsChildOf(camera.transform),
+                "Repair visibly puts the working blade into the camera while the bent one is out of it.");
+            Press(inspector, Resolve(workingBlade.GetComponent<Collider>()));
             Require(shutter.Prompt == "Already replaced", "A finished shutter does not imply another blocked step.");
             Require(job.Grade == JobGrade.Perfect && camera.transform.Find("KEEP - scratched sentimental strap") != null,
-                "Repeated clicks preserve the finished repair and original sentimental strap.");
+                "Repeated presses preserve the finished repair and original sentimental strap.");
 
             var cover = Child(host, "Closed cover").AddComponent<RemovablePart>();
             var covered = Child(cover.gameObject, "Covered replacement").AddComponent<ReplaceablePart>();
             Set(covered, "coveredBy", cover);
+            Call(covered, "Awake");
             var coveredHit = Child(covered.gameObject, "Visible replacement mesh").AddComponent<BoxCollider>();
+            Call(inspector, "ClearTool");
+            Press(inspector, Resolve(tweezers.GetComponentInChildren<Collider>()));
             Press(inspector, Resolve(coveredHit));
-            Require(!covered.IsReplaced, "Parent resolution does not bypass a closed cover's replacement gate.");
-            typeof(RemovablePart).GetProperty("IsRemoved").SetValue(cover, true);
+            Require(inspector.HoldTarget == null && !covered.IsReplaced, "Parent resolution does not bypass a closed cover's replacement gate.");
+            typeof(RemovablePart).GetProperty("State").GetSetMethod(true).Invoke(cover, new object[] { RemovablePart.CoverState.Loose });
             Press(inspector, Resolve(coveredHit));
-            Require(covered.IsReplaced, "An uncovered replacement still accepts its required tool.");
+            Require(inspector.HoldTarget == covered, "An uncovered replacement still accepts its required tool (the hold begins).");
             var screw = Child(cover.gameObject, "Existing screw target").AddComponent<ScrewTarget>();
             var screwHit = Child(screw.gameObject, "Screw head mesh").AddComponent<BoxCollider>();
             Require(Resolve(screwHit).part == screw,
                 "The nearest screw target wins over its parent cover, preserving the existing disassembly hierarchy.");
-            Debug.Log("[Grace camera interaction] PASS: every grime spot brushed clean through view rays (down and 30-degree tilts, re-checked as it shrinks), real blade collider ray, parent task resolution, child tool selection, wrong-tool/pause/recap gates, final tweezers click reaches Perfect, visual swap, strap preservation, covered parts and nearest screw targets. No scene or save changes.");
+            Debug.Log("[Grace camera interaction] PASS: every grime spot brushed clean through view rays (down and 30-degree tilts, re-checked as it shrinks), real blade collider ray, parent task resolution, child tool selection, wrong-tool/pause/recap gates, the tweezers' hold (v2) pinches the mechanism out and the seated fresh blade reaches Perfect, visual swap, strap preservation, covered parts and nearest screw targets. No scene or save changes.");
         }
         finally
         {

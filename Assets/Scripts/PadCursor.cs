@@ -110,8 +110,10 @@ public sealed class PadCursor : MonoBehaviour
         PadInput.Track();
         // A request from last frame keeps the cursor alive: the views that ask
         // for it run after this component.
+        // A lab check drives itself with a virtual pad whether or not the editor is in front (7 Oct: the bench check ran
+        // on a Mac whose Unity was on another desktop); for a player, no focus means no cursor.
         bool wanted = requestedFrame >= Time.frameCount - 1 && PadInput.UsingPad && PadInput.Connected
-            && Application.isFocused;
+            && (Application.isFocused || CafeLab.Active);
         if (wanted && !active) { position = new Vector2(Screen.width * .5f, Screen.height * .5f); gliding = false; stickMoving = false; }
         active = wanted;
         delta = Vector2.zero;

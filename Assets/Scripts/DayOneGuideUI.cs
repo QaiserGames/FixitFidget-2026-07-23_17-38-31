@@ -284,14 +284,12 @@ public class DayOneGuideUI : MonoBehaviour
         if (job.Quality >= 0.999f || human != null)
         {
             if (job.HasDetachedComponent<RemovablePart>())
-                return tool == ToolType.Pry
-                    ? $"Pry tool selected. {Aim("the cover in the tray")} to refit it."
-                    : $"Fault fixed. {Select("pry tool")} to refit the cover.";
+                return $"Fault fixed. Drag the cover from the mat back onto its seat (any tool, or bare hands); it snaps home.";
 
             if (job.HasDetachedComponent<Screw>())
                 return tool == ToolType.Screwdriver
-                    ? $"Screwdriver selected. {Aim("each tray screw")} to refit it."
-                    : $"Cover fitted. {Select("screwdriver")} for the tray screws.";
+                    ? $"Screwdriver selected. {Hold("each empty screw hole")}: the driver fetches the screw and turns it home."
+                    : $"Cover fitted. {Select("screwdriver")} for the screw holes.";
 
             // A detached part unregisters as its return animation begins. Keep
             // the message accurate during that short transition.
@@ -306,14 +304,16 @@ public class DayOneGuideUI : MonoBehaviour
         foreach (Screw screw in job.GetComponentsInChildren<Screw>())
             if (!screw.IsOut)
                 return tool == ToolType.Screwdriver
-                    ? $"Screwdriver selected. {Aim("each case screw")} to remove it."
-                    : $"{Select("screwdriver")} to remove the case screws.";
+                    ? $"Screwdriver selected. {Hold("each case screw")} until it comes free and drops."
+                    : $"{Select("screwdriver")} to back out the case screws.";
 
         foreach (RemovablePart cover in job.GetComponentsInChildren<RemovablePart>())
             if (!cover.IsRemoved)
-                return tool == ToolType.Pry
-                    ? $"Pry tool selected. {Aim("the loosened cover")} to lift it off."
-                    : $"{Select("pry tool")} to lift the loosened cover.";
+                return cover.IsPopped
+                    ? "The cover is up. Drag it off and drop it on the mat."
+                    : tool == ToolType.Pry
+                        ? $"Pry tool selected. {Hold("an edge of the loosened cover")} until it pops."
+                        : $"{Select("pry tool")} to pop the loosened cover.";
 
         if (job.GetComponentInChildren<GrimeSpot>() != null)
             return tool == ToolType.Brush
@@ -324,8 +324,17 @@ public class DayOneGuideUI : MonoBehaviour
         foreach (ReplaceablePart part in job.GetComponentsInChildren<ReplaceablePart>())
             if (!part.IsReplaced)
                 return tool == ToolType.Tweezers
-                    ? $"Tweezers selected. {Aim("the broken part")} to replace it."
-                    : $"{Select("tweezers")} to replace the broken part.";
+                    ? $"Tweezers selected. {Hold("the broken part")} to pinch it out, and drop it on the mat."
+                    : $"{Select("tweezers")} to pinch out the broken part.";
+        // The broken part is out (it left the device when it was pinched): the fresh one waits in the tray.
+        foreach (GameObject loose in job.DetachedParts)
+        {
+            ReplaceablePart part = loose != null ? loose.GetComponent<ReplaceablePart>() : null;
+            if (part != null && !part.IsReplaced)
+                return tool == ToolType.Tweezers
+                    ? $"{Hold("the fresh part in the tray")}, carry it over the empty seat and let go."
+                    : $"{Select("tweezers")} for the fresh part in the tray.";
+        }
 
         return Pad ? $"Follow the part label: pick the tool it names with {ControlHints.Tools}, then press {ControlHints.Use} on the part."
             : "Follow the part label: select the tool it names, then click the part.";
@@ -337,6 +346,7 @@ public class DayOneGuideUI : MonoBehaviour
     private static string E => ControlHints.Interact;
     private static string Q => ControlHints.Refuse;
     private static string Aim(string target) => Pad ? $"Press {ControlHints.Use} on {target}" : $"Click {target}";
+    private static string Hold(string target) => Pad ? $"Hold {ControlHints.Use} on {target}" : $"Hold left-click on {target}";
     private static string Select(string tool) => Pad ? $"Select the {tool} with {ControlHints.Tools}" : $"Select the {tool}";
 
     // THE UI SKIN (playtest 3, session 3): a card of the phone's paper with dark ink, its title in the brand's green,

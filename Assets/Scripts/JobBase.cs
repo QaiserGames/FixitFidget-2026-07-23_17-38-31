@@ -73,56 +73,95 @@ public abstract class JobBase : MonoBehaviour
     // Card text now comes from the record, not a field on the prefab.
     public string JobCard => Record != null ? Record.faultDescription : "";
 
-    // ---------- detached parts ----------
-    // Removed screws and plates are unparented so rotating the item doesn't
-    // drag them around. They stay OWNED here, which is also how we know
-    // whether the thing has been put back together.
+    // ---------- parts off the device ----------
+    // Removed screws, covers and a part pinched out of its seat are unparented so rotating the item doesn't drag them
+    // around. They stay OWNED here, which is also how we know whether the thing has been put back together: while any
+    // of them is off, it is in pieces (the gate above).
+    //
+    // Loose things of the job's that DON'T count against it: the fresh part waiting in the tray before it is seated
+    // (stock, not a piece of the device) and the broken one once the fresh is in (scrap). Owned the same way, so they
+    // are cleaned up with the job and the pad's cursor can reach them, but never a reason the device can't be handed back
+    // (the bench, v2, 7 Oct: the gate stays reassembly; a part swap not started is a grade, not a gate).
 
     private readonly List<GameObject> detached = new();
+    private readonly List<GameObject> loose = new();
 
     public bool HasDetachedParts
     {
         get
         {
-            RemoveMissingDetachedParts();
+            RemoveMissing();
             return detached.Count > 0;
         }
     }
 
-    /// <summary>The parts off it right now (screws and covers in the tray): what the bench's D-pad steps through too.</summary>
+    /// <summary>The parts off it right now that it can't be handed back without (screws, covers, a part out of its seat).</summary>
     public IReadOnlyList<GameObject> DetachedParts
     {
         get
         {
-            RemoveMissingDetachedParts();
+            RemoveMissing();
             return detached;
+        }
+    }
+
+    /// <summary>Everything of the job's lying about the bench: the detached parts, then the stock and scrap. What the
+    /// bench's hover and D-pad step through too.</summary>
+    public IEnumerable<GameObject> LooseParts
+    {
+        get
+        {
+            RemoveMissing();
+            foreach (GameObject g in detached) yield return g;
+            foreach (GameObject g in loose) yield return g;
         }
     }
 
     public bool HasDetachedComponent<T>() where T : Component
     {
-        RemoveMissingDetachedParts();
+        RemoveMissing();
         foreach (GameObject part in detached)
             if (part.GetComponent<T>() != null) return true;
         return false;
     }
 
-    private void RemoveMissingDetachedParts()
+    private void RemoveMissing()
     {
         for (int i = detached.Count - 1; i >= 0; i--)
             if (detached[i] == null) detached.RemoveAt(i);
+        for (int i = loose.Count - 1; i >= 0; i--)
+            if (loose[i] == null) loose.RemoveAt(i);
     }
 
+    /// <summary>A piece off the device: it can't be handed back until this is put back (or made scrap).</summary>
     public void RegisterDetached(GameObject part)
     {
-        if (part != null && !detached.Contains(part)) detached.Add(part);
+        if (part == null) return;
+        loose.Remove(part);
+        if (!detached.Contains(part)) detached.Add(part);
     }
 
     public void UnregisterDetached(GameObject part) => detached.Remove(part);
 
+    /// <summary>Stock or scrap of the job's: owned and reachable, never a reason it can't be handed back.</summary>
+    public void RegisterLoose(GameObject part)
+    {
+        if (part == null) return;
+        detached.Remove(part);
+        if (!loose.Contains(part)) loose.Add(part);
+    }
+
+    public void UnregisterLoose(GameObject part) => loose.Remove(part);
+
     private void OnDestroy()
     {
-        foreach (GameObject g in detached)
-            if (g != null) Destroy(g);
+        foreach (GameObject g in detached) Remove(g);
+        foreach (GameObject g in loose) Remove(g);
+    }
+
+    private static void Remove(GameObject g)
+    {
+        if (g == null) return;
+        if (Application.isPlaying) Destroy(g); else DestroyImmediate(g);   // the editor's checks build and tear down jobs in edit mode
     }
 }

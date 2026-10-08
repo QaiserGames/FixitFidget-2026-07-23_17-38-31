@@ -242,7 +242,7 @@ public sealed class AimHelpCheck : PlayLab
     static List<BenchInteractable> AllParts(JobBase job)
     {
         var all = new List<BenchInteractable>(job.GetComponentsInChildren<BenchInteractable>());
-        foreach (GameObject loose in job.DetachedParts) if (loose != null) all.AddRange(loose.GetComponentsInChildren<BenchInteractable>());
+        foreach (GameObject loose in job.LooseParts) if (loose != null) all.AddRange(loose.GetComponentsInChildren<BenchInteractable>());
         return all;
     }
 

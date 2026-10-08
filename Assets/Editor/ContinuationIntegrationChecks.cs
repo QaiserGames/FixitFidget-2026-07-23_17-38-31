@@ -82,7 +82,7 @@ public static class ContinuationIntegrationChecks
             var request = new FeaturedRepairRequest { devicePrefab = prefab, faultIndex = 0, storyEpisodeId = GraceCameraEpisode.EpisodeId };
             Require(request.TryCreateJob(out Job record, out _) && record.storyEpisodeId == GraceCameraEpisode.EpisodeId,
                 "Featured job carries the exact camera episode.");
-            job.Shutter.Activate(); Require(job.Grade == JobGrade.Passable, "Working but dirty camera gives the imperfect-print path.");
+            job.Shutter.Activate(); Require(job.Grade == JobGrade.Passable, "Working but dirty camera gives the imperfect-print path.");   // (edit mode: the swap is done at once; the bench, v2)
             UnityEngine.Object.DestroyImmediate(grime[0].gameObject);
             UnityEngine.Object.DestroyImmediate(grime[1].gameObject);
             Require(job.Grade == JobGrade.Good, "Mostly cleaned working camera is Good.");
