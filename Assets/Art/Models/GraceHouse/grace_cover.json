@@ -1,0 +1,129 @@
+{
+ "version": 1,
+ "pieces": [
+  {
+   "name": "GH_KitchenIsland",
+   "room": "Kitchen",
+   "what": "bar-height island, 1.12 m to the worktop: cover along its whole length",
+   "tris": 348,
+   "size": [
+    1.1,
+    1.12,
+    0.628
+   ],
+   "bottom": 0.0,
+   "back": 0.314,
+   "materials": [
+    "CC_Dark_Kick",
+    "GH_Kitchen_Cream",
+    "CC_Wood_Counter",
+    "DC_Steel"
+   ],
+   "islands": 19
+  },
+  {
+   "name": "GH_BoxStack",
+   "room": "Anywhere",
+   "what": "three taped boxes, 1.14 m stacked: cover where a corner needs it",
+   "tris": 312,
+   "size": [
+    0.56,
+    1.149,
+    0.472
+   ],
+   "bottom": 0.0,
+   "back": 0.236,
+   "materials": [
+    "GH_Cardboard",
+    "GH_Tape"
+   ],
+   "islands": 18
+  }
+ ],
+ "grace_materials": {
+  "GH_Velvet_Teal": {
+   "hex": "2F5D5A",
+   "smoothness": 0.25
+  },
+  "GH_Fabric_Rose": {
+   "hex": "B7857C",
+   "smoothness": 0.12
+  },
+  "GH_Pillow_Sage": {
+   "hex": "8FA58B",
+   "smoothness": 0.12
+  },
+  "GH_Pillow_Mustard": {
+   "hex": "C99A3E",
+   "smoothness": 0.12
+  },
+  "GH_Lace": {
+   "hex": "EFE7D6",
+   "smoothness": 0.1
+  },
+  "GH_Rug_Field": {
+   "hex": "7E3434",
+   "smoothness": 0.05
+  },
+  "GH_Rug_Border": {
+   "hex": "D8C39C",
+   "smoothness": 0.05
+  },
+  "GH_Plastic_Dark": {
+   "hex": "2B2926",
+   "smoothness": 0.35
+  },
+  "GH_TV_Screen": {
+   "hex": "1D2A2F",
+   "smoothness": 0.8
+  },
+  "GH_Lampshade": {
+   "hex": "E7D5B0",
+   "smoothness": 0.1
+  },
+  "GH_Photo": {
+   "hex": "BFA88A",
+   "smoothness": 0.25
+  },
+  "GH_Kitchen_Cream": {
+   "hex": "E6DCC3",
+   "smoothness": 0.35
+  },
+  "GH_Fridge_Mint": {
+   "hex": "BCD6C4",
+   "smoothness": 0.55
+  },
+  "GH_Enamel_Red": {
+   "hex": "B13A2F",
+   "smoothness": 0.55
+  },
+  "GH_Delft_Blue": {
+   "hex": "2F5B8F",
+   "smoothness": 0.6
+  },
+  "GH_Wool_Camel": {
+   "hex": "A57B52",
+   "smoothness": 0.08
+  },
+  "GH_Scarf_Red": {
+   "hex": "8E3130",
+   "smoothness": 0.08
+  },
+  "GH_Paint_White": {
+   "hex": "ECE6D8",
+   "smoothness": 0.3
+  },
+  "GH_Cardboard": {
+   "hex": "B78C5A",
+   "smoothness": 0.05
+  },
+  "GH_Tape": {
+   "hex": "CDB57E",
+   "smoothness": 0.3
+  },
+  "GH_Glass_Dark": {
+   "hex": "2A3438",
+   "smoothness": 0.85
+  }
+ }
+}

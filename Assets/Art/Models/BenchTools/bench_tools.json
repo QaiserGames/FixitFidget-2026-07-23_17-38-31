@@ -1,0 +1,147 @@
+{
+ "version": 1,
+ "pieces": [
+  {
+   "name": "BT_Screwdriver",
+   "tool": "Screwdriver",
+   "what": "screwdriver: the blade's edge is the origin; turn about Y at a screw",
+   "tris": 376,
+   "meshes": 1,
+   "children": [],
+   "size": [
+    0.027,
+    0.153,
+    0.028
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "DC_Steel",
+    "T2_Brass",
+    "BT_Handle_Green",
+    "BT_Grip_Black"
+   ],
+   "islands": 8
+  },
+  {
+   "name": "BT_Tweezers",
+   "tool": "Tweezers",
+   "what": "tweezers: the points are the origin; Leaf_L and Leaf_R turn about their own X to pinch",
+   "tris": 156,
+   "meshes": 3,
+   "children": [
+    {
+     "name": "Leaf_L",
+     "at": [
+      0.0,
+      0.112,
+      0.0
+     ]
+    },
+    {
+     "name": "Leaf_R",
+     "at": [
+      0.0,
+      0.112,
+      0.0
+     ]
+    }
+   ],
+   "size": [
+    0.014,
+    0.12,
+    0.012
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "DC_Steel",
+    "BT_Grip_Black"
+   ],
+   "islands": 5
+  },
+  {
+   "name": "BT_Brush",
+   "tool": "Brush",
+   "what": "brush: the bristles' ends are the origin; strokes along the surface",
+   "tris": 218,
+   "meshes": 1,
+   "children": [],
+   "size": [
+    0.024,
+    0.14,
+    0.012
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "BT_Bristle",
+    "DC_Steel",
+    "CC_Wood_Counter",
+    "BT_Handle_Blue"
+   ],
+   "islands": 6
+  },
+  {
+   "name": "BT_PryTool",
+   "tool": "Pry",
+   "what": "pry tool: the blade's edge is the origin; the lever goes in flat along -Y",
+   "tris": 146,
+   "meshes": 1,
+   "children": [],
+   "size": [
+    0.024,
+    0.135,
+    0.016
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "DC_Steel",
+    "DC_SteelDark",
+    "BT_Handle_Red"
+   ],
+   "islands": 4
+  },
+  {
+   "name": "BT_Cloth",
+   "tool": "Cloth",
+   "what": "cloth: its face on the glass is the origin; wiped in circles",
+   "tris": 132,
+   "meshes": 1,
+   "children": [],
+   "size": [
+    0.08,
+    0.017,
+    0.068
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "BT_Cloth"
+   ],
+   "islands": 3
+  }
+ ],
+ "materials": {
+  "BT_Handle_Green": {
+   "hex": "2E7D5B",
+   "smoothness": 0.45
+  },
+  "BT_Handle_Red": {
+   "hex": "B13A2F",
+   "smoothness": 0.45
+  },
+  "BT_Handle_Blue": {
+   "hex": "34507A",
+   "smoothness": 0.45
+  },
+  "BT_Bristle": {
+   "hex": "C9A46A",
+   "smoothness": 0.05
+  },
+  "BT_Grip_Black": {
+   "hex": "2A2622",
+   "smoothness": 0.2
+  },
+  "BT_Cloth": {
+   "hex": "6F9BC4",
+   "smoothness": 0.02
+  }
+ }
+}

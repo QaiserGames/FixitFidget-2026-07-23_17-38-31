@@ -17,6 +17,9 @@ floating more than 2 mm from the rest.
 | `draw_plan_v2.py` | The plan picture of layout v2, with Ace's real footprint along the way (needs matplotlib) | e.g. `grace-house-plan-v2.png` |
 | `mockup_v2.py` | A render-only mock-up of layout v2: both floors, looked into from the street, by day and by night; the new pieces are plain stand-ins | `Tools/Blender/out/` |
 | `draw_facade_v2.py` | Her front from the street, the door today and widened to 1.30 m, drawn from the house's own meshes | e.g. `grace-house-front-door-v2.png` |
+| `export_bench_tools.py` | The bench's five tools (`bench_tools.py`, 7 Oct 2026): screwdriver, tweezers, brush, pry tool, cloth; origin at the working tip, the tweezers' leaves as children at the heel | `Assets/Art/Models/BenchTools/BT_*.fbx` (+ `bench_tools.json`), `BlenderSource/BenchTools_v1.blend` |
+| `export_grace_cover.py` | Grace's cover for session 5 (`grace_cover.py`): a bar-height kitchen island (1.12 m) and a stack of three boxes (1.14 m) | `Assets/Art/Models/GraceHouse/GH_KitchenIsland.fbx`, `GH_BoxStack.fbx` (+ `grace_cover.json`), `BlenderSource/GraceCover_v1.blend` |
+| `review_bench_tools.py` | Review renders of both: the tools as the inspection camera sees them, each tool alone, the cover pieces with a crouched Ace behind them from Grace's eye | `Tools/Blender/out/` (not kept in git) |
 | `unity_mesh.py` | Reads meshes (positions, triangles) out of a Unity text asset, for measuring things like the house shell | (a helper) |
 
 `fixit_blender.py` holds the shared helpers (materials, boxes, lofts, struts, the audit, FBX export),
@@ -47,7 +50,7 @@ were first run (29 Sept 2026, overnight). The `.blend` files are Blender 5.2 fil
 ## The conventions
 
 - 1 Blender unit = 1 m. Z is up. A piece's front faces -Y, which is +Z in Unity.
-- Origin at the bottom centre. A piece hung on a wall (cupboards, wall frames) has its origin at the
+- Origin at the bottom centre. A tool's origin is its working tip, the handle up +Z (`bench_tools.py`). A piece hung on a wall (cupboards, wall frames) has its origin at the
   bottom centre of its back, with the back at y = 0.
 - Nothing of a piece goes below the floor: when a piece is finished, points a hair under z = 0 (the
   square end of a splayed leg) are put on it. Things that aren't furniture (the mock-up's floor slabs)
@@ -66,6 +69,8 @@ were first run (29 Sept 2026, overnight). The `.blend` files are Blender 5.2 fil
 
 ## In Unity afterwards
 
+- The bench's tools: `Fixit Fidget > Bench > Bench tools 1 - Import and check the tools (the models only)`.
+- Grace's cover: `Fixit Fidget > Night > Grace's cover 1 - Import and check the pieces (the models only)`.
 - Barnaby: `Fixit Fidget > Night > Night 1 - Barnaby: use the Blender model (the prefab only)`.
 - Grace's furniture: `Fixit Fidget > Night > Break-ins - Grace's furniture: import and check (the models only)`.
 

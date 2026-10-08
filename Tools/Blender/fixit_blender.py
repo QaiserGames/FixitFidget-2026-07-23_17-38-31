@@ -569,3 +569,48 @@ def export_fbx(ob, path):
         bpy.data.objects.remove(tmp, do_unlink=True)
         ob.name = name
     return path
+
+
+def export_fbx_tree(root, path):
+    """
+    A jointed prop (the bench's tweezers, 7 Oct 2026): the root and its children go out together, the root at the
+    origin and each child keeping its place under it, so Unity gets one model with the children as its own
+    transforms. Like export_fbx, it goes out from temporary copies sharing the meshes.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    originals = [root] + [c for c in root.children_recursive]
+    names = {o: o.name for o in originals}
+    copies = {}
+    try:
+        for o in originals:
+            o.name = names[o] + '.layout'
+        for o in originals:
+            tmp = bpy.data.objects.new(names[o], o.data)
+            bpy.context.scene.collection.objects.link(tmp)
+            copies[o] = tmp
+        for o in originals:
+            tmp = copies[o]
+            if o.parent in copies:
+                tmp.parent = copies[o.parent]
+                tmp.matrix_parent_inverse = o.matrix_parent_inverse.copy()
+                tmp.location, tmp.rotation_euler, tmp.scale = o.location, o.rotation_euler, o.scale
+        bpy.context.view_layer.update()
+        for o in bpy.data.objects:
+            try:
+                o.select_set(o in copies.values())
+            except RuntimeError:
+                pass
+        bpy.context.view_layer.objects.active = copies[root]
+        bpy.ops.export_scene.fbx(
+            filepath=path, use_selection=True, object_types={'MESH'},
+            apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL', global_scale=1.0,
+            axis_forward='-Z', axis_up='Y', bake_space_transform=True,
+            use_mesh_modifiers=True, mesh_smooth_type='FACE', use_tspace=False,
+            add_leaf_bones=False, bake_anim=False, use_custom_props=False, path_mode='AUTO',
+            use_triangles=False, embed_textures=False)
+    finally:
+        for tmp in copies.values():
+            bpy.data.objects.remove(tmp, do_unlink=True)
+        for o, name in names.items():
+            o.name = name
+    return path
