@@ -43,13 +43,18 @@ public class BenchStage : MonoBehaviour
         return toolSlots != null && index >= 0 && index < toolSlots.Length ? toolSlots[index] : caddy;
     }
 
-    /// <summary>A point just above the tray's floor, scattered a little so pieces don't stack on one spot.</summary>
-    public Vector3 TrayDropPoint(float height = .03f, float scatterRadius = .018f)
+    /// <summary>A point just above the tray's floor, scattered a little so pieces don't stack on one spot; <paramref name="across"/>
+    /// shifts it across the tray (+ is the far side, away from the close-up camera), <paramref name="along"/> along it (+ is
+    /// away from the device).</summary>
+    public Vector3 TrayDropPoint(float height = .03f, float scatterRadius = .018f, float across = 0f, float along = 0f)
     {
         if (tray == null) return transform.position;
         Vector2 scatter = Random.insideUnitCircle * scatterRadius;
-        return tray.position + tray.right * scatter.x + tray.forward * scatter.y + tray.up * height;
+        return tray.position + tray.right * (scatter.x + along) + tray.forward * (scatter.y + across) + tray.up * height;
     }
+
+    /// <summary>Across the tray: its short side (the tray's forward, as built, away from the close-up camera).</summary>
+    public Vector3 TrayAcrossAxis => tray != null ? tray.forward : transform.forward;
 
     /// <summary>The way a long piece lies in the tray: its long side along the tray's long side (the tray's right, as built).</summary>
     public Vector3 TrayLongAxis => tray != null ? tray.right : transform.right;
@@ -65,6 +70,7 @@ public class BenchStage : MonoBehaviour
         public Collider collider;
         public float stillSince;
         public bool settled;
+        public bool falling;
         public string landCue;
     }
 
@@ -104,6 +110,16 @@ public class BenchStage : MonoBehaviour
             if (l.body == null) { loose.RemoveAt(i); continue; }
             if (l.body.isKinematic) continue;   // held by a hand, or at rest
             Vector3 p = l.body.position;
+
+            // The landing: a piece that was falling and isn't any more has met something (its cue: the tray's tink, the
+            // cover's clack). Screws play their own on contact and pass no cue here.
+            float vy = l.body.linearVelocity.y;
+            if (vy < -.08f) l.falling = true;
+            else if (l.falling && vy > -.02f)
+            {
+                l.falling = false;
+                if (!string.IsNullOrEmpty(l.landCue)) Sfx.Play(l.landCue, p, InTray(p) ? 1f : .7f);
+            }
 
             // The catch: fallen out of the world of the bench.
             if (p.y < matTop - fallLimit)

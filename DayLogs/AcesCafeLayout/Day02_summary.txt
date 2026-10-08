@@ -5,7 +5,7 @@ Accepted               3
 People helped          3    <- received service; may still leave unhappy
 Left satisfied         3
 Helped but unhappy     0    <- also included in departures below
-Orders completed       5   (2 repairs, 3 drinks)
+Orders completed       4   (2 repairs, 2 drinks)
 
 WHY PEOPLE LEFT UNSATISFIED (includes partial service)
   Stormed out (queue)  0    <- never even heard them
@@ -27,14 +27,14 @@ REVIEWS                (reputation-spec.md)
   Let down             0
   Never again          0
   Reputation today     +6
-  Café reputation      10 (1 of 5 stars)
+  Café reputation      6 (1 of 5 stars)
 
 MONEY
-  Earned               $452   ($121 of it tips)
-  of which cafe walk-ins $60
+  Earned               $249   ($55 of it tips)
+  of which cafe walk-ins $70
 
-Average helped visit   99.9s
-Lowest helped patience 35% (includes unhappy exits)
+Average helped visit   91.2s
+Lowest helped patience 65% (includes unhappy exits)
 
 Per-customer detail is in the CSV beside this file.
 service_s measures acceptance to departure, including waiting; it is not hands-on repair time.

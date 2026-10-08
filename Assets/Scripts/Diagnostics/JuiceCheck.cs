@@ -197,7 +197,7 @@ public sealed class JuiceCheck : MonoBehaviour
         if (people.Count == 0) { Check(false, "someone is still sitting down for the rest"); yield break; }
         Transform payer = people[Mathf.Min(2, people.Count - 1)].transform;
         Juice.Money(payer, 6, 3);
-        yield return Seconds(.35f);
+        yield return Seconds(.8f);     // it comes a beat after the face (8 Oct), then the photo catches it up
         bool paid = Juice.ShowingOver(payer, out _, out string said);
         Check(paid && said.Contains("+$6") && said.Contains("+$3 tip"), $"paying: \"{OneLine(said)}\" over {payer.name}");
         yield return Photo("30-paying");

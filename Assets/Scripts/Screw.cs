@@ -26,6 +26,10 @@ public class Screw : MonoBehaviour
     [Tooltip("Seconds for the fetch: from where it lies to hovering over its hole.")]
     [SerializeField] private float flyDuration = 0.3f;
     [SerializeField] private float mass = 0.003f;
+    [Tooltip("The pop when it comes free: speed out of the hole along its own axis, m/s (0.6 is a hop of about 2 cm).")]
+    [SerializeField] private float popUp = 0.6f;
+    [Tooltip("The pop when it comes free: speed across the face, away from the device's middle, m/s (it lands on the mat beside the device).")]
+    [SerializeField] private float popOut = 0.16f;
     // The old serialized field, kept so older prefabs load without a warning; no longer used.
 #pragma warning disable 0414
     [SerializeField, HideInInspector] private float liftHeight = 0.02f;
@@ -182,11 +186,18 @@ public class Screw : MonoBehaviour
         body.interpolation = RigidbodyInterpolation.Interpolate;
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         if (ownCollider != null) ownCollider.isTrigger = false;
+        // The pop: freed, the screw hops clear of its hole and tumbles down beside the device, the way ReStory's do. A
+        // device lying on the mat has its screws facing UP, so without the hop a freed screw fell straight back against
+        // its own hole and looked as if it were still in (the lab caught it, 8 Oct: at rest 7 mm from the hole). Up
+        // about 2 cm, out toward the device's nearest side, a little spin: it lands on the mat a few centimetres off, or
+        // in the tray, and sounds its landing.
         Vector3 axis = Axis;
-        Vector3 sideways = Vector3.ProjectOnPlane(Random.onUnitSphere, axis).normalized;
-        body.linearVelocity = axis * .14f + sideways * Random.Range(.02f, .07f);
-        body.angularVelocity = Random.onUnitSphere * Random.Range(4f, 10f);
-        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, "screw.drop");
+        Vector3 away = Vector3.ProjectOnPlane(transform.position - DeviceCentre(), axis);
+        away = away.sqrMagnitude > 1e-8f ? away.normalized : Vector3.ProjectOnPlane(Random.onUnitSphere, axis).normalized;
+        Vector3 across = Vector3.Cross(axis, away).normalized * Random.Range(-.04f, .04f);
+        body.linearVelocity = axis * popUp + away * (popOut * Random.Range(.8f, 1.2f)) + across;
+        body.angularVelocity = Random.onUnitSphere * Random.Range(6f, 14f);
+        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, null);   // a screw sounds its own landing (OnCollisionEnter)
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -334,9 +345,10 @@ public class ScrewSocket : BenchInteractable
         var mr = ring.AddComponent<MeshRenderer>();
         mr.sharedMaterial = RingMaterial;
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        // The hover: a box the size of the head over the hole.
+        // The hover: a box the size of the head over the hole. Thin and flush: the hover ray wants its top face only, and
+        // anything proud of the surface is a step for the freed screw to land on and lean against.
         var box = go.AddComponent<BoxCollider>();
-        box.size = new Vector3(r * 2.2f, .004f, r * 2.2f);
+        box.size = new Vector3(r * 2.2f, .002f, r * 2.2f);
         box.center = Vector3.up * .001f;
         var socket = go.AddComponent<ScrewSocket>();
         socket.screw = screw;

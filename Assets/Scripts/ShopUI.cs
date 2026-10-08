@@ -60,6 +60,14 @@ public class ShopUI : MonoBehaviour
         if (FindAnyObjectByType<PausePhone>() == null) gameObject.AddComponent<PausePhone>();
     }
 
+    // The prompt line's place, as the scene has it; at the bench it drops to the bottom edge (below) so it doesn't sit across the mat.
+    private Vector2 promptHome;
+    private bool promptHomeKnown;
+    private float promptDrop;
+    const float BenchPromptDrop = 78f;
+    private PlayerCarry carry;
+    private string shownInHand;
+
     // The skin on the scene's own texts (while playing; the scene keeps its layout on disk).
     private void Skin()
     {
@@ -68,6 +76,8 @@ public class ShopUI : MonoBehaviour
             UiSkin.UseFont(promptText);
             promptText.color = UiSkin.BandText;
             if (promptShadow) UiSkin.Shadowed(promptText);
+            promptHome = promptText.rectTransform.anchoredPosition;
+            promptHomeKnown = true;
         }
         if (clockText != null)
         {
@@ -245,13 +255,17 @@ public class ShopUI : MonoBehaviour
         bool holding = pad && inspector != null && inspector.IsHoldingItem;
         string toolName = holding ? inspector.CurrentToolName : null;
         bool hand = holding && inspector.CurrentTool == ToolType.Hand;
+        // What's in hand, named, over the prompt (8 Oct: from above you couldn't tell you'd picked a phone up).
+        if (carry == null) carry = interactor.GetComponent<PlayerCarry>();
+        string inHand = carry != null && (inspector == null || !inspector.IsHoldingItem) ? carry.Summary : "";
         // Only when a word of it changes is the line built again (the debug line changes every frame).
         if (showDebug || shownPromptLine == null || interact != shownInteract || action != shownAction || pad != shownPromptPad
-            || holding != shownPromptHolding || toolName != shownToolName || hand != shownPromptHand || shownPromptDebug)
+            || holding != shownPromptHolding || toolName != shownToolName || hand != shownPromptHand || inHand != shownInHand || shownPromptDebug)
         {
             shownInteract = interact; shownAction = action; shownPromptPad = pad; shownPromptHolding = holding;
-            shownToolName = toolName; shownPromptHand = hand; shownPromptDebug = showDebug; shownNightPrompt = null;
+            shownToolName = toolName; shownPromptHand = hand; shownPromptDebug = showDebug; shownNightPrompt = null; shownInHand = inHand;
             string line = "";
+            if (!string.IsNullOrEmpty(inHand)) line += $"<size=72%><color={UiSkin.HexOf(UiSkin.BrandBright)}>In hand</color>  {inHand}</size>\n";
             // Keys follow the device in use: [E] / [Click] on a keyboard and mouse, the pad's
             // own labels once a controller is being used (see ControlHints).
             if (!string.IsNullOrEmpty(interact)) line += $"{Key(ControlHints.Interact)}  {interact}";
@@ -324,6 +338,13 @@ public class ShopUI : MonoBehaviour
     // After Update's early returns: the prompt's pop plays out whatever the HUD is showing.
     private void LateUpdate()
     {
+        // At the bench (the tabletop, 8 Oct) the prompt line sits at the bottom edge, out of the mat's way; it eases down and back.
+        if (promptText != null && promptHomeKnown)
+        {
+            float want = inspector != null && inspector.IsHoldingItem ? BenchPromptDrop : 0f;
+            promptDrop = Mathf.MoveTowards(promptDrop, want, Time.unscaledDeltaTime * 400f);
+            promptText.rectTransform.anchoredPosition = promptHome - new Vector2(0f, promptDrop);
+        }
         if (promptText == null || promptSince < 0f) return;
         float t = Mathf.Clamp01((UiClock.Now - promptSince) / PromptPopSeconds);
         // From a touch small, past full size and back (a spring).

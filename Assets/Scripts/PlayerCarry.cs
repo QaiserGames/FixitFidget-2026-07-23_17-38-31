@@ -38,6 +38,36 @@ public class PlayerCarry : MonoBehaviour
 
     public JobBase Carried { get { Prune(); return SelectedHeld()?.item; } }
     public bool IsCarrying => Carried != null;
+
+    /// <summary>What's in hand, in words, for the HUD ("Phone · Cracked screen", "Coffee + Phone · Cracked screen"); "" with nothing.</summary>
+    public string Summary
+    {
+        get
+        {
+            Prune();
+            if (hands.Count == 0) return "";
+            string s = "";
+            for (int i = 0; i < hands.Count; i++)
+            {
+                JobBase item = hands[i].item;
+                if (item == null) continue;
+                string one = item is DrinkJob cup ? (cup.Drink != null ? cup.Drink.drinkName : "Cup")
+                    : item.Record != null ? item.Record.Subject + (string.IsNullOrEmpty(item.Record.faultDescription) ? "" : " · " + item.Record.faultDescription)
+                    : item.name;
+                s += (s.Length > 0 ? "  +  " : "") + one;
+            }
+            return s;
+        }
+    }
+
+    // From above, a thing in hand would be a few pixels at its real size, held at the waist beside a wide body: it is
+    // carried high, bigger, with a slow bob, so you can see what you've got (Mansoor, 8 Oct: "literally impossible to
+    // notice if I'm grabbing an item like a phone or a watch when in isometric view"). First person keeps real sizes.
+    [Header("From above")]
+    [Tooltip("How much bigger a carried item is drawn in the overhead view.")]
+    [SerializeField, Range(1f, 4f)] private float overheadScale = 2.2f;
+    [Tooltip("How far up and down the carried item bobs in the overhead view, metres.")]
+    [SerializeField, Range(0f, .1f)] private float overheadBob = .03f;
     public int Count { get { Prune(); return hands.Count; } }
     public bool HasSpace => Count < capacity;
     public int Capacity => capacity;
@@ -168,8 +198,8 @@ public class PlayerCarry : MonoBehaviour
             Vector3 centre = HandCentre(side, firstPerson, active);
             if (held != null)
             {
-                // Metre-authored objects keep their real scale in both views.
-                held.item.transform.localScale = held.scale;
+                // Metre-authored objects keep their real scale in first person; from above they are drawn bigger (see overheadScale).
+                held.item.transform.localScale = firstPerson || !show ? held.scale : held.scale * overheadScale;
                 held.item.transform.rotation = facing;
                 held.item.transform.position += centre - held.item.transform.TransformPoint(held.visualCentre);
                 for (int j = 0; j < held.renderers.Length; j++)
@@ -192,10 +222,11 @@ public class PlayerCarry : MonoBehaviour
             return viewCamera.ViewportToWorldPoint(new Vector3(side == 0 ? .28f : .72f, active ? .20f : .18f,
                 Mathf.Max(.62f, viewCamera.nearClipPlane + .40f)));
         // Character origin is at the capsule centre (one metre above the floor).
-        // The capsule has no authored hand sockets yet. Keep both items beside
-        // its visible sides, clear of its one-metre-wide silhouette. These
-        // temporary points belong to the body, never to the isometric camera.
-        return transform.TransformPoint(new Vector3(sign * .62f, -.10f + (active ? .025f : 0), -.22f));
+        // The capsule has no authored hand sockets yet. From above the items are held HIGH, beside the shoulders and clear
+        // of the one-metre-wide silhouette (the same sideways points as before, so no facing hides them behind the body),
+        // with a slow bob. These points belong to the body, never to the isometric camera.
+        float bob = overheadBob * Mathf.Sin(Time.time * 2.2f + side * 1.7f);
+        return transform.TransformPoint(new Vector3(sign * .62f, .62f + (active ? .04f : 0) + bob, -.22f));
     }
     private static Quaternion UprightRotation(Vector3 forward)
     {

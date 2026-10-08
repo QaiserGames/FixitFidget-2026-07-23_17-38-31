@@ -29,6 +29,8 @@ public static class ControlHints
     public static string Cancel => Pad ? PadInput.Label(PadButton.East) : "Right-click";
     public static string Tools => PadInput.Label(PadButton.LeftShoulder) + " / " + PadInput.Label(PadButton.RightShoulder);
     public static string Zoom => Pad ? PadInput.Label(PadButton.LeftTrigger) + " / " + PadInput.Label(PadButton.RightTrigger) : "Scroll";
+    /// <summary>Turn the device over on the bench's mat (the tabletop, 8 Oct).</summary>
+    public static string Flip => Pad ? PadInput.Label(PadButton.North) : "R";
     public static string Orbit => Pad ? "Right stick" : "Middle-drag";
     /// <summary>Night walk: Ace's pocket torch. The day's station button, free at night (the café is closed).</summary>
     public static string Torch => Pad ? PadInput.Label(PadButton.West) : "F";

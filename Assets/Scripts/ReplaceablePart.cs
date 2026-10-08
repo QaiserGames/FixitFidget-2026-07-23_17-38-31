@@ -27,6 +27,9 @@ public class ReplaceablePart : BenchInteractable
     [SerializeField, Min(.004f)] private float seatDistance = .016f;
 
     public enum PartState { InPlace, HeldBroken, Removed, Replaced }
+
+    /// <summary>How far toward the camera a part held in the tweezers rides, from the depth it was pinched at (metres).</summary>
+    public const float HeldLift = .04f;
     public PartState State { get; private set; } = PartState.InPlace;
     public bool IsReplaced { get; private set; }
     public LoosePart Fresh => fresh;
@@ -108,17 +111,21 @@ public class ReplaceablePart : BenchInteractable
     public Vector3 Outward => seatParent != null ? seatParent.TransformDirection(outwardLocal).normalized : transform.up;
     private bool Uncovered => coveredBy == null || coveredBy.IsRemoved;
 
-    // Only reachable once whatever covers it has been lifted off.
-    public override bool CanInteract => !IsReplaced && !busy && State == PartState.InPlace && Uncovered;
+    // In its seat: only reachable once whatever covers it has been lifted off. Out of it (in the tray, on the mat): a
+    // loose piece that any tool picks up and moves, so it can never lie on the fresh part and bury it (8 Oct).
+    public override bool CanInteract => !busy && (State == PartState.InPlace ? !IsReplaced && Uncovered : Loose);
 
-    public override string DisplayName => partName;
-    public override string Prompt => IsReplaced ? "Already replaced"
-        : State == PartState.Removed ? "Out (seat the fresh part from the tray)"
+    /// <summary>Out of the device and lying about (broken and waiting, or scrap once the fresh part is in).</summary>
+    public bool Loose => State == PartState.Removed || State == PartState.Replaced;
+
+    public override string DisplayName => IsReplaced ? "Old " + partName.ToLowerInvariant() : partName;
+    public override string Prompt => Loose ? "Hold to move it"
         : State == PartState.HeldBroken ? ""
         : coveredBy != null && !coveredBy.IsRemoved ? $"Remove the {coveredBy.DisplayName.ToLowerInvariant()} first"
         : "Hold to pinch it out";
-    public override ToolType RequiredTool => ToolType.Tweezers;
-    public override bool Holdable => true;
+    public override ToolType RequiredTool => Loose ? ToolType.Hand : ToolType.Tweezers;
+    public override bool Holdable => !Loose;
+    public override bool Grabbable => Loose;
     public override float HoldProgress => State == PartState.InPlace ? pinch : 1f;
     public override Vector3 WorkPoint => BoundsCentre(transform) + Outward * .002f;
     public override Vector3 WorkNormal => Outward;
@@ -131,6 +138,10 @@ public class ReplaceablePart : BenchInteractable
         fresh = LoosePart.Make(this, freshVisual);
         // Stock, not a piece of the device: it never stops the device being handed back (the gate is reassembly).
         if (job != null) job.RegisterLoose(freshVisual);
+        // It arrives, rather than is there: dropped into the tray from a hand's height with its tink, and named for a
+        // moment (8 Oct: "this random prop on the table whenever I place an item").
+        if (BenchStage.Instance != null && Application.isPlaying)
+            Juice.Words(freshVisual.transform.position + Vector3.up * .02f, "New part", UiSkin.Brand);
     }
 
     // ---------- the broken part: pinch, lift, drop ----------
@@ -162,6 +173,33 @@ public class ReplaceablePart : BenchInteractable
         else if (State == PartState.InPlace) pinch = 0f;
     }
 
+    // ---------- loose: picked up and moved (any tool) ----------
+
+    public override void GrabBegin(BenchHand hand)
+    {
+        if (!Loose || busy) return;
+        Vector3 at = hand.hitSomething ? hand.hit.point : transform.position;
+        grabOffset = transform.position - at;
+        grabDepth = hand.camera != null ? Vector3.Dot(at - hand.camera.transform.position, hand.camera.transform.forward) : .5f;
+        if (body == null) body = gameObject.AddComponent<Rigidbody>();
+        if (BenchStage.Instance != null) BenchStage.Instance.Forget(body);
+        body.isKinematic = true;
+        body.useGravity = false;
+        body.interpolation = RigidbodyInterpolation.Interpolate;
+        wobble = .5f;
+        Sfx.Play("part.lift", transform.position);
+    }
+
+    public override void GrabMove(BenchHand hand)
+    {
+        if (Loose) Follow(hand);
+    }
+
+    public override void GrabEnd(BenchHand hand)
+    {
+        if (Loose) Release();
+    }
+
     private void Lift()
     {
         transform.SetParent(null, true);
@@ -180,9 +218,9 @@ public class ReplaceablePart : BenchInteractable
     {
         Camera cam = hand.camera;
         if (cam == null) return;
-        float depth = Mathf.Max(.05f, grabDepth - .02f);
-        float along = depth / Mathf.Max(.2f, Vector3.Dot(hand.ray.direction, cam.transform.forward));
-        Vector3 target = hand.ray.origin + hand.ray.direction * along + grabOffset;
+        // Along the cursor's ray at the depth it was picked up at, 4 cm toward the camera: held up in the tweezers, clear of
+        // its seat and of the tray's walls on the way over (at 2 cm it was carried through the near wall, 8 Oct).
+        Vector3 target = hand.PointAtDepth(Mathf.Max(.05f, grabDepth - HeldLift)) + grabOffset;
         float k = 1f - Mathf.Exp(-16f * hand.deltaTime);
         transform.position = Vector3.Lerp(transform.position, target, k);
         // The wobble of a thing held in tweezers: strongest just after it lifts, then settling.
@@ -191,7 +229,15 @@ public class ReplaceablePart : BenchInteractable
         transform.rotation = Quaternion.AngleAxis(w, cam.transform.forward) * transform.rotation;
     }
 
+    // Let go of the broken part the first time: out of the device for good, falling.
     private void Drop()
+    {
+        State = PartState.Removed;
+        Release();
+    }
+
+    // Let go wherever it is: it falls, and the stage minds it (the tray's magnet, the catch).
+    private void Release()
     {
         if (body == null) body = gameObject.AddComponent<Rigidbody>();
         body.isKinematic = false;
@@ -200,9 +246,7 @@ public class ReplaceablePart : BenchInteractable
         body.linearDamping = .25f;
         body.angularDamping = .6f;
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        State = PartState.Removed;
-        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, "part.drop");
-        Sfx.Play("part.drop", transform.position);
+        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, "part.drop");   // the drop sounds when it lands
     }
 
     // ---------- the fresh part seats ----------
@@ -335,14 +379,16 @@ public class LoosePart : BenchInteractable
         loose.body.useGravity = true;
         if (BenchStage.Instance != null)
         {
-            // Laid in the tray the long way (a 12 cm screen in a 16 cm tray, dropped at any angle, caught a wall and slid
-            // out, 7 Oct), a touch askew, from just above the floor.
+            // Laid flat in the tray, a touch askew, from just above the floor: ACROSS the tray, the way the device's parts lie
+            // (the device lies portrait toward the camera, so a part pinched out of it and dropped in the tray lands across
+            // it too), and at the tray's device side, so the broken one dropped in has the rest of the tray to itself and
+            // doesn't land on it (8 Oct; 7 Oct: a 12 cm screen in a 13 cm tray lay across its wall, hence the 16 cm tray).
             BenchStage stage = BenchStage.Instance;
             Vector3 extents = loose.GetComponent<Collider>() is BoxCollider b ? Vector3.Scale(b.size, freshVisual.transform.lossyScale) : freshVisual.transform.lossyScale;
             Vector3 longLocal = Mathf.Abs(extents.x) >= Mathf.Abs(extents.z) ? Vector3.right : Vector3.forward;
-            Quaternion lay = Quaternion.AngleAxis(Random.Range(-12f, 12f), Vector3.up)
-                             * Quaternion.FromToRotation(longLocal, Vector3.ProjectOnPlane(stage.TrayLongAxis, Vector3.up).normalized);
-            Vector3 at = stage.TrayDropPoint(.012f, .01f);
+            Quaternion lay = Quaternion.AngleAxis(Random.Range(-6f, 6f), Vector3.up)
+                             * Quaternion.FromToRotation(longLocal, Vector3.ProjectOnPlane(stage.TrayAcrossAxis, Vector3.up).normalized);
+            Vector3 at = stage.TrayDropPoint(.07f, .005f, 0f, -.045f);
             // Through the rigidbody as well as the transform: an interpolating body snaps the transform back to its own pose
             // the next frame, and the part was left inside the device, shoved out and dropped on the mat (7 Oct).
             freshVisual.transform.SetPositionAndRotation(at, lay);
@@ -388,9 +434,7 @@ public class LoosePart : BenchInteractable
         Camera cam = hand.camera;
         if (cam != null)
         {
-            float depth = Mathf.Max(.05f, grabDepth - .02f);
-            float along = depth / Mathf.Max(.2f, Vector3.Dot(hand.ray.direction, cam.transform.forward));
-            Vector3 target = hand.ray.origin + hand.ray.direction * along + grabOffset;
+            Vector3 target = hand.PointAtDepth(Mathf.Max(.05f, grabDepth - ReplaceablePart.HeldLift)) + grabOffset;
             float k = 1f - Mathf.Exp(-16f * hand.deltaTime);
             transform.position = Vector3.Lerp(transform.position, target, k);
             wobble = Mathf.Max(0f, wobble - hand.deltaTime * 1.4f);
@@ -408,8 +452,7 @@ public class LoosePart : BenchInteractable
         if (part != null && part.SeatWouldTake(transform.position, hand.camera)) { part.SeatFresh(); return; }
         body.isKinematic = false;
         body.useGravity = true;
-        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, "part.drop");
-        Sfx.Play("part.drop", transform.position);
+        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, "part.drop");   // the drop sounds when it lands
     }
 
     /// <summary>The part has been seated: this behaviour's work is done (the fresh visual stays as the part).</summary>

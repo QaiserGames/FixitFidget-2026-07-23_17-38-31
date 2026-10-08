@@ -21,9 +21,15 @@ using Unity.Cinemachine;
 // part (BenchInteractable): a HOLD (a screw backing out under the driver, the pry at a cover's edge, the tweezers'
 // pinch), a GRAB (a popped cover, a part in the tweezers: it follows the cursor and drops where it's let go), or the old
 // instant press (a circuit tile, the mute switch). The chosen tool is in the hand: the model follows the cursor over the
-// device and does its motion at the part. Rotating the device by dragging has a little inertia and snaps to the
-// nearest face when let go near one (so it never slides past the angle you need); R / Y flips it; the scroll wheel or
-// the D-pad up/down zooms the close-up. The clock runs throughout.
+// device and does its motion at the part. The scroll wheel or the D-pad up/down zooms the close-up. The clock runs
+// throughout.
+//
+// THE TABLETOP (8 Oct 2026; Mansoor's notes after playing 4a: the stage floated, and "the exact same way restory has
+// it"). The device LIES ON THE MAT, one work face up, under a camera looking down at it; nothing hangs in the air. It
+// spins on the mat (drag sideways, or the left stick), with a little inertia, and settles square (to the nearest quarter
+// turn) when let go near one; drag up or down (or push the stick) and it TILTS to let you peek under an edge, and lies
+// back flat when let go; R / Y FLIPS it over, along its length, onto its other face. Its pose is always one of these, so
+// it can never be left at an angle nothing can be done at.
 //
 // Aim help on a pad (§2.3): when the stick lets go within about 60 px of a part, a tool or grime, the cursor settles on
 // it (PadCursor), and D-pad left or right steps the cursor to the next part in the order the work goes (screws, cover,
@@ -45,8 +51,10 @@ public class ItemInspector : MonoBehaviour
     [SerializeField, Min(0f)] private float padScrubRate = 180f;
 
     [Header("The bench, v2")]
-    [Tooltip("Within this many degrees of a face-on orientation, a device let go settles onto it.")]
+    [Tooltip("Within this many degrees of a quarter turn, a device let go spinning settles square to the view.")]
     [SerializeField, Range(0f, 45f)] private float faceSnapWithin = 22f;
+    [Tooltip("How far an edge can be tilted up to peek under it, degrees.")]
+    [SerializeField, Range(10f, 60f)] private float peekTilt = 35f;
     [Tooltip("The close-up camera's distance, as a share of where it is placed: zoomed fully out (x) and fully in (y).")]
     [SerializeField] private Vector2 zoomRange = new Vector2(1.2f, .42f);
 
@@ -64,17 +72,26 @@ public class ItemInspector : MonoBehaviour
     // The frame the item was picked up to work on: that press was the press that began it, not one on the item.
     private int begunFrame = -1;
 
-    // v2: the hold and the grab under way, the device's spin, the camera's zoom.
+    // v2: the hold and the grab under way, the camera's zoom.
     private BenchInteractable holdTarget, grabTarget;
     private BenchHand hand;
-    private Vector2 spinVelocity;          // degrees per second about the camera's up (x) and right (y)
-    private bool settling, settled;
-    private bool stickTurning;              // the left stick turned the device this frame: no coasting on top of it
-    private Quaternion settleTo;
-    private Vector3 thinAxis = Vector3.up;   // the device's thinnest local axis: its two work faces are either side of it
     private Coroutine flipping;
-    private Vector3 camOffset;
+    private Vector3 camOffset;              // the close-up camera from the table point, as placed
+    private Vector3 camRestPosition;
     private Quaternion camRestRotation;
+
+    // The tabletop: the device's pose on the mat is a face, a yaw and a tilt, never a free rotation.
+    private Vector3 tableTop;               // where the device rests (the mat's top under the inspect point)
+    private Vector3 thinAxis = Vector3.up;  // the device's thinnest local axis: its two work faces are either side of it
+    private Vector3 longAxis = Vector3.forward;
+    private Vector3 localMin, localMax;     // its renderers' bounds in its own frame
+    private float faceSign = 1f;            // +1: local +thin is up; -1: local -thin is up
+    private float yaw, yawVelocity;         // degrees about the world's up, from square-on (the long side up the view)
+    private float tilt, tiltVelocity;       // degrees about the view's right, an edge lifted to peek under
+    private bool stickTurning;              // the left stick turned the device this frame: no coasting on top of it
+    private bool settling, settled;
+    private float settleYaw;
+    private float boundsAt;
     private float zoom;                     // 0 = as placed, 1 = fully in
     private float zoomShown = -2f;          // below -1.5: not shown yet
 
@@ -86,6 +103,16 @@ public class ItemInspector : MonoBehaviour
     public BenchInteractable HoldTarget => holdTarget;
     public BenchInteractable GrabTarget => grabTarget;
     public float Zoom => zoom;
+    /// <summary>The device's turn on the mat, degrees from square-on (its long side up the view).</summary>
+    public float Yaw => yaw;
+    /// <summary>The edge lifted to peek under, degrees (0: lying flat).</summary>
+    public float Tilt => tilt;
+    /// <summary>Which of the device's two work faces is up: +1 its local +thin axis, -1 its local -thin.</summary>
+    public float FaceUp => faceSign;
+    /// <summary>The device's thinnest local axis (its work faces are either side of it).</summary>
+    public Vector3 ThinAxisLocal => thinAxis;
+    /// <summary>Where the device rests: the mat's top under the inspect point.</summary>
+    public Vector3 TableTop => tableTop;
     public string CurrentJobCard { get; private set; }
     public string HoverName { get; private set; }
     public string HoverAction { get; private set; }
@@ -157,20 +184,27 @@ public class ItemInspector : MonoBehaviour
         restRotation = item.transform.rotation;
         begunFrame = Time.frameCount;
         railTools = null;
-        spinVelocity = Vector2.zero;
-        settling = settled = false;
+        yawVelocity = tiltVelocity = 0f;
+        tilt = 0f;
+        settling = false;
+        settled = true;
         zoom = 0f;
         zoomShown = -2f;
-        camOffset = inspectCam.transform.position - inspectPoint.position;
+        camRestPosition = inspectCam.transform.position;
         camRestRotation = inspectCam.transform.rotation;
-
-        item.transform.position = inspectPoint.position;
         inspectCam.Priority = 30;
         CurrentJobCard = item.JobCard;
-        // Presented face-on: a device lying flat on the bench would show the camera its edge. It goes back as it lay.
-        thinAxis = ThinAxis(item.transform);
-        item.transform.rotation = NearestFace(item.transform.rotation);
-        settled = true;
+
+        // Laid on the mat, the face that was up on the bench still up, square to the view. It goes back as it lay.
+        tableTop = TableTopPoint(item.transform);
+        camOffset = camRestPosition - tableTop;
+        MeasureSlab(item.transform);
+        faceSign = Vector3.Dot(item.transform.rotation * thinAxis, Vector3.up) >= 0f ? 1f : -1f;
+        Vector3 longNow = Vector3.ProjectOnPlane(item.transform.rotation * longAxis, Vector3.up);
+        yaw = longNow.sqrMagnitude > 1e-6f ? Vector3.SignedAngle(ViewForwardOnTable(), longNow, Vector3.up) : 0f;
+        yaw = Mathf.Round(yaw / 90f) * 90f;      // square to the view when it arrives
+        yaw = Mathf.Repeat(yaw + 180f, 360f) - 180f;
+        Pose();
 
         // The fresh parts wait in the tray from the first time the device is worked on.
         foreach (ReplaceablePart part in item.GetComponentsInChildren<ReplaceablePart>(true)) part.PresentFresh();
@@ -231,9 +265,9 @@ public class ItemInspector : MonoBehaviour
         if (inspectCam != null)
         {
             inspectCam.Priority = 0;
-            if (inspectPoint != null && camOffset != Vector3.zero)
+            if (camOffset != Vector3.zero)
             {
-                inspectCam.transform.position = inspectPoint.position + camOffset;
+                inspectCam.transform.position = camRestPosition;
                 inspectCam.transform.rotation = camRestRotation;
             }
         }
@@ -271,16 +305,18 @@ public class ItemInspector : MonoBehaviour
             return;
         }
 
-        // Controller: LB / RB cycle the bench tools, the left stick turns the item. R or Y flips it.
+        // Controller: LB / RB cycle the bench tools; the left stick spins the item on the mat (sideways) and tilts an
+        // edge up to peek under (up or down). R or Y flips it over.
         if (PadInput.Pressed(PadButton.RightShoulder)) CycleTool(1);
         else if (PadInput.Pressed(PadButton.LeftShoulder)) CycleTool(-1);
         Vector2 spin = PadInput.Curved(PadInput.LeftStick, 1.3f);
-        stickTurning = spin != Vector2.zero && holdTarget == null && grabTarget == null;
+        stickTurning = spin != Vector2.zero && holdTarget == null && grabTarget == null && flipping == null;
         if (stickTurning)
         {
-            float step = padRotateSpeed * dt;
-            Turn(-spin.x * step, spin.y * step);
-            spinVelocity = new Vector2(-spin.x, spin.y) * padRotateSpeed;
+            yaw += -spin.x * padRotateSpeed * dt;
+            yawVelocity = -spin.x * padRotateSpeed;
+            tilt = Mathf.MoveTowards(tilt, spin.y * peekTilt, peekTilt * 4f * dt);
+            tiltVelocity = 0f;
             settling = false;
         }
         if (holdTarget == null && grabTarget == null && flipping == null
@@ -397,12 +433,15 @@ public class ItemInspector : MonoBehaviour
                     if (currentToolPickup != null) currentToolPickup.Animate(ToolPickup.Motion.Stroke, 0f, 1f, dt);
                 }
             }
-            else if (currentTool == ToolType.Hand && rotateGesture && !overBoard)
+            else if (currentTool == ToolType.Hand && rotateGesture && !overBoard && flipping == null)
             {
-                Turn(-delta.x * rotateSpeed, delta.y * rotateSpeed);
+                // Sideways spins it on the mat; up or down tilts an edge to peek under (it lies back flat when let go).
+                yaw += -delta.x * rotateSpeed;
+                tilt = Mathf.Clamp(tilt + delta.y * rotateSpeed, -peekTilt, peekTilt);
+                tiltVelocity = 0f;
                 // The spin it will keep when let go (smoothed over a few frames).
-                Vector2 instant = new Vector2(-delta.x, delta.y) * rotateSpeed / Mathf.Max(dt, 1e-4f);
-                spinVelocity = Vector2.Lerp(spinVelocity, instant, 1f - Mathf.Exp(-14f * dt));
+                float instant = -delta.x * rotateSpeed / Mathf.Max(dt, 1e-4f);
+                yawVelocity = Mathf.Lerp(yawVelocity, instant, 1f - Mathf.Exp(-14f * dt));
                 settling = false;
             }
         }
@@ -413,77 +452,47 @@ public class ItemInspector : MonoBehaviour
             rotateGesture = false;
             Coast(dt);
         }
+        if (flipping == null) Pose();
 
         PlaceTool(target, grime, hitSomething, hit, ray, dt);
     }
 
-    // ---------- the device's spin: inertia, and the settle onto a face ----------
+    // ---------- the device on the mat: its pose, the spin's inertia and the settle, the peek, the flip ----------
 
-    private void Turn(float aboutUp, float aboutRight)
+    // Where the device rests: on the mat's top, where it was set down (its own slot, so two devices on the mat never share
+    // a spot; the zoom closes on it there). Without a stage, the inspect point, as before.
+    private Vector3 TableTopPoint(Transform item)
     {
-        focusedItem.transform.Rotate(cam.transform.up, aboutUp, Space.World);
-        focusedItem.transform.Rotate(cam.transform.right, aboutRight, Space.World);
-    }
-
-    private void Coast(float dt)
-    {
-        if (focusedItem == null || flipping != null || stickTurning) return;   // (the stick's own turn is not to be doubled: 7 Oct, the lab's swing went twice as far)
-        if (spinVelocity.sqrMagnitude > 1f)
+        Vector3 p = inspectPoint.position;
+        BenchStage stage = BenchStage.Instance;
+        if (stage != null && stage.Mat != null)
         {
-            Turn(spinVelocity.x * dt, spinVelocity.y * dt);
-            spinVelocity *= Mathf.Exp(-6f * dt);
-            if (spinVelocity.magnitude < 15f) { spinVelocity = Vector2.zero; BeginSettle(); }
-            return;
+            Collider matCollider = stage.Mat.GetComponent<Collider>();
+            Renderer matRenderer = stage.Mat.GetComponent<Renderer>();
+            Bounds matBounds = matRenderer != null ? matRenderer.bounds : matCollider != null ? matCollider.bounds : new Bounds(stage.Mat.position, new Vector3(.6f, .006f, .36f));
+            p = item.position;
+            // Kept well inside the mat (a device set down near its edge still gets the whole of itself on it).
+            p.x = Mathf.Clamp(p.x, matBounds.min.x + .09f, matBounds.max.x - .09f);
+            p.z = Mathf.Clamp(p.z, matBounds.min.z + .09f, matBounds.max.z - .09f);
+            p.y = matBounds.max.y;
         }
-        if (!settling) return;
-        Quaternion now = focusedItem.transform.rotation;
-        float angle = Quaternion.Angle(now, settleTo);
-        if (angle < .3f)
-        {
-            focusedItem.transform.rotation = settleTo;
-            settling = false;
-            if (!settled) { settled = true; Sfx.Play("device.snap", focusedItem.transform.position); }
-            return;
-        }
-        focusedItem.transform.rotation = Quaternion.Slerp(now, settleTo, 1f - Mathf.Exp(-10f * dt));
+        return p;
     }
 
-    // The nearest face-on orientation; within reach, the device goes there (else it stays as it was left).
-    private void BeginSettle()
+    // The view's forward laid flat on the table: "up the screen" on the mat. Square-on means the device's long side runs
+    // this way (a phone stands portrait on the screen).
+    private Vector3 ViewForwardOnTable()
     {
-        settling = false;
-        settled = false;
-        if (focusedItem == null || faceSnapWithin <= 0f) return;
-        Quaternion now = focusedItem.transform.rotation;
-        Quaternion best = NearestFace(now);
-        if (Quaternion.Angle(now, best) <= faceSnapWithin) { settleTo = best; settling = true; }
-    }
-
-    // The eight orientations that show the camera one of the device's two work faces square-on (either face, spun to
-    // any of the four uprights), and the nearest of them to a rotation. Never an edge: a phone, a watch and a camera are
-    // slabs, and the faces either side of the thin axis are where the work is.
-    private Quaternion NearestFace(Quaternion now)
-    {
-        // The close-up camera's own frame, not the live camera's: when the close-up opens the live camera is still
-        // Ace's, part way through the blend.
         Transform view = View;
-        if (view == null) return now;
-        Vector3 toCamera = -view.forward;
-        Vector3 across = thinAxis == Vector3.up || thinAxis == Vector3.right ? Vector3.forward : Vector3.up;   // a long axis of the slab
-        Quaternion best = now;
-        float bestAngle = float.PositiveInfinity;
-        Vector3[] uprights = { view.up, view.right, -view.up, -view.right };
-        for (int face = -1; face <= 1; face += 2)
-        {
-            Quaternion local = Quaternion.LookRotation(thinAxis * face, across);
-            foreach (Vector3 up in uprights)
-            {
-                Quaternion candidate = Quaternion.LookRotation(toCamera, up) * Quaternion.Inverse(local);
-                float a = Quaternion.Angle(now, candidate);
-                if (a < bestAngle) { bestAngle = a; best = candidate; }
-            }
-        }
-        return best;
+        Vector3 f = view != null ? Vector3.ProjectOnPlane(view.forward, Vector3.up) : Vector3.forward;
+        return f.sqrMagnitude > 1e-6f ? f.normalized : Vector3.forward;
+    }
+
+    private Vector3 ViewRightOnTable()
+    {
+        Transform view = View;
+        Vector3 r = view != null ? Vector3.ProjectOnPlane(view.right, Vector3.up) : Vector3.right;
+        return r.sqrMagnitude > 1e-6f ? r.normalized : Vector3.right;
     }
 
     // The close-up's point of view: the inspection camera's transform (its direction never changes; the zoom only moves it).
@@ -497,47 +506,167 @@ public class ItemInspector : MonoBehaviour
         }
     }
 
-    // The device's thinnest local axis, from its renderers' bounds.
-    private static Vector3 ThinAxis(Transform root)
+    /// <summary>The rotation that lays the device on the mat with the given face up and its long side up the view (yaw 0).</summary>
+    private Quaternion Lay(float face)
     {
-        Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
-        foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
-        {
-            if (!r.enabled) continue;
-            Bounds b = r.bounds;
-            for (int i = 0; i < 8; i++)
-            {
-                Vector3 corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
-                Vector3 local = root.InverseTransformPoint(corner);
-                min = Vector3.Min(min, local);
-                max = Vector3.Max(max, local);
-            }
-        }
-        if (float.IsInfinity(min.x)) return Vector3.up;
-        Vector3 size = max - min;
-        if (size.x <= size.y && size.x <= size.z) return Vector3.right;
-        if (size.y <= size.z) return Vector3.up;
-        return Vector3.forward;
+        Vector3 up = thinAxis * face;
+        Vector3 along = longAxis;
+        if (Mathf.Abs(Vector3.Dot(up, along)) > .99f) along = Vector3.Cross(up, Vector3.right).sqrMagnitude > .01f ? Vector3.Cross(up, Vector3.right) : Vector3.Cross(up, Vector3.forward);
+        return Quaternion.LookRotation(ViewForwardOnTable(), Vector3.up) * Quaternion.Inverse(Quaternion.LookRotation(along, up));
     }
 
+    /// <summary>The device's rotation from its pose: the tilt (about the view's right), the yaw (about up), the face.</summary>
+    private Quaternion PoseRotation(float face, float aboutUp, float peek)
+        => Quaternion.AngleAxis(peek, ViewRightOnTable()) * Quaternion.AngleAxis(aboutUp, Vector3.up) * Lay(face);
+
+    // The device set down from its pose: turned as the pose says, its bounds' middle over the table point, its lowest
+    // corner on the mat (an edge tilted up lifts it; a flip lifts it clear).
+    private void Pose(float extraLift = 0f)
+    {
+        if (focusedItem == null) return;
+        if (Time.time - boundsAt > .5f) MeasureSlab(focusedItem.transform);
+        Place(PoseRotation(faceSign, yaw, tilt), extraLift);
+    }
+
+    private void Place(Quaternion rotation, float extraLift)
+    {
+        Transform t = focusedItem.transform;
+        t.rotation = rotation;
+        float lowest = float.PositiveInfinity;
+        Vector3 centre = rotation * ((localMin + localMax) * .5f);
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 corner = new Vector3((i & 1) == 0 ? localMin.x : localMax.x, (i & 2) == 0 ? localMin.y : localMax.y, (i & 4) == 0 ? localMin.z : localMax.z);
+            lowest = Mathf.Min(lowest, (rotation * corner).y);
+        }
+        if (float.IsInfinity(lowest)) lowest = 0f;
+        t.position = new Vector3(tableTop.x - centre.x, tableTop.y - lowest + extraLift, tableTop.z - centre.z);
+    }
+
+    /// <summary>Lays the device flat and square at a yaw (the labs' hand; the device's own settle does this by itself).</summary>
+    public void LayDown(float aboutUp = 0f)
+    {
+        yaw = aboutUp;
+        yawVelocity = tiltVelocity = 0f;
+        tilt = 0f;
+        settling = false;
+        settled = true;
+        Pose();
+    }
+
+    // Let go: the spin coasts and dies, and the device settles square to the view when it stops near a quarter turn; a
+    // lifted edge lies back flat.
+    private void Coast(float dt)
+    {
+        if (focusedItem == null || flipping != null || stickTurning) return;   // (the stick's own turn is not to be doubled: 7 Oct, the lab's swing went twice as far)
+        if (Mathf.Abs(yawVelocity) > 1f)
+        {
+            yaw += yawVelocity * dt;
+            yawVelocity *= Mathf.Exp(-6f * dt);
+            if (Mathf.Abs(yawVelocity) < 15f) { yawVelocity = 0f; BeginSettle(); }
+        }
+        else if (settling)
+        {
+            float remaining = Mathf.DeltaAngle(yaw, settleYaw);
+            if (Mathf.Abs(remaining) < .3f)
+            {
+                yaw = settleYaw;
+                settling = false;
+                if (!settled) { settled = true; Sfx.Play("device.snap", focusedItem.transform.position); }
+            }
+            else yaw += remaining * (1f - Mathf.Exp(-10f * dt));
+        }
+        // The peek lies back: a spring, critically damped, so it lands without a bounce.
+        if (Mathf.Abs(tilt) > .01f || Mathf.Abs(tiltVelocity) > .01f)
+        {
+            const float w = 14f;
+            float accel = -w * w * tilt - 2f * w * tiltVelocity;
+            tiltVelocity += accel * dt;
+            tilt += tiltVelocity * dt;
+            if (Mathf.Abs(tilt) < .02f && Mathf.Abs(tiltVelocity) < .5f) { tilt = 0f; tiltVelocity = 0f; }
+        }
+        yaw = Mathf.Repeat(yaw + 180f, 360f) - 180f;
+    }
+
+    // The nearest quarter turn; within reach, the device goes there (else it stays as it was left).
+    private void BeginSettle()
+    {
+        settling = false;
+        settled = false;
+        if (focusedItem == null || faceSnapWithin <= 0f) return;
+        float nearest = Mathf.Round(yaw / 90f) * 90f;
+        if (Mathf.Abs(Mathf.DeltaAngle(yaw, nearest)) <= faceSnapWithin) { settleYaw = nearest; settling = true; }
+    }
+
+    // Over it goes, along its length, lifted clear of the mat on the way, onto its other face.
     private IEnumerator Flip()
     {
         if (focusedItem == null) yield break;
         settling = false;
-        spinVelocity = Vector2.zero;
-        Quaternion from = focusedItem.transform.rotation;
-        Quaternion to = Quaternion.AngleAxis(180f, View.up) * from;
+        yawVelocity = 0f;
+        tiltVelocity = 0f;
+        float fromTilt = tilt;
+        float oldFace = faceSign;
+        Vector3 longWorld = Quaternion.AngleAxis(yaw, Vector3.up) * ViewForwardOnTable();
+        // Half the width it turns on, plus a little: how high its middle has to be at the half-way point.
+        Vector3 size = localMax - localMin;
+        float across = Mathf.Abs(Vector3.Dot(size, Vector3.one) - Mathf.Abs(Vector3.Dot(size, thinAxis)) - Mathf.Abs(Vector3.Dot(size, longAxis)));
+        float clearance = across * .5f + .012f;
         Sfx.Play("device.flip", focusedItem.transform.position);
         float t = 0f;
         while (t < 1f && focusedItem != null)
         {
-            t += Time.deltaTime / .3f;
-            focusedItem.transform.rotation = Quaternion.Slerp(from, to, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t)));
+            t += Time.deltaTime / .32f;
+            float c = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t));
+            Quaternion turn = Quaternion.AngleAxis(180f * c, longWorld);
+            Quaternion rotation = turn * PoseRotation(oldFace, yaw, Mathf.Lerp(fromTilt, 0f, c));
+            Place(rotation, Mathf.Sin(c * Mathf.PI) * clearance);
             yield return null;
         }
-        if (focusedItem != null) focusedItem.transform.rotation = to;
+        if (focusedItem != null)
+        {
+            faceSign = -oldFace;
+            tilt = 0f;
+            flipping = null;
+            Pose();
+            Sfx.Play("device.snap", focusedItem.transform.position, .7f);
+        }
         flipping = null;
-        BeginSettle();
+    }
+
+    // The device's slab: its thinnest and longest local axes, and its renderers' bounds in its own frame (turned with it,
+    // but in metres: its scale is kept in, so the corners can be turned by a rotation alone).
+    private void MeasureSlab(Transform root)
+    {
+        boundsAt = Time.time;
+        Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
+        Quaternion unturn = Quaternion.Inverse(root.rotation);
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
+        {
+            if (!r.enabled || r.GetComponent<BenchOutlineHull>() != null) continue;
+            // The mesh's own box, carried into the world, so a turned device measures the same as a square one.
+            var mf = r.GetComponent<MeshFilter>();
+            Bounds b = mf != null && mf.sharedMesh != null ? mf.sharedMesh.bounds : r.bounds;
+            bool own = mf != null && mf.sharedMesh != null;
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                if (own) corner = r.transform.TransformPoint(corner);
+                Vector3 local = unturn * (corner - root.position);
+                min = Vector3.Min(min, local);
+                max = Vector3.Max(max, local);
+            }
+        }
+        if (float.IsInfinity(min.x)) { min = -Vector3.one * .03f; max = Vector3.one * .03f; }
+        localMin = min; localMax = max;
+        Vector3 size = max - min;
+        if (size.x <= size.y && size.x <= size.z) thinAxis = Vector3.right;
+        else if (size.y <= size.z) thinAxis = Vector3.up;
+        else thinAxis = Vector3.forward;
+        if (size.x >= size.y && size.x >= size.z) longAxis = Vector3.right;
+        else if (size.y >= size.z) longAxis = Vector3.up;
+        else longAxis = Vector3.forward;
+        if (longAxis == thinAxis) longAxis = thinAxis == Vector3.up ? Vector3.forward : Vector3.up;
     }
 
     // ---------- the zoom ----------
@@ -546,7 +675,10 @@ public class ItemInspector : MonoBehaviour
     {
         float wheel = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
         float change = 0f;
-        if (Mathf.Abs(wheel) > .01f) change += Mathf.Sign(wheel) * .18f;
+        // A notch of a wheel is 120 on Windows and a handful on a Mac; a trackpad gives a little every frame. A step per
+        // notch, no more than a step a frame, so a brush of a trackpad doesn't throw the camera to its limit (8 Oct:
+        // "somehow just broke the camera").
+        if (Mathf.Abs(wheel) > .01f) change += Mathf.Sign(wheel) * Mathf.Clamp(Mathf.Abs(wheel) * .0015f + .03f, .03f, .18f);
         if (PadInput.Held(PadButton.DpadUp)) change += dt * 1.2f;
         if (PadInput.Held(PadButton.DpadDown)) change -= dt * 1.2f;
         if (change != 0f) zoom = Mathf.Clamp(zoom + change, -1f, 1f);     // -1 fully out, 0 as placed, 1 fully in
@@ -554,8 +686,8 @@ public class ItemInspector : MonoBehaviour
         if (Mathf.Abs(zoom - zoomShown) < .0005f) return;
         zoomShown = Mathf.Lerp(zoomShown, zoom, 1f - Mathf.Exp(-12f * dt));
         float factor = zoomShown >= 0f ? Mathf.Lerp(1f, zoomRange.y, zoomShown) : Mathf.Lerp(1f, zoomRange.x, -zoomShown);
-        if (inspectCam != null && inspectPoint != null)
-            inspectCam.transform.position = inspectPoint.position + camOffset * factor;
+        if (inspectCam != null)
+            inspectCam.transform.position = tableTop + camOffset * factor;
     }
 
     // ---------- holds and grabs ----------
@@ -624,7 +756,7 @@ public class ItemInspector : MonoBehaviour
         if (grime != null && hitSomething) { tool.Follow(hit.point, hit.normal, cam, GamePointer.PrimaryHeld, dt); return; }
         if (hitSomething && hit.collider.GetComponentInParent<JobBase>() == focusedItem) { tool.Follow(hit.point, hit.normal, cam, false, dt); return; }
         // Over nothing: by the cursor, 35 cm out, tip toward the item.
-        Vector3 point = ray.origin + ray.direction * .35f;
+        Vector3 point = cam.transform.position + ray.direction * .35f;   // 35 cm from the eye (the ray's own origin is out on the near plane)
         tool.Follow(point, -ray.direction, cam, false, dt);
     }
 
@@ -769,7 +901,7 @@ public class ItemInspector : MonoBehaviour
         // Only a drag that starts on empty space rotates the item. Picking a
         // tool, turning a wire, or pressing a covered part owns that press.
         rotateGesture = part == null && grime == null && tool == null && !overBoard;
-        if (rotateGesture) { settling = false; spinVelocity = Vector2.zero; }
+        if (rotateGesture) { settling = false; yawVelocity = 0f; }
         if (tool != null)
         {
             EndHold(false);

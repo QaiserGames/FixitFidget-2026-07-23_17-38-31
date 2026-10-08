@@ -130,8 +130,12 @@ public sealed class Juice : MonoBehaviour
             j.Burst(Barks.HeadPointOf(who), new Vector2(0f, IconSize * .5f), icon == Icon.Heart ? HeartColour : StarColour);
     }
 
-    /// <summary>"+$<paramref name="amount"/>" pops over <paramref name="who"/> as they pay (with "+$tip tip"), and floats up.</summary>
-    public static void Money(Transform who, int amount, int tip = 0)
+    /// <summary>
+    /// "+$<paramref name="amount"/>" pops over <paramref name="who"/> as they pay (with "+$tip tip"), and floats up. It
+    /// comes a beat after their face (the badge lands first, the money a moment later, above and to the side, so the two
+    /// don't crowd: Mansoor, 8 Oct, "they look a little clustered when they both come at the same time").
+    /// </summary>
+    public static void Money(Transform who, int amount, int tip = 0, float delay = .45f)
     {
         if (who == null || amount + tip <= 0 || !Application.isPlaying) return;
         Juice j = Ensure();
@@ -148,7 +152,8 @@ public sealed class Juice : MonoBehaviour
         pop.root.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 30f, 46f);
         pop.chip.enabled = true;
         pop.chip.color = UiSkin.Brand;
-        j.Show(pop, who, Vector3.zero, new Vector2(78f, -6f), MoneyLife);
+        j.Show(pop, who, Vector3.zero, new Vector2(84f, 34f), MoneyLife);
+        pop.born += Mathf.Max(0f, delay);
     }
 
     static readonly string TipColour = UiSkin.HexOf(UiSkin.GoldSoft);
@@ -589,6 +594,7 @@ public sealed class Juice : MonoBehaviour
         {
             if (!p.active) { if (p.root.gameObject.activeSelf) p.root.gameObject.SetActive(false); continue; }
             float t = now - p.born;
+            if (t < 0f) { p.group.alpha = 0f; continue; }   // not yet: a pop timed to come a beat after another
             if (t >= p.life || p.pinned && p.who == null) { p.active = false; p.root.gameObject.SetActive(false); continue; }
             if (cam == null) { p.group.alpha = 0f; continue; }
             Vector3 world = p.who != null ? Barks.HeadPointOf(p.who) : p.point;

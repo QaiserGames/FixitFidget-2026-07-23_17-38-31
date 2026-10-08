@@ -284,12 +284,26 @@ public class DayOneGuideUI : MonoBehaviour
         if (job.Quality >= 0.999f || human != null)
         {
             if (job.HasDetachedComponent<RemovablePart>())
+            {
+                foreach (GameObject loose in job.DetachedParts)
+                {
+                    RemovablePart cover = loose != null ? loose.GetComponent<RemovablePart>() : null;
+                    if (cover != null && cover.Outward.y < -.5f) return $"Fault fixed. The cover's seat is on the face that's down: press {ControlHints.Flip} to turn it over, then drag the cover home.";
+                }
                 return $"Fault fixed. Drag the cover from the mat back onto its seat (any tool, or bare hands); it snaps home.";
+            }
 
             if (job.HasDetachedComponent<Screw>())
+            {
+                foreach (GameObject loose in job.DetachedParts)
+                {
+                    Screw screw = loose != null ? loose.GetComponent<Screw>() : null;
+                    if (screw != null && screw.Axis.y < -.5f) return $"The screw holes are underneath. Press {ControlHints.Flip} to turn it over.";
+                }
                 return tool == ToolType.Screwdriver
                     ? $"Screwdriver selected. {Hold("each empty screw hole")}: the driver fetches the screw and turns it home."
                     : $"Cover fitted. {Select("screwdriver")} for the screw holes.";
+            }
 
             // A detached part unregisters as its return animation begins. Keep
             // the message accurate during that short transition.
@@ -303,9 +317,13 @@ public class DayOneGuideUI : MonoBehaviour
 
         foreach (Screw screw in job.GetComponentsInChildren<Screw>())
             if (!screw.IsOut)
+            {
+                // The screws are on the face that's down on the mat: turn it over first (the tabletop, 8 Oct).
+                if (screw.Axis.y < -.5f) return $"The screws are underneath. Press {ControlHints.Flip} to turn it over on the mat.";
                 return tool == ToolType.Screwdriver
                     ? $"Screwdriver selected. {Hold("each case screw")} until it comes free and drops."
                     : $"{Select("screwdriver")} to back out the case screws.";
+            }
 
         foreach (RemovablePart cover in job.GetComponentsInChildren<RemovablePart>())
             if (!cover.IsRemoved)
@@ -323,9 +341,12 @@ public class DayOneGuideUI : MonoBehaviour
 
         foreach (ReplaceablePart part in job.GetComponentsInChildren<ReplaceablePart>())
             if (!part.IsReplaced)
+            {
+                if (part.Outward.y < -.5f) return $"The broken part is on the face that's down. Press {ControlHints.Flip} to turn it over.";
                 return tool == ToolType.Tweezers
-                    ? $"Tweezers selected. {Hold("the broken part")} to pinch it out, and drop it on the mat."
+                    ? $"Tweezers selected. {Hold("the broken part")} to pinch it out, and drop it in the tray."
                     : $"{Select("tweezers")} to pinch out the broken part.";
+            }
         // The broken part is out (it left the device when it was pinched): the fresh one waits in the tray.
         foreach (GameObject loose in job.DetachedParts)
         {

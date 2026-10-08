@@ -249,10 +249,9 @@ public class RemovablePart : BenchInteractable
         Vector3 target;
         if (cam != null)
         {
-            // Along the cursor's ray, at the depth it was picked up at, and 15 mm toward the camera so it clears what it lay on.
-            float depth = Mathf.Max(.05f, grabDepth - .015f);
-            float along = depth / Mathf.Max(.2f, Vector3.Dot(hand.ray.direction, cam.transform.forward));
-            target = hand.ray.origin + hand.ray.direction * along + grabOffset;
+            // Along the cursor's ray, at the depth it was picked up at, and 3 cm toward the camera so it clears what it lay on
+            // and the tray's walls (a cover dropped in the tray is fine).
+            target = hand.PointAtDepth(Mathf.Max(.05f, grabDepth - .03f)) + grabOffset;
         }
         else target = transform.position;
         float k = 1f - Mathf.Exp(-18f * hand.deltaTime);
@@ -298,7 +297,7 @@ public class RemovablePart : BenchInteractable
         body.interpolation = RigidbodyInterpolation.Interpolate;
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         State = CoverState.Loose;
-        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, "cover.clack");
+        if (BenchStage.Instance != null) BenchStage.Instance.Watch(body, null);   // a cover sounds its own landing (OnCollisionEnter)
     }
 
     private void OnCollisionEnter(Collision collision)

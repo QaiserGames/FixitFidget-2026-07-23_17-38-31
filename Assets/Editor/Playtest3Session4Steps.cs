@@ -31,6 +31,25 @@ static class Playtest3Session4Steps
     const string MaterialFolder = "Assets/Art/Materials/Bench";
     const string StageName = "Stage (v2)";
 
+    // The close-up camera and the inspect point as the scene had them before the tabletop (Undo puts them back).
+    static readonly Vector3 OldCameraLocal = new Vector3(0f, .25f, -.55f);
+    static readonly Vector3 OldCameraEuler = new Vector3(20f, 0f, 0f);
+    static readonly Vector3 OldInspectPointLocal = Vector3.zero;
+    // The tabletop (8 Oct): the camera 0.58 m from the table point, looking down at it at 58°.
+    const float CameraPitch = 58f, CameraDistance = .58f;
+    // The bench's three slots as the scene had them (in the Workbench's frame), for Undo. With the tabletop they sit on
+    // the mat: the first at the table point, so a device set down is already where the close-up works on it, the other
+    // two at the mat's front corners (a device set down used to appear on the tool organiser half a metre to the left:
+    // Mansoor, 8 Oct, "this random prop on the table whenever I place an item").
+    static readonly (string name, Vector3 local)[] OldSlots =
+    {
+        ("Slot_0", new Vector3(-.362f, .55f, -.176f)), ("Slot_1", new Vector3(0f, .55f, 0f)), ("Slot_2", new Vector3(.337f, .55f, 0f)),
+    };
+    static readonly (string name, Vector3 fromTable)[] MatSlots =
+    {
+        ("Slot_0", Vector3.zero), ("Slot_1", new Vector3(-.12f, 0f, -.115f)), ("Slot_2", new Vector3(.09f, 0f, -.125f)),
+    };
+
     static readonly (ToolType tool, string file, string name, Color tint)[] Tools =
     {
         (ToolType.Brush, "BT_Brush", "Cleaning Brush", new Color(0.7882353f, 0.63529414f, 0.15294118f)),
@@ -54,17 +73,31 @@ static class Playtest3Session4Steps
 
         Undo.IncrementCurrentGroup();
         Undo.SetCurrentGroupName("Bench 2 - Build the bench stage");
+
+        // The real bench top, by a ray down through the rig (the first stage was laid off the rig and floated 22 cm above
+        // the wood: Mansoor, 8 Oct, "the tray or the tools … are floating on the table"). The stage's own pieces are gone
+        // by now, so the ray meets the bench.
+        Physics.SyncTransforms();
+        float benchTop = rigT.position.y - .35f;
+        if (Physics.Raycast(rigT.position + Vector3.up * .05f, Vector3.down, out RaycastHit top, 2f, ~0, QueryTriggerInteraction.Ignore))
+            benchTop = top.point.y;
+        else Debug.LogWarning(Tag + "No bench under the inspect rig: the mat is laid 35 cm under the rig.");
+        float matTop = benchTop + .006f - rigT.position.y;   // rig-local y of the mat's top (the rig is unturned, world scale 1)
+
         var stage = new GameObject(StageName);
         Undo.RegisterCreatedObjectUndo(stage, "stage");
         stage.transform.SetParent(rigT, false);
 
         Material matMaterial = MatMaterial();
         Material steel = AssetDatabase.LoadAssetAtPath<Material>("Assets/Art/Materials/DC_SteelDark.mat");
+        Material steelLight = AssetDatabase.LoadAssetAtPath<Material>("Assets/Art/Materials/DC_Steel.mat");
+        if (steelLight == null) steelLight = steel;
         Material wood = AssetDatabase.LoadAssetAtPath<Material>("Assets/Art/Materials/CC_Wood_Espresso.mat");
 
-        // The mat: a slab under the inspect point, where the parts tray and screw bin used to float (local y -0.12). Its
-        // collider is thicker than it looks and reaches down, so a falling screw can't slip through it.
-        GameObject mat = Slab("Mat", stage.transform, new Vector3(0f, -.125f, .04f), new Vector3(.60f, .006f, .36f), matMaterial);
+        // The mat: a slab on the bench top under the inspect point; the device lies on it. Its collider is thicker than
+        // it looks and reaches down, so a falling screw can't slip through it.
+        const float matZ = -.02f;     // a touch toward the camera, clear of the props standing at the back of the bench
+        GameObject mat = Slab("Mat", stage.transform, new Vector3(0f, matTop - .003f, matZ), new Vector3(.60f, .006f, .36f), matMaterial);
         var matBox = mat.GetComponent<BoxCollider>();
         matBox.center = new Vector3(0f, -2.5f, 0f);
         matBox.size = new Vector3(1f, 6f, 1f);
@@ -72,14 +105,15 @@ static class Playtest3Session4Steps
         mat.GetComponent<Collider>().sharedMaterial = SlipperyMat();
 
         // The parts tray: a floor and four low walls, to the right of the device; its magnet zone a little above the floor.
-        // 16 x 14 cm inside: the stand-in phone's screen is 12 cm long and has to lie flat in it whichever way it lands
-        // (the first tray was 13 x 10 and the screen lay across its wall, 7 Oct).
+        // 16 x 16 cm inside: the stand-in phone's screen is 12 cm long and has to lie flat in it whichever way it lands
+        // (the first tray was 13 x 10 and the screen lay across its wall, 7 Oct), and the fresh screen at the device's
+        // side and the broken one dropped beside it have to lie side by side across it, 6 cm wide each (8 Oct).
         var tray = new GameObject("Parts tray");
         Undo.RegisterCreatedObjectUndo(tray, "tray");
         tray.transform.SetParent(stage.transform, false);
-        tray.transform.localPosition = new Vector3(.225f, -.118f, .03f);
-        const float tw = .17f, td = .15f;     // outside
-        GameObject trayFloor = Slab("Floor", tray.transform, Vector3.zero, new Vector3(tw, .006f, td), steel);
+        tray.transform.localPosition = new Vector3(.225f, matTop + .003f, matZ);
+        const float tw = .17f, td = .17f;     // outside
+        GameObject trayFloor = Slab("Floor", tray.transform, Vector3.zero, new Vector3(tw, .006f, td), steelLight);   // light, so a dark part reads in it
         trayFloor.GetComponent<Collider>().sharedMaterial = SlipperyMat();
         float h = .024f, t = .005f;
         Slab("Wall N", tray.transform, new Vector3(0f, h * .5f, td * .5f - t * .5f), new Vector3(tw, h, t), steel);
@@ -95,7 +129,7 @@ static class Playtest3Session4Steps
         zone.size = new Vector3(tw - t * 2f, .07f, td - t * 2f);
 
         // The tool caddy: a wooden block to the left, the five tools standing in it, points down, leaning back a little.
-        var caddy = Slab("Tool caddy", stage.transform, new Vector3(-.245f, -.1075f, .02f), new Vector3(.12f, .035f, .08f), wood);
+        var caddy = Slab("Tool caddy", stage.transform, new Vector3(-.245f, matTop + .0175f, matZ - .02f), new Vector3(.12f, .035f, .08f), wood);
         var slots = new Transform[Tools.Length];
         for (int i = 0; i < Tools.Length; i++)
         {
@@ -148,10 +182,39 @@ static class Playtest3Session4Steps
         bench.Wire(mat.transform, trayFloor.transform, zone, caddy.transform, slots);
         EditorUtility.SetDirty(bench);
 
+        // The tabletop: the inspect point on the mat (the device lies there) and the close-up camera above it, looking
+        // down at it, instead of the old 20° camera 55 cm back from a device hanging in the air.
+        Transform point = rigT.Find("InspectPoint");
+        Transform camera = rigT.Find("CM_InspectCam");
+        if (point != null && camera != null)
+        {
+            Undo.RecordObject(point, "inspect point");
+            Undo.RecordObject(camera, "close-up camera");
+            point.localPosition = new Vector3(0f, matTop, matZ);
+            float pitch = CameraPitch * Mathf.Deg2Rad;
+            camera.localPosition = point.localPosition + new Vector3(0f, Mathf.Sin(pitch) * CameraDistance, -Mathf.Cos(pitch) * CameraDistance);
+            camera.localRotation = Quaternion.Euler(CameraPitch, 0f, 0f);
+        }
+        else Debug.LogWarning(Tag + "InspectPoint or CM_InspectCam not found under the rig: the camera is left as it was.");
+
+        // The bench's slots onto the mat.
+        Vector3 tableWorld = rigT.TransformPoint(new Vector3(0f, matTop, matZ));
+        int moved = 0;
+        foreach (var (name, fromTable) in MatSlots)
+        {
+            Transform slot = FindDeep(rigT.parent, name);
+            if (slot == null) continue;
+            Undo.RecordObject(slot, "bench slot");
+            slot.position = tableWorld + fromTable;
+            slot.rotation = Quaternion.identity;
+            moved++;
+        }
+        if (moved < MatSlots.Length) Debug.LogWarning(Tag + $"Only {moved} of the bench's 3 slots were found under the Workbench.");
+
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
         EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
-        Debug.Log(Tag + $"The bench stage is built: the mat, the parts tray (magnetic), the caddy with {placed} tools; the old tool column is off. Saved. " +
-                  "Undo: Bench 2 - Undo: back to the tool column.");
+        Debug.Log(Tag + $"The bench stage is built on the bench top (y {benchTop:0.000}): the mat, the parts tray (magnetic), the caddy with {placed} tools; " +
+                  "the inspect point on the mat and the close-up camera above it; the old tool column is off. Saved. Undo: Bench 2 - Undo: back to the tool column.");
     }
 
     [MenuItem(Menu + "Bench 2 - Undo: back to the tool column")]
@@ -170,9 +233,21 @@ static class Playtest3Session4Steps
             }
         BenchStage bench = rig.GetComponent<BenchStage>();
         if (bench != null) Undo.DestroyObjectImmediate(bench);
+        Transform point = rig.transform.Find("InspectPoint");
+        Transform camera = rig.transform.Find("CM_InspectCam");
+        if (point != null) { Undo.RecordObject(point, "inspect point"); point.localPosition = OldInspectPointLocal; }
+        if (camera != null) { Undo.RecordObject(camera, "camera"); camera.localPosition = OldCameraLocal; camera.localRotation = Quaternion.Euler(OldCameraEuler); }
+        foreach (var (name, local) in OldSlots)
+        {
+            Transform slot = FindDeep(rig.transform.parent, name);
+            if (slot == null) continue;
+            Undo.RecordObject(slot, "bench slot");
+            slot.localPosition = local;
+            slot.localRotation = Quaternion.identity;
+        }
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
         EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
-        Debug.Log(Tag + "The tool column is back and the stage is gone. Saved.");
+        Debug.Log(Tag + "The tool column is back, the stage is gone, the camera and the inspect point are where they were. Saved.");
     }
 
     static GameObject Slab(string name, Transform parent, Vector3 localPos, Vector3 size, Material material)
@@ -202,7 +277,8 @@ static class Playtest3Session4Steps
         return m;
     }
 
-    static PhysicsMaterial slippery;
+    // The mat's and the tray's surface: a cutting mat grips (a screw that lands stops where it lands, rather than sliding
+    // and spinning for seconds, 8 Oct), with a little give.
     static PhysicsMaterial SlipperyMat()
     {
         string path = MaterialFolder + "/Bench mat (physics).physicMaterial";
@@ -210,11 +286,21 @@ static class Playtest3Session4Steps
         if (pm == null)
         {
             if (!AssetDatabase.IsValidFolder(MaterialFolder)) AssetDatabase.CreateFolder("Assets/Art/Materials", "Bench");
-            pm = new PhysicsMaterial("Bench mat") { dynamicFriction = .08f, staticFriction = .08f, bounciness = .12f,
-                                                    frictionCombine = PhysicsMaterialCombine.Minimum, bounceCombine = PhysicsMaterialCombine.Average };
+            pm = new PhysicsMaterial("Bench mat");
             AssetDatabase.CreateAsset(pm, path);
         }
+        pm.dynamicFriction = .4f; pm.staticFriction = .5f; pm.bounciness = .08f;
+        pm.frictionCombine = PhysicsMaterialCombine.Average; pm.bounceCombine = PhysicsMaterialCombine.Average;
+        EditorUtility.SetDirty(pm);
         return pm;
+    }
+
+    static Transform FindDeep(Transform root, string name)
+    {
+        if (root == null) return null;
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            if (t.name == name) return t;
+        return null;
     }
 
     static Bounds LocalBounds(Transform root)

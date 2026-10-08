@@ -87,8 +87,12 @@ public static class CarryInteractionChecks
                 "Moving or resizing the isometric camera cannot drag a held cup away from the character.");
             Vector3 step = new Vector3(.7f, 0, -.3f); player.transform.position += step;
             Call(carry, "LateUpdate");
-            Require(Vector3.Distance(cup.transform.position, floorPosition + step) < .001f && cup.transform.localScale == new Vector3(.8f, 1.2f, .9f),
-                "Floor carrying follows the body at the exact authored scale.");
+            // From above the item is drawn bigger than authored (PlayerCarry.overheadScale, 8 Oct: it couldn't be seen at its
+            // real size), by the carry's own factor and nothing else; placing it puts the authored scale back (checked above).
+            float overhead = (float)typeof(PlayerCarry).GetField("overheadScale", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(carry);
+            Require(Vector3.Distance(cup.transform.position, floorPosition + step) < .001f
+                    && Vector3.Distance(cup.transform.localScale, new Vector3(.8f, 1.2f, .9f) * overhead) < .001f,
+                "Floor carrying follows the body, drawn at the overhead size.");
             var beverage = Child(host, "Beverage view"); beverage.AddComponent<BeverageStation>();
             var beverageStation = beverage.AddComponent<StationInteractable>();
             Set(interactor, "currentStation", beverageStation); Set(carry, "interaction", interactor);

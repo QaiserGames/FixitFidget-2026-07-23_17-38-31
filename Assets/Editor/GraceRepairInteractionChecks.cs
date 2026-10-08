@@ -105,7 +105,8 @@ public static class GraceRepairInteractionChecks
             Require(workingBlade != null && workingBlade.gameObject.activeSelf && workingBlade.IsChildOf(camera.transform) && !blade.transform.IsChildOf(camera.transform),
                 "Repair visibly puts the working blade into the camera while the bent one is out of it.");
             Press(inspector, Resolve(workingBlade.GetComponent<Collider>()));
-            Require(shutter.Prompt == "Already replaced", "A finished shutter does not imply another blocked step.");
+            Require(shutter.Prompt == "Hold to move it" && shutter.Grabbable && !shutter.Holdable && shutter.RequiredTool == ToolType.Hand && shutter.DisplayName.StartsWith("Old "),
+                "A finished shutter's old mechanism is scrap: a loose piece any tool moves, not another step (8 Oct: so it can never bury the fresh part).");
             Require(job.Grade == JobGrade.Perfect && camera.transform.Find("KEEP - scratched sentimental strap") != null,
                 "Repeated presses preserve the finished repair and original sentimental strap.");
 

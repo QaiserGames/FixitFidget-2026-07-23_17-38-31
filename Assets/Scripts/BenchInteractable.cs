@@ -23,6 +23,21 @@ public struct BenchHand
     public ToolPickup toolModel;
     public Camera camera;
     public float deltaTime;
+
+    /// <summary>
+    /// The point on the cursor's ray this deep in front of the camera (its distance along the camera's forward). A held
+    /// part rides here at the depth it was picked up at. Measured from the camera, not from the ray's own origin: a
+    /// screen ray starts on the near clip plane, 5 cm out, and a part placed "depth along the ray" from there rode 5 cm
+    /// too deep and was carried in under the tray's floor (8 Oct).
+    /// </summary>
+    public Vector3 PointAtDepth(float depth)
+    {
+        Vector3 forward = camera != null ? camera.transform.forward : ray.direction;
+        Vector3 eye = camera != null ? camera.transform.position : ray.origin;
+        float cos = Mathf.Max(.2f, Vector3.Dot(ray.direction, forward));
+        float startDepth = Vector3.Dot(ray.origin - eye, forward);
+        return ray.origin + ray.direction * ((depth - startDepth) / cos);
+    }
 }
 
 public abstract class BenchInteractable : MonoBehaviour

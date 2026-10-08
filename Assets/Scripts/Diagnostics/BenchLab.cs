@@ -17,8 +17,9 @@ using UnityEditor;
 // café, a phone with a cracked screen put on the bench by the check's own hand, and then a virtual gamepad does the
 // whole repair the way a player would, checking each beat of the spec as it goes:
 //
-//   the device is presented face-on and a nudge of the stick settles back onto the face; Y flips it over; D-pad up and
-//   down zoom; the driver held on a screw backs it out along ITS OWN axis, keeps its place if let go early, and when it
+//   the device lies on the mat, face up, square to the view; a nudge of the stick spins it and it settles square again,
+//   a swing leaves it where it stops; a push of the stick tilts an edge up to peek under and it lies back flat; Y flips
+//   it over on the mat; D-pad up and down zoom; the driver held on a screw backs it out along ITS OWN axis, keeps its place if let go early, and when it
 //   comes free it falls and lands on the mat or in the tray, leaving a marked hole; the pry held at the cover's edge pops
 //   it; a press on the popped cover picks it up, it follows the cursor and drops where it's let go; the tweezers held
 //   on the broken part pinch it out and it's dropped in the tray, where the magnet settles it; the fresh part is pinched
@@ -121,8 +122,18 @@ public sealed class BenchLab : PlayLab
             $"the fault is the one the check knows ({fault.description}: {screws.Length} screws, {(cover != null ? "a cover" : "no cover")}, {(part != null ? "a part to replace" : "no part")})");
         if (screws.Length < 1 || cover == null || part == null) yield break;
         Check(carry.TryPickUp(job), "Ace takes it");
+        // Carried, from above: a photo of what the player sees (8 Oct: "impossible to notice if I'm grabbing an item").
+        PutAce(bench.StandPoint.position, bench.StandPoint.eulerAngles.y);
+        yield return Seconds(1.2f);
+        Vector3 carriedScale = device.transform.localScale;
+        Check(carriedScale.x > 1.5f && device.transform.position.y > movement.transform.position.y + .3f,
+            $"from above the carried phone is drawn bigger and held high ({carriedScale.x:0.0}x, {device.transform.position.y - movement.transform.position.y:0.00} m above Ace's middle)");
+        yield return Photo("00-carried-from-above");
         bench.Interact(interactor);
         Check(StationInteractable.BenchHolds(job), "it's on the bench");
+        Check(device.transform.localScale.x < 1.2f, $"put down, it is its real size again ({device.transform.localScale.x:0.00}x)");
+        yield return Seconds(.6f);
+        yield return Photo("00-placed-from-above");
 
         // ---------- at the bench, the pad in hand ----------
         PlugInPad("Bench check pad");
@@ -132,8 +143,11 @@ public sealed class BenchLab : PlayLab
         view.SetFirstPerson(true);
         PutAce(bench.StandPoint.position, bench.StandPoint.eulerAngles.y);
         yield return AfterBlend();
+        yield return Photo("00-the-bench-in-first-person");
         float clockBefore = DayClock.Instance.SecondsIntoDay;
         Quaternion benchPose = device.transform.rotation;
+        // The bench's top, for the floating check: a ray down through the inspect point, past the stage's own pieces.
+        float benchTopGuess = BenchTopUnder(stage);
         Check(inspector.BeginInspection(job), "the close-up opens on it");
         if (!inspector.IsHoldingItem) yield break;
         yield return AfterBlend();
@@ -148,11 +162,15 @@ public sealed class BenchLab : PlayLab
         Check(freshAtStart != null && stage.InTray(freshAtStart.transform.position),
             $"the fresh part is in the tray from the start ({(freshAtStart != null ? Where(freshAtStart.transform.position) + $", {freshAtStart.transform.position - stage.Tray.position}, body {(freshAtStart.GetComponent<Rigidbody>() != null ? (freshAtStart.GetComponent<Rigidbody>().isKinematic ? "kinematic" : "free, " + freshAtStart.GetComponent<Rigidbody>().linearVelocity.magnitude.ToString("0.00") + " m/s") : "none")}, collider {(freshAtStart.GetComponent<Collider>() != null ? freshAtStart.GetComponent<Collider>().bounds.size.ToString("0.000") : "none")}" : "no fresh part")})");
 
-        // Face-on: a phone lying flat on the bench is turned to show the camera a face, not an edge.
-        frontSign = Vector3.Dot(device.transform.up, -cam.transform.forward) >= 0f ? 1f : -1f;
-        float faceOff = Vector3.Angle(Face(), -cam.transform.forward);
-        Check(faceOff < 1f, $"it's presented face-on ({faceOff:0.0}° off square)");
-        yield return Photo("01-face-on");
+        // On the mat: lying flat, a work face up, square to the view, its bottom on the mat's top.
+        frontSign = Vector3.Dot(device.transform.up, Vector3.up) >= 0f ? 1f : -1f;
+        float faceOff = Vector3.Angle(Face(), Vector3.up);
+        float gap = LowestPoint(device.transform) - inspector.TableTop.y;
+        Check(faceOff < 1f && Mathf.Abs(gap) < .004f && Mathf.Abs(Mathf.DeltaAngle(inspector.Yaw, Mathf.Round(inspector.Yaw / 90f) * 90f)) < .5f,
+            $"it lies flat on the mat, face up and square ({faceOff:0.0}° off flat, {gap * 1000f:0.0} mm off the mat, yaw {inspector.Yaw:0})");
+        Check(Mathf.Abs(inspector.TableTop.y - (stage.Mat.GetComponent<Renderer>().bounds.max.y)) < .001f && stage.Mat.GetComponent<Renderer>().bounds.min.y < benchTopGuess + .02f,
+            $"the stage sits on the bench top (the mat's bottom {(stage.Mat.GetComponent<Renderer>().bounds.min.y - benchTopGuess) * 100f:0.0} cm above it)");
+        yield return Photo("01-on-the-mat");
 
         // ---------- the zoom ----------
         float d0 = Distance();
@@ -169,7 +187,7 @@ public sealed class BenchLab : PlayLab
         float dOut = Distance();
         Check(dOut > dIn * 1.1f, $"D-pad down zooms out again ({dOut * 100f:0} cm)");
 
-        // ---------- the spin: a nudge settles back onto the face; a swing is left where it stops ----------
+        // ---------- the spin: a nudge settles square again; a swing is left where it stops; a push tilts an edge up ----------
         Quaternion face0 = device.transform.rotation;
         PadHold(new GamepadState { leftStick = new Vector2(.5f, 0f) });
         yield return Seconds(.3f);
@@ -177,22 +195,33 @@ public sealed class BenchLab : PlayLab
         yield return LetGo();
         yield return Seconds(1.6f);
         float after = Quaternion.Angle(face0, device.transform.rotation);
-        Check(nudged > 3f && nudged < 20f && after < .5f, $"a nudge of the left stick turns it ({nudged:0}°) and, let go, it coasts and settles back onto the face ({after:0.0}° off)");
+        Check(nudged > 3f && nudged < 20f && after < .5f, $"a nudge of the left stick spins it ({nudged:0}°) and, let go, it coasts and settles square again ({after:0.0}° off)");
         PadHold(new GamepadState { leftStick = new Vector2(1f, 0f) });
-        yield return Seconds(.4f);
+        yield return Seconds(.25f);
         float swung = Quaternion.Angle(face0, device.transform.rotation);
         yield return LetGo();
         yield return Seconds(1.6f);
         float stayed = Quaternion.Angle(face0, device.transform.rotation);
-        Check(swung > 40f && swung < 100f && stayed > swung + 3f && stayed < 135f,
-            $"a swing turns it well past the face ({swung:0}°), it coasts on ({stayed:0}°) and stays where it stops (no face near enough to settle on)");
-        device.transform.rotation = face0;          // the check's hand puts it square again
+        float offSquare = Mathf.Abs(Mathf.DeltaAngle(inspector.Yaw, Mathf.Round(inspector.Yaw / 90f) * 90f));
+        Check(swung > 25f && swung < 80f && stayed > swung + 3f && offSquare > 5f && LowestPoint(device.transform) - inspector.TableTop.y < .004f,
+            $"a swing spins it well round ({swung:0}°), it coasts on ({stayed:0}°, {offSquare:0}° off square) and stays where it stops, still flat on the mat");
+        inspector.LayDown();                        // the check's hand puts it square again
         yield return Frames(2);
+        PadHold(new GamepadState { leftStick = new Vector2(0f, 1f) });
+        yield return Seconds(.5f);
+        float peeked = inspector.Tilt;
+        float gapWhilePeeking = LowestPoint(device.transform) - inspector.TableTop.y;
+        yield return LetGo();
+        yield return Seconds(1.2f);
+        Check(peeked > 15f && Mathf.Abs(gapWhilePeeking) < .004f && Mathf.Abs(inspector.Tilt) < .5f && Quaternion.Angle(face0, device.transform.rotation) < .5f,
+            $"a push of the stick tilts an edge up to peek under ({peeked:0}°, its low edge still on the mat) and, let go, it lies back flat");
 
-        // ---------- the flip: the back, where the screws are ----------
+        // ---------- the flip: over onto its back, where the screws are ----------
+        float heightBefore = device.transform.position.y;
         yield return PadPress(GamepadButton.North);
-        yield return Seconds(.8f);
-        Check(Vector3.Dot(Face(), -cam.transform.forward) < -.99f, "Y flips it over: the back faces the camera");
+        yield return Seconds(.9f);
+        Check(Vector3.Dot(Face(), Vector3.up) < -.99f && LowestPoint(device.transform) - inspector.TableTop.y < .004f,
+            $"Y flips it over on the mat: the back is up, and it lies flat again ({(device.transform.position.y - heightBefore) * 1000f:0.0} mm change of height)");
         yield return Photo("02-the-back");
 
         // ---------- the screwdriver, and the screws ----------
@@ -224,9 +253,10 @@ public sealed class BenchLab : PlayLab
         yield return LetGo();
         yield return Seconds(.5f);
         Rigidbody rb0 = s0.GetComponent<Rigidbody>();
-        yield return Until(() => rb0 != null && s0.IsLoose && rb0.linearVelocity.magnitude < .01f
-                                 && Vector3.Distance(s0.transform.position, s0.HomePosition) > .02f, 6f, "free, it falls and comes to rest");
-        Check(OverMat(s0.transform.position) || stage.InTray(s0.transform.position), $"it lies on the mat or in the tray ({Where(s0.transform.position)})");
+        yield return Until(() => rb0 != null && s0.IsLoose && (rb0.IsSleeping() || rb0.linearVelocity.magnitude < .02f)
+                                 && Vector3.Distance(s0.transform.position, s0.HomePosition) > .012f, 8f, "free, it hops clear of its hole, falls and comes to rest");
+        Check(OverMat(s0.transform.position) || stage.InTray(s0.transform.position),
+            $"it lies on the mat, on the device or in the tray ({Where(s0.transform.position)}, {Vector3.Distance(s0.transform.position, s0.HomePosition) * 100f:0.0} cm from its hole)");
         Check(s0.Socket != null && s0.Socket.gameObject.activeSelf && s0.Socket.CanInteract, "its empty hole is marked and can be held");
         Check(job.HasDetachedComponent<Screw>() && !job.CanHandBack, "with a screw out the device can't be handed back");
 
@@ -239,7 +269,7 @@ public sealed class BenchLab : PlayLab
             yield return LetGo();
             yield return Seconds(.5f);
             Rigidbody rbo = so.GetComponent<Rigidbody>();
-            yield return Await(() => rbo != null && so.IsLoose && rbo.linearVelocity.magnitude < .01f, 6f);
+            yield return Await(() => rbo != null && so.IsLoose && (rbo.IsSleeping() || rbo.linearVelocity.magnitude < .02f), 8f);
             Check(lastWait && (OverMat(so.transform.position) || stage.InTray(so.transform.position)), $"it lands too ({Where(so.transform.position)})");
         }
         yield return Photo("04-screws-out");
@@ -278,20 +308,37 @@ public sealed class BenchLab : PlayLab
         // ---------- the front, the tweezers, the broken part ----------
         yield return PadPress(GamepadButton.North);
         yield return Seconds(.8f);
-        Check(Vector3.Dot(Face(), -cam.transform.forward) > .99f, "Y flips it back to the front");
+        Check(Vector3.Dot(Face(), Vector3.up) > .99f, "Y flips it back onto its front");
         yield return SelectTool(ToolType.Tweezers);
+        LoosePart fresh0 = part.Fresh;
         yield return Hover(BenchInteractable.BoundsCentre(part.transform), part.DisplayName, "Hold to pinch it out", "the broken part");
         PadHold(RT);
         yield return Until(() => part.State == ReplaceablePart.PartState.HeldBroken, 1.5f, "held, the tweezers pinch and it lifts out");
-        // Over the tray's near end (the fresh part lies in its middle), at the depth the held part rides at, so that, let go, it falls in.
-        Vector3 overTheTray = Above(stage.Tray.position - stage.TrayLongAxis * .055f, part.transform.position);
+        yield return Seconds(.3f);
+        {
+            // It rides at the depth it was pinched at, 2 cm toward the camera: clear of its seat, never deeper than it (8 Oct:
+            // measured from the ray's near-plane origin it rode 5 cm too deep, and was carried in under the tray's floor).
+            float rise = Depth(part.SeatPosition) - Depth(part.transform.position);
+            Check(rise > .025f && rise < .06f, $"lifted, it rides toward the camera, held up clear of its seat ({rise * 1000f:0} mm nearer than the seat)");
+        }
+        // Over the tray's far side from the device (the fresh part lies across its near side), at the depth the held part rides at, so that, let go, it falls in beside it.
+        Vector3 overTheTray = Above(stage.Tray.position + stage.TrayLongAxis * .04f, part.transform.position);
         PadCursor.GlideTo(Px(overTheTray));
         yield return Seconds(.8f);
+        {
+            float clear = LowestPoint(part.transform) - (stage.Tray.position.y + .003f);
+            Check(clear > .021f, $"carried over the tray it rides above the tray's walls ({clear * 1000f:0} mm above the floor's top; the walls stand 21 mm), {TrayPlace(part.transform)}");
+        }
         yield return LetGo();
         yield return Until(() => part.State == ReplaceablePart.PartState.Removed, 1f, "let go over the tray, it drops");
         Rigidbody prb = part.GetComponent<Rigidbody>();
         yield return Until(() => prb != null && stage.SettledInTray().Contains(prb), 5f, "the tray's magnet draws it down and settles it (a tink)");
         Check(job.Quality < .01f && !job.CanHandBack, "the grade doesn't move for taking the broken part out, and with a hole in it the device can't be handed back");
+        Check(InView(part.transform) && stage.InTray(part.transform.position), $"the broken part lies in the tray, in view ({TrayPlace(part.transform)})");
+        Check(fresh0 != null && Vector3.Distance(fresh0.transform.position, part.transform.position) > .04f && LowestPoint(fresh0.transform) < LowestPoint(part.transform) + .004f,
+            $"beside the fresh part, not on it ({(fresh0 != null ? Vector3.Distance(fresh0.transform.position, part.transform.position) * 100f : 0f):0.0} cm apart)");
+        Check(part.CanInteract && part.Grabbable && part.RequiredTool == ToolType.Hand && part.Prompt == "Hold to move it",
+            "out of the device it is a loose piece: any tool picks it up and moves it (it can never bury the fresh part)");
         yield return Photo("07-broken-part-in-the-tray");
 
         // ---------- the fresh part, from the tray to the seat ----------
@@ -310,6 +357,8 @@ public sealed class BenchLab : PlayLab
         yield return Until(() => part.IsReplaced, 1f, $"let go over the empty seat ({overSeat * 1000f:0} mm off it as seen), it seats");
         Check(job.Quality >= .999f && job.Grade == JobGrade.Perfect, $"the screen is replaced: {job.Grade}");
         Check(!job.IsComplete && !job.CanHandBack, "but it isn't finished: the cover is on the mat and the screws are out");
+        Check(InView(part.transform) && stage.InTray(part.transform.position) && job.LooseParts.Contains(part.gameObject),
+            $"the broken one stays in the tray as scrap, in view ({TrayPlace(part.transform)})");
         yield return Photo("08-fresh-part-in");
 
         // ---------- the cover home ----------
@@ -341,6 +390,8 @@ public sealed class BenchLab : PlayLab
         }
         Check(job.IsComplete && job.CanHandBack && job.Grade == JobGrade.Perfect, $"the repair is finished: {job.Grade}, in one piece");
         yield return Seconds(.6f);
+        Check(InView(part.transform) && stage.InTray(part.transform.position) && part.DisplayName.StartsWith("Old ") && part.Grabbable,
+            $"the old screen is still there in the tray, scrap that can be moved ({TrayPlace(part.transform)})");
         yield return Photo("10-fixed");
 
         // ---------- the clock, the catch, the sounds ----------
@@ -417,6 +468,56 @@ public sealed class BenchLab : PlayLab
 
     Vector3 Face() => device.transform.up * frontSign;
 
+    // Where a thing lies in the tray, for the report: along and across the tray from its middle, how far off its floor, and
+    // whether the close-up camera draws it at all.
+    string TrayPlace(Transform t)
+    {
+        BenchStage stage = BenchStage.Instance;
+        Vector3 d = t.position - stage.Tray.position;
+        Renderer r = FirstRenderer(t);
+        string drawn = r == null ? "no renderer" : !r.enabled ? "renderer off" : !t.gameObject.activeInHierarchy ? "inactive"
+            : (cam.cullingMask & (1 << r.gameObject.layer)) == 0 ? $"layer {LayerMask.LayerToName(r.gameObject.layer)} not drawn" : "drawn";
+        return $"{Vector3.Dot(d, stage.TrayLongAxis) * 100f:0.0} cm along, {Vector3.Dot(d, Vector3.Cross(Vector3.up, stage.TrayLongAxis)) * 100f:0.0} cm across, "
+             + $"{(LowestPoint(t) - stage.Tray.position.y) * 1000f:0} mm off the floor, {drawn}";
+    }
+
+    // In view: drawn by the close-up camera, and not sunk into the tray's floor.
+    bool InView(Transform t)
+    {
+        Renderer r = FirstRenderer(t);
+        return r != null && r.enabled && t.gameObject.activeInHierarchy && (cam.cullingMask & (1 << r.gameObject.layer)) != 0
+               && LowestPoint(t) > BenchStage.Instance.Tray.position.y - .004f;
+    }
+
+    static Renderer FirstRenderer(Transform t)
+    {
+        foreach (Renderer r in t.GetComponentsInChildren<Renderer>()) if (r.GetComponent<BenchOutlineHull>() == null) return r;
+        return null;
+    }
+
+    // The lowest point of a thing's renderers (the hull children of the hover outline aside).
+    static float LowestPoint(Transform root)
+    {
+        float low = float.PositiveInfinity;
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
+            if (r.enabled && r.GetComponent<BenchOutlineHull>() == null) low = Mathf.Min(low, r.bounds.min.y);
+        return float.IsInfinity(low) ? root.position.y : low;
+    }
+
+    // The bench's top under the stage, by a ray that ignores the stage's own pieces.
+    static float BenchTopUnder(BenchStage stage)
+    {
+        Vector3 from = stage.Mat.position + Vector3.up * .3f;
+        float best = float.NegativeInfinity;
+        foreach (RaycastHit h in Physics.RaycastAll(from, Vector3.down, 2f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (h.collider.transform.IsChildOf(stage.transform)) continue;
+            if (h.collider.GetComponentInParent<JobBase>() != null) continue;
+            best = Mathf.Max(best, h.point.y);
+        }
+        return float.IsInfinity(best) ? stage.Mat.position.y : best;
+    }
+
     // A point straight above `target`, at the camera depth a held thing rides at, so that the thing, let go there, falls onto
     // the target (a held part keeps the depth it was picked up at; the cursor over the tray would leave it short of it).
     Vector3 Above(Vector3 target, Vector3 held)
@@ -430,6 +531,7 @@ public sealed class BenchLab : PlayLab
     }
 
     float Distance() => Vector3.Distance(cam.transform.position, device.transform.position);
+    float Depth(Vector3 world) => Vector3.Dot(world - cam.transform.position, cam.transform.forward);
 
     bool OverMat(Vector3 p)
     {

@@ -23,7 +23,7 @@ public class ToolPickup : MonoBehaviour
     public Color tint = Color.white;
 
     [Tooltip("Degrees the handle leans toward the camera while the tool is held over the device.")]
-    [SerializeField, Range(0f, 60f)] private float lean = 28f;
+    [SerializeField, Range(0f, 60f)] private float lean = 18f;
 
     public enum Motion { None, Turn, Pinch, Lever, Stroke, Circle }
 
@@ -40,6 +40,11 @@ public class ToolPickup : MonoBehaviour
     private float spin, pinch, lever;
     private Coroutine returning;
     private Collider[] colliders;
+    // The follow (8 Oct, "more fluid"): the tip rides a spring to a target that is itself eased, so a jump of the cursor
+    // from the device to the mat is a glide, not a pop, and the handle swings a little against the way it is moving.
+    private Vector3 velocity;
+    private Vector3 easedPoint, easedNormal;
+    private bool easing;
 
     private void Awake()
     {
@@ -89,8 +94,15 @@ public class ToolPickup : MonoBehaviour
     {
         if (!InHand || legacyTint) return;
         if (transform.parent != null) transform.SetParent(null, true);
-        Vector3 n = normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up;
-        Vector3 toCamera = camera != null ? (camera.transform.position - point).normalized : Vector3.back;
+        float dt = Mathf.Min(deltaTime, .05f);
+        Vector3 wantNormal = normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up;
+        // The target itself eases (the cursor's point and the surface's normal jump between surfaces).
+        if (!easing) { easedPoint = point; easedNormal = wantNormal; velocity = Vector3.zero; easing = true; }
+        float e = 1f - Mathf.Exp(-(working ? 40f : 16f) * dt);
+        easedPoint = Vector3.Lerp(easedPoint, point, e);
+        easedNormal = Vector3.Slerp(easedNormal, wantNormal, e).normalized;
+        Vector3 n = easedNormal;
+        Vector3 toCamera = camera != null ? (camera.transform.position - easedPoint).normalized : Vector3.back;
         // The handle up the normal, then leaned toward the camera (about the axis across both).
         Vector3 leanAxis = Vector3.Cross(n, toCamera);
         Quaternion upright = Quaternion.FromToRotation(Vector3.up, n);
@@ -99,11 +111,18 @@ public class ToolPickup : MonoBehaviour
         Vector3 handleUp = leaned * Vector3.up;
         Vector3 face = Vector3.ProjectOnPlane(toCamera, handleUp);
         if (face.sqrMagnitude > 1e-6f) leaned = Quaternion.LookRotation(face.normalized, handleUp);
+        // A swing against the way it moves: the handle trails the tip a little, like a thing with weight.
+        Vector3 swingAxis = Vector3.Cross(n, velocity);
+        float swing = Mathf.Min(12f, velocity.magnitude * 25f);
+        if (swingAxis.sqrMagnitude > 1e-6f && swing > .1f) leaned = Quaternion.AngleAxis(swing, swingAxis.normalized) * leaned;
         Quaternion target = leaned * MotionRotation();
-        Vector3 targetPos = point + n * (working ? 0f : .004f) + MotionOffset(n, camera);
-        float k = 1f - Mathf.Exp(-(working ? 30f : 20f) * deltaTime);
-        transform.position = Vector3.Lerp(transform.position, targetPos, k);
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, k);
+        Vector3 targetPos = easedPoint + n * (working ? 0f : .004f) + MotionOffset(n, camera);
+        // The tip on a spring, critically damped: it arrives without a bounce and never jumps.
+        float w = working ? 26f : 16f;
+        Vector3 to = transform.position - targetPos;
+        velocity += (-w * w * to - 2f * w * velocity) * dt;
+        transform.position += velocity * dt;
+        transform.rotation = Quaternion.Slerp(transform.rotation, target, 1f - Mathf.Exp(-(working ? 22f : 14f) * dt));
     }
 
     /// <summary>The tool's motion while a hold is on. direction: +1 outward / forward, -1 inward / back.</summary>
@@ -168,6 +187,8 @@ public class ToolPickup : MonoBehaviour
 
     private IEnumerator ReturnHome()
     {
+        easing = false;
+        velocity = Vector3.zero;
         if (homeParent == null) yield break;
         Vector3 fromPos = transform.position;
         Quaternion fromRot = transform.rotation;
