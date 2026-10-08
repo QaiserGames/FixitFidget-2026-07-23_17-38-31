@@ -1,0 +1,7 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Walter",no,"Sentimental","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic","Americano",24.1,78.6,54.5,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Nina",no,"Rushed","Drink","Americano",,,,58.3,92.1,33.7,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Ingrid",no,"Sentimental","Repair","Phone","Frozen Boot Sequence - Reconnect Signal","Software","Americano",55.3,108.7,53.4,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Deshawn",no,"Chatty","Repair","Phone","Cracked Screen","Mechanical","Tea",92.1,153.0,60.9,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Yuki",no,"Impatient","Repair","Phone","Cracked Screen","Mechanical",,173.3,211.2,37.9,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Tomas",no,"Chatty","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic","Hot Chocolate",172.4,241.8,69.4,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,

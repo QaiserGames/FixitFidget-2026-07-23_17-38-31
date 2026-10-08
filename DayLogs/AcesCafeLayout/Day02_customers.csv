@@ -1,5 +1,4 @@
-﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
-"Grace",yes,"Grace","Drink","Latte",,,,8.0,81.6,73.6,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,"Good",
-"Omar",no,"Sentimental","Drink","Americano",,,,30.0,94.5,64.5,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
-"Alishba",no,"Chatty","Repair","Pocket Watch","Seized Movement","Mechanical",,97.0,173.6,76.6,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
-"Malcom",no,"Cheerful","Repair","Phone","Calls light up the screen, but the phone never rings","Human",,108.0,179.5,71.4,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant,review
+"Grace",yes,"Grace","Drink","Latte",,,,22.8,79.2,56.5,31.4,yes,yes,"Served",,0.9,"Seat",6,3,0,no,no,,"Perfect","Clear","Loved it"
+"Alishba",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Latte",76.9,214.4,137.4,105.7,yes,yes,"Served","Perfect",0.3,"Seat",206,91,0,no,no,,,,"Loved it"
+"Valerie",no,"Chatty","Repair","Phone","Frozen Boot Sequence - Reconnect Signal","Software","Coffee",110.8,216.5,105.8,59.9,yes,yes,"Served","Perfect",0.8,"Seat",59,27,0,no,no,,,,"Loved it"

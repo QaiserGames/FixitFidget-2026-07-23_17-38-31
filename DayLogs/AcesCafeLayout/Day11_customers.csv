@@ -1,0 +1,6 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Valerie",no,"Sentimental","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic",,69.7,86.2,16.5,,no,no,"StormedOutWaiting",,0.0,,0,0,0,no,no,,,
+"Deshawn",no,"Sentimental","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Latte",67.0,119.2,52.3,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Alishba",no,"Sentimental","Repair","Pocket Watch","Seized Movement","Mechanical",,27.4,121.7,94.3,78.7,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0,0,no,no,,,
+"Saamin",no,"Chatty","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic","Hot Chocolate",68.7,126.7,58.0,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Tomas",no,"Chatty","Repair","Phone","Cracked Screen","Mechanical","Latte",37.9,148.6,110.7,100.4,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0,0,no,no,,,

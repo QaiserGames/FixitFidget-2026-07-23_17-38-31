@@ -1,0 +1,6 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Malcom",no,"Rushed","Repair","Phone","Calls light up the screen, but the phone never rings","Human",,61.6,90.9,29.2,6.4,yes,yes,"Served","Perfect",0.9,,31,20,0,no,no,,,
+"Saamin",no,"Impatient","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,87.5,133.1,45.5,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Deshawn",no,"Chatty","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic","Latte",20.9,152.1,131.2,107.9,yes,yes,"StormedOutWaiting","Perfect",0.0,"Seat",75,21,0,no,no,,,
+"Tomas",no,"Sentimental","Repair","Phone","Cracked Screen","Mechanical","Americano",60.1,162.1,102.0,86.3,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0,0,no,no,,,
+"Ali",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Hot Chocolate",54.6,164.6,110.0,92.8,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0,0,no,no,,,

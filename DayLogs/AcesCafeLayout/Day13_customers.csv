@@ -1,0 +1,6 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Malcom",no,"Chatty","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic",,28.1,48.1,19.9,,no,no,"StormedOutWaiting",,0.0,,0,0,0,no,no,,,
+"Nina",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Tea",56.8,113.4,56.6,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Tomas",no,"Chatty","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic","Hot Chocolate",55.5,116.9,61.4,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Ingrid",no,"Chatty","Drink","Americano",,,,64.8,121.9,57.2,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Saamin",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical","Hot Chocolate",140.9,195.8,54.8,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,

@@ -1,0 +1,7 @@
+﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant
+"Ali",no,"Rushed","Drink","Latte",,,,25.4,59.1,33.6,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Saamin",no,"Rushed","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning",,54.9,90.3,35.3,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Beatriz",no,"Impatient","Repair","Phone","Gunked Up, Won't Charge","Cleaning",,55.9,94.8,38.9,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Omar",no,"Cheerful","Repair","Pocket Watch","Seized Movement","Mechanical",,90.7,146.0,55.2,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Tomas",no,"Sentimental","Repair","Phone","Service disconnected - call support to restore it","Bureaucratic",,105.5,157.2,51.8,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,
+"Valerie",no,"Chatty","Repair","Pocket Watch","Seized Movement","Mechanical",,132.6,194.2,61.6,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,

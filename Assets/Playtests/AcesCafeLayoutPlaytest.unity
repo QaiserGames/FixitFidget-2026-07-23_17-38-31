@@ -127689,8 +127689,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TicketRailUI
   ticketPrefab: {fileID: 8718781835904047418, guid: 18cfe7b796fd6794fb86bc76100775d2, type: 3}
   rail: {fileID: 1479642242}
-  maxRailWidth: 1000
-  cornerReserve: 460
   topInset: 20
   minimumTicketWidth: 150
   ticketHeight: 118
@@ -145237,7 +145235,7 @@ MonoBehaviour:
   assistScreenEdge: 9
   sneakSpeed: 1.2
   crouchSeconds: 0.25
-  crouchEyeDrop: 0.55
+  crouchedEyeDrop: 0.73
   sneakByDay: 0
 --- !u!143 &1039162924
 CharacterController:
@@ -145328,6 +145326,8 @@ MonoBehaviour:
   reach: 2.2
   stationReach: 10
   stationEnterRange: 1.5
+  counterRange: 2.5
+  counterReach: 4
 --- !u!114 &1039162929
 MonoBehaviour:
   m_ObjectHideFlags: 0
