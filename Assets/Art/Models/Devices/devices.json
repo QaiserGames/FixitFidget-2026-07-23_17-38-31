@@ -6,8 +6,8 @@
    "tool": "",
    "room": "",
    "what": "the hero phone: body, screen, back cover and a screw, assembled as the prefab has them",
-   "tris": 4824,
-   "meshes": 5,
+   "tris": 4980,
+   "meshes": 6,
    "children": [
     {
      "name": "ScreenCracked",
@@ -22,6 +22,15 @@
      "name": "Screen",
      "at": [
       -0.09,
+      0.0,
+      0.0
+     ],
+     "turned": false
+    },
+    {
+     "name": "ScreenPlain",
+     "at": [
+      0.09,
       0.0,
       0.0
      ],
@@ -47,7 +56,7 @@
     }
    ],
    "size": [
-    0.1569,
+    0.2426,
     0.0099,
     0.1403
    ],
@@ -79,6 +88,9 @@
     ],
     "Screen": [
      "Fresh"
+    ],
+    "ScreenPlain": [
+     "Glass"
     ],
     "BackCover": [
      "BackCover"

@@ -996,7 +996,141 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 449a2070639b9864ab69097a1a50af31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GrimeSpot
+  kind: 0
   scrubHealth: 100
+  domeRadius: 0
+  cleanAt: 0.97
+  seed: 0
+--- !u!1 &5880953188284188164
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7178664161492681518}
+  - component: {fileID: 8106794813320996764}
+  - component: {fileID: 4905491276173043148}
+  - component: {fileID: 4403524203782959894}
+  - component: {fileID: 7812147596570424989}
+  m_Layer: 0
+  m_Name: Smudge_Crystal
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &7178664161492681518
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5880953188284188164}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.012, y: 0.0115, z: -0.01}
+  m_LocalScale: {x: 0.045, y: 0.003, z: 0.045}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3160848135333136599}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &8106794813320996764
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5880953188284188164}
+  m_Mesh: {fileID: 0}
+--- !u!23 &4905491276173043148
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5880953188284188164}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &4403524203782959894
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5880953188284188164}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &7812147596570424989
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5880953188284188164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 449a2070639b9864ab69097a1a50af31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GrimeSpot
+  kind: 1
+  scrubHealth: 100
+  domeRadius: 0
+  cleanAt: 0.97
+  seed: 0
 --- !u!1 &6019618682290452285
 GameObject:
   m_ObjectHideFlags: 0
@@ -1416,7 +1550,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 449a2070639b9864ab69097a1a50af31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GrimeSpot
+  kind: 0
   scrubHealth: 100
+  domeRadius: 0
+  cleanAt: 0.97
+  seed: 0
 --- !u!1 &7614214180389100127
 GameObject:
   m_ObjectHideFlags: 0
@@ -1682,7 +1820,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 449a2070639b9864ab69097a1a50af31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GrimeSpot
+  kind: 0
   scrubHealth: 100
+  domeRadius: 0
+  cleanAt: 0.97
+  seed: 0
 --- !u!1 &8396661936972832069
 GameObject:
   m_ObjectHideFlags: 0
@@ -1829,6 +1971,7 @@ GameObject:
   - component: {fileID: 1088320904696505692}
   - component: {fileID: 8900163142322665516}
   - component: {fileID: 6034183701857250909}
+  - component: {fileID: 4210648289735539844}
   m_Layer: 0
   m_Name: PocketWatch
   m_TagString: Untagged
@@ -1862,6 +2005,7 @@ Transform:
   - {fileID: 223163260702026196}
   - {fileID: 6411192593639615576}
   - {fileID: 8510379663823924720}
+  - {fileID: 7178664161492681518}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &356358465019810081
@@ -1923,6 +2067,7 @@ MonoBehaviour:
     description: Debris Inside, Won't Tell Time
     enableObjects:
     - {fileID: 5784299916493189864}
+    - {fileID: 5880953188284188164}
     payout: 75
   - type: 0
     description: Seized Movement
@@ -1931,3 +2076,18 @@ MonoBehaviour:
     - {fileID: 7407937818959629852}
     - {fileID: 8396661936972832069}
     payout: 160
+--- !u!114 &4210648289735539844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8950338144923805853}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c668aff8581304e17b6a01a1a3d90e29, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DeviceWake
+  kind: 2
+  parts:
+  - {fileID: 7514940416582749762}

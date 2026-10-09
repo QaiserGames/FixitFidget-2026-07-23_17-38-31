@@ -14,9 +14,10 @@ using UnityEngine.SceneManagement;
 // and its device can never reach Perfect. Grace's reunion camera shipped like
 // that: its lens grime sat inside the lens glass's capsule collider.
 //
-// This brushes every grime spot of every fault of every device prefab through
-// view rays, re-checking as the spot shrinks, with covers and screws out of the
-// way as they are once the device has been opened. Preview scenes only.
+// This brushes every grime spot (and every smudge: the cloth's, 4b) of every fault
+// of every device prefab through view rays, re-checking as the spot is cleaned, with
+// covers and screws out of the way as they are once the device has been opened.
+// Preview scenes only.
 public static class DeviceCleaningReachabilityChecks
 {
     const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -69,7 +70,7 @@ public static class DeviceCleaningReachabilityChecks
         if (failures.Count > 0)
             throw new InvalidOperationException("[Device cleaning] FAIL: grime the brush cannot reach:\n  " + string.Join("\n  ", failures));
         Debug.Log($"[Device cleaning] PASS: {spots} grime spots across {devices.Count} devices ({string.Join(", ", devices)}) "
-            + "can each be brushed clean through a clear line of sight, re-checked as they shrink. No scene or asset changes.");
+            + "can each be brushed (or wiped) clean through a clear line of sight, re-checked as they are cleaned. No scene or asset changes.");
     }
 
     // The opened device: covers and screws are off, except any that carry a
@@ -88,24 +89,23 @@ public static class DeviceCleaningReachabilityChecks
         }
     }
 
-    // Returns null when the spot can be brushed clean, or what blocked it.
+    // Returns null when the spot can be brushed clean, or what blocked it. 4b: a spot is a patch on the surface that the
+    // tool clears where it touches; its collider is the patch's footprint and doesn't shrink, so the view rays are tried at
+    // its middle as it is brushed clean by the whole-spot hand (ten strokes), the way the labs and the guide clean one.
     static string BrushThroughView(GameObject device, GrimeSpot grime)
     {
-        Call(grime, "Awake"); // edit mode: record its full health and size first
-        float full = (float)Get(grime, "scrubHealth");
-        float stroke = Mathf.Max(1f, full / 10f);
+        Call(grime, "Awake"); // edit mode: lay the patch and paint the dirt first
+        float stroke = Mathf.Max(1f, grime.Health / 10f);
         for (int i = 0; i < 20; i++)
         {
+            if (grime == null) return null;   // clean: it has taken itself away (edit mode: at once)
             Physics.SyncTransforms();
-            float health = (float)Get(grime, "scrubHealth");
+            float dirty = 1f - grime.Progress;
             if (!Reachable(device, grime, out string blocker))
-                return $"at {Mathf.RoundToInt(100f * health / full)}% dirty every view ray first hits '{blocker}'";
-            // GrimeSpot destroys itself at zero with Destroy(), which edit mode
-            // refuses; remove it the same way once the last stroke would land.
-            if (health <= stroke) { UnityEngine.Object.DestroyImmediate(grime.gameObject); return null; }
+                return $"at {Mathf.RoundToInt(100f * dirty)}% dirty every view ray first hits '{blocker}'";
             grime.Scrub(stroke);
         }
-        return "did not come clean after 20 brush strokes";
+        return grime == null ? null : "did not come clean after 20 brush strokes";
     }
 
     static bool Reachable(GameObject device, GrimeSpot grime, out string blocker)

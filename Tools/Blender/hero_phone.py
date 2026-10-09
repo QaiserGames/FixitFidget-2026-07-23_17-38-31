@@ -35,6 +35,8 @@ island proud of anything (about 2 mm). So, in Unity millimetres through the phon
   Screen     the display glass, 62.8 x 132.8 x 1.2, sitting in the border ring with a 0.1 mm reveal, its top flush at
              +3.9; the Screen object moves from +5 to +3.3. The FRESH part (it keeps M_FreshGlass; one material, so
              the border has to be the body's).
+  ScreenPlain  the WORKING screen (4b, 9 Oct): the same glass, plain, in HD_Glass's dark navy; the prefab's Screen/Glass,
+             worn on every fault but the cracked one (which shows the broken screen, then the fresh one).
   ScreenCracked  the BROKEN part (v3.3, his note "a cracked screen should look like a cracked screen"): the same glass
              (it keeps M_BrokenGlass) with the crack on it as geometry, in HD_Crack: one impact near the top-right
              corner as the player sees it, eight radial cracks running to the edges with the small jogs real ones
@@ -84,6 +86,7 @@ MAKER = 'Pome'            # the phone's maker (his pick, 9 Oct): a pome is the f
 PREFAB_OFFSETS = {        # Unity's frame; v3.2: where Devices 2 MOVES the prefab's objects to (HeroDeviceSteps moves)
     'ScreenCracked': (0.0, 0.0033, 0.0),       # the broken part, in its seat
     'Screen':    (-0.090, 0.0, 0.0),           # the fresh part: beside the phone in the FBX assembly (the prefab's Fresh sits in the seat, off)
+    'ScreenPlain': (0.090, 0.0, 0.0),         # the working screen (4b): on the other side of the assembly; the prefab's Screen/Glass sits in the seat
     'BackCover': (0.0, -0.0033, 0.0),
     'Screw':     (0.022, -0.0047, -0.058),
 }
@@ -214,6 +217,17 @@ def screen():
         bm.faces.new([under[1][i], under[1][i + 1], under[0][i + 1], under[0][i]])
     # (two open sheets wound by hand, the top facing +Z and the underside -Z: no normal recalculation on open sheets)
     p.add('peel tab', bm, M('HD_FilmTab'))
+    return p
+
+
+def screen_plain():
+    """The display glass as a WORKING phone has it (4b, 9 Oct): the same 62.8 x 132.8 x 1.2 slab as the fresh part, with no
+    crack and no film tab, in HD_Glass's dark navy. The prefab's "Screen/Glass": the screen the phone wears on every fault
+    but the cracked one (those faults switched the broken screen off and left the phone with no glass at all)."""
+    p = Faceted('ScreenPlain')
+    w = W - 2 * RAIL_WALL - 2 * BORDER - .0004
+    l = L - 2 * RAIL_WALL - 2 * BORDER - .0004
+    p.add('glass', chamfered_slab(w, l, FRONT - CHASSIS_TOP, CORNER - RAIL_WALL - BORDER, .0003, per_corner=4, centre_z=0.0), M('HD_Glass'))
     return p
 
 
@@ -450,6 +464,7 @@ PIECES = [
     (body, ['Body']),
     (screen_cracked, ['Broken']),
     (screen, ['Fresh']),
+    (screen_plain, ['Glass']),
     (back_cover, ['BackCover']),
     (screw, ['Screw0', 'Screw1']),
 ]

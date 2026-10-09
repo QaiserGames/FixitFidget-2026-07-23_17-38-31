@@ -144,35 +144,34 @@ public static class GraceRepairInteractionChecks
         Quaternion.Euler(0, 0, 30) * Vector3.down, Quaternion.Euler(0, 0, -30) * Vector3.down,
     };
 
-    // Brush one spot to clean in strokes, the way ItemInspector does: only the
-    // nearest collider on the view ray is scrubbed. Straight down must always
-    // reach it, and so must at least two of the four tilted views.
+    // Brush (or wipe, 4b: the lens's dirt is a smudge, the cloth's) one spot clean in strokes of the whole-spot hand, the
+    // way ItemInspector reaches it: only the nearest collider on the view ray is scrubbed. Straight down must always reach
+    // it, and so must at least two of the four tilted views. A spot's patch doesn't shrink as it is cleaned; it takes
+    // itself away when clean (edit mode: at once).
     private static void ScrubThroughView(GameObject root, GrimeSpot grime)
     {
-        const float Stroke = 10f;
         string name = grime.name;
-        Call(grime, "Awake"); // edit mode: record its full health and size first
-        for (int stroke = 0; stroke < 40; stroke++)
+        Call(grime, "Awake"); // edit mode: lay the patch and paint the dirt first
+        float stroke = Mathf.Max(1f, grime.Health / 10f);
+        for (int i = 0; i < 40; i++)
         {
+            if (grime == null) return;
             Physics.SyncTransforms();
             Vector3 target = grime.GetComponent<Collider>().bounds.center;
-            float health = (float)Get(grime, "scrubHealth");
+            float dirty = 100f * (1f - grime.Progress);
             Collider straight = NearestHit(root, new Ray(target + Vector3.up * .5f, Vector3.down));
             Require(straight != null && Resolve(straight).grime == grime,
-                $"'{name}' can be brushed from above at {health:0}% dirty, but the view ray first hits '{(straight != null ? straight.name : "nothing")}'.");
+                $"'{name}' can be brushed from above at {dirty:0}% dirty, but the view ray first hits '{(straight != null ? straight.name : "nothing")}'.");
             int tilted = 0;
             foreach (Vector3 view in TiltedViews)
             {
                 Collider hit = NearestHit(root, new Ray(target - view * .5f, view));
                 if (hit != null && Resolve(hit).grime == grime) tilted++;
             }
-            Require(tilted >= 2, $"'{name}' at {health:0}% dirty is reachable from only {tilted} of 4 tilted views.");
-            // GrimeSpot destroys itself at zero with Destroy(), which edit mode
-            // refuses; remove it the same way once the last stroke would land.
-            if (health <= Stroke) { UnityEngine.Object.DestroyImmediate(grime.gameObject); return; }
-            grime.Scrub(Stroke);
+            Require(tilted >= 2, $"'{name}' at {dirty:0}% dirty is reachable from only {tilted} of 4 tilted views.");
+            grime.Scrub(stroke);
         }
-        throw new InvalidOperationException($"'{name}' did not come clean after 40 brush strokes.");
+        if (grime != null) throw new InvalidOperationException($"'{name}' did not come clean after 40 brush strokes.");
     }
 
     private static Collider NearestHit(GameObject root, Ray ray)

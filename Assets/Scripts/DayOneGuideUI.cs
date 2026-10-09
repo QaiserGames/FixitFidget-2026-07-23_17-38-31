@@ -333,11 +333,17 @@ public class DayOneGuideUI : MonoBehaviour
                         ? $"Pry tool selected. {Hold("an edge of the loosened cover")} until it pops."
                         : $"{Select("pry tool")} to pop the loosened cover.";
 
-        if (job.GetComponentInChildren<GrimeSpot>() != null)
-            return tool == ToolType.Brush
-                ? Pad ? $"Brush selected. Hold {ControlHints.Use} over the exposed grime."
-                    : "Brush selected. Hold left-click and move over the exposed grime."
-                : $"{Select("brush")} to clean the exposed grime.";
+        GrimeSpot spot = job.GetComponentInChildren<GrimeSpot>();
+        if (spot != null)
+        {
+            // Dirt wants the brush, a smudge on glass the cloth (4b); either comes off where the tool is moved over it.
+            bool smudge = spot.Tool == ToolType.Cloth;
+            string toolName = smudge ? "cloth" : "brush", what = smudge ? "smudge" : "exposed grime";
+            return tool == spot.Tool
+                ? Pad ? $"{(smudge ? "Cloth" : "Brush")} selected. Hold {ControlHints.Use} and move the cursor over the {what}."
+                    : $"{(smudge ? "Cloth" : "Brush")} selected. Hold left-click and move over the {what}."
+                : $"{Select(toolName)} to clean the {what}.";
+        }
 
         foreach (ReplaceablePart part in job.GetComponentsInChildren<ReplaceablePart>())
             if (!part.IsReplaced)

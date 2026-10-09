@@ -133,6 +133,7 @@ public class ReplaceablePart : BenchInteractable
     /// <summary>The fresh part is put in the tray the first time the device is worked on.</summary>
     public void PresentFresh()
     {
+        if (!gameObject.activeInHierarchy && Application.isPlaying) return;   // not this job's part (its fault is off): no stock for it
         if (!awoke) Awake();   // the editor's checks call in before Awake has run
         if (fresh != null || freshVisual == null || IsReplaced) return;
         fresh = LoosePart.Make(this, freshVisual);

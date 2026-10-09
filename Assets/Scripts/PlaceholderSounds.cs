@@ -73,11 +73,23 @@ public static class PlaceholderSounds
             case "tool.down":    return Mix(.06f, Noise(.004f, .5f), Sine(1200f, .025f, .45f));
             case "device.snap":  return Mix(.06f, Noise(.003f, .4f), Sine(600f, .025f, .6f));
             case "device.flip":  return Sweep(.15f, 900f, 400f, .22f, .06f, noisy: true);
-            // cleaning
+            // cleaning (4b: the brush's hiss where dust comes off, the cloth's duller rub and its squeak, the chimes)
             case "grime.scrub":  return Noise(.07f, .45f, soft: true);
             case "grime.clean":  return Mix(.4f, Sine(1320f, .12f, .45f), Delay(.09f, Sine(1760f, .16f, .45f)));
+            case "cloth.wipe":   return Noise(.1f, .28f, soft: true);
             case "cloth.squeak": return Sweep(.12f, 2400f, 3200f, .18f, .03f);
             case "cloth.gleam":  return Mix(.35f, Sine(2093f, .12f, .35f), Delay(.06f, Sine(2637f, .14f, .35f)), Delay(.12f, Sine(3136f, .16f, .3f)));
+            // the repair done (4b): "Fixed!", "back together", the sparkles
+            case "repair.fixed": return Mix(.65f, Sine(880f, .10f, .38f), Delay(.10f, Sine(1109f, .12f, .38f)), Delay(.20f, Sine(1319f, .22f, .42f)), Delay(.20f, Sine(1760f, .18f, .18f)));
+            case "repair.ready": return Mix(.35f, Sine(1047f, .08f, .32f), Delay(.09f, Sine(1319f, .12f, .32f)));
+            case "juice.sparkle":     return Mix(.3f, Sine(3520f, .06f, .16f), Delay(.04f, Sine(4186f, .06f, .14f)), Delay(.09f, Sine(5274f, .08f, .12f)));
+            case "juice.sparkle.big": return Mix(.5f, Sine(2637f, .08f, .2f), Delay(.05f, Sine(3520f, .08f, .18f)), Delay(.1f, Sine(4186f, .1f, .16f)), Delay(.16f, Sine(5274f, .14f, .14f)));
+            // the device wakes (4b, DeviceWake): the phone boots, the watch is wound and ticks, the camera is wound and its shutter fires
+            case "phone.boot":   return Mix(.75f, Sweep(.25f, 300f, 900f, .16f, .05f), Delay(.22f, Sine(659f, .18f, .22f)), Delay(.22f, Sine(988f, .16f, .18f)), Delay(.30f, Sine(1319f, .2f, .2f)));
+            case "watch.wind":   return Ratchet(.9f, 12, 2600f, .35f);
+            case "watch.tick":   return Ticks(2.4f, 12, .5f);
+            case "camera.wind":  return Ratchet(.45f, 7, 1700f, .4f);
+            case "camera.shutter": return Mix(.1f, Noise(.004f, .9f), Sine(700f, .012f, .6f), Delay(.035f, Mix(.05f, Noise(.003f, .8f), Sine(1100f, .01f, .5f))));
             default: return null;
         }
     }
@@ -167,6 +179,33 @@ public static class PlaceholderSounds
             s[i] = last * Mathf.Sin(u * Mathf.PI) * amp;
         }
         return s;
+    }
+
+    // A ratchet: `count` short metallic clicks spread over `seconds`, each a touch different in pitch.
+    static float[] Ratchet(float seconds, int count, float hz, float amp)
+    {
+        var parts = new List<float[]>();
+        for (int i = 0; i < count; i++)
+        {
+            float at = seconds * (i + .5f) / count;
+            float pitch = hz * (1f + ((i * 7) % 5 - 2) * .02f);
+            parts.Add(Delay(at, Mix(.025f, Noise(.0015f, .5f * amp), Sine(pitch, .004f, .9f * amp), Sine(pitch * 2.3f, .002f, .3f * amp))));
+        }
+        return Mix(seconds + .05f, parts.ToArray());
+    }
+
+    // A watch's ticking: tick, tock, at five a second, fading away over `seconds`.
+    static float[] Ticks(float seconds, int count, float amp)
+    {
+        var parts = new List<float[]>();
+        for (int i = 0; i < count; i++)
+        {
+            float at = seconds * i / count;
+            float fade = 1f - .7f * i / (float)count;
+            float pitch = i % 2 == 0 ? 4200f : 3500f;
+            parts.Add(Delay(at, Mix(.02f, Noise(.0008f, .3f * amp * fade), Sine(pitch, .0025f, .9f * amp * fade))));
+        }
+        return Mix(seconds, parts.ToArray());
     }
 
     static float[] Delay(float seconds, float[] inner)

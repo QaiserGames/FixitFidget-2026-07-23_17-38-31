@@ -226,7 +226,8 @@ public class Screw : MonoBehaviour
         IsBusy = true;
         if (BenchStage.Instance != null && body != null) BenchStage.Instance.Forget(body);
         if (body != null) { Destroy(body); body = null; }
-        if (job != null) job.UnregisterDetached(gameObject);
+        // (still a piece off the device until it is seated: a fetched screw hovering over its hole is not in; 4b, so the
+        // "back together" moment comes at the last seat, not a second early at the last fetch)
         transform.SetParent(homeParent, true);
         Sfx.Play("screw.fetch", transform.position);
         Vector3 fromLocal = transform.localPosition;
@@ -262,6 +263,7 @@ public class Screw : MonoBehaviour
         lastTick = 0;
         transform.localPosition = homeLocalPos;
         transform.localRotation = homeLocalRot;
+        if (job != null) job.UnregisterDetached(gameObject);
         if (socket != null) socket.gameObject.SetActive(false);
         Sfx.Play("screw.seat", transform.position);
     }
@@ -336,11 +338,22 @@ public class ScrewSocket : BenchInteractable
         go.transform.localRotation = localRot;
         go.layer = screw.gameObject.layer;
         float r = Mathf.Max(.002f, screw.HeadRadius);
-        // The ring: a very flat cylinder, dark, sitting a hair proud of the surface so it shows.
-        var ring = new GameObject("Ring");
+        // The hole (4b, 9 Oct: the old mark was one dark disc the head's width, drawn bigger than the heads that had come
+        // out of it): the countersink the head sat in, a shade darker than the surface at the head's own width, and the
+        // threaded hole proper in its middle, near black, a little under half the head. Both very flat cylinders, a hair
+        // proud of the surface so they show.
+        var sink = new GameObject("Countersink");
+        sink.transform.SetParent(go.transform, false);
+        sink.transform.localPosition = Vector3.up * .00015f;
+        sink.transform.localScale = new Vector3(r * 2f, .00015f, r * 2f);
+        sink.AddComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>("Cylinder.fbx");
+        var sinkRenderer = sink.AddComponent<MeshRenderer>();
+        sinkRenderer.sharedMaterial = SinkMaterial;
+        sinkRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        var ring = new GameObject("Hole");
         ring.transform.SetParent(go.transform, false);
         ring.transform.localPosition = Vector3.up * .0003f;
-        ring.transform.localScale = new Vector3(r * 2f, .0003f, r * 2f);
+        ring.transform.localScale = new Vector3(r * .9f, .0003f, r * .9f);
         ring.AddComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>("Cylinder.fbx");
         var mr = ring.AddComponent<MeshRenderer>();
         mr.sharedMaterial = RingMaterial;
@@ -363,9 +376,23 @@ public class ScrewSocket : BenchInteractable
             if (ringMaterial != null) return ringMaterial;
             Shader lit = Shader.Find("Universal Render Pipeline/Lit");
             ringMaterial = new Material(lit) { name = "Screw hole (runtime)", hideFlags = HideFlags.HideAndDontSave };
-            ringMaterial.SetColor("_BaseColor", new Color(.09f, .08f, .07f));
+            ringMaterial.SetColor("_BaseColor", new Color(.06f, .055f, .05f));
             ringMaterial.SetFloat("_Smoothness", .1f);
             return ringMaterial;
+        }
+    }
+
+    static Material sinkMaterial;
+    static Material SinkMaterial
+    {
+        get
+        {
+            if (sinkMaterial != null) return sinkMaterial;
+            Shader lit = Shader.Find("Universal Render Pipeline/Lit");
+            sinkMaterial = new Material(lit) { name = "Screw countersink (runtime)", hideFlags = HideFlags.HideAndDontSave };
+            sinkMaterial.SetColor("_BaseColor", new Color(.30f, .29f, .27f));
+            sinkMaterial.SetFloat("_Smoothness", .25f);
+            return sinkMaterial;
         }
     }
 

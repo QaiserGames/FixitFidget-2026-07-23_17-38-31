@@ -16,6 +16,8 @@ using UnityEngine.UI;
 //   Juice.Money(who, 6, 3)              "+$6" pops over them as they pay, "+$3 tip" with it, and both float up
 //   Juice.Sparkle(point, big)           sparks burst from a point (a part fitted, a spot of grime gone; big: a repair done)
 //   Juice.Words(point, "Fixed!")        a word pops at a point and floats up
+//   Juice.Dust(point)                   a puff of dust where the brush lifted some (4b)
+//   Juice.Gleam(from, to)               a gleam sweeps along a line (the glass just wiped clean, 4b)
 //   Juice.HandOver(item, to)            what Ace hands over flies to them in a short arc and pops into their hands
 //                                       instead of vanishing (a copy of what's drawn; the real thing goes at once, as before)
 //   Juice.Mark(point, Juice.Icon.Mess)  a badge that stays over a point until Juice.Unmark: the man at the bins' mess on a
@@ -24,7 +26,10 @@ using UnityEngine.UI;
 //                                       Ace is busy (talking, at a station or the counter's repair view, holding something
 //                                       up to look at), paused, or once the day is over
 //
-// A repair finished on the bench gets its sparkle and "Fixed!" by itself (the item being worked on is watched).
+// A repair finished on the bench gets its sparkle and "Fixed!" by itself (the item being worked on is watched): "Fixed!"
+// the moment the LAST TASK completes (the last seat, the last fleck; bench-spec-v2 §2.5), when the device also wakes
+// (DeviceWake: the phone's screen lights, the watch is wound and ticks, the camera's shutter fires), and the grade the
+// moment it is back in one piece ("Back together · Good"), so closing it up early is told before it is handed back.
 //
 // LEVELLED UP (playtest 3, session 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §3.3): money pops in a chip of the
 // brand's green (no more yellow), the badges have thicker symbols and a rim in their own colour, they bounce in on a
@@ -53,7 +58,12 @@ public sealed class Juice : MonoBehaviour
     {
         instance = null;
         sprites = null;
+        dustSprite = null;
         nextMarker = 0;
+        LastWords = "";
+        LastWordsAt = -1f;
+        DustPuffs = 0;
+        Gleams = 0;
     }
 
     sealed class Pop
@@ -77,6 +87,8 @@ public sealed class Juice : MonoBehaviour
         public Vector3 point;
         public Vector2 velocity, offset;
         public float born, life, spin, size;
+        public float gravity;          // screen pixels per second squared, downward when negative (a spark falls, dust rises)
+        public bool soft;              // a dust mote: the soft disc, fading out rather than shrinking to a point
     }
 
     // A badge that stays where it's put until it's taken down (Mark, Unmark).
@@ -100,11 +112,19 @@ public sealed class Juice : MonoBehaviour
     Camera cam;
     ItemInspector inspector;
     JobBase watched;
-    bool watchedDone, hidden;
+    bool watchedDone, watchedTogether, hidden;
     float nextInspectorLook;
 
     static Sprite[] sprites;
-    static Sprite sparkSprite;
+    static Sprite sparkSprite, dustSprite;
+
+    /// <summary>The last words popped (for checks), and when (UiClock).</summary>
+    public static string LastWords { get; private set; } = "";
+    public static float LastWordsAt { get; private set; } = -1f;
+    /// <summary>How many puffs of dust have gone up (checks).</summary>
+    public static int DustPuffs { get; private set; }
+    /// <summary>How many gleams have swept (checks).</summary>
+    public static int Gleams { get; private set; }
 
     // ================================================================== what game code calls
 
@@ -175,6 +195,8 @@ public sealed class Juice : MonoBehaviour
         pop.text.alignment = TextAlignmentOptions.Bottom;
         pop.root.sizeDelta = new Vector2(320f, 70f);
         j.Show(pop, null, point, new Vector2(0f, 26f), WordsLife);
+        LastWords = words;
+        LastWordsAt = UiClock.Now;
     }
 
     /// <summary>Sparks burst from <paramref name="point"/>: a few for a step of a repair, many for a whole one.</summary>
@@ -197,11 +219,72 @@ public sealed class Juice : MonoBehaviour
             s.spin = Random.Range(-300f, 300f);
             s.size = (big ? 30f : 22f) * Random.Range(.7f, 1.15f);
             s.offset = Vector2.zero;
+            s.gravity = -60f;
+            s.soft = false;
+            s.image.sprite = SparkSprite;
             s.image.color = i % 3 == 0 ? new Color(1f, .97f, .78f, 1f) : new Color(1f, .82f, .35f, 1f);
             s.active = true;
             s.root.gameObject.SetActive(true);
         }
         Sfx.Play(big ? "juice.sparkle.big" : "juice.sparkle", point, .7f);
+    }
+
+    /// <summary>A little puff of dust goes up from <paramref name="point"/>: the brush lifted some (4b).</summary>
+    public static void Dust(Vector3 point)
+    {
+        if (!Application.isPlaying) return;
+        Juice j = Ensure();
+        if (j == null) return;
+        DustPuffs++;
+        float now = UiClock.Now;
+        const int n = 4;
+        for (int i = 0; i < n; i++)
+        {
+            Spark s = j.TakeSpark();
+            float a = Mathf.PI * (.25f + .5f * (i + Random.value) / n);      // up and out, between 45° and 135°
+            s.point = point;
+            s.velocity = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Random.Range(28f, 60f);
+            s.born = now - Random.value * .03f;
+            s.life = Random.Range(.4f, .6f);
+            s.spin = Random.Range(-40f, 40f);
+            s.size = Random.Range(12f, 20f);
+            s.offset = Vector2.zero;
+            s.gravity = 18f;                                                     // dust drifts up, slowing
+            s.soft = true;
+            s.image.sprite = DustSprite;
+            s.image.color = new Color(.66f, .60f, .50f, .75f);
+            s.active = true;
+            s.root.gameObject.SetActive(true);
+        }
+    }
+
+    /// <summary>A gleam sweeps from <paramref name="from"/> to <paramref name="to"/>: the glass just wiped clean (4b).</summary>
+    public static void Gleam(Vector3 from, Vector3 to)
+    {
+        if (!Application.isPlaying) return;
+        Juice j = Ensure();
+        if (j == null) return;
+        Gleams++;
+        float now = UiClock.Now;
+        const int n = 9;
+        for (int i = 0; i < n; i++)
+        {
+            Spark s = j.TakeSpark();
+            float k = i / (float)(n - 1);
+            s.point = Vector3.Lerp(from, to, k);
+            s.velocity = new Vector2(0f, Random.Range(-8f, 8f));
+            s.born = now + k * .22f;                                            // lit one after another along the line
+            s.life = .34f;
+            s.spin = Random.Range(-90f, 90f);
+            s.size = (i == n / 2 ? 34f : 24f) * Random.Range(.9f, 1.1f);
+            s.offset = Vector2.zero;
+            s.gravity = 0f;
+            s.soft = false;
+            s.image.sprite = SparkSprite;
+            s.image.color = i % 2 == 0 ? Color.white : new Color(.85f, .95f, 1f, 1f);
+            s.active = true;
+            s.root.gameObject.SetActive(true);
+        }
     }
 
     /// <summary>
@@ -405,6 +488,9 @@ public sealed class Juice : MonoBehaviour
             s.life = .42f * Random.Range(.85f, 1.1f);
             s.spin = Random.Range(-240f, 240f);
             s.size = Random.Range(13f, 18f);
+            s.gravity = -60f;
+            s.soft = false;
+            s.image.sprite = SparkSprite;
             s.image.color = i % 2 == 0 ? colour : Color.Lerp(colour, Color.white, .55f);
             s.active = true;
             s.root.gameObject.SetActive(true);
@@ -544,7 +630,11 @@ public sealed class Juice : MonoBehaviour
         WatchTheBench();
     }
 
-    // The item being worked on at the bench: the moment it's finished (perfect), sparks and "Fixed!".
+    // The item being worked on at the bench. Two beats (4b, bench-spec-v2 §2.5): the moment its LAST TASK completes
+    // (quality 1: the last seat, the last fleck), sparks, "Fixed!" and the device wakes (DeviceWake); and the moment it is
+    // back in one piece after having been opened, the grade it would hand back at ("Back together · Good"), quietly, so
+    // closing it up with work left under the cover is told before the customer tells it. A job never opened has only the
+    // first beat.
     void WatchTheBench()
     {
         if (UiClock.Now >= nextInspectorLook && inspector == null)
@@ -556,16 +646,30 @@ public sealed class Juice : MonoBehaviour
         if (item != watched)
         {
             watched = item;
-            watchedDone = item != null && item.IsComplete;
+            watchedDone = item != null && item.Quality >= .999f;
+            watchedTogether = item != null && item.CanHandBack;
             return;
         }
-        if (item == null || watchedDone || item is DrinkJob) return;
-        if (!item.IsComplete) return;
-        watchedDone = true;
-        Vector3 at = Centre(item.gameObject);
-        Sparkle(at, true);
-        Words(at, "Fixed!", new Color(.62f, 1f, .7f, 1f));
-        Sfx.Play2D("repair.fixed");
+        if (item == null || item is DrinkJob) return;
+        bool done = item.Quality >= .999f;
+        if (done && !watchedDone)
+        {
+            watchedDone = true;
+            Vector3 at = Centre(item.gameObject);
+            Sparkle(at, true);
+            Words(at, "Fixed!", new Color(.62f, 1f, .7f, 1f));
+            Sfx.Play2D("repair.fixed");
+            DeviceWake.Fire(item);
+        }
+        bool together = item.CanHandBack;
+        if (together && !watchedTogether && item.Quality > 0f)
+        {
+            JobGrade grade = item.Grade;
+            Vector3 at = Centre(item.gameObject);
+            Words(at, "Back together · " + grade, grade == JobGrade.Perfect ? UiSkin.Gold : grade == JobGrade.Good ? UiSkin.BrandBright : new Color(.78f, .78f, .74f, 1f));
+            Sfx.Play2D("repair.ready", .8f);
+        }
+        watchedTogether = together;
     }
 
     // ================================================================== placing and moving them
@@ -618,12 +722,13 @@ public sealed class Juice : MonoBehaviour
             if (s.z < 0f) { sp.image.enabled = false; continue; }
             sp.image.enabled = true;
             float k = t / sp.life;
-            // Out fast and slowing, a little fall, shrinking to nothing.
-            Vector2 travelled = sp.velocity * (t - .5f * t * t / sp.life) + new Vector2(0f, -60f * t * t);
+            // Out fast and slowing, a little fall (a spark) or drift up (dust), shrinking to nothing (a spark) or fading (dust).
+            Vector2 travelled = sp.velocity * (t - .5f * t * t / sp.life) + new Vector2(0f, sp.gravity * t * t);
             sp.root.anchoredPosition = new Vector2(s.x / scale, s.y / scale) + sp.offset + travelled;
-            float size = sp.size * (k < .15f ? k / .15f : 1f - (k - .15f) / .85f);
+            float size = sp.soft ? sp.size * (1f + .8f * k) : sp.size * (k < .15f ? k / .15f : 1f - (k - .15f) / .85f);
             sp.root.sizeDelta = new Vector2(size, size);
             sp.root.localRotation = Quaternion.Euler(0f, 0f, sp.spin * t);
+            if (sp.soft) { Color c = sp.image.color; c.a = .75f * (1f - k) * (1f - k); sp.image.color = c; }
         }
     }
 
@@ -704,6 +809,7 @@ public sealed class Juice : MonoBehaviour
 
     static Sprite[] Sprites => sprites ??= DrawIcons();
     static Sprite SparkSprite => sparkSprite != null ? sparkSprite : sparkSprite = DrawSpark();
+    static Sprite DustSprite => dustSprite != null ? dustSprite : dustSprite = DrawDust();
 
     const int Px = 128;
     static readonly Color Paper = UiSkin.Paper;
@@ -770,6 +876,26 @@ public sealed class Juice : MonoBehaviour
         tex.SetPixels(pixels);
         tex.Apply(false, true);
         var sprite = Sprite.Create(tex, new Rect(0, 0, 48, 48), new Vector2(.5f, .5f), 100f);
+        sprite.hideFlags = HideFlags.DontSave;
+        return sprite;
+    }
+
+    // A soft round mote: solid in the middle, feathering out to nothing.
+    static Sprite DrawDust()
+    {
+        var tex = new Texture2D(32, 32, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave };
+        var pixels = new Color[32 * 32];
+        for (int y = 0; y < 32; y++)
+            for (int x = 0; x < 32; x++)
+            {
+                var p = new Vector2((x + .5f) / 32f - .5f, (y + .5f) / 32f - .5f);
+                float d = p.magnitude / .5f;
+                float a = Mathf.Clamp01(1f - d);
+                pixels[y * 32 + x] = new Color(1f, 1f, 1f, a * a);
+            }
+        tex.SetPixels(pixels);
+        tex.Apply(false, true);
+        var sprite = Sprite.Create(tex, new Rect(0, 0, 32, 32), new Vector2(.5f, .5f), 100f);
         sprite.hideFlags = HideFlags.DontSave;
         return sprite;
     }

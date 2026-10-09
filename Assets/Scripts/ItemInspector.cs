@@ -34,12 +34,18 @@ using Unity.Cinemachine;
 // Aim help on a pad (§2.3): when the stick lets go within about 60 px of a part, a tool or grime, the cursor settles on
 // it (PadCursor), and D-pad left or right steps the cursor to the next part in the order the work goes (screws, cover,
 // grime, parts).
+//
+// DIRT AND GLASS (4b, 9 Oct 2026; bench-spec-v2 §2.4). Grime is a layer on the surface (GrimeSpot): the brush held and
+// MOVED over it takes the dirt off where the bristles pass, a smudge on glass the same under the cloth; a tool held
+// still over dirt does nothing on a mouse (the pad scrubs at a steady rate as well, since a stick can't scrub back and
+// forth). The hover says how much has come off.
 // ---------------------------------------------------------------------------
 public class ItemInspector : MonoBehaviour
 {
     [SerializeField] private Transform inspectPoint;
     [SerializeField] private CinemachineCamera inspectCam;
     [SerializeField] private float rotateSpeed = 0.4f;
+    [Tooltip("How hard a stroke scrubs: 1 is a full-strength pass of the tool under its tip every 40 px of cursor travel (4b).")]
     [SerializeField] private float scrubPower = 1.5f;
     [SerializeField] private float benchReach = 6f;
 
@@ -74,6 +80,7 @@ public class ItemInspector : MonoBehaviour
 
     // v2: the hold and the grab under way, the camera's zoom.
     private BenchInteractable holdTarget, grabTarget;
+    private GrimeSpot scrubbing;            // the spot the tool is working on this stroke (4b)
     private BenchHand hand;
     private Coroutine flipping;
     private Vector3 camOffset;              // the close-up camera from the table point, as placed
@@ -206,8 +213,11 @@ public class ItemInspector : MonoBehaviour
         yaw = Mathf.Repeat(yaw + 180f, 360f) - 180f;
         Pose();
 
-        // The fresh parts wait in the tray from the first time the device is worked on.
-        foreach (ReplaceablePart part in item.GetComponentsInChildren<ReplaceablePart>(true)) part.PresentFresh();
+        // The fresh parts wait in the tray from the first time the device is worked on. Only the parts of THIS job: a part
+        // the fault switched off (the cracked screen on a "gunked up" phone) is not a task, and asking it for its fresh
+        // part woke it, put a new screen in the tray on every phone job and switched the broken screen on (the 4b lab
+        // caught it: the phone's wake lit the new screen lying in the tray).
+        foreach (ReplaceablePart part in item.GetComponentsInChildren<ReplaceablePart>()) part.PresentFresh();
 
         // Manipulating, not aiming: the pointer is free (CafeViewMode keeps it so while this is up).
         Cursor.lockState = CursorLockMode.None;
@@ -273,6 +283,7 @@ public class ItemInspector : MonoBehaviour
         }
         SetBenchHover(null);
         ClearTool();
+        scrubbing = null;
         CurrentJobCard = "";
         HoverName = "";
         HoverAction = "";
@@ -380,7 +391,7 @@ public class ItemInspector : MonoBehaviour
         else if (grime != null)
         {
             HoverName = grime.DisplayName;
-            HoverAction = currentTool == ToolType.Brush ? "Hold to scrub" : "Needs the brush";
+            HoverAction = grime.Prompt(currentTool);
         }
         else if (hovered != null)
         {
@@ -419,20 +430,19 @@ public class ItemInspector : MonoBehaviour
             {
                 grabTarget.GrabMove(hand);
             }
-            else if (currentTool == ToolType.Brush)
+            else if (grime != null && currentTool == grime.Tool && hitSomething)
             {
-                // Wide Brush was sold in the upgrade shop but never read here,
-                // so buying it changed nothing. It now scales every stroke.
+                // The brush on grime, the cloth on a smudge (4b): the dirt comes off along the tip's path. Wide Brush was
+                // sold in the upgrade shop but never read here, so buying it changed nothing; it now scales every stroke.
                 float brush = UpgradeManager.Instance != null ? UpgradeManager.Instance.ScrubSpeedMultiplier : 1f;
-                // A stick can't scrub back and forth like a mouse, so holding
-                // RT on the grime scrubs at a steady rate as well.
+                // A stick can't scrub back and forth like a mouse, so holding RT on the grime scrubs at a steady rate as well.
                 float travel = delta.magnitude + (GamePointer.PadCursorActive ? padScrubRate * dt : 0f);
-                if (grime != null)
-                {
-                    grime.Scrub(travel * scrubPower * brush);
-                    if (currentToolPickup != null) currentToolPickup.Animate(ToolPickup.Motion.Stroke, 0f, 1f, dt);
-                }
+                if (scrubbing != grime) { if (scrubbing != null) scrubbing.EndStroke(); scrubbing = grime; }
+                grime.Scrub(hit.point, travel * scrubPower * brush);
+                if (currentToolPickup != null)
+                    currentToolPickup.Animate(grime.Tool == ToolType.Cloth ? ToolPickup.Motion.Circle : ToolPickup.Motion.Stroke, 0f, 1f, dt);
             }
+            else if (scrubbing != null) { scrubbing.EndStroke(); scrubbing = null; }
             else if (currentTool == ToolType.Hand && rotateGesture && !overBoard && flipping == null)
             {
                 // Sideways spins it on the mat; up or down tilts an edge to peek under (it lies back flat when let go).
@@ -449,6 +459,7 @@ public class ItemInspector : MonoBehaviour
         {
             if (holdTarget != null) EndHold(false);
             if (grabTarget != null) EndGrab();
+            if (scrubbing != null) { scrubbing.EndStroke(); scrubbing = null; }
             rotateGesture = false;
             Coast(dt);
         }

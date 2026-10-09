@@ -54,6 +54,8 @@ internal static class HeroDeviceSteps
         public Bounds[] boxes;       // a hollow piece (the watch case): its collider is these boxes, its solid parts in local
                                      // metres, instead of one box round the whole mesh that would fill the recess other
                                      // pieces sit in (the movement cavity, where the grime and the mainspring are)
+        public string createUnder;   // a target the prefab doesn't have yet is made here (a plain child at the parent's origin,
+                                     // no collider): the phone's working screen (4b), which no stand-in ever had
     }
 
     sealed class Move
@@ -98,6 +100,10 @@ internal static class HeroDeviceSteps
                 // a cracked screen": the fault is in the mesh and goes with the part to the tray
                 new Piece { source = "ScreenCracked", targets = new[] { "Broken" }, keepMaterials = true },
                 new Piece { source = "Screen", targets = new[] { "Fresh" }, keepMaterials = true },
+                // 4b: the WORKING screen, Screen/Glass, worn on every fault but the cracked one (Bench 4 wires the faults):
+                // those faults switched the broken screen off and left the phone with no glass at all. Plain dark glass in
+                // the FBX's HD_Glass; no collider (the chassis box under it takes the cursor, and a smudge has its own)
+                new Piece { source = "ScreenPlain", targets = new[] { "Glass" }, createUnder = "Screen" },
                 // the back glass's outer face is at -3.9 mm in the phone (local -0.6: hero_phone.back_cover), where the screw heads sit
                 new Piece { source = "BackCover", targets = new[] { "BackCover" }, faceY = -.0006f },
                 new Piece { source = "Screw", targets = new[] { "Screw0", "Screw1" }, head = new Vector3(.008f, .0016f, .008f) },
@@ -186,6 +192,18 @@ internal static class HeroDeviceSteps
                     foreach (string name in piece.targets)
                     {
                         Transform t = FindDeep(root.transform, name);
+                        if (t == null && !string.IsNullOrEmpty(piece.createUnder))
+                        {
+                            Transform under = FindDeep(root.transform, piece.createUnder);
+                            if (under != null)
+                            {
+                                var made = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+                                made.transform.SetParent(under, false);
+                                made.layer = under.gameObject.layer;
+                                t = made.transform;
+                                report.AppendLine($"PASS  {name}: made under {piece.createUnder} (the prefab had no such piece)");
+                            }
+                        }
                         if (t == null) { failures++; report.AppendLine($"FAIL  the prefab has no '{name}'"); continue; }
                         Vector3 oldScale = t.localScale;
                         MeshFilter mf = t.GetComponent<MeshFilter>() ?? t.gameObject.AddComponent<MeshFilter>();
