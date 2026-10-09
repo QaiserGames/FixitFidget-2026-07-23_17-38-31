@@ -6,7 +6,7 @@
    "tool": "",
    "room": "",
    "what": "the hero phone: body, screen, back cover and a screw, assembled as the prefab has them",
-   "tris": 3644,
+   "tris": 3272,
    "meshes": 4,
    "children": [
     {
@@ -79,7 +79,7 @@
    "tool": "",
    "room": "",
    "what": "the hero pocket watch: case, back plate, crown, a screw and the mainspring, assembled as the prefab has them",
-   "tris": 12670,
+   "tris": 12358,
    "meshes": 5,
    "children": [
     {
@@ -122,7 +122,7 @@
    "size": [
     0.15,
     0.0342,
-    0.204
+    0.2
    ],
    "bottom": -0.0217,
    "materials": [
@@ -165,7 +165,7 @@
    "tool": "",
    "room": "",
    "what": "Grace's camera, hero: body, lens, glass, film path, shutter mechanism and blades, straps, assembled as the prefab has them",
-   "tris": 10892,
+   "tris": 10624,
    "meshes": 9,
    "children": [
     {
@@ -244,7 +244,7 @@
    "size": [
     0.333,
     0.0972,
-    0.1739
+    0.1725
    ],
    "bottom": -0.024,
    "materials": [

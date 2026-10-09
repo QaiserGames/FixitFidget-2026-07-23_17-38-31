@@ -19,7 +19,7 @@ mainspring's seat at (30, -7, 20) (in the barrel, on the pillar plate at -5.7). 
   -20.5  back plate's dome  with the four screws on it
 
   Case (the prefab's "Cylinder")   the band (18 mm), the bezel, the dial with its track, numerals, sub-seconds and blued
-                                   spade hands, the hinge knuckles at 6, the bow at 12 (part of the case: it is rigid),
+                                   spade hands, the bow at 12 (part of the case: it is rigid; no hinge: the back unscrews),
                                    and the movement in the open back.
   BackPlate                        a 130 mm back: a flat rim, a shallow dome, one fine engraved ring.
   Crown                            built along +Z (its outward axis; the prefab turns the object so that is Unity +Z):
@@ -209,11 +209,7 @@ def case():
     fb.turn(minute, -60.0, 'Z')              # two (ten past)
     p.add('minute hand', minute, blue)
     p.add('cannon', revolve([(DIAL_Z, .0032), (DIAL_Z + .0016, .0032), (DIAL_Z + .0021, .0022)], sides=16, tip=(0, 0, DIAL_Z + .0024)), gold)
-    # the hinge knuckles at six o'clock (+Y here), and the little lip opposite for a thumbnail
-    for x in (-.0075, .0075):
-        kn = revolve([(-.0060, .0032), (.0060, .0032)], sides=12)
-        fb.turn(kn, 90.0, 'Y')
-        p.add('hinge knuckle', moved(kn, x, .0758, -.0040), gold)
+    # (no hinge at six: this watch's back comes off with four screws, and a hinge would say otherwise)
     # the bow at twelve: a hexagonal wire ring standing round the crown, through the pendant
     R, cy = .0210, -.0800 - .0210
     ring = [(R * math.cos(a), cy + R * math.sin(a), -.0010) for a in (2 * math.pi * i / 36 for i in range(36))]
@@ -242,10 +238,10 @@ def case():
     # the crown wheel beside the barrel, a few jewels in chatons and the plate's screws
     p.add('crown wheel', gear(.0040, -.0460, PLATE_BOTTOM - .0016, PLATE_BOTTOM, .0130, 30, depth=.12), brass)
     p.add('crown wheel screw', disc(.0040, -.0460, PLATE_BOTTOM - .0022, PLATE_BOTTOM - .0016, .0025, sides=10), steel)
-    for (jx, jy) in ((-.0050, .0280), (.0300, -.0160), (-.0020, -.0080), (.0450, .0020)):
+    for (jx, jy) in ((-.0050, .0280), (.0300, -.0160), (.0450, .0020)):
         p.add('chaton', disc(jx, jy, PLATE_BOTTOM - .0005, PLATE_BOTTOM, .0034, sides=12), brass)
         p.add('jewel', disc(jx, jy, PLATE_BOTTOM - .0008, PLATE_BOTTOM - .0005, .0018, sides=10), ruby)
-    for (sx_, sy_) in ((-.0240, .0300), (.0120, .0480), (.0540, -.0220), (-.0520, .0150), (.0200, -.0400), (-.0180, -.0540), (-.0480, -.0320)):
+    for (sx_, sy_) in ((-.0240, .0300), (.0120, .0480), (.0540, -.0220), (-.0520, .0150)):
         p.add('plate screw', disc(sx_, sy_, PLATE_BOTTOM - .0005, PLATE_BOTTOM, .0022, sides=10), steel)
         slot = fb.zbox(sx_ - .0018, sx_ + .0018, sy_ - .0003, sy_ + .0003, PLATE_BOTTOM - .0007, PLATE_BOTTOM - .0004)
         p.add('plate screw slot', slot, M('HD_ScrewSlot'))

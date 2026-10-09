@@ -12,7 +12,7 @@ The bench's tools, v3 (9 Oct 2026): the five tools of the close-up, built from m
   BT_Brush         a soft flat dusting brush, 140 mm: seven clumps of golden bristle cut to a chisel, a crimped tinned
                    ferrule with two grooves, a raw beech handle that flattens toward the butt.
   BT_PryTool       the repair shop's pry tool (a "jimmy"): a 0.8 x 8 mm steel blade in a black over-moulded handle
-                   15 x 8.5 mm with green grip inlays and a steel bolster, 125 mm.
+                   15 x 8.5 mm with green grip inlays and a steel bolster, 125 mm (no hang hole: nothing to hang it on).
   BT_Cloth         a microfibre lens cloth, 15 x 18 cm, folded in quarters: 75 x 90 mm, four layers, two rounded fold
                    edges, two open edges with the four layer-lips stepped, a puffed top, the free corner lifting.
 
@@ -100,11 +100,6 @@ def pry_tool():
     for sy in (1, -1):
         inlay = fb.zbox(-.0040, .0040, min(sy * .0036, sy * .0048), max(sy * .0036, sy * .0048), .0620, .1100)
         p.add('grip inlay', inlay, green, bevel=.0006)
-    # a hang hole through the butt: two dark dimples
-    for sy in (1, -1):
-        dimple = revolve([(0.0, .0017), (.0006, .0017)], sides=10)
-        fb.turn(dimple, -90.0 * sy, 'X')
-        p.add('hang hole', moved(dimple, 0, sy * .0036, .1170), dark)
     return p
 
 

@@ -13,10 +13,10 @@ What the stand-in fixes in place: the screen's top at +6 mm (the grime spots sit
 7.8: the proportions in plan (corner radius 10, the island, the buttons, the bottom edge) carry the realism.
 
   Body       the flat aluminium rail, 70 x 140 x 8, corner radius 10, a 1 mm chamfer; the black front bezel plate; the
-             side button (right), the ring switch and two volume buttons (left), antenna lines, the SIM slot; the
+             side button (right), the ring switch and two volume buttons (left), antenna lines; the
              bottom edge with the USB-C port, two pentalobe screws and the 3 + 6 holes; and on the BACK FACE, what a
-             back-glass removal shows: battery with its charging coil, the camera module, the board shields, speaker,
-             Taptic engine, a few screws (seen when the cover is off).
+             back-glass removal shows: the battery with its charging coil, the camera module, the board shield
+             (seen when the cover is off).
   Screen     65 x 134 x 1.5 glass (a 2.5 mm bezel), from +4.5 to +6.0. Used twice (Broken / Fresh keep their materials).
   BackCover  the back glass, 68 x 138 x 1.2, its outer face at -7, with the camera island (30 x 33, two diagonal lens
              rings, the flash, the mic) and a black inner frame lip reaching back to the rail.
@@ -79,8 +79,6 @@ def body():
     p.add('ring switch', button(-.0356, -.0348, -.0440, -.0350), rail)
     p.add('volume up', button(-.0356, -.0348, -.0290, -.0140), rail)
     p.add('volume down', button(-.0356, -.0348, -.0120, .0030), rail)
-    # the SIM tray: a flush dark line on the left flank
-    p.add('sim tray', fb.zbox(-.03505, -.0349, .0250, .0400, -.0009, .0009), black)
     # antenna lines: thin lighter stripes across the rail near the four corners
     for sx in (1, -1):
         for y in (-.060, .060):
@@ -108,12 +106,8 @@ def body():
         p.add('camera barrel', disc(cx, cy, -.0057, -.0056, .0050, sides=16), steel)
     shield = chamfered_slab(.0220, .0520, .0010, .0010, .0003, per_corner=1, centre_z=-.0049)
     p.add('board shield', moved(shield, -.0210, -.0380, 0), steel)
-    p.add('board shield, small', moved(chamfered_slab(.0160, .0120, .0008, .0008, .0002, per_corner=1, centre_z=-.0048), -.0060, -.0080, 0), steel)
-    p.add('speaker', moved(chamfered_slab(.0280, .0140, .0010, .0015, .0003, per_corner=1, centre_z=-.0049), .0160, .0580, 0), black)
-    p.add('taptic engine', moved(chamfered_slab(.0260, .0120, .0010, .0010, .0003, per_corner=1, centre_z=-.0049), -.0170, .0590, 0), steel)
-    p.add('port assembly', fb.zbox(-.0040, .0040, .0560, .0660, -.0052, -.0044), black)
-    for (x, y) in ((-.0310, -.0640), (-.0100, -.0640), (-.0310, -.0100), (.0300, -.0160), (-.0300, .0520), (.0300, .0500)):
-        p.add('board screw', disc(x, y, -.0049, -.0044, .0010, sides=8), steel)
+    # (no speaker, Taptic engine, port assembly or board screws: the battery, the coil, the camera module and the board
+    # shield are what say "a phone's inside"; the rest was clutter at 50 cm)
     return p
 
 

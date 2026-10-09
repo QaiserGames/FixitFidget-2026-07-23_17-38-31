@@ -11,8 +11,8 @@ the film transport (toward -Z) and the shutter mechanism (toward +Z); the close-
 -X, the film path at +Y, the mechanism at -Y, and the player looks from +Y.
 
 The fiction, made plausible: the camera's TOP PLATE runs along the +Y edge, the edge nearest the player (rewind crank
-at the lens end, hot shoe over the lens, frame counter, shutter release and advance lever at the other end, strap
-eyelets; the three finder windows in its front face), the bottom plate along -Y, leatherette between; at -X the front
+at the lens end, hot shoe over the lens, shutter release and advance lever at the other end, strap eyelets; the
+three finder windows in its front face), the bottom plate along -Y, leatherette between; at -X the front
 panel is OFF for service, a well under the top plate's chrome lintel, and in it the film transport (the gate with its
 steel rails, the sprocket drum, the take-up spool) nearer the player and the leaf-shutter assembly (the shutter drum
 with its gear train, cocking lever and spring, the two blades on top) behind it. From the player's seat the lens is
@@ -134,17 +134,9 @@ def body():
         cy = (b0 + b1) / 2
         p.add('window frame', fb.zbox(cx - w / 2 - .0012, cx + w / 2 + .0012, cy - h / 2 - .0012, cy + h / 2 + .0012, zf, zf + .0006), black)
         p.add('window', fb.zbox(cx - w / 2, cx + w / 2, cy - h / 2, cy + h / 2, zf, zf + .0010), mat)
-    # the model badge on the leatherette, beyond the lens (the player's left)
-    p.add('badge frame', fb.zbox(.0880, .1120, -.0300, -.0180, HZ, HZ + .0008), chrome)
-    p.add('badge', fb.zbox(.0890, .1110, -.0290, -.0190, HZ, HZ + .0011), black)
-    # the lens boss and the self-timer lever at the lens's lower right (the player's right is -X)
+    # the lens boss (no badge and no self-timer lever: ornament that does nothing for the player)
     lx, ly = LENS
     p.add('lens boss', moved(ring_wall(HZ, HZ + .0025, .0400, .0450, sides=48), lx, ly, 0), chrome)
-    timer = fb.zbox(-.0360, 0.0, -.0040, .0040, HZ, HZ + .0030)
-    fb.bevel_all(timer, .0008, segments=1)
-    fb.turn(timer, 40.0, 'Z')
-    p.add('self-timer lever', moved(timer, lx - .0300, ly - .0280, 0), chrome)
-    p.add('self-timer pivot', disc(lx - .0300, ly - .0280, HZ, HZ + .0036, .0045, sides=12), black)
     # ---- the top face (y = +HY, toward the player): rewind crank at the lens end, hot shoe over the lens, frame counter,
     # shutter release and advance lever at the opening end, eyelets
     yt = HY + .0010
@@ -166,8 +158,7 @@ def body():
         rail = fb.zbox(-.0200, .0200, sz * .0120 - .0025, sz * .0120 + .0025, .0020, .0040)
         p.add('shoe rail', on_top(moved(rail, lx, 0, 0)), chrome)
     p.add('shoe contact', on_top(disc(lx, 0.0, .0020, .0026, .0020, sides=8)), black)
-    # the frame counter window and the shutter release on its boss (a touch toward the front face)
-    p.add('frame counter', on_top(fb.zbox(-.0720, -.0620, -.0030, .0040, 0.0, .0006)), black)
+    # the shutter release on its boss (a touch toward the front face)
     p.add('release boss', on_top(disc(-.0840, .0040, 0.0, .0030, .0110, sides=16)), chrome)
     p.add('shutter release', on_top(disc(-.0840, .0040, .0030, .0070, .0085, sides=16)), chrome)
     p.add('cable thread', on_top(disc(-.0840, .0040, .0070, .0074, .0022, sides=8)), black)
@@ -184,13 +175,6 @@ def body():
         eye = ring_wall(-.0030, .0030, .0025, .0045, sides=12)
         fb.turn(eye, 90.0, 'Y')
         p.add('strap eyelet', moved(eye, x, y, .0030), chrome)
-    # the tripod boss on the bottom plate's face (the far edge)
-    boss = disc(0.0, 0.0, 0.0, .0010, .0075, sides=16)
-    fb.turn(boss, 90.0, 'X')
-    p.add('tripod boss', moved(boss, -.0200, -HY - .0010, 0), chrome)
-    hole = disc(0.0, 0.0, 0.0, .0014, .0032, sides=10)
-    fb.turn(hole, 90.0, 'X')
-    p.add('tripod socket', moved(hole, -.0200, -HY - .0010, 0), black)
     return p
 
 
@@ -211,7 +195,7 @@ def lens_housing():
     p.add('aperture ring', revolve([(.0170, .0350), (.0180, .0375), (.0260, .0375), (.0270, .0345)], sides=96, knurl=(1, .025)), chrome)
     p.add('name ring', revolve([(.0260, .0340), (.0340, .0340), (.0350, .0320), (.0360, .0300), (.0360, .0270), (.0330, .0265)], sides=S), black)
     # index marks: white ticks on the two chrome rings and an index line on the name ring
-    for z0, z1, n in ((.0085, .0135, 9), (.0195, .0245, 8)):
+    for z0, z1, n in ((.0085, .0135, 7), (.0195, .0245, 6)):
         for k in range(n):
             tick = fb.zbox(-.0004, .0004, .0372, .0382, z0, z1)
             fb.turn(tick, -60.0 + 120.0 * k / (n - 1), 'Z')

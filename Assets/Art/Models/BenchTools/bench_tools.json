@@ -83,7 +83,7 @@
    "name": "BT_PryTool",
    "tool": "Pry",
    "what": "pry tool: the blade's edge is the origin; the lever goes in flat along -Y",
-   "tris": 356,
+   "tris": 284,
    "meshes": 1,
    "children": [],
    "size": [
@@ -98,7 +98,7 @@
     "BT_Grip_Black",
     "BT_Handle_Green"
    ],
-   "islands": 7
+   "islands": 5
   },
   {
    "name": "BT_Cloth",
