@@ -32,6 +32,10 @@ using UnityEngine;
 // box sized to the case's whole mesh fills that cavity (and the sunken dial), so every view ray met the case first.
 // Hence Piece.boxes: a hollow piece names its solid parts, and gets one box collider per part. The rule behind both:
 // a collider is the piece's SOLID, never its bounds, wherever other pieces sit in a recess of it.
+//
+// Devices 2 also MOVES prefab objects (Device.moves) where a hero mesh's real anatomy puts a surface somewhere the
+// stand-in didn't: the phone's screen, cover and screws when the phone went from the stand-in's 13 mm to the real 7.8
+// (v3.2). A move is a local position only; parents, names, scripts and children (the grime under the Screen) stay.
 // ---------------------------------------------------------------------------
 internal static class HeroDeviceSteps
 {
@@ -69,14 +73,36 @@ internal static class HeroDeviceSteps
     {
         new Device
         {
+            // v3.2 (9 Oct, 02:00): the real 7.8 mm section (hero_phone.py's docstring has the millimetres). The stand-in was
+            // 13 mm, so the three positions the thickness fixes move: the screen from +5 to +3.3, the cover from -5.5 to -3.3,
+            // the screws from -8 to -4.7 (their heads on the back glass). The grime stays where it is under the Screen.
             model = BlenderKitSteps.DeviceModels + "/HD_Phone.fbx", prefab = "Assets/AssetsPrefabs/PhoneRepair.prefab",
             pieces = new[]
             {
-                new Piece { source = "", targets = new[] { "Body" } },
+                // the body is a rail ring round a chassis; the glass sits flush INSIDE the rail, so a box round the body's
+                // bounds would tie with the screen for the cursor. Its solid: the chassis under the glass (from its back
+                // face at -1.5 to its front at +2.7) and the rim (the rail and the black border, 31.4..35 mm out, from the
+                // chassis's back face to the front edge at +3.9), so the cover (-3.9) wins from the back and the glass
+                // (+3.9) from the front, and with the screen out the cursor finds the chassis 1.2 mm down
+                new Piece { source = "", targets = new[] { "Body" }, boxes = new[]
+                {
+                    new Bounds(new Vector3(0f, .0006f, 0f), new Vector3(.063f, .0042f, .133f)),
+                    new Bounds(new Vector3(.0332f, .0012f, 0f), new Vector3(.0036f, .0054f, .140f)),
+                    new Bounds(new Vector3(-.0332f, .0012f, 0f), new Vector3(.0036f, .0054f, .140f)),
+                    new Bounds(new Vector3(0f, .0012f, .0682f), new Vector3(.0628f, .0054f, .0036f)),
+                    new Bounds(new Vector3(0f, .0012f, -.0682f), new Vector3(.0628f, .0054f, .0036f)),
+                } },
                 new Piece { source = "Screen", targets = new[] { "Broken", "Fresh" }, keepMaterials = true },
-                // the glass's outer face is at -7 mm in the phone (local -1.5: hero_phone.back_cover), where the screw heads sit
-                new Piece { source = "BackCover", targets = new[] { "BackCover" }, faceY = -.0015f },
-                new Piece { source = "Screw", targets = new[] { "Screw0", "Screw1" }, head = new Vector3(.008f, .0020f, .008f) },
+                // the back glass's outer face is at -3.9 mm in the phone (local -0.6: hero_phone.back_cover), where the screw heads sit
+                new Piece { source = "BackCover", targets = new[] { "BackCover" }, faceY = -.0006f },
+                new Piece { source = "Screw", targets = new[] { "Screw0", "Screw1" }, head = new Vector3(.008f, .0016f, .008f) },
+            },
+            moves = new[]
+            {
+                new Move { name = "Screen", to = new Vector3(0f, .0033f, 0f), why = "the glass flush in a 7.8 mm phone; was +5 in the 13 mm stand-in" },
+                new Move { name = "BackCover", to = new Vector3(0f, -.0033f, 0f), why = "the back glass's outer face at -3.9; was -5.5" },
+                new Move { name = "Screw0", to = new Vector3(.022f, -.0047f, -.058f), why = "its head on the back glass; was -8" },
+                new Move { name = "Screw1", to = new Vector3(-.022f, -.0047f, -.058f), why = "its head on the back glass; was -8" },
             }
         },
         new Device
