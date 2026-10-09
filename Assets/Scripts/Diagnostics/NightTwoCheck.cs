@@ -291,8 +291,10 @@ public sealed class NightTwoCheck : MonoBehaviour
         // Sneaking inside, as a player would with her asleep upstairs (walking, a step near the kitchen's back corner is within
         // 4 m of her pillow).
         movement.ScriptedSneak = true;
-        yield return Walk(Plan(house, (1.11f, 4.05f), (1.11f, 3.35f), (2.06f, 3.20f), (2.45f, 2.75f), (2.22f, 2.08f), (3.00f, 2.02f), (3.28f, 1.50f), (3.20f, 1.30f)),
-            new List<float> { .35f, .3f, .3f, .3f, .3f, .3f, .3f, .25f }, "in at her door and through to the kitchen, sneaking");
+        // Round the end of her breakfast bar (playtest 3 session 5), as a player would.
+        yield return Walk(Plan(house, (1.11f, 4.05f), (1.11f, 3.35f), (2.06f, 3.20f), (1.95f, 2.80f), (2.00f, 2.30f), (2.22f, 2.08f), (3.00f, 2.02f),
+                (3.28f, 1.50f), (3.20f, 1.30f)),
+            new List<float> { .35f, .3f, .3f, .3f, .3f, .3f, .3f, .3f, .25f }, "in at her door and through to the kitchen, sneaking");
         string take = "Take " + cups.name;
         yield return Until(() => interactor.CurrentPrompt == take, 3f, $"at the worktop the prompt reads \"{take}\" (Ace knows them from his ask)");
         Check(trophy.Seen, "in the kitchen Ace can see them");
@@ -310,8 +312,9 @@ public sealed class NightTwoCheck : MonoBehaviour
         yield return Photo("06-the-cups-in-hand");
 
         // ---------- back to the bins ----------
-        yield return Walk(Plan(house, (3.20f, 1.85f), (2.45f, 2.30f), (2.30f, 2.95f), (1.90f, 3.25f), (1.11f, 3.35f), (1.11f, 4.05f), (1.11f, 5.30f)),
-            new List<float> { .3f, .3f, .3f, .3f, .3f, .35f, .4f }, "out of the kitchen and out of her door, sneaking");
+        yield return Walk(Plan(house, (3.20f, 1.85f), (2.40f, 2.05f), (1.98f, 2.25f), (1.95f, 2.95f), (1.90f, 3.25f), (1.11f, 3.35f), (1.11f, 4.05f),
+                (1.11f, 5.30f)),
+            new List<float> { .3f, .3f, .3f, .3f, .3f, .3f, .35f, .4f }, "out of the kitchen and out of her door, sneaking");
         movement.ScriptedSneak = null;
         if (atHome != null && atHome.NightOn)
             Check(atHome.Asleep && atHome.Catches == 0 && atHome.Wakes == 0, $"she slept through it ({atHome.Doing}; woken {atHome.Wakes} times)");

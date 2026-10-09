@@ -25,16 +25,23 @@ using UnityEngine.InputSystem;
 // her armchair with the café's sit). In bed her body is put away and the slept-in quilt shows her.
 //
 // Her eyes and ears (only for Ace inside her house): she sees in a 110° cone, 7 m where it's lit and 3 m where it isn't,
-// walls and furniture in the way (rays twice a second); watching TV, only the 60° toward the screen, at half the rate.
+// walls and furniture in the way (rays twice a second, at two points on Ace's capsule: its head and its chest, so a crouch
+// behind anything 1.1 m tall hides Ace from more than about 1.5 m); watching TV, only the 60° toward the screen, at half
+// the rate.
 // She hears what Ace's steps already send (NightNoise: walking 4 m, sneaking 1 m), the rustle of taking something
 // indoors (3 m), the creaky treads (one on each flight) and her bedroom doors opened at a walk (5 m). Her mark (the "?"
 // beside her head, NoticeMark) fills as GraceNight says: at a third "Hm?", she stops and looks where she noticed Ace;
-// with it at half or more and Ace gone from her view she comes to look there, looks round, and goes back to what she was
-// doing; full, she has caught Ace ("Ace?! What on earth—", and the night ends on "Caught.": NightCycle.Caught). Asleep
-// she sees nothing; a loud sound near her wakes her for 20 s: her lamp on, "Hello?", a look round from her bed.
+// with it at half or more and Ace gone from her view she comes to look there (from a spot that sees the place: round any
+// cover in the way), looks round, and goes back to what she was doing; full, she has caught Ace ("Ace?! What on earth—",
+// and the night ends on "Caught.": NightCycle.Caught). Asleep she sees nothing; a loud sound near her wakes her for 20 s:
+// her lamp on, "Hello?", a look round from her bed.
 //
-// Ace can hide in the cupboard under the stairs and in her wardrobe (HidingPlace: E in, E out; the body and the capsule
-// set aside) and opens her bedroom doors (BedroomDoorsZone: at a walk at once, with a creak; sneaking, slowly and quietly).
+// Ace hides behind her furniture, crouched (playtest 3 session 5, 9 Oct 2026: "the hide buttons out"; her breakfast bar and
+// the boxes at the foot of her bed are the cover, claude/playtest-3-sessions-2-6-plan.md §6.1), and opens her bedroom doors
+// (BedroomDoorsZone: at a walk at once, with a creak; sneaking, slowly and quietly). The cupboard under the stairs and her
+// wardrobe are no longer places to hide: the wardrobe is 0.635 m deep, too shallow for Ace, and a button that hides Ace
+// got him caught. Hiding (HidingPlace, Hide, ComeOut) stays for a real closet with a door, if one ever comes; nothing
+// makes a place to hide tonight.
 //
 // While Ace is elsewhere nothing here costs more than her timeline and her walk. Nothing new allocates a frame.
 // Built by Fixit Fidget > Night > Break-ins 6 - Put Grace at home (GraceAtHomeSteps), on her rooms' root beside GraceHouse.
@@ -86,12 +93,16 @@ public sealed class GraceAtHome : MonoBehaviour
     static readonly Vector3 StoopFront = new Vector3(1.11f, 5.30f, 0f), StoopTop = new Vector3(1.11f, 4.55f, 0f);
     // The creaky treads: the upper flight's fourth (within 5 m of her pillow), the lower flight's third (just out of it).
     static readonly Vector3 UpperCreak = new Vector3(2.24f, .70f, 2.0f), LowerCreak = new Vector3(.70f, 2.00f, .60f);
-    // The places: middle and size (X, Y, Z) in plan metres.
-    static readonly Vector3 CupboardMiddle = new Vector3(2.22f, 1.95f, 1.0f), CupboardSize = new Vector3(1.10f, 1.00f, 2.0f);
-    static readonly Vector3 WardrobeMiddle = new Vector3(1.28f, 3.55f, 3.40f), WardrobeSize = new Vector3(1.10f, .90f, 2.0f);
+    // The bedroom doorway, Ace's way through her doors: middle and size (X, Y, Z) in plan metres.
     static readonly Vector3 DoorwayMiddle = new Vector3(3.05f, 1.51f, 3.50f), DoorwaySize = new Vector3(1.40f, 1.60f, 2.2f);
     const float SoftCreak = 2.5f;          // a creaky tread under a sneaking foot: heard this far (not as far as her pillow)
     const float LookEvery = .5f;           // her eyes look twice a second
+    // Where on Ace's capsule she looks: its head, this far under its top, and its chest, this much of its height up (1.8 and
+    // 1.1 m standing, 0.8 and 0.55 m crouched: claude/playtest-3-sessions-2-6-plan.md §6.1).
+    const float HeadUnderTop = .20f, ChestUp = .55f;
+    // Coming to look: the spots within this of the place (metres, flat) that see it, a crouched head there (0.8 m) from a
+    // standing eye (1.6 m) over whatever stands between.
+    const float LookFromReach = 3.5f, StandingEye = 1.6f, CrouchedHead = .8f;
     const float InBedBeforeLampOff = 4f;   // seconds in bed before her lamp goes off, at the earliest
     static readonly GraceNight.Step[] OutAll = { new GraceNight.Step(23f, GraceNight.Act.Out) };
 
@@ -121,8 +132,6 @@ public sealed class GraceAtHome : MonoBehaviour
     public bool DoorsShut => doors <= 0f && doorsTo <= 0f;
     public bool DoorsOpen => doors >= 1f && doorsTo >= 1f;
     public bool AceHidden => hiddenIn != null;
-    public HidingPlace Cupboard => cupboard;
-    public HidingPlace Wardrobe => wardrobe;
     public BedroomDoorsZone DoorsZone => doorsZone;
     public Transform Body => body != null ? body.transform : null;
     /// <summary>Where she is (plan metres: X north, Y to the street, Z up).</summary>
@@ -144,6 +153,8 @@ public sealed class GraceAtHome : MonoBehaviour
     /// <summary>What woke her last (asleep, a loud sound near her).</summary>
     public NoiseKind WokeTo { get; private set; }
     public float SearchedNearest { get; private set; } = float.MaxValue;
+    /// <summary>The spot she last came to look from (GraceHouseMap), or -1.</summary>
+    public int SearchedFrom { get; private set; } = -1;
     public string Why { get; private set; } = "";
 
     // ---- the night ----
@@ -201,8 +212,7 @@ public sealed class GraceAtHome : MonoBehaviour
     Transform aceT;
     CharacterController aceController;
     CafeViewMode view;
-    AceBody aceBody;
-    HidingPlace cupboard, wardrobe, hiddenIn;
+    HidingPlace hiddenIn;
     BedroomDoorsZone doorsZone;
     float hiddenSince;
     bool aceOnUpper, aceOnLower;
@@ -1420,15 +1430,10 @@ public sealed class GraceAtHome : MonoBehaviour
 
     // ================================================================== the places in her house (made while the night runs)
 
+    // Her bedroom doors, for Ace. No places to hide since session 5 (cover instead: see the top of this file).
     void MakeZones()
     {
         RemoveZones();
-        cupboard = MakeZone<HidingPlace>("Ace's hiding place: the cupboard under her stairs (while the night runs)", CupboardMiddle, CupboardSize);
-        cupboard.home = this;
-        cupboard.what = "the cupboard under the stairs";
-        wardrobe = MakeZone<HidingPlace>("Ace's hiding place: her wardrobe (while the night runs)", WardrobeMiddle, WardrobeSize);
-        wardrobe.home = this;
-        wardrobe.what = "her wardrobe";
         doorsZone = MakeZone<BedroomDoorsZone>("Ace's way through her bedroom doors (while the night runs)", DoorwayMiddle, DoorwaySize);
         doorsZone.home = this;
     }
@@ -1449,21 +1454,19 @@ public sealed class GraceAtHome : MonoBehaviour
 
     void RemoveZones()
     {
-        foreach (Component zone in new Component[] { cupboard, wardrobe, doorsZone })
-            if (zone != null) Destroy(zone.gameObject);
-        cupboard = wardrobe = null;
+        if (doorsZone != null) Destroy(doorsZone.gameObject);
         doorsZone = null;
     }
 
-    // ================================================================== Ace hiding
+    // ================================================================== Ace hiding (no place offers it since session 5; kept for a real closet)
 
     /// <summary>Ace can hide here: standing in front of it, not hidden already, not caught.</summary>
     public bool CanHide(HidingPlace place) =>
         nightOn && place != null && hiddenIn == null && mood != Mood.Caught && !aceAtDoors && aceT != null && place.Holds(aceT.position);
 
     /// <summary>
-    /// E in front of the cupboard or the wardrobe: Ace's body and capsule are set aside (the view stays where it is) and a
-    /// note says how to come out. If her mark was past a third, she comes to where she last saw or heard Ace.
+    /// E at a place to hide: Ace's body and capsule are set aside (the view stays where it is) and a note says how to come
+    /// out. If her mark was past a third, she comes to where she last saw or heard Ace.
     /// </summary>
     public void Hide(HidingPlace place)
     {
@@ -1619,21 +1622,21 @@ public sealed class GraceAtHome : MonoBehaviour
         }
     }
 
-    // She comes to where she last saw or heard Ace: the nearest spot of her house to it, on its floor; looks round there,
-    // and goes back to what she was doing.
+    // She comes to look where she last saw or heard Ace, from the spot of her house nearest the place that sees it
+    // (LookFrom: cover hides Ace from a glance, not from someone who walks round it), and goes back to what she was doing.
     void StartSearch(Vector3 point)
     {
         mood = Mood.Searching;
         held = false;
         Searches++;
+        SearchedFrom = LookFrom(house.Plan(point));
         search.Clear();
-        search.Push(Search(point));
+        search.Push(Search(point, SearchedFrom));
     }
 
-    IEnumerator Search(Vector3 point)
+    // There: she faces the place and looks round.
+    IEnumerator Search(Vector3 point, int spot)
     {
-        Vector3 p = house.Plan(point);
-        int spot = GraceHouseMap.Nearest(p.x, p.y, p.z);
         if (spot < 0) yield break;
         yield return GoTo(spot);
         SearchedNearest = Mathf.Min(SearchedNearest, Vector3.Distance(W(feet), point));
@@ -1641,6 +1644,31 @@ public sealed class GraceAtHome : MonoBehaviour
         if (beats != null) beats.PlayClip(NpcBeats.Clip.LookingAround, GraceNight.SearchSeconds);
         float until = Time.time + GraceNight.SearchSeconds;
         while (Time.time < until) yield return null;
+    }
+
+    /// <summary>
+    /// Where she'd come to look at a place from (plan metres): the spot nearest it, on its floor and within 3.5 m, from
+    /// which a crouched Ace's head there (0.8 m up) is in plain sight of a standing eye (1.6 m: nothing solid between); the
+    /// nearest spot on its floor if none sees it; -1 if there is none.
+    /// </summary>
+    public int LookFrom(Vector3 plan)
+    {
+        int best = -1;
+        float bestDistance = float.MaxValue;
+        Vector3 target = W(plan) + Vector3.up * CrouchedHead;
+        GraceHouseMap.Spot[] spots = GraceHouseMap.Spots;
+        for (int i = 0; i < spots.Length; i++)
+        {
+            GraceHouseMap.Spot s = spots[i];
+            if (Mathf.Abs(s.Z - plan.z) > 1f) continue;
+            float dx = s.X - plan.x, dy = s.Y - plan.y;
+            float d = Mathf.Sqrt(dx * dx + dy * dy);
+            if (d > LookFromReach || d >= bestDistance) continue;
+            if (!Clear(W(new Vector3(s.X, s.Y, s.Z + StandingEye)), target)) continue;
+            best = i;
+            bestDistance = d;
+        }
+        return best >= 0 ? best : GraceHouseMap.Nearest(plan.x, plan.y, plan.z);
     }
 
     // Asleep, a loud sound near her: her lamp on, "Hello?", and a look round from her bed for 20 s.
@@ -1684,8 +1712,9 @@ public sealed class GraceAtHome : MonoBehaviour
     static bool Loud(NoiseKind kind) =>
         kind == NoiseKind.Step || kind == NoiseKind.CreakyStair || kind == NoiseKind.Door || kind == NoiseKind.Knock || kind == NoiseKind.LockPick;
 
-    // Twice a second: can she see Ace? Ace's head and chest (lower while Ace is crouched), from her eyes: in her view, within
-    // her range for the light where Ace is, and nothing solid between.
+    // Twice a second: can she see Ace? Two points on Ace's capsule, its head and its chest (since session 5: until then two
+    // points on the drawn body, still 1.09 m up crouched, so nothing 1 m tall could hide Ace), from her eyes: in her view,
+    // within her range for the light where Ace is, and nothing solid between.
     void Look()
     {
         seeing = false;
@@ -1694,17 +1723,14 @@ public sealed class GraceAtHome : MonoBehaviour
         Vector3 aceFeet = view.AceFeet;
         if (!Inside(aceFeet + Vector3.up * .5f)) return;
         Vector3 eye = Eye(out Vector3 forward, out float half, out bool tvHasHer);
-        bool crouched = ace != null && ace.Crouch > .5f;
-        float tall = aceBody != null && aceBody.Worn && aceBody.Height > .5f
-            ? (crouched ? aceBody.CrouchedHeight : aceBody.Height)
-            : (crouched ? 1.3f : 2f);
+        float tall = AceTall;
         bool sneaking = ace != null && ace.Sneaking;
         NightTorch torchNow = NightWalk.Instance != null ? NightWalk.Instance.Torch : null;
         bool torch = torchNow != null && torchNow.On;
         Vector3 flatForward = new Vector3(forward.x, 0f, forward.z);
         for (int k = 0; k < 2; k++)
         {
-            Vector3 point = aceFeet + Vector3.up * tall * (k == 0 ? .88f : .55f);
+            Vector3 point = aceFeet + Vector3.up * (k == 0 ? tall - HeadUnderTop : tall * ChestUp);
             Vector3 to = point - eye;
             float distance = to.magnitude;
             Vector3 flat = new Vector3(to.x, 0f, to.z);
@@ -1716,6 +1742,18 @@ public sealed class GraceAtHome : MonoBehaviour
             seeRate = Mathf.Max(seeRate, rate);
         }
         if (seeing) lastSeen = aceFeet;
+    }
+
+    /// <summary>Ace's capsule's height now, metres: 2.0 standing, 1.0 crouched, between while crouching or standing up.</summary>
+    float AceTall => ace != null && aceT != null ? ace.CapsuleHeight * Mathf.Abs(aceT.lossyScale.y) : PlayerMovement.StandingHeight;
+
+    /// <summary>Where on Ace she looks, now (world): the capsule's head and chest (for checks and reports).</summary>
+    public void AceSightPoints(out Vector3 head, out Vector3 chest)
+    {
+        Vector3 aceFeet = view != null ? view.AceFeet : aceT != null ? aceT.position : Vector3.zero;
+        float tall = AceTall;
+        head = aceFeet + Vector3.up * (tall - HeadUnderTop);
+        chest = aceFeet + Vector3.up * tall * ChestUp;
     }
 
     // Her eyes, which way they look, and how wide: from her pillow in bed (a look round the room); in her armchair with the
@@ -1841,7 +1879,6 @@ public sealed class GraceAtHome : MonoBehaviour
         aceT = ace.transform;
         aceController = ace.GetComponent<CharacterController>();
         view = ace.GetComponent<CafeViewMode>();
-        aceBody = ace.GetComponent<AceBody>();
     }
 
     // ================================================================== reports

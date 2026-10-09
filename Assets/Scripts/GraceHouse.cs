@@ -23,7 +23,10 @@ using UnityEngine.Rendering;
 //     height as the café's do (30 Sept: a fade, not a slide; SeeThroughMaterials), and the floor
 //     above Ace is hidden. The player can still orbit and zoom. Walking out puts it all back;
 //   * on her stairs, Ace keeps to the flight going down (a capsule walking down a 40°
-//     flight would otherwise leave it at the top and land at the bottom).
+//     flight would otherwise leave it at the top and land at the bottom);
+//   * her furniture fades as her walls do while it stands between the camera and Ace (playtest 3 session 5, 9 Oct
+//     2026: Ace crouches behind her breakfast bar or the boxes upstairs to hide from her, and the player must still see
+//     Ace there). The pieces are listed by Fixit Fidget > Night > Break-ins 8 (GraceCoverSteps).
 //
 // First person (V) shows the house as it is. By day nothing here runs but the rooms
 // themselves, seen through her window and her open door.
@@ -60,6 +63,23 @@ public sealed class GraceHouse : MonoBehaviour
         [NonSerialized] public float cutY;               // world height of the cut: solid below, the ghost above
     }
 
+    /// <summary>A piece of her furniture, and what stands on it (the kettle on the counter, the quilt on her bed): they fade
+    /// together, to the same ghost as her walls, their foot left solid.</summary>
+    [Serializable]
+    public sealed class Piece
+    {
+        public string name = "";
+        [Tooltip("0: the ground floor, 1: the first floor.")]
+        public int storey;
+        [Tooltip("The piece and what stands on it.")]
+        public Renderer[] parts = Array.Empty<Renderer>();
+
+        [NonSerialized] public float progress, clearFor, keep = 1f;
+        [NonSerialized] public bool down, measured, worn;
+        [NonSerialized] public Bounds full;              // the piece and what stands on it, in the world
+        [NonSerialized] public float floorY;             // world height of its foot
+    }
+
     [Header("Built by Fixit Fidget > Night > Break-ins 1")]
     public Transform house;
     public StreetDoor door;
@@ -75,6 +95,8 @@ public sealed class GraceHouse : MonoBehaviour
     public Vector2 insideX = new Vector2(-5.42f, 0f), insideZ = new Vector2(0f, 4.02f);
     [Tooltip("Her stairs, in this object's space: where Ace is kept to the flight going down.")]
     public Vector2 stairsX = new Vector2(-2.62f, .02f), stairsZ = new Vector2(-.02f, 2.95f);
+    [Tooltip("Her furniture that fades while it stands between the camera and Ace (Fixit Fidget > Night > Break-ins 8).")]
+    public Piece[] furniture = Array.Empty<Piece>();
 
     [Header("Looking in (the camera turns to this while Ace is inside)")]
     [Range(0f, 360f)] public float houseYaw = 258f;
@@ -464,6 +486,7 @@ public sealed class GraceHouse : MonoBehaviour
                 if (r != null && !r.transform.IsChildOf(transform)) shell.Add((r, r.shadowCastingMode));
         upstairsParts = firstFloor != null ? firstFloor.GetComponentsInChildren<Renderer>(true) : Array.Empty<Renderer>();
         foreach (Wall w in walls) Measure(w);
+        foreach (Piece p in furniture) Measure(p);
     }
 
     void Leave()
@@ -477,6 +500,12 @@ public sealed class GraceHouse : MonoBehaviour
         {
             w.progress = 0f; w.down = false; w.clearFor = 0f;
             Apply(w);
+        }
+        foreach (Piece p in furniture)
+        {
+            if (p == null) continue;
+            p.progress = 0f; p.down = false; p.clearFor = 0f;
+            Apply(p);
         }
         foreach (Renderer r in new List<Renderer>(hideReasons.Keys)) SetHidden(r, ~0, false);
         hideReasons.Clear();
@@ -495,6 +524,7 @@ public sealed class GraceHouse : MonoBehaviour
         foreach (Renderer r in upstairsParts) SetHidden(r, HiddenStorey, overhead && !upstairs);
         foreach (Renderer c in ceilings) SetHidden(c, HiddenCeiling, overhead);
         StepWalls(overhead);
+        StepFurniture(overhead);
     }
 
     float AceFeetLocalY()
@@ -574,6 +604,93 @@ public sealed class GraceHouse : MonoBehaviour
 
     static bool BlocksAce(Bounds wall, Vector3 eye, Vector3 feet) =>
         Blocks(wall, eye, feet + Vector3.up * .4f) || Blocks(wall, eye, feet + Vector3.up * 1f) || Blocks(wall, eye, feet + Vector3.up * 1.7f);
+
+    // A piece of furniture fades when it stands between the camera and any of three points on Ace's capsule (a fifth, half
+    // and most of its height: crouched, 0.2, 0.5 and 0.85 m), on Ace's floor, and comes back once it has been clearly out of
+    // the way for a moment, as the walls do. Its foot stays solid (FurnitureFoot), so it still stands on the floor.
+    const float FurnitureFoot = .06f, FurnitureFeather = .30f;
+
+    void StepFurniture(bool overhead)
+    {
+        if (furniture.Length == 0) return;
+        float dt = Time.unscaledDeltaTime;
+        Transform eyeT = view != null && view.isometricCamera != null ? view.isometricCamera.transform : null;
+        Vector3 eye = eyeT != null ? eyeT.position : transform.position + Vector3.up * 20f;
+        Vector3 feet = view != null ? view.AceFeet : aceT.position;
+        float tall = ace != null ? ace.height * Mathf.Abs(aceT.lossyScale.y) : 2f;
+        int storey = upstairs ? 1 : 0;
+        foreach (Piece p in furniture)
+        {
+            if (p == null || p.parts.Length == 0) continue;
+            Measure(p);
+            bool mine = overhead && p.measured && p.storey == storey;
+            bool blocks = mine && (Blocks(p.full, eye, feet + Vector3.up * tall * .2f) || Blocks(p.full, eye, feet + Vector3.up * tall * .5f)
+                                   || Blocks(p.full, eye, feet + Vector3.up * tall * .85f));
+            if (blocks) { p.down = true; p.clearFor = 0f; }
+            else if (p.down)
+            {
+                p.clearFor += dt;
+                if (!mine || p.clearFor >= riseDelay) p.down = false;
+            }
+            float target = p.down ? 1f : 0f;
+            p.progress = !mine ? target : Mathf.MoveTowards(p.progress, target, dt / Mathf.Max(.01f, slideSeconds));
+            Apply(p);
+        }
+    }
+
+    /// <summary>How many pieces of her furniture are faded now (checks).</summary>
+    public int FurnitureFaded
+    {
+        get
+        {
+            int n = 0;
+            foreach (Piece p in furniture) if (p != null && p.worn) n++;
+            return n;
+        }
+    }
+
+    /// <summary>Whether the piece of furniture with this name is faded now (checks).</summary>
+    public bool Faded(string pieceName)
+    {
+        foreach (Piece p in furniture) if (p != null && p.name == pieceName) return p.worn;
+        return false;
+    }
+
+    // Measured while it stands as built (on the way in): the piece and what stands on it that is there now (her slept-in
+    // quilt only while she's in bed: the bed's own bounds hold it anyway).
+    void Measure(Piece p)
+    {
+        if (p.measured) return;
+        bool any = false;
+        foreach (Renderer r in p.parts)
+        {
+            if (r == null || !r.gameObject.activeInHierarchy) continue;
+            if (!any) { p.full = r.bounds; any = true; }
+            else p.full.Encapsulate(r.bounds);
+        }
+        p.measured = any;
+        p.floorY = any ? p.full.min.y : 0f;
+    }
+
+    void Apply(Piece p)
+    {
+        if (!p.measured) return;
+        bool down = p.progress > 0f;
+        if (down && !p.worn)
+        {
+            p.worn = true;
+            foreach (Renderer r in p.parts) SeeThroughMaterials.Wear(r);
+        }
+        else if (!down && p.worn)
+        {
+            p.worn = false;
+            foreach (Renderer r in p.parts) SeeThroughMaterials.TakeOff(r);
+        }
+        if (!p.worn) return;
+        p.keep = Mathf.Lerp(1f, ghost, Mathf.SmoothStep(0f, 1f, p.progress));
+        float from = p.floorY + FurnitureFoot, to = from + FurnitureFeather;
+        foreach (Renderer r in p.parts) SeeThroughMaterials.Show(r, p.keep, from, to);
+    }
 
     static bool Blocks(Bounds wall, Vector3 eye, Vector3 target)
     {

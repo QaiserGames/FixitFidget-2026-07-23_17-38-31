@@ -30,12 +30,15 @@ internal static class GraceHouseCheck
 
     // Where Ace must be able to stand: plan X, Y and the floor's height there (the flights: on the ramp, 39.8°).
     // The stops and the ways between them follow the walkable space worked out from the pieces' real bounds
-    // (the capsule's 0.58 clear of everything, with a few cm to spare), after the first build's check.
+    // (the capsule's 0.58 clear of everything, with a few cm to spare), after the first build's check; since playtest 3's
+    // session 5 (9 Oct), round the end of her breakfast bar and past the boxes at the foot of her bed (GraceCoverSteps),
+    // and into her cover: behind the bar by her front window, and beyond the boxes.
     static readonly (float X, float Y, float z, bool ramp, string what)[] Spots =
     {
         (1.11f, 3.35f, 0f, false, "the entry, inside her door"),
         (0.72f, 3.05f, 0f, false, "the foot of the stairs"),
-        (2.45f, 2.75f, 0f, false, "in the front room, by her armchair"),
+        (1.95f, 2.80f, 0f, false, "in the front room, at the end of her breakfast bar"),
+        (2.30f, 3.50f, 0f, false, "behind her breakfast bar, by her front window (cover)"),
         (2.22f, 2.08f, 0f, false, "in front of the cupboard under the stairs"),
         (3.20f, 1.30f, 0f, false, "at the cups in the kitchen"),
         (4.65f, 1.30f, 0f, false, "at the fridge"),
@@ -45,7 +48,8 @@ internal static class GraceHouseCheck
         (3.05f, 0.85f, 2.4f, false, "on the landing upstairs"),
         (3.05f, 1.55f, 2.4f, false, "in the bedroom's doorway"),
         (2.90f, 2.10f, 2.4f, false, "just inside the bedroom"),
-        (2.75f, 3.25f, 2.4f, false, "at the foot of the bed"),
+        (2.60f, 3.45f, 2.4f, false, "by the boxes at the foot of the bed"),
+        (2.55f, 2.98f, 2.4f, false, "beyond the boxes at the foot of the bed (cover)"),
         (1.25f, 3.62f, 2.4f, false, "at the wardrobe and the dressing table"),
     };
 
@@ -53,30 +57,34 @@ internal static class GraceHouseCheck
     static readonly (float X0, float Y0, float X1, float Y1, float z, string what)[] Ways =
     {
         (1.11f, 3.35f, 2.06f, 3.20f, 0f, "the entry, north past the foot of the stairs"),
-        (2.06f, 3.20f, 2.45f, 2.75f, 0f, "into the front room"),
-        (2.45f, 2.75f, 2.22f, 2.08f, 0f, "to the cupboard under the stairs"),
+        (2.06f, 3.20f, 1.95f, 2.80f, 0f, "into the front room, past the end of her breakfast bar"),
+        (1.95f, 2.80f, 2.00f, 2.30f, 0f, "down past the end of the bar"),
+        (2.00f, 2.30f, 2.22f, 2.08f, 0f, "to the cupboard under the stairs"),
+        (1.90f, 3.25f, 2.30f, 3.50f, 0f, "from the entry to behind the bar, by her front window"),
         (2.22f, 2.08f, 3.00f, 2.02f, 0f, "round toward the kitchen"),
         (3.00f, 2.02f, 3.28f, 1.50f, 0f, "past the cupboard's corner"),
         (3.28f, 1.50f, 3.20f, 1.30f, 0f, "to the cups"),
         (3.20f, 1.30f, 4.65f, 1.30f, 0f, "along the kitchen to the fridge"),
         (3.20f, 1.30f, 3.20f, 1.85f, 0f, "out of the kitchen"),
-        (3.20f, 1.85f, 2.45f, 2.30f, 0f, "back past her armchair"),
-        (2.45f, 2.30f, 2.30f, 2.95f, 0f, "back across the front room"),
-        (2.30f, 2.95f, 1.90f, 3.25f, 0f, "back into the entry"),
+        (3.20f, 1.85f, 2.40f, 2.05f, 0f, "back past her breakfast bar"),
+        (2.40f, 2.05f, 1.98f, 2.25f, 0f, "back round the end of the bar"),
+        (1.98f, 2.25f, 1.95f, 2.95f, 0f, "back up past the bar"),
+        (1.95f, 2.95f, 1.90f, 3.25f, 0f, "back into the entry"),
         (1.90f, 3.25f, 0.95f, 3.30f, 0f, "along the entry"),
         (0.95f, 3.30f, 0.72f, 3.05f, 0f, "to the foot of the stairs"),
         (1.11f, 3.35f, 0.72f, 3.05f, 0f, "the entry to the foot of the stairs"),
         (2.95f, 0.72f, 3.05f, 0.85f, 2.4f, "the top of the stairs onto the landing"),
         (3.05f, 0.85f, 3.05f, 1.55f, 2.4f, "the landing to the bedroom's doorway"),
         (3.05f, 1.55f, 2.90f, 2.10f, 2.4f, "through the doorway"),
-        (2.90f, 2.10f, 2.80f, 2.40f, 2.4f, "past the corner of the bed"),
-        (2.80f, 2.40f, 2.65f, 2.90f, 2.4f, "into the room"),
-        (2.65f, 2.90f, 2.75f, 3.25f, 2.4f, "to the foot of the bed"),
-        (2.75f, 3.25f, 1.85f, 3.42f, 2.4f, "across the room"),
+        (2.90f, 2.10f, 2.75f, 2.28f, 2.4f, "past the boxes at the foot of the bed"),
+        (2.75f, 2.28f, 2.40f, 2.85f, 2.4f, "into the room, beside the boxes"),
+        (2.40f, 2.85f, 2.55f, 2.98f, 2.4f, "beyond the boxes (cover)"),
+        (2.40f, 2.85f, 2.60f, 3.45f, 2.4f, "to the boxes at the foot of the bed"),
+        (2.60f, 3.45f, 1.85f, 3.42f, 2.4f, "across the room"),
         (1.85f, 3.42f, 1.50f, 3.58f, 2.4f, "toward the south bay"),
         (1.50f, 3.58f, 1.25f, 3.62f, 2.4f, "to the wardrobe"),
-        (1.85f, 3.42f, 2.30f, 3.05f, 2.4f, "back toward the door"),
-        (2.30f, 3.05f, 2.80f, 2.40f, 2.4f, "back past the corner of the bed"),
+        (1.85f, 3.42f, 2.25f, 3.05f, 2.4f, "back toward the door"),
+        (2.25f, 3.05f, 2.75f, 2.28f, 2.4f, "back past the boxes"),
     };
 
     [MenuItem("Fixit Fidget/Night/Break-ins 2 - Check Grace's house (read-only, photos)")]
@@ -141,7 +149,8 @@ internal static class GraceHouseCheck
             int sliding = built.walls.Count(w => w.upper != null);
             Line(built.walls.Length >= 30 && sliding >= 25, $"her rooms: {renderers} pieces, {colliders} colliders, {built.walls.Length} walls ({sliding} can slide down)");
             Line(built.ceilings.Length >= 4, $"{built.ceilings.Length} ceilings hide in the overhead view while Ace is inside");
-            Line(built.nightLights.Length == 3 && built.nightLights.All(l => l != null && !l.enabled), $"{built.nightLights.Length} lamps, off in the scene (on at night)");
+            // Three from Break-ins 1, and the kitchen's under-cupboard light since Break-ins 5 (the finish).
+            Line(built.nightLights.Length >= 3 && built.nightLights.All(l => l != null && !l.enabled), $"{built.nightLights.Length} lamps, off in the scene (on at night)");
             Line(built.groundFloor != null && built.firstFloor != null, "the two floors are there");
             Line(built.walls.All(w => w.upper == null || w.upper.GetComponent<Renderer>() != null), "every sliding wall part draws");
 

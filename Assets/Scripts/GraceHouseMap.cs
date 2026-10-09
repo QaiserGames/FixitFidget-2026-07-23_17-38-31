@@ -8,15 +8,22 @@ using System.Collections.Generic;
 // she walks set ways between known spots, the way Ace's walk check does. Spots are in plan metres (claude/break-ins-spec.md
 // §4): X along West Street from the south wall (north is +X), Y from the back wall toward the street, Z up from the
 // ground floor (the first floor is at 2.40). Most of them are stops Ace's own capsule reached in the walk check
-// (GraceHouseWalkCheck: 1.16 m wide, wider than her); the rest stand beside a piece of furniture, measured from the
-// pieces as built (GraceHouseSteps; Tools/Blender/plan_v2.py AS_BUILT):
+// (GraceHouseWalkCheck); the rest stand beside a piece of furniture, measured from the pieces as built (GraceHouseSteps;
+// Tools/Blender/plan_v2.py AS_BUILT):
 //   * in front of her armchair (it faces the TV on the north wall; she sits back into it), at the kettle (on the hob),
 //     at the sink (the counter's north end), beside the bed (its open side faces the back of the house);
 //   * the stairs: the bottom step, the top of each flight and the landing between, so her height follows the flights.
 // A way is a straight line between two spots that clears the walls, the stairs' block and the furniture.
 //
+// Cover (playtest 3 session 5, 9 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §6.1): her breakfast bar stands behind
+// her armchair (X 2.45-3.55, Y 2.47-3.10) and a stack of boxes at the foot of her bed. The spot beside her armchair moved
+// to the bar's south end, the way from it straight to the kitchen went (it would cross the bar), a spot behind the bar by
+// her front window joined the map, and the spot in the bedroom moved clear of the boxes: every piece of cover has a spot
+// on each side of it, so she can walk round to look behind it. Furniture lists the footprints the rule checks keep every way
+// clear of (by her half-width, 0.25 m; the way up to her armchair, which she sits back into, by 0.15 m).
+//
 // Paths are the shortest by length (Dijkstra over a few dozen spots). No Unity types: Tests/GraceRules checks the map
-// (every spot reaches every other; her armchair to her bed goes up both flights; nothing crosses a wall).
+// (every spot reaches every other; her armchair to her bed goes up both flights; nothing crosses a wall or her furniture).
 // ---------------------------------------------------------------------------
 public static class GraceHouseMap
 {
@@ -41,14 +48,14 @@ public static class GraceHouseMap
     public const int Doorway = 0, Entry = 1, EntryByStairs = 2, FrontRoomWest = 3, Pocket = 4, TowardKitchen = 5, CupboardCorner = 6,
         Kettle = 7, Kitchen = 8, Sink = 9, Fridge = 10, FrontRoomEast = 11, Armchair = 12, FootOfStairs = 13, BottomStep = 14,
         LowerFlightTop = 15, Landing = 16, UpperFlightFoot = 17, UpperFlightTop = 18, TopOfStairs = 19, LandingUpstairs = 20,
-        BedroomDoorway = 21, InsideBedroomDoor = 22, Bedside = 23, Bedroom = 24, AcrossBedroom = 25, Wardrobe = 26;
+        BedroomDoorway = 21, InsideBedroomDoor = 22, Bedside = 23, Bedroom = 24, AcrossBedroom = 25, Wardrobe = 26, BehindTheBar = 27;
 
     public static readonly Spot[] Spots =
     {
         new Spot("in her doorway", 1.11f, 4.05f),
         new Spot("in the entry", 1.11f, 3.35f),
         new Spot("in the entry, by the stairs", 1.90f, 3.25f),
-        new Spot("in the front room, west of her armchair", 2.45f, 2.75f),
+        new Spot("in the front room, at the south end of her breakfast bar", 1.95f, 2.80f),
         new Spot("in the pocket, at the cupboard under the stairs", 2.22f, 2.08f),
         new Spot("round toward the kitchen", 3.00f, 2.02f),
         new Spot("past the cupboard's corner", 3.28f, 1.50f),
@@ -69,23 +76,90 @@ public static class GraceHouseMap
         new Spot("in the bedroom's doorway", 3.05f, 1.55f, 2.40f),
         new Spot("just inside the bedroom doors", 3.05f, 2.30f, 2.40f),
         new Spot("beside her bed", 4.40f, 2.25f, 2.40f),
-        new Spot("in the bedroom", 2.65f, 2.90f, 2.40f),
+        new Spot("in the bedroom, south of the boxes", 2.40f, 2.75f, 2.40f),
         new Spot("across the bedroom", 1.85f, 3.42f, 2.40f),
         new Spot("at the wardrobe", 1.25f, 3.62f, 2.40f),
+        new Spot("behind her breakfast bar, by the front window", 2.35f, 3.45f),
     };
 
     // The straight ways between spots (both directions).
     static readonly (int a, int b)[] Ways =
     {
         (Doorway, Entry), (Entry, EntryByStairs), (Entry, FootOfStairs), (EntryByStairs, FrontRoomWest), (EntryByStairs, Pocket),
-        (FrontRoomWest, Pocket), (FrontRoomWest, TowardKitchen), (Pocket, TowardKitchen), (TowardKitchen, CupboardCorner),
+        (FrontRoomWest, Pocket), (Pocket, TowardKitchen), (TowardKitchen, CupboardCorner),
         (TowardKitchen, FrontRoomEast), (CupboardCorner, Kettle), (CupboardCorner, Kitchen), (Kettle, Kitchen), (Kitchen, Sink),
         (Kitchen, Fridge), (Sink, Fridge), (Kitchen, FrontRoomEast), (FrontRoomEast, Armchair),
         (FootOfStairs, BottomStep), (BottomStep, LowerFlightTop), (LowerFlightTop, Landing), (Landing, UpperFlightFoot),
         (UpperFlightFoot, UpperFlightTop), (UpperFlightTop, TopOfStairs), (TopOfStairs, LandingUpstairs),
         (LandingUpstairs, BedroomDoorway), (BedroomDoorway, InsideBedroomDoor), (InsideBedroomDoor, Bedside),
         (InsideBedroomDoor, Bedroom), (Bedroom, AcrossBedroom), (AcrossBedroom, Wardrobe),
+        (EntryByStairs, BehindTheBar), (FrontRoomWest, BehindTheBar),
     };
+
+    /// <summary>A piece of her furniture's footprint, in plan metres, and its floor (0 the ground floor, 1 upstairs).</summary>
+    public readonly struct Footprint
+    {
+        public readonly string name;
+        public readonly float X0, X1, Y0, Y1;
+        public readonly int Storey;
+
+        public Footprint(string name, float x0, float x1, float y0, float y1, int storey)
+        {
+            this.name = name;
+            X0 = x0;
+            X1 = x1;
+            Y0 = y0;
+            Y1 = y1;
+            Storey = storey;
+        }
+
+        /// <summary>How far a point (plan metres, on its floor) is from the footprint: 0 inside it.</summary>
+        public float Distance(float x, float y)
+        {
+            float dx = Math.Max(Math.Max(X0 - x, 0f), x - X1), dy = Math.Max(Math.Max(Y0 - y, 0f), y - Y1);
+            return (float)Math.Sqrt(dx * dx + dy * dy);
+        }
+    }
+
+    // The pieces she walks round, as built (GraceHouseSteps, Tools/Blender/plan_v2.py AS_BUILT; the bar and the boxes from
+    // GraceCoverSteps): the furthest each reaches, its knobs, rail and lamp shade included.
+    public const int ArmchairPiece = 3, BreakfastBar = 7, Boxes = 12;
+
+    public static readonly Footprint[] Furniture =
+    {
+        new Footprint("the kitchen counter", 2.615f, 4.625f, 0f, .64f, 0),
+        new Footprint("the fridge", 4.72f, 5.34f, 0f, .69f, 0),
+        new Footprint("the TV cabinet", 4.93f, 5.42f, 2.305f, 3.355f, 0),
+        new Footprint("her armchair", 3.55f, 4.45f, 2.43f, 3.23f, 0),
+        new Footprint("her standard lamp", 3.03f, 3.47f, 3.34f, 3.76f, 0),
+        new Footprint("the sideboard", 2.905f, 4.295f, 3.51f, 4.02f, 0),
+        new Footprint("the coat stand", 4.90f, 5.34f, 3.45f, 3.99f, 0),
+        new Footprint("her breakfast bar", 2.45f, 3.55f, 2.47f, 3.10f, 0),
+        new Footprint("her bed", 3.46f, 5.36f, 2.61f, 3.96f, 1),
+        new Footprint("the bedside table", 4.99f, 5.40f, 2.09f, 2.52f, 1),
+        new Footprint("the wardrobe", 0f, .635f, 2.99f, 3.98f, 1),
+        new Footprint("the dressing table", .81f, 1.91f, 4.22f, 4.77f, 1),
+        new Footprint("the boxes at the foot of her bed", 2.958f, 3.43f, 2.70f, 3.26f, 1),
+    };
+
+    /// <summary>
+    /// How close a way comes to a footprint (plan metres, flat), sampled every 2 cm along it. Ways on the stairs (ends on
+    /// different floors) are measured against neither floor: float.MaxValue.
+    /// </summary>
+    public static float Clearance(int a, int b, Footprint piece)
+    {
+        Spot sa = Spots[a], sb = Spots[b];
+        if (sa.Storey != sb.Storey || Math.Abs(sa.Z - sb.Z) > .01f || sa.Storey != piece.Storey) return float.MaxValue;
+        float length = Length(a, b);
+        int steps = Math.Max(1, (int)Math.Ceiling(length / .02f));
+        float least = float.MaxValue;
+        for (int i = 0; i <= steps; i++)
+        {
+            float t = i / (float)steps;
+            least = Math.Min(least, piece.Distance(sa.X + (sb.X - sa.X) * t, sa.Y + (sb.Y - sa.Y) * t));
+        }
+        return least;
+    }
 
     static List<int>[] links;
 

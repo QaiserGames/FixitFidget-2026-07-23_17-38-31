@@ -30,14 +30,17 @@ using UnityEngine;
 public sealed class GraceHouseWalkCheck : MonoBehaviour
 {
     // Plan metres (X north, Y to the street) and what the stop is; photo: take one there. The stops follow the
-    // walkable space worked out from the pieces' real bounds (the same ways as Break-ins 2's check).
+    // walkable space worked out from the pieces' real bounds (the same ways as Break-ins 2's check); since playtest 3's
+    // session 5 (9 Oct), round the end of her breakfast bar and past the boxes at the foot of her bed, every stop and every
+    // leg 0.39 m or more from both (Ace is 0.385 round).
     static readonly (float X, float Y, string what, bool photo)[] Route =
     {
         (1.11f, 5.30f, "on the pavement at her stoop", false),
         (1.11f, 4.05f, "in her doorway", false),
         (1.11f, 3.35f, "in the entry, inside the door", true),
         (2.06f, 3.20f, "past the foot of the stairs", false),
-        (2.45f, 2.75f, "in the front room, by her armchair", true),
+        (1.95f, 2.80f, "in the front room, at the end of her breakfast bar", true),
+        (2.00f, 2.30f, "down past the end of the bar", false),
         (2.22f, 2.08f, "in the pocket, at the cupboard under the stairs", true),
         (3.00f, 2.02f, "round toward the kitchen", false),
         (3.28f, 1.50f, "past the cupboard's corner", false),
@@ -45,8 +48,9 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         (4.65f, 1.30f, "at the fridge", false),
         (3.20f, 1.30f, "back at the cups", false),
         (3.20f, 1.85f, "out of the kitchen", false),
-        (2.45f, 2.30f, "back past her armchair", false),
-        (2.30f, 2.95f, "back across the front room", false),
+        (2.40f, 2.05f, "back past her breakfast bar", false),
+        (1.98f, 2.25f, "back round the end of the bar", false),
+        (1.95f, 2.95f, "back up past the bar", false),
         (1.90f, 3.25f, "back in the entry", false),
         (0.95f, 3.30f, "along the entry", false),
         (0.72f, 3.05f, "at the foot of the stairs", false),
@@ -59,16 +63,16 @@ public sealed class GraceHouseWalkCheck : MonoBehaviour
         (3.05f, 0.85f, "on the landing upstairs, by the bathroom door", true),
         (3.05f, 1.55f, "in the bedroom's doorway", false),
         (2.90f, 2.10f, "just inside the bedroom", false),
-        (2.80f, 2.40f, "past the corner of the bed", false),
-        (2.65f, 2.90f, "in the room", false),
-        (2.75f, 3.25f, "at the foot of the bed", true),
+        (2.75f, 2.28f, "past the boxes at the foot of the bed", false),
+        (2.40f, 2.85f, "in the room, beside the boxes", false),
+        (2.60f, 3.45f, "by the boxes at the foot of the bed", true),
         (1.85f, 3.42f, "across the room", false),
         (1.50f, 3.58f, "toward the south bay", false),
         (1.25f, 3.62f, "at the wardrobe and the dressing table", true),
         (1.50f, 3.58f, "back from the wardrobe", false),
         (1.85f, 3.42f, "back across the room", false),
-        (2.30f, 3.05f, "back toward the door", false),
-        (2.80f, 2.40f, "back past the corner of the bed", false),
+        (2.25f, 3.05f, "back toward the door", false),
+        (2.75f, 2.28f, "back past the boxes", false),
         (2.90f, 2.10f, "back at the bedroom's door", false),
         (3.05f, 1.55f, "back through the doorway", false),
         (3.05f, 0.85f, "on the landing upstairs", false),

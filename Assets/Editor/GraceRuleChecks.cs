@@ -7,7 +7,9 @@ using UnityEngine;
 
 // Rule checks for Grace at home (break-ins chunk C, 6 Oct 2026; claude/chunk-c-grace-at-home-plan.md): the days of the
 // week, her night by the clock (a usual night and her Thursday), how fast her mark fills and drains, what a sound does
-// to it, and the ways she walks in her house. Pure: no scene, no save file, no assets. Also compiled by Tests/GraceRules.
+// to it, and the ways she walks in her house; since playtest 3's session 5 (9 Oct), her ways round her furniture and her
+// cover (a spot on each side of the breakfast bar and the boxes). Pure: no scene, no save file, no assets. Also compiled
+// by Tests/GraceRules.
 public static class GraceRuleChecks
 {
 #if UNITY_EDITOR
@@ -126,6 +128,37 @@ public static class GraceRuleChecks
         Check(GraceHouseMap.Find("at the kettle") == GraceHouseMap.Kettle && GraceHouseMap.Find("nowhere") == -1, "Spots are found by name.");
         Check(spots[GraceHouseMap.Bedside].Storey == 1 && spots[GraceHouseMap.Landing].Storey == 0 && spots[GraceHouseMap.Kettle].Storey == 0,
             "Upstairs begins at the top of the upper flight.");
+
+        // ---------- her furniture, and her cover (playtest 3 session 5) ----------
+        var furniture = GraceHouseMap.Furniture;
+        Check(furniture.Length == 13 && furniture[GraceHouseMap.ArmchairPiece].name == "her armchair"
+              && furniture[GraceHouseMap.BreakfastBar].name == "her breakfast bar" && furniture[GraceHouseMap.Boxes].Storey == 1,
+            "Her furniture's footprints are listed: the armchair, the breakfast bar, the boxes upstairs.");
+        for (int a = 0; a < spots.Length; a++)
+            foreach (int b in GraceHouseMap.Next(a))
+            {
+                if (b < a) continue;
+                for (int k = 0; k < furniture.Length; k++)
+                {
+                    float clear = GraceHouseMap.Clearance(a, b, furniture[k]);
+                    // She sits back into her armchair: the way up to it may come within 0.15 m of it.
+                    bool toHerChair = k == GraceHouseMap.ArmchairPiece && (a == GraceHouseMap.Armchair || b == GraceHouseMap.Armchair);
+                    float least = toHerChair ? .15f : .25f;
+                    Check(clear >= least, $"The way from {spots[a].name} to {spots[b].name} keeps {least:0.00} m clear of {furniture[k].name} ({clear:0.00} m).");
+                }
+            }
+        GraceHouseMap.Footprint bar = furniture[GraceHouseMap.BreakfastBar], boxes = furniture[GraceHouseMap.Boxes];
+        GraceHouseMap.Spot behind = spots[GraceHouseMap.BehindTheBar], kitchenSide = spots[GraceHouseMap.TowardKitchen];
+        Check(behind.Y > bar.Y1 && behind.Storey == 0 && kitchenSide.Y < bar.Y0 && kitchenSide.X > bar.X0 && kitchenSide.X < bar.X1,
+            "Her breakfast bar has a spot on each side: round toward the kitchen in front of it, and behind it by her front window.");
+        Check(GraceHouseMap.Path(GraceHouseMap.Kettle, GraceHouseMap.BehindTheBar, path) && path.Contains(GraceHouseMap.Pocket)
+              && GraceHouseMap.PathLength(GraceHouseMap.Kettle, GraceHouseMap.BehindTheBar) < 5.5f,
+            $"From the kettle to behind the bar she walks round its south end, by the pocket ({GraceHouseMap.PathLength(GraceHouseMap.Kettle, GraceHouseMap.BehindTheBar):0.00} m).");
+        GraceHouseMap.Spot south = spots[GraceHouseMap.Bedroom], door = spots[GraceHouseMap.InsideBedroomDoor];
+        Check(south.Storey == 1 && south.X < boxes.X0 && door.Y < boxes.Y0,
+            "The boxes at the foot of her bed have a spot south of them (in the bedroom) and one in front of them (inside the doors).");
+        Check(GraceHouseMap.Nearest(2.30f, 3.50f, 0f) == GraceHouseMap.BehindTheBar && GraceHouseMap.Nearest(2.50f, 2.98f, 2.4f) == GraceHouseMap.Bedroom,
+            "A sound behind the bar is nearest the spot behind it; one beyond the boxes, the spot south of them.");
         return count;
 
         float closeLitAt(float d) => GraceNight.SeeRate(true, d, 7f, 0f, 55f, false, false, false);
