@@ -30,15 +30,17 @@ using Object = UnityEngine.Object;
 // ---------------------------------------------------------------------------
 internal static class BlenderKitSteps
 {
-    [Serializable] class Child { public string name; public float[] at; }
+    [Serializable] class Child { public string name; public float[] at; public bool turned; }
     [Serializable] class Piece { public string name, tool, room, what; public int tris, meshes; public Child[] children; public float[] size; public float bottom; public string[] materials; public int islands; }
     [Serializable] class Manifest { public int version; public Piece[] pieces; }
 
     const string CafeMaterials = "Assets/Art/Materials";
     const string GraceMaterials = "Assets/Art/Materials/GraceHouse";
     const string ToolMaterials = "Assets/Art/Materials/BenchTools";
+    const string DeviceMaterials = "Assets/Art/Materials/Devices";
     public const string ToolModels = "Assets/Art/Models/BenchTools";
     public const string GraceModels = "Assets/Art/Models/GraceHouse";
+    public const string DeviceModels = "Assets/Art/Models/Devices";
 
     [MenuItem("Fixit Fidget/Bench/Bench tools 1 - Import and check the tools (the models only)")]
     static void ImportTools()
@@ -46,6 +48,18 @@ internal static class BlenderKitSteps
         Run("Bench tools 1 - Import and check the tools (the models only)", "[Bench tools] ",
             ToolModels + "/bench_tools.json", ToolModels, "BT_", ToolMaterials, Path.Combine("Logs", "Bench"), "bench-tools",
             PhotographTools);
+    }
+
+    // The hero devices (8 Oct 2026): one model each, HD_Phone.fbx, HD_Watch.fbx and HD_Camera.fbx (the main piece as the root; the other
+    // pieces as its children where the prefab has them; a child the prefab turns is flagged "turned" in the manifest),
+    // built by Tools/Blender/hero_phone.py, hero_watch.py and hero_camera.py. This step imports and checks them;
+    // HeroDeviceSteps' "Devices 2" puts their meshes into the PhoneRepair, PocketWatch and GraceReunionCamera prefabs' pieces.
+    [MenuItem("Fixit Fidget/Bench/Devices 1 - Import and check the hero devices (the models only)")]
+    static void ImportDevices()
+    {
+        Run("Devices 1 - Import and check the hero devices (the models only)", "[Hero devices] ",
+            DeviceModels + "/devices.json", DeviceModels, "HD_", DeviceMaterials, Path.Combine("Logs", "Bench"), "hero-devices",
+            PhotographDevices);
     }
 
     [MenuItem("Fixit Fidget/Night/Grace's cover 1 - Import and check the pieces (the models only)")]
@@ -117,7 +131,9 @@ internal static class BlenderKitSteps
                     tris += (int)(indices / 3);
                     Bounds b = Transformed(f.sharedMesh.bounds, toRoot);
                     if (first) { whole = b; first = false; } else whole.Encapsulate(b);
-                    upright &= Quaternion.Angle(toRoot.rotation, Quaternion.identity) < .5f && (toRoot.lossyScale - Vector3.one).magnitude < .001f;
+                    // a child the prefab turns (the watch's crown) is built turned on purpose: the manifest flags it
+                    bool turnedByDesign = piece.children != null && piece.children.Any(c => c.turned && c.name == f.transform.name);
+                    upright &= (turnedByDesign || Quaternion.Angle(toRoot.rotation, Quaternion.identity) < .5f) && (toRoot.lossyScale - Vector3.one).magnitude < .001f;
                     Material[] used = f.GetComponent<Renderer>().sharedMaterials;
                     mapped &= used.Length > 0 && used.All(m => m != null && AssetDatabase.GetAssetPath(m).EndsWith(".mat", StringComparison.Ordinal));
                     foreach (Material m in used) if (m != null && !names.Contains(m.name)) names.Add(m.name);
@@ -134,12 +150,14 @@ internal static class BlenderKitSteps
                     {
                         Transform t = asset.transform.Find(c.name);
                         var at = new Vector3(c.at[0], c.at[1], c.at[2]);
-                        bool ok = t != null && (t.localPosition - at).magnitude < .001f && Quaternion.Angle(t.localRotation, Quaternion.identity) < .5f;
+                        bool ok = t != null && (t.localPosition - at).magnitude < .001f && (c.turned || Quaternion.Angle(t.localRotation, Quaternion.identity) < .5f);
                         jointed &= ok;
                         joints.Append(ok ? $"; {c.name} at {V(at)}" : $"; {c.name} {(t == null ? "MISSING" : "at " + V(t.localPosition) + " (built at " + V(at) + ")")}");
                     }
-                Check(mapped && upright && size && standing && jointed && tris == piece.tris,
-                      $"{piece.name}: {piece.what}; {tris} triangles{(tris == piece.tris ? "" : " (built with " + piece.tris + ")")}, " +
+                // Unity's importer may drop a few sliver triangles (the camera loses 20 of 10,900): within half a percent is whole
+                bool wholeMesh = Mathf.Abs(tris - piece.tris) <= Mathf.Max(2, piece.tris / 200);
+                Check(mapped && upright && size && standing && jointed && wholeMesh,
+                      $"{piece.name}: {piece.what}; {tris} triangles{(tris == piece.tris ? "" : " (built with " + piece.tris + (wholeMesh ? ", slivers dropped on import)" : ")"))}, " +
                       $"{V(whole.size)}{(size ? "" : " (built " + V(built) + ")")}, {(upright ? "upright" : "TURNED or scaled")}, " +
                       $"{(standing ? "origin where it was built" : "bottom at " + whole.min.y.ToString("0.000", CultureInfo.InvariantCulture) + " (built " + piece.bottom.ToString("0.000", CultureInfo.InvariantCulture) + ")")}" +
                       $"{joints}, {names.Count} material(s){(mapped ? "" : " (NOT all project materials: " + string.Join(", ", names) + ")")}");
@@ -188,7 +206,7 @@ internal static class BlenderKitSteps
                 if (material.shader != lit) material.shader = lit;
                 material.SetColor("_BaseColor", colour);
                 material.SetFloat("_Smoothness", pair.Value.smoothness);
-                material.SetFloat("_Metallic", 0f);
+                material.SetFloat("_Metallic", pair.Value.metallic);     // the hero kit (8 Oct): plated steel and brass are metal
                 EditorUtility.SetDirty(material);
                 result[name] = material;
             }
@@ -207,9 +225,9 @@ internal static class BlenderKitSteps
         return result;
     }
 
-    static Dictionary<string, (string hex, float smoothness)> ReadMaterials(string json, string section)
+    static Dictionary<string, (string hex, float smoothness, float metallic)> ReadMaterials(string json, string section)
     {
-        var result = new Dictionary<string, (string, float)>();
+        var result = new Dictionary<string, (string, float, float)>();
         int at = json.IndexOf(section, StringComparison.Ordinal);
         if (at < 0) return result;
         int open = at + section.Length - 1;
@@ -231,9 +249,10 @@ internal static class BlenderKitSteps
             int c = body.IndexOf('}', o);
             if (o < 0 || c < 0) break;
             string entry = body.Substring(o + 1, c - o - 1);
-            string hex = Field(entry, "hex"), smooth = Field(entry, "smoothness");
+            string hex = Field(entry, "hex"), smooth = Field(entry, "smoothness"), metal = Field(entry, "metallic");
             if (!string.IsNullOrEmpty(hex))
-                result[name] = (hex, float.Parse(string.IsNullOrEmpty(smooth) ? "0.3" : smooth, CultureInfo.InvariantCulture));
+                result[name] = (hex, float.Parse(string.IsNullOrEmpty(smooth) ? "0.3" : smooth, CultureInfo.InvariantCulture),
+                                float.Parse(string.IsNullOrEmpty(metal) ? "0" : metal, CultureInfo.InvariantCulture));
             pos = c + 1;
         }
         return result;
@@ -351,6 +370,35 @@ internal static class BlenderKitSteps
             Utility.Cleanup();
             foreach (Object o in made) if (o != null) Object.DestroyImmediate(o);
         }
+    }
+
+    // Each device as the close-up camera sees it: lying on a mat, from 58° above; its front, then turned over, its back.
+    static void PhotographDevices(List<string> paths, string folder, StringBuilder report)
+    {
+        var shot = new List<string>();
+        foreach (var (file, lift, back, dist) in new[] { ("HD_Phone", .0045f, 180f, .40f), ("HD_Watch", .021f, 180f, .50f), ("HD_Camera", .024f, 0f, .60f) })
+        {
+            string path = paths.FirstOrDefault(p => p.EndsWith("/" + file + ".fbx", StringComparison.Ordinal));
+            if (path == null) continue;
+            using (var s = new Studio())
+            {
+                s.Primitive(PrimitiveType.Cube, "Bench top (photo)", new Vector3(0f, -.03f, 0f), new Vector3(.8f, .04f, .5f), s.Flat(new Color(.56f, .36f, .20f)));
+                s.Primitive(PrimitiveType.Cube, "Mat (photo)", new Vector3(0f, -.007f, 0f), new Vector3(.6f, .006f, .36f), s.Flat(new Color(.24f, .33f, .47f)));
+                GameObject device = s.Place(path, new Vector3(0f, lift, 0f), Vector3.zero);
+                Vector3 from = new Vector3(0f, Mathf.Sin(58f * Mathf.Deg2Rad) * dist, -Mathf.Cos(58f * Mathf.Deg2Rad) * dist);
+                string tag = file.Substring(3).ToLowerInvariant();
+                s.Shoot(Path.Combine(folder, $"{tag}-1-the-front-from-the-close-up.png"), from, Vector3.zero, 30f);
+                s.Shoot(Path.Combine(folder, $"{tag}-2-the-front-close.png"), new Vector3(.08f, .12f, -.12f) * (dist / .40f), new Vector3(0f, 0f, -.02f), 26f);
+                if (back != 0f)
+                {
+                    if (device != null) device.transform.rotation = Quaternion.Euler(0f, 0f, back);     // over onto its face: the back up
+                    s.Shoot(Path.Combine(folder, $"{tag}-3-the-back-from-the-close-up.png"), from, Vector3.zero, 30f);
+                }
+                shot.Add(tag);
+            }
+        }
+        report.AppendLine($"Photos (a preview scene, each device on a mat under the close-up camera's angle; the café scene isn't touched): " +
+                          $"{string.Join(", ", shot.Select(t => t + "-1-the-front-from-the-close-up, " + t + "-2-the-front-close, " + t + "-3-the-back-from-the-close-up"))}, in {folder}");
     }
 
     // The tools as the inspection camera will see them: points down on a bench top, leaning back 20°, 0.55 m away.

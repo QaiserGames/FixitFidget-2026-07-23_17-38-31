@@ -1,0 +1,447 @@
+{
+ "version": 2,
+ "pieces": [
+  {
+   "name": "HD_Phone",
+   "tool": "",
+   "room": "",
+   "what": "the hero phone: body, screen, back cover and a screw, assembled as the prefab has them",
+   "tris": 3644,
+   "meshes": 4,
+   "children": [
+    {
+     "name": "Screen",
+     "at": [
+      0.0,
+      0.005,
+      0.0
+     ],
+     "turned": false
+    },
+    {
+     "name": "BackCover",
+     "at": [
+      0.0,
+      -0.0055,
+      0.0
+     ],
+     "turned": false
+    },
+    {
+     "name": "Screw",
+     "at": [
+      0.022,
+      -0.008,
+      -0.058
+     ],
+     "turned": false
+    }
+   ],
+   "size": [
+    0.0712,
+    0.0155,
+    0.1403
+   ],
+   "bottom": -0.0095,
+   "materials": [
+    "HD_PhoneRail",
+    "HD_PhoneBlack",
+    "HD_PhoneBack",
+    "HD_PhoneSteel",
+    "HD_PhoneCopper",
+    "HD_Glass",
+    "HD_PhoneIsland",
+    "HD_Lens",
+    "HD_Flash",
+    "HD_Screw",
+    "HD_ScrewSlot"
+   ],
+   "islands": 0,
+   "targets": {
+    "HD_Phone": [
+     "Body"
+    ],
+    "Screen": [
+     "Broken",
+     "Fresh"
+    ],
+    "BackCover": [
+     "BackCover"
+    ],
+    "Screw": [
+     "Screw0",
+     "Screw1"
+    ]
+   }
+  },
+  {
+   "name": "HD_Watch",
+   "tool": "",
+   "room": "",
+   "what": "the hero pocket watch: case, back plate, crown, a screw and the mainspring, assembled as the prefab has them",
+   "tris": 12670,
+   "meshes": 5,
+   "children": [
+    {
+     "name": "BackPlate",
+     "at": [
+      0.0,
+      -0.016,
+      0.0
+     ],
+     "turned": false
+    },
+    {
+     "name": "Crown",
+     "at": [
+      0.0,
+      0.0,
+      0.085
+     ],
+     "turned": true
+    },
+    {
+     "name": "Screw",
+     "at": [
+      0.032,
+      -0.02,
+      0.032
+     ],
+     "turned": false
+    },
+    {
+     "name": "Mainspring",
+     "at": [
+      0.03,
+      -0.007,
+      0.02
+     ],
+     "turned": false
+    }
+   ],
+   "size": [
+    0.15,
+    0.0342,
+    0.204
+   ],
+   "bottom": -0.0217,
+   "materials": [
+    "HD_WatchGold",
+    "HD_WatchNickel",
+    "HD_WatchDial",
+    "HD_WatchInk",
+    "HD_WatchBlue",
+    "HD_WatchSteel",
+    "HD_WatchBrass",
+    "HD_WatchRuby",
+    "HD_ScrewSlot",
+    "HD_WatchGoldDark"
+   ],
+   "islands": 0,
+   "targets": {
+    "HD_Watch": [
+     "Cylinder"
+    ],
+    "BackPlate": [
+     "BackPlate"
+    ],
+    "Crown": [
+     "Crown"
+    ],
+    "Screw": [
+     "Screw0",
+     "Screw1",
+     "Screw2",
+     "Screw3"
+    ],
+    "Mainspring": [
+     "Part_Extra_Mainspring",
+     "Fresh"
+    ]
+   }
+  },
+  {
+   "name": "HD_Camera",
+   "tool": "",
+   "room": "",
+   "what": "Grace's camera, hero: body, lens, glass, film path, shutter mechanism and blades, straps, assembled as the prefab has them",
+   "tris": 10892,
+   "meshes": 9,
+   "children": [
+    {
+     "name": "LensHousing",
+     "at": [
+      -0.065,
+      0.032,
+      -0.024
+     ],
+     "turned": false
+    },
+    {
+     "name": "LensGlass",
+     "at": [
+      -0.065,
+      0.07,
+      -0.024
+     ],
+     "turned": false
+    },
+    {
+     "name": "FilmPath",
+     "at": [
+      0.056,
+      0.026,
+      -0.043
+     ],
+     "turned": false
+    },
+    {
+     "name": "Mechanism",
+     "at": [
+      0.053,
+      0.037,
+      0.041
+     ],
+     "turned": false
+    },
+    {
+     "name": "BentBlade",
+     "at": [
+      0.053,
+      0.0493,
+      0.041
+     ],
+     "turned": false
+    },
+    {
+     "name": "WorkingBlade",
+     "at": [
+      0.053,
+      0.027,
+      0.041
+     ],
+     "turned": false
+    },
+    {
+     "name": "Strap",
+     "at": [
+      -0.162,
+      0.003,
+      -0.063
+     ],
+     "turned": false
+    },
+    {
+     "name": "WornLoop",
+     "at": [
+      -0.2,
+      0.003,
+      0.0
+     ],
+     "turned": false
+    }
+   ],
+   "size": [
+    0.333,
+    0.0972,
+    0.1739
+   ],
+   "bottom": -0.024,
+   "materials": [
+    "HD_CamLeather",
+    "HD_CamBlack",
+    "HD_CamChrome",
+    "HD_CamGlass",
+    "HD_CamMilk",
+    "HD_CamWhite",
+    "HD_CamSteel",
+    "HD_CamBrass",
+    "HD_CamStrap",
+    "HD_CamStitch"
+   ],
+   "islands": 0,
+   "targets": {
+    "HD_Camera": [
+     "Camera body"
+    ],
+    "LensHousing": [
+     "Lens housing"
+    ],
+    "LensGlass": [
+     "Lens glass"
+    ],
+    "FilmPath": [
+     "Open film path"
+    ],
+    "Mechanism": [
+     "Jammed shutter mechanism"
+    ],
+    "BentBlade": [
+     "Bent shutter blade"
+    ],
+    "WorkingBlade": [
+     "Working shutter blade"
+    ],
+    "Strap": [
+     "Upper strap",
+     "Lower strap"
+    ],
+    "WornLoop": [
+     "Worn loop"
+    ]
+   }
+  }
+ ],
+ "materials": {
+  "HD_PhoneRail": {
+   "hex": "8FA08C",
+   "smoothness": 0.35,
+   "metallic": 0.0
+  },
+  "HD_PhoneBack": {
+   "hex": "B9C9B6",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_PhoneIsland": {
+   "hex": "A7B8A4",
+   "smoothness": 0.55,
+   "metallic": 0.0
+  },
+  "HD_PhoneBlack": {
+   "hex": "1F1D1B",
+   "smoothness": 0.45,
+   "metallic": 0.0
+  },
+  "HD_PhoneSteel": {
+   "hex": "B9B5AD",
+   "smoothness": 0.45,
+   "metallic": 0.0
+  },
+  "HD_PhoneCopper": {
+   "hex": "B07A4A",
+   "smoothness": 0.4,
+   "metallic": 0.0
+  },
+  "HD_Lens": {
+   "hex": "141414",
+   "smoothness": 0.8,
+   "metallic": 0.0
+  },
+  "HD_Flash": {
+   "hex": "E8E2CF",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "HD_Screw": {
+   "hex": "93908A",
+   "smoothness": 0.45,
+   "metallic": 0.0
+  },
+  "HD_ScrewSlot": {
+   "hex": "2A2D31",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_Glass": {
+   "hex": "20355A",
+   "smoothness": 0.7,
+   "metallic": 0.0
+  },
+  "HD_WatchGold": {
+   "hex": "C19A52",
+   "smoothness": 0.55,
+   "metallic": 0.0
+  },
+  "HD_WatchGoldDark": {
+   "hex": "8E6E2E",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "HD_WatchDial": {
+   "hex": "F1ECE0",
+   "smoothness": 0.6,
+   "metallic": 0.0
+  },
+  "HD_WatchInk": {
+   "hex": "2B2520",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_WatchBlue": {
+   "hex": "2A3F6B",
+   "smoothness": 0.55,
+   "metallic": 0.0
+  },
+  "HD_WatchNickel": {
+   "hex": "B5B1A8",
+   "smoothness": 0.45,
+   "metallic": 0.0
+  },
+  "HD_WatchBrass": {
+   "hex": "B08A3E",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "HD_WatchRuby": {
+   "hex": "8B1A2B",
+   "smoothness": 0.7,
+   "metallic": 0.0
+  },
+  "HD_WatchSteel": {
+   "hex": "93908A",
+   "smoothness": 0.45,
+   "metallic": 0.0
+  },
+  "HD_CamLeather": {
+   "hex": "2A2623",
+   "smoothness": 0.25,
+   "metallic": 0.0
+  },
+  "HD_CamChrome": {
+   "hex": "B9B5AD",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "HD_CamBlack": {
+   "hex": "1F1D1B",
+   "smoothness": 0.4,
+   "metallic": 0.0
+  },
+  "HD_CamGlass": {
+   "hex": "1A2430",
+   "smoothness": 0.7,
+   "metallic": 0.0
+  },
+  "HD_CamMilk": {
+   "hex": "D9D7D0",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "HD_CamSteel": {
+   "hex": "8E8B85",
+   "smoothness": 0.45,
+   "metallic": 0.0
+  },
+  "HD_CamBrass": {
+   "hex": "B08A3E",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "HD_CamStrap": {
+   "hex": "7A4A28",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_CamStitch": {
+   "hex": "D9C7A6",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_CamWhite": {
+   "hex": "F2EFE8",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  }
+ }
+}

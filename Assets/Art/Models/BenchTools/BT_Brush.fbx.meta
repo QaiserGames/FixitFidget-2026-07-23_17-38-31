@@ -17,6 +17,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: BT_Steel
+    second: {fileID: 2100000, guid: 90cc98528d78d49baa4ccce9d5eba0b7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BT_Wood
+    second: {fileID: 2100000, guid: e848bd9738a174eeb989ae0cc76a5a80, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: CC_Wood_Counter
     second: {fileID: 2100000, guid: f02b2fe93de01ca47be4c194bf997227, type: 2}
   - first:

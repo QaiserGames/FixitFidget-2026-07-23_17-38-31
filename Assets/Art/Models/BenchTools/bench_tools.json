@@ -1,147 +1,169 @@
 {
- "version": 1,
+ "version": 2,
  "pieces": [
   {
    "name": "BT_Screwdriver",
    "tool": "Screwdriver",
    "what": "screwdriver: the blade's edge is the origin; turn about Y at a screw",
-   "tris": 376,
+   "tris": 990,
    "meshes": 1,
    "children": [],
    "size": [
-    0.027,
-    0.153,
-    0.028
+    0.016,
+    0.134,
+    0.016
    ],
    "bottom": 0.0,
    "materials": [
-    "DC_Steel",
-    "T2_Brass",
+    "BT_Steel",
+    "BT_SteelDark",
+    "BT_Grip_Black",
     "BT_Handle_Green",
-    "BT_Grip_Black"
+    "BT_White"
    ],
-   "islands": 8
+   "islands": 11
   },
   {
    "name": "BT_Tweezers",
    "tool": "Tweezers",
-   "what": "tweezers: the points are the origin; Leaf_L and Leaf_R turn about their own X to pinch",
-   "tris": 156,
+   "what": "tweezers: the points are the origin; Leaf_L and Leaf_R turn about their own axis to pinch",
+   "tris": 516,
    "meshes": 3,
    "children": [
     {
      "name": "Leaf_L",
      "at": [
-      0.0,
+      -0.0,
       0.112,
-      0.0
+      -0.0
      ]
     },
     {
      "name": "Leaf_R",
      "at": [
-      0.0,
+      -0.0,
       0.112,
-      0.0
+      -0.0
      ]
     }
    ],
    "size": [
-    0.014,
+    0.008,
     0.12,
-    0.012
+    0.01
    ],
    "bottom": 0.0,
    "materials": [
-    "DC_Steel",
-    "BT_Grip_Black"
+    "BT_Grip_Black",
+    "BT_SteelBright"
    ],
-   "islands": 5
+   "islands": 19
   },
   {
    "name": "BT_Brush",
    "tool": "Brush",
    "what": "brush: the bristles' ends are the origin; strokes along the surface",
-   "tris": 218,
+   "tris": 1540,
    "meshes": 1,
    "children": [],
    "size": [
     0.024,
     0.14,
-    0.012
+    0.01
    ],
    "bottom": 0.0,
    "materials": [
     "BT_Bristle",
-    "DC_Steel",
-    "CC_Wood_Counter",
-    "BT_Handle_Blue"
+    "BT_Steel",
+    "BT_Wood"
    ],
-   "islands": 6
+   "islands": 9
   },
   {
    "name": "BT_PryTool",
    "tool": "Pry",
    "what": "pry tool: the blade's edge is the origin; the lever goes in flat along -Y",
-   "tris": 146,
+   "tris": 356,
    "meshes": 1,
    "children": [],
    "size": [
-    0.024,
-    0.135,
-    0.016
+    0.014,
+    0.124,
+    0.01
    ],
    "bottom": 0.0,
    "materials": [
-    "DC_Steel",
-    "DC_SteelDark",
-    "BT_Handle_Red"
+    "BT_Steel",
+    "BT_SteelDark",
+    "BT_Grip_Black",
+    "BT_Handle_Green"
    ],
-   "islands": 4
+   "islands": 7
   },
   {
    "name": "BT_Cloth",
    "tool": "Cloth",
    "what": "cloth: its face on the glass is the origin; wiped in circles",
-   "tris": 132,
+   "tris": 4358,
    "meshes": 1,
    "children": [],
    "size": [
-    0.08,
-    0.017,
-    0.068
+    0.076,
+    0.013,
+    0.09
    ],
    "bottom": 0.0,
    "materials": [
     "BT_Cloth"
    ],
-   "islands": 3
+   "islands": 4
   }
  ],
  "materials": {
-  "BT_Handle_Green": {
-   "hex": "2E7D5B",
-   "smoothness": 0.45
+  "BT_Steel": {
+   "hex": "B9B5AD",
+   "smoothness": 0.5,
+   "metallic": 0.0
   },
-  "BT_Handle_Red": {
-   "hex": "B13A2F",
-   "smoothness": 0.45
+  "BT_SteelBright": {
+   "hex": "DAD7D0",
+   "smoothness": 0.62,
+   "metallic": 0.0
   },
-  "BT_Handle_Blue": {
-   "hex": "34507A",
-   "smoothness": 0.45
-  },
-  "BT_Bristle": {
-   "hex": "C9A46A",
-   "smoothness": 0.05
+  "BT_SteelDark": {
+   "hex": "6B6862",
+   "smoothness": 0.4,
+   "metallic": 0.0
   },
   "BT_Grip_Black": {
-   "hex": "2A2622",
-   "smoothness": 0.2
+   "hex": "2B2724",
+   "smoothness": 0.26,
+   "metallic": 0.0
+  },
+  "BT_Handle_Green": {
+   "hex": "2E7D5B",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "BT_Wood": {
+   "hex": "C9A878",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "BT_Bristle": {
+   "hex": "CFA253",
+   "smoothness": 0.1,
+   "metallic": 0.0
   },
   "BT_Cloth": {
-   "hex": "6F9BC4",
-   "smoothness": 0.02
+   "hex": "D9BD5C",
+   "smoothness": 0.05,
+   "metallic": 0.0
+  },
+  "BT_White": {
+   "hex": "F2EFE8",
+   "smoothness": 0.3,
+   "metallic": 0.0
   }
  }
 }

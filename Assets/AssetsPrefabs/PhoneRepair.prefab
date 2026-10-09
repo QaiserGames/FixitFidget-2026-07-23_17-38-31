@@ -31,7 +31,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.022, y: -0.008, z: -0.058}
-  m_LocalScale: {x: 0.012, y: 0.002, z: 0.012}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2761802281801356239}
@@ -43,7 +43,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 210057958431804643}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -7019499404158029721, guid: 14579656dad01425287713a05d3f6280, type: 3}
 --- !u!23 &1439412413401497848
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -69,7 +69,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: c766b91b3c9994cfa9dcc43ba28f45c5, type: 2}
+  - {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -112,8 +113,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.0000001, y: 2, z: 1.0000002}
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
+  m_Size: {x: 0.008, y: 0.002, z: 0.008}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &4181896791421440256
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -127,7 +128,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Screw
   turnDuration: 0.45
+  threadLength: 0.006
+  turns: 3
   flyDuration: 0.25
+  mass: 0.003
+  popUp: 0.6
+  popOut: 0.16
   liftHeight: 0.02
 --- !u!114 &2924549003464900869
 MonoBehaviour:
@@ -141,7 +147,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b0f47780e3d1e6428a8b2d580d0d83d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScrewTarget
-  highlightColor: {r: 1, g: 0.95711553, b: 0.66352195, a: 1}
 --- !u!1 &706062600000000001
 GameObject:
   m_ObjectHideFlags: 0
@@ -400,7 +405,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.022, y: -0.008, z: -0.058}
-  m_LocalScale: {x: 0.012, y: 0.002, z: 0.012}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2761802281801356239}
@@ -412,7 +417,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2081409924458967531}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -7019499404158029721, guid: 14579656dad01425287713a05d3f6280, type: 3}
 --- !u!23 &6363462607386727547
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -438,7 +443,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: c766b91b3c9994cfa9dcc43ba28f45c5, type: 2}
+  - {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -481,8 +487,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.0000001, y: 2, z: 1.0000002}
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
+  m_Size: {x: 0.008, y: 0.002, z: 0.008}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &989904326812447485
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -496,7 +502,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Screw
   turnDuration: 0.45
+  threadLength: 0.006
+  turns: 3
   flyDuration: 0.25
+  mass: 0.003
+  popUp: 0.6
+  popOut: 0.16
   liftHeight: 0.02
 --- !u!114 &1922331733864747579
 MonoBehaviour:
@@ -510,7 +521,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b0f47780e3d1e6428a8b2d580d0d83d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScrewTarget
-  highlightColor: {r: 1, g: 0.95711553, b: 0.66352195, a: 1}
 --- !u!1 &3306742564285067578
 GameObject:
   m_ObjectHideFlags: 0
@@ -577,7 +587,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.06, y: 0.002, z: 0.12}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4269579645945676245}
@@ -589,7 +599,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3978784907803598545}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -1875780437015597444, guid: 14579656dad01425287713a05d3f6280, type: 3}
 --- !u!23 &1020691698910832960
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -658,8 +668,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 0.065, y: 0.0015, z: 0.134}
+  m_Center: {x: 0, y: 0.00025, z: 0}
 --- !u!114 &8198664895175604871
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -672,11 +682,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ece9c0f37f1081e4d82642fa042b4791, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ReplaceablePart
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
   brokenVisual: {fileID: 3978784907803598545}
   freshVisual: {fileID: 7433282545182374299}
   coveredBy: {fileID: 4891800866225450368}
   partName: Cracked screen
+  pinchDuration: 0.25
+  seatDistance: 0.016
 --- !u!1 &4424248598937876241
 GameObject:
   m_ObjectHideFlags: 0
@@ -705,15 +716,15 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4424248598937876241}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 5}
-  m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
+  m_LocalPosition: {x: 0, y: 0, z: 0.7}
+  m_LocalScale: {x: 0.0034999999, y: 0.0004, z: 0.0069999998}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8178485429037068678}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.5, y: 1.0699999}
+  m_AnchoredPosition: {x: 0.035, y: 0.00856}
   m_SizeDelta: {x: 20, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &5633726490809580558
@@ -914,7 +925,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.07, y: 0.008, z: 0.14}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4736595808251648501}
@@ -927,7 +938,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4773336884618724216}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -6461682796135765533, guid: 14579656dad01425287713a05d3f6280, type: 3}
 --- !u!23 &5295923464391705788
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -953,7 +964,11 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 7194699beacd344338958c6ac8187c71, type: 2}
+  - {fileID: 2100000, guid: 269e96281e0f0407bbeb4bbfad83dcd1, type: 2}
+  - {fileID: 2100000, guid: 3131474086bbb47989ae040cf45c0601, type: 2}
+  - {fileID: 2100000, guid: d40557eb9d64b4ad99cb6190fc43e5da, type: 2}
+  - {fileID: 2100000, guid: 7e30f2a2c24d74cb79cfa6db5e332a5b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -996,8 +1011,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 0.0712, y: 0.01034, z: 0.1403}
+  m_Center: {x: 0, y: -0.0005699999, z: -0.00014999881}
 --- !u!1 &6096278884181677530
 GameObject:
   m_ObjectHideFlags: 0
@@ -1145,7 +1160,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.06, y: 0.002, z: 0.12}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4269579645945676245}
@@ -1157,7 +1172,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7433282545182374299}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -1875780437015597444, guid: 14579656dad01425287713a05d3f6280, type: 3}
 --- !u!23 &3983140200145093675
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1237,7 +1252,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -0.0055, z: 0}
-  m_LocalScale: {x: 0.065, y: 0.003, z: 0.135}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2761802281801356239}
@@ -1249,7 +1264,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7731001472089337233}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 5227011897142063159, guid: 14579656dad01425287713a05d3f6280, type: 3}
 --- !u!23 &8389382538467524836
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1275,7 +1290,12 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 3131474086bbb47989ae040cf45c0601, type: 2}
+  - {fileID: 2100000, guid: 269e96281e0f0407bbeb4bbfad83dcd1, type: 2}
+  - {fileID: 2100000, guid: c84a5f278c5d84c948c6d23c8600b3d3, type: 2}
+  - {fileID: 2100000, guid: d40557eb9d64b4ad99cb6190fc43e5da, type: 2}
+  - {fileID: 2100000, guid: 98cb79fa9c37a4c3abe4925805803ab6, type: 2}
+  - {fileID: 2100000, guid: 96828d1f5f91e4014b151bffdb38de97, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1318,8 +1338,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 0.068, y: 0.0055, z: 0.138}
+  m_Center: {x: 0, y: -0.0012500001, z: 0}
 --- !u!114 &4891800866225450368
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1332,7 +1352,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154f443ca9a074a4b8fdb402d3159ced, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RemovablePart
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
   heldBy:
   - {fileID: 989904326812447485}
   - {fileID: 4181896791421440256}
@@ -1342,6 +1361,9 @@ MonoBehaviour:
   replacementsBeneath:
   - {fileID: 0}
   partName: Back cover
+  pryDuration: 0.45
+  popAngle: 7
+  snapDistance: 0.03
 --- !u!1 &7968797697925575392
 GameObject:
   m_ObjectHideFlags: 0

@@ -7,8 +7,28 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: BT_Grip_Black
+    second: {fileID: 2100000, guid: 8d37544d2d56a416ab13c78aedc26a18, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BT_Handle_Green
+    second: {fileID: 2100000, guid: 25e4522d82dc144549455b27a988d686, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: BT_Handle_Red
     second: {fileID: 2100000, guid: 5e67fdf493a2340719186177d94d027f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BT_Steel
+    second: {fileID: 2100000, guid: 90cc98528d78d49baa4ccce9d5eba0b7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BT_SteelDark
+    second: {fileID: 2100000, guid: 25f7725ebd8a349b0b92a8ac3cf9d91b, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

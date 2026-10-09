@@ -31,7 +31,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.032, y: -0.02, z: 0.032}
-  m_LocalScale: {x: 0.018, y: 0.003, z: 0.018}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -43,7 +43,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7848155680086744}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -7019499404158029721, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &7835050345647369709
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -69,7 +69,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 6b31a8a4dba144059a261ac9efba34a3, type: 2}
+  - {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -112,8 +113,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.0000001, y: 2, z: 1.0000002}
-  m_Center: {x: 0.0000019669533, y: -0.000030517578, z: 0.000030428171}
+  m_Size: {x: 0.012, y: 0.0026, z: 0.012}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &3528576900264195465
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -127,7 +128,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Screw
   turnDuration: 0.45
+  threadLength: 0.006
+  turns: 3
   flyDuration: 0.25
+  mass: 0.003
+  popUp: 0.6
+  popOut: 0.16
   liftHeight: 0.02
 --- !u!114 &1094713331843140312
 MonoBehaviour:
@@ -141,7 +147,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b0f47780e3d1e6428a8b2d580d0d83d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScrewTarget
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
 --- !u!1 &1829470720337489078
 GameObject:
   m_ObjectHideFlags: 0
@@ -173,7 +178,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.032, y: -0.02, z: -0.032}
-  m_LocalScale: {x: 0.018, y: 0.003, z: 0.018}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -185,7 +190,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1829470720337489078}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -7019499404158029721, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &1603704182999620883
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -211,7 +216,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 6b31a8a4dba144059a261ac9efba34a3, type: 2}
+  - {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -254,8 +260,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.0000001, y: 2, z: 1.0000002}
-  m_Center: {x: 0.0000019669533, y: -0.000030517578, z: -0.00000008940697}
+  m_Size: {x: 0.012, y: 0.0026, z: 0.012}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &5599172866335876654
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -269,7 +275,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Screw
   turnDuration: 0.45
+  threadLength: 0.006
+  turns: 3
   flyDuration: 0.25
+  mass: 0.003
+  popUp: 0.6
+  popOut: 0.16
   liftHeight: 0.02
 --- !u!114 &7925041128182927401
 MonoBehaviour:
@@ -283,7 +294,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b0f47780e3d1e6428a8b2d580d0d83d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScrewTarget
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
 --- !u!1 &3073297344272186186
 GameObject:
   m_ObjectHideFlags: 0
@@ -313,7 +323,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.15, y: 0.01, z: 0.15}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -325,7 +335,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3073297344272186186}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 7776415618613161818, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &6166150652604226058
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -351,7 +361,15 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 8b03dab8ee15a40819c7f7c2ddfc406b, type: 2}
+  - {fileID: 2100000, guid: 41ddb50e9f39e43bbb1d9da603f73361, type: 2}
+  - {fileID: 2100000, guid: 0c685f984a0a344f48923ded24633842, type: 2}
+  - {fileID: 2100000, guid: e242a80abb35f48c4ab06530ebe67bbb, type: 2}
+  - {fileID: 2100000, guid: efedd71be8f7a40ad921b6085707bcc8, type: 2}
+  - {fileID: 2100000, guid: 6b31a8a4dba144059a261ac9efba34a3, type: 2}
+  - {fileID: 2100000, guid: 295a9be63c21a4ac8a02c0e4bcd17ee9, type: 2}
+  - {fileID: 2100000, guid: 4ca07a3bebbdc4890a82c6b0f6e14641, type: 2}
+  - {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -394,8 +412,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.0000001, y: 2, z: 1.0000002}
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
+  m_Size: {x: 0.15, y: 0.0242, z: 0.204}
+  m_Center: {x: 0, y: -0.0021000002, z: 0.022999998}
 --- !u!1 &3141539328696296233
 GameObject:
   m_ObjectHideFlags: 0
@@ -632,7 +650,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.03, y: -0.007, z: 0.02}
-  m_LocalScale: {x: 0.06, y: 0.002, z: 0.12}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -644,7 +662,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4030981304047760977}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 6862248097158233729, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &6293111596033927632
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -670,7 +688,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 7b6a3681fcf190f48b6f40fb5cbd37b6, type: 2}
+  - {fileID: 2100000, guid: efedd71be8f7a40ad921b6085707bcc8, type: 2}
+  - {fileID: 2100000, guid: 295a9be63c21a4ac8a02c0e4bcd17ee9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -723,7 +742,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0.085}
-  m_LocalScale: {x: 0.03, y: 0.02, z: 0.03}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -735,7 +754,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4398288970568773055}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -8918359706675279303, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &2974453436969888976
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -761,7 +780,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 8b03dab8ee15a40819c7f7c2ddfc406b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -804,10 +823,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.5000001
-  m_Height: 2
+  m_Radius: 0.01254
+  m_Height: 0.0258
   m_Direction: 1
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
+  m_Center: {x: 0, y: 0.00089999987, z: 0}
 --- !u!1 &5784299916493189864
 GameObject:
   m_ObjectHideFlags: 0
@@ -965,7 +984,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.032, y: -0.02, z: 0.032}
-  m_LocalScale: {x: 0.018, y: 0.003, z: 0.018}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -977,7 +996,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6019618682290452285}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -7019499404158029721, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &1131402803628564348
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1003,7 +1022,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 6b31a8a4dba144059a261ac9efba34a3, type: 2}
+  - {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1046,8 +1066,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.0000001, y: 2, z: 1.0000002}
-  m_Center: {x: 0.000000059604645, y: -0.000030517578, z: 0.000030428171}
+  m_Size: {x: 0.012, y: 0.0026, z: 0.012}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &4732573821691043623
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1061,7 +1081,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Screw
   turnDuration: 0.45
+  threadLength: 0.006
+  turns: 3
   flyDuration: 0.25
+  mass: 0.003
+  popUp: 0.6
+  popOut: 0.16
   liftHeight: 0.02
 --- !u!114 &2820488872768208305
 MonoBehaviour:
@@ -1075,7 +1100,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b0f47780e3d1e6428a8b2d580d0d83d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScrewTarget
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
 --- !u!1 &6575886299398292067
 GameObject:
   m_ObjectHideFlags: 0
@@ -1107,7 +1131,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.032, y: -0.02, z: -0.032}
-  m_LocalScale: {x: 0.018, y: 0.003, z: 0.018}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -1119,7 +1143,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6575886299398292067}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -7019499404158029721, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &2731868869330650502
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1145,7 +1169,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 6b31a8a4dba144059a261ac9efba34a3, type: 2}
+  - {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1188,8 +1213,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.0000001, y: 2, z: 1.0000002}
-  m_Center: {x: 0.000000059604645, y: -0.000030517578, z: -0.00000008940697}
+  m_Size: {x: 0.012, y: 0.0026, z: 0.012}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &89177602358083034
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1203,7 +1228,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Screw
   turnDuration: 0.45
+  threadLength: 0.006
+  turns: 3
   flyDuration: 0.25
+  mass: 0.003
+  popUp: 0.6
+  popOut: 0.16
   liftHeight: 0.02
 --- !u!114 &6984520671223910420
 MonoBehaviour:
@@ -1217,7 +1247,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b0f47780e3d1e6428a8b2d580d0d83d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScrewTarget
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
 --- !u!1 &7407937818959629852
 GameObject:
   m_ObjectHideFlags: 0
@@ -1374,7 +1403,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -0.016, z: 0}
-  m_LocalScale: {x: 0.13, y: 0.004, z: 0.13}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -1386,7 +1415,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7614214180389100127}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 2833383142526304046, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &7909315112614839937
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1412,7 +1441,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 8b03dab8ee15a40819c7f7c2ddfc406b, type: 2}
+  - {fileID: 2100000, guid: c96279be0fa604c18aea6b0fe210511a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1455,8 +1485,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 2, z: 1.0000001}
-  m_Center: {x: 0.00000005960464, y: 0, z: -0.00000008940696}
+  m_Size: {x: 0.1296, y: 0.0066, z: 0.1296}
+  m_Center: {x: 0, y: -0.0013, z: 0}
 --- !u!114 &5761522325837738038
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1469,7 +1499,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154f443ca9a074a4b8fdb402d3159ced, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RemovablePart
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
   heldBy:
   - {fileID: 4732573821691043623}
   - {fileID: 3528576900264195465}
@@ -1481,6 +1510,9 @@ MonoBehaviour:
   - {fileID: 5784299916493189864}
   replacementsBeneath: []
   partName: Back cover
+  pryDuration: 0.45
+  popAngle: 7
+  snapDistance: 0.03
 --- !u!1 &8290912931408408215
 GameObject:
   m_ObjectHideFlags: 0
@@ -1510,7 +1542,7 @@ Transform:
   m_GameObject: {fileID: 8290912931408408215}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.0699, y: -0.013, z: 0.0469}
+  m_LocalPosition: {x: -0.0483, y: -0.013, z: 0.0324}
   m_LocalScale: {x: 0.05, y: 0.003, z: 0.05}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1637,7 +1669,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.03, y: -0.007, z: 0.02}
-  m_LocalScale: {x: 0.06, y: 0.002, z: 0.12}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3160848135333136599}
@@ -1649,7 +1681,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8396661936972832069}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 6862248097158233729, guid: e2b51c898ef7d4d26a7511e19eeea813, type: 3}
 --- !u!23 &6112709429609931256
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1675,7 +1707,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 43148e3b894c27245ab46df0e286b058, type: 2}
+  - {fileID: 2100000, guid: efedd71be8f7a40ad921b6085707bcc8, type: 2}
+  - {fileID: 2100000, guid: 295a9be63c21a4ac8a02c0e4bcd17ee9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1718,8 +1751,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 0.05115, y: 0.00305, z: 0.0491}
+  m_Center: {x: -0.0010250006, y: 0.000275, z: 0.0009499993}
 --- !u!114 &7391698350776381495
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1732,11 +1765,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ece9c0f37f1081e4d82642fa042b4791, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ReplaceablePart
-  highlightColor: {r: 1, g: 0.95, b: 0.6, a: 1}
   brokenVisual: {fileID: 8396661936972832069}
   freshVisual: {fileID: 4030981304047760977}
   coveredBy: {fileID: 5761522325837738038}
   partName: Mainspring
+  pinchDuration: 0.25
+  seatDistance: 0.016
 --- !u!1 &8950338144923805853
 GameObject:
   m_ObjectHideFlags: 0

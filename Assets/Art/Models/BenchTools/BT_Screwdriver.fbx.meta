@@ -17,6 +17,21 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: BT_Steel
+    second: {fileID: 2100000, guid: 90cc98528d78d49baa4ccce9d5eba0b7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BT_SteelDark
+    second: {fileID: 2100000, guid: 25f7725ebd8a349b0b92a8ac3cf9d91b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BT_White
+    second: {fileID: 2100000, guid: 18eaaffde77a7474e9b6b8066f95a644, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: DC_Steel
     second: {fileID: 2100000, guid: c89fc657ce8cbe24da35445ca5817b13, type: 2}
   - first:
