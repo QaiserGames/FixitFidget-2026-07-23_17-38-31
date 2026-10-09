@@ -18,9 +18,20 @@ using UnityEngine;
 // Devices 1 as HD_Phone.fbx, HD_Watch.fbx and HD_Camera.fbx) are built to the same sizes in metres, so this step changes only what
 // the player sees: each piece's mesh is swapped for the hero one, the object's scale set to 1 (the mesh is real size),
 // its box collider resized to the mesh (a screw's to its HEAD only, which is what Screw.HeadSize sizes the hole's ring
-// and the driver's tip from; the watch's crown keeps its capsule), and the FBX's materials put on (the phone's screens
-// keep their own M_BrokenGlass / M_FreshGlass). Positions, rotations, parents, scripts, screw holes and seats are
-// untouched, so the bench and every lab see the devices they knew. Undo is git (each prefab is one file).
+// and the driver's tip from; a cover's stops at the FACE the screws rest on, see Piece.faceY; the watch's crown keeps
+// its capsule), and the FBX's materials put on (the phone's screens keep their own M_BrokenGlass / M_FreshGlass).
+// Positions, rotations, parents, scripts, screw holes and seats are untouched, so the bench and every lab see the
+// devices they knew. Undo is git (each prefab is one file).
+//
+// Bench 3 on 9 Oct (the first play check on the hero phone) failed at the first screw: the cursor over it read "Back
+// cover: Screws first". The hero cover's camera island stands 2.5 mm proud of the glass, so a collider sized to the
+// whole mesh reached past the screw heads (which sit on the glass) and caught the cursor before them. The stand-in
+// cover was a flat slab, so this never showed. Hence faceY: what stands proud of the face is not the cover.
+//
+// The grime check the same night failed on the watch: its three grime spots sit in the open movement cavity, and a
+// box sized to the case's whole mesh fills that cavity (and the sunken dial), so every view ray met the case first.
+// Hence Piece.boxes: a hollow piece names its solid parts, and gets one box collider per part. The rule behind both:
+// a collider is the piece's SOLID, never its bounds, wherever other pieces sit in a recess of it.
 // ---------------------------------------------------------------------------
 internal static class HeroDeviceSteps
 {
@@ -32,6 +43,12 @@ internal static class HeroDeviceSteps
         public string[] targets;     // the prefab objects the mesh goes into
         public bool keepMaterials;   // the prefab object's own materials stay
         public Vector3? head;        // a screw: its collider is this box round the origin, not the whole mesh
+        public float? faceY;         // a cover: other pieces rest on its outer face at this local Y, and its collider stops
+                                     // there (from that face to the mesh's top); what stands proud of the face (the phone's
+                                     // camera island) is left out, or it would catch the cursor before the screws do
+        public Bounds[] boxes;       // a hollow piece (the watch case): its collider is these boxes, its solid parts in local
+                                     // metres, instead of one box round the whole mesh that would fill the recess other
+                                     // pieces sit in (the movement cavity, where the grime and the mainspring are)
     }
 
     sealed class Move
@@ -57,7 +74,8 @@ internal static class HeroDeviceSteps
             {
                 new Piece { source = "", targets = new[] { "Body" } },
                 new Piece { source = "Screen", targets = new[] { "Broken", "Fresh" }, keepMaterials = true },
-                new Piece { source = "BackCover", targets = new[] { "BackCover" } },
+                // the glass's outer face is at -7 mm in the phone (local -1.5: hero_phone.back_cover), where the screw heads sit
+                new Piece { source = "BackCover", targets = new[] { "BackCover" }, faceY = -.0015f },
                 new Piece { source = "Screw", targets = new[] { "Screw0", "Screw1" }, head = new Vector3(.008f, .0020f, .008f) },
             }
         },
@@ -66,7 +84,17 @@ internal static class HeroDeviceSteps
             model = BlenderKitSteps.DeviceModels + "/HD_Watch.fbx", prefab = "Assets/AssetsPrefabs/PocketWatch.prefab",
             pieces = new[]
             {
-                new Piece { source = "", targets = new[] { "Cylinder" } },
+                // the case is a ring with the dial sunk in its front and the movement open at its back; its solid, for the
+                // cursor and the mat, is the pillar plate and dial (from the plate's back face at -5.65, where the mainspring
+                // rests, to the bezel's top at +10) as two crossed slabs that stay inside the round (corners 3 mm past the
+                // band, against 14 mm for one square), and the pendant-and-bow tower in the case's mid-plane. The band's
+                // back rim at -14 is left without a collider, as the stand-in's was: the watch rests on its back plate
+                new Piece { source = "", targets = new[] { "Cylinder" }, boxes = new[]
+                {
+                    new Bounds(new Vector3(0f, .002175f, 0f), new Vector3(.126f, .01565f, .092f)),
+                    new Bounds(new Vector3(0f, .002175f, 0f), new Vector3(.092f, .01565f, .126f)),
+                    new Bounds(new Vector3(0f, 0f, .101f), new Vector3(.030f, .008f, .052f)),
+                } },
                 new Piece { source = "BackPlate", targets = new[] { "BackPlate" } },
                 new Piece { source = "Crown", targets = new[] { "Crown" } },
                 new Piece { source = "Screw", targets = new[] { "Screw0", "Screw1", "Screw2", "Screw3" }, head = new Vector3(.012f, .0026f, .012f) },
@@ -141,11 +169,35 @@ internal static class HeroDeviceSteps
                         if (!piece.keepMaterials && renderer != null) mr.sharedMaterials = renderer.sharedMaterials;
                         string collider = "no box collider";
                         var box = t.GetComponent<BoxCollider>();
-                        if (box != null)
+                        if (box != null && piece.boxes != null)
+                        {
+                            // one box per solid part: the existing colliders are reused in order, missing ones added, extras removed
+                            var boxes = t.GetComponents<BoxCollider>().ToList();
+                            while (boxes.Count < piece.boxes.Length) boxes.Add(t.gameObject.AddComponent<BoxCollider>());
+                            for (int i = piece.boxes.Length; i < boxes.Count; i++) UnityEngine.Object.DestroyImmediate(boxes[i]);
+                            for (int i = 0; i < piece.boxes.Length; i++)
+                            {
+                                boxes[i].isTrigger = box.isTrigger;
+                                boxes[i].sharedMaterial = box.sharedMaterial;
+                                boxes[i].center = piece.boxes[i].center;
+                                boxes[i].size = piece.boxes[i].size;
+                            }
+                            collider = piece.boxes.Length + " boxes, the solid not the bounds: " +
+                                       string.Join("; ", piece.boxes.Select(b => V(b.size) + " at " + V(b.center)));
+                        }
+                        else if (box != null)
                         {
                             if (piece.head.HasValue) { box.center = Vector3.zero; box.size = piece.head.Value; }
+                            else if (piece.faceY.HasValue)
+                            {
+                                // from the face other pieces rest on up to the mesh's top: the island beyond the face is left out
+                                Bounds b = mesh.bounds;
+                                float face = piece.faceY.Value, top = b.max.y;
+                                box.center = new Vector3(b.center.x, (top + face) / 2f, b.center.z);
+                                box.size = new Vector3(b.size.x, top - face, b.size.z);
+                            }
                             else { box.center = mesh.bounds.center; box.size = mesh.bounds.size; }
-                            collider = "box " + V(box.size) + " at " + V(box.center);
+                            collider = "box " + V(box.size) + " at " + V(box.center) + (piece.faceY.HasValue ? " (to the face, not the island)" : "");
                         }
                         var capsule = t.GetComponent<CapsuleCollider>();
                         if (capsule != null)
