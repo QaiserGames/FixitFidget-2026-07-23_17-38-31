@@ -17,6 +17,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_WatchBlueDull
+    second: {fileID: 2100000, guid: d10125975592242f39a05b0e6ada69ab, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_WatchBrass
     second: {fileID: 2100000, guid: 295a9be63c21a4ac8a02c0e4bcd17ee9, type: 2}
   - first:

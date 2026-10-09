@@ -28,8 +28,15 @@ island proud of anything (about 2 mm). So, in Unity millimetres through the phon
              back face the inside a back-glass removal shows: the battery with its label and charging coil, the
              camera module under the island, the board shield.
   Screen     the display glass, 62.8 x 132.8 x 1.2, sitting in the border ring with a 0.1 mm reveal, its top flush at
-             +3.9; the Screen object moves from +5 to +3.3. Used twice (Broken / Fresh keep their materials; one
-             material, so the border has to be the body's).
+             +3.9; the Screen object moves from +5 to +3.3. The FRESH part (it keeps M_FreshGlass; one material, so
+             the border has to be the body's).
+  ScreenCracked  the BROKEN part (v3.3, his note "a cracked screen should look like a cracked screen"): the same glass
+             (it keeps M_BrokenGlass) with the crack on it as geometry, in HD_Crack: one impact near the top-right
+             corner as the player sees it, eight radial cracks running to the edges with the small jogs real ones
+             have, branches off five of them, three broken concentric arcs round the impact, chips at the point.
+             Thin ribbons 0.4-0.8 mm wide standing 0.08 mm proud of the glass, so the light catches them as it does
+             a real crack. The screen is the part the player pinches out, so the crack is in the mesh and travels
+             with it to the tray.
   BackCover  the back glass, 67.6 x 137.6 x 1.2 (a 0.2 mm reveal inside the rail), outer face at -3.9, with the camera
              island (30 x 33, 1.0 mm plateau, two diagonal lens rings 0.9 mm more, the flash, the mic) and the black
              inner lip up to the chassis; the BackCover object moves from -5.5 to -3.3.
@@ -60,10 +67,12 @@ HD_MATERIALS = {
     'HD_Screw':       ('#93908A', 0.45, 0.0),   # the two case screws
     'HD_ScrewSlot':   ('#2A2D31', 0.30, 0.0),   # the cross recess
     'HD_Glass':       ('#20355A', 0.70, 0.0),   # the screen in the FBX only: the prefab keeps M_BrokenGlass / M_FreshGlass
+    'HD_Crack':       ('#E9ECEF', 0.35, 0.0),   # the cracks: scattered light, white-grey on the dark glass
 }
 
 PREFAB_OFFSETS = {        # Unity's frame; v3.2: where Devices 2 MOVES the prefab's objects to (HeroDeviceSteps moves)
-    'Screen':    (0.0, 0.0033, 0.0),
+    'ScreenCracked': (0.0, 0.0033, 0.0),       # the broken part, in its seat
+    'Screen':    (-0.090, 0.0, 0.0),           # the fresh part: beside the phone in the FBX assembly (the prefab's Fresh sits in the seat, off)
     'BackCover': (0.0, -0.0033, 0.0),
     'Screw':     (0.022, -0.0047, -0.058),
 }
@@ -172,6 +181,169 @@ def screen():
     return p
 
 
+def _glass_plan():
+    """The display glass's plan: (half width, half length, corner radius)."""
+    w = W - 2 * RAIL_WALL - 2 * BORDER - .0004
+    l = L - 2 * RAIL_WALL - 2 * BORDER - .0004
+    return w / 2, l / 2, CORNER - RAIL_WALL - BORDER
+
+
+def _inside_glass(x, y, inset=.0004):
+    """Inside the rounded-rectangle glass plan, a little in from its edge (a crack stops at the edge, never past it)."""
+    hw, hl, rc = _glass_plan()
+    qx, qy = abs(x) - (hw - rc), abs(y) - (hl - rc)
+    d = math.hypot(max(qx, 0.0), max(qy, 0.0)) - rc
+    return d < -inset
+
+
+def _to_edge(p, q, steps=14):
+    """p inside, q outside: the point on the glass's edge between them."""
+    a, b = p, q
+    for _ in range(steps):
+        m = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+        if _inside_glass(*m):
+            a = m
+        else:
+            b = m
+    return a
+
+
+def _ribbon(bm, pts, widths, z_bot, z_top):
+    """A crack: a thin strip along a polyline, standing from z_bot to z_top, its width per vertex."""
+    n = len(pts)
+    if n < 2:
+        return
+    dirs = []
+    for i in range(n):
+        a = pts[max(i - 1, 0)]
+        b = pts[min(i + 1, n - 1)]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        ln = math.hypot(dx, dy) or 1.0
+        dirs.append((dx / ln, dy / ln))
+    L, R = [], []
+    for (x, y), (dx, dy), w in zip(pts, dirs, widths):
+        nx, ny = -dy * w / 2, dx * w / 2
+        L.append((bm.verts.new((x + nx, y + ny, z_top)), bm.verts.new((x + nx, y + ny, z_bot))))
+        R.append((bm.verts.new((x - nx, y - ny, z_top)), bm.verts.new((x - nx, y - ny, z_bot))))
+    for i in range(n - 1):
+        bm.faces.new([L[i][0], R[i][0], R[i + 1][0], L[i + 1][0]])        # the top
+        bm.faces.new([L[i][1], L[i][0], L[i + 1][0], L[i + 1][1]])        # the left wall
+        bm.faces.new([R[i][0], R[i][1], R[i + 1][1], R[i + 1][0]])        # the right wall
+        bm.faces.new([R[i][1], L[i][1], L[i + 1][1], R[i + 1][1]])        # the bottom, inside the glass (closes the solid)
+    bm.faces.new([L[0][1], R[0][1], R[0][0], L[0][0]])                    # the end caps
+    bm.faces.new([R[-1][1], L[-1][1], L[-1][0], R[-1][0]])
+
+
+def _walk(rng, start, heading, step, wobble, max_len):
+    """A crack's path: steps with a small random turn each, until it leaves the glass (clipped to the edge) or runs out."""
+    pts = [start]
+    x, y = start
+    travelled = 0.0
+    while travelled < max_len:
+        heading += rng.uniform(-wobble, wobble)
+        ln = step * rng.uniform(.7, 1.3)
+        nx_, ny_ = x + ln * math.cos(heading), y + ln * math.sin(heading)
+        if not _inside_glass(nx_, ny_):
+            pts.append(_to_edge((x, y), (nx_, ny_)))
+            break
+        pts.append((nx_, ny_))
+        x, y = nx_, ny_
+        travelled += ln
+    return pts
+
+
+def crack_web(seed=7, impact=(-.019, -.046)):
+    """The crack as geometry on the glass's top face (z +0.6): radials, branches, arcs, chips. One mesh."""
+    import random
+    rng = random.Random(seed)
+    bm = bmesh.new()
+    half = (FRONT - CHASSIS_TOP) / 2             # the glass is centred on its origin: its top face is at +0.6
+    z_bot, z_top = half - .00002, half + .00008   # the ribbons sink 0.02 into the glass and stand 0.08 proud of it
+    # where cracks cross, their tops must not share a height (coplanar tops fight in any renderer): each radial stands
+    # a hundredth of a millimetre above the last, the arcs sit under them all, the branches over, the crater over all
+    step = .00001
+    px, py = impact
+    radials = []
+    n = 8
+    for i in range(n):
+        heading = 2 * math.pi * i / n + rng.uniform(-.25, .25)
+        max_len = rng.choice([.040, .060, .090, .140, .140, .140, .140, .140])
+        pts = _walk(rng, (px, py), heading, .0055, .16, max_len)
+        if len(pts) < 2:
+            continue
+        radials.append(pts)
+        m = len(pts) - 1
+        widths = [.0008 - (.0008 - .00035) * (k / m) for k in range(len(pts))]
+        _ribbon(bm, pts, widths, z_bot, z_top + i * step)
+    # branches: off five radials, part way along, at a shallow angle, shorter and thinner
+    for pts in rng.sample(radials, min(5, len(radials))):
+        k = rng.randint(max(1, len(pts) // 3), max(1, (2 * len(pts)) // 3))
+        a, b = pts[k - 1], pts[k]
+        heading = math.atan2(b[1] - a[1], b[0] - a[0]) + rng.choice([-1, 1]) * rng.uniform(.5, .9)
+        br = _walk(rng, pts[k], heading, .0045, .2, rng.uniform(.010, .030))
+        if len(br) >= 2:
+            _ribbon(bm, br, [.00035] * len(br), z_bot, z_top + (n + 1) * step)
+    # arcs: three broken rings round the impact, each missing a sector
+    for r0 in (.0050, .0092, .0150):
+        gap_at = rng.uniform(0, 2 * math.pi)
+        gap = rng.uniform(.9, 1.6)
+        pts = []
+        a = gap_at + gap / 2
+        while a < gap_at + 2 * math.pi - gap / 2:
+            r = r0 * rng.uniform(.90, 1.10)
+            q = (px + r * math.cos(a), py + r * math.sin(a))
+            if _inside_glass(*q):
+                pts.append(q)
+            elif len(pts) >= 2:
+                _ribbon(bm, pts, [.0004] * len(pts), z_bot, z_top - 2 * step)
+                pts = []
+            else:
+                pts = []
+            a += .32
+        if len(pts) >= 2:
+            _ribbon(bm, pts, [.0004] * len(pts), z_bot, z_top - 2 * step)
+    # the point of impact: a crushed crater, a ragged white disc standing over the junction of the radials (which
+    # hides their overlapping ends), with chips flaking off it
+    ring = []
+    for i in range(14):
+        a = 2 * math.pi * i / 14
+        r = rng.uniform(.0013, .0021)
+        ring.append((px + r * math.cos(a), py + r * math.sin(a)))
+    z_cr = z_top + (n + 3) * step
+    lo = [bm.verts.new((x, y, z_bot)) for x, y in ring]
+    hi = [bm.verts.new((x, y, z_cr)) for x, y in ring]
+    bm.faces.new(hi)
+    bm.faces.new(list(reversed(lo)))
+    for k in range(14):
+        m = (k + 1) % 14
+        bm.faces.new([lo[k], lo[m], hi[m], hi[k]])
+    for i in range(5):
+        a = 2 * math.pi * i / 5 + rng.uniform(-.3, .3)
+        r0, r1 = rng.uniform(.0018, .0024), rng.uniform(.0030, .0042)
+        tri = [(px + r0 * math.cos(a - .25), py + r0 * math.sin(a - .25)), (px + r1 * math.cos(a), py + r1 * math.sin(a)),
+               (px + r0 * math.cos(a + .25), py + r0 * math.sin(a + .25))]
+        lo = [bm.verts.new((x, y, z_bot)) for x, y in tri]
+        hi = [bm.verts.new((x, y, z_cr)) for x, y in tri]
+        bm.faces.new(hi)
+        bm.faces.new(list(reversed(lo)))
+        for k in range(3):
+            m = (k + 1) % 3
+            bm.faces.new([lo[k], lo[m], hi[m], hi[k]])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])      # everything here is a closed solid: this resolves them all
+    return bm
+
+
+def screen_cracked():
+    """The broken screen: the display glass with the crack web on it. Keeps M_BrokenGlass in Unity (slot 0); the crack
+    is the FBX's HD_Crack (slot 1)."""
+    p = Faceted('ScreenCracked')
+    w = W - 2 * RAIL_WALL - 2 * BORDER - .0004
+    l = L - 2 * RAIL_WALL - 2 * BORDER - .0004
+    p.add('glass', chamfered_slab(w, l, FRONT - CHASSIS_TOP, CORNER - RAIL_WALL - BORDER, .0003, per_corner=4, centre_z=0.0), M('HD_Glass'))
+    p.add('cracks', crack_web(), M('HD_Crack'))
+    return p
+
+
 def back_cover():
     """Centred on its origin at Unity y -3.3: the glass from -3.9 to -2.7 (local -0.6 .. +0.6), the lip up to -1.5
     (local +1.8), the island proud of the glass to -5.8 (local -2.5). Devices 2 stops its collider at the glass's
@@ -215,7 +387,8 @@ def screw():
 PIECES = [
     # (builder, the prefab object(s) the mesh goes into)
     (body, ['Body']),
-    (screen, ['Broken', 'Fresh']),
+    (screen_cracked, ['Broken']),
+    (screen, ['Fresh']),
     (back_cover, ['BackCover']),
     (screw, ['Screw0', 'Screw1']),
 ]

@@ -26,7 +26,11 @@ mainspring's seat at (30, -7, 20) (in the barrel, on the pillar plate at -5.7). 
                                    the pendant tube with a collar and a fluted crown.
   Screw                            a 12 mm slotted-cross case screw, dome facing out (-Z), shank going +Z. Used four times.
   Mainspring                       a blued-steel ribbon coiled five turns round a brass arbor, 2.5 mm tall; lies in XY,
-                                   centred on its origin.
+                                   centred on its origin. The FRESH part.
+  MainspringBroken                 the BROKEN part (v3.3): the same spring snapped three-quarters of a turn from its
+                                   hook; the inner coil sits tired and dull, the outer piece with the hook has sprung
+                                   up out of the barrel and twisted, and the two broken ends are bright fresh steel.
+                                   What the player sees in the barrel before the tweezers, and in the tray after.
 """
 import math
 import os
@@ -45,6 +49,7 @@ HD_MATERIALS = {
     'HD_WatchDial':     ('#F1ECE0', 0.60, 0.0),   # white enamel
     'HD_WatchInk':      ('#2B2520', 0.30, 0.0),   # numerals, the track, the sub-dial ring
     'HD_WatchBlue':     ('#2A3F6B', 0.55, 0.0),   # blued steel: the hands, the mainspring
+    'HD_WatchBlueDull': ('#343A48', 0.30, 0.0),   # the tired, broken mainspring: the blue gone grey
     'HD_WatchNickel':   ('#B5B1A8', 0.45, 0.0),   # the plates of the movement
     'HD_WatchBrass':    ('#B08A3E', 0.50, 0.0),   # wheels, chatons, the arbor
     'HD_WatchRuby':     ('#8B1A2B', 0.70, 0.0),   # jewels
@@ -56,7 +61,8 @@ PREFAB_OFFSETS = {        # Unity's frame
     'BackPlate':  (0.0, -0.016, 0.0),
     'Crown':      (0.0, 0.0, 0.085),
     'Screw':      (0.032, -0.020, 0.032),
-    'Mainspring': (0.030, -0.007, 0.020),
+    'MainspringBroken': (0.030, -0.007, 0.020),   # the broken part, in the barrel
+    'Mainspring': (0.110, 0.0, 0.0),              # the fresh part: beside the watch in the FBX assembly (the prefab's Fresh sits in the seat, off)
 }
 
 CASE_R = .0750
@@ -313,12 +319,72 @@ def mainspring():
     return p
 
 
+def mainspring_broken():
+    """The broken spring: the coil to 4.2 turns (tired, dull), a ragged bright break, and the outer piece, hook and all,
+    sprung out of plane (toward the back, -Z, where the player looks) and twisted. Centred like the fresh one."""
+    p = Faceted('MainspringBroken')
+    dull, bright, brass = M('HD_WatchBlueDull'), M('HD_WatchSteel'), M('HD_WatchBrass')
+
+    def section(c, radial, up, th, h):
+        return [tuple(c - radial * th - up * h), tuple(c + radial * th - up * h),
+                tuple(c + radial * th + up * h), tuple(c - radial * th + up * h)]
+
+    turns, steps = 5.0, 160
+    t_break = 4.2 / turns                       # the ribbon snapped here
+    t_gap = 4.42 / turns                        # the outer piece starts here, having sprung away from the break
+    inner = []
+    outer = []
+    for i in range(steps + 1):
+        t = i / steps
+        a = 2 * math.pi * turns * t
+        r = .0070 + (.0260 - .0070) * t
+        c = Vector((r * math.cos(a), r * math.sin(a), 0))
+        radial = Vector((math.cos(a), math.sin(a), 0))
+        up = Vector((0, 0, 1))
+        if t <= t_break:
+            # the inner coil, tired: the last tenth of a turn before the break thins to a ragged point
+            frac = max(0.0, (t - (t_break - .02)) / .02)
+            inner.append(section(c, radial, up, .00045, .00125 * (1 - .6 * frac)))
+        elif t >= t_gap:
+            # the outer piece: lifted out toward the back (-Z) and twisted as it goes, the hook end 3 mm out of plane
+            k = (t - t_gap) / (1 - t_gap)
+            lift = -.0030 * k * k
+            twist = math.radians(55) * k
+            up_t = Vector((0, 0, math.cos(twist))) + radial * math.sin(twist)
+            c2 = c + Vector((0, 0, lift)) + radial * (.0006 * k)
+            outer.append(section(c2, radial, up_t, .00045, .00125))
+    def break_face(loop, outward):
+        # the snapped end: the ribbon's section as one bright face, its normal along the ribbon, outward
+        bm = bmesh.new()
+        f = bm.faces.new([bm.verts.new(v) for v in loop])
+        bm.faces.ensure_lookup_table()
+        if f.normal.dot(outward) < 0:
+            bmesh.ops.reverse_faces(bm, faces=[f])
+        return bm
+
+    a_in = 2 * math.pi * turns * t_break
+    a_out = 2 * math.pi * turns * t_gap
+    p.add('spring, the inner coil', tube(inner, cap_top=False), dull)
+    p.add('the break', break_face(inner[-1], Vector((-math.sin(a_in), math.cos(a_in), 0))), bright)
+    p.add('spring, the sprung piece', tube(outer, cap_bottom=False), dull)
+    p.add('the other break', break_face(outer[0], Vector((math.sin(a_out), -math.cos(a_out), 0))), bright)
+    end = outer[-1]
+    cx = sum(v[0] for v in end) / 4
+    cy = sum(v[1] for v in end) / 4
+    cz = sum(v[2] for v in end) / 4
+    p.add('outer hook', fb.zbox(cx - .0006, cx + .0006, cy - .0045, cy + .0008, cz - .00125, cz + .00125), dull)
+    p.add('arbor', revolve([(-.00125, .0036), (.00125, .0036)], sides=12), brass)
+    p.add('arbor square', fb.zbox(-.0012, .0012, -.0012, .0012, .00125, .0018), brass)
+    return p
+
+
 PIECES = [
     (case, ['Cylinder']),
     (back_plate, ['BackPlate']),
     (crown, ['Crown']),
     (screw, ['Screw0', 'Screw1', 'Screw2', 'Screw3']),
-    (mainspring, ['Part_Extra_Mainspring', 'Fresh']),
+    (mainspring_broken, ['Part_Extra_Mainspring']),
+    (mainspring, ['Fresh']),
 ]
 
 

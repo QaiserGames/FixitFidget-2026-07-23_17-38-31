@@ -102,6 +102,11 @@ if 'phone' in which:
     cover = next(c for c in children if c.name == 'BackCover')
     cover.location = (cover.location.x - .095, cover.location.y, cover.location.z + .004)
     shot('v3-phone-4-opened', (-.12, .24, .30), (-.04, 0, .01), lens=50, res=(1200, 900))
+    # the crack, close: face up again, the camera over the impact corner (v3.3)
+    cover.location = (cover.location.x + .095, cover.location.y, cover.location.z - .004)
+    root.rotation_euler = (0, 0, 0)
+    root.location = (0, 0, .004 + .0075)
+    shot('v3-phone-5-crack-close', (.00, .14, .16), (.019, -.030, .012), lens=70, res=(1200, 900))
 
 if 'watch' in which:
     import hero_watch

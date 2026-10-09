@@ -45,7 +45,8 @@ internal static class HeroDeviceSteps
     {
         public string source;        // the FBX child's name; "" is the root
         public string[] targets;     // the prefab objects the mesh goes into
-        public bool keepMaterials;   // the prefab object's own materials stay
+        public bool keepMaterials;   // the prefab object's own materials stay in the slots they fill (M_BrokenGlass, M_FreshGlass);
+                                     // a submesh beyond them takes the FBX's material (the crack on the broken screen, v3.3)
         public Vector3? head;        // a screw: its collider is this box round the origin, not the whole mesh
         public float? faceY;         // a cover: other pieces rest on its outer face at this local Y, and its collider stops
                                      // there (from that face to the mesh's top); what stands proud of the face (the phone's
@@ -92,7 +93,11 @@ internal static class HeroDeviceSteps
                     new Bounds(new Vector3(0f, .0012f, .0682f), new Vector3(.0628f, .0054f, .0036f)),
                     new Bounds(new Vector3(0f, .0012f, -.0682f), new Vector3(.0628f, .0054f, .0036f)),
                 } },
-                new Piece { source = "Screen", targets = new[] { "Broken", "Fresh" }, keepMaterials = true },
+                // v3.3: the broken part is the glass with its crack on it (two submeshes: the glass keeps M_BrokenGlass, the
+                // crack is HD_Crack); the fresh part is the plain glass with M_FreshGlass. "A cracked screen should look like
+                // a cracked screen": the fault is in the mesh and goes with the part to the tray
+                new Piece { source = "ScreenCracked", targets = new[] { "Broken" }, keepMaterials = true },
+                new Piece { source = "Screen", targets = new[] { "Fresh" }, keepMaterials = true },
                 // the back glass's outer face is at -3.9 mm in the phone (local -0.6: hero_phone.back_cover), where the screw heads sit
                 new Piece { source = "BackCover", targets = new[] { "BackCover" }, faceY = -.0006f },
                 new Piece { source = "Screw", targets = new[] { "Screw0", "Screw1" }, head = new Vector3(.008f, .0016f, .008f) },
@@ -124,7 +129,9 @@ internal static class HeroDeviceSteps
                 new Piece { source = "BackPlate", targets = new[] { "BackPlate" } },
                 new Piece { source = "Crown", targets = new[] { "Crown" } },
                 new Piece { source = "Screw", targets = new[] { "Screw0", "Screw1", "Screw2", "Screw3" }, head = new Vector3(.012f, .0026f, .012f) },
-                new Piece { source = "Mainspring", targets = new[] { "Part_Extra_Mainspring", "Fresh" } },
+                // v3.3: the broken spring is snapped, dull and sprung out of the barrel; the fresh one bright and coiled
+                new Piece { source = "MainspringBroken", targets = new[] { "Part_Extra_Mainspring" } },
+                new Piece { source = "Mainspring", targets = new[] { "Fresh" } },
             },
             moves = new[]
             {
@@ -192,7 +199,19 @@ internal static class HeroDeviceSteps
                             child.localPosition = Vector3.Scale(child.localPosition, oldScale);
                             if (!fitted.Contains(child.name)) child.localScale = Vector3.Scale(child.localScale, oldScale);
                         }
-                        if (!piece.keepMaterials && renderer != null) mr.sharedMaterials = renderer.sharedMaterials;
+                        if (renderer != null)
+                        {
+                            if (!piece.keepMaterials) mr.sharedMaterials = renderer.sharedMaterials;
+                            else
+                            {
+                                // the prefab's own materials stay where they are; submeshes beyond them take the FBX's
+                                Material[] own = mr.sharedMaterials, fbx = renderer.sharedMaterials;
+                                var merged = new Material[Mathf.Max(mesh.subMeshCount, 1)];
+                                for (int i = 0; i < merged.Length; i++)
+                                    merged[i] = i < own.Length && own[i] != null ? own[i] : (i < fbx.Length ? fbx[i] : null);
+                                mr.sharedMaterials = merged;
+                            }
+                        }
                         string collider = "no box collider";
                         var box = t.GetComponent<BoxCollider>();
                         if (box != null && piece.boxes != null)

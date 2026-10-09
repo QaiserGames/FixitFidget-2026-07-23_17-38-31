@@ -7,6 +7,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_Crack
+    second: {fileID: 2100000, guid: 6953fab2f40264eb18cf1f0db6395d66, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_Flash
     second: {fileID: 2100000, guid: 96828d1f5f91e4014b151bffdb38de97, type: 2}
   - first:

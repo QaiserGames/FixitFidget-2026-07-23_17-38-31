@@ -6,14 +6,23 @@
    "tool": "",
    "room": "",
    "what": "the hero phone: body, screen, back cover and a screw, assembled as the prefab has them",
-   "tris": 3360,
-   "meshes": 4,
+   "tris": 4532,
+   "meshes": 5,
    "children": [
     {
-     "name": "Screen",
+     "name": "ScreenCracked",
      "at": [
       0.0,
       0.0033,
+      0.0
+     ],
+     "turned": false
+    },
+    {
+     "name": "Screen",
+     "at": [
+      -0.09,
+      0.0,
       0.0
      ],
      "turned": false
@@ -38,8 +47,8 @@
     }
    ],
    "size": [
-    0.0712,
-    0.0097,
+    0.1569,
+    0.0099,
     0.1403
    ],
    "bottom": -0.0058,
@@ -50,6 +59,7 @@
     "HD_PhoneSteel",
     "HD_PhoneCopper",
     "HD_Glass",
+    "HD_Crack",
     "HD_PhoneIsland",
     "HD_Lens",
     "HD_Flash",
@@ -61,8 +71,10 @@
     "HD_Phone": [
      "Body"
     ],
+    "ScreenCracked": [
+     "Broken"
+    ],
     "Screen": [
-     "Broken",
      "Fresh"
     ],
     "BackCover": [
@@ -79,8 +91,8 @@
    "tool": "",
    "room": "",
    "what": "the hero pocket watch: case, back plate, crown, a screw and the mainspring, assembled as the prefab has them",
-   "tris": 12358,
-   "meshes": 5,
+   "tris": 13650,
+   "meshes": 6,
    "children": [
     {
      "name": "BackPlate",
@@ -110,17 +122,26 @@
      "turned": false
     },
     {
-     "name": "Mainspring",
+     "name": "MainspringBroken",
      "at": [
       0.03,
       -0.007,
       0.02
      ],
      "turned": false
+    },
+    {
+     "name": "Mainspring",
+     "at": [
+      0.11,
+      0.0,
+      0.0
+     ],
+     "turned": false
     }
    ],
    "size": [
-    0.15,
+    0.2096,
     0.0342,
     0.2
    ],
@@ -135,7 +156,8 @@
     "HD_WatchBrass",
     "HD_WatchRuby",
     "HD_ScrewSlot",
-    "HD_WatchGoldDark"
+    "HD_WatchGoldDark",
+    "HD_WatchBlueDull"
    ],
    "islands": 0,
    "targets": {
@@ -154,8 +176,10 @@
      "Screw2",
      "Screw3"
     ],
+    "MainspringBroken": [
+     "Part_Extra_Mainspring"
+    ],
     "Mainspring": [
-     "Part_Extra_Mainspring",
      "Fresh"
     ]
    }
@@ -348,6 +372,11 @@
    "smoothness": 0.7,
    "metallic": 0.0
   },
+  "HD_Crack": {
+   "hex": "E9ECEF",
+   "smoothness": 0.35,
+   "metallic": 0.0
+  },
   "HD_WatchGold": {
    "hex": "C19A52",
    "smoothness": 0.55,
@@ -371,6 +400,11 @@
   "HD_WatchBlue": {
    "hex": "2A3F6B",
    "smoothness": 0.55,
+   "metallic": 0.0
+  },
+  "HD_WatchBlueDull": {
+   "hex": "343A48",
+   "smoothness": 0.3,
    "metallic": 0.0
   },
   "HD_WatchNickel": {
