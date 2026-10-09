@@ -41,6 +41,8 @@ from hero_watch import prism  # noqa: E402
 
 HD_MATERIALS = {
     'HD_CamLeather':  ('#2A2623', 0.25, 0.0),   # the body's leatherette
+    'HD_CamLeatherWorn': ('#4F4842', 0.38, 0.0), # the leatherette where forty years of fingers have worn the grain smooth
+    'HD_CamFilm':     ('#3A302A', 0.35, 0.0),   # the film in the camera: dark base (glossy in life, but a flat strip under a studio light mirrors it: kept satin), the reunion photos on it
     'HD_CamChrome':   ('#B9B5AD', 0.50, 0.0),   # satin chrome: plates, rings, rails, the drum's rim
     'HD_CamBlack':    ('#1F1D1B', 0.40, 0.0),   # black paint and plastic: the lens rings, the gate, the chassis, the well
     'HD_CamGlass':    ('#1A2430', 0.70, 0.0),   # the lens, the finder windows
@@ -116,6 +118,27 @@ def body():
     p.add('body under the well', block(wx0, wx1, -HY, HY, -HZ, WELL_FLOOR, chamfer=.0006), leather)
     p.add('body far strip', block(wx0, wx1, -HY, wy0, -HZ, HZ, chamfer=.0006), leather)
     p.add('body lintel', block(wx0, wx1, wy1, HY, -HZ, HZ, chamfer=.0006), leather)
+    # the worn patch (v3.4): the right hand grips the opening end, fingertips on this face; the grain is worn smooth and
+    # lighter there. A ragged oval 12 x 28 mm on the 'body end' block, a tenth of a millimetre proud. Grace's camera,
+    # not a catalogue one.
+    import random
+    rng = random.Random(3)
+    cx_, cy_ = -.1120, -.0200
+    ring = []
+    for i in range(12):
+        a = 2 * math.pi * i / 12
+        rx, ry = .0060 * rng.uniform(.85, 1.15), .0140 * rng.uniform(.85, 1.15)
+        ring.append((cx_ + rx * math.cos(a), cy_ + ry * math.sin(a)))
+    worn = bmesh.new()
+    lo = [worn.verts.new((x, y, HZ + .00002)) for x, y in ring]
+    hi = [worn.verts.new((x, y, HZ + .00012)) for x, y in ring]
+    worn.faces.new(hi)
+    worn.faces.new(list(reversed(lo)))
+    for k in range(12):
+        m = (k + 1) % 12
+        worn.faces.new([lo[k], lo[m], hi[m], hi[k]])
+    bmesh.ops.recalc_face_normals(worn, faces=worn.faces[:])
+    p.add('worn patch', worn, M('HD_CamLeatherWorn'))
     # the well's lining: black floor and walls (the inside of a camera)
     p.add('well floor', fb.zbox(wx0, wx1, wy0, wy1, WELL_FLOOR, WELL_FLOOR + .0008), black)
     for (x0, x1, y0, y1) in ((wx0, wx0 + .0008, wy0, wy1), (wx1 - .0008, wx1, wy0, wy1), (wx0, wx1, wy0, wy0 + .0008), (wx0, wx1, wy1 - .0008, wy1)):
@@ -243,7 +266,49 @@ def film_path():
     p.add('spool slot', fb.zbox(.0310, .0330, -.0150, .0150, .0040, .0050), chrome)
     for yz in (-.0160, .0160):
         p.add('spool flange', across(revolve([(yz - .0012, .0085), (yz + .0012, .0085)], sides=16), .0320), chrome)
+    # the film (v3.4): a strip 32 wide riding on the rails over the gate, climbing over the sprocket drum at one end
+    # (its teeth through the perforations) and up to the take-up spool at the other. Perforated along both edges at the
+    # real 4.75 mm pitch: the holes are real holes, the rails and the gate show through them. It is a film camera, and
+    # the reunion photos are on this strip.
+    p.add('film', film_strip(), M('HD_CamFilm'))
     return p
+
+
+def film_strip():
+    path = [(-.0330, .0046), (-.0300, .0050), (-.0240, .0027), (.0240, .0027), (.0300, .0044), (.0330, .0046)]  # (x, z) along the path
+    pitch, hole, half_w = .00475, .0028, .0160
+    rows = [(-half_w, -.0137), (-.0137, -.0113), (-.0113, .0113), (.0113, .0137), (.0137, half_w)]   # edge, perf, frame, perf, edge
+    bm = bmesh.new()
+
+    def z_at(x):
+        for (x0, z0), (x1, z1) in zip(path, path[1:]):
+            if x0 <= x <= x1:
+                t = (x - x0) / (x1 - x0)
+                return z0 + (z1 - z0) * t
+        return path[0][1] if x < path[0][0] else path[-1][1]
+
+    x0, x1 = path[0][0], path[-1][0]
+    # cells along the strip: a hole's length, then the bar between holes, repeating
+    xs = [x0]
+    x = x0
+    while x < x1:
+        x = min(x + hole, x1); xs.append(x)
+        x = min(x + (pitch - hole), x1); xs.append(x)
+    for i in range(len(xs) - 1):
+        xa, xb = xs[i], xs[i + 1]
+        if xb - xa < 1e-6:
+            continue
+        is_hole = (i % 2 == 0)
+        for (ya, yb), band in zip(rows, ('edge', 'perf', 'frame', 'perf', 'edge')):
+            if band == 'perf' and is_hole:
+                continue
+            za, zb = z_at(xa), z_at(xb)
+            top = [bm.verts.new(v) for v in ((xa, ya, za), (xb, ya, zb), (xb, yb, zb), (xa, yb, za))]
+            bot = [bm.verts.new(v) for v in ((xa, ya, za - .00012), (xb, ya, zb - .00012), (xb, yb, zb - .00012), (xa, yb, za - .00012))]
+            bm.faces.new(top)
+            bm.faces.new(list(reversed(bot)))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-7)
+    return bm
 
 
 def mechanism():

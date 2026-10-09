@@ -12,8 +12,18 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_FilmTab
+    second: {fileID: 2100000, guid: aa5db4bd72ad04647a3c536af52b6864, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_Flash
     second: {fileID: 2100000, guid: 96828d1f5f91e4014b151bffdb38de97, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_Flex
+    second: {fileID: 2100000, guid: 3264ff507076d4eaa943b9eec02bcad2, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

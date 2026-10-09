@@ -7,7 +7,12 @@ bench and the labs know (names, parents, scripts, the grime under the Screen) st
 
 The prefab's frame (Unity): X across the phone (70 mm), Y through it (+Y the front), Z along it (140 mm; the screws
 are at -Z, so -Z is the bottom end). Blender here: X across, Y along (Unity +Z is Blender -Y: the top end is -Y, the
-bottom end with the port and the screws is +Y), Z through (+Z the front).
+bottom end with the port and the screws is +Y), Z through (+Z the front). HANDEDNESS (v3.4, found by checking the
+inside against the real one): the FBX transfer lands Blender +X on Unity -X, and the player looks along Unity +Z with
++Y up, so the player's RIGHT, with the front up, is Blender -X. A real iPhone has its side button on the right edge
+and the volume buttons on the left, its camera island at the top-left seen from the back (so top-right seen through
+from the front), its logic board under the cameras and its battery on the other side. v3 to v3.3 had all of that
+mirrored; v3.4 puts it right.
 
 v3.2 is the real SECTION. v3 kept the stand-in's 13 mm (screen top at +6, cover face at -7, a glass plate standing
 1.4 mm proud of a slab) and Mansoor's verdict was "the phone's front screen is so thick it doesn't look real". A real
@@ -68,6 +73,8 @@ HD_MATERIALS = {
     'HD_ScrewSlot':   ('#2A2D31', 0.30, 0.0),   # the cross recess
     'HD_Glass':       ('#20355A', 0.70, 0.0),   # the screen in the FBX only: the prefab keeps M_BrokenGlass / M_FreshGlass
     'HD_Crack':       ('#E9ECEF', 0.35, 0.0),   # the cracks: scattered light, white-grey on the dark glass
+    'HD_FilmTab':     ('#E07A3F', 0.20, 0.0),   # the peel tab on the fresh screen's protective film
+    'HD_Flex':        ('#2C2622', 0.30, 0.0),   # the battery's flex cable (black polyimide)
 }
 
 PREFAB_OFFSETS = {        # Unity's frame; v3.2: where Devices 2 MOVES the prefab's objects to (HeroDeviceSteps moves)
@@ -83,7 +90,7 @@ RAIL_WALL, RAIL_CHAMFER = .0010, .0006
 FRONT = T / 2                 # +3.9: the rail's front edge, the glass's top, the border's top
 CHASSIS_TOP, CHASSIS_BACK = .0027, -.0015
 BORDER = .0025                # the black border under the glass
-ISLAND = (.0150, -.0485)      # the camera island's centre on the back (x, y here): 5 mm in from the top and the right (seen from the back)
+ISLAND = (-.0150, -.0485)     # the camera island's centre: top-LEFT seen from the back (Blender -X), as the real one; 5 mm in from the edges
 
 
 def rail_ring(z0, z1, sx, sy, rc, wall, c, per_corner=4):
@@ -135,10 +142,10 @@ def body():
         b = fb.zbox(x0, x1, y0, y1, -.00125, .00125)
         fb.bevel_all(b, .0003, segments=1)
         return b
-    p.add('side button', button(.0348, .0356, -.0320, -.0080), rail)
-    p.add('ring switch', button(-.0356, -.0348, -.0440, -.0350), rail)
-    p.add('volume up', button(-.0356, -.0348, -.0290, -.0140), rail)
-    p.add('volume down', button(-.0356, -.0348, -.0120, .0030), rail)
+    p.add('side button', button(-.0356, -.0348, -.0320, -.0080), rail)      # the right edge, front up (Blender -X)
+    p.add('ring switch', button(.0348, .0356, -.0440, -.0350), rail)        # the left edge
+    p.add('volume up', button(.0348, .0356, -.0290, -.0140), rail)
+    p.add('volume down', button(.0348, .0356, -.0120, .0030), rail)
     # antenna lines: thin lighter stripes across the rail's flat band near the four corners
     for sx in (1, -1):
         for y in (-.060, .060):
@@ -156,28 +163,53 @@ def body():
     # the INSIDE, in relief on the chassis's back face (-1.5), toward the back glass (whose inner face is at -2.7;
     # the cover's lip is 1.2 mm wide, so everything sits inside a 65 x 135 field and nothing reaches past -2.6)
     zb = CHASSIS_BACK
-    p.add('battery', chamfered_slab(.0480, .0950, .0010, .0020, .0003, per_corner=2, centre_z=zb - .0005), black)
-    p.add('battery label', fb.zbox(-.0180, .0100, -.0100, .0220, zb - .00105, zb - .00100), back)
-    p.add('charging coil', ring_wall(zb - .00112, zb - .00100, .0070, .0220, sides=24), copper)
-    p.add('coil ring', ring_wall(zb - .00108, zb - .00100, .0220, .0240, sides=24), steel)
+    flex = M('HD_Flex')
+    # as the real one is laid out, seen from the back (where Blender +X is the viewer's right): the logic board runs
+    # down the LEFT side under the cameras (Blender -X, the island's side), the battery fills the right two thirds, and
+    # the battery's flex cable plugs into the board's edge: the first thing a repair unplugs (v3.4, the details pass)
+    bat_x, bat_w, bat_l = .0060, .0400, .0860
+    p.add('battery', moved(chamfered_slab(bat_w, bat_l, .0010, .0020, .0003, per_corner=2, centre_z=zb - .0005), bat_x, .0040, 0), black)
+    p.add('battery label', fb.zbox(bat_x - .0150, bat_x + .0110, -.0040, .0300, zb - .00105, zb - .00100), back)
+    p.add('charging coil', moved(ring_wall(zb - .00112, zb - .00100, .0060, .0175, sides=24), bat_x, .0040, 0), copper)
+    p.add('coil ring', moved(ring_wall(zb - .00108, zb - .00100, .0175, .0190, sides=24), bat_x, .0040, 0), steel)
     cam = chamfered_slab(.0300, .0300, .0010, .0030, .0003, per_corner=2, centre_z=zb - .0005)
     p.add('camera module', moved(cam, ISLAND[0], ISLAND[1], 0), black)
     for (cx, cy) in ((ISLAND[0] - .0070, ISLAND[1] - .0068), (ISLAND[0] + .0070, ISLAND[1] + .0068)):
         p.add('camera barrel', disc(cx, cy, zb - .0011, zb - .0010, .0050, sides=16), steel)
-    shield = chamfered_slab(.0220, .0520, .0008, .0010, .0003, per_corner=1, centre_z=zb - .0004)
-    p.add('board shield', moved(shield, -.0210, -.0380, 0), steel)
-    # (no speaker, Taptic engine, port assembly or board screws: the battery, the coil, the camera module and the board
-    # shield are what say "a phone's inside"; the rest was clutter at 50 cm)
+    shield = chamfered_slab(.0160, .0740, .0008, .0010, .0003, per_corner=1, centre_z=zb - .0004)
+    p.add('board shield', moved(shield, -.0230, .0060, 0), steel)
+    # the battery connector: a flat flex off the battery's board-side edge, its copper contacts, into a connector on the board
+    p.add('battery flex', fb.zbox(-.0190, bat_x - .0120, -.0260, -.0170, zb - .00262, zb - .00250), flex)
+    p.add('flex contacts', fb.zbox(-.0190, -.0160, -.0255, -.0175, zb - .00266, zb - .00262), copper)
+    p.add('battery connector', moved(chamfered_slab(.0090, .0040, .0009, .0005, .0002, per_corner=1, centre_z=zb - .00125), -.0225, -.0215, 0), steel)
+    p.add('connector latch', fb.zbox(-.0270, -.0180, -.0245, -.0185, zb - .00175, zb - .00170), black)
+    # (no speaker, Taptic engine, port assembly or board screws: the battery, the coil, the camera module, the board
+    # shield and the battery connector are what say "a phone's inside"; the rest was clutter at 50 cm)
     return p
 
 
 def screen():
-    """The display glass, centred on its origin (Unity y +3.3): 62.8 x 132.8 x 1.2, from +2.7 (on the chassis) to +3.9
-    (flush with the rail), a 0.1 mm reveal to the border ring, a 0.3 mm edge chamfer (2.5D glass)."""
+    """The FRESH display glass, centred on its origin (Unity y +3.3): 62.8 x 132.8 x 1.2, from +2.7 (on the chassis) to
+    +3.9 (flush with the rail), a 0.1 mm reveal to the border ring, a 0.3 mm edge chamfer (2.5D glass). In Unity it keeps
+    M_FreshGlass, the pale blue of a new screen's protective film; the film's peel tab at one corner (v3.4) says "new,
+    unfitted" from across the bench and is what a replacement screen looks like in a shop."""
     p = Faceted('Screen')
     w = W - 2 * RAIL_WALL - 2 * BORDER - .0004      # 62.8 (the border's inside less 0.1 a side, and the ring's own 0.1)
     l = L - 2 * RAIL_WALL - 2 * BORDER - .0004      # 132.8
     p.add('glass', chamfered_slab(w, l, FRONT - CHASSIS_TOP, CORNER - RAIL_WALL - BORDER, .0003, per_corner=4, centre_z=0.0), M('HD_Glass'))
+    # the peel tab: a 10 x 9 mm flap at the bottom-right corner, lying on the film and curling up 1.5 mm at its free end
+    top = (FRONT - CHASSIS_TOP) / 2
+    bm = bmesh.new()
+    xs = [.0190, .0230, .0265, .0290]
+    zs = [top + .00006, top + .00012, top + .0006, top + .0015]
+    rows = [[bm.verts.new((x, y, z)) for (x, z) in zip(xs, zs)] for y in (.0530, .0620)]
+    for i in range(3):
+        bm.faces.new([rows[0][i], rows[0][i + 1], rows[1][i + 1], rows[1][i]])
+    under = [[bm.verts.new((x, y, z - .00008)) for (x, z) in zip(xs, zs)] for y in (.0530, .0620)]
+    for i in range(3):
+        bm.faces.new([under[1][i], under[1][i + 1], under[0][i + 1], under[0][i]])
+    # (two open sheets wound by hand, the top facing +Z and the underside -Z: no normal recalculation on open sheets)
+    p.add('peel tab', bm, M('HD_FilmTab'))
     return p
 
 

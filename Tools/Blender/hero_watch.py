@@ -251,7 +251,31 @@ def case():
         p.add('plate screw', disc(sx_, sy_, PLATE_BOTTOM - .0005, PLATE_BOTTOM, .0022, sides=10), steel)
         slot = fb.zbox(sx_ - .0018, sx_ + .0018, sy_ - .0003, sy_ + .0003, PLATE_BOTTOM - .0007, PLATE_BOTTOM - .0004)
         p.add('plate screw slot', slot, M('HD_ScrewSlot'))
+    # the plate's engraving (v3.4): a railroad movement is lettered. Upright for the player (whose up is -Y here), in
+    # the clear ground at the upper right between the crown wheel and the rim; the maker's name goes on a line above
+    # the two once he has chosen it (PLATE_MAKER).
+    lines = [t for t in (PLATE_MAKER, '17 JEWELS', 'ADJUSTED') if t]
+    y0 = -.0380 - .0048 * (len(lines) - 2)
+    for k, line in enumerate(lines):
+        p.add('plate engraving', engraving(line, .0032 if len(line) > 9 else .0034, (.0320, y0 + .0048 * k), 0.0), M('HD_WatchInk'))
     return p
+
+
+PLATE_MAKER = ''     # the maker's name, lettered above "17 JEWELS" when he has picked it (Brightwater / Ashford / Fairmont)
+
+
+def engraving(text, size, at, degrees, depth=.00025):
+    """Lettering on the movement side, read by the player from the back (-Z, their up being -Y): text_mesh's glyphs
+    turned over about X so they read from that side, laid on the 3/4 plate's face, turned in the plane by `degrees`."""
+    txt = hl.text_mesh(text, size, depth)
+    if txt is None:
+        return bmesh.new()
+    xs = [v.co.x for v in txt.verts]
+    ys = [v.co.y for v in txt.verts]
+    moved(txt, -(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0)
+    fb.turn(txt, 180.0, 'X')                 # readable from -Z with up -Y; now from z 0 down to -depth
+    fb.turn(txt, degrees, 'Z')
+    return moved(txt, at[0], at[1], PLATE_BOTTOM)
 
 
 def back_plate():
@@ -262,6 +286,19 @@ def back_plate():
     p.add('plate', revolve(prof, sides=64, bottom_tip=(0, 0, -.0046)), gold)
     # one fine engraved ring on the dome
     p.add('engraved ring', ring_wall(-.0034, -.0030, .0400, .0408, sides=64), gold_dark)
+    # inside (the flat face at +2.0, toward the movement): the dates watchmakers scratch into a case back at every
+    # service (v3.4). This watch has been opened before; the player is the next hand on it. Scratchy, at odd angles.
+    for (text, r, ang, tilt, size) in (('3-61', .046, 118.0, -14.0, .0040), ('11-74', .040, 196.0, 9.0, .0036),
+                                       ('6-88', .050, 262.0, -5.0, .0042), ('2-02', .034, 331.0, 17.0, .0034)):
+        txt = hl.text_mesh(text, size, .00006)
+        if txt is None:
+            continue
+        xs = [v.co.x for v in txt.verts]
+        ys = [v.co.y for v in txt.verts]
+        moved(txt, -(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0)
+        fb.turn(txt, ang + tilt, 'Z')
+        a = math.radians(ang)
+        p.add('service date', moved(txt, r * math.cos(a), r * math.sin(a), .0020), gold_dark)
     return p
 
 

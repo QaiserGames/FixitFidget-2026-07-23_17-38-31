@@ -94,16 +94,16 @@ if 'phone' in which:
     root.rotation_euler = (0, 0, 0)                      # face up (Blender +Z is the front)
     # the player looks from Blender +Y (Unity -Z): every device shot is from that side
     shot('v3-phone-1-front', (-.10, .26, .30), (0, 0, .01), lens=50, res=(1000, 1000))
-    root.rotation_euler = (math.radians(180), 0, 0)      # back up
+    root.rotation_euler = (0, math.radians(180), 0)      # back up, turned about its LONG axis as the game's Y flip turns it (the port stays near the player)
     root.location = (0, 0, .004 + .0100)
     shot('v3-phone-2-back', (-.10, .26, .30), (0, 0, .01), lens=50, res=(1000, 1000))
     shot('v3-phone-3-back-low', (-.16, .18, .09), (0, 0, .01), lens=55, res=(1200, 700))
     # the back cover lifted off: the inside
     cover = next(c for c in children if c.name == 'BackCover')
-    cover.location = (cover.location.x - .095, cover.location.y, cover.location.z + .004)
+    cover.location = (cover.location.x + .095, cover.location.y, cover.location.z + .004)
     shot('v3-phone-4-opened', (-.12, .24, .30), (-.04, 0, .01), lens=50, res=(1200, 900))
     # the crack, close: face up again, the camera over the impact corner (v3.3)
-    cover.location = (cover.location.x + .095, cover.location.y, cover.location.z - .004)
+    cover.location = (cover.location.x - .095, cover.location.y, cover.location.z - .004)
     root.rotation_euler = (0, 0, 0)
     root.location = (0, 0, .004 + .0075)
     shot('v3-phone-5-crack-close', (.00, .14, .16), (.019, -.030, .012), lens=70, res=(1200, 900))
@@ -117,7 +117,7 @@ if 'watch' in which:
     root.location = (0, 0, .004 + .022)
     shot('v3-watch-1-front', (-.12, .30, .34), (0, 0, .02), lens=50, res=(1000, 1000))
     shot('v3-watch-2-front-low', (-.20, .22, .10), (0, 0, .02), lens=55, res=(1200, 700))
-    root.rotation_euler = (math.radians(180), 0, 0)
+    root.rotation_euler = (0, math.radians(180), 0)      # back up, about the long (pendant) axis, as the game flips it
     root.location = (0, 0, .004 + .012)
     shot('v3-watch-3-back', (-.12, .30, .34), (0, 0, .02), lens=50, res=(1000, 1000))
     plate = next(c for c in children if c.name == 'BackPlate')
@@ -126,6 +126,11 @@ if 'watch' in which:
         if c.name.startswith('Screw'):
             c.hide_render = True
     shot('v3-watch-4-back-open', (-.12, .30, .34), (0, 0, .02), lens=50, res=(1000, 1000))
+    # the back plate lying inside-up beside the open watch: the service dates (v3.4)
+    plate.hide_render = False
+    plate.rotation_euler = (0, math.radians(180), 0)
+    plate.location = (.165, 0, -.010)
+    shot('v3-watch-5-plate-inside', (-.26, .22, .22), (-.09, 0, .01), lens=60, res=(1200, 800))
 
 if 'camera' in which:
     import hero_camera

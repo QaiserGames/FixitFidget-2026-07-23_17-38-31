@@ -6,7 +6,7 @@
    "tool": "",
    "room": "",
    "what": "the hero phone: body, screen, back cover and a screw, assembled as the prefab has them",
-   "tris": 4532,
+   "tris": 4640,
    "meshes": 5,
    "children": [
     {
@@ -58,8 +58,10 @@
     "HD_PhoneBack",
     "HD_PhoneSteel",
     "HD_PhoneCopper",
+    "HD_Flex",
     "HD_Glass",
     "HD_Crack",
+    "HD_FilmTab",
     "HD_PhoneIsland",
     "HD_Lens",
     "HD_Flash",
@@ -91,7 +93,7 @@
    "tool": "",
    "room": "",
    "what": "the hero pocket watch: case, back plate, crown, a screw and the mainspring, assembled as the prefab has them",
-   "tris": 13650,
+   "tris": 15794,
    "meshes": 6,
    "children": [
     {
@@ -189,7 +191,7 @@
    "tool": "",
    "room": "",
    "what": "Grace's camera, hero: body, lens, glass, film path, shutter mechanism and blades, straps, assembled as the prefab has them",
-   "tris": 10624,
+   "tris": 11116,
    "meshes": 9,
    "children": [
     {
@@ -273,12 +275,14 @@
    "bottom": -0.024,
    "materials": [
     "HD_CamLeather",
+    "HD_CamLeatherWorn",
     "HD_CamBlack",
     "HD_CamChrome",
     "HD_CamGlass",
     "HD_CamMilk",
     "HD_CamWhite",
     "HD_CamSteel",
+    "HD_CamFilm",
     "HD_CamBrass",
     "HD_CamStrap",
     "HD_CamStitch"
@@ -377,6 +381,16 @@
    "smoothness": 0.35,
    "metallic": 0.0
   },
+  "HD_FilmTab": {
+   "hex": "E07A3F",
+   "smoothness": 0.2,
+   "metallic": 0.0
+  },
+  "HD_Flex": {
+   "hex": "2C2622",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
   "HD_WatchGold": {
    "hex": "C19A52",
    "smoothness": 0.55,
@@ -430,6 +444,16 @@
   "HD_CamLeather": {
    "hex": "2A2623",
    "smoothness": 0.25,
+   "metallic": 0.0
+  },
+  "HD_CamLeatherWorn": {
+   "hex": "4F4842",
+   "smoothness": 0.38,
+   "metallic": 0.0
+  },
+  "HD_CamFilm": {
+   "hex": "3A302A",
+   "smoothness": 0.35,
    "metallic": 0.0
   },
   "HD_CamChrome": {

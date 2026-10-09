@@ -22,6 +22,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_CamFilm
+    second: {fileID: 2100000, guid: de13daa28d6ba422b803346befb6ae34, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_CamGlass
     second: {fileID: 2100000, guid: d3520e1ecf9ce49888d47e261ae26493, type: 2}
   - first:
@@ -29,6 +34,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: HD_CamLeather
     second: {fileID: 2100000, guid: 4f12b10a8b0bc4652abab30dac218976, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_CamLeatherWorn
+    second: {fileID: 2100000, guid: 30367e3648fa444a29cca849e280b377, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
