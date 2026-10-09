@@ -51,7 +51,7 @@ HD_MATERIALS = {
     'HD_CamBrass':    ('#B08A3E', 0.50, 0.0),   # the gear train
     'HD_CamStrap':    ('#7A4A28', 0.30, 0.0),   # tan leather
     'HD_CamStitch':   ('#D9C7A6', 0.30, 0.0),   # the strap's stitching
-    'HD_CamWhite':    ('#F2EFE8', 0.30, 0.0),   # index marks on the rings
+    'HD_CamWhite':    ('#F2EFE8', 0.30, 0.0),   # index marks on the rings, the lettering round the name ring
 }
 
 PREFAB_OFFSETS = {        # Unity's frame; the body is the root at (0, 0.023, 0) in the prefab, the origin here
@@ -66,6 +66,49 @@ PREFAB_OFFSETS = {        # Unity's frame; the body is the root at (0, 0.023, 0)
 }
 
 HX, HY, HZ = .120, .080, .023      # the body's half sizes
+MAKER = 'HALCYON'                  # the camera's maker (his pick, 9 Oct): a bird, like many camera names, and "calm, golden days". One word to change.
+LENS_NAME = MAKER + ' 40mm 1:1.7'  # round the lens's name ring
+
+
+def lettering(text, size, depth):
+    """text_mesh's glyphs centred on their box, in XY, extruded +Z."""
+    txt = hl.text_mesh(text, size, depth)
+    if txt is None:
+        return bmesh.new()
+    xs = [v.co.x for v in txt.verts]
+    ys = [v.co.y for v in txt.verts]
+    return moved(txt, -(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0)
+
+
+def ring_lettering(text, r, z, size, depth, phi_centre_deg=90.0, advance=None, tops_inward=True):
+    """Letters one by one round a ring's front face (facing +Z). The player's up is -Y, so lettering on the NEAR side of
+    the ring (+Y, phi 90) reads the right way up with its tops toward the centre, as the name on the bottom of a lens
+    ring does; it runs from the player's left (+X) round to the right (-X), i.e. with increasing phi."""
+    bm = bmesh.new()
+    advance = advance or size * .78
+    n = len(text)
+    dphi = advance / r
+    phi0 = math.radians(phi_centre_deg) - dphi * (n - 1) / 2
+    for i, ch in enumerate(text):
+        if ch == ' ':
+            continue
+        g = lettering(ch, size, depth)
+        phi = phi0 + i * dphi
+        fb.turn(g, math.degrees(phi) - 90.0 + (180.0 if tops_inward else 0.0), 'Z')   # its up (+Y) to the radial direction, or inward
+        g = moved(g, r * math.cos(phi), r * math.sin(phi), z)
+        for v in g.verts:
+            bm.verts.new(v.co)
+        bm.verts.ensure_lookup_table()
+        base = len(bm.verts) - len(g.verts)
+        g.verts.ensure_lookup_table()
+        idx = {v.index: k for k, v in enumerate(g.verts)}
+        for f in g.faces:
+            try:
+                bm.faces.new([bm.verts[base + idx[v.index]] for v in f.verts])
+            except ValueError:
+                pass
+        g.free()
+    return bm
 WELL_FLOOR = .036 - .023           # the opening's floor, Unity y 0.036, in the body's frame (+0.013)
 WELL = (-.104, -.010, -.0655, .0635)   # x0, x1, y0, y1 of the opening (Blender: Unity x 10..104 is Blender -104..-10)
 BAND = (.050, .080)                # the top plate's front band (y): the NEAR edge for the player; over the opening only its lintel (y 0.0635 .. 0.080)
@@ -149,6 +192,13 @@ def body():
     p.add('top band, opening end', block(-HX - .0010, wx0, b0, HY + .0010, pz0, pz1, r_left=R + .001), chrome)
     p.add('top band, lens side', block(wx1, HX + .0010, b0, HY + .0010, pz0, pz1, r_right=R + .001), chrome)
     p.add('top band lintel', block(wx0, wx1, wy1, HY + .0010, pz0, pz1, chamfer=.0008), chrome)
+    # the maker's name on the top plate's TOP face (v3.5): a real camera letters its front face, but the player looks
+    # down from the close-up and sees a vertical face at a grazing angle, so the name goes where it will be read:
+    # black-filled lettering on the chrome top, 4 mm, upright for the player (whose up is -Y), between the hot shoe
+    # and the opening
+    name = lettering(MAKER, .0040, .00020)
+    fb.turn(name, 180.0, 'Z')                 # up to -Y
+    p.add('maker name', moved(name, .0050, .0560, pz1), black)       # clear of the lens barrel's shadow in the close-up, over the band, not the well
     p.add('bottom plate', block(-HX - .0010, HX + .0010, -HY - .0010, -HY + .0135, pz0, pz1, r_left=R + .001, r_right=R + .001), chrome)
     # ---- the front face: the three finder windows in the band's face (the rangefinder's over the lens, the frosted
     # illuminator and the big viewfinder toward the middle), the badge, the self-timer, the lens boss
@@ -216,7 +266,7 @@ def lens_housing():
     p.add('speed ring', revolve([(.0060, .0360), (.0070, .0375), (.0150, .0375), (.0160, .0350)], sides=96, knurl=(1, .025)), chrome)
     p.add('spacer', revolve([(.0150, .0345), (.0175, .0345)], sides=S), black)
     p.add('aperture ring', revolve([(.0170, .0350), (.0180, .0375), (.0260, .0375), (.0270, .0345)], sides=96, knurl=(1, .025)), chrome)
-    p.add('name ring', revolve([(.0260, .0340), (.0340, .0340), (.0350, .0320), (.0360, .0300), (.0360, .0270), (.0330, .0265)], sides=S), black)
+    p.add('name ring', revolve([(.0260, .0340), (.0340, .0340), (.0350, .0320), (.0360, .0300), (.0360, .0252), (.0330, .0248)], sides=S), black)
     # index marks: white ticks on the two chrome rings and an index line on the name ring
     for z0, z1, n in ((.0085, .0135, 7), (.0195, .0245, 6)):
         for k in range(n):
@@ -224,6 +274,8 @@ def lens_housing():
             fb.turn(tick, -60.0 + 120.0 * k / (n - 1), 'Z')
             p.add('index', tick, white)
     p.add('index line', fb.zbox(-.0005, .0005, .0335, .0345, .0280, .0335), white)
+    # the lens's name round the name ring's front face (v3.5), on the far side from the player, tops outward
+    p.add('lens name', ring_lettering(LENS_NAME, .0277, .0360, .0023, .00015), white)
     # the meter cell window at twelve o'clock inside the name ring
     p.add('meter window', fb.zbox(-.0050, .0050, .0230, .0300, .0340, .0356), glass)
     return p
@@ -233,8 +285,10 @@ def lens_glass():
     """Centred on its origin (Unity y 0.093): a chrome retaining ring and the dark front element, apex at +3.2 mm."""
     p = Faceted('LensGlass')
     glass, chrome = M('HD_CamGlass'), M('HD_CamChrome')
-    p.add('retaining ring', revolve([(-.0030, .0255), (-.0030, .0285), (.0008, .0285), (.0014, .0262), (-.0010, .0255)], sides=48, cap_top=False), chrome)
-    prof = [(-.0028, .0150), (-.0028, .0256), (.0004, .0256)] + dome(.0004, .0250, .0028, n=4)
+    # 50 mm over the retaining ring (v3.5; was 57, which covered the name ring's face): a 40 mm f/1.7's front element is
+    # about 24 mm across, 48 at this scale
+    p.add('retaining ring', revolve([(-.0030, .0222), (-.0030, .0250), (.0008, .0250), (.0014, .0230), (-.0010, .0222)], sides=48, cap_top=False), chrome)
+    prof = [(-.0028, .0150), (-.0028, .0223), (.0004, .0223)] + dome(.0004, .0218, .0028, n=4)
     p.add('front element', revolve(prof, sides=48, tip=(0, 0, .0032)), glass)
     return p
 

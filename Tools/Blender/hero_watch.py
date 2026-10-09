@@ -184,19 +184,36 @@ def case():
         fb.turn(tick, 6.0 * k, 'Z')
         p.add('tick', tick, ink)
     # the numerals: bold Arabic figures, upright, raised a quarter millimetre (text_mesh uses Blender's built-in font)
+    # THE DIAL'S ORIENTATION (v3.5, found in the review): the pendant is at Blender -Y, which is the far end from the
+    # player, so twelve is at -Y, the player's up is -Y, and the player's right (front up) is -X: clockwise for the
+    # player runs from -Y toward -X, i.e. DECREASING angle. v3 to v3.4 had twelve at +Y (six at the pendant) and the
+    # glyphs upright for someone on the far side of the bench.
     for k in range(1, 13):
-        a = math.radians(90 - 30 * k)
+        a = math.radians(-90 - 30 * k)
         txt = hl.text_mesh(str(k), .0135, .00025)
         if txt is None:
             continue
-        # centre the glyphs on their box, then place them on a 44 mm ring
+        # centre the glyphs on their box, turn them upright for the player, then place them on a 44 mm ring
         xs = [v.co.x for v in txt.verts]
         ys = [v.co.y for v in txt.verts]
-        moved(txt, -(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, DIAL_Z)
-        moved(txt, .0440 * math.cos(a), .0440 * math.sin(a), 0)
+        moved(txt, -(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0)
+        fb.turn(txt, 180.0, 'Z')
+        moved(txt, .0440 * math.cos(a), .0440 * math.sin(a), DIAL_Z)
         p.add('numeral %d' % k, txt, ink)
-    # the sub-seconds at 6: a sunk disc with its own ring and twelve ticks, and a slim needle
-    sx, sy = 0.0, -.0330
+    # the maker's name under twelve and the grade above the seconds (v3.5): dial lettering, upright for the player
+    for (text, size, y) in ((DIAL_MAKER, .0046, -.0225), ('RAILROAD GRADE', .0027, .0135)):
+        if not text:
+            continue
+        txt = hl.text_mesh(text, size, .00020)
+        if txt is None:
+            continue
+        xs = [v.co.x for v in txt.verts]
+        ys = [v.co.y for v in txt.verts]
+        moved(txt, -(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0)
+        fb.turn(txt, 180.0, 'Z')
+        p.add('dial lettering', moved(txt, 0, y, DIAL_Z), ink)
+    # the sub-seconds at 6 (+Y, toward the player): a sunk disc with its own ring and twelve ticks, and a slim needle
+    sx, sy = 0.0, .0330
     p.add('seconds dial', moved(revolve([(DIAL_Z - .0016, .0125), (DIAL_Z - .0003, .0125)], sides=32), sx, sy, 0), dial_m)
     p.add('seconds ring', moved(ring_wall(DIAL_Z - .0003, DIAL_Z - .0001, .0112, .0118, sides=32), sx, sy, 0), ink)
     for k in range(12):
@@ -209,10 +226,10 @@ def case():
     p.add('seconds boss', disc(sx, sy, DIAL_Z - .0001, DIAL_Z + .0004, .0010, sides=8), steel)
     # the hands: blued steel spades at ten past ten, on a gold cannon
     hour = hand(.0330, .0028, .0200, .0080, .0100, DIAL_Z + .0004, DIAL_Z + .0010)
-    fb.turn(hour, 60.0, 'Z')                 # ten o'clock
+    fb.turn(hour, 240.0, 'Z')                # ten o'clock (twelve is at -Y)
     p.add('hour hand', hour, blue)
     minute = hand(.0505, .0020, .0150, .0050, .0080, DIAL_Z + .0010, DIAL_Z + .0015)
-    fb.turn(minute, -60.0, 'Z')              # two (ten past)
+    fb.turn(minute, 120.0, 'Z')              # two (ten past)
     p.add('minute hand', minute, blue)
     p.add('cannon', revolve([(DIAL_Z, .0032), (DIAL_Z + .0016, .0032), (DIAL_Z + .0021, .0022)], sides=16, tip=(0, 0, DIAL_Z + .0024)), gold)
     # (no hinge at six: this watch's back comes off with four screws, and a hinge would say otherwise)
@@ -261,7 +278,8 @@ def case():
     return p
 
 
-PLATE_MAKER = ''     # the maker's name, lettered above "17 JEWELS" when he has picked it (Brightwater / Ashford / Fairmont)
+PLATE_MAKER = 'BRIGHTWATER'   # the maker (his pick, 9 Oct: a town that doesn't exist, in the railroad watches' voice); one word to change
+DIAL_MAKER = PLATE_MAKER
 
 
 def engraving(text, size, at, degrees, depth=.00025):

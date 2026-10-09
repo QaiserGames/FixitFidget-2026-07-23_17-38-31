@@ -57,6 +57,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_PhoneLogo
+    second: {fileID: 2100000, guid: 69bd3f38dcead4bed808342848c3e05f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_PhoneRail
     second: {fileID: 2100000, guid: 7194699beacd344338958c6ac8187c71, type: 2}
   - first:

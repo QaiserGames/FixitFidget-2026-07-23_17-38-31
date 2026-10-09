@@ -75,7 +75,11 @@ HD_MATERIALS = {
     'HD_Crack':       ('#E9ECEF', 0.35, 0.0),   # the cracks: scattered light, white-grey on the dark glass
     'HD_FilmTab':     ('#E07A3F', 0.20, 0.0),   # the peel tab on the fresh screen's protective film
     'HD_Flex':        ('#2C2622', 0.30, 0.0),   # the battery's flex cable (black polyimide)
+    'HD_PhoneLogo':   ('#D6E2D2', 0.65, 0.0),   # the maker's leaf on the back: polished, a shade lighter than the glass
 }
+
+MAKER = 'Pome'            # the phone's maker (his pick, 9 Oct): a pome is the fruit family apples belong to. The mark is a
+                          # plain leaf, ours; no fruit, no bite. One word to change.
 
 PREFAB_OFFSETS = {        # Unity's frame; v3.2: where Devices 2 MOVES the prefab's objects to (HeroDeviceSteps moves)
     'ScreenCracked': (0.0, 0.0033, 0.0),       # the broken part, in its seat
@@ -393,6 +397,31 @@ def back_cover():
         p.add('lens', disc(cx, cy, -.0022, -.0016, .0049, sides=16), lens)
     p.add('flash', disc(bx + .0085, by - .0085, -.0020, -.0016, .0025, sides=12), flash)
     p.add('mic', disc(bx - .0090, by + .0090, -.0018, -.0016, .0008, sides=8), black)
+    # the maker's mark (v3.5): a leaf, 14 mm, embossed a twentieth of a millimetre proud of the glass, centred, a little
+    # above the middle as a maker's mark sits; tilted, with a short stem
+    leaf = bmesh.new()
+    pts = []
+    n = 22
+    for i in range(n + 1):
+        t = i / n
+        pts.append((.0050 * (math.sin(math.pi * t) ** .7) * (1 - .25 * t), -.0070 + .0140 * t))
+    for i in range(n - 1, 0, -1):
+        t = i / n
+        pts.append((-.0050 * (math.sin(math.pi * t) ** .7) * (1 - .25 * t), -.0070 + .0140 * t))
+    ca, sa = math.cos(math.radians(28)), math.sin(math.radians(28))
+    pts = [(x * ca - y * sa, x * sa + y * ca) for (x, y) in pts]
+    lo = [leaf.verts.new((x, y, -.00060)) for x, y in pts]
+    hi = [leaf.verts.new((x, y, -.00066)) for x, y in pts]
+    leaf.faces.new(lo)
+    leaf.faces.new(list(reversed(hi)))
+    for k in range(len(pts)):
+        m = (k + 1) % len(pts)
+        leaf.faces.new([lo[k], lo[m], hi[m], hi[k]])
+    bmesh.ops.recalc_face_normals(leaf, faces=leaf.faces[:])
+    p.add('maker leaf', moved(leaf, 0, -.0110, 0), M('HD_PhoneLogo'))
+    stem = fb.zbox(-.0004, .0004, -.0070 - .0030, -.0070 + .0004, -.00066, -.00060)
+    fb.turn(stem, 28.0, 'Z')
+    p.add('leaf stem', moved(stem, 0, -.0110, 0), M('HD_PhoneLogo'))
     return p
 
 

@@ -6,7 +6,7 @@
    "tool": "",
    "room": "",
    "what": "the hero phone: body, screen, back cover and a screw, assembled as the prefab has them",
-   "tris": 4640,
+   "tris": 4824,
    "meshes": 5,
    "children": [
     {
@@ -65,6 +65,7 @@
     "HD_PhoneIsland",
     "HD_Lens",
     "HD_Flash",
+    "HD_PhoneLogo",
     "HD_Screw",
     "HD_ScrewSlot"
    ],
@@ -93,7 +94,7 @@
    "tool": "",
    "room": "",
    "what": "the hero pocket watch: case, back plate, crown, a screw and the mainspring, assembled as the prefab has them",
-   "tris": 15794,
+   "tris": 18234,
    "meshes": 6,
    "children": [
     {
@@ -191,7 +192,7 @@
    "tool": "",
    "room": "",
    "what": "Grace's camera, hero: body, lens, glass, film path, shutter mechanism and blades, straps, assembled as the prefab has them",
-   "tris": 11116,
+   "tris": 12464,
    "meshes": 9,
    "children": [
     {
@@ -389,6 +390,11 @@
   "HD_Flex": {
    "hex": "2C2622",
    "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_PhoneLogo": {
+   "hex": "D6E2D2",
+   "smoothness": 0.65,
    "metallic": 0.0
   },
   "HD_WatchGold": {
