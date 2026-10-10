@@ -636,7 +636,9 @@ internal static class CafeStreetSteps
         var zs = new List<float>();
         for (int i = 0; i <= 40; i++) zs.Add(BladeZFrom + i * .01f);
         var others = new List<float>();
-        for (int i = 0; i <= 180; i++)
+        // To z 4.5 (10 Oct, Claude): the west front is glass from the corner post (z -0.14..0.04, a stepped profile) to past
+        // z 1.6, and the bracket's plate must sit on a mullion; the first one back from the corner is the nearest place.
+        for (int i = 0; i <= 470; i++)
         {
             float z = -.2f + i * .01f;
             if (z < BladeZFrom - 1e-4f || z > BladeZTo + 1e-4f) others.Add(z);
@@ -644,15 +646,17 @@ internal static class CafeStreetSteps
         zs = zs.OrderBy(z => Mathf.Abs(z - BladeZBest)).Concat(others.OrderBy(z => Mathf.Abs(z - BladeZBest))).ToList();
         string inBrief = null;
         int tried = 0;
+        var why = new SortedDictionary<int, string>();                 // z in cm -> why not (10 Oct: every reason kept, for the report)
         foreach (float z in zs)
         {
             tried++;
             float top = WallTop(p, z);
-            if (float.IsNaN(top)) { inBrief ??= $"at z {F(z, "0.00")} there's no solid facade face"; continue; }
+            if (float.IsNaN(top)) { inBrief ??= $"at z {F(z, "0.00")} there's no solid facade face"; why[Mathf.RoundToInt(z * 100f)] = "no solid facade face"; continue; }
             float yb = Mathf.Min(BladeBottomWanted, top - Blade.max.y - .01f);
             if (yb + Blade.min.y < BladeLowest)
             {
                 inBrief ??= $"at z {F(z, "0.00")} the facade's top ({F(top)} m) is too low for the bracket over a {F(BladeLowest, "0.00")} m clearance";
+                why[Mathf.RoundToInt(z * 100f)] = $"top {F(top, "0.00")} too low";
                 continue;
             }
             // The bracket's wall plate (0.08 wide, 0.35 tall) must sit on solid frame: never on glass.
@@ -667,12 +671,22 @@ internal static class CafeStreetSteps
                     if (!frame.ok || any.glass && any.distance < frame.distance - .001f) solid = false;
                     else xs.Add(frame.point.x);
                 }
-            if (!solid || xs.Max() - xs.Min() > .006f) { inBrief ??= $"at z {F(z, "0.00")} the bracket's plate would be on glass or on an uneven face"; continue; }
+            // The corner post (z -0.14..0.04) is the only frame on the west front tall enough for the plate (the rest is one run
+            // of glass from z 0.04 to past 4.5, 10 Oct): its outer face steps by up to 5 cm, so there the plate is fixed to the
+            // outermost face (nothing sinks into the post; the step behind it is 3 m up, seen edge-on from the street).
+            bool cornerPost = z >= -.05f && z <= .04f;
+            if (!solid || xs.Max() - xs.Min() > (cornerPost ? .055f : .006f))
+            {
+                inBrief ??= $"at z {F(z, "0.00")} the bracket's plate would be on glass or on an uneven face";
+                why[Mathf.RoundToInt(z * 100f)] = !solid ? $"plate on glass (top {F(top, "0.00")}, plate {F(yb + .56f, "0.00")}..{F(yb + .89f, "0.00")})"
+                                                         : $"plate uneven ({F((xs.Max() - xs.Min()) * 100f, "0.0")} cm)";
+                continue;
+            }
             float face = xs.Min();
             // The disc and the arm stand out in the open: nothing in the way.
             var box = MinMax(new Vector3(face - 1.0f, yb, z - .06f), new Vector3(face - .03f, yb + .9f, z + .06f));
             string blocked = InTheWay(p, box);
-            if (blocked != null) { inBrief ??= $"at z {F(z, "0.00")} {blocked} is in the sign's way"; continue; }
+            if (blocked != null) { inBrief ??= $"at z {F(z, "0.00")} {blocked} is in the sign's way"; why[Mathf.RoundToInt(z * 100f)] = "in the way: " + blocked; continue; }
             p.bladeFace = face;
             bool brief = z >= BladeZFrom - 1e-4f && z <= BladeZTo + 1e-4f;
             p.blade = new Placement
@@ -690,7 +704,19 @@ internal static class CafeStreetSteps
         }
         if (p.blade == null)
         {
-            run.Check(false, "No solid frame on the west facade between z -0.2 and 1.6 can take the blade sign's bracket: " + (inBrief ?? "nothing measured") + ". Nothing was changed.");
+            // Every reason, run-length by z, so the facade can be read from the report.
+            var runs = new List<string>();
+            int? start = null, last = null;
+            string cur = null;
+            foreach (var kv in why)
+            {
+                if (cur != null && kv.Value == cur && last.HasValue && kv.Key == last.Value + 1) { last = kv.Key; continue; }
+                if (cur != null) runs.Add($"z {F(start.Value / 100f, "0.00")}..{F(last.Value / 100f, "0.00")}: {cur}");
+                start = last = kv.Key; cur = kv.Value;
+            }
+            if (cur != null) runs.Add($"z {F(start.Value / 100f, "0.00")}..{F(last.Value / 100f, "0.00")}: {cur}");
+            run.Info("Why no place along the west facade: " + string.Join("; ", runs));
+            run.Check(false, "No solid frame on the west facade between z -0.2 and 4.5 can take the blade sign's bracket: " + (inBrief ?? "nothing measured") + ". Nothing was changed.");
             return;
         }
         // Over the pavement, clear of the cars.
@@ -1204,7 +1230,12 @@ internal static class CafeStreetSteps
         Renderer r = x.Renderer;
         Bounds b = r.bounds;
         Visual.Hit wall = v.Ray(new Vector3(p.bladeFace - .3f, x.origin.y + .72f, x.origin.z), Vector3.right, .6f, o => o == r || p.SkipMoving(o), glass: false);
-        run.Check(wall.ok && Mathf.Abs(wall.point.x - p.bladeFace) <= .004f, $"the blade sign's bracket is fixed to the west facade: the wall behind its plate at x {(wall.ok ? F(wall.point.x) : "nothing")} (the plate's back at {F(x.origin.x)})");
+        // On the corner post (PlanBlade, 10 Oct) the plate is fixed to the post's outermost face and the post steps back by up
+        // to 5 cm behind part of it: there the wall behind may be up to 5.5 cm behind the plate, never in front of it.
+        bool cornerPost = x.origin.z >= -.05f && x.origin.z <= .04f;
+        float gap = wall.ok ? wall.point.x - p.bladeFace : float.NaN;
+        run.Check(wall.ok && gap >= -.004f && gap <= (cornerPost ? .055f : .004f),
+                  $"the blade sign's bracket is fixed to the west facade{(cornerPost ? "'s corner post" : "")}: the wall behind its plate at x {(wall.ok ? F(wall.point.x) : "nothing")} (the plate's back at {F(x.origin.x)})");
         run.Check(b.max.x <= p.bladeFace + .0005f, $"nothing of the blade sign is inside the wall (its east edge at x {F(b.max.x)}, the wall's face at {F(p.bladeFace)})");
         run.Check(b.min.y >= BladeLowest, $"the blade sign is over everyone's head: its lowest point at {F(b.min.y)} m (Ace's capsule is 2.0 m tall)");
         float cars = CarClearance(run, b, out string car);
@@ -1221,7 +1252,9 @@ internal static class CafeStreetSteps
             float lift = Mathf.Max(0f, b.proud) + FaceProud;
             Visual.Hit seen = v.Ray(b.centre + b.normal * .3f, -b.normal, .4f, p.SkipMoving);
             run.Check(seen.ok && seen.renderer == r, $"{x.name} is the first thing seen on its board ({(seen.ok ? Shared.PathOf(seen.renderer.transform) : "nothing")})");
-            Visual.Hit under = v.Ray(b.centre + b.normal * (lift - .0003f), -b.normal, .05f, o => o == r || p.SkipMoving(o));
+            // Long enough to reach the board when the old chalk lines stand proud of it (61 mm on the patio A-frame, 10 Oct: the
+            // 5 cm ray stopped short and the check read "? mm").
+            Visual.Hit under = v.Ray(b.centre + b.normal * (lift - .0003f), -b.normal, Mathf.Max(.05f, lift + .01f), o => o == r || p.SkipMoving(o));
             run.Check(under.ok && under.renderer == p.aFrame && under.distance <= lift + .001f,
                       $"{x.name} lies on the A-frame's board, {(under.ok ? F((under.distance + .0003f) * 1000f, "0.0") : "?")} mm off it");
         }
