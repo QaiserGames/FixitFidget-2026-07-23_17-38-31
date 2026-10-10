@@ -59,6 +59,17 @@ A play check's PASS says the machinery works. **It does not say it reads or feel
 
 Every line the player reads in a day and a night: `DialogueSet.cs`, `Barks.cs`, `BarkRules.cs`, `NightLines.cs`, `ReviewLines.cs`, the onboarding (`Day 1 onboarding` code and its prompts), the HUD strings, the recap phone, the menu board (`Assets/Art/Textures/Cafe/menu-board.json`), the signs (`Tools/Blender/draw_cafe_textures.py`). Count words per screen; read each as a stranger would.
 
+### 2.5 What the first run taught (10 October 2026)
+
+The first run of both playtesters (`Docs/Studio/playtests/*-2026-10-10.md`) played from an **evidence pack**: the session holding Unity ran every lab and recording first, copied the logs, the repo's text and the Project's notes into one folder with a README, and the two playtesters worked in parallel from it, never touching the Mac. It worked; keep it. What the pack must say, because both playtesters needed it:
+
+- **The lab autopilot is a steady server, not a player.** It hears each customer at the counter after 2.5–6 s and ends the visit after 15–35 s (a drink) or 30–80 s (a repair); it never moves Ace, makes a drink, dials a hold call or does the Human fault (`CafeLab.cs`). So a lab day measures arrivals, the queue, seats and patience, never the hands-on loop. A standing repair customer can't be served by it at all (its 30 s minimum is longer than their patience). Hands-on numbers come from Stations as reach (one drink, one repair, presses and walks) and Bench 3 (one full repair).
+- **The scene's Day 1 is the Grace showcase** (`Day_01_GraceCamera`), not `Day_01_LearnTheShop`; the Day 1 onboarding check tests the latter. Say which Day 1 a run played.
+- **A recording writes a day log only if the day closes while it runs.** "Record 3 minutes" on Day 1 stops at "time's up" just before closing: no day log for that run. Check a `DayNN_*` file's time before calling it the run's; the trace (`trace.csv`, `kind` C rows) is the run's own record. *(On 10 Oct an earlier lab's Day 1 log was copied beside the run by mistake; both playtesters caught it.)*
+- **Video time runs short of real time** (frames dropped while Unity is in the background); the REC clock printed in each frame is the true time and matches `trace.csv`'s `t`. The **whole-café-camera** recordings show block glitches in some frames (the recorder's read-back, not the game); the Game view recordings are clean. Contact sheets (a frame every 5 s, the time printed on each) save a playtester most of the scrubbing.
+- **Full-resolution screenshots of the running Game view** at the moments that matter (the first screen, a prompt, a dialogue, the recap) are worth more to the first-hour playtester than any lab photo: take them during the run.
+- **Runs neither could get from the pack:** a human-played day with the recorder on (the hands-on loop, Ace's real walks); Grace's cover and being caught (`Break-ins 7/8`). Both asked; plan them for his playtest.
+
 ## 3. Reads first (both playtesters)
 
 1. `Docs/Studio/BIBLE.md` §1 (the game and its three pillars), §2 (the locks: never report a locked decision as a bug; Grace's Day 1 latte suppression is intentional), §4 (his past verdicts).
