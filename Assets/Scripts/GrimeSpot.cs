@@ -357,8 +357,8 @@ public class GrimeSpot : MonoBehaviour
 
     /// <summary>
     /// One frame of the tool held and moving on the spot: the dirt under the tip's path from the last frame's point to
-    /// <paramref name="at"/> comes off, by <paramref name="travelPixels"/> of cursor travel (a full-strength pass every 40 px).
-    /// True when dirt actually came off this frame (the caller sounds and animates on that).
+    /// <paramref name="at"/> comes off, by <paramref name="travelPixels"/> of cursor travel (a full-strength pass every
+    /// StrokePixels). True when dirt actually came off this frame (the caller sounds and animates on that).
     /// </summary>
     public bool Scrub(Vector3 at, float travelPixels)
     {
@@ -367,7 +367,16 @@ public class GrimeSpot : MonoBehaviour
         float strength = Mathf.Clamp01(travelPixels / StrokePixels);
         if (strength <= 0f) { lastWorld = at; hasLast = true; return false; }
         Vector3 from = hasLast && (lastWorld - at).sqrMagnitude < .0025f ? lastWorld : at;   // a jump across the bench is not a stroke
-        float removed = Erase(from, at, kind == Kind.Smudge ? ClothRadius : BrushRadius, strength);
+        // The same dirt off for the same path at any frame rate: a long frame's path is taken in pieces of half a pass at
+        // most, each with its own share, as a fast machine takes it frame by frame. One long frame used to be one pass,
+        // clamped, so at a low frame rate the edges of the bristles' sweep kept their dirt (9 Oct, session 6: the Mac's
+        // Unity in the background left a spot at 96 %, where at full speed the same strokes cleared it).
+        float radius = kind == Kind.Smudge ? ClothRadius : BrushRadius;
+        int pieces = from == at ? 1 : Mathf.Clamp(Mathf.CeilToInt(travelPixels / (StrokePixels * .5f)), 1, 24);
+        float share = pieces == 1 ? strength : Mathf.Clamp01(travelPixels / pieces / StrokePixels);
+        float removed = 0f;
+        for (int k = 0; k < pieces; k++)
+            removed += Erase(Vector3.Lerp(from, at, k / (float)pieces), Vector3.Lerp(from, at, (k + 1) / (float)pieces), radius, share);
         lastWorld = at;
         hasLast = true;
         if (removed <= 0f) return false;
