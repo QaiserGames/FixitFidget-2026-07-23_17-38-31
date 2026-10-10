@@ -405,6 +405,19 @@ public class GrimeSpot : MonoBehaviour
     /// <summary>The stroke is over (the button let go, or the cursor left the spot): the next press starts a new path.</summary>
     public void EndStroke() => hasLast = false;
 
+    /// <summary>
+    /// A stroke that comes onto the spot from outside it: its path starts where the tool was the frame before, so the
+    /// strip it crossed coming on is taken too. At a low frame rate the cursor lands well inside the spot in one frame,
+    /// and a stroke that started there left that strip's dirt (9 Oct night: Bench 3 with Unity behind other windows left
+    /// the brushed spot at 93 %, all of it along one side). Only the patch's own texels are touched, so the part of the
+    /// path outside the spot takes nothing.
+    /// </summary>
+    public void StrokeFrom(Vector3 from)
+    {
+        lastWorld = from;
+        hasLast = true;
+    }
+
     // The dirt along a segment of the tip's path, a soft capsule of `radius` metres round it: alpha goes down by
     // `strength` of what was painted there at the middle, less toward the edge. Of what was PAINTED, not of what is left:
     // a pass takes a fixed share, so two or three passes over the same place clear it, instead of each pass taking a

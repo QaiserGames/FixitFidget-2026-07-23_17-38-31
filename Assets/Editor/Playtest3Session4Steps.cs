@@ -13,8 +13,11 @@ using UnityEngine.SceneManagement;
 //
 //   Fixit Fidget > Bench > Bench 2 - Build the bench stage (the scene)
 //       Under the Workbench's InspectRig: a cutting mat the loose parts land on, the magnetic parts tray, and the tool
-//       caddy with the five tool models standing in it (ToolPickup each; the cloth is new). The old column of tinted
-//       cylinders is switched off, not deleted. BenchStage is added to the rig and wired. The scene is saved.
+//       caddy with the four pointed tools standing in it and the cloth folded on the mat in front of it (ToolPickup
+//       each). The old column of tinted cylinders is switched off, not deleted. BenchStage is added to the rig and
+//       wired. The scene is saved. (9 Oct night: the cloth used to stand in the caddy like the others, 12 mm into the
+//       block, and with no point to stand on it was buried in the wood: "the cloth stuck inside the tray". Bench 2b
+//       moves it in a scene already built; BenchClothSteps holds the poses both use.)
 //   Fixit Fidget > Bench > Bench 2 - Undo: back to the tool column
 //   Fixit Fidget > Bench > Bench 3 - The bench - play check (lab, drives itself)
 //       A lab session on a fresh Day 1: the check puts a phone on the bench and works it with a virtual pad: the face-on
@@ -128,20 +131,29 @@ static class Playtest3Session4Steps
         zone.center = new Vector3(0f, .03f, 0f);
         zone.size = new Vector3(tw - t * 2f, .07f, td - t * 2f);
 
-        // The tool caddy: a wooden block to the left, the five tools standing in it, points down, leaning back a little.
+        // The tool caddy: a wooden block to the left, the four pointed tools standing in it, points down, leaning back a
+        // little; the cloth, which has no point, folded on the mat in front of it.
         var caddy = Slab("Tool caddy", stage.transform, new Vector3(-.245f, matTop + .0175f, matZ - .02f), new Vector3(.12f, .035f, .08f), wood);
         var slots = new Transform[Tools.Length];
+        int standing = Tools.Count(t => t.tool != ToolType.Cloth), k = 0;
         for (int i = 0; i < Tools.Length; i++)
         {
             var slot = new GameObject("Slot " + Tools[i].tool);
             Undo.RegisterCreatedObjectUndo(slot, "slot");
             // Under the stage (unscaled), not the scaled slab: a turned child of a stretched cube would come out sheared.
             slot.transform.SetParent(stage.transform, false);
-            float x = Mathf.Lerp(-.045f, .045f, i / (float)(Tools.Length - 1));
-            // 12 mm into the caddy's top (the tool's tip is its origin), so each tool stands in its hole.
-            slot.transform.localPosition = caddy.transform.localPosition + new Vector3(x, .0175f - .012f, 0f);
-            // The handle leans back (toward +Z, away from the inspection camera at -Z); flat tools show their flat side (+Z) to the camera.
-            slot.transform.localRotation = Quaternion.AngleAxis(18f, Vector3.right) * Quaternion.AngleAxis(180f, Vector3.up);
+            if (Tools[i].tool == ToolType.Cloth)
+            {
+                slot.transform.localPosition = BenchClothSteps.ClothRest(caddy.transform.localPosition, matTop);
+                slot.transform.localRotation = BenchClothSteps.ClothRestRotation;
+            }
+            else
+            {
+                // 12 mm into the caddy's top (the tool's tip is its origin), so each tool stands in its hole; the handle leans
+                // back (toward +Z, away from the inspection camera at -Z); flat tools show their flat side (+Z) to the camera.
+                slot.transform.localPosition = BenchClothSteps.ToolStand(caddy.transform.localPosition, k++, standing);
+                slot.transform.localRotation = BenchClothSteps.ToolStandRotation;
+            }
             slots[i] = slot.transform;
         }
 
@@ -213,7 +225,7 @@ static class Playtest3Session4Steps
 
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
         EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
-        Debug.Log(Tag + $"The bench stage is built on the bench top (y {benchTop:0.000}): the mat, the parts tray (magnetic), the caddy with {placed} tools; " +
+        Debug.Log(Tag + $"The bench stage is built on the bench top (y {benchTop:0.000}): the mat, the parts tray (magnetic), the caddy and the cloth ({placed} tools); " +
                   "the inspect point on the mat and the close-up camera above it; the old tool column is off. Saved. Undo: Bench 2 - Undo: back to the tool column.");
     }
 

@@ -185,11 +185,17 @@ def body():
         p.add('camera barrel', disc(cx, cy, zb - .0011, zb - .0010, .0050, sides=16), steel)
     shield = chamfered_slab(.0160, .0740, .0008, .0010, .0003, per_corner=1, centre_z=zb - .0004)
     p.add('board shield', moved(shield, -.0230, .0060, 0), steel)
-    # the battery connector: a flat flex off the battery's board-side edge, its copper contacts, into a connector on the board
-    p.add('battery flex', fb.zbox(-.0190, bat_x - .0120, -.0260, -.0170, zb - .00262, zb - .00250), flex)
-    p.add('flex contacts', fb.zbox(-.0190, -.0160, -.0255, -.0175, zb - .00266, zb - .00262), copper)
-    p.add('battery connector', moved(chamfered_slab(.0090, .0040, .0009, .0005, .0002, per_corner=1, centre_z=zb - .00125), -.0225, -.0215, 0), steel)
-    p.add('connector latch', fb.zbox(-.0270, -.0180, -.0245, -.0185, zb - .00175, zb - .00170), black)
+    # the battery connector: a flat flex off the battery's board-side edge, its copper contacts, into a connector on the
+    # board. All of it INSIDE, behind the back glass (v3.6, 9 Oct night): v3.4 put the flex and its contacts at -4.0 to
+    # -4.16 mm, outside the glass's outer face (-3.9), so a dark plate with copper pads sat on the phone's back and read
+    # as a SIM card (Mansoor: "a phone that shows i think a sim card on the back"). Now, from the chassis outward: the
+    # connector stands on the board (-1.5 to -2.4, 0.1 mm proud of the shield), its latch on it (to -2.45); the flex lies
+    # on the battery's back face (-2.5 to -2.56) and bridges to the connector; its contacts sit on its end (to -2.59).
+    # Nothing past -2.6, the rule above.
+    p.add('battery flex', fb.zbox(-.0190, bat_x - .0120, -.0260, -.0170, zb - .00106, zb - .00100), flex)
+    p.add('flex contacts', fb.zbox(-.0190, -.0160, -.0255, -.0175, zb - .00109, zb - .00106), copper)
+    p.add('battery connector', moved(chamfered_slab(.0090, .0040, .0009, .0005, .0002, per_corner=1, centre_z=zb - .00045), -.0225, -.0215, 0), steel)
+    p.add('connector latch', fb.zbox(-.0270, -.0180, -.0245, -.0185, zb - .00095, zb - .00090), black)
     # (no speaker, Taptic engine, port assembly or board screws: the battery, the coil, the camera module, the board
     # shield and the battery connector are what say "a phone's inside"; the rest was clutter at 50 cm)
     return p

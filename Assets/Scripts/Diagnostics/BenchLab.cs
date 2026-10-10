@@ -30,7 +30,8 @@ using UnityEditor;
 //   Act two (4b, 9 Oct): a second phone, the "gunked up" one, wearing its working screen: the brush held and moved over a
 //   spot of grime takes the dirt off only where it passed (a puff of dust, the hover's percentage), the other spot
 //   untouched; a raster of strokes brushes it clean (a sparkle, gone at 97%); the smudge wants the cloth ("Needs the
-//   cloth" under the brush), and wiped in circles it squeaks and goes with a gleam; the last spot by the check's hand:
+//   cloth" under the brush; the cloth rests folded flat on the mat, clear of the caddy, and in the hand it is on the
+//   phone, lying flat on the glass: 9 Oct night), and wiped in circles it squeaks and goes with a gleam; the last spot by the check's hand:
 //   "Fixed!" the moment the last task completes, and the phone's screen lights up (DeviceWake). In act one: "Fixed!" when
 //   the fresh screen seats (the last task), the fresh screen lit, and "Back together · Perfect" when the last screw is home.
 //
@@ -527,8 +528,23 @@ public sealed class BenchLab : PlayLab
         Check(Mathf.Abs(job.Quality - 1f / 3f) < .01f, $"one of three cleaning tasks done: {job.Quality:P0}");
         Check(Sfx.Requested("grime.scrub") > 0 && Sfx.Requested("grime.clean") > 0, "the brush hissed where dust came off, and the spot chimed clean");
 
-        // the smudge: the cloth's
+        // the smudge: the cloth's. At rest the cloth lies folded flat on the mat, clear of the caddy (9 Oct night, his note:
+        // "the cloth stuck inside the tray, it needs to sit and look correctly and be used correctly": Bench 2 had stood
+        // it 12 mm into the caddy's block like the pointed tools, and it was buried in the wood).
         Vector3 cs = BenchInteractable.BoundsCentre(smudge.transform);
+        ToolPickup restingCloth = FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude).FirstOrDefault(t => t.tool == ToolType.Cloth);
+        BenchStage stage = BenchStage.Instance;
+        if (restingCloth != null && stage != null && stage.Caddy != null && stage.Mat != null)
+        {
+            Bounds cloth = RendererBounds(restingCloth.transform), caddy = RendererBounds(stage.Caddy), mat = RendererBounds(stage.Mat);
+            float tilt = Vector3.Angle(restingCloth.transform.up, Vector3.up), over = (cloth.min.y - mat.max.y) * 1000f;
+            bool onMat = cloth.min.x >= mat.min.x && cloth.max.x <= mat.max.x && cloth.min.z >= mat.min.z && cloth.max.z <= mat.max.z;
+            Check(!restingCloth.InHand && tilt < 3f && over > -1f && over < 3f && onMat && !cloth.Intersects(caddy),
+                $"the cloth rests folded on the mat: level ({tilt:0.0}°), {over:0.0} mm over it, {(onMat ? "inside its edges" : "OFF its edges")}, " +
+                (cloth.Intersects(caddy) ? "INSIDE the caddy" : "clear of the caddy"));
+            Check(!restingCloth.IsStandIn, "it is the modelled cloth in its own yellow, not taken for a tinted stand-in (which never leaves its stand)");
+        }
+        else Check(false, "the cloth, the caddy and the mat are on the bench (run Bench 2b if the cloth is missing)");
         yield return Hover(cs, "Smudge", "Needs the cloth", "the smudge, under the brush");
         yield return SelectTool(ToolType.Cloth);
         yield return Hover(cs, "Smudge", "Hold to wipe", "the smudge, under the cloth");
@@ -541,6 +557,18 @@ public sealed class BenchLab : PlayLab
                 float a = (i + .5f) / 8f * Mathf.PI * 2f;
                 float rr = lap == 0 ? .25f : lap == 1 ? .6f : .85f;
                 yield return Glide(cs + (right * Mathf.Cos(a) + fwd * Mathf.Sin(a)) * halfS * rr, .14f);
+                if (lap == 0 && i == 5)
+                {
+                    // in the hand it is ON the phone, pressed flat on the glass (no lean, no swing), leading with its far fold
+                    ToolPickup held = ToolInHand(ToolType.Cloth);
+                    float off = held != null ? Vector3.Angle(held.transform.up, Vector3.up) : 180f;
+                    Vector3 rel = held != null ? held.transform.position - cs : Vector3.one;
+                    float across = Vector3.ProjectOnPlane(rel, Vector3.up).magnitude, above = rel.y;
+                    Check(held != null && across < .07f && above > -.004f && above < .01f && off < 8f,
+                        $"the cloth is in the hand, on the phone, wiping lying flat on the glass: its middle {across * 100f:0.0} cm from the smudge " +
+                        $"(its fold leads), {above * 1000f:0.0} mm over the glass, {off:0}° off level");
+                    yield return Photo("13a-the-cloth-wiping");
+                }
             }
         yield return LetGo();
         yield return Until(() => smudge == null, 1.5f, "wiped in circles, the smudge thins and goes");
@@ -694,6 +722,15 @@ public sealed class BenchLab : PlayLab
 
     float Distance() => Vector3.Distance(cam.transform.position, device.transform.position);
     float Depth(Vector3 world) => Vector3.Dot(world - cam.transform.position, cam.transform.forward);
+
+    static Bounds RendererBounds(Transform root)
+    {
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return new Bounds(root.position, Vector3.zero);
+        Bounds b = renderers[0].bounds;
+        foreach (Renderer r in renderers) b.Encapsulate(r.bounds);
+        return b;
+    }
 
     bool OverMat(Vector3 p)
     {

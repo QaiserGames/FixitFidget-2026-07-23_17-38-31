@@ -11,6 +11,19 @@ public enum ToolType { Hand, Brush, Screwdriver, Pry, Tweezers, Cloth }
 // normal and leaning toward the camera so it reads. Put down, it returns to its stand. While a hold is on, it does
 // its motion at the part: the driver turns, the tweezers close, the pry tilts, the brush strokes, the cloth circles.
 // The old tinted-cylinder rail used the same component; a lone primitive still gets its tint, a model does not.
+//
+// The cloth is the exception (9 Oct night, his note: "the cloth stuck inside the tray, it needs to sit and look
+// correctly and be used correctly"). It has no handle: it is pressed flat under the fingers, so it never leans and
+// never swings; its face stays on the glass. And it leads with its far fold: the cursor's point is just inside the
+// edge away from the camera and the rest of the cloth lies toward Ace, so the patch it is wiping shows at its edge
+// instead of hiding under the middle of a 75 x 90 mm cloth. It rests folded on the mat, not in the caddy
+// (Playtest3Session4Steps, BenchClothSteps).
+//
+// And it was never in the hand at all: the cloth is one mesh with one material and no children, which is exactly how
+// this component used to recognise the old tinted cylinders, so it was taken for one. It was tinted pale blue, grew a
+// quarter when picked, and never followed the cursor (a stand-in stays on its rail), so the smudge came off under an
+// empty cursor while the cloth sat in the caddy. A stand-in is now recognised by its mesh: one of Unity's own
+// primitives.
 // ---------------------------------------------------------------------------
 public class ToolPickup : MonoBehaviour
 {
@@ -29,6 +42,14 @@ public class ToolPickup : MonoBehaviour
 
     public bool InHand { get; private set; }
 
+    /// <summary>The cloth: pressed flat on the surface, no lean, no swing (see the header).</summary>
+    public bool PressedFlat => tool == ToolType.Cloth;
+
+    // The cloth's point is this far inside its far fold (the cloth is 90 mm deep, its origin at its middle): 42 mm
+    // toward the camera puts the fold 3 mm past the point, so the 9.5 mm the cloth cleans (GrimeSpot.ClothRadius) is
+    // half under the fold and half in plain sight beyond it.
+    private const float ClothReach = .042f;
+
     private Vector3 baseScale;
     private Renderer rend;
     private bool legacyTint;
@@ -46,11 +67,17 @@ public class ToolPickup : MonoBehaviour
     private Vector3 easedPoint, easedNormal;
     private bool easing;
 
+    /// <summary>True for the old tinted stand-ins (one of Unity's primitives); false for every modelled tool.</summary>
+    public bool IsStandIn => legacyTint;
+
     private void Awake()
     {
         baseScale = transform.localScale;
         rend = GetComponent<Renderer>();
-        legacyTint = rend != null && transform.childCount == 0 && rend.sharedMaterials.Length == 1;
+        MeshFilter filter = GetComponent<MeshFilter>();
+        string mesh = filter != null && filter.sharedMesh != null ? filter.sharedMesh.name : "";
+        legacyTint = rend != null && transform.childCount == 0 && rend.sharedMaterials.Length == 1
+                     && (mesh == "Cylinder" || mesh == "Cube" || mesh == "Capsule" || mesh == "Sphere");
         if (legacyTint) rend.material.color = tint;
         homeParent = transform.parent;
         homeLocalPos = transform.localPosition;
@@ -103,20 +130,29 @@ public class ToolPickup : MonoBehaviour
         easedNormal = Vector3.Slerp(easedNormal, wantNormal, e).normalized;
         Vector3 n = easedNormal;
         Vector3 toCamera = camera != null ? (camera.transform.position - easedPoint).normalized : Vector3.back;
-        // The handle up the normal, then leaned toward the camera (about the axis across both).
+        // The handle up the normal, then leaned toward the camera (about the axis across both). The cloth doesn't lean.
         Vector3 leanAxis = Vector3.Cross(n, toCamera);
         Quaternion upright = Quaternion.FromToRotation(Vector3.up, n);
-        Quaternion leaned = leanAxis.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(-lean, leanAxis.normalized) * upright : upright;
+        Quaternion leaned = !PressedFlat && leanAxis.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(-lean, leanAxis.normalized) * upright : upright;
         // The flat tools show their flat side to the camera: turn about the handle so +Z faces the camera.
         Vector3 handleUp = leaned * Vector3.up;
         Vector3 face = Vector3.ProjectOnPlane(toCamera, handleUp);
         if (face.sqrMagnitude > 1e-6f) leaned = Quaternion.LookRotation(face.normalized, handleUp);
-        // A swing against the way it moves: the handle trails the tip a little, like a thing with weight.
+        // A swing against the way it moves: the handle trails the tip a little, like a thing with weight. Not the cloth:
+        // the fingers hold it flat.
         Vector3 swingAxis = Vector3.Cross(n, velocity);
         float swing = Mathf.Min(12f, velocity.magnitude * 25f);
-        if (swingAxis.sqrMagnitude > 1e-6f && swing > .1f) leaned = Quaternion.AngleAxis(swing, swingAxis.normalized) * leaned;
+        if (!PressedFlat && swingAxis.sqrMagnitude > 1e-6f && swing > .1f) leaned = Quaternion.AngleAxis(swing, swingAxis.normalized) * leaned;
         Quaternion target = leaned * MotionRotation();
         Vector3 targetPos = easedPoint + n * (working ? 0f : .004f) + MotionOffset(n, camera);
+        if (PressedFlat)
+        {
+            // The cloth leads with its far fold: its middle sits toward the camera, along the surface. When the camera
+            // looks straight down the normal (the cloth held up in the air, over nothing) there is no "toward", and the
+            // shift fades out rather than jumping sideways.
+            Vector3 along = Vector3.ProjectOnPlane(toCamera, n);
+            targetPos += along.normalized * (ClothReach * Mathf.Clamp01(along.magnitude / .3f));
+        }
         // The tip on a spring, critically damped: it arrives without a bounce and never jumps.
         float w = working ? 26f : 16f;
         Vector3 to = transform.position - targetPos;

@@ -17,11 +17,24 @@ public static class DayOneOnboardingChecks
         if (EditorApplication.isPlayingOrWillChangePlaymode)
             throw new InvalidOperationException("Stop Play Mode before running onboarding checks.");
 
-        CheckSequence();
-        CheckHintTiming();
-        CheckDefinitions();
-        CheckFeaturedHints();
-        CheckJobRolls();
+        // The wording checked here is the keyboard's ("Press E"). PadInput remembers the device touched last in a static
+        // that outlives Play mode, so right after a lab that drove the bench with its virtual pad this check read the
+        // pad's wording and failed (9 Oct night). The keyboard for the check, then whatever was there before.
+        MethodInfo setPad = typeof(PadInput).GetProperty("UsingPad", BindingFlags.Static | BindingFlags.Public)?.GetSetMethod(true);
+        bool padWas = PadInput.UsingPad;
+        try
+        {
+            setPad?.Invoke(null, new object[] { false });
+            CheckSequence();
+            CheckHintTiming();
+            CheckDefinitions();
+            CheckFeaturedHints();
+            CheckJobRolls();
+        }
+        finally
+        {
+            setPad?.Invoke(null, new object[] { padWas });
+        }
         Debug.Log("[Day 1 onboarding] PASS: sequence, failure-safe progression, " +
                   "day isolation, Grace visit hints, pending drink guidance, opening job selection, and configurable hint timing. " +
                   "Still run the in-game checklist for input, navigation, and HUD layout.");

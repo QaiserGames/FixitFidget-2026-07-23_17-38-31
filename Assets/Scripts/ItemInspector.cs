@@ -81,6 +81,9 @@ public class ItemInspector : MonoBehaviour
     // v2: the hold and the grab under way, the camera's zoom.
     private BenchInteractable holdTarget, grabTarget;
     private GrimeSpot scrubbing;            // the spot the tool is working on this stroke (4b)
+    private Vector3 lastHeldPoint;          // where the cursor's ray met the bench last frame with the button held
+    private bool hasLastHeld;
+    private int lastHeldFrame = -1;
     private BenchHand hand;
     private Coroutine flipping;
     private Vector3 camOffset;              // the close-up camera from the table point, as placed
@@ -432,17 +435,27 @@ public class ItemInspector : MonoBehaviour
             }
             else if (grime != null && currentTool == grime.Tool && hitSomething)
             {
-                // The brush on grime, the cloth on a smudge (4b): the dirt comes off along the tip's path. Wide Brush was
-                // sold in the upgrade shop but never read here, so buying it changed nothing; it now scales every stroke.
-                float brush = UpgradeManager.Instance != null ? UpgradeManager.Instance.ScrubSpeedMultiplier : 1f;
-                // A stick can't scrub back and forth like a mouse, so holding RT on the grime scrubs at a steady rate as well.
-                float travel = delta.magnitude + (GamePointer.PadCursorActive ? padScrubRate * dt : 0f);
-                if (scrubbing != grime) { if (scrubbing != null) scrubbing.EndStroke(); scrubbing = grime; }
-                grime.Scrub(hit.point, travel * scrubPower * brush);
+                // The brush on grime, the cloth on a smudge (4b): the dirt comes off along the tip's path.
+                if (scrubbing != grime)
+                {
+                    if (scrubbing != null) scrubbing.EndStroke();
+                    scrubbing = grime;
+                    // Coming onto the spot with the button held: the stroke starts where the tool was last frame, so the
+                    // edge it crossed is brushed too, however long the frame (9 Oct night; GrimeSpot.StrokeFrom).
+                    if (hasLastHeld && lastHeldFrame == Time.frameCount - 1) grime.StrokeFrom(lastHeldPoint);
+                }
+                grime.Scrub(hit.point, ScrubTravel(delta, dt));
                 if (currentToolPickup != null)
                     currentToolPickup.Animate(grime.Tool == ToolType.Cloth ? ToolPickup.Motion.Circle : ToolPickup.Motion.Stroke, 0f, 1f, dt);
             }
-            else if (scrubbing != null) { scrubbing.EndStroke(); scrubbing = null; }
+            else if (scrubbing != null)
+            {
+                // The tool left the spot this frame: its path runs on to where it is now, so the edge it crossed going off
+                // is brushed too; then the stroke is over.
+                if (hitSomething && currentTool == scrubbing.Tool) scrubbing.Scrub(hit.point, ScrubTravel(delta, dt));
+                scrubbing.EndStroke();
+                scrubbing = null;
+            }
             else if (currentTool == ToolType.Hand && rotateGesture && !overBoard && flipping == null)
             {
                 // Sideways spins it on the mat; up or down tilts an edge to peek under (it lies back flat when let go).
@@ -463,6 +476,8 @@ public class ItemInspector : MonoBehaviour
             rotateGesture = false;
             Coast(dt);
         }
+        hasLastHeld = held && hitSomething;
+        if (hasLastHeld) { lastHeldPoint = hit.point; lastHeldFrame = Time.frameCount; }
         if (flipping == null) Pose();
 
         PlaceTool(target, grime, hitSomething, hit, ray, dt);
@@ -736,6 +751,16 @@ public class ItemInspector : MonoBehaviour
 
     // The tool in the hand: on the part being worked, over the part under the cursor, on the surface under the cursor,
     // or floating by the cursor over nothing.
+    // How far the tool travelled this frame, as the dirt counts it. Wide Brush was sold in the upgrade shop but never read
+    // here, so buying it changed nothing; it scales every stroke. A stick can't scrub back and forth like a mouse, so
+    // holding RT on the grime scrubs at a steady rate as well.
+    private float ScrubTravel(Vector2 delta, float dt)
+    {
+        float brush = UpgradeManager.Instance != null ? UpgradeManager.Instance.ScrubSpeedMultiplier : 1f;
+        float travel = delta.magnitude + (GamePointer.PadCursorActive ? padScrubRate * dt : 0f);
+        return travel * scrubPower * brush;
+    }
+
     private void PlaceTool(BenchInteractable target, GrimeSpot grime, bool hitSomething, RaycastHit hit, Ray ray, float dt)
     {
         if (currentToolPickup == null) return;
