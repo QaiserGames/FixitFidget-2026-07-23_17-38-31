@@ -1,6 +1,8 @@
 # The Studio Bible — Fix It Fiasco
 
-*Version 2, 9 October 2026 (night). Every lead in the studio reads this file first, before its own role file, before any task. The Producer keeps §7 (current state) true; everything else changes only when Mansoor says so.*
+*Version 2.1, 10 October 2026. Every lead in the studio reads this file first, before its own role file, before any task. The Producer keeps §7 (current state) true; everything else changes only when Mansoor says so.*
+
+*What changed in 2.1 (10 Oct): two playtesters join the roster at his request ("make sure we also have agents whose soul jobs are to playtest and see if it feels and reads as a solid game"): `playtester-first-hour` (does it read, to a newcomer) and `playtester-veteran` (does it feel right, against the three pillars). They play every build that changes what the player sees or does, before he plays it, by the method in `Docs/Studio/PLAYTEST-PROTOCOL.md`, and they build nothing (§9, §10).*
 
 *What changed from version 1 (9 Oct, 02:00): the roster grows from 12 to 14 leads (Progression & Economy and a Technical Director are new, because he named "game leveling" and "overall structure" as departments of their own); every lead runs on the best model available, Opus 5.5 at max effort until he has Fable usage again (§3.7); the leads are ranked by role with story and game design first (§3.8); research, design and Blender work may run in parallel, anything that touches Unity runs one lead at a time (§3.9); §7 is rewritten for tonight; the Coordinator is now called the Producer.*
 
@@ -245,7 +247,7 @@ All `claude/*` paths are Project docs. Repo paths are as in §6.
 
 ## 9. The roster
 
-Fourteen leads, one role file each in `Docs/Studio/agents/` (installed into `.claude/agents/`, §10). One definition per department; when a job parallelises, several instances of one lead run with different tasks. Every lead: **model `opus`, effort `max`** (§3.7).
+Fourteen leads and two playtesters, one role file each in `Docs/Studio/agents/` (installed into `.claude/agents/`, §10). One definition per department; when a job parallelises, several instances of one lead run with different tasks. Every lead and playtester: **model `opus`, effort `max`** (§3.7).
 
 | Rank | Role | File | Mission in one line |
 |---|---|---|---|
@@ -263,11 +265,14 @@ Fourteen leads, one role file each in `Docs/Studio/agents/` (installed into `.cl
 | 5 | **Technical Director** | `technical-director.md` | The code's and the product's structure: folders and assemblies, performance, save format safety, builds on Windows, Steamworks, platforms, the repo's hygiene. |
 | 5 | **QA & Critic** | `qa-critic.md` | Adversarial reads of every big draft, spec, model and build before Mansoor sees it; lab coverage; polish checklists; playtest plans. Deliberately harsh. Reviews from day one. |
 | 5 | **Marketing & Steam** | `marketing-steam.md` | Positioning against *PlateUp!*, the hook, the Steam page, tags, capsule brief, trailer beats, devlogs, Next Fest timing, wishlist math. Cited. |
+| — | **Playtester: the First Hour** | `playtester-first-hour.md` | Plays as a stranger who bought it an hour ago: does it **read** — what the place is, what to do next, every sign, prompt and HUD element, where a newcomer gets lost, the two-hour refund line. Builds nothing. |
+| — | **Playtester: the Genre Veteran** | `playtester-veteran.md` | Plays as a *PlateUp!* / *ReStory* / stealth veteran: does it **feel** right against the three pillars — the bench, the hectic day, the night — with the pacing numbers from the day logs. Builds nothing. |
 
 Rules:
 - **Rank decides the order of work and settles disagreements between leads until he rules (§3.8).** It never lets a lead do another lead's job.
 - **At most three leads write to the Unity project in one session**, one at a time (§3.9). Research, design, writing and Blender leads can run alongside.
 - **QA reads every big or direction-setting deliverable before Mansoor does**, whatever the rank of its author.
+- **The playtesters play every build that changes what the player sees or does before Mansoor does**, one at a time in Unity (they drive only the labs, the café lab's autopilot and the recorder; never a step, never a save), and their notes merge into his playtest notes. They are outside the ranks: they outrank no lead and block nothing; a lead decides what to do with their findings. Their method, and its honest limits, are in `Docs/Studio/PLAYTEST-PROTOCOL.md`: they judge from frames, logs and words, and mark what only his hands can settle.
 - A lead that needs another department's output says so in *Open questions* instead of doing that department's job badly.
 - The Producer can run several instances of one lead (fan-out) for parallel tasks: one archetype each, one house each, one model each. The lead's own instance reads all the drafts for one voice before anything reaches Mansoor.
 
@@ -279,7 +284,7 @@ Rules:
 2. **Producer: reorientation audit.** Reads the repo handoff's newest entry, the last session notes, `git log`, and this file's §7; writes what changed since he last looked, what is pending, and what is blocking. Updates §7 if the facts moved.
 3. **Producer: the one ordered list.** Proposes which leads run this session, in rank order unless there's a reason not to, with the reason for each, marking which items run in parallel and which touch Unity (serialized), honouring §2's no-new-mechanics rule and §4's shippability redirect. He approves, reorders or rejects.
 4. **Leads run.** In parallel where independent. Each returns the §5 contract.
-5. **QA reads** anything large or direction-setting before he does.
+5. **The playtesters play** the integrated build (after step 7 when the build changed what the player sees or does: `playtester-first-hour`, then `playtester-veteran`, one at a time in Unity), and their notes go into his playtest notes before he plays. **QA reads** anything large or direction-setting before he does.
 6. **Discussion.** Anything that changes direction goes to him as a discussion first (§4), with the reasoning, the alternatives and the open questions.
 7. **He integrates, or Claude does on his Mac**, with numbered Unity steps and the labs that prove it.
 8. **Producer: session notes** to `Docs/Studio/sessions/<date>.md` (repo) and `claude/session-<date>-notes.md` (Project): what was done, what he decided, what is next, what each lead got wrong (→ its corrections log).

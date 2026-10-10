@@ -207,7 +207,12 @@ public sealed class BenchLab : PlayLab
         float after = Quaternion.Angle(face0, device.transform.rotation);
         Check(nudged > 3f && nudged < 20f && after < .5f, $"a nudge of the left stick spins it ({nudged:0}°) and, let go, it coasts and settles square again ({after:0.0}° off)");
         PadHold(new GamepadState { leftStick = new Vector2(1f, 0f) });
-        yield return Seconds(.25f);
+        // Held until it has turned 30° (at most 0.6 s), not for a fixed 0.25 s (10 Oct, Claude): a fixed hold turned it 40° at
+        // 60 fps but 44° with Unity in the background at about 30, and 44° plus the coast's 25° ends 21° from a quarter turn,
+        // inside the 22° (faceSnapWithin) where the device is MEANT to settle square: the check failed on a correct settle.
+        // Let go from 30-36°, the coast ends 30° or more from a quarter turn at any frame rate, which is what this beat tests.
+        float swingUntil = Time.realtimeSinceStartup + .6f;
+        while (Quaternion.Angle(face0, device.transform.rotation) < 30f && Time.realtimeSinceStartup < swingUntil) yield return null;
         float swung = Quaternion.Angle(face0, device.transform.rotation);
         yield return LetGo();
         yield return Seconds(1.6f);
