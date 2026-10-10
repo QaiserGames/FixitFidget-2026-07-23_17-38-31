@@ -1568,8 +1568,19 @@ internal static class CafeRoomSteps
         if (plan.closeUp != null)
         {
             Plane[] frustum = Frustum(plan.closeUp, plan.closeUpFov, 16f / 9f, .05f, 6f);
-            List<string> seen = made.beams.Concat(made.wells).Concat(made.pendants).Concat(made.plants).Append(made.sign).Append(made.board).Append(made.ledge)
-                .SelectMany(g => g.GetComponentsInChildren<Renderer>(true)).Where(r => GeometryUtility.TestPlanesAABB(frustum, r.bounds)).Select(r => S.PathOf(r.transform)).ToList();
+            // A box inside the frustum isn't yet in the frame: what the bench, the counter or the glass's shoe hide isn't seen
+            // (10 Oct, Claude: the monstera's box met the frustum under the bench top, where the counter's body hides it, and
+            // the step failed on it). Seen = a point of its box inside the frustum with a clear line from the camera.
+            var boxOnly = new List<string>();
+            List<string> seen = new List<string>();
+            foreach (GameObject g in made.beams.Concat(made.wells).Concat(made.pendants).Concat(made.plants).Append(made.sign).Append(made.board).Append(made.ledge))
+                foreach (Renderer r in g.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (!GeometryUtility.TestPlanesAABB(frustum, r.bounds)) continue;
+                    if (SeenFrom(plan.closeUp.position, frustum, r.bounds, g.transform)) seen.Add(S.PathOf(r.transform));
+                    else boxOnly.Add(S.PathOf(r.transform));
+                }
+            if (boxOnly.Count > 0) run.Info("Inside the close-up's frustum but hidden from its camera (the bench, the counter): " + string.Join(", ", boxOnly));
             run.Check(seen.Count == 0, seen.Count == 0 ? $"nothing of this step is in the close-up's frame ({S.F(plan.closeUpFov, "0")}°, at {S.V(plan.closeUp.position)})" : "in the close-up's frame: " + string.Join(", ", seen));
         }
         // ---- what went off is off, and nothing floats where a rug lay ----
@@ -1612,6 +1623,26 @@ internal static class CafeRoomSteps
             }
         }
         return found.Distinct().ToList();
+    }
+
+    // A point of the box (27: its corners, edge middles, face middles and centre) inside the frustum that the camera sees
+    // with nothing solid in between (triggers and the piece's own colliders aside).
+    static bool SeenFrom(Vector3 eye, Plane[] frustum, Bounds b, Transform own)
+    {
+        for (int i = 0; i <= 2; i++)
+            for (int j = 0; j <= 2; j++)
+                for (int k = 0; k <= 2; k++)
+                {
+                    var p = new Vector3(Mathf.Lerp(b.min.x, b.max.x, i * .5f), Mathf.Lerp(b.min.y, b.max.y, j * .5f), Mathf.Lerp(b.min.z, b.max.z, k * .5f));
+                    if (!frustum.All(plane => plane.GetSide(p))) continue;
+                    Vector3 d = p - eye;
+                    float dist = d.magnitude;
+                    if (dist < .02f) return true;
+                    bool blocked = Physics.RaycastAll(eye, d / dist, dist - .01f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+                                          .Any(h => !h.collider.transform.IsChildOf(own));
+                    if (!blocked) return true;
+                }
+        return false;
     }
 
     // A camera's frustum from its pose and lens (Unity's view space looks down -z).
