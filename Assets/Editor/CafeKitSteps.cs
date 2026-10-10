@@ -351,11 +351,38 @@ internal static class CafeKitSteps
             m.DisableKeyword("_NORMALMAP");
         }
 
-        // Surface: opaque, alpha-clipped (the gilding: one layer of gold on the glass) or transparent (glass, water).
+        // Surface: opaque, the gilding (gold leaf on the glass) or transparent (glass, water).
         m.SetFloat("_AlphaClip", clipped ? 1f : 0f);
-        m.SetFloat("_Cutoff", .4f);
+        m.SetFloat("_Cutoff", clipped ? .05f : .4f);
         if (clipped) m.EnableKeyword("_ALPHATEST_ON"); else m.DisableKeyword("_ALPHATEST_ON");
-        if (transparent && !clipped)
+        m.SetFloat("_QueueOffset", 0f);
+        if (clipped)
+        {
+            // The gilding draws AFTER the window glass (10 Oct, Claude). Drawn before it (the alpha-test queue, 2450), the
+            // glass's reflection was laid over the letters and veiled the gold grey from the street, where real gold leaf
+            // reads gold through its pane. URP's Lit shader works its queue out from the surface type and the sorting
+            // priority (a queue set by hand is put back on the next validation: the probe found 2450 in memory with 3001 in
+            // the file), so the gilding is a transparent surface one place after the glass (3000 + 1). Specular isn't kept
+            // where the leaf is see-through, so the slab's empty part doesn't add a second reflection, and the near-empty
+            // pixels are discarded (cutoff 0.05) so the letters' soft edges stay. Gold is a metal: half metallic, so the
+            // leaf takes the street's light back in gold, as gilding does.
+            m.SetFloat("_Surface", 1f);
+            m.SetFloat("_Blend", 0f);
+            m.SetFloat("_BlendModePreserveSpecular", 0f);
+            m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            m.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            m.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
+            m.SetFloat("_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
+            m.SetFloat("_ZWrite", 0f);
+            m.SetFloat("_AlphaToMask", 0f);
+            m.SetFloat("_QueueOffset", 1f);
+            m.SetFloat("_Metallic", Num(def, "metallic", .5f));
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            m.SetOverrideTag("RenderType", "Transparent");
+            m.renderQueue = (int)RenderQueue.Transparent + 1;
+        }
+        else if (transparent)
         {
             if (glassModel != null && name == "CF_Glass")
             {
@@ -392,8 +419,8 @@ internal static class CafeKitSteps
             m.SetFloat("_DstBlend", (float)BlendMode.Zero);
             m.SetFloat("_ZWrite", 1f);
             m.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            m.SetOverrideTag("RenderType", clipped ? "TransparentCutout" : "Opaque");
-            m.renderQueue = clipped ? (int)RenderQueue.AlphaTest : -1;
+            m.SetOverrideTag("RenderType", "Opaque");
+            m.renderQueue = -1;
         }
         m.SetColor("_BaseColor", baseColour);
 
