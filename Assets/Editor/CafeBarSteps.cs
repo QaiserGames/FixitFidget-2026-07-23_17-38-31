@@ -23,9 +23,11 @@ using static CafeRedesignShared;
 //       place the café kit's one counter, CK_FrontCounter (12.27 m, stone top 1.095, a lowered section at 0.91, the
 //       repair bar's opening and ledge, a half-round end), with a MeshCollider of its own mesh; the empty repair bench
 //       (CK_RepairBench, no collider: the Workbench's box becomes its solid when the bench moves in) and its magnifier lamp
-//       (CK_BenchLamp, with its spot from cafe_bar.json, a warm light). The pastry case moves next to the till (x -2.6 to
-//       -1.6), three tent cards stand on it, register v4 goes on the till's staff half, the bell on the repair bar's ledge,
-//       the water station by the half-round end. The counter station's colliders top out at 1.000, under the new stone:
+//       (CK_BenchLamp, with its spot from cafe_bar.json, a warm light). The pastry case moves to the counter's east run
+//       (x 3.29 to 4.34, between the lowered section and the half-round end: Claude, 10 Oct, because at x -2.6 to -1.55 it
+//       stood in the room of the intake shelf's upgrade slot 4, which "Shelf Space" level 2 unlocks), three tent cards stand
+//       on it, register v4 goes on the till's staff half, the bell on the repair bar's ledge, the water station on the
+//       half-round end. The counter station's colliders top out at 1.000, under the new stone:
 //       a thin trigger under the station, on the stone, keeps the counter in reach of the first-person crosshair.
 //   Fixit Fidget > Cafe redesign > Bar 2 0 - Check first (read-only)
 //   Fixit Fidget > Cafe redesign > Bar 2 1 - Put the back bar in (scene)
@@ -109,7 +111,11 @@ internal static class CafeBarSteps
     static readonly Vector3 CounterAt = new Vector3(-1.265f, 0f, 13.77f);
     static readonly Vector3 BenchAt = new Vector3(-4.20f, 0f, 14.055f);
     static readonly Vector3 BellAt = new Vector3(-2.85f, Top, 13.47f);
-    static readonly Vector3 WaterAt = new Vector3(3.90f, Top, 13.50f);
+    // The water station on the half-round end (Claude, 10 Oct: the pastry case took x 3.29..4.34, the water's old place).
+    // The half-round: centre (4.40, 13.77), radius 0.47 (bar/report.md: the stone top's half circle from x 4.40 to 4.87).
+    static readonly Vector3 WaterAt = new Vector3(4.61f, Top, 13.77f);
+    static readonly Vector2 HalfRoundCentre = new Vector2(4.40f, 13.77f);
+    const float HalfRoundRadius = .47f;
 
     // The lamp: cafe_bar.json's placement and light (re-aimed after the bar report). Read at run time; these are the
     // values the brief gives, checked within 1 cm.
@@ -125,14 +131,17 @@ internal static class CafeBarSteps
     static readonly Bounds BenchBox = Box(-5.797f, 0f, 13.660f, -2.603f, 1.430f, 14.451f);
     static readonly Bounds LampBox = Box(-5.3285f, .85f, 13.864f, -4.944f, 1.6148f, 14.472f);
     static readonly Bounds BellBox = Box(-2.890f, 1.095f, 13.430f, -2.810f, 1.1692f, 13.510f);
-    static readonly Bounds WaterBox = Box(3.700f, 1.095f, 13.375f, 4.100f, 1.383f, 13.625f);
+    static readonly Bounds WaterBox = Box(4.410f, 1.095f, 13.645f, 4.810f, 1.383f, 13.895f);
     const float BenchTop = 1.005f;                                // the bench's chestnut top
-    // The bench's glass screen and its east post (the case must clear them) and Repair bar 1's own space for the bench
+    // The bench's glass screen and its east post (the bell must clear them) and Repair bar 1's own space for the bench
     // (CafeRepairBarSteps.Blockers: renderers within x -5.78..-2.62 count as in the way).
-    const float BenchEastPost = -2.62f, CaseWestLimit = -2.595f;
+    const float BenchEastPost = -2.62f;
 
-    // The pastry case: x -2.6 to -1.6 (centre -2.1), between the repair bar and the intake shelf; its z and facing kept.
-    const float CaseCentreX = -2.10f;
+    // The pastry case: on the counter's east run, between the lowered section (to x 3.25) and the half-round end (from x 4.40),
+    // centred at x 3.81 (x 3.285..4.335 for its 1.05 m); its z and facing kept. The research had it at x -1.9..-0.9 and the
+    // brief at -2.6..-1.6; the intake's five slots (x -1.56..1.56: three base, two "Shelf Space" upgrades) leave no metre
+    // there, and a device on upgrade slot 4 would have stood inside the case (Claude, 10 Oct).
+    const float CaseCentreX = 3.81f, CaseRunX0 = LowX1 + .02f, CaseRunX1 = 4.38f;
     // Register v4 (Assets/Art/Models/CashRegister.fbx): on the till's staff half. Its x is chosen in the survey from these,
     // the first that keeps the conversation camera's view of every queue place clear and the intake's devices free.
     const string RegisterPath = "Assets/Art/Models/CashRegister.fbx";
@@ -151,7 +160,7 @@ internal static class CafeBarSteps
     const string RegisterName = "Register v4 (the till: keys and drawer to Ace, the tower to the customers)";
     static readonly string[] CardNames = { "CK_TentCard (pastry case, Morning bun)", "CK_TentCard (pastry case, Almond croissant)", "CK_TentCard (pastry case, Banana bread)" };
     const string BellName = "CK_ServiceBell (the repair bar's ledge)";
-    const string WaterName = "CK_WaterStation (the counter, by the half-round end)";
+    const string WaterName = "CK_WaterStation (the counter, on the half-round end)";
     const string ReachName = "Counter - reach over the stone top (Bar 1, trigger)";
 
     // ---- the scene's pieces, by their paths under the café's root (YAML at 216cc1a) ----
@@ -430,27 +439,29 @@ internal static class CafeBarSteps
                   $"the pastry case stands where the plan measured it (x -4.35, on 1.09): {BoundsText(p.caseWas)}");
         float width = p.caseWas.size.x;
         float centre = CaseCentreX;
-        if (centre - width * .5f < CaseWestLimit)
-        {
-            centre = CaseWestLimit + width * .5f;
-            run.Info($"The case is {F(width)} m wide: centred at -2.10 it would reach the repair bar's east post; its west end goes at x {F(CaseWestLimit)} (centre {F(centre)}).");
-        }
+        if (centre - width * .5f < CaseRunX0) centre = CaseRunX0 + width * .5f;
+        if (centre + width * .5f > CaseRunX1) centre = CaseRunX1 - width * .5f;
         p.caseShift = new Vector3(centre - p.caseWas.center.x, Top - p.caseWas.min.y, 0f);
         p.caseTo = new Bounds(p.caseWas.center + p.caseShift, p.caseWas.size);
-        run.Info($"It moves {V(p.caseShift)}: {BoundsText(p.caseTo)}, the same z and facing, its bottom on the stone.");
-        run.Check(width <= 1.25f, $"the case ({F(width)} m) fits the metre between the repair bar and the intake shelf");
-        run.Check(p.caseTo.min.x >= CaseWestLimit - .001f, $"it clears the bench's glass and east post (x {F(BenchEastPost)}) and Repair bar 1's bench space: its west end at {F(p.caseTo.min.x)}");
+        run.Info($"It moves {V(p.caseShift)}: {BoundsText(p.caseTo)}, the same z and facing, its bottom on the stone: the counter's east run, " +
+                 "between the lowered section and the half-round end (the intake's five slots, upgrades included, leave no metre by the till).");
+        run.Check(width <= CaseRunX1 - CaseRunX0, $"the case ({F(width)} m) fits the east run (x {F(CaseRunX0, "0.00")}..{F(CaseRunX1, "0.00")}, {F(CaseRunX1 - CaseRunX0, "0.00")} m)");
+        run.Check(p.caseTo.min.x >= CaseRunX0 - .001f && p.caseTo.max.x <= CaseRunX1 + .001f,
+                  $"it stands clear of the lowered section's step (x {F(LowX1, "0.00")}) and of the half-round (from x {F(HalfRoundCentre.x, "0.00")}): x {F(p.caseTo.min.x)}..{F(p.caseTo.max.x)}");
+        run.Check(p.caseTo.max.x <= WaterBox.min.x - .03f, $"…and 3 cm or more from the water station on the half-round end (from x {F(WaterBox.min.x)})");
         run.Check(p.caseTo.min.z >= TopZ0 + .005f && p.caseTo.max.z <= TopZ1 - .005f, $"it stands on the stone's depth (z {F(TopZ0, "0.00")}..{F(TopZ1, "0.00")}): z {F(p.caseTo.min.z)}..{F(p.caseTo.max.z)}");
         CheckSlotsClear(run, p, p.caseTo, "the case");
+        run.Check(p.slots.All(s => !new Bounds(s.position + Vector3.up * DeviceRoom.y * .5f, DeviceRoom + new Vector3(.2f, 0f, 0f)).Intersects(p.caseTo)),
+                  "the case is clear of every intake slot, the upgrade slots too, with 10 cm more room each side than the base check");
 
         // ---- the tent cards: on the case's top, read off its own mesh ----
         PlanCards(run, p);
 
         // ---- register v4: which way it faces, and where it stands ----
         PlanRegister(run, p);
-        p.reachX0 = Mathf.Max(p.stationSolid.bounds.min.x, p.caseTo.max.x + .02f);
+        p.reachX0 = p.stationSolid.bounds.min.x;
         run.Info($"The station's reach over the stone: a trigger x {F(p.reachX0)}..{F(ReachX1)}, y {F(ReachY0)}..{F(ReachY1)}, z {F(TopZ0, "0.00")}..{F(TopZ1, "0.00")}, " +
-                 "under the station (so the crosshair finds the station), from the case's east end to the lowered section.");
+                 "under the station (so the crosshair finds the station), from the station's own west end to the lowered section.");
 
         // ---- the intake shelf against the new top ----
         run.Line("The intake shelf against the new stone (its slots stay; the shelf has no visual of its own to move):");
@@ -632,7 +643,10 @@ internal static class CafeBarSteps
                 }
                 for (int i = 0; i < p.baseSlots && i < p.slots.Length; i++)
                     if (new Bounds(p.slots[i].position + Vector3.up * DeviceRoom.y * .5f, DeviceRoom).Intersects(at)) blocked.Add($"a device on base slot {i}");
-                if (at.max.x > LowX0 - .02f || at.min.x < p.caseTo.max.x + .05f) blocked.Add("the till's top (between the case and the lowered section)");
+                // The till's top: west of the lowered section's step and 5 cm or more from the pastry case (which stood west of
+                // the till in the brief and stands on the east run since 10 Oct: the test is its box, wherever it is).
+                if (at.max.x > LowX0 - .02f || new Bounds(p.caseTo.center, p.caseTo.size + new Vector3(.10f, 0f, .10f)).Intersects(at))
+                    blocked.Add("the till's top (west of the lowered section, clear of the pastry case)");
                 if (at.min.z < TopZ0 + .005f || at.max.z > TopZ1 - .005f) blocked.Add("the stone's depth");
                 report.Add($"x {F(x, "0.00")}: {(blocked.Count == 0 ? "clear" : string.Join(", ", blocked))}");
                 if (blocked.Count == 0 && !placed)
@@ -692,8 +706,8 @@ internal static class CafeBarSteps
         // Not in CafeDaylight.warmLights (Claude, 10 Oct): those are evening lamps (0.4 of their strength by day); the bench lamp
         // is the repair's task light, at its full strength whenever Ace works, as the old clamp lamp was.
 
-        // 4. The pastry case, next to the till.
-        Move(run, p.caseHolder, p.caseHolder.position + p.caseShift, p.caseHolder.rotation, "the pastry case next to the till (x -2.6 to -1.6), between the repair bar and the intake shelf");
+        // 4. The pastry case, on the counter's east run.
+        Move(run, p.caseHolder, p.caseHolder.position + p.caseShift, p.caseHolder.rotation, "the pastry case on the counter's east run (x 3.29 to 4.34), between the lowered section and the half-round end, clear of the intake's upgrade slots");
 
         // 5. Register v4 on the till (not a kit piece: the project's model, placed as the catalog stands it up).
         var register = (GameObject)PrefabUtility.InstantiatePrefab(p.registerAsset, group);
@@ -718,7 +732,7 @@ internal static class CafeBarSteps
             Repaint(run, r, Swap(r.sharedMaterials, "CF_TentCard1", i == 1 ? p.card2 : p.card3), $"tent card {i + 1}: {(i == 1 ? "Almond croissant" : "Banana bread")}");
         }
 
-        // 7. The bell on the repair bar's ledge, the water station by the half-round end.
+        // 7. The bell on the repair bar's ledge, the water station on the half-round end.
         GameObject bell = Place(run, "CK_ServiceBell", group, BellAt, 180f, BellName);
         GameObject water = Place(run, "CK_WaterStation", group, WaterAt, 180f, WaterName);
 
@@ -814,7 +828,7 @@ internal static class CafeBarSteps
         Bounds caseNow = RendererBounds(p.caseHolder);
         run.Check(MaxError(caseNow, p.caseTo) <= .003f, $"the pastry case: {BoundsText(caseNow)} (planned {BoundsText(p.caseTo)})");
         Standing(run, "the pastry case", caseNow, solids);
-        run.Check(caseNow.min.x > BenchEastPost, $"it clears the bench's east post and Repair bar 1's bench space (x {F(BenchEastPost)}): its west end at {F(caseNow.min.x)}");
+        run.Check(caseNow.min.x >= CaseRunX0 - .002f && caseNow.max.x <= CaseRunX1 + .002f, $"it stands on the east run, clear of the lowered section's step and the half-round: x {F(caseNow.min.x)}..{F(caseNow.max.x)}");
         Bounds reg = RendererBounds(register.transform);
         run.Check(Mathf.Abs(reg.center.x - p.registerX) <= .003f && Mathf.Abs(reg.center.z - RegisterZ) <= .003f && Mathf.Abs(reg.min.y - Top) <= .003f,
                   $"register v4: {BoundsText(reg)} (centred at x {F(p.registerX, "0.00")}, z {F(RegisterZ, "0.00")}, its bottom on {F(Top)})");
@@ -856,6 +870,12 @@ internal static class CafeBarSteps
         Bounds waterNow = RendererBounds(water.transform);
         Standing(run, "the water station", waterNow, solids);
         run.Check(waterNow.min.x >= LowX1 + .01f && waterNow.min.z >= TopZ0 && waterNow.max.z <= TopZ1, $"the water station is on the main top, clear of the lowered section: {BoundsText(waterNow)}");
+        float waterReach = 0f;
+        foreach (float wx in new[] { waterNow.min.x, waterNow.max.x })
+            foreach (float wz in new[] { waterNow.min.z, waterNow.max.z })
+                if (wx > HalfRoundCentre.x) waterReach = Mathf.Max(waterReach, new Vector2(wx - HalfRoundCentre.x, wz - HalfRoundCentre.y).magnitude);
+        run.Check(waterReach <= HalfRoundRadius - .02f, $"…on the half-round end: its farthest corner {F(waterReach)} m from the curve's centre (the stone's edge at {F(HalfRoundRadius, "0.00")})");
+        run.Check(waterNow.min.x >= caseNow.max.x + .03f, $"…and clear of the pastry case: {F(waterNow.min.x - caseNow.max.x, "0.00")} m between them");
         float queueRoom = p.queue.Min(q => Flat(waterNow.ClosestPoint(q.position) - q.position).magnitude);
         run.Check(queueRoom >= .5f, $"…and {F(queueRoom, "0.00")} m from the nearest queue place");
 
@@ -905,7 +925,7 @@ internal static class CafeBarSteps
         Photo(run, "2-from-the-queue", new Vector3(0f, 1.6f, 11.6f), new Vector3(-1.5f, 1.1f, 14.0f), 62f);
         Photo(run, "3-the-repair-bar-from-a-stool", new Vector3(-4.2f, 1.45f, 12.85f), new Vector3(-4.6f, 1.0f, 14.0f), 62f);
         Photo(run, "4-the-till-from-aces-place", new Vector3(0f, 1.65f, 15.15f), new Vector3(0f, 1.0f, 13.5f), 62f);
-        Photo(run, "5-the-half-round-end", new Vector3(4.0f, 1.5f, 11.5f), new Vector3(4.6f, .8f, 13.8f), 55f);
+        Photo(run, "5-the-pastry-case-and-the-half-round-end", new Vector3(3.0f, 1.55f, 11.4f), new Vector3(4.0f, 1.15f, 13.75f), 58f);
         GameCameraPhoto(run, "6-the-game-camera");
     }
 
@@ -1513,6 +1533,9 @@ internal static class CafeBarSteps
             if (!r.enabled || r.forceRenderingOff || r is ParticleSystemRenderer || !r.gameObject.activeInHierarchy) continue;
             Transform t = r.transform;
             if (Mine(run, t) || run.Player != null && t.IsChildOf(run.Player) || goingOff.Any(g => g != null && t.IsChildOf(g.transform))) continue;
+            // What this step moved was put where it is on purpose and has checks of its own (10 Oct: the pastry case's pastries,
+            // moved over the old section at x 1.72..4.80, were taken for floaters and switched off; the run was rolled back).
+            if (run.Record != null && run.Record.moved.Any(m => m != null && m.target != null && t.IsChildOf(m.target))) continue;
             Bounds b = r.bounds;
             if (!Small(b) || OnAWall(b)) continue;
             bool onTop = tops.Any(top => b.max.x > top.min.x + .01f && b.min.x < top.max.x - .01f && b.max.z > top.min.z + .01f && b.min.z < top.max.z - .01f &&
