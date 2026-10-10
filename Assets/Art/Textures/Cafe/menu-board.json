@@ -1,0 +1,52 @@
+{
+ "version": 1,
+ "what": "The drinks and prices painted on the menu board (CF_Menu.png), read from the game's drink data by draw_cafe_textures.py. The Unity check compares each entry with its asset (drinkName, price) and fails if an asset changed or a drink exists that the board does not show: re-run the script.",
+ "drawn": "2026-10-10 00:59",
+ "texture": "Assets/Art/Textures/Cafe/CF_Menu.png",
+ "drinks_folder": "Assets/AssetsPrefabs/Drinks",
+ "currency": "$",
+ "drinks": [
+  {
+   "line": 1,
+   "name": "Coffee",
+   "price": 3,
+   "printed": "COFFEE $3",
+   "asset": "Assets/AssetsPrefabs/Drinks/Drink_Coffee.asset"
+  },
+  {
+   "line": 2,
+   "name": "Espresso",
+   "price": 4,
+   "printed": "ESPRESSO $4",
+   "asset": "Assets/AssetsPrefabs/Drinks/Drink_Espresso.asset"
+  },
+  {
+   "line": 3,
+   "name": "Americano",
+   "price": 4,
+   "printed": "AMERICANO $4",
+   "asset": "Assets/AssetsPrefabs/Drinks/Drink_Americano.asset"
+  },
+  {
+   "line": 4,
+   "name": "Latte",
+   "price": 6,
+   "printed": "LATTE $6",
+   "asset": "Assets/AssetsPrefabs/Drinks/Drink_Latte.asset"
+  },
+  {
+   "line": 5,
+   "name": "Hot Chocolate",
+   "price": 5,
+   "printed": "HOT CHOCOLATE $5",
+   "asset": "Assets/AssetsPrefabs/Drinks/Drink_HotChocolate.asset"
+  },
+  {
+   "line": 6,
+   "name": "Tea",
+   "price": 3,
+   "printed": "TEA $3",
+   "asset": "Assets/AssetsPrefabs/Drinks/Drink_Tea.asset"
+  }
+ ]
+}

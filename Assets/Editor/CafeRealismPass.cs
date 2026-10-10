@@ -198,6 +198,12 @@ public static class CafeRealismPass
         if (root == null) return "Nothing to undo: " + GroupName + " is not in the scene.";
         Transform work = cafe.Find(WorkAreaName);
         Transform zoneF = cafe.Find(FurnishingName + "/F - Work areas");
+        // The repair bar (CafeRepairBarSteps, 10 Oct) turned the work area round and moved it into the front counter, and
+        // carried this pass's clamp lamp with it: this undo's fixed 0.9 m back would push the bench through the counter and
+        // delete the lamp the repair bar's record holds. Put the bench back first.
+        if (work != null && Quaternion.Angle(work.rotation, Quaternion.identity) > 1f)
+            return "Nothing undone: the repair work area is at the repair bar (turned round, in the front counter). " +
+                   "Run Fixit Fidget > Cafe redesign > Repair bar 1 - Undo first.";
         Undo.IncrementCurrentGroup();
         int group = Undo.GetCurrentGroup();
         Undo.SetCurrentGroupName("Undo the real cafe pass");

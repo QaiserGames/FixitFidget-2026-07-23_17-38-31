@@ -1,0 +1,468 @@
+{
+ "version": 1,
+ "kit": "cafe_props",
+ "note": "Unity (x, y, z) = Blender (-x, z, -y); the front of each piece faces Unity +Z as built",
+ "pieces": [
+  {
+   "name": "CK_FiddleLeafFig",
+   "group": "Plants",
+   "what": "fiddle-leaf fig, 1.80 m, in a 0.40 cream pot",
+   "stretch": false,
+   "tris": 1484,
+   "size": [
+    0.646,
+    1.815,
+    0.633
+   ],
+   "bottom": 0.0,
+   "back": 0.31,
+   "materials": [
+    "CF_PotCream",
+    "CF_Soil",
+    "CF_Bark",
+    "DC_Leaf",
+    "CF_LeafLight"
+   ],
+   "islands": 28,
+   "origin": "bottom centre of the pot",
+   "place": "front-left corner, about (-6.85, 0, 0.75); turn freely",
+   "collider": "a capsule round the pot only (r 0.21, h 0.40); the foliage none",
+   "references": [
+    "https://plants.ces.ncsu.edu/plants/ficus-lyrata/common-name/banjo-fig"
+   ]
+  },
+  {
+   "name": "CK_Monstera",
+   "group": "Plants",
+   "what": "monstera, about 1.0 m, in a 0.35 terracotta pot on a saucer",
+   "stretch": false,
+   "tris": 1926,
+   "size": [
+    1.064,
+    0.943,
+    0.934
+   ],
+   "bottom": 0.0,
+   "back": 0.504,
+   "materials": [
+    "DC_Terracotta",
+    "CF_Soil",
+    "DC_Leaf",
+    "CF_LeafLight",
+    "CF_Bark"
+   ],
+   "islands": 69,
+   "origin": "bottom centre of the saucer",
+   "place": "on the floor in front of the counter's plain west end, about (-6.8, 0, 12.6) (clear of WaitSpot 1 and the first stool)",
+   "collider": "a capsule round the pot (r 0.20, h 0.33)",
+   "references": [
+    "https://extension.psu.edu/monstera-as-a-houseplant",
+    "https://www.nparks.gov.sg/florafaunaweb/flora/1/4/1453"
+   ]
+  },
+  {
+   "name": "CK_OliveTree",
+   "group": "Plants",
+   "what": "olive tree, 1.70 m, in a 0.40 terracotta pot on a saucer (placed twice)",
+   "stretch": false,
+   "tris": 2334,
+   "size": [
+    0.764,
+    1.636,
+    0.691
+   ],
+   "bottom": 0.0,
+   "back": 0.285,
+   "materials": [
+    "DC_Terracotta",
+    "CF_Soil",
+    "CF_Bark",
+    "CF_LeafSilver",
+    "CF_LeafOlive"
+   ],
+   "islands": 188,
+   "origin": "bottom centre of the saucer",
+   "place": "either side of the door inside, about (-1.6, 0, 0.5) and (+1.6, 0, 0.5); turn the second about 140 degrees so the pair is not twins",
+   "collider": "a capsule round the pot (r 0.22, h 0.37)",
+   "references": [
+    "https://plants.ces.ncsu.edu/plants/olea-europaea"
+   ]
+  },
+  {
+   "name": "CK_RubberPlant",
+   "group": "Plants",
+   "what": "rubber plant, 1.20 m, three stems in a 0.32 cream pot",
+   "stretch": false,
+   "tris": 1404,
+   "size": [
+    0.675,
+    1.279,
+    0.646
+   ],
+   "bottom": 0.0,
+   "back": 0.316,
+   "materials": [
+    "CF_PotCream",
+    "CF_Soil",
+    "CF_Bark",
+    "CF_LeafDark",
+    "DC_Terracotta",
+    "CF_LeafLight"
+   ],
+   "islands": 32,
+   "origin": "bottom centre of the pot",
+   "place": "between the bistro 2-tops, about (3.0, 0, 6.2)",
+   "collider": "a capsule round the pot (r 0.17, h 0.31)",
+   "references": [
+    "https://en.wikipedia.org/wiki/Ficus_elastica"
+   ]
+  },
+  {
+   "name": "CK_Pothos",
+   "group": "Plants",
+   "what": "trailing pothos for each end of the back bar's shelf (placed twice)",
+   "stretch": false,
+   "tris": 1192,
+   "size": [
+    0.526,
+    0.816,
+    0.302
+   ],
+   "bottom": -0.62,
+   "back": 0.122,
+   "materials": [
+    "DC_Terracotta",
+    "CF_Soil",
+    "DC_Leaf",
+    "CF_LeafLight"
+   ],
+   "islands": 64,
+   "origin": "bottom centre of the saucer (on the shelf top); the vines hang to 0.62 below it",
+   "place": "on CK_BackBarShelf's top (y 1.81), the pot's centre 0.12 m behind the shelf's front edge: (-3.68, 1.81, 17.82) turned 180 degrees, and (4.78, 1.81, 17.82) turned 180 degrees AND mirrored (scale x -1), so each long vine runs along the shelf toward the middle and never past its end",
+   "collider": "none",
+   "references": [
+    "https://plants.ces.ncsu.edu/plants/epipremnum-aureum/common-name/devils-vine",
+    "https://hort.extension.wisc.edu/articles/pothos-epipremmum-aureum/"
+   ]
+  },
+  {
+   "name": "CK_Beam",
+   "group": "Room",
+   "what": "chestnut ceiling beam 14.80 x 0.20 x 0.32 with steel hangers at the walls (placed five times)",
+   "stretch": false,
+   "tris": 388,
+   "size": [
+    14.8,
+    0.325,
+    0.328
+   ],
+   "bottom": -0.325,
+   "back": 0.164,
+   "materials": [
+    "CC_Wood_Counter",
+    "DC_SteelDark"
+   ],
+   "islands": 23,
+   "origin": "top centre (the ceiling plane)",
+   "place": "hung at (0, 3.20, z) for z = 2, 5, 8, 11, 14; an overhead fixture (hidden from above)",
+   "collider": "none",
+   "references": [
+    "https://www.fastenersplus.com/products/simpson-hu5-125-12-face-mount-glulam-beam-hanger"
+   ]
+  },
+  {
+   "name": "CK_SkylightWell",
+   "group": "Room",
+   "what": "skylight well 1.20 x 1.20, lining 0.40, chestnut trim, grey frame and glass (placed three times)",
+   "stretch": false,
+   "tris": 124,
+   "size": [
+    1.34,
+    0.47,
+    1.34
+   ],
+   "bottom": -0.018,
+   "back": 0.67,
+   "materials": [
+    "CC_Wood_Counter",
+    "CF_ChalkWhite",
+    "DC_Steel",
+    "CF_Glass"
+   ],
+   "islands": 4,
+   "origin": "centre of the ceiling plane, the well rising above it",
+   "place": "at (0, 3.20, z) over the aisle; z = 3.5, 6.5, 9.5 proposed (the research's 10.5 runs into the z 11 beam); cut a 1.20-1.30 m hole in the ceiling deck at each; an overhead fixture",
+   "collider": "none",
+   "references": [
+    "https://cdn.intelligencebank.com/us/share/M7y7/8VZ3v/Maj44/original/FCM+product+data+sheet"
+   ]
+  },
+  {
+   "name": "CK_WaterStation",
+   "group": "Counter",
+   "what": "water station: chestnut tray, 1 L carafe of water, six tumblers",
+   "stretch": false,
+   "tris": 1124,
+   "size": [
+    0.4,
+    0.288,
+    0.25
+   ],
+   "bottom": 0.0,
+   "back": 0.125,
+   "materials": [
+    "CC_Wood_Counter",
+    "CF_Glass",
+    "CF_Water"
+   ],
+   "islands": 9,
+   "origin": "bottom centre of the tray",
+   "place": "on the front counter's stone top at about (3.9, 1.095, 13.50), turned 180 degrees (the customers' side)",
+   "collider": "a box on the tray (0.40 x 0.03 x 0.25) if anything needs one",
+   "references": [
+    "https://www.katom.com/075-139UR.html",
+    "https://www.ggmgastro.com/en-ie-eur/12-pcs-duralex-tumbler-picardie-25-cl-clear-dugpdw25t-12"
+   ]
+  },
+  {
+   "name": "CK_BeanBag",
+   "group": "Retail",
+   "what": "12 oz kraft coffee bag with the house-blend label (placed eight times)",
+   "stretch": false,
+   "tris": 252,
+   "size": [
+    0.12,
+    0.214,
+    0.073
+   ],
+   "bottom": 0.0,
+   "back": 0.036,
+   "materials": [
+    "CF_Kraft",
+    "CF_Black",
+    "CF_BagLabel"
+   ],
+   "islands": 7,
+   "origin": "bottom centre",
+   "place": "on the back bar's shelf, left of the menu: eight in a row 0.135 apart from x -3.20 to -2.255 (clear of the west pothos's long vine), at (x, 1.81, 17.85), turned 180 degrees",
+   "collider": "none",
+   "references": [
+    "https://www.imperialbrady.com/catalog/product-detail/bagcraft-coffee-bag-4-25x2-5x10-5-in-paper-poly-blend-kraft-with-tin-ties-closur?id=5568"
+   ],
+   "label": {
+    "material": "CF_BagLabel",
+    "faces": 6,
+    "size_m": [
+     0.084,
+     0.112
+    ],
+    "uv": "0..1 on the label's front face: u left to right, v bottom to top, as seen from the front"
+   }
+  },
+  {
+   "name": "CK_ServiceBell",
+   "group": "Counter",
+   "what": "brass service bell, 80 mm",
+   "stretch": false,
+   "tris": 468,
+   "size": [
+    0.08,
+    0.074,
+    0.08
+   ],
+   "bottom": 0.0,
+   "back": 0.04,
+   "materials": [
+    "CF_Black",
+    "T2_Brass"
+   ],
+   "islands": 5,
+   "origin": "bottom centre",
+   "place": "on the repair bar's ledge near its east end, about (-2.85, 1.095, 13.47)",
+   "collider": "a box 0.08 x 0.075 x 0.08 if it is ever clicked",
+   "references": [
+    "https://www.1stdibs.com/furniture/more-furniture-collectibles/collectibles-curiosities/musical-instruments/brass-courtesy-counter-top-bell-reception-desk-bell/id-f_30589062"
+   ]
+  },
+  {
+   "name": "CK_Grinder",
+   "group": "Back bar",
+   "what": "espresso grinder, 0.24 x 0.41 x 0.595, black and steel",
+   "stretch": false,
+   "tris": 1408,
+   "size": [
+    0.24,
+    0.595,
+    0.41
+   ],
+   "bottom": 0.0,
+   "back": 0.205,
+   "materials": [
+    "CF_Black",
+    "DC_Steel",
+    "DC_SteelDark",
+    "CF_Glass",
+    "CF_Beans"
+   ],
+   "islands": 20,
+   "origin": "bottom centre of the base",
+   "place": "on the back bar beside the dispenser, about (4.25, 1.00, 17.50), turned 180 degrees (it faces the room)",
+   "collider": "a box 0.24 x 0.60 x 0.41",
+   "references": [
+    "https://www.kwcommercial.com.au/media/assets/55734/fed-jollyvp-spec_pdf-eb93724f1e58.pdf"
+   ]
+  },
+  {
+   "name": "CK_SidewalkBench",
+   "group": "Street",
+   "what": "backless slatted bench, 2.40 m, chestnut on dark steel",
+   "stretch": false,
+   "tris": 676,
+   "size": [
+    2.4,
+    0.453,
+    0.44
+   ],
+   "bottom": 0.0,
+   "back": 0.22,
+   "materials": [
+    "CC_Wood_Counter",
+    "DC_SteelDark"
+   ],
+   "islands": 23,
+   "origin": "bottom centre",
+   "place": "on the pavement against the left (west) front bulkhead, turned 180 degrees (it faces the street); clear of the planters",
+   "collider": "a box 2.40 x 0.45 x 0.44 (solid at night)",
+   "references": [
+    "https://Belson.com/Wood-Backless-Courtyard-Benches"
+   ]
+  }
+ ],
+ "materials": {
+  "CF_LeafLight": {
+   "hex": "6E9A55",
+   "smoothness": 0.3,
+   "metallic": 0.0,
+   "why": "new growth (the brief)"
+  },
+  "CF_PotCream": {
+   "hex": "EDE4D3",
+   "smoothness": 0.6,
+   "metallic": 0.0,
+   "why": "cream-glazed pots (the brief)"
+  },
+  "CF_Soil": {
+   "hex": "3B2A1E",
+   "smoothness": 0.05,
+   "metallic": 0.0,
+   "why": "potting soil (the brief)"
+  },
+  "CF_Glass": {
+   "hex": "DCE6E4",
+   "smoothness": 0.9,
+   "metallic": 0.0,
+   "why": "glass: transparent in Unity (the palette)",
+   "transparent": true
+  },
+  "CF_Water": {
+   "hex": "BFD3D3",
+   "smoothness": 0.95,
+   "metallic": 0.0,
+   "why": "water in the carafe: transparent in Unity (the brief)",
+   "transparent": true
+  },
+  "CF_Kraft": {
+   "hex": "B08A5E",
+   "smoothness": 0.15,
+   "metallic": 0.0,
+   "why": "kraft paper bag (the brief)"
+  },
+  "CF_BagLabel": {
+   "hex": "EDE4D3",
+   "smoothness": 0.2,
+   "metallic": 0.0,
+   "why": "the bag label: the Words lead draws CF_BagLabel.png onto UVs 0..1 (the brief)",
+   "texture": "Assets/Art/Textures/Cafe/CF_BagLabel.png"
+  },
+  "CF_LeafOlive": {
+   "hex": "7B8B67",
+   "smoothness": 0.25,
+   "metallic": 0.0,
+   "why": "NEW: the olive's grayish-green leaf tops (NC State); the brief asks for silvery olive leaves"
+  },
+  "CF_LeafSilver": {
+   "hex": "B9BDAA",
+   "smoothness": 0.2,
+   "metallic": 0.0,
+   "why": "NEW: the olive's silver, hairy undersides (NC State): the flicker that says olive"
+  },
+  "CF_LeafDark": {
+   "hex": "2F4A2D",
+   "smoothness": 0.55,
+   "metallic": 0.0,
+   "why": "NEW: the rubber plant's dark, shiny leaves (the brief: glossy oval leaves)"
+  },
+  "CF_Bark": {
+   "hex": "76695A",
+   "smoothness": 0.1,
+   "metallic": 0.0,
+   "why": "NEW: trunks (fig, olive): a wood material would get Cafe grain in Unity"
+  },
+  "CF_Black": {
+   "hex": "2B2724",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "NEW: black powder coat and cast iron (grinder, bell base, the bag's valve and tie)"
+  },
+  "CF_Beans": {
+   "hex": "4A2C1C",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "NEW: roasted beans in the hopper (a wood material would get grain)"
+  },
+  "CF_ChalkWhite": {
+   "hex": "E6E2D8",
+   "smoothness": 0.06,
+   "metallic": 0.0,
+   "why": "NEW: the skylight well's lining, the walls' chalk white (the wall material lives in a sub-folder the kit importer does not search)"
+  }
+ },
+ "existing_materials": {
+  "CC_Wood_Counter": {
+   "hex": "8F5B32",
+   "smoothness": 0.71,
+   "metallic": 0.0,
+   "use": "chestnut: the beams, the skylight trim, the tray, the bench slats (Cafe grain in Unity)"
+  },
+  "DC_Steel": {
+   "hex": "93908A",
+   "smoothness": 0.5,
+   "metallic": 0.0,
+   "use": "warm steel: the grinder burr housing, chute and fork, the skylight frame"
+  },
+  "DC_SteelDark": {
+   "hex": "4E4B47",
+   "smoothness": 0.5,
+   "metallic": 0.0,
+   "use": "dark warm steel: the beam hangers and bolts, the bench frames"
+  },
+  "T2_Brass": {
+   "hex": "B8933F",
+   "smoothness": 0.6,
+   "metallic": 0.0,
+   "use": "brass: the service bell"
+  },
+  "DC_Leaf": {
+   "hex": "4C7A3F",
+   "smoothness": 0.3,
+   "metallic": 0.0,
+   "use": "leaves"
+  },
+  "DC_Terracotta": {
+   "hex": "B4633C",
+   "smoothness": 0.15,
+   "metallic": 0.0,
+   "use": "terracotta pots and saucers; the rubber plant's red sheaths"
+  }
+ }
+}

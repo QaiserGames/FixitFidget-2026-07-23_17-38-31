@@ -217,8 +217,10 @@ static class Playtest3Session4Steps
             Transform slot = FindDeep(rigT.parent, name);
             if (slot == null) continue;
             Undo.RecordObject(slot, "bench slot");
-            slot.position = tableWorld + fromTable;
-            slot.rotation = Quaternion.identity;
+            // In the rig's own frame: toward the close-up camera is the rig's -Z, which is the world's -Z only while the
+            // bench faces north (at the repair bar, 10 Oct, it faces the room). Unturned, this is the same as before.
+            slot.position = tableWorld + rigT.rotation * fromTable;
+            slot.rotation = rigT.rotation;
             moved++;
         }
         if (moved < MatSlots.Length) Debug.LogWarning(Tag + $"Only {moved} of the bench's 3 slots were found under the Workbench.");

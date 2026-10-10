@@ -1,0 +1,370 @@
+{
+ "version": 1,
+ "kit": "CafeBar",
+ "frame": "Each FBX: origin as listed per piece, front -Y in Blender = +Z in Unity local. Place with the position given, rotation (0, 180, 0): the front then faces the room (-z) and Blender X/Y read as world x/z.",
+ "pieces": [
+  {
+   "name": "CK_FrontCounter",
+   "group": "Bar",
+   "what": "the front counter: one piece, stone top 1.095, half-round end, lowered section, repair bar ledge, foot rail",
+   "stretch": false,
+   "tris": 1392,
+   "size": [
+    12.27,
+    1.095,
+    1.08
+   ],
+   "bottom": 0.0,
+   "back": 0.47,
+   "materials": [
+    "CF_Stone",
+    "CC_Wood_Espresso",
+    "CC_Wood_Counter",
+    "CC_Dark_Kick",
+    "DC_Steel"
+   ],
+   "islands": 35,
+   "placement": {
+    "position": [
+     -1.265,
+     0.0,
+     13.77
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "note": "Unity world; turned 180 about Y so the front faces the room (-z)"
+   }
+  },
+  {
+   "name": "CK_RepairBench",
+   "group": "Bar",
+   "what": "the repair bench: chestnut top 1.005, two 5-drawer pedestals, modesty panel, power strip, low glass screen",
+   "stretch": false,
+   "tris": 1780,
+   "size": [
+    3.194,
+    1.43,
+    0.791
+   ],
+   "bottom": 0.0,
+   "back": 0.396,
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick",
+    "T2_Brass",
+    "DC_SteelDark",
+    "DC_Ceramic",
+    "CF_LightStrip",
+    "DC_Steel",
+    "CF_Glass"
+   ],
+   "islands": 75,
+   "placement": {
+    "position": [
+     -4.2,
+     0.0,
+     14.055
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "note": "Unity world; turned 180 about Y so the front faces the room (-z)"
+   }
+  },
+  {
+   "name": "CK_BackBar",
+   "group": "Bar",
+   "what": "the back bar base run: stone top 1.00, 21 doors with 6 mm reveals, kick, end panel (wall piece)",
+   "stretch": false,
+   "tris": 1928,
+   "size": [
+    12.3,
+    1.0,
+    1.112
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "CF_Stone",
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick",
+    "T2_Brass"
+   ],
+   "islands": 88,
+   "placement": {
+    "position": [
+     -1.25,
+     0.0,
+     18.0
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "note": "Unity world; turned 180 about Y so the front faces the room (-z)"
+   }
+  },
+  {
+   "name": "CK_BackBarShelf",
+   "group": "Bar",
+   "what": "the long chestnut shelf, bottom at 1.75, steel brackets every 1.2 m, light channel and strip (wall piece)",
+   "stretch": false,
+   "tris": 356,
+   "size": [
+    8.7,
+    0.26,
+    0.3
+   ],
+   "bottom": -0.2,
+   "back": 0.0,
+   "materials": [
+    "CC_Wood_Counter",
+    "DC_Steel",
+    "CF_LightStrip"
+   ],
+   "islands": 27,
+   "placement": {
+    "position": [
+     0.55,
+     1.75,
+     18.0
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "note": "Unity world; turned 180 about Y so the front faces the room (-z)"
+   }
+  },
+  {
+   "name": "CK_Backsplash",
+   "group": "Bar",
+   "what": "the tile backsplash 1.00-1.75, 2 cm proud, edge trim at the east end (wall piece)",
+   "stretch": false,
+   "tris": 24,
+   "size": [
+    8.706,
+    0.754,
+    0.022
+   ],
+   "bottom": -0.002,
+   "back": 0.0,
+   "materials": [
+    "CF_Tile",
+    "DC_Steel"
+   ],
+   "islands": 2,
+   "placement": {
+    "position": [
+     0.55,
+     1.0,
+     18.0
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "note": "Unity world; turned 180 about Y so the front faces the room (-z)"
+   }
+  },
+  {
+   "name": "CK_PartsWall",
+   "group": "Bar",
+   "what": "the parts wall: 72 labelled drawers, 4 x 18, label cards UV-mapped to CF_DrawerLabels (wall piece)",
+   "stretch": false,
+   "tris": 2216,
+   "size": [
+    3.6,
+    0.752,
+    0.318
+   ],
+   "bottom": -0.002,
+   "back": -0.001,
+   "materials": [
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick",
+    "T2_Brass",
+    "CF_DrawerLabels"
+   ],
+   "islands": 290,
+   "placement": {
+    "position": [
+     -5.6,
+     1.0,
+     18.0
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "note": "Unity world; turned 180 about Y so the front faces the room (-z)"
+   }
+  },
+  {
+   "name": "CK_BenchLamp",
+   "group": "Bar",
+   "what": "the bench magnifier lamp: clamp, post, two arms with springs, 5-dioptre lens head with LED ring",
+   "stretch": false,
+   "tris": 964,
+   "size": [
+    0.384,
+    0.765,
+    0.608
+   ],
+   "bottom": 0.0,
+   "back": 0.062,
+   "materials": [
+    "DC_SteelDark",
+    "DC_Steel",
+    "CF_Enamel",
+    "CF_Glass",
+    "CF_LightStrip"
+   ],
+   "islands": 28,
+   "placement": {
+    "position": [
+     -5.3,
+     0.85,
+     14.41
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "note": "Unity world; turned 180 about Y so the front faces the room (-z)"
+   },
+   "light": {
+    "type": "Spot",
+    "world_position": [
+     -5.034,
+     1.4,
+     13.998
+    ],
+    "local_position": [
+     -0.266,
+     0.55,
+     0.412
+    ],
+    "local_euler": [
+     90,
+     0,
+     0
+    ],
+    "direction_world": [
+     0,
+     -1,
+     0
+    ],
+    "colour": "#FFE4C2",
+    "intensity": 1.6,
+    "range": 1.5,
+    "spot_angle": 50,
+    "shadows": "None",
+    "head_centre_world": [
+     -5.034,
+     1.425,
+     13.998
+    ],
+    "head_centre_local": [
+     -0.266,
+     0.575,
+     0.412
+    ]
+   }
+  }
+ ],
+ "materials": {
+  "CF_Stone": {
+   "hex": "E6E1D7",
+   "smoothness": 0.65,
+   "metallic": 0,
+   "note": "pale honed stone, tiling texture CF_Stone (1 tile = 1.0 m)"
+  },
+  "CC_Wood_Espresso": {
+   "hex": "4A3422",
+   "smoothness": 0.38,
+   "metallic": 0,
+   "note": "existing; boards (CF_Boards) on the counter face and the doors"
+  },
+  "CC_Dark_Kick": {
+   "hex": "2A1E16",
+   "smoothness": 0.3,
+   "metallic": 0,
+   "note": "existing; kicks and reveals"
+  },
+  "CC_Wood_Counter": {
+   "hex": "8F5B32",
+   "smoothness": 0.71,
+   "metallic": 0,
+   "note": "existing; chestnut: bench top, shelf"
+  },
+  "DC_Steel": {
+   "hex": "93908A",
+   "smoothness": 0.5,
+   "metallic": 0,
+   "note": "existing; warm steel, metallic 0"
+  },
+  "DC_SteelDark": {
+   "hex": "4E4B47",
+   "smoothness": 0.5,
+   "metallic": 0,
+   "note": "existing; dark warm steel, metallic 0"
+  },
+  "T2_Brass": {
+   "hex": "B8933F",
+   "smoothness": 0.5,
+   "metallic": 0,
+   "note": "existing; brass, metallic 0"
+  },
+  "DC_Ceramic": {
+   "hex": "F2EFE8",
+   "smoothness": 0.3,
+   "metallic": 0,
+   "note": "existing; the power strip's socket faces"
+  },
+  "CF_Tile": {
+   "hex": "EDE4D3",
+   "smoothness": 0.7,
+   "metallic": 0,
+   "note": "glazed tile, tiling texture CF_Tile (5 x 20 cm, 1 tile = 1.0 m)"
+  },
+  "CF_Glass": {
+   "hex": "DCE6E4",
+   "smoothness": 0.9,
+   "metallic": 0,
+   "transparent": true,
+   "note": "transparent in Unity"
+  },
+  "CF_Enamel": {
+   "hex": "F2EFE8",
+   "smoothness": 0.6,
+   "metallic": 0,
+   "note": "cream enamel, the pendants' shade colour: the lamp head"
+  },
+  "CF_LightStrip": {
+   "hex": "FFD7A8",
+   "smoothness": 0.5,
+   "metallic": 0,
+   "emission": "FFD7A8",
+   "note": "NEW: emissive warm white (shelf strip, lamp LED ring, strip switch)"
+  },
+  "CF_DrawerLabels": {
+   "hex": "EDE6D6",
+   "smoothness": 0.2,
+   "metallic": 0,
+   "texture": "Assets/Art/Textures/Cafe/CF_DrawerLabels.png",
+   "note": "the label atlas, 18 x 4 cells (Words lead); faces carry UVs"
+  }
+ }
+}

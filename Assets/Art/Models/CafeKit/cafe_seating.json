@@ -1,0 +1,459 @@
+{
+ "version": 1,
+ "kit": "cafe_seating",
+ "built_by": "cafe_seating.py",
+ "pieces": [
+  {
+   "name": "CK_BanquetteBay",
+   "group": "Banquette",
+   "what": "one 2.10 m bay of the built-in banquette: seat front 0.45, channel back to 0.765 (wall piece)",
+   "tris": 1052,
+   "size": [
+    2.1,
+    0.765,
+    0.554
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "CC_Dark_Kick",
+    "CC_Wood_Espresso",
+    "DC_Fabric"
+   ],
+   "islands": 8,
+   "replaces": null,
+   "wall": true,
+   "collider": {
+    "centre": [
+     0.0,
+     0.3825,
+     0.277
+    ],
+    "size": [
+     2.1,
+     0.765,
+     0.554
+    ]
+   },
+   "seats": [
+    {
+     "pose": [
+      0.0,
+      0.444,
+      0.28
+     ],
+     "rim": 0.45,
+     "faces": [
+      0,
+      0,
+      1
+     ],
+     "style": "Bench",
+     "along_x": [
+      -1.0,
+      1.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CK_BanquetteEnd",
+   "group": "Banquette",
+   "what": "the banquette run's finished end panel, 0.04 thick (wall piece; the same mesh at both ends)",
+   "tris": 52,
+   "size": [
+    0.04,
+    0.765,
+    0.565
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "CC_Wood_Espresso"
+   ],
+   "islands": 1,
+   "replaces": null,
+   "wall": true,
+   "collider": {
+    "centre": [
+     0.0,
+     0.3825,
+     0.2825
+    ],
+    "size": [
+     0.04,
+     0.765,
+     0.565
+    ]
+   }
+  },
+  {
+   "name": "CK_CommunalTable",
+   "group": "Tables",
+   "what": "communal table 3.60 x 0.90 x 0.75, three trestles, long along Unity Z",
+   "tris": 1600,
+   "size": [
+    0.9,
+    0.75,
+    3.6
+   ],
+   "bottom": 0.0,
+   "back": 1.8,
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Dark_Kick",
+    "CC_Wood_Espresso"
+   ],
+   "islands": 44,
+   "replaces": null,
+   "wall": false,
+   "collider": {
+    "centre": [
+     0.0,
+     0.375,
+     0.0
+    ],
+    "size": [
+     0.9,
+     0.75,
+     3.6
+    ]
+   }
+  },
+  {
+   "name": "CK_WindowCounter",
+   "group": "Counters",
+   "what": "window counter 4.00 x 0.45, top at 1.05, on four knee-wall brackets (wall piece)",
+   "tris": 604,
+   "size": [
+    4.0,
+    0.71,
+    0.45
+   ],
+   "bottom": 0.34,
+   "back": 0.0,
+   "materials": [
+    "CC_Wood_Counter",
+    "DC_Steel",
+    "CC_Dark_Kick"
+   ],
+   "islands": 33,
+   "replaces": null,
+   "wall": true,
+   "collider": {
+    "centre": [
+     0.0,
+     0.695,
+     0.225
+    ],
+    "size": [
+     4.0,
+     0.71,
+     0.45
+    ]
+   }
+  },
+  {
+   "name": "CK_Chair_Cafe",
+   "group": "Seats",
+   "what": "cafe chair, ladder back, seat 0.451 (replaces Chair_Cafe)",
+   "tris": 1458,
+   "size": [
+    0.447,
+    0.895,
+    0.521
+   ],
+   "bottom": 0.0,
+   "back": 0.26,
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick"
+   ],
+   "islands": 28,
+   "replaces": "Chair_Cafe",
+   "wall": false,
+   "collider": {
+    "centre": [
+     0.0,
+     0.4475,
+     0.0005
+    ],
+    "size": [
+     0.447,
+     0.895,
+     0.521
+    ]
+   },
+   "seats": [
+    {
+     "pose": [
+      0.0,
+      0.4444,
+      0.0356
+     ],
+     "rim": 0.4511,
+     "faces": [
+      0,
+      0,
+      1
+     ],
+     "style": "Chair"
+    }
+   ]
+  },
+  {
+   "name": "CK_Chair_Spindle",
+   "group": "Seats",
+   "what": "spindle chair, Windsor stick-back, seat 0.452 (replaces Chair_Spindle)",
+   "tris": 1330,
+   "size": [
+    0.424,
+    0.863,
+    0.484
+   ],
+   "bottom": 0.0,
+   "back": 0.242,
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick"
+   ],
+   "islands": 28,
+   "replaces": "Chair_Spindle",
+   "wall": false,
+   "collider": {
+    "centre": [
+     0.0,
+     0.4315,
+     0.0
+    ],
+    "size": [
+     0.424,
+     0.863,
+     0.484
+    ]
+   },
+   "seats": [
+    {
+     "pose": [
+      0.0,
+      0.443,
+      0.0303
+     ],
+     "rim": 0.4524,
+     "faces": [
+      0,
+      0,
+      1
+     ],
+     "style": "Chair"
+    }
+   ]
+  },
+  {
+   "name": "CK_Stool_Bar",
+   "group": "Seats",
+   "what": "bar stool with backrest and foot ring, seat 0.752 (replaces Stool_Bar)",
+   "tris": 874,
+   "size": [
+    0.385,
+    1.039,
+    0.401
+   ],
+   "bottom": 0.0,
+   "back": 0.2,
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick",
+    "DC_SteelDark"
+   ],
+   "islands": 11,
+   "replaces": "Stool_Bar",
+   "wall": false,
+   "collider": {
+    "centre": [
+     0.0,
+     0.5195,
+     0.0005
+    ],
+    "size": [
+     0.385,
+     1.039,
+     0.401
+    ]
+   },
+   "seats": [
+    {
+     "pose": [
+      0.0,
+      0.7449,
+      0.0065
+     ],
+     "rim": 0.7517,
+     "faces": [
+      0,
+      0,
+      1
+     ],
+     "style": "Chair"
+    }
+   ]
+  },
+  {
+   "name": "CK_Stool_Low",
+   "group": "Seats",
+   "what": "low three-legged stool, seat 0.452 (replaces Stool_Low)",
+   "tris": 778,
+   "size": [
+    0.341,
+    0.452,
+    0.326
+   ],
+   "bottom": 0.0,
+   "back": 0.163,
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Wood_Espresso",
+    "CC_Dark_Kick"
+   ],
+   "islands": 16,
+   "replaces": "Stool_Low",
+   "wall": false,
+   "collider": {
+    "centre": [
+     0.0,
+     0.226,
+     0.0
+    ],
+    "size": [
+     0.341,
+     0.452,
+     0.326
+    ]
+   },
+   "seats": [
+    {
+     "pose": [
+      0.0115,
+      0.4452,
+      0.0
+     ],
+     "rim": 0.4522,
+     "faces": [
+      0,
+      0,
+      1
+     ],
+     "style": "Chair"
+    }
+   ]
+  },
+  {
+   "name": "CK_Table_BistroRound",
+   "group": "Tables",
+   "what": "bistro pedestal 2-top, 0.72 round, 0.75 (replaces Table_BistroRound)",
+   "tris": 1104,
+   "size": [
+    0.72,
+    0.75,
+    0.72
+   ],
+   "bottom": 0.0,
+   "back": 0.36,
+   "materials": [
+    "CC_Wood_Counter",
+    "DC_SteelDark",
+    "CC_Dark_Kick"
+   ],
+   "islands": 18,
+   "replaces": "Table_BistroRound",
+   "wall": false,
+   "collider": {
+    "centre": [
+     0.0,
+     0.375,
+     0.0
+    ],
+    "size": [
+     0.72,
+     0.75,
+     0.72
+    ]
+   }
+  },
+  {
+   "name": "CK_Table_Square2",
+   "group": "Tables",
+   "what": "square 2-top, 0.72, 0.75 (replaces Table_Square2)",
+   "tris": 1120,
+   "size": [
+    0.72,
+    0.75,
+    0.72
+   ],
+   "bottom": 0.0,
+   "back": 0.36,
+   "materials": [
+    "CC_Wood_Counter",
+    "CC_Dark_Kick",
+    "CC_Wood_Espresso"
+   ],
+   "islands": 36,
+   "replaces": "Table_Square2",
+   "wall": false,
+   "collider": {
+    "centre": [
+     0.0,
+     0.375,
+     0.0
+    ],
+    "size": [
+     0.72,
+     0.75,
+     0.72
+    ]
+   }
+  }
+ ],
+ "materials": {
+  "CC_Wood_Counter": {
+   "hex": "8F5B32",
+   "smoothness": 0.71,
+   "metallic": 0,
+   "existing": true
+  },
+  "CC_Wood_Espresso": {
+   "hex": "4A3422",
+   "smoothness": 0.38,
+   "metallic": 0,
+   "existing": true
+  },
+  "CC_Dark_Kick": {
+   "hex": "2A1E16",
+   "smoothness": 0.3,
+   "metallic": 0,
+   "existing": true
+  },
+  "DC_Fabric": {
+   "hex": "A8957C",
+   "smoothness": 0.12,
+   "metallic": 0,
+   "existing": true
+  },
+  "DC_Steel": {
+   "hex": "93908A",
+   "smoothness": 0.5,
+   "metallic": 0,
+   "existing": true
+  },
+  "DC_SteelDark": {
+   "hex": "4E4B47",
+   "smoothness": 0.5,
+   "metallic": 0,
+   "existing": true
+  }
+ },
+ "notes": "Unity (x, y, z) = Blender (-x, z, -y). Seat poses and colliders are in each piece's own Unity frame. Every material is an existing project material (Assets/Art/Materials), mapped by name."
+}

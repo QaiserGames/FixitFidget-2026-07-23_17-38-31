@@ -32,6 +32,12 @@ using Object = UnityEngine.Object;
 //     itself, the reactions, and any time a beat showed while the body was moving.
 // While a clip is being tested the person's own ambient life is paused and their
 // patience (or a patron's stay) is topped up, so nothing else interferes.
+//
+// THE SEAT PLAN (Seats 1, 10 Oct 2026): every one of its 24 seats has a table or a
+// counter in front and the lounge is off, so there is no seat without a table for
+// the sofa-only clips. Then the check says so (every seat has a table in front),
+// doesn't wait for a sofa sitter, skips the sofa clips, and tries getting up
+// mid-beat with the patron at the table instead.
 // Report: <project>/Logs/NpcMixamo/beat-check-<time>.txt.
 public static class NpcBeatChecks
 {
@@ -140,8 +146,14 @@ public static class NpcBeatChecks
         var lounge = seats.Where(s => s.transform.parent != null && s.transform.parent.name == LoungeGroup).ToArray();
         var withTable = seats.Where(NpcBeats.TableInFront).ToArray();
         var noTable = seats.Where(s => !NpcBeats.TableInFront(s)).ToArray();
-        Check(lounge.Length > 0 && lounge.All(s => noTable.Contains(s)) && noTable.All(s => lounge.Contains(s)),
-              $"Seats without a table in front are exactly the lounge seats ({noTable.Length} without, {lounge.Length} lounge, {withTable.Length} with a table)");
+        // Since the seat plan: no lounge and no seat without a table in front.
+        bool noSofa = lounge.Length == 0 && noTable.Length == 0;
+        if (noSofa)
+            Check(seats.Length > 0 && withTable.Length == seats.Length,
+                  $"Seat plan: every seat has a table or counter in front, so no seat takes the sofa-only clips ({withTable.Length} of {seats.Length})");
+        else
+            Check(lounge.Length > 0 && lounge.All(s => noTable.Contains(s)) && noTable.All(s => lounge.Contains(s)),
+                  $"Seats without a table in front are exactly the lounge seats ({noTable.Length} without, {lounge.Length} lounge, {withTable.Length} with a table)");
         // Leave two café chairs and the lounge free, so patrons land in both kinds of seat.
         var keepFree = withTable.Where(s => !s.IsOccupied && s.SnapToSeat).OrderBy(s => s.name, StringComparer.Ordinal).Take(2).ToList();
         foreach (TableSeat seat in withTable)
@@ -161,11 +173,12 @@ public static class NpcBeatChecks
             onSofa = Seated(noTable).FirstOrDefault();
             inQueue = Object.FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude)
                 .FirstOrDefault(c => c.CanHearIntake && c.GetComponent<NpcLocomotion>() is NpcLocomotion l && !l.IsMoving && l.Speed < .05f);
-            if (atTable != null && onSofa != null && inQueue != null) break;
+            if (atTable != null && (onSofa != null || noSofa) && inQueue != null) break;
             yield return null;
         }
         Check(atTable != null, "A patron sat at a café chair" + (atTable != null ? $" ({atTable.Seat.name})" : ""));
-        Check(onSofa != null, "A patron sat on a lounge seat" + (onSofa != null ? $" ({onSofa.Seat.name})" : ""));
+        if (noSofa) Note("Seat plan: no lounge seat, so no patron sits on one and the sofa clips aren't tried.");
+        else Check(onSofa != null, "A patron sat on a lounge seat" + (onSofa != null ? $" ({onSofa.Seat.name})" : ""));
         Check(inQueue != null, "A customer stands in the queue" + (inQueue != null ? $" ({inQueue.CustomerName})" : ""));
         // From here the two patrons stay seated until the check lets them go.
         keepSeated = new[] { atTable, onSofa }.Where(s => s != null).Select(s => s.GetComponent<PatronBrain>()).Where(p => p != null).ToArray();
@@ -236,23 +249,25 @@ public static class NpcBeatChecks
         }
 
         // ---------- 4. called away mid-beat ----------
-        if (onSofa != null)
+        // (Since the seat plan, with no sofa, the patron at the table is called away instead.)
+        NpcSeating leaver = onSofa != null ? onSofa : noSofa ? atTable : null;
+        if (leaver != null)
         {
-            var b = onSofa.GetComponent<NpcBeats>();
+            var b = leaver.GetComponent<NpcBeats>();
             b.PlayClip(NpcBeats.Clip.SitBreathing, 8f);
             yield return Wait(1f);
-            keepSeated = keepSeated.Where(p => p != null && p.gameObject != onSofa.gameObject).ToArray();
-            LeaveAtField?.SetValue(onSofa.GetComponent<PatronBrain>(), Time.time);
+            keepSeated = keepSeated.Where(p => p != null && p.gameObject != leaver.gameObject).ToArray();
+            LeaveAtField?.SetValue(leaver.GetComponent<PatronBrain>(), Time.time);
             float rising = -1f, cleared = -1f;
             deadline = Time.time + 6f;
             while (Time.time < deadline && cleared < 0f)
             {
-                if (rising < 0f && onSofa.Current != NpcSeating.Phase.Seated) rising = Time.time;
+                if (rising < 0f && leaver.Current != NpcSeating.Phase.Seated) rising = Time.time;
                 if (rising >= 0f && b.Shown < .1f) cleared = Time.time;
                 yield return null;
             }
             Check(rising >= 0f && cleared >= 0f && cleared - rising <= .35f,
-                  $"Getting up from the sofa mid-beat: the beat is gone {(cleared >= 0f && rising >= 0f ? $"{(cleared - rising) * 1000f:0} ms" : "never")} after they start to rise");
+                  $"Getting up from the {(leaver == onSofa ? "sofa" : "table")} mid-beat: the beat is gone {(cleared >= 0f && rising >= 0f ? $"{(cleared - rising) * 1000f:0} ms" : "never")} after they start to rise");
         }
         if (inQueue != null)
         {

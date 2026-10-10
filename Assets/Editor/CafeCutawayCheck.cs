@@ -28,11 +28,21 @@ using Object = UnityEngine.Object;
 //   * first person puts every wall straight back.
 // Photos from the game camera and a report go to Logs/CafeWalls/cutaway-<time>/.
 // The camera is put back where it was at the end.
+//
+// 10 Oct 2026 (the café redesign, Bar 2 - The back bar): that step takes the old
+// back-wall decor away (the chalk menu, the clock, the tile band, the sconces, the
+// coffee shelf, the pegboard, the cup shelf) and hangs the kit's own. With its
+// record on the café's root, the pieces expected to fade with the back wall are
+// the menu board, the long shelf, the tile, the bean bags and the pothos, and the
+// ones expected to stay solid are the back bar, the parts wall and the grinder;
+// without it, the old list as before.
 // ---------------------------------------------------------------------------
 public static class CafeCutawayCheck
 {
     const string Menu = "Fixit Fidget/Checks/Wall cut-away (Play Mode, lab session)";
     const float Settle = 1.2f; // fade (0.35 s) + rise delay (0.5 s) + margin
+    // The redesign's back bar step (CafeBarSteps), as its record names it.
+    const string BackBarStep = "Bar 2 - The back bar";
 
     static IEnumerator routine;
     static double resumeAt;
@@ -254,14 +264,31 @@ public static class CafeCutawayCheck
         Note("Faded with the back wall: " + string.Join(", ", faded.Select(Path3).Distinct()));
         Check(faded.Length > 0, $"Things fixed to the back wall fade with it ({faded.Length} pieces)");
         Check(faded.All(r => r.forceRenderingOff || r.sharedMaterials.All(WearsDots)), "…each wearing the dots (or hidden, when its shader has none)");
-        foreach (string expected in new[] { "Chalkboard face", "Walls - Clock_01", "Subway tile backsplash", "Lamp shade", "CoffeeShelf_InteriorOak", "RepairWallTools_InteriorOak" })
-            Check(faded.Any(r => r.name == expected), $"…including {expected}");
-        bool shelf = faded.Any(r => r.name.StartsWith("Back bar cup shelf", StringComparison.Ordinal));
-        Check(shelf, "…including the back-bar cup shelf (needs Second pass > Give the back-bar cup shelf its own mesh)");
+        bool backBar = Object.FindObjectsByType<CafeRedesignRecord>(FindObjectsInactive.Include).Any(r => r != null && r.step == BackBarStep);
+        if (backBar)
+        {
+            Note("The redesign's back bar is in (\"" + BackBarStep + "\" on the café's root): its wall pieces should fade, its counter pieces stay.");
+            foreach (string expected in new[] { "CK_MenuBoard", "CK_BackBarShelf", "CK_Backsplash", "CK_BeanBag", "CK_Pothos" })
+                Check(faded.Any(r => Piece(r, expected)), $"…including {expected}");
+        }
+        else
+        {
+            foreach (string expected in new[] { "Chalkboard face", "Walls - Clock_01", "Subway tile backsplash", "Lamp shade", "CoffeeShelf_InteriorOak", "RepairWallTools_InteriorOak" })
+                Check(faded.Any(r => r.name == expected), $"…including {expected}");
+            bool shelf = faded.Any(r => r.name.StartsWith("Back bar cup shelf", StringComparison.Ordinal));
+            Check(shelf, "…including the back-bar cup shelf (needs Second pass > Give the back-bar cup shelf its own mesh)");
+        }
         Check(faded.All(r => r.GetComponentInParent<Interactable>(true) == null && r.GetComponentInParent<Rigidbody>(true) == null),
             "Nothing faded is something Ace or a customer uses");
         // Things standing on the counters and the floor stay solid.
         var all = Object.FindObjectsByType<Renderer>(FindObjectsInactive.Exclude);
+        if (backBar)
+            foreach (string stays in new[] { "CK_BackBar", "CK_PartsWall", "CK_Grinder" })
+            {
+                Renderer[] those = all.Where(x => Piece(x, stays)).ToArray();
+                Check(those.Length > 0 && those.All(r => !SeeThroughMaterials.IsWorn(r) && !r.forceRenderingOff),
+                    $"{stays} stays solid: it stands on the floor or on the back bar ({those.Length} renderer(s))");
+            }
         foreach (string stays in new[] { "Drinks - Bottle_01", "Drink countertop", "Carcass", "Body", "Coffee sacks" })
         {
             Renderer r = all.FirstOrDefault(x => x.name == stays && Vector3.Distance(x.bounds.center, new Vector3(x.bounds.center.x, 1f, 17.6f)) < 1.2f);
@@ -293,6 +320,16 @@ public static class CafeCutawayCheck
             RenderTexture.ReleaseTemporary(rt);
             Object.DestroyImmediate(texture);
         }
+    }
+
+    // A café-kit piece: the renderer, or one of its two parents, named for it ("CK_BackBar (the back bar run)" is the
+    // back bar; "CK_BackBarShelf (the long shelf)" is not).
+    static bool Piece(Renderer r, string piece)
+    {
+        Transform t = r.transform;
+        for (int i = 0; i < 3 && t != null; i++, t = t.parent)
+            if (t.name == piece || t.name.StartsWith(piece + " ", StringComparison.Ordinal) || t.name.StartsWith(piece + "(", StringComparison.Ordinal)) return true;
+        return false;
     }
 
     static string Path3(Renderer r)

@@ -25,6 +25,16 @@ using Object = UnityEngine.Object;
 // released), and the life layer's plumbing (profiles assigned and varied,
 // idle beats happening, a forced chat and a forced exchange doing what they
 // say on the tin, arrival looks). Nothing is saved.
+//
+// THE SEAT PLAN (Seats 1, 10 Oct 2026). The San Francisco seat plan switches the
+// lounge off (its five seats stay in the scene, inactive) and its benches are the
+// banquette's three seats. Once Seats 1's record is in the scene: the setup checks
+// those three bench seats where it checked the five lounge seats, and every two
+// live seats' claim clearance where it checked the reading sofa's pair; the play
+// check runs on five seats under test - the banquette's three and the two chairs of
+// one bistro 2-top (the forced chat needs two sitters within 1.2 m who face each
+// other: the bistro pair sits 1.18 m apart). Before Seats 1, and after its Undo,
+// everything is checked as it was.
 // Reports: <project>/Logs/NpcLife/.
 public static class NpcLifeChecks
 {
@@ -129,13 +139,20 @@ public static class NpcLifeChecks
             Check(library.ForKey("grace") == library.ForKey("grace") && library.ForKey("someone") == library.ForKey("someone"), "A regular's fallback profile is the same every time");
         }
 
-        // Lounge seats.
+        // Lounge seats (since the seat plan: the banquette's bench seats).
         var seats = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Include);
         var lounge = seats.Where(s => s.transform.parent != null && s.transform.parent.name == LoungeGroup).ToArray();
-        Check(lounge.Length == 5, $"Five lounge seats under '{LoungeGroup}' ({lounge.Length})");
+        bool seatPlan = SeatPlanLaid();
+        var benches = seatPlan ? seats.Where(s => s.gameObject.activeInHierarchy && s.Style == TableSeat.SitStyle.Bench).ToArray() : lounge;
+        if (seatPlan)
+        {
+            Check(benches.Length == 3, $"Seat plan: three bench seats at the banquette ({benches.Length}); the lounge's {lounge.Length} are off ({lounge.Count(s => !s.gameObject.activeInHierarchy)} inactive)");
+            Check(lounge.All(s => !s.gameObject.activeInHierarchy), "Seat plan: no lounge seat is live");
+        }
+        else Check(lounge.Length == 5, $"Five lounge seats under '{LoungeGroup}' ({lounge.Length})");
         Check(seats.Length >= 21, $"At least 21 table seats in the scene ({seats.Length})");
         Vector3 door = new Vector3(0f, 0f, 1.5f);
-        foreach (TableSeat seat in lounge)
+        foreach (TableSeat seat in benches)
         {
             bool onMesh = NavMesh.SamplePosition(seat.StandPoint.position, out NavMeshHit hit, .2f, NavMesh.AllAreas);
             var path = new NavMeshPath();
@@ -144,7 +161,7 @@ public static class NpcLifeChecks
             float h = seat.SeatPose.position.y;
             Check(h > .38f && h < .52f, $"'{seat.name}': seat pose at cushion height ({h:0.00} m)");
             Check(seat.SnapToSeat, $"'{seat.name}': Snap To Seat on");
-            bool bench = seat.name.Contains("sofa");
+            bool bench = seatPlan || seat.name.Contains("sofa");
             Check(seat.Style == (bench ? TableSeat.SitStyle.Bench : TableSeat.SitStyle.Chair), $"'{seat.name}': sit style {seat.Style}");
             if (bench) Check(seat.ClearanceRadius > 0f && seat.ClearanceRadius < .4f, $"'{seat.name}': bench clearance footprint ({seat.ClearanceRadius:0.00} m)");
             Vector3 f = seat.FacingPoint - seat.SeatPose.position; f.y = 0f;
@@ -168,7 +185,23 @@ public static class NpcLifeChecks
         Check(plateau == 0, $"No walkable NavMesh between 0.2 and 0.9 m that people can walk up onto ({plateau} connected sample points{(plateau > 0 ? $", highest {highest:0.00} m at {where}" : "")}; {islands} unreachable table-top islands ignored)");
 
         // Two bench seats 0.75 m apart may both be claimed (the footprint rule).
-        if (lounge.Length == 5)
+        if (seatPlan)
+        {
+            // Since the seat plan: any two live seats may both be claimed (WaitingArea.HasClaimClearance: each seat's own
+            // footprint, else 0.3 for a chair people sit on, else a standing body's 0.35 + 0.30, plus 0.1 between them).
+            var live = seats.Where(s => s.gameObject.activeInHierarchy).ToArray();
+            float worst = float.MaxValue, apartAt = 0f, needAt = 0f;
+            string pair = "";
+            for (int i = 0; i < live.Length; i++)
+                for (int j = i + 1; j < live.Length; j++)
+                {
+                    float apart = Flat(live[i].StandPoint.position - live[j].StandPoint.position).magnitude;
+                    float need = Footprint(live[i]) + Footprint(live[j]) + .1f;
+                    if (apart - need < worst) { worst = apart - need; apartAt = apart; needAt = need; pair = $"'{live[i].name}' and '{live[j].name}'"; }
+                }
+            Check(live.Length > 1 && worst >= 0f, $"Any two of the {live.Length} live seats can both be claimed (tightest: {pair}, stand points {apartAt:0.00} m apart, need {needAt:0.00})");
+        }
+        else if (lounge.Length == 5)
         {
             var reading = lounge.Where(s => s.name.StartsWith("Reading")).ToArray();
             if (reading.Length == 2)
@@ -236,8 +269,13 @@ public static class NpcLifeChecks
 
         var all = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude);
         var lounge = all.Where(s => s.transform.parent != null && s.transform.parent.name == LoungeGroup).ToArray();
+        // Since the seat plan the lounge is off: the five seats under test are the banquette's three and a bistro pair.
+        bool seatPlan = lounge.Length == 0 && SeatPlanLaid();
+        if (seatPlan) lounge = SeatsUnderTest(all);
         var tables = all.Where(s => !lounge.Contains(s)).ToArray();
-        Check(lounge.Length == 5, $"Five lounge seats are live ({lounge.Length})");
+        Check(lounge.Length == 5, seatPlan
+            ? $"Seat plan: five seats under test are live, the banquette's bench seats and a bistro 2-top's chairs ({string.Join(", ", lounge.Select(s => s.name))})"
+            : $"Five lounge seats are live ({lounge.Length})");
         if (lounge.Length == 0) yield break;
 
         // ---------- 1. simultaneous claims ----------
@@ -545,7 +583,7 @@ public static class NpcLifeChecks
     {
         var chairs = exitResults.Where(r => !r.bench).ToList();
         var all = exitResults;
-        Check(all.Count >= 4 && chairs.Count >= 2, $"Walks out of seats were followed onto their next leg ({all.Count}: {chairs.Count} from chairs, {all.Count - chairs.Count} from sofas)");
+        Check(all.Count >= 4 && chairs.Count >= 2, $"Walks out of seats were followed onto their next leg ({all.Count}: {chairs.Count} from chairs, {all.Count - chairs.Count} from sofas or the banquette)");
         if (all.Count == 0) return;
         float[] oneWay = all.Select(r => r.oneWay).OrderBy(x => x).ToArray();
         float[] total = all.Select(r => r.total).OrderBy(x => x).ToArray();
@@ -630,6 +668,32 @@ public static class NpcLifeChecks
                 list.Add((s.name.Replace("(Clone)", ""), s, s.Seat));
         return list;
     }
+
+    // Seats 1's record (CafeRedesignRecord on the café's root) says the San Francisco seat plan is laid.
+    private static bool SeatPlanLaid() =>
+        Object.FindObjectsByType<CafeRedesignRecord>(FindObjectsInactive.Include).Any(r => r.step == "Seats 1 - The San Francisco seat plan");
+
+    // The seat plan's seats under test: every live bench seat (the banquette's three), then the first two chairs people sit
+    // on that face each other within 1.2 m (a bistro 2-top), so the forced chat has its pair.
+    private static TableSeat[] SeatsUnderTest(TableSeat[] all)
+    {
+        var benches = all.Where(s => s.SnapToSeat && s.Style == TableSeat.SitStyle.Bench).OrderBy(s => s.name, StringComparer.Ordinal).ToList();
+        var chairs = all.Where(s => s.SnapToSeat && s.Style == TableSeat.SitStyle.Chair)
+            .OrderBy(s => s.transform.parent != null ? s.transform.parent.name : "", StringComparer.Ordinal).ThenBy(s => s.name, StringComparer.Ordinal).ToList();
+        foreach (TableSeat a in chairs)
+            foreach (TableSeat b in chairs)
+            {
+                if (a == b) continue;
+                Vector3 fa = Flat(a.FacingPoint - a.SeatPose.position).normalized, fb = Flat(b.FacingPoint - b.SeatPose.position).normalized;
+                if (Vector3.Distance(a.SeatPose.position, b.SeatPose.position) < 1.2f && Vector3.Dot(fa, fb) < -.8f)
+                    return benches.Concat(new[] { a, b }).ToArray();
+            }
+        return benches.ToArray();
+    }
+
+    // As WaitingArea.Footprint for an occupied seat: its own footprint, else 0.3 for a chair people sit on, else a standing
+    // body's (radius 0.35 and its 0.30 arrival margin, as the occupied-circulation guard models it).
+    private static float Footprint(TableSeat seat) => seat.ClearanceRadius > 0f ? seat.ClearanceRadius : seat.SnapToSeat ? .3f : .65f;
 
     private static Component Dummy(string name)
     {
