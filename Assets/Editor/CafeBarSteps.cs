@@ -271,6 +271,9 @@ internal static class CafeBarSteps
     static readonly (string path, int count, string why)[] BackOff =
     {
         ("Counter extensions and cabinetry/Rear storage", 1, "the storage cabinet (x -1.95..+1.54): the back bar's run replaces it"),
+        ("12 - authored cafe interior/Layered windows, open doors and woven textiles/CounterCabinetDetail", 1,
+         "the authored interior pass's sage door faces, brass pulls and oak top laid over the storage cabinet (x -1.98..+1.56): left on, they stand " +
+         "in front of the back bar's doors and 3 cm proud of its stone (Claude, 10 Oct: seen in Bar 2's first photos)"),
         ("Counter extensions and cabinetry/Drink countertop", 1, "the drinks counter's top: the back bar's stone top (1.00, the same height) replaces it"),
         ("Counter extensions and cabinetry/Drink cabinet face", 1, "the drinks counter's doors: the back bar's doors replace them"),
         ("12 - authored cafe interior/Cafe service details/Drink cabinet brass pull", 4, "the drinks counter's pulls: they went with its doors"),
@@ -1404,13 +1407,20 @@ internal static class CafeBarSteps
     static void Unchanged(Run run, Snapshot kept)
     {
         var moved = new List<string>();
+        // What this step moved on purpose (Bar 2: Night 1's trophy shelf, to x 1.75, Claude's 10 Oct patch) is checked where it
+        // was moved to, by its own checks; everything else must not have moved at all.
+        var meant = run.Record != null ? run.Record.moved.Where(m => m != null && m.target != null).Select(m => m.target).ToList() : new List<Transform>();
+        int skipped = 0;
         foreach (KeptPose k in kept.poses)
             if (k.t == null) moved.Add("(gone)");
+            else if (meant.Any(m => k.t.IsChildOf(m))) skipped++;
             else if (Vector3.Distance(k.t.position, k.p) > .001f || Quaternion.Angle(k.t.rotation, k.r) > .1f)
                 moved.Add($"{PathOf(k.t)} {V(k.p)} -> {V(k.t.position)}");
         foreach (KeptSolid s in kept.solids)
-            if (s.c == null || !s.c.enabled || !s.c.gameObject.activeInHierarchy || MaxError(s.c.bounds, s.b) > .001f)
+            if (s.c != null && meant.Any(m => s.c.transform.IsChildOf(m))) continue;
+            else if (s.c == null || !s.c.enabled || !s.c.gameObject.activeInHierarchy || MaxError(s.c.bounds, s.b) > .001f)
                 moved.Add($"{(s.c != null ? PathOf(s.c.transform) : "(gone)")}'s collider");
+        if (skipped > 0) run.Info($"{skipped} gameplay transform(s) this step moved on purpose ({string.Join(", ", meant.Select(m => m.name))}) are checked where they went, not here.");
         run.Check(moved.Count == 0, moved.Count == 0 ? $"the {kept.poses.Count} gameplay transforms and {kept.solids.Count} colliders stand where they stood (1 mm, 0.1°): " +
                                                        "the intake shelf and its slots, the counter station and its boxes, its stand point, the queue, the cameras, the work area, " +
                                                        "the dispenser, the cup stack, the basin, the drinks stand point, the waiting spots and seats, the spawn points, the doors, Ace's start"
@@ -1544,6 +1554,10 @@ internal static class CafeBarSteps
             GameObject prop = PropOf(r);
             if (found.Contains(prop) || gameplay != null && gameplay.Contains(prop)) continue;
             if (Held(run, prop.transform, b)) continue;
+            // An overhanging part (a tap, a spout, a handle) is held by the thing it belongs to: the whole prop is tried too
+            // (10 Oct: the dispenser's taps, over the new top, were taken for an unsupported gameplay object and the run failed).
+            Bounds whole = RendererBounds(prop.transform);
+            if (whole.size.y > 0f && whole.min.y < b.min.y - .005f && Held(run, prop.transform, whole)) continue;
             if (HasGameplay(prop.transform)) { if (gameplay != null) gameplay.Add(prop); continue; }
             found.Add(prop);
         }
