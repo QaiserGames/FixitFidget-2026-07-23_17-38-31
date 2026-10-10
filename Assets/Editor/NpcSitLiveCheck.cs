@@ -29,6 +29,12 @@ using Object = UnityEngine.Object;
 // nothing is saved into the scene.
 //
 // Report: <project>/Logs/NpcSit/live-check-<time>.txt (and the Console).
+//
+// THE BAR STOOLS (10 Oct 2026, after Seats 1): the six bar-stool seats (the repair bar's three, the window
+// counter's three) have Snap To Seat off by design - the sit clips are fitted to 0.45 m chairs and can't reach a
+// 0.745 m stool, so a customer waits standing beside the stool facing the counter (CafeSeatsSteps.cs, 'THE BAR
+// STOOLS DON'T SIT'). A customer who waits at one of those is not expected to sit: the report names them in a NOTE
+// and the sitting check counts only the seats people sit on.
 public static class NpcSitLiveCheck
 {
     private const string Menu = "Fixit Fidget/NPC/Sit 4 - Live sit check (Play Mode)";
@@ -57,9 +63,15 @@ public static class NpcSitLiveCheck
         public float bodyHipHeight = float.NaN, bodyLowest = float.NaN;
         // Where a customer went to wait once its job was taken (a seat, a standing spot, browsing).
         public WaitingSpot.SpotKind? waitKind;
+        // The seat they waited at had Snap To Seat off (a bar stool): they wait standing beside it, by design.
+        public bool standsAtSeat;
+        // When they went to wait (real time), so the check doesn't end while one is still on the way to their seat.
+        public float waitAt = -1f;
         public readonly StringBuilder timeline = new();
     }
 
+    // The spot a customer claimed (CustomerBrain keeps it private): to tell a bar stool's standing wait from a seat.
+    private static readonly FieldInfo BrainSpot = typeof(CustomerBrain).GetField("waitingSpot", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly Stack<IEnumerator> routine = new();
     private static readonly List<Watch> watches = new();
     private static readonly StringBuilder report = new();
@@ -214,7 +226,11 @@ public static class NpcSitLiveCheck
             if (brain != null && brain.WaitKind != null)
             {
                 w.waitKind = brain.WaitKind;
-                Note(w, "went to wait at a " + brain.WaitKind.Value.ToString().ToLowerInvariant() + " spot");
+                w.waitAt = Time.realtimeSinceStartup;
+                WaitingSpot spot = BrainSpot?.GetValue(brain) as WaitingSpot;
+                w.standsAtSeat = spot is TableSeat stool && !stool.SnapToSeat;
+                Note(w, "went to wait at a " + brain.WaitKind.Value.ToString().ToLowerInvariant() + " spot" +
+                        (spot != null ? $" ({spot.name}" + (w.standsAtSeat ? ", Snap To Seat off: waits standing beside it" : "") + ")" : ""));
             }
         }
         if (current != w.phase)
@@ -420,8 +436,13 @@ public static class NpcSitLiveCheck
         int cycles = watches.Count(w => w.walkedOff);
         bool customerSat = watches.Any(w => w.customer && w.seatedAt >= 0f);
         bool customersHadTheirChance = jobsAccepted >= JobLimit && Time.realtimeSinceStartup - started > 150f;
+        // Not while a customer who just took a seat is still on the way to it (10 Oct: the check once ended with the
+        // third customer 0.5 s into sitting down and failed them). 25 s is far longer than any walk to a seat here (3 to
+        // 8 s measured), so one who still hasn't sat by then is stuck, and the verdict says so.
+        bool onTheirWay = watches.Any(w => w.customer && !w.gone && w.waitKind == WaitingSpot.SpotKind.Seat && !w.standsAtSeat
+                                           && w.seatedAt < 0f && Time.realtimeSinceStartup - w.waitAt < 25f);
         return sat >= 5 && cycles >= 3 && seatedPhotos >= SeatedPhotoLimit && standUpPhoto
-            && (customerSat || customersHadTheirChance);
+            && (customerSat || customersHadTheirChance) && !onTheirWay;
     }
 
     // ---------- verdict ----------
@@ -442,13 +463,17 @@ public static class NpcSitLiveCheck
             $"{seated.Count(w => !w.customer)} patrons, {seated.Count(w => w.customer)} customers)");
         if (jobsAccepted > 0)
         {
-            var toSeats = watches.Where(w => w.customer && w.waitKind == WaitingSpot.SpotKind.Seat).ToList();
+            var toSeats = watches.Where(w => w.customer && w.waitKind == WaitingSpot.SpotKind.Seat && !w.standsAtSeat).ToList();
+            int atStools = watches.Count(w => w.customer && w.standsAtSeat);
+            if (atStools > 0)
+                report.AppendLine($"NOTE  {atStools} customer(s) waited standing beside a bar stool (Snap To Seat off on the six bar stools by " +
+                                  "design, Seats 1: the sit clips can't reach a 0.745 m stool), so they aren't expected to sit.");
             if (toSeats.Count > 0)
                 Check(toSeats.All(w => w.seatedAt >= 0f),
                     $"Waiting customers who took a seat sat down on it ({toSeats.Count(w => w.seatedAt >= 0f)} of {toSeats.Count}; " +
-                    $"{watches.Count(w => w.customer && w.waitKind != null && w.waitKind != WaitingSpot.SpotKind.Seat)} others chose to stand or browse)");
+                    $"{watches.Count(w => w.customer && w.waitKind != null && w.waitKind != WaitingSpot.SpotKind.Seat)} others chose to stand or browse, {atStools} at a bar stool)");
             else
-                report.AppendLine($"NOTE  None of the {jobsAccepted} customers whose jobs were taken chose a seat to wait on this time, " +
+                report.AppendLine($"NOTE  None of the {jobsAccepted} customers whose jobs were taken chose a seat they sit on to wait this time, " +
                                   "so customer sitting was not exercised (patrons were).");
         }
         if (measured.Count > 0)

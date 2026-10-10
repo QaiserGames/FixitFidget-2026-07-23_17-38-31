@@ -68,6 +68,21 @@ internal static class CafeProbe
             foreach (Collider c in scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Collider>(false)))
                 if (c.enabled && c.bounds.Intersects(box))
                     sb.AppendLine($"  {(c.isTrigger ? "[trigger] " : "")}{PathOf(c.transform)}  {c.GetType().Name}  {B(c.bounds)}");
+            // Places with no renderer or collider (a waiting spot, a seat's stand point, a slot): every object whose own
+            // position is in the box, with its components. [off] = inactive in the hierarchy.
+            sb.AppendLine("Objects standing in the box (by their own position, with their components):");
+            foreach (Transform t in scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Transform>(true)))
+            {
+                if (!box.Contains(t.position)) continue;
+                Component[] parts = t.GetComponents<Component>();
+                if (parts.Length > 1 && parts.All(p => p is Transform || p is MeshFilter || p is Renderer || p is Collider)) continue;   // listed above
+                string kinds = parts.Length == 1 ? "a bare transform (a point something else uses)" : string.Join(", ", parts.Where(p => p != null && !(p is Transform)).Select(p =>
+                    p is Behaviour b && !b.enabled ? p.GetType().Name + " (disabled)" : p.GetType().Name));
+                if (parts.Length == 1 && t.parent != null)
+                    kinds += "; its parent has " + string.Join(", ", t.parent.GetComponents<Component>().Where(p => p != null && !(p is Transform)).Select(p => p.GetType().Name));
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "  {0}{1}  at ({2:0.000}, {3:0.000}, {4:0.000})  yaw {5:0}  [{6}]",
+                    t.gameObject.activeInHierarchy ? "" : "[off] ", PathOf(t), t.position.x, t.position.y, t.position.z, t.eulerAngles.y, kinds));
+            }
         }
         catch (Exception e) { sb.AppendLine("PROBE FAILED: " + e.Message); }
         File.WriteAllText(output, sb.ToString(), new UTF8Encoding(false));

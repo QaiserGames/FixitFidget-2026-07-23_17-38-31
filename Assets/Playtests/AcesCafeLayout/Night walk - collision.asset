@@ -18,7 +18,7 @@ MonoBehaviour:
     rotation: {x: -0, y: -0, z: -0, w: 1}
     scale: {x: 0.08, y: 0.26, z: 18}
     from: ACE'S CAFE - layout study 02/01 - room and windows/Skirting - right
-  - mesh: {fileID: 2296827927077968495, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
+  - mesh: {fileID: -6021716776341762521, guid: 458bb577808c8a647bd184c9c031ff94, type: 2}
     position: {x: -17.55, y: 0, z: -2}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
@@ -54,7 +54,7 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/07 - San Francisco neighborhood/1 - Saffron
       bay-window house/Front window (clear glass)
-  - mesh: {fileID: -6230084762324540876, guid: c477968c6e2a7c147bbc7654f7381251, type: 2}
+  - mesh: {fileID: 332721138376141333, guid: 458bb577808c8a647bd184c9c031ff94, type: 2}
     position: {x: -17.55, y: 0, z: -2}
     rotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
@@ -2295,24 +2295,6 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
       - north-west corner/SM_Prop_SatDish_01
-  - mesh: {fileID: 4300000, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: -35.9, y: 0, z: 32.100002}
-    rotation: {x: -0, y: -0.7071069, z: -0, w: -0.70710677}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-west corner/SM_Prop_Skylight_01
-  - mesh: {fileID: 4300002, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: -35.9, y: 0, z: 32.100002}
-    rotation: {x: -0, y: -0.7071069, z: -0, w: -0.70710677}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-west corner/SM_Prop_Skylight_01/SM_Prop_Skylight_01_Glass
-  - mesh: {fileID: 4300000, guid: ceb1d031ed4bfa74294360bded2096b7, type: 3}
-    position: {x: -33.9, y: 0, z: 33.9}
-    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-west corner/SM_Prop_Roof_Aircon_03
   - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
     position: {x: -28.9, y: 0, z: 33.9}
     rotation: {x: -0, y: -0.00000008742278, z: -0, w: -1}
@@ -2355,54 +2337,12 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
       - north-east corner/SM_Bld_Shop_Corner_01/SM_Bld_Shop_Corner_01_Glass
-  - mesh: {fileID: 4300000, guid: d92689e911db2084e82bed65fea7be3c, type: 3}
-    position: {x: 37.2, y: 0, z: 34.6}
-    rotation: {x: -0, y: -0.00000008742278, z: -0, w: -1}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-east corner/SM_Bld_Roof_Access_01
-  - mesh: {fileID: 4300000, guid: 1752fd9a5846d8941b89c3f290d0f2e7, type: 3}
-    position: {x: 35.6, y: 0, z: 32.699997}
-    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-east corner/SM_Prop_Water_Tower_01
-  - mesh: {fileID: 4300000, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: 30.6, y: 0, z: 34.5}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-east corner/SM_Prop_Skylight_01
-  - mesh: {fileID: 4300002, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: 30.6, y: 0, z: 34.5}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-east corner/SM_Prop_Skylight_01/SM_Prop_Skylight_01_Glass
-  - mesh: {fileID: 4300000, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: 30.6, y: 0, z: 32.7}
-    rotation: {x: -0, y: -0.00000008742278, z: -0, w: -1}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-east corner/SM_Prop_Skylight_01
-  - mesh: {fileID: 4300002, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: 30.6, y: 0, z: 32.7}
-    rotation: {x: -0, y: -0.00000008742278, z: -0, w: -1}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-east corner/SM_Prop_Skylight_01/SM_Prop_Skylight_01_Glass
   - mesh: {fileID: 4300000, guid: 87682a1625d49854c9b2d3eaa42691bc, type: 3}
     position: {x: 32.6, y: 0, z: 34.5}
     rotation: {x: -0, y: -0.00000008742278, z: -0, w: -1}
     scale: {x: 1, y: 1, z: 1}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
       - north-east corner/SM_Prop_Vents_Straight_01
-  - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
-    position: {x: 32.6, y: 0, z: 32.699997}
-    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Inner blocks/Building
-      - north-east corner/SM_Prop_Roof_Aircon_02
   - mesh: {fileID: 4300000, guid: fd288f04e290fec4da09f82785ea46e0, type: 3}
     position: {x: 39, y: 0, z: -16.55}
     rotation: {x: -0, y: -0, z: -0, w: 1}
@@ -2697,18 +2637,6 @@ MonoBehaviour:
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
       hill terrace -70/SM_Bld_Apartment_Corner_01
-  - mesh: {fileID: 4300000, guid: 1752fd9a5846d8941b89c3f290d0f2e7, type: 3}
-    position: {x: -46.4, y: 0.42, z: 42.899998}
-    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace -70/SM_Prop_Water_Tower_01
-  - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
-    position: {x: -51.4, y: 0.42, z: 42.899998}
-    rotation: {x: -0, y: -0.00000008742278, z: -0, w: -1}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace -70/SM_Prop_Roof_Aircon_02
   - mesh: {fileID: 4300000, guid: 7d25cfa8321eccd438d23d1194e46bd9, type: 3}
     position: {x: -37.5, y: 0.42, z: 41}
     rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
@@ -2733,36 +2661,6 @@ MonoBehaviour:
     scale: {x: 1, y: 1, z: 1}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
       hill terrace -38/SM_Bld_Roof_Access_01
-  - mesh: {fileID: 4300000, guid: 1752fd9a5846d8941b89c3f290d0f2e7, type: 3}
-    position: {x: -30.9, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace -38/SM_Prop_Water_Tower_01
-  - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
-    position: {x: -33.9, y: 0.42, z: 42.9}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace -38/SM_Prop_Roof_Aircon_02
-  - mesh: {fileID: 4300000, guid: 84cd96749b0e85646a98fe23fb183531, type: 3}
-    position: {x: -35.9, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: -0.7071069, z: -0, w: -0.70710677}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace -38/SM_Prop_SatDish_01
-  - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
-    position: {x: -33.9, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: -0.00000008742278, z: -0, w: -1}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace -38/SM_Prop_Roof_Aircon_02
-  - mesh: {fileID: 4300000, guid: ceb1d031ed4bfa74294360bded2096b7, type: 3}
-    position: {x: -28.9, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace -38/SM_Prop_Roof_Aircon_03
   - mesh: {fileID: 4300000, guid: 06d3ff1c6175c8447aef8efdf3667d75, type: 3}
     position: {x: -5, y: 0.42, z: 41}
     rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
@@ -2829,42 +2727,6 @@ MonoBehaviour:
     scale: {x: 1, y: 1, z: 1}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
       hill terrace 20/SM_Bld_Roof_Access_01
-  - mesh: {fileID: 4300000, guid: 1752fd9a5846d8941b89c3f290d0f2e7, type: 3}
-    position: {x: 23.1, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-    scale: {x: 1, y: 1, z: 1}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 20/SM_Prop_Water_Tower_01
-  - mesh: {fileID: 4300000, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: 21.1, y: 0.42, z: 42.9}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 20/SM_Prop_Skylight_01
-  - mesh: {fileID: 4300002, guid: 3ea1f81fede821944884acf69ebaabf0, type: 3}
-    position: {x: 21.1, y: 0.42, z: 42.9}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 20/SM_Prop_Skylight_01/SM_Prop_Skylight_01_Glass
-  - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
-    position: {x: 28.1, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 20/SM_Prop_Roof_Aircon_02
-  - mesh: {fileID: 4300000, guid: 77fb40c6132e8e145ab24a19d6e0aa63, type: 3}
-    position: {x: 31.1, y: 0.42, z: 42.899998}
-    rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 20/SM_Prop_Roof_Aircon_01
-  - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
-    position: {x: 21.1, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: -0.7071069, z: -0, w: -0.70710677}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 20/SM_Prop_Roof_Aircon_02
   - mesh: {fileID: 4300000, guid: 7d25cfa8321eccd438d23d1194e46bd9, type: 3}
     position: {x: 45, y: 0.42, z: 41}
     rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
@@ -2895,22 +2757,10 @@ MonoBehaviour:
     scale: {x: 1, y: 1, z: 1}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
       hill terrace 45/SM_Prop_Vents_Straight_01
-  - mesh: {fileID: 4300000, guid: 77fb40c6132e8e145ab24a19d6e0aa63, type: 3}
-    position: {x: 48.6, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: -0.7071069, z: -0, w: -0.70710677}
-    scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 45/SM_Prop_Roof_Aircon_01
   - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
     position: {x: 56.6, y: 0.42, z: 44.7}
     rotation: {x: -0, y: 0.70710677, z: -0, w: -0.7071069}
     scale: {x: 1.0000002, y: 1, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
-      hill terrace 45/SM_Prop_Roof_Aircon_02
-  - mesh: {fileID: 4300000, guid: d29064c7c70e71a478765437ee714c29, type: 3}
-    position: {x: 46.6, y: 0.42, z: 44.7}
-    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-    scale: {x: 1, y: 1, z: 1}
     from: ACE'S CAFE - layout study 02/15 - POLYGON City streets/Hill/Building -
       hill terrace 45/SM_Prop_Roof_Aircon_02
   - mesh: {fileID: 4300000, guid: 478293f9216023149a616987abc93aa7, type: 3}
@@ -3688,50 +3538,6 @@ MonoBehaviour:
     rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
     scale: {x: 1, y: 1, z: 1}
     from: ACE'S CAFE - layout study 02/16 - POLYGON cafe details/Patio/Patio - Planter_01
-  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    position: {x: -0.2050001, y: 1.015, z: 17.91}
-    rotation: {x: -0, y: -0, z: -0, w: 1}
-    scale: {x: 3.54, y: 0.03, z: 0.19000031}
-    from: ACE'S CAFE - layout study 02/17 - back bar finish/Storage top to the wall
-  - mesh: {fileID: -386629343355721673, guid: 2b2c8c942140c54488d2ae46f1f1fef4, type: 3}
-    position: {x: -7.5, y: 0.88750005, z: 5.02}
-    rotation: {x: 0.12278782, y: 0.6963643, z: 0.6963643, w: -0.12278782}
-    scale: {x: 1.0000005, y: 1.0000002, z: 1.0000002}
-    from: ACE'S CAFE - layout study 02/18 - cafe furnishing/A - Window lounge/Mug
-      left on the ledge
-  - mesh: {fileID: 4366525863983536077, guid: dc6d608f8e0efde419550c6e68a6b883, type: 3}
-    position: {x: -7.5, y: 0.8875001, z: 0.8}
-    rotation: {x: -0.66446304, y: 0.24184476, z: 0.24184476, w: 0.66446304}
-    scale: {x: 1.2, y: 1.2000002, z: 1.2}
-    from: ACE'S CAFE - layout study 02/18 - cafe furnishing/A - Window lounge/Ledge
-      plant
-  - mesh: {fileID: 4366525863983536077, guid: dc6d608f8e0efde419550c6e68a6b883, type: 3}
-    position: {x: 7.31, y: 0.8600001, z: 1.05}
-    rotation: {x: -0.70441604, y: 0.061628412, z: 0.061628412, w: 0.70441604}
-    scale: {x: 1.2, y: 1.2000002, z: 1.2}
-    from: ACE'S CAFE - layout study 02/18 - cafe furnishing/C - Window bar/Sill plant
-  - mesh: {fileID: 4366525863983536077, guid: dc6d608f8e0efde419550c6e68a6b883, type: 3}
-    position: {x: 7.31, y: 0.8600001, z: 4.55}
-    rotation: {x: -0.579228, y: 0.4055798, z: 0.4055798, w: 0.579228}
-    scale: {x: 1.2000003, y: 1.2000003, z: 1.2000003}
-    from: ACE'S CAFE - layout study 02/18 - cafe furnishing/C - Window bar/Sill plant
-  - mesh: {fileID: 4366525863983536077, guid: dc6d608f8e0efde419550c6e68a6b883, type: 3}
-    position: {x: 7.31, y: 0.8600001, z: 6.95}
-    rotation: {x: -0.24184479, y: 0.66446304, z: 0.66446304, w: 0.24184479}
-    scale: {x: 1.1000003, y: 1.1000001, z: 1.1}
-    from: ACE'S CAFE - layout study 02/18 - cafe furnishing/C - Window bar/Sill plant
-  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    position: {x: 7.29, y: 0.92300004, z: 10.45}
-    rotation: {x: -0, y: -0.05233596, z: -0, w: 0.9986295}
-    scale: {x: 0.19800001, y: 0.042000003, z: 0.246}
-    from: ACE'S CAFE - layout study 02/18 - cafe furnishing/C - Window bar/Sill books/Book
-      2/Cover
-  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    position: {x: 7.293978, y: 0.92300004, z: 10.4504175}
-    rotation: {x: -0, y: -0.05233596, z: -0, w: 0.9986295}
-    scale: {x: 0.19600002, y: 0.034, z: 0.236}
-    from: ACE'S CAFE - layout study 02/18 - cafe furnishing/C - Window bar/Sill books/Book
-      2/Pages
   - mesh: {fileID: -1299623256587293589, guid: 5ee669df5897c944fabc4af752d47c12, type: 2}
     position: {x: 0, y: 0, z: 0}
     rotation: {x: -0, y: -0, z: -0, w: 1}
@@ -4412,5 +4218,70 @@ MonoBehaviour:
     scale: {x: 0.9999999, y: 1, z: 0.9999999}
     from: ACE'S CAFE - layout study 02/22 - Night 1 slice/Grace's gnome (Barnaby)/Barnaby
       the garden gnome/Model
-  triangles: 353524
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: 6.0150003, y: 0.39, z: 17.994}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 2.77, y: 0.78, z: 0.012}
+    from: ACE'S CAFE - layout study 02/23 - real cafe pass/Wall finishes/Service
+      wall - corner, below the sill
+  - mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    position: {x: 6.0150003, y: 1.99, z: 17.994}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 2.77, y: 2.42, z: 0.012}
+    from: ACE'S CAFE - layout study 02/23 - real cafe pass/Wall finishes/Service
+      wall - corner
+  - mesh: {fileID: 4300000, guid: f5a8912b92bb2504fb2368040db6d35b, type: 2}
+    position: {x: 4.4, y: 0, z: 18.925419}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/24 - The bins (Night 0)/Dumpster
+  - mesh: {fileID: -8202453645106315092, guid: f5a8912b92bb2504fb2368040db6d35b, type: 2}
+    position: {x: 4.9549317, y: 1.7994964, z: 18.292751}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/24 - The bins (Night 0)/Dumpster/Near lid
+      (the bag goes in)
+  - mesh: {fileID: -8436690140876858599, guid: f5a8912b92bb2504fb2368040db6d35b, type: 2}
+    position: {x: 3.8898377, y: 1.8219554, z: 18.306566}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/24 - The bins (Night 0)/Dumpster/Far lid (his)
+  - mesh: {fileID: -6433935456618959932, guid: 1f8e7f4490ed5da48bf15ef43d079c90, type: 3}
+    position: {x: -21.312815, y: 1.2466359, z: -1.7788258}
+    rotation: {x: -0, y: -0, z: -0, w: 1.0000001}
+    scale: {x: 1.0000001, y: 1, z: 1.0000001}
+    from: ACE'S CAFE - layout study 02/25 - Night 2 (Grace's cups)/Grace's cups (a
+      sleeve on the box)/A sleeve of reunion cups
+  - mesh: {fileID: 3940953353160435296, guid: cbc841af20b04457cbff08c96417cc16, type: 3}
+    position: {x: 7.4, y: 1.15, z: 3.5}
+    rotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+    scale: {x: 1.0000002, y: 1, z: 1.0000002}
+    from: ACE'S CAFE - layout study 02/30 - cafe redesign/Room 1 - ceiling, light
+      and the room's few things/East wall - notice board and photo ledge/CK_NoticeBoard
+      (east pier by the waiting nook)
+  - mesh: {fileID: 2144825104799997477, guid: d239a82c5418340e3b82547c029547d2, type: 3}
+    position: {x: -2.015, y: 1.3000001, z: -0.13800001}
+    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/30 - cafe redesign/Street 1 - the storefront's
+      words/CK_WindowGilding_L (west window by the door)
+  - mesh: {fileID: -104939245325995746, guid: 50fb275e1b45c4b39891799a9cf7d72d, type: 3}
+    position: {x: 2.015, y: 1.3000001, z: -0.13799995}
+    rotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/30 - cafe redesign/Street 1 - the storefront's
+      words/CK_WindowGilding_R (east window by the door)
+  - mesh: {fileID: 5104107940833827449, guid: 661bedb71debf442db35ee9ffd4e31aa, type: 3}
+    position: {x: -7.671, y: 2.28, z: 0.029999992}
+    rotation: {x: -0, y: -0, z: -0, w: 1}
+    scale: {x: 1, y: 1, z: 1}
+    from: ACE'S CAFE - layout study 02/30 - cafe redesign/Street 1 - the storefront's
+      words/CK_BladeSign (west facade, front corner)
+  - mesh: {fileID: 4420992751372983236, guid: 6da30f6db7586495fb73fde4e7b3e174, type: 3}
+    position: {x: 3.4819057, y: 0.10023272, z: -2.324461}
+    rotation: {x: -0, y: 0.9848077, z: -0, w: -0.17364827}
+    scale: {x: 0.75888896, y: 0.758889, z: 0.75888896}
+    from: ACE'S CAFE - layout study 02/30 - cafe redesign/Street 1 - the storefront's
+      words/CK_AFrameFace (patio A-frame, street side)
+  triangles: 344346
   sheared: 1
