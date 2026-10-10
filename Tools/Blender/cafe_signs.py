@@ -80,7 +80,7 @@ EMISSION = {'CF_PictureLightGlow': 'FFD7A8'}
 TRANSPARENT = {'CF_GildingL', 'CF_GildingR'}
 # the six tiling materials (other kits' meshes use them; recorded here with their maps and real tile sizes)
 TILING = {
-    'CF_Stone':          ('#E6E1D7', 0.65, 1.0),
+    'CF_Stone':          ('#DDD6C9', 0.50, 2.0),      # 10 Oct: darker, veined, honed (0.50), a 2 m tile (see draw_cafe_textures.mat_stone)
     'CF_Tile':           ('#EDE4D3', 0.70, 1.0),
     'CF_Floor_Oak':      ('#CDB797', 0.45, 1.8),
     'CF_Floor_Concrete': ('#A8A196', 0.55, 3.0),

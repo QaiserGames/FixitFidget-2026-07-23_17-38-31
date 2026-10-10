@@ -286,10 +286,10 @@
  ],
  "materials": {
   "CF_Stone": {
-   "hex": "E6E1D7",
-   "smoothness": 0.65,
+   "hex": "DDD6C9",
+   "smoothness": 0.5,
    "metallic": 0,
-   "note": "pale honed stone, tiling texture CF_Stone (1 tile = 1.0 m)"
+   "note": "pale honed stone, tiling texture CF_Stone (1 tile = 2.0 m; 10 Oct)"
   },
   "CC_Wood_Espresso": {
    "hex": "4A3422",

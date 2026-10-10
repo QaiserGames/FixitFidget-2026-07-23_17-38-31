@@ -441,12 +441,12 @@
    "smoothness": 0.6
   },
   "CF_Stone": {
-   "hex": "E6E1D7",
-   "smoothness": 0.65,
+   "hex": "DDD6C9",
+   "smoothness": 0.5,
    "texture": "Assets/Art/Textures/Cafe/CF_Stone_color.png",
    "normal": "Assets/Art/Textures/Cafe/CF_Stone_normal.png",
-   "tile_m": 1.0,
-   "tiling": 1.0
+   "tile_m": 2.0,
+   "tiling": 0.5
   },
   "CF_Tile": {
    "hex": "EDE4D3",

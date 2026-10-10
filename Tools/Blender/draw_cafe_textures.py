@@ -44,7 +44,7 @@ REPO = os.path.abspath(os.path.join(HERE, '..', '..')) if IN_REPO else None
 
 # Real size of one tile of each tiling material, in metres (Unity: tiling = 1 / size with world-space UVs).
 TILES = {
-    'CF_Stone': 1.0,            # pale honed stone, soft veins
+    'CF_Stone': 2.0,            # pale honed stone, soft veins (2 m since 10 Oct: at 1 m its veins repeated every metre of the counter)
     'CF_Tile': 1.0,             # 5 x 20 cm glazed tile, vertical stack: 20 across, 5 up
     'CF_Floor_Oak': 1.8,        # 10 boards of 18 cm; butt joints staggered, wrapped on 1.8 m
     'CF_Floor_Concrete': 3.0,   # the saw-cut joint on the tile's edges: one every 3 m
@@ -169,23 +169,27 @@ def smoothstep(e0, e1, x):
 
 
 def mat_stone(n=1024):
-    """CF_Stone: a pale honed stone (a limestone-quartzite look), soft cloudy veins, 1 tile = 1.0 m."""
-    base, vein = rgb('#E6E1D7'), rgb('#C9C3B8')
+    """CF_Stone: a pale honed stone (a limestone-quartzite look), soft cloudy veins, 1 tile = 2.0 m.
+
+    10 Oct (Claude, after the first Unity photos): the first draw (#E6E1D7, veins #C9C3B8 at 0.28-0.38, clouds 2 %) had a
+    standard deviation of 2 levels: under the counter's four pendants it read as a white plastic slab. A touch darker and
+    warmer, clouds you can see (5 %), taupe veins at about twice the strength: stone from the queue, quiet from above."""
+    base, vein = rgb('#DDD6C9'), rgb('#B3AA9C')
     cloud = fft_noise(n, 2.4, 11)
     cloud2 = fft_noise(n, 1.6, 12)
-    img = base[None, None, :] * (1.0 + 0.020 * cloud[..., None] + 0.008 * cloud2[..., None])
+    img = base[None, None, :] * (1.0 + 0.050 * cloud[..., None] + 0.018 * cloud2[..., None])
     # soft veins: two families of warped bands at integer frequencies (so they tile), drifting on a diagonal
     y, x = np.mgrid[0:n, 0:n].astype(np.float32) / n
     warp = fft_noise(n, 2.6, 13) * 0.55 + fft_noise(n, 2.0, 14) * 0.12
     veins = np.zeros((n, n), np.float32)
-    for (a, b, w, k, seed) in ((1, 2, 0.045, 0.38, 21), (2, -1, 0.030, 0.32, 22), (3, 1, 0.012, 0.28, 23)):
+    for (a, b, w, k, seed) in ((1, 2, 0.060, 0.62, 21), (2, -1, 0.040, 0.52, 22), (3, 1, 0.016, 0.46, 23)):
         ph = 2 * np.pi * (a * x + b * y) + 2 * np.pi * warp * (1.0 + 0.3 * fft_noise(n, 2.2, seed))
         d = np.abs(np.sin(ph))
         line = np.exp(-(d / w) ** 2)
         fade = smoothstep(-0.1, 0.7, fft_noise(n, 1.9, seed + 100))   # veins come and go, never a stripe pattern
         veins = np.maximum(veins, line * fade * k)
     hair = 1.0 - np.abs(fft_noise(n, 1.9, 31))
-    veins = np.maximum(veins, smoothstep(0.985, 0.997, hair) * 0.35)
+    veins = np.maximum(veins, smoothstep(0.985, 0.997, hair) * 0.55)
     veins = ndimage.gaussian_filter(veins, 1.2, mode='wrap')
     img = mix(img, vein[None, None, :] * (1 + 0.02 * cloud2[..., None]), np.clip(veins, 0, 1))
     speck = band_noise(n, 180, 512, 15)
