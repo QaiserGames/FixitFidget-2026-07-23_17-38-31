@@ -274,7 +274,10 @@ def mat_floor_oak(n=1024):
     bw = n // boards                                     # 102 px; the last board takes the remainder
     px = tile_m / n
     r = rng_for(51)
-    light, mid, seam = rgb('#D9C7A8'), rgb('#CDB797'), rgb('#B49D7C')
+    # 10 Oct (Claude, from Floor 0's photos): #D9C7A8/#CDB797 rendered (255, 223, 154) under the café's warm lights, the red
+    # clipped and the boards gone; a smoked oak, darker and greyer, keeps the boards and lets the orange chestnut furniture,
+    # the customers and the pale counter stand out from above (the research's complaint: floor and furniture one orange-brown).
+    light, mid, seam = rgb('#887C6F'), rgb('#7D7266'), rgb('#625850')
     img = np.zeros((n, n, 3), np.float32)
     height = np.zeros((n, n), np.float32)
     edges_x = [int(round(i * n / boards)) for i in range(boards + 1)]
@@ -329,7 +332,8 @@ def mat_floor_oak(n=1024):
 def mat_floor_concrete(n=1024):
     """CF_Floor_Concrete: warm grey polished concrete, soft mottle, a faint saw-cut joint on the edges; 1 tile = 3 m."""
     tile_m = TILES['CF_Floor_Concrete']
-    base, mott = rgb('#A8A196'), rgb('#BDB6AA')
+    # 10 Oct (Claude, from Floor 0's photos): #A8A196 rendered (230, 194, 148), a pale cream; darker for a warm grey in this light.
+    base, mott = rgb('#857E73'), rgb('#948D82')
     m1 = fft_noise(n, 2.3, 61)
     m2 = fft_noise(n, 1.7, 62)
     m3 = band_noise(n, 6, 40, 66)                           # patches 7-50 cm: the trowel and the grind

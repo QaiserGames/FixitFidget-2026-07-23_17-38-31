@@ -144557,6 +144557,7 @@ GameObject:
   - component: {fileID: 991522312}
   - component: {fileID: 991522313}
   - component: {fileID: 991522314}
+  - component: {fileID: 991522315}
   m_Layer: 0
   m_Name: ACE'S CAFE - layout study 02
   m_TagString: Untagged
@@ -145271,6 +145272,54 @@ MonoBehaviour:
   notes:
   - 24 seats laid in 30 - cafe redesign/Seats 1 - the San Francisco seat plan; the
     six bar-stool seats have Snap To Seat off (customers wait standing beside them).
+--- !u!114 &991522315
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991522307}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bad0b9ff09fdf472f9834b50c36b1a61, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CafeRedesignRecord
+  step: Floor 1 - The floor
+  when: 2026-10-10 14:21
+  order: 5
+  switchedOff: []
+  made: []
+  addedComponents: []
+  moved: []
+  repainted:
+  - target: {fileID: 1786346156}
+    materials:
+    - {fileID: 2100000, guid: f2fee56a70ff53a43a757391f4260485, type: 2}
+    why: "the caf\xE9's floor (scene root 'Floor'): CF_Floor_Oak (his decision 4:
+      the floor that looks and feels best)"
+  - target: {fileID: 1813438289}
+    materials:
+    - {fileID: -3119789296197512762, guid: b261d9b8278d9484ba1c2d167f8e42f5, type: 2}
+    why: 'the staff zone''s inset behind the counter: CF_Floor_Oak (his decision
+      4: the floor that looks and feels best)'
+  lights: []
+  boxes: []
+  shapes:
+  - filter: {fileID: 1786346157}
+    mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+    collider: {fileID: 0}
+    colliderMesh: {fileID: 0}
+    why: "the caf\xE9's floor (scene root 'Floor'): UVs in metres, so CF_Floor_Oak's
+      1.8 m tile is to scale (they were 0..1 across the room)"
+  - filter: {fileID: 1813438290}
+    mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    collider: {fileID: 0}
+    colliderMesh: {fileID: 0}
+    why: 'the staff zone''s inset behind the counter: UVs in metres, so CF_Floor_Oak''s
+      1.8 m tile is to scale (they were 0..1 across the room)'
+  toggled: []
+  listed: []
+  notes: []
 --- !u!1 &991540894
 GameObject:
   m_ObjectHideFlags: 0
@@ -258478,7 +258527,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f2fee56a70ff53a43a757391f4260485, type: 2}
+  - {fileID: 2100000, guid: 1cd6af3acf2194db08db8f8bbbaf6018, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -258509,7 +258558,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1786346154}
-  m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 4300000, guid: 4e6e47da80aad4e83b8b8467a557bfbe, type: 2}
 --- !u!4 &1786346158
 Transform:
   m_ObjectHideFlags: 0
@@ -263937,7 +263986,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -3119789296197512762, guid: b261d9b8278d9484ba1c2d167f8e42f5, type: 2}
+  - {fileID: 2100000, guid: 1cd6af3acf2194db08db8f8bbbaf6018, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -263968,7 +264017,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1813438287}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: -939092603719715692, guid: 4e6e47da80aad4e83b8b8467a557bfbe, type: 2}
 --- !u!1 &1814079332
 GameObject:
   m_ObjectHideFlags: 0

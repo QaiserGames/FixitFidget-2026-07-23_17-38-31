@@ -82,8 +82,8 @@ TRANSPARENT = {'CF_GildingL', 'CF_GildingR'}
 TILING = {
     'CF_Stone':          ('#DDD6C9', 0.50, 2.0),      # 10 Oct: darker, veined, honed (0.50), a 2 m tile (see draw_cafe_textures.mat_stone)
     'CF_Tile':           ('#EDE4D3', 0.70, 1.0),
-    'CF_Floor_Oak':      ('#CDB797', 0.45, 1.8),
-    'CF_Floor_Concrete': ('#A8A196', 0.55, 3.0),
+    'CF_Floor_Oak':      ('#7D7266', 0.45, 1.8),      # 10 Oct: a smoked white oak; the pale one clipped under the café's lights
+    'CF_Floor_Concrete': ('#857E73', 0.55, 3.0),      # 10 Oct: darker (the pale one rendered cream)
     'CF_Boards':         ('#4A3422', 0.38, 0.9),
     'CF_Fabric':         ('#A8957C', 0.12, 0.25),
 }

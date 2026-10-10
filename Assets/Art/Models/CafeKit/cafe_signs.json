@@ -457,7 +457,7 @@
    "tiling": 1.0
   },
   "CF_Floor_Oak": {
-   "hex": "CDB797",
+   "hex": "7D7266",
    "smoothness": 0.45,
    "texture": "Assets/Art/Textures/Cafe/CF_Floor_Oak_color.png",
    "normal": "Assets/Art/Textures/Cafe/CF_Floor_Oak_normal.png",
@@ -465,7 +465,7 @@
    "tiling": 0.5556
   },
   "CF_Floor_Concrete": {
-   "hex": "A8A196",
+   "hex": "857E73",
    "smoothness": 0.55,
    "texture": "Assets/Art/Textures/Cafe/CF_Floor_Concrete_color.png",
    "normal": "Assets/Art/Textures/Cafe/CF_Floor_Concrete_normal.png",
