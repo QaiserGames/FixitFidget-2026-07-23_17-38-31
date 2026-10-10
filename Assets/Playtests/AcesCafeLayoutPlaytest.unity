@@ -140563,6 +140563,7 @@ GameObject:
   - component: {fileID: 991522309}
   - component: {fileID: 991522310}
   - component: {fileID: 991522311}
+  - component: {fileID: 991522312}
   m_Layer: 0
   m_Name: ACE'S CAFE - layout study 02
   m_TagString: Untagged
@@ -140821,6 +140822,43 @@ MonoBehaviour:
   refittedFromCenter: {x: 0, y: 0, z: 0}
   refittedFromSize: {x: 1, y: 1, z: 1}
   standIn: {fileID: 0}
+--- !u!114 &991522312
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991522307}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bad0b9ff09fdf472f9834b50c36b1a61, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CafeRedesignRecord
+  step: Light 1 - The bench lamp, tuned to the close-up
+  when: 2026-10-10 13:51
+  order: 2
+  switchedOff: []
+  made: []
+  addedComponents: []
+  moved: []
+  repainted: []
+  lights:
+  - target: {fileID: 1708245364}
+    enabled: 1
+    type: 0
+    color: {r: 1, g: 0.89411765, b: 0.7607843, a: 1}
+    intensity: 1.6
+    range: 1.5
+    spotAngle: 50
+    innerSpotAngle: 30.000002
+    shadows: 0
+    why: "the bench lamp at 0.20 with a 30\xB0 inner cone: 1.6 at 0.39 m burned the
+      close-up's mat white (inverse square, no physical units)"
+  boxes: []
+  shapes: []
+  toggled: []
+  listed: []
+  notes: []
 --- !u!1 &991540894
 GameObject:
   m_ObjectHideFlags: 0
@@ -239654,10 +239692,10 @@ Light:
   serializedVersion: 13
   m_Type: 0
   m_Color: {r: 1, g: 0.89411765, b: 0.7607843, a: 1}
-  m_Intensity: 1.6
+  m_Intensity: 0.2
   m_Range: 1.5
   m_SpotAngle: 50
-  m_InnerSpotAngle: 30.000002
+  m_InnerSpotAngle: 30
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
     m_Type: 0

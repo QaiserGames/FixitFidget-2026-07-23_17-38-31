@@ -267,7 +267,7 @@
      0
     ],
     "colour": "#FFE4C2",
-    "intensity": 1.6,
+    "intensity": 0.2,
     "range": 1.5,
     "spot_angle": 50,
     "shadows": "None",
@@ -280,7 +280,8 @@
      -0.266,
      0.575,
      0.412
-    ]
+    ],
+    "note": "10 Oct (Claude): 1.6 burned the close-up white (URP lights fall off with the square of the distance; 0.39 m over the mat); 0.2 chosen from Light 0's photos at 0.06-1.6"
    }
   }
  ],

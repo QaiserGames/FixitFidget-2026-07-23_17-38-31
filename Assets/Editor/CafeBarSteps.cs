@@ -124,7 +124,7 @@ internal static class CafeBarSteps
     static readonly Vector3 LampLightWorld = new Vector3(-5.034f, 1.40f, 13.998f);
     static readonly Vector3 LampHeadWorld = new Vector3(-5.034f, 1.425f, 13.998f);
     const string LampColour = "#FFE4C2";
-    const float LampIntensity = 1.6f, LampRange = 1.5f, LampAngle = 50f;
+    const float LampIntensity = .2f, LampRange = 1.5f, LampAngle = 50f;          // 0.2 since 10 Oct (Light 1): 1.6 burned the close-up white
 
     // Where each piece's renderers must lie once placed (the kit's meshes at these placements; 1.5 cm allowed).
     static readonly Bounds CounterBox = Box(-7.400f, 0f, 13.160f, 4.870f, 1.095f, 14.240f);
@@ -530,7 +530,7 @@ internal static class CafeBarSteps
         run.Check(colour && string.Equals(lamp.light.colour, LampColour, StringComparison.OrdinalIgnoreCase) && Mathf.Abs(p.lightIntensity - LampIntensity) < .01f &&
                   Mathf.Abs(p.lightRange - LampRange) < .01f && Mathf.Abs(p.lightAngle - LampAngle) < .1f && lamp.light.type == "Spot" && lamp.light.shadows == "None",
                   $"a {lamp.light.type} {lamp.light.colour}, {F(p.lightIntensity, "0.0")}, range {F(p.lightRange, "0.0")}, {F(p.lightAngle, "0")}°, shadows {lamp.light.shadows} " +
-                  $"(expected Spot {LampColour}, 1.6, 1.5, 50°, None)");
+                  $"(expected Spot {LampColour}, {F(LampIntensity, "0.0")}, 1.5, 50°, None)");
     }
 
     // The case's top, read off its own meshes where each card goes (a third of its width apart), at its middle front to
