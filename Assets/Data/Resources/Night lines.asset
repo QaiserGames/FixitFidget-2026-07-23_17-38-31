@@ -378,6 +378,10 @@ MonoBehaviour:
     speaker: lodger
     situation: lodger.visit.cold
     text: Nice place. Shame if people asked questions.
+  - id: lodger.night0.05b
+    speaker: lodger
+    situation: night0.deal
+    text: "Grace walked out. Caf\xE9 owners who talk don't last."
   scenes:
   - id: night0.deal
     holdAce: 1
@@ -490,3 +494,33 @@ MonoBehaviour:
     lines:
     - lodger.wait.01
     choices: []
+  - id: night0.deal.letdown
+    holdAce: 1
+    lines:
+    - lodger.night0.01
+    - lodger.night0.03
+    - lodger.night0.05b
+    - lodger.night0.06
+    - lodger.night0.07
+    - lodger.night0.09
+    - lodger.night0.12
+    - lodger.night0.13
+    choices:
+    - after: lodger.night0.01
+      first:
+        line: ace.night0.02
+        answer: lodger.night0.01a
+        warmth: 1
+      second:
+        line: ace.night0.02b
+        answer: lodger.night0.01b
+        warmth: -1
+    - after: lodger.night0.09
+      first:
+        line: ace.night0.10a
+        answer: lodger.night0.11a
+        warmth: 1
+      second:
+        line: ace.night0.10
+        answer: lodger.night0.11
+        warmth: 0

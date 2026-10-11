@@ -16,6 +16,8 @@ using UnityEngine;
 // Playtest 3 (6 Oct 2026, claude/playtest-3-notes-and-plan.md §5): the word budget (WordBudget) is a failure, not a warning:
 // a pool line over 7 words, a scene line over 10, a scene with more than 5 of its speaker's lines (the deal 8), the hold
 // line in the gnome's return.
+// Playtest 4 (10 Oct 2026): the deal's sibling for a night Grace's visit went wrong (LodgerStory.DealSceneLetDown) keeps the
+// deal's budget, and is the deal with "Grace likes you." swapped for "Grace walked out." and nothing else (LetDownProblem).
 public static class BarkRuleChecks
 {
 #if UNITY_EDITOR
@@ -75,7 +77,7 @@ public static class BarkRuleChecks
             Check(scenes.Add(s.id), $"Scene '{s.id}' is listed once.");
             Check(s.lines != null && s.lines.Length > 0, $"Scene '{s.id}' has lines.");
             foreach (string id in s.lines) Check(ids.Contains(id), $"Scene '{s.id}': its line '{id}' is in the asset.");
-            int most = s.id == LodgerStory.DealScene ? WordBudget.Deal : WordBudget.Scene;
+            int most = s.id == LodgerStory.DealScene || s.id == LodgerStory.DealSceneLetDown ? WordBudget.Deal : WordBudget.Scene;
             Check(s.lines.Length <= most, $"Scene '{s.id}' has {s.lines.Length} lines (the rule is {most}; Ace's replies aren't counted).");
             foreach (NightLines.Choice c in s.choices ?? Array.Empty<NightLines.Choice>())
             {
@@ -95,6 +97,15 @@ public static class BarkRuleChecks
         // The man at the bins plays these, and does things on these lines (LodgerStory).
         Check(scenes.Contains(LodgerStory.DealScene) && scenes.Contains(LodgerStory.ReturnScene), "The deal and the return are scenes in the asset (Barks 1 adds them).");
         Check(Array.IndexOf(lines.FindScene(LodgerStory.DealScene).lines, LodgerStory.HandOverLine) >= 0, "The deal says the line on which the notebook changes hands.");
+        // Playtest 4: on a night Grace's visit went wrong the deal plays its sibling, which may differ from it in one line only.
+        string letDown = LetDownProblem(lines);
+        Check(letDown.Length == 0, "The deal's sibling for a night Grace's visit went wrong is the deal with one line swapped: " + letDown);
+        if (scenes.Contains(LodgerStory.DealSceneLetDown))
+        {
+            NightLines.Line walkedOut = lines.FindLine(LodgerStory.GraceWalkedOutLine);
+            Check(walkedOut != null && walkedOut.speaker == LodgerStory.SpeakerId,
+                $"The deal's sibling says '{LodgerStory.GraceWalkedOutLine}', the man's line (Fixit Fidget › Playtest 4 › Content › 3 adds it).");
+        }
         foreach (string id in new[] { LodgerStory.TakesItLine, LodgerStory.TurnsItLine, LodgerStory.LessonLine, LodgerStory.PageLine, LodgerStory.HoldLine })
             Check(Array.IndexOf(lines.FindScene(LodgerStory.ReturnScene).lines, id) >= 0, $"The return says '{id}' (what he does happens on it).");
         string[] gnomeReturn = lines.FindScene(LodgerStory.ReturnScene).lines;
@@ -133,6 +144,52 @@ public static class BarkRuleChecks
         }
         return n;
     }
+
+    /// <summary>
+    /// "" when the deal's sibling for a night Grace's visit went wrong (LodgerStory.DealSceneLetDown) is the deal with
+    /// LodgerStory.GraceLine swapped for GraceWalkedOutLine and nothing else (same lines otherwise, same hold, same choices), or
+    /// when there is no sibling; otherwise what differs. Reads the arrays, not the index: a step may have just changed them.
+    /// </summary>
+    public static string LetDownProblem(NightLines lines)
+    {
+        if (lines == null || lines.scenes == null) return "";
+        NightLines.Scene deal = null, sibling = null;
+        foreach (NightLines.Scene s in lines.scenes)
+        {
+            if (s == null) continue;
+            if (s.id == LodgerStory.DealScene && deal == null) deal = s;
+            else if (s.id == LodgerStory.DealSceneLetDown && sibling == null) sibling = s;
+        }
+        if (sibling == null) return "";
+        const string Fix = " (Fixit Fidget › Playtest 4 › Content › 3 copies the deal again)";
+        if (deal == null) return $"'{LodgerStory.DealSceneLetDown}' is in the asset but the deal isn't";
+        string[] a = deal.lines ?? Array.Empty<string>(), b = sibling.lines ?? Array.Empty<string>();
+        if (a.Length != b.Length) return $"'{sibling.id}' has {b.Length} lines, the deal {a.Length}" + Fix;
+        int swapped = 0;
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (b[i] == LetDownId(a[i]))
+            {
+                if (a[i] != b[i]) swapped++;
+                continue;
+            }
+            return $"'{sibling.id}' line {i + 1} is '{b[i]}' where the deal says '{a[i]}'" + Fix;
+        }
+        if (swapped != 1) return $"'{sibling.id}' differs from the deal in {swapped} lines, not in '{LodgerStory.GraceLine}' alone" + Fix;
+        if (sibling.holdAce != deal.holdAce) return $"'{sibling.id}' {(sibling.holdAce ? "holds" : "doesn't hold")} Ace and the deal {(deal.holdAce ? "does" : "doesn't")}" + Fix;
+        NightLines.Choice[] x = deal.choices ?? Array.Empty<NightLines.Choice>(), y = sibling.choices ?? Array.Empty<NightLines.Choice>();
+        if (x.Length != y.Length) return $"'{sibling.id}' has {y.Length} choices, the deal {x.Length}" + Fix;
+        for (int i = 0; i < x.Length; i++)
+            if (x[i] == null || y[i] == null || y[i].after != LetDownId(x[i].after) || !SameReply(x[i].first, y[i].first) || !SameReply(x[i].second, y[i].second))
+                return $"'{sibling.id}' choice {i + 1} isn't the deal's" + Fix;
+        return "";
+    }
+
+    // A deal line's id in its sibling: the same, but Grace's line is the one that says she walked out.
+    static string LetDownId(string id) => id == LodgerStory.GraceLine ? LodgerStory.GraceWalkedOutLine : id;
+
+    static bool SameReply(NightLines.Reply a, NightLines.Reply b) =>
+        a != null && b != null && a.line == b.line && a.answer == b.answer && a.warmth == b.warmth;
 #endif
 
     public static int RunAll()

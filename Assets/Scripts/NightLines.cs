@@ -23,6 +23,8 @@ using UnityEngine;
 // The writing rule is 60 characters a line (two lines on screen); the Bark rules check warns above it.
 // A reply is shown as a small chip before Ace says it, so it keeps to 32 characters.
 // All of it is placeholder copy until Mansoor and his sister write the cast.
+// Playtest 4 (10 Oct 2026): a scene can have a sibling that differs by one line (the deal on the night Grace's visit went
+// wrong, LodgerStory.DealSceneLetDown): the words stay in Lines, so a rewrite of any shared line reaches both.
 // ---------------------------------------------------------------------------
 [CreateAssetMenu(fileName = ResourceName, menuName = "Fixit Fidget/Night lines")]
 public sealed class NightLines : ScriptableObject
@@ -131,6 +133,12 @@ public sealed class NightLines : ScriptableObject
 
     void OnEnable() => indexed = false;
     void OnValidate() => indexed = false;
+
+    /// <summary>
+    /// Look the lines up afresh next time: a step changed the arrays in the Editor (Fixit Fidget › Playtest 4 › Content › 3),
+    /// which OnValidate doesn't hear about, and an index made before it would miss what it added.
+    /// </summary>
+    public void Reindex() => indexed = false;
 
     void Index()
     {

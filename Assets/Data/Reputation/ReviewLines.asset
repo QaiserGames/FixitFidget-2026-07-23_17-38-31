@@ -19,7 +19,7 @@ MonoBehaviour:
   lovedDrink:
   - Best {thing} on the street. Don't tell anyone.
   - Perfect {thing}. Back tomorrow.
-  - Came for a {thing}, stayed for the vibes.
+  - Came for the {thing}, stayed for the vibes.
   waitedLong:
   - Took a while, but my {thing} is sorted.
   - Worth the wait. Just about.

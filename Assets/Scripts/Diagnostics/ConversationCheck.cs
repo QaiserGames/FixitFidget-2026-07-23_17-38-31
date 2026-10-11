@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -24,6 +25,12 @@ using UnityEngine.InputSystem.LowLevel;
 //      once;
 //   5. the next customer: a walk-in gets only take it / turn away, and says the device the way a
 //      sentence does ("my pocket watch"); Q turns them away, and they go.
+// Playtest 4 (10 Oct 2026):
+//   * the walk-in is the next walk-in in the queue (a regular there, the Officer on Day 1, is passed over);
+//   * the walk-in says what's wrong the way a person does (FaultSpeech: "the screen's cracked"), never the ticket's label;
+//   * a quick second E (the frames right after E opened it, as a player pressing twice) brings the replies up at once, before
+//     the listening beat would have, and still never takes the job (the lock). The inputDelay of 0.2 s threw that press
+//     away (Fixit Fidget › Playtest 4 › Content › 4 makes it 0). The presses for the visit are written in the report.
 // A photo at each step and report.txt go to Logs/Dialogue. Nothing is saved in the scene; the lab save
 // is the only file the game writes.
 // ---------------------------------------------------------------------------
@@ -184,15 +191,42 @@ public sealed class ConversationCheck : MonoBehaviour
 
         // ---------- the next customer: a walk-in ----------
         CustomerBrain next = null;
-        yield return Until(() => (next = NextAtTheCounter(grace)) != null, 150f, "the next customer reaches the counter");
+        yield return Until(() => (next = NextWalkIn(grace)) != null, 150f, "the next walk-in reaches the queue");
         if (!lastWait || next == null) yield break;
         bool regular = next.Identity != null && next.Identity.IsRegular;
-        Check(!regular, "they are a walk-in");
+        Check(!regular, "they are a walk-in (a regular in the queue is passed over)");
         yield return Seconds(.3f);
-        conversation.Begin(next);
+
+        // Playtest 4: E to talk, then a quick second E, as a player pressing twice: the replies come up at once, sooner than the
+        // listening beat would bring them, and the job isn't taken (an E before the replies only brings them up).
+        float opened = Time.realtimeSinceStartup;
+        conversation.Begin(next);   // what E on them does (CustomerInteractable)
         yield return null;
+        string said = conversation.CurrentLine;
+        float beat = ListenBeat(said);
+        float pressedAt = -1f, repliesAt = -1f;
+        if (Application.isFocused && Keyboard.current != null)
+        {
+            pressedAt = Time.realtimeSinceStartup;
+            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(Key.E));
+            for (int i = 0; i < 3; i++)
+            {
+                yield return null;
+                if (i == 1) InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+                if (repliesAt < 0f && conversation.RepliesShowing) repliesAt = Time.realtimeSinceStartup;
+            }
+        }
         yield return Until(() => conversation.RepliesShowing, 12f, "their line, then Ace's replies");
         if (!lastWait) yield break;
+        if (pressedAt < 0f) Note("the Game view did not have the keyboard: the quick second E wasn't tried");
+        else if (pressedAt - opened >= beat - .05f)
+            Note($"the frame rate was too low to press inside the listening beat ({pressedAt - opened:0.00} s after opening; the beat {beat:0.00} s): the quick second E wasn't judged");
+        else
+            Check(repliesAt >= 0f && repliesAt - opened < beat && !next.WasAccepted,
+                $"a quick second E brought the replies up at once ({(repliesAt >= 0f ? (repliesAt - opened).ToString("0.00") + " s" : "not")} after opening; " +
+                $"by themselves they come after {beat:0.00} s) without taking the job" +
+                (repliesAt < 0f ? $" (the press was thrown away: inputDelay {InputDelay():0.##} s; Fixit Fidget › Playtest 4 › Content › 4 makes it 0)" : ""));
+        Note($"presses for this walk-in: E to talk, E to take it (2); the quick E in between (3) only brings the replies up sooner. Their line: \"{Short(said)}\"");
         bool drink = next.Record != null && next.Record.kind == JobKind.Drink;
         string[] offered = next.OutOfStock ? new[] { AceReplies.OutOfStock }
             : next.ShelfFull ? new[] { AceReplies.ShelfFull }
@@ -206,6 +240,14 @@ public sealed class ConversationCheck : MonoBehaviour
         string subject = next.Record != null ? next.Record.Subject : "";
         Check(string.IsNullOrEmpty(subject) || !line.Contains(subject) || CustomerIdentity.SpokenName(subject) == subject,
             $"the device is said the way a sentence says it (\"{CustomerIdentity.SpokenName(subject)}\")");
+        // Playtest 4: the fault, the way a person says it (FaultSpeech), never the ticket's label.
+        string label = !drink && next.Record != null ? next.Record.faultDescription : "";
+        string spoken = label.Length > 0 ? FaultSpeech.Spoken(label) : "";
+        bool knows = label.Length == 0 || FaultSpeech.TryGet(label, out _);
+        bool labelled = FaultSpeech.ReadsLikeALabel(line, label.Length > 0 ? new[] { label } : null, out string why);
+        Check(knows && !labelled && (label.Length == 0 || line.Contains(spoken)),
+            label.Length > 0 ? $"they say what's wrong the way a person does (\"{spoken}\"), not the ticket's \"{label}\"{(labelled ? ": it " + why : "")}"
+                             : $"a drink order reads as speech, no label in it{(labelled ? ": it " + why : "")}");
         yield return Seconds(.3f);
         yield return Photo("07-a-walk-in");
 
@@ -254,11 +296,31 @@ public sealed class ConversationCheck : MonoBehaviour
         return null;
     }
 
-    static CustomerBrain NextAtTheCounter(CustomerBrain not)
+    // The next walk-in waiting in the queue to be heard; a regular there (the Officer, on Day 1) is passed over.
+    static CustomerBrain NextWalkIn(CustomerBrain not)
     {
         foreach (CustomerBrain brain in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude))
-            if (brain != null && brain != not && brain.CanHearIntake) return brain;
+            if (brain != null && brain != not && brain.CanHearIntake && (brain.Identity == null || !brain.Identity.IsRegular)) return brain;
         return null;
+    }
+
+    // ConversationUI's listening beat for this speech (its last line): 0.25 s and a hundredth of a second a character, within
+    // the scene's listenBeat (0.35-1 s), the time the replies take to come up by themselves.
+    float ListenBeat(string speech)
+    {
+        string[] lines = (speech ?? "").Split('\n');
+        string last = lines.Length > 0 ? lines[lines.Length - 1].Trim() : "";
+        Vector2 range = new Vector2(.35f, 1f);
+        FieldInfo field = typeof(ConversationUI).GetField("listenBeat", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        if (field != null && ui != null && field.GetValue(ui) is Vector2 v) range = v;
+        return Mathf.Clamp(.25f + last.Length / 100f, Mathf.Min(range.x, range.y), Mathf.Max(range.x, range.y));
+    }
+
+    // The conversation's inputDelay (for the report when a quick press is thrown away).
+    float InputDelay()
+    {
+        FieldInfo field = typeof(ConversationController).GetField("inputDelay", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        return field != null && conversation != null && field.GetValue(conversation) is float f ? f : -1f;
     }
 
     IEnumerator Until(Func<bool> condition, float seconds, string what)

@@ -72,9 +72,10 @@ public class CustomerIdentity : MonoBehaviour
     private string closingNote = "";
     private const int MaxTopics = 2;
 
-    // Lowercased on the way in, because it arrives as a ticket label
-    // ("Cracked Screen") and comes out mid-sentence ("my phone, cracked
-    // screen"). Capitals mid-line read as a UI string that leaked into speech.
+    // It arrives as a ticket label ("Cracked Screen", "Frozen Boot Sequence - Reconnect Signal") and comes out mid-sentence,
+    // so it's turned into the way a person says it on the way in (FaultSpeech: "the screen's cracked", "it's frozen on the
+    // start-up screen"). Lower-casing alone (until playtest 4) still read the label aloud: "This is frozen boot sequence -
+    // reconnect signal." The ticket and the bench keep the label.
     private string faultName = "something";
 
     public void SetupRegular(
@@ -149,10 +150,13 @@ public class CustomerIdentity : MonoBehaviour
         return string.Join(" ", words);
     }
 
-    /// <summary>What's actually wrong with it, for the {fault} token.</summary>
+    /// <summary>
+    /// What's actually wrong with it, for the {fault} token: the fault's spoken form (FaultSpeech), a lower-case clause that
+    /// follows "my {device}:" ("My phone: the screen's cracked."). A label the table doesn't know is said in lower case, as before.
+    /// </summary>
     public void SetFault(string fault)
     {
-        if (!string.IsNullOrEmpty(fault)) faultName = fault.ToLowerInvariant();
+        if (!string.IsNullOrEmpty(fault)) faultName = FaultSpeech.Spoken(fault);
     }
 
     public void SetStoryRequest(Job job)
@@ -389,7 +393,8 @@ public class CustomerIdentity : MonoBehaviour
         //
         // {fault} matters more than it looks: it's how the player learns what
         // they're being asked to take on before they press E. A decline can't
-        // be a real decision if every job is described identically.
+        // be a real decision if every job is described identically. It's said,
+        // not read off the ticket (SetFault, FaultSpeech).
         return WithFocusCallback(Format(PickValid(pool)), beat);
     }
 

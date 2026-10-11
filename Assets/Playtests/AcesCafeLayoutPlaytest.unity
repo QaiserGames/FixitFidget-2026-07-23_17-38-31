@@ -58433,7 +58433,7 @@ MonoBehaviour:
     lines:
       intake:
       - 'My {device}: {fault}. How long?'
-      - This is {fault}. Can you do it now?
+      - 'Quick one. My {device}: {fault}. Can you do it now?'
       accepted:
       - Fine. I'll wait here.
       - Quick as you can.
@@ -58450,7 +58450,7 @@ MonoBehaviour:
       - That's it, I'm done waiting.
       - Forget it.
       orderedDrink:
-      - Coffee. While I'm standing here.
+      - Coffee. While I wait.
       - Get me a coffee.
       drinkOrder:
       - Just {a drink}. Quick.
@@ -58494,7 +58494,7 @@ MonoBehaviour:
     drinkWishChance: 0.15
     lines:
       intake:
-      - "Sorry \u2014 {device}, {fault}. I'm late."
+      - "Sorry \u2014 my {device}: {fault}. I'm late."
       - 'I know you''re busy. My {device}: {fault}. Please.'
       accepted:
       - Thank you. Really.
@@ -58525,7 +58525,7 @@ MonoBehaviour:
     drinkWishChance: 0.5
     lines:
       intake:
-      - It's {fault}. This {device} means a lot to me.
+      - 'My {device}: {fault}. It means a lot to me.'
       - "My {device} \u2014 {fault}. I'd hate to lose it."
       accepted:
       - Thank you. It's been with me a long time.
@@ -154971,7 +154971,7 @@ MonoBehaviour:
   conversationCam: {fileID: 1351861880}
   ui: {fileID: 226741271}
   interactor: {fileID: 1039162928}
-  inputDelay: 0.2
+  inputDelay: 0
   closingPause: 1
 --- !u!114 &1039162931
 MonoBehaviour:

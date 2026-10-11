@@ -6,9 +6,16 @@ using UnityEngine;
 // each on its own line (Enter in the box). The conversation shows them one after another, the earlier
 // ones dimmed, like Skyrim's subtitles. Keep each one short: aim for 90 characters, never over 150
 // (Fixit Fidget > Checks > Dialogue rules). Lines said out loud in the room (bubbles) are one line each.
+//
+// {device} and {fault} are filled in as a person says them (playtest 4): {device} in lower case ("my pocket watch"),
+// {fault} as a clause of its own ("the screen's cracked", "there's grit inside and it won't keep time": FaultSpeech).
+// So {fault} follows "my {device}:", "my {device} —" or "my {device},", never "This is" or "has": the Dialogue rules
+// check fills every line with every fault and fails on one that stops reading.
 [System.Serializable]
 public class DialogueSet
 {
+    [Tooltip("What's wrong, walking in. {fault} is said as a clause, so write it after \"My {device}:\" " +
+             "(\"My {device}: {fault}. How long?\" reads \"My phone: the screen's cracked. How long?\").")]
     [TextArea(2, 3)] public string[] intake;        // what's wrong, walking in
     [TextArea(2, 3)] public string[] accepted;      // you took the job
     [TextArea(2, 3)] public string[] completed;     // handed back

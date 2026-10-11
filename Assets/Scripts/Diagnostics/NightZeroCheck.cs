@@ -33,12 +33,21 @@ using UnityEngine.UI;
 //      wider (Nerve).
 // Also: standing near him adds no garbage a frame. A photo at each step and report.txt go to
 // Logs/Night/night-zero-check-<time>/. Nothing is saved in the scene; the lab save is the only file written (by the game).
+//
+// Playtest 4 (10 Oct 2026): the deal's line about Grace fits her day. From the usual made-up Day 1 (her camera done well) he says
+// "Grace likes you."; from Fixit Fidget › Playtest 4 › Content › Lab - Night 0 after Grace walked out (GraceWalkedOutKey: she
+// walked out with her camera unfixed) he says "Grace walked out." in its place, and every other line of the deal is said as ever.
+// One check more than before (96 where it was 95).
 // ---------------------------------------------------------------------------
 public sealed class NightZeroCheck : MonoBehaviour
 {
     public const string PendingKey = "FixitFidget.NightZero.Check";
+    /// <summary>Set with PendingKey by the "Grace walked out" lab (Playtest4ContentSteps): the deal should say she walked out.</summary>
+    public const string GraceWalkedOutKey = "FixitFidget.NightZero.Check.GraceWalkedOut";
 
     public string folder;
+    /// <summary>This run's Day 1 had Grace walk out (the lab save says so): the deal says "Grace walked out.".</summary>
+    public bool graceWalkedOut;
 
     const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
     const string Grace = GraceCameraEpisode.ProfileId;
@@ -64,7 +73,9 @@ public sealed class NightZeroCheck : MonoBehaviour
     static void StartFromTheEditor()
     {
         if (PlayerPrefs.GetInt(PendingKey, 0) == 0) return;
+        bool walkedOut = PlayerPrefs.GetInt(GraceWalkedOutKey, 0) == 1;
         PlayerPrefs.DeleteKey(PendingKey);
+        PlayerPrefs.DeleteKey(GraceWalkedOutKey);
         PlayerPrefs.Save();
         if (!CafeLab.Active)
         {
@@ -72,8 +83,10 @@ public sealed class NightZeroCheck : MonoBehaviour
             return;
         }
         var go = new GameObject("Night 0 check (this Play session only)");
-        go.AddComponent<NightZeroCheck>().folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night",
-            $"night-zero-check-{DateTime.Now:yyyy-MM-dd_HHmmss}"));
+        var check = go.AddComponent<NightZeroCheck>();
+        check.graceWalkedOut = walkedOut;
+        check.folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night",
+            $"night-zero-check-{(walkedOut ? "grace-walked-out-" : "")}{DateTime.Now:yyyy-MM-dd_HHmmss}"));
     }
 #endif
 
@@ -83,7 +96,8 @@ public sealed class NightZeroCheck : MonoBehaviour
         if (string.IsNullOrEmpty(folder))
             folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night", $"night-zero-check-{DateTime.Now:yyyy-MM-dd_HHmmss}"));
         Directory.CreateDirectory(folder);
-        report.AppendLine("Night 0 - play check (the bins, the deal, the errand, the return), lab session");
+        report.AppendLine("Night 0 - play check (the bins, the deal, the errand, the return), lab session" +
+                          (graceWalkedOut ? ", from a Day 1 on which Grace walked out" : ""));
         report.AppendLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm"));
         report.AppendLine();
         Debug.Log($"[Night 0 check] Running: about three or four minutes. Hands off the mouse and keyboard until it reports. {folder}");
@@ -246,6 +260,19 @@ public sealed class NightZeroCheck : MonoBehaviour
         Check(choices == 2, $"Ace answered twice in the deal ({choices})");
         Check(ledger.Warmth == warmthBefore + 1, $"his warmth: +1 for the first reply, 0 for the second ({ledger.Warmth})");
         Check(zero.Replies == "01", $"the replies, as picked: {zero.Replies}");
+        // Playtest 4: his line about Grace fits her day, and the rest of the deal is the deal.
+        {
+            bool letDown = NightZero.GraceLetDownOn(saves.MemoryForId(Grace), DayClock.Instance != null ? DayClock.Instance.Day : 0);
+            string said = graceWalkedOut ? LodgerStory.GraceWalkedOutLine : LodgerStory.GraceLine;
+            string notSaid = graceWalkedOut ? LodgerStory.GraceLine : LodgerStory.GraceWalkedOutLine;
+            NightLines.Scene deal = lines.FindScene(LodgerStory.DealScene);
+            var rest = deal != null ? deal.lines.Where(id => id != LodgerStory.GraceLine).ToList() : new List<string>();
+            bool restSaid = rest.All(id => zero.DealLines.Contains(id));
+            Check(letDown == graceWalkedOut && zero.DealLines.Contains(said) && !zero.DealLines.Contains(notSaid) && restSaid,
+                $"his line about Grace fits her day ({(graceWalkedOut ? "she walked out" : "her camera done well")}): " +
+                $"\"{lines.FindLine(said)?.text}\" ({zero.DealPlayed}), and the deal's other {rest.Count} lines were all said " +
+                $"(said: {string.Join(", ", zero.DealLines)})");
+        }
         yield return Until(() => zero.Now == NightZero.Step.Done, 2f, "the deal is made: Night 0 is over");
         Check(ledger.MetHim && !NightZero.Pending, "Ace has met him (the night's record)");
         Check(!NightWalk.Instance.ClockHeld, "the night's clock runs");

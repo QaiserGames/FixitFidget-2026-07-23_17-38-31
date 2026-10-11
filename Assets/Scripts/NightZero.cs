@@ -35,6 +35,12 @@ using UnityEngine;
 //
 // Made by NightCycle at nightfall, only when it's due (Due, Ritual); a lab that checks the night proper skips it
 // (Skip For Lab: NightOneCheck). Without the set in the scene (Fixit Fidget > Night > Bins 1) there are no bins.
+//
+// Playtest 4 (10 Oct 2026, the first-hour playtester: "'Grace likes you.' plays even after Grace walked out 'Never again'
+// that day"). His third line is how he shows he watched Ace's day. On the night her visit went wrong (she walked out, was
+// turned away, or took her camera home unfixed: GraceLetDownOn) the deal plays its sibling scene, which says "Grace walked
+// out." in that one place and is the deal in every other line, choice and beat (LodgerStory.DealSceneLetDown). Without the
+// sibling in the Night lines (Fixit Fidget › Playtest 4 › Content › 3 not run yet) the deal plays as it always has.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightZero : MonoBehaviour
@@ -78,6 +84,12 @@ public sealed class NightZero : MonoBehaviour
     public float RevealSeconds { get; private set; }
     /// <summary>How he came up tonight, a night after the deal (reports, checks).</summary>
     public Lodger.PopStyle Popped { get; private set; }
+    /// <summary>Night 0: the deal's scene as played (LodgerStory.DealScene, or DealSceneLetDown on a night Grace's visit went wrong).</summary>
+    public string DealPlayed { get; private set; } = "";
+    /// <summary>Night 0: every line id the deal said, in order, Ace's replies and the answers included (reports, checks).</summary>
+    public IReadOnlyList<string> DealLines => dealLines;
+
+    readonly List<string> dealLines = new List<string>();
 
     NightZeroSet set;
     Lodger man;
@@ -256,10 +268,11 @@ public sealed class NightZero : MonoBehaviour
         if (aceBody != null && man != null) aceBody.FaceToward(man.Speaker.position);
         yield return new WaitForSeconds(.7f);
 
-        // The deal.
+        // The deal (on a night Grace's visit went wrong, its sibling: "Grace walked out." where it says "Grace likes you.").
         RevealSeconds = Time.time - began;
         Now = Step.Deal;
-        bool playing = Barks.Play(LodgerStory.DealScene, Who, onDone: SceneDone, onLineId: OnDealLine, onReply: Replied);
+        DealPlayed = DealSceneTonight();
+        bool playing = Barks.Play(DealPlayed, Who, onDone: SceneDone, onLineId: OnDealLine, onReply: Replied);
         PlayerMovement.Release(this);   // the scene holds Ace now (or, with no scene in the lines, nothing does)
         if (!playing)
         {
@@ -298,8 +311,32 @@ public sealed class NightZero : MonoBehaviour
 
     // ---------- the deal ----------
 
+    /// <summary>
+    /// Did Grace's visit on <paramref name="day"/> go wrong? She came that day and left unhappy (walked out of the queue or
+    /// while waiting, turned away, no room on the shelf), or her camera, taken in that day, went home unfixed or not at all
+    /// (GraceCameraEpisode: a missed photo). A day she didn't come, or one that went well, is not: "Grace likes you." stands.
+    /// </summary>
+    public static bool GraceLetDownOn(RegularMemoryData grace, int day)
+    {
+        if (grace == null || day <= 0) return false;
+        if (grace.lastSeenDay == day && !grace.lastVisitHappy) return true;
+        return grace.graceCameraAttempted && grace.graceCameraDay == day
+               && GraceCameraEpisode.PhotoOutcome(grace) == GracePhotoOutcome.Missed;
+    }
+
+    /// <summary>The deal to play tonight: its sibling when Grace's visit went wrong today and the Night lines have it, else the deal.</summary>
+    static string DealSceneTonight()
+    {
+        SaveManager saves = SaveManager.Instance;
+        NightLines lines = NightLines.Current;
+        bool letDown = saves != null && GraceLetDownOn(saves.MemoryForId(GraceCameraEpisode.ProfileId), Night);
+        return letDown && lines != null && lines.FindScene(LodgerStory.DealSceneLetDown) != null
+            ? LodgerStory.DealSceneLetDown : LodgerStory.DealScene;
+    }
+
     void OnDealLine(string id)
     {
+        if (!string.IsNullOrEmpty(id)) dealLines.Add(id);
         // His lines: a gesture now and then (the beats only show while he holds still).
         if (id == LodgerStory.HandOverLine)
         {
@@ -312,7 +349,7 @@ public sealed class NightZero : MonoBehaviour
             Sfx.Play2D("notebook.handover");
             if (learned > 0) NightCycle.Note($"His notebook is yours now. {ControlHints.NotebookPage} to read it.", 6f);
         }
-        else if (id == "lodger.night0.05" && man != null) man.Beat(NpcBeats.Clip.Dismissing);
+        else if ((id == LodgerStory.GraceLine || id == LodgerStory.GraceWalkedOutLine) && man != null) man.Beat(NpcBeats.Clip.Dismissing);
     }
 
     void Replied(NightLines.Choice choice, int reply)
@@ -433,7 +470,7 @@ public sealed class NightZero : MonoBehaviour
     static string Capital(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
 
     public string Describe() =>
-        (First ? $"Night 0: {Now}; replies {(Replies.Length > 0 ? Replies : "none yet")}; the reveal took {RevealSeconds:0.0} s; "
+        (First ? $"Night 0: {Now}; the deal {(DealPlayed.Length > 0 ? DealPlayed : "not yet")}; replies {(Replies.Length > 0 ? Replies : "none yet")}; the reveal took {RevealSeconds:0.0} s; "
                : $"The bins: {Now}; he came up {Popped}; tonight {Tonight}{(Verdict.Length > 0 ? ", his verdict " + Verdict : "")}; replies {(Replies.Length > 0 ? Replies : "none")}; ") +
         $"his warmth {(ledger != null ? ledger.Warmth : 0)}; his favour {(ledger != null && ledger.Favour.Length > 0 ? ledger.Favour : "none")} " +
         $"(skips {(ledger != null ? ledger.Skips : 0)}); the clock {(NightWalk.Instance != null && NightWalk.Instance.ClockHeld ? "waiting" : "running")}.";

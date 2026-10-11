@@ -38,6 +38,19 @@ public static class LodgerStory
 
     /// <summary>Night 0, at the bins: the deal (a held scene with two choices).</summary>
     public const string DealScene = "night0.deal";
+    /// <summary>The deal's line that proves he watched Ace's day: "Grace likes you. Café owners who talk don't last."</summary>
+    public const string GraceLine = "lodger.night0.05";
+    /// <summary>
+    /// The same beat on a day Grace's visit went wrong (playtest 4: "Grace likes you." played after she walked out "Never
+    /// again"): "Grace walked out. Café owners who talk don't last." Still what he saw of Ace's day, still his point.
+    /// </summary>
+    public const string GraceWalkedOutLine = "lodger.night0.05b";
+    /// <summary>
+    /// The deal with that one line swapped, played on such a night (NightZero.GraceLetDownOn). Every other line, both
+    /// choices and the hold are the deal's own: Fixit Fidget › Playtest 4 › Content › 3 copies them from the deal (and
+    /// copies them again if the deal is reshaped); the Bark rules check fails if the two ever differ in more than that line.
+    /// </summary>
+    public const string DealSceneLetDown = "night0.deal.letdown";
     /// <summary>The deal's line on which the notebook changes hands: his pages go in.</summary>
     public const string HandOverLine = "lodger.night0.07";
     /// <summary>Night 1's return: Ace brings the gnome back to the bins (a held scene with a choice).</summary>
@@ -249,10 +262,14 @@ public static class LodgerStory
         public string learned = "";
     }
 
+    // Each note says what it changes for the player at the moment it's learned (playtest 4: "Your straight face holds a little
+    // longer" came on Night 1, before the player had ever seen the straight face; it only made sense the next morning). Nerve
+    // points at the moment it's for, Grace asking about the gnome (his line just before: "Keep it when she asks."), not at a
+    // meter the player hasn't met. Not "tomorrow": her question comes on her next visit, which isn't always the next day.
     static readonly Lesson[] lessons =
     {
-        new Lesson { id = Nerve, name = "Nerve", learned = "Learned: Nerve. Your straight face holds a little longer." },
-        new Lesson { id = Feet, name = "Soft feet", learned = "Learned: Soft feet. Ace's steps carry half as far." },
+        new Lesson { id = Nerve, name = "Nerve", learned = "Learned: Nerve. When Grace asks, your face will give less away." },
+        new Lesson { id = Feet, name = "Soft feet", learned = "Learned: Soft feet. Your steps carry half as far." },
         // Nobody pays it yet: its edge (spare keys in the notebook, learned by day) comes with the keys (break-ins chunk D).
         // Kept so a save that learned it (before 6 Oct's rewrite) still finds it.
         new Lesson { id = Doors, name = "Doors", learned = "Learned: Doors. Every house has a key somewhere." },
@@ -291,7 +308,7 @@ public static class LodgerStory
     public static IEnumerable<NotebookFactData> Pages(Func<string, bool> inTheGame = null)
     {
         yield return Page("lodger.page.grace", Notebook.Kinds.Schedule,
-            "Grace: the saffron house on the corner. Asleep by 12:30.");
+            "Grace: the saffron house on the corner. Asleep by 1:45.");   // playtest 4: her usual bedtime moved to 1:20, lamp off 1:40 (GraceNight)
         yield return Page("lodger.page.gnome", Notebook.Kinds.Possession,
             "A gnome on her step. It faces the alley.");
         yield return Page("lodger.page.windows", Notebook.Kinds.Schedule,

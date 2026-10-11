@@ -39,10 +39,19 @@ using UnityEngine;
 //
 // Barks 2 starts a night walk lab (the Day 5 test save, never the playtest save) with the bark check, which
 // photographs and checks the lines on screen (Logs/Night/barks-check-<time>/).
+//
+// Playtest 4 (10 Oct 2026): "Grace likes you." played on the night Grace walked out. The deal gets a sibling scene for that
+// night (LodgerStory.DealSceneLetDown): the deal's eight lines with "Grace walked out. Café owners who talk don't last." in
+// the place of lodger.night0.05, and the deal's two choices. Barks 1 adds the line and the scene if they're missing (from
+// the deal as it made it); Fixit Fidget › Playtest 4 › Content › 3 makes the sibling from the deal as it is now, and makes it
+// again if the deal is reshaped. The deal itself is never touched.
 // ---------------------------------------------------------------------------
 internal static class BarkSteps
 {
     const string Tag = "[Barks] ";
+
+    /// <summary>The man's line on a night Grace's visit went wrong (Playtest4ContentSteps writes the same words). PLACEHOLDER COPY.</summary>
+    internal const string GraceWalkedOutText = "Grace walked out. Café owners who talk don't last.";
     const string Menu = "Fixit Fidget/Night/";
     const string Folder = "Assets/Data/Resources";
     static string AssetPath => Folder + "/" + NightLines.ResourceName + ".asset";
@@ -160,6 +169,8 @@ internal static class BarkSteps
         ("lodger.visit.02", "lodger", "lodger.visit", "Good coffee. I'll wait."),
         ("lodger.visit.warm.01", "lodger", "lodger.visit.warm", "Nice place. Don't take too long."),
         ("lodger.visit.cold.01", "lodger", "lodger.visit.cold", "Nice place. Shame if people asked questions."),
+        // Playtest 4: the deal's third line on a night Grace's visit went wrong (its own scene, the deal's sibling).
+        (LodgerStory.GraceWalkedOutLine, "lodger", "night0.deal", GraceWalkedOutText),
     };
 
     // The deal as Barks 1 first made it (5 Oct), and as it is with Ace's replies (6 Oct): his "...I didn't see you."
@@ -187,6 +198,12 @@ internal static class BarkSteps
         "lodger.night0.01", "lodger.night0.03", "lodger.night0.05", "lodger.night0.06",
         "lodger.night0.07", "lodger.night0.09", "lodger.night0.12", "lodger.night0.13",
     };
+    // The deal's sibling (playtest 4): the same eight with "Grace walked out." in the place of "Grace likes you.".
+    static readonly string[] DealEightLetDown =
+    {
+        "lodger.night0.01", "lodger.night0.03", LodgerStory.GraceWalkedOutLine, "lodger.night0.06",
+        "lodger.night0.07", "lodger.night0.09", "lodger.night0.12", "lodger.night0.13",
+    };
     // The cups' return as session 3 made it, and without the page (her photos wait for chunk D) and the cars (the cones).
     static readonly string[] CupsReturnOfSessionThree = { "lodger.night2.r01", "lodger.night2.r04", "lodger.night2.r05", "lodger.night2.r06", "lodger.night2.r07" };
     static readonly string[] CupsReturn = { "lodger.night2.r01", "lodger.night2.r04", "lodger.night2.r05" };
@@ -205,6 +222,7 @@ internal static class BarkSteps
         ("night3.ask", false, new[] { "lodger.night3.01", "lodger.night3.02" }),
         ("night.off", true, NightOff),
         ("night.wait", true, new[] { "lodger.wait.01" }),
+        (LodgerStory.DealSceneLetDown, true, DealEightLetDown),
     };
 
     // A placeholder's words changed once, only if they are still exactly as they were made.
@@ -242,6 +260,8 @@ internal static class BarkSteps
     {
         ("night0.deal", "lodger.night0.01", "ace.night0.02", "lodger.night0.01a", 1, "ace.night0.02b", "lodger.night0.01b", -1),
         ("night0.deal", "lodger.night0.09", "ace.night0.10a", "lodger.night0.11a", 1, "ace.night0.10", "lodger.night0.11", 0),
+        (LodgerStory.DealSceneLetDown, "lodger.night0.01", "ace.night0.02", "lodger.night0.01a", 1, "ace.night0.02b", "lodger.night0.01b", -1),
+        (LodgerStory.DealSceneLetDown, "lodger.night0.09", "ace.night0.10a", "lodger.night0.11a", 1, "ace.night0.10", "lodger.night0.11", 0),
         ("night1.return", "lodger.night1.r01", "ace.night1.r02a", "lodger.night1.r03a", 1, "ace.night1.r02b", "lodger.night1.r03b", 0),
         ("night2.ask", "lodger.night2.01", "ace.night2.02a", "lodger.night2.03a", 1, "ace.night2.02", "lodger.night2.03", 0),
         ("night2.ask.warm", "lodger.night2.w02", "ace.night2.02a", "lodger.night2.03a", 1, "ace.night2.02w", "lodger.night2.03w", 0),

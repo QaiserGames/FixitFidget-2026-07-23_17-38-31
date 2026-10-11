@@ -50,6 +50,14 @@ public sealed class ConversationReply
 // directly. On a controller: the stick or D-pad, A picks, Y turns them away, B steps away.
 // Dialogue gates the decision: nothing can be picked until their line is up, and an E pressed before
 // then only brings the replies up. A closing line is skippable with E.
+//
+// The pace (playtest 4, 10 Oct 2026: the veteran counted four presses of nine per coffee in the conversation, "talk, hear
+// them out, hear them out, take the request"). Lines that offer no choice already move on by themselves: the whole line
+// shows at once, the replies come up after the listening beat (0.35-1 s, ConversationUI), and a closing line closes once
+// it's read. So the presses a player needs are two, E to talk and E to take it; an E in between only brings the replies up
+// sooner (§6.1's fast path: three). The fourth was a press thrown away: for 0.2 s after opening every press was ignored, so
+// a quick second E did nothing. Now one press does one thing: in the frame a press opened it, asked or picked, no press
+// counts again; from the next frame every press is the player's own (inputDelay can still add a wait; the café scene's is 0).
 // ---------------------------------------------------------------------------
 public class ConversationController : MonoBehaviour
 {
@@ -57,8 +65,10 @@ public class ConversationController : MonoBehaviour
     [SerializeField] private ConversationUI ui;
     [SerializeField] private PlayerInteractor interactor;
 
-    [Tooltip("Ignore input briefly after opening, so the key that started it doesn't also answer it.")]
-    [SerializeField] private float inputDelay = 0.2f;
+    [Tooltip("Seconds after opening before a press counts. The frame that opened it never counts, so the key that started " +
+             "it can't also answer it; 0 means a second E counts from the next frame. (At 0.2, until playtest 4, a quick " +
+             "second E was thrown away.)")]
+    [SerializeField] private float inputDelay = 0f;
     [Tooltip("Pause after a closing line has been read, before the panel closes (E closes it at once). " +
              "The customer does not move until this elapses, so raising it holds " +
              "them at the counter longer.")]
@@ -80,6 +90,9 @@ public class ConversationController : MonoBehaviour
 
     private CustomerBrain partner;
     private float inputReadyAt;
+    // The frame a press last did something here (opened it, asked, picked): no press counts again in that frame, so one press
+    // can't do two things. A press in any later frame is the player's own (playtest 4).
+    private int pressedFrame = -1;
     private bool closing;
     private float closeAt;
     private CustomerBrain counterAfterClose;
@@ -134,6 +147,7 @@ public class ConversationController : MonoBehaviour
         AnyOpen = true;
         closing = false;
         inputReadyAt = Time.time + inputDelay;
+        pressedFrame = Time.frameCount;
         replies.Clear();
         highlighted = 0;
 
@@ -212,7 +226,7 @@ public class ConversationController : MonoBehaviour
         if (Time.timeScale <= 0f) return;
         RefreshPortrait();
 
-        bool ready = Time.time >= inputReadyAt;
+        bool ready = Time.time >= inputReadyAt && Time.frameCount > pressedFrame;
         Keyboard kb = Keyboard.current;
         bool press = ready && Pressed(kb);
 
@@ -242,6 +256,7 @@ public class ConversationController : MonoBehaviour
             ui.SetLine(partner.HearIntake());
             RefreshPortrait();
             inputReadyAt = Time.time + inputDelay;
+            pressedFrame = Time.frameCount;   // the press that ended the scene can't also skip what they came for
             return;
         }
 
@@ -370,8 +385,9 @@ public class ConversationController : MonoBehaviour
                     ClearReplies();
                     morningFace.Begin();
                     RefreshPortrait();
-                    // The press that ordered can't also skip the question.
+                    // The press that ordered can't also skip the question (its meter reads inputReadyAt: left as it was).
                     inputReadyAt = Time.time + .15f;
+                    pressedFrame = Time.frameCount;
                     return;
                 }
                 CloseWith(accepted);
@@ -389,8 +405,8 @@ public class ConversationController : MonoBehaviour
                 ui.SetLine(partner.AskTopic(reply.Topic));
                 RefreshPortrait();
                 highlighted = 0;
-                // The press that asked can't also skip the answer.
-                inputReadyAt = Time.time + .15f;
+                // The press that asked can't also skip the answer; the next one can (it only brings the replies back).
+                pressedFrame = Time.frameCount;
                 return;
         }
     }
@@ -498,8 +514,8 @@ public class ConversationController : MonoBehaviour
         RefreshPortrait();
         closing = true;
         closeAt = -1f;
-        // The press that chose can't also close it.
-        inputReadyAt = Time.time + .15f;
+        // The press that chose can't also close it; the next one can.
+        pressedFrame = Time.frameCount;
     }
 
     // How long the last line of a closing stays once everything is up: long lines aren't cut off.
