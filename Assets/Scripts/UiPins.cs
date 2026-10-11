@@ -28,6 +28,10 @@ using UnityEngine.UI;
 // open, and while Ace is in a close-up (the bench, the drinks machine, the counter phone): the close-up has its own words.
 // Placed just before the canvases are drawn, after every camera has moved (as the barks and the juice are). Built in code
 // while playing: nothing in the scene changes.
+//
+// Run 2 (11 Oct): a pin shows its new words only where it now belongs. When Day 1's step changed, the green pin faded out
+// where it was already showing the next step's name (a half-faded "Officer" over the bench; "Walter" over the bench while
+// the same name was pinned over Walter at the counter): a pin fading out now keeps its old words.
 // ---------------------------------------------------------------------------
 public sealed class UiPins : MonoBehaviour
 {
@@ -86,6 +90,7 @@ public sealed class UiPins : MonoBehaviour
         public Transform who;          // over this person's head, or
         public Vector3 point;          // over this point in the world
         public string text = "";
+        public bool relabel;           // the label still shows the words before text (they change where it's drawn next)
         public Rect onScreen;          // where it was last drawn (screen pixels from the bottom left)
     }
 
@@ -284,6 +289,16 @@ public sealed class UiPins : MonoBehaviour
         pin.point = point;
         if (text == pin.text) return;
         pin.text = text ?? "";
+        pin.relabel = true;
+        // Not on screen: the new words now. On screen: where it's drawn next (PlacePin), so a pin fading out where it was
+        // keeps its old words.
+        if (!pin.root.gameObject.activeSelf || pin.group.alpha <= .01f) Relabel(pin);
+    }
+
+    // The label says the pin's words, and the chip fits them.
+    static void Relabel(Pin pin)
+    {
+        pin.relabel = false;
         pin.label.text = pin.text;
         Vector2 words = pin.label.GetPreferredValues(pin.text, 999f, 999f);
         pin.chip.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 18f, pin.label.fontSize + 10f);
@@ -384,6 +399,8 @@ public sealed class UiPins : MonoBehaviour
             s = cam.WorldToScreenPoint(world);
             want = s.z > 0f;
         }
+        // New words go up where the pin is placed now, or once it has faded out: never on a pin fading out where it was.
+        if (pin.relabel && (want || pin.group.alpha <= .01f)) Relabel(pin);
         pin.group.alpha = Mathf.MoveTowards(pin.group.alpha, want ? 1f : 0f, (dt > 0f ? dt : Time.unscaledDeltaTime) * FadeRate);
         bool on = want || pin.group.alpha > .01f;
         if (pin.root.gameObject.activeSelf != on) pin.root.gameObject.SetActive(on);

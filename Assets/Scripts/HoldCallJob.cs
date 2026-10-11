@@ -27,6 +27,7 @@ public class HoldCallJob : JobBase
     public void Activate()
     {
         if (!CanActivate) return;
+        MarkWorkedOn();   // dialled: from now on, giving the phone back unresolved is a choice he can make (CustomerBrain.JobReady)
         if (CurrentPhase == HoldCallRun.State.Ringing) run.Answer();
         else run.Dial(Random.Range(Mathf.Max(1f, holdMin), Mathf.Max(1f, holdMin, holdMax)), Mathf.Max(1f, ringWindow));
     }

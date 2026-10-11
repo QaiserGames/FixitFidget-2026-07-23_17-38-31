@@ -608,6 +608,11 @@ public class CustomerBrain : MonoBehaviour
             // That trade is the decision the clock is supposed to force.
             if (!IsWaiting || activeJob == null || !activeJob.CanHandBack) return false;
 
+            // But not a device nobody has had a go at: nothing fixed and never on the bench (or the call never dialled).
+            // Picked up at the till, its owner still in reach on the way to a seat, it offered "Hand it back (Rejected)"
+            // for 1-3 s, and a quick second E gave Grace her camera back broken (playtest 4 run 2, the first hour's #2).
+            if (activeJob.Grade == JobGrade.Rejected && !activeJob.WorkedOn) return false;
+
             PlayerCarry carry = DeliveryCarry;
             return carry != null && carry.Contains(activeJob);
         }
@@ -1685,6 +1690,9 @@ public class CustomerBrain : MonoBehaviour
 
     private string OrderLine()
     {
+        // They call for the drink they want, by name ({a drink}, {drink} in the lines): the walk-ins' lines said "coffee"
+        // whatever they wanted, and only the drink they want can be served (playtest 4 run 2, the first hour's #5).
+        if (identity != null && WantedDrink != null) identity.SetWishedDrink(WantedDrink.drinkName);
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.OrderedDrink) : "";
 
         // Placeholder only. Delete this branch once orderedDrink has real lines.

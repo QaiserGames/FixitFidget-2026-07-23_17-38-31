@@ -24,6 +24,10 @@ using Object = UnityEngine.Object;
 //       deal is reshaped. The deal itself is never touched.
 //   4 - Conversations: a quick second E counts (scene): ConversationController.inputDelay 0.2 → 0 (the frame that opened
 //       the conversation still never counts: ConversationController).
+//   5 - Drink calls say the drink; the Shop says intake tray (scene, one asset) (run 2, 11 Oct 2026; the first hour's #5 and
+//       its Shop note): the walk-ins' ten "a drink while waiting" lines said "coffee" (or "a drink") whatever they wanted,
+//       and only the drink they want can be served; they now say it ({a drink}, {drink}: CustomerBrain.OrderLine tells
+//       CustomerIdentity which). Shelf Space's "One more slot on the intake shelf." says tray, like everything else.
 //   Lab - Night 0 after Grace walked out (lab, drives itself): the Night 0 play check from a made-up Day 1 on which Grace
 //       walked out with her camera unfixed; it checks the deal says "Grace walked out." and is otherwise the deal.
 // Every step runs through Playtest4Shared: survey, one undo group, checks in numbers, undone if a check fails, a report in
@@ -91,6 +95,29 @@ public static class Playtest4ContentSteps
             "\"Came for a espresso\" and \"a americano\""),
     };
 
+    // ---------- step 5: the drink calls say the drink, and the Shop says tray (run 2) ----------
+
+    // Each personality's two lines, its voice kept. PLACEHOLDER COPY for his sister.
+    static readonly (string personality, string was, string now)[] DrinkCallFixes =
+    {
+        ("Cheerful", "Ooh — could I get a coffee too?", "Ooh — could I get {a drink} too?"),
+        ("Cheerful", "Since I'm here, a drink?", "Since I'm here, {a drink}?"),
+        ("Impatient", "Coffee. While I wait.", "And {a drink}. While I wait."),
+        ("Impatient", "Get me a coffee.", "Get me {a drink}."),
+        ("Chatty", "Actually — a coffee would be lovely.", "Actually — {a drink} would be lovely."),
+        ("Chatty", "Ooh, while you're up. A drink?", "Ooh, while you're up: {a drink}?"),
+        ("Rushed", "Coffee? To go, if that's alright.", "Oh, and {a drink}? To go, if that's alright."),
+        ("Rushed", "A quick coffee, if you can.", "A quick {drink}, if you can."),
+        ("Sentimental", "Could I trouble you for a coffee?", "Could I trouble you for {a drink}?"),
+        ("Sentimental", "A drink would be nice, thank you.", "Oh, and {a drink} would be nice, thank you."),
+    };
+    const string DrinkCallWhy = "said whatever they wanted, and only that drink can be served (the first hour, run 2: 0 of 7 wishes were coffee)";
+
+    const string ShelfSpacePath = "Assets/AssetsPrefabs/Upgrade_ShelfSpace.asset";
+    const string ShelfSpaceWas = "One more slot on the intake shelf.";
+    // The same words are UpgradeEconomyPass's (so running the economy pass again keeps them). PLACEHOLDER COPY.
+    const string ShelfSpaceNow = "One more intake tray at the till.";
+
     // ================================================================== 0 - Check first
 
     [MenuItem(Area + "0 - Check first (read-only)", false, 0)]
@@ -138,6 +165,14 @@ public static class Playtest4ContentSteps
             string problem = BarkRuleChecks.LetDownProblem(lines);
             run.Info($"{LodgerStory.DealSceneLetDown}: {(sibling == null ? "not there yet (step 3 copies the deal)" : problem.Length == 0 ? "there, and the deal with one line swapped" : "there, but " + problem)}");
         }
+
+        run.Section("Step 5 would change (the walk-ins' drink calls on the café scene's CustomerSpawner; " + ShelfSpacePath + ")");
+        foreach (var fix in DrinkCallFixes) Plan(run, spawner, WalkInPath(spawner, fix.personality, fix.was, "orderedDrink"),
+            WalkInPath(spawner, fix.personality, fix.now, "orderedDrink"), $"walk-in {fix.personality}, a drink while waiting", fix.was, fix.now, DrinkCallWhy);
+        var shelf = AssetDatabase.LoadAssetAtPath<UpgradeDefinition>(ShelfSpacePath);
+        if (shelf == null) run.Info("Shelf Space isn't at " + ShelfSpacePath + ": step 5 will refuse.");
+        else Plan(run, shelf, shelf.description == ShelfSpaceWas ? "description" : null, shelf.description == ShelfSpaceNow ? "description" : null,
+            "Shelf Space's line in the Shop", ShelfSpaceWas, ShelfSpaceNow, "everywhere else it's the intake tray");
 
         run.Section("Step 4 and the conversation's pace (seconds; the scene's own values)");
         ConversationController controller = Playtest4Shared.One<ConversationController>(run);
@@ -403,11 +438,100 @@ public static class Playtest4ContentSteps
             });
     }
 
+    // ================================================================== 5 - Drink calls say the drink; the Shop says intake tray
+
+    [MenuItem(Area + "5 - Drink calls say the drink; the Shop says intake tray (scene, one asset)", false, 5)]
+    static void DrinkCallsAndTray()
+    {
+        CustomerSpawner spawner = null;
+        UpgradeDefinition shelf = null;
+        var before = new Dictionary<string, int>();
+        Playtest4Shared.Step("Playtest 4 › Content › 5 - Drink calls say the drink; the Shop says intake tray (scene, one asset)", "content-5-drink-calls-and-tray",
+            survey: run =>
+            {
+                spawner = Playtest4Shared.One<CustomerSpawner>(run);
+                CustomerArchetype[] walkIns = DialogueRuleChecks.WalkIns(spawner);
+                run.Require(walkIns.Length > 0, "The CustomerSpawner has no walk-in personalities.");
+                foreach (var fix in DrinkCallFixes)
+                    run.Require(walkIns.Any(a => a != null && a.archetypeName == fix.personality), $"No walk-in personality called {fix.personality} on the CustomerSpawner.");
+                foreach (CustomerArchetype a in walkIns)
+                    if (a != null) before[a.archetypeName] = a.lines?.orderedDrink?.Length ?? 0;
+                foreach (var fix in DrinkCallFixes) Plan(run, spawner, WalkInPath(spawner, fix.personality, fix.was, "orderedDrink"),
+                    WalkInPath(spawner, fix.personality, fix.now, "orderedDrink"), $"walk-in {fix.personality}, a drink while waiting", fix.was, fix.now, DrinkCallWhy);
+                shelf = AssetDatabase.LoadAssetAtPath<UpgradeDefinition>(ShelfSpacePath);
+                run.Require(shelf != null, "Shelf Space isn't at " + ShelfSpacePath + ".");
+                Plan(run, shelf, shelf.description == ShelfSpaceWas ? "description" : null, shelf.description == ShelfSpaceNow ? "description" : null,
+                    "Shelf Space's line in the Shop", ShelfSpaceWas, ShelfSpaceNow, "everywhere else it's the intake tray");
+            },
+            change: run =>
+            {
+                foreach (var fix in DrinkCallFixes)
+                {
+                    string path = WalkInPath(spawner, fix.personality, fix.was, "orderedDrink");
+                    if (path != null) run.SetString(spawner, path, fix.now, $"walk-in {fix.personality}, a drink while waiting");
+                }
+                if (shelf.description == ShelfSpaceWas)
+                {
+                    run.SetString(shelf, "description", ShelfSpaceNow, "Shelf Space's line in the Shop");
+                    run.SaveAsset(shelf);   // saved only once every check has passed
+                }
+                else if (shelf.description != ShelfSpaceNow) run.Info($"Shelf Space's line was rewritten since (\"{shelf.description}\"): left alone");
+            },
+            checks: run =>
+            {
+                foreach (var fix in DrinkCallFixes)
+                    run.Check(WalkInPath(spawner, fix.personality, fix.was, "orderedDrink") == null,
+                        $"walk-in {fix.personality}: \"{fix.was}\" is gone (rewritten{(WalkInPath(spawner, fix.personality, fix.now, "orderedDrink") != null ? " as \"" + fix.now + "\"" : " since, by someone else")})");
+                // Every drink the game can pour, as the line says it (CustomerIdentity: lower case, "a"/"an").
+                var drinks = new List<string>();
+                foreach (string guid in AssetDatabase.FindAssets("t:DrinkDefinition"))
+                {
+                    var drink = AssetDatabase.LoadAssetAtPath<DrinkDefinition>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (drink != null && !string.IsNullOrWhiteSpace(drink.drinkName) && !drinks.Contains(drink.drinkName.Trim().ToLowerInvariant()))
+                        drinks.Add(drink.drinkName.Trim().ToLowerInvariant());
+                }
+                run.Check(drinks.Count > 0, $"{drinks.Count} drinks to say: {string.Join(", ", drinks)}");
+                foreach (CustomerArchetype a in DialogueRuleChecks.WalkIns(spawner))
+                {
+                    if (a == null) continue;
+                    string[] calls = a.lines?.orderedDrink ?? Array.Empty<string>();
+                    if (before.TryGetValue(a.archetypeName, out int count))
+                        run.Check(calls.Length == count, $"walk-in {a.archetypeName}: still {count} drink calls");
+                    foreach (string call in calls)
+                    {
+                        if (string.IsNullOrWhiteSpace(call)) continue;
+                        bool names = call.Contains("{a drink}") || call.Contains("{drink}");
+                        string longest = "";
+                        var wrong = new List<string>();
+                        foreach (string drink in drinks)
+                        {
+                            string said = SayDrink(call, drink);
+                            if (said.Length > longest.Length) longest = said;
+                            string problem = DialogueRuleChecks.ArticleProblem(call, token => token == "drink" ? drink : "");
+                            if (problem.Length > 0) wrong.Add($"{drink}: {problem}");
+                            if (said.Length > 90) wrong.Add($"{drink}: {said.Length} characters (aim for 90)");
+                        }
+                        run.Check(names && wrong.Count == 0, $"walk-in {a.archetypeName}: \"{call}\" " + (!names ? "doesn't name the drink they want"
+                            : wrong.Count > 0 ? "does NOT read: " + string.Join("; ", wrong) : $"names the drink, and reads with all {drinks.Count} (longest \"{longest}\", {longest.Length} characters)"));
+                    }
+                }
+                run.Check(shelf.description == ShelfSpaceNow || shelf.description != ShelfSpaceWas,
+                    $"Shelf Space in the Shop: \"{shelf.description}\"");
+                run.Check(shelf.description.IndexOf("shelf", StringComparison.OrdinalIgnoreCase) < 0, "...and it doesn't say shelf (the object is the intake tray)");
+            });
+    }
+
+    // A drink call as the customer says it (CustomerIdentity.Format): {a drink} with its "a"/"an", {drink} bare.
+    static string SayDrink(string line, string drink) => (line ?? "")
+        .Replace("{a drink}", ("aeiou".IndexOf(char.ToLowerInvariant(drink[0])) >= 0 ? "an " : "a ") + drink)
+        .Replace("{drink}", drink);
+
     [MenuItem(Area + "0 - Check first (read-only)", true)]
     [MenuItem(Area + "1 - Walk-ins speak their faults (scene)", true)]
     [MenuItem(Area + "2 - Grace's callbacks and a review line (assets)", true)]
     [MenuItem(Area + "3 - The man's line on a night Grace walked out (night lines)", true)]
     [MenuItem(Area + "4 - Conversations: a quick second E counts (scene)", true)]
+    [MenuItem(Area + "5 - Drink calls say the drink; the Shop says intake tray (scene, one asset)", true)]
     [MenuItem(Area + "Lab - Night 0 after Grace walked out (lab, drives itself)", true)]
     static bool NotPlaying() => Playtest4Shared.NotPlaying();
 

@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class DropInteractable : Interactable
 {
+    /// <summary>E with something in hand at the counter's drop spot, the intake tray (here and StationInteractable). PLACEHOLDER COPY.</summary>
+    public const string IntakeTrayWords = "Put it on the intake tray";
+
     private DropSpot spot;
 
     private void Awake()
@@ -33,7 +36,9 @@ public class DropInteractable : Interactable
 
             if (!spot.CanAccept(carry.Carried)) return "No room here";
 
-            return spot.Kind == DropSpot.SpotKind.Counter ? "Return item" : "Set down";
+            // The counter's drop spot is the intake tray (playtest 4). "Return item", right after the pickup at the till with
+            // the customer still in reach, read like giving it back to them (playtest 4 run 2; the photo of the pickup).
+            return spot.Kind == DropSpot.SpotKind.Counter ? IntakeTrayWords : "Set down";
         }
     }
 

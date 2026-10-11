@@ -199,6 +199,7 @@ public class ItemInspector : MonoBehaviour
             || DayClock.Instance != null && DayClock.Instance.DayOver) return false;
         if (cam == null) cam = Camera.main;
         focusedItem = item;
+        item.MarkWorkedOn();   // from now on, giving it back unfixed is a choice he can make (CustomerBrain.JobReady)
         focusedCircuits = item.GetComponentsInChildren<CircuitPuzzle>();
         rotateGesture = false;
         restPosition = item.transform.position;

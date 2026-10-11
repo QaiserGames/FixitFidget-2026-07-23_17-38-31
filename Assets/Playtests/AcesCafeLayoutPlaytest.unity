@@ -58426,8 +58426,8 @@ MonoBehaviour:
       - "Ah \u2014 I'll have to go. Sorry."
       - I've run out of time. Never mind.
       orderedDrink:
-      - "Ooh \u2014 could I get a coffee too?"
-      - Since I'm here, a drink?
+      - "Ooh \u2014 could I get {a drink} too?"
+      - Since I'm here, {a drink}?
       drinkOrder:
       - Hi! Could I get {a drink}?
       - Ooh, {a drink}, please!
@@ -58457,8 +58457,8 @@ MonoBehaviour:
       - That's it, I'm done waiting.
       - Forget it.
       orderedDrink:
-      - Coffee. While I wait.
-      - Get me a coffee.
+      - And {a drink}. While I wait.
+      - Get me {a drink}.
       drinkOrder:
       - Just {a drink}. Quick.
       - I'll take {a drink}. Now, ideally.
@@ -58488,8 +58488,8 @@ MonoBehaviour:
       - I should get going, sadly.
       - Another time, maybe.
       orderedDrink:
-      - "Actually \u2014 a coffee would be lovely."
-      - Ooh, while you're up. A drink?
+      - "Actually \u2014 {a drink} would be lovely."
+      - 'Ooh, while you''re up: {a drink}?'
       drinkOrder:
       - Oh, {a drink} would be lovely.
       - I'll have {a drink}, I think. Yes!
@@ -58519,8 +58519,8 @@ MonoBehaviour:
       - "I can't \u2014 I have to go. Sorry."
       - I've left it too late. Sorry.
       orderedDrink:
-      - Coffee? To go, if that's alright.
-      - A quick coffee, if you can.
+      - Oh, and {a drink}? To go, if that's alright.
+      - A quick {drink}, if you can.
       drinkOrder:
       - Could I get {a drink} to go?
       - "Sorry \u2014 {a drink}, quick as you can?"
@@ -58550,8 +58550,8 @@ MonoBehaviour:
       - I'll take it somewhere else, then.
       - I'd hoped for better. Never mind.
       orderedDrink:
-      - Could I trouble you for a coffee?
-      - A drink would be nice, thank you.
+      - Could I trouble you for {a drink}?
+      - Oh, and {a drink} would be nice, thank you.
       drinkOrder:
       - Could I have {a drink}, please?
       - I'd love {a drink}, if it's no trouble.

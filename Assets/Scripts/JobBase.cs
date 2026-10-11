@@ -66,6 +66,16 @@ public abstract class JobBase : MonoBehaviour
         _                 => 0f
     };
 
+    /// <summary>
+    /// Ace has had a go at it: a device opened in the bench's close-up (ItemInspector.BeginInspection), a support call dialled
+    /// (HoldCallJob.Activate). Until then a hand-back with nothing fixed isn't offered (CustomerBrain.JobReady): playtest 4,
+    /// run 2 (11 Oct 2026), the first hour's #2 - right after the pickup at the till, while Grace walked off to sit, the bottom
+    /// line read "[E] Hand it back (Rejected)", and one more E gave her the camera back broken ("Never again"). Giving up on a
+    /// job stays a choice, once Ace has tried it.
+    /// </summary>
+    public bool WorkedOn { get; private set; }
+    public void MarkWorkedOn() => WorkedOn = true;
+
     public CustomerBrain Owner { get; private set; }
     public void SetOwner(CustomerBrain owner) => Owner = owner;
 

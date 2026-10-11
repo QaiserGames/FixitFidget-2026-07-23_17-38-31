@@ -216,7 +216,10 @@ public sealed class StationsCheck : PlayLab
         Check(barDrinker != null && barDrinker.Record != null && barDrinker.Record.kind == JobKind.Drink,
             $"another drink customer comes in ({(barDrinker != null ? barDrinker.CustomerName : "nobody")}, {(barDrinker != null && barDrinker.Record != null ? barDrinker.Record.Subject : "")})");
         if (barDrinker == null) yield break;
-        freeStools = HoldTheRoom(stools);
+        // The repair's customer gets up from their stool as they leave (a few seconds), and a patron may be on another: wait for
+        // one to come free before judging (11 Oct: judged the instant the hand-back ended, 0 of 3 once, and Walter then sat on
+        // the stool the repair's customer had just left).
+        yield return Await(() => (freeStools = HoldTheRoom(stools)) > 0, 12f);
         Check(freeStools > 0, $"a repair-bar stool is free for them ({freeStools} of {stools.Count}; the rest of the room held while their order is taken)");
         yield return TakeOrder(barDrinker, () => FreeTheStools(stools));
         if (!lastWait || barDrinker == null || !barDrinker.WasAccepted) yield break;

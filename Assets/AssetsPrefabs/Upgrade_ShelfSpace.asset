@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Upgrade_ShelfSpace
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
   upgradeName: Shelf Space
-  description: One more slot on the intake shelf.
+  description: One more intake tray at the till.
   type: 5
   valuePerLevel: 1
   costPerLevel: 58020000dc050000

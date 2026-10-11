@@ -100,7 +100,8 @@ public static class UpgradeEconomyPass
         {
             assetName = "Upgrade_ShelfSpace",
             displayName = "Shelf Space",
-            description = "One more slot on the intake shelf.",
+            // Playtest 4 run 2 (11 Oct 2026): the object is the intake tray everywhere else (Playtest 4 › Content › 5).
+            description = "One more intake tray at the till.",
             type = UpgradeType.ShelfCapacity,
             valuePerLevel = 1f,
             costs = new[] { 600, 1500 },

@@ -75,9 +75,14 @@ public class CustomerInteractable : Interactable
             if (brain.JobReady)
             {
                 JobGrade g = brain.PendingGrade;
-                return g == JobGrade.Perfect
-                    ? "Hand it back"
-                    : $"Hand it back ({g})";
+                return g switch
+                {
+                    JobGrade.Perfect => "Hand it back",
+                    // The grade's name isn't what it means to them: they leave with it still broken (playtest 4 run 2, the
+                    // first hour: 'To a stranger, "Rejected" doesn't say "she leaves with it broken"'). PLACEHOLDER COPY.
+                    JobGrade.Rejected => "Give it back unfixed",
+                    _ => $"Hand it back ({g})",
+                };
             }
             if (brain.JobFixedButAway) return $"Their {brain.Record.Subject} is ready";
             if (brain.CanRequestFocus) return "Let me focus";

@@ -1045,7 +1045,11 @@ public sealed class NpcBeats : MonoBehaviour
     private void HidePhone()
     {
         if (phone == null) return;
-        phone.transform.SetParent(transform, false);
+        // From OnDisable while the body itself is being switched off (Play mode ending, a lab ending its session) Unity
+        // refuses to re-parent: "Cannot set the parent of the GameObject 'Phone (Customer(Clone))' while activating or
+        // deactivating the parent GameObject 'Hand_R'" (11 Oct, at the end of the Day 1 guide lab). It goes with the body
+        // then: hidden where it is (ShowPhone puts it in the hand again whenever it's next wanted).
+        if (gameObject.activeInHierarchy) phone.transform.SetParent(transform, false);
         phone.SetActive(false);
     }
 

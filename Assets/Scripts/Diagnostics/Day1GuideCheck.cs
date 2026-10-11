@@ -29,6 +29,9 @@ using UnityEngine.InputSystem.LowLevel;
 //   9. Grace frustrated (her patience set low): the impatience card once, with her pin; reassured, it goes;
 //  10. the Officer, if he comes in within the check's time: his talk card ("DAY 1 · THE OFFICER"), his coffee's first
 //      steps (the drinks machine on the back bar, "Drinks" pinned over it, the cup stack in its close-up).
+// Playtest 4 run 2 (11 Oct): right after the pickup at the till, E won't give the camera straight back unfixed; a walk-in
+// sent in at the door as the Officer sets off reaches the counter first, and the card names whoever E talks to (that
+// walk-in, "the Officer is at the counter too"); at the drinks machine the card stays on his coffee, not Grace's latte.
 // The repair itself is the bench's (Bench 3). Photos and report.txt go to Logs/UI/day1-guide-<time>/. Nothing is saved in
 // the scene; the lab's save is the only file the game writes. Play mode ends by itself when it reports.
 // ---------------------------------------------------------------------------
@@ -146,7 +149,9 @@ public sealed class Day1GuideCheck : PlayLab
         string talk = DayOneGuideUI.TalkWords("Grace", false, false);
         yield return Until(() => guide.CardText.Contains(talk), 5f, $"the card: \"{talk}\"");
         Check(guide.PinLabel == "Grace" && guide.PinWho == grace.transform, "Day 1's pin is on Grace");
-        yield return Frames(4);
+        // The name fades in as the guide's pin fades out (an eighth of a second each): judged once they have, not mid-way
+        // (11 Oct: one run of three judged it 4 frames in, both pins still crossing).
+        yield return Await(() => pins.FocusShowing && pins.FocusText == "Grace" && !pins.GuideShowing, 1.5f);
         Check(pins.FocusShowing && pins.FocusText == "Grace" && !pins.GuideShowing,
             "her name is pinned over her head (what E talks to), one pin: the guide's own stands aside for the name");
         Rect name = pins.FocusOnScreen;
@@ -244,6 +249,12 @@ public sealed class Day1GuideCheck : PlayLab
         if (item == null) yield break;
         item.Interact(interactor);
         yield return Until(() => carry.Contains(camera), 3f, "Ace picks the camera up (as E on it does)");
+        // Grace is still within E's reach on her way to a seat: E must not give her the camera straight back unfixed (playtest
+        // 4 run 2, the first hour's #2: "[E] Hand it back (Rejected)" under this very card, one press from "Never again").
+        yield return Frames(3);
+        string prompt = interactor.CurrentPrompt ?? "";
+        Check(!grace.JobReady && !prompt.Contains("Hand it back") && !prompt.Contains("unfixed"),
+            $"...and E won't give it straight back to her unfixed (the bottom line: \"{(prompt.Length > 0 ? prompt : "nothing")}\")");
         yield return Until(() => guide.CardText.Contains("to the repair bench"), 4f, "the card: carry it to the repair bench");
         Check(guide.PinLabel == FocusNameUI.BenchName, "Day 1's pin: \"Repair bench\"");
         yield return Seconds(.6f);
@@ -347,13 +358,51 @@ public sealed class Day1GuideCheck : PlayLab
                 c.ForceRemove();
             }
         CustomerBrain officer = null;
-        yield return Await(() => (officer = FindRegular(OfficerStory.ProfileId)) != null && officer.CanHearIntake, 90f);
+        // Once he's on his way (from the street, about 45 s), one walk-in goes in at the café's door: they reach the counter
+        // first, so E talks to them first (PlayerInteractor.QueueHead), and the card has to say so (playtest 4 run 2, the first
+        // hour's #3: "DAY 1 · THE OFFICER" for 52 s while E talked to Tomas). The lab's hand keeps them waiting till he's there.
+        yield return Await(() => (officer = FindRegular(OfficerStory.ProfileId)) != null, 60f);
+        CustomerBrain sentIn = null;
+        if (officer != null && CafeLabDirector.Instance != null)
+        {
+            var before = new System.Collections.Generic.HashSet<CustomerBrain>(FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude));
+            CafeLabDirector.Instance.SendCustomersNow(1);
+            foreach (CustomerBrain c in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude))
+                if (c != null && !before.Contains(c) && (c.Identity == null || c.Identity.Profile == null)) sentIn = c;
+            Note(sentIn != null ? $"a walk-in ({sentIn.CustomerName}) went in at the café's door as the Officer set off from the street"
+                                : "no walk-in could be sent in at the door: the card following E to someone else may not be checked");
+        }
+        FieldInfo patienceLeft = typeof(CustomerBrain).GetField("patienceLeft", Any), queueMax = typeof(CustomerBrain).GetField("queueMax", Any);
+        yield return Await(() =>
+        {
+            if (sentIn != null && !sentIn.IsLeaving && patienceLeft != null && queueMax != null && patienceLeft.FieldType == typeof(float))
+                patienceLeft.SetValue(sentIn, queueMax.GetValue(sentIn));   // the lab's hand: they wait as long as it takes
+            return (officer = FindRegular(OfficerStory.ProfileId)) != null && officer.CanHearIntake;
+        }, 90f);
         if (!lastWait || officer == null)
         {
             Note("the Officer didn't reach the counter within the check's time: his cards aren't checked this run");
             yield break;
         }
         PutAce(till.position, till.eulerAngles.y);
+        yield return Frames(4);
+        // E talks to whoever has waited longest at the counter, and the card follows E: whoever reached the counter before
+        // him is heard first, so the card names them, and the Officer as waiting too.
+        CustomerInteractable head = interactor.QueueHead();
+        CustomerBrain ahead = head != null ? head.Brain : null;
+        if (ahead != null && ahead != officer)
+        {
+            yield return Until(() => guide.CardText.Contains("DAY 1 · " + ahead.CustomerName.ToUpperInvariant())
+                                     && guide.CardText.Contains("Officer is at the counter too"), 5f,
+                $"{ahead.CustomerName} reached the counter before him, so E talks to {ahead.CustomerName} first: the card names them, and the Officer as waiting too");
+            Check(interactor.CurrentPrompt != null && interactor.CurrentPrompt.Contains(ahead.CustomerName),
+                $"...and the bottom line agrees: \"{interactor.CurrentPrompt}\"");
+            yield return Photo1080("10a-heard-first-the-card-agrees");
+            Note($"{ahead.CustomerName} was sent home, to leave the Officer first in line");
+            ahead.ForceRemove();
+            yield return Frames(4);
+        }
+        else Note("nobody reached the counter before the Officer this run: the card following E to someone else isn't checked");
         string talk = DayOneGuideUI.TalkWords("the Officer", false, true);
         yield return Until(() => guide.CardText.Contains("DAY 1 · THE OFFICER") && guide.CardText.Contains(talk), 5f,
             $"the Officer at the counter: his own card (\"{talk}\")");
@@ -388,6 +437,11 @@ public sealed class Day1GuideCheck : PlayLab
         interactor.EnterStation(drinks);
         yield return Seconds(1.6f);
         Check(interactor.IsAtBeverageStation && guide.CardText.Contains("cup stack"), $"in its close-up the card says to take a cup: \"{Plain(guide.CardText)}\"");
+        // Still his coffee: the card follows the order Ace just took (playtest 4 run 2, the first hour's #3: at the machine it
+        // turned to "DAY 1 · GRACE" and her latte, which was on order too).
+        bool latteOwed = grace != null && !grace.IsLeaving && grace.HasDrinkOrder;
+        Check(guide.GuidedCustomer == officer && !guide.CardText.Contains("DAY 1 · GRACE") && !guide.CardText.Contains("Latte"),
+            $"...his coffee's, not Grace's latte{(latteOwed ? " (her latte is on order too)" : " (her latte isn't on order this run)")}: the card follows the Officer");
         yield return Photo1080("12-at-the-drinks-machine");
         interactor.ExitStation();
         yield return Seconds(1f);

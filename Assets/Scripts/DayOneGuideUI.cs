@@ -22,6 +22,14 @@ using UnityEngine.UI;
 //   - Day 1's controls strip says how to walk and use until Ace has walked a few metres and used E (MovementHintWanted,
 //     read by ShopUI).
 //   - Any day, the first time someone waiting on Ace gets frustrated (the sweat drop), one card says how to reassure them.
+//
+// PLAYTEST 4, RUN 2 (11 Oct 2026; the first hour's #3, the veteran's Day 5 note at 3:16 PM): the card agrees with E.
+//   - At the counter it follows whoever E talks to first (PlayerInteractor.QueueHead) while the guided visit is still to be
+//     heard, and names the visit as waiting too: it said "DAY 1 · THE OFFICER" for 52 s while E talked to Tomas.
+//   - The visit the card follows keeps it while Ace is busy with its things: at the drinks machine for the Officer's coffee
+//     it turned to "DAY 1 · GRACE" (her latte was on order too).
+//   - The impatience card goes when their phone needs Ace (support rang): it said "walk over and reassure" while the fix was
+//     "[E] Answer support".
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public class DayOneGuideUI : MonoBehaviour
@@ -225,6 +233,18 @@ public class DayOneGuideUI : MonoBehaviour
         CustomerBrain also = null;
         CustomerBrain customer = featured != null ? PickGuided(spawner.FeaturedCustomer, featured, out also) : spawner.OpeningCustomer;
         if (featured == null) primary = customer;
+        else
+        {
+            // E talks to whoever has waited longest at the counter: while the visit the card follows is still to be heard,
+            // the card follows E's target and names the visit as waiting too (it stays the visit the card comes back to).
+            CustomerBrain first = HeardFirst(customer);
+            if (first != null)
+            {
+                if (customer.CanHearIntake || customer.CanDecide) also = customer;
+                else if (also == first) also = null;
+                customer = first;
+            }
+        }
         bool drinkLesson = spawner.OpeningStep == DayOneOpening.Step.Drink;
         bool visitor = featured != null && customer != null && customer != spawner.FeaturedCustomer;
         string title = featured != null
@@ -258,8 +278,12 @@ public class DayOneGuideUI : MonoBehaviour
             return featuredCustomer;   // on the way, or the visit is over
         }
         CustomerBrain pick = null;
-        foreach (CustomerBrain c in guided)
-            if (InHand(c)) { pick = c; break; }
+        // The visit the card already follows keeps it while Ace is busy with its things: at the drinks machine for the
+        // Officer's coffee, Grace's latte (on order too) took the card the moment he got there (playtest 4 run 2).
+        if (primary != null && guided.Contains(primary) && InHand(primary)) pick = primary;
+        if (pick == null)
+            foreach (CustomerBrain c in guided)
+                if (InHand(c)) { pick = c; break; }
         if (pick == null)
             foreach (CustomerBrain c in guided)
                 if (c.CanHearIntake || c.CanDecide) { pick = c; break; }
@@ -269,6 +293,17 @@ public class DayOneGuideUI : MonoBehaviour
         foreach (CustomerBrain c in guided)
             if (c != pick && (c.CanHearIntake || c.CanDecide)) { alsoWaiting = c; break; }
         return pick;
+    }
+
+    // Whoever E talks to first at the counter (PlayerInteractor.QueueHead: the longest wait there), when that isn't the visit
+    // the card follows and that visit hasn't been heard yet (on its way in, or waiting at the counter); null otherwise. Its
+    // card would say "E talks to ..." of someone E won't reach first.
+    private CustomerBrain HeardFirst(CustomerBrain guidedNow)
+    {
+        if (interactor == null || guidedNow == null || guidedNow.IsLeaving || guidedNow.WasAccepted || InHand(guidedNow)) return null;
+        CustomerInteractable head = interactor.QueueHead();
+        CustomerBrain first = head != null ? head.Brain : null;
+        return first != null && first != guidedNow ? first : null;
     }
 
     private static bool IsStoryVisitor(CustomerBrain c, CustomerProfile featured)
@@ -747,7 +782,10 @@ public class DayOneGuideUI : MonoBehaviour
     {
         if (impatient != null)
         {
+            // Their phone needs Ace now (support rang, or the call dropped): that's the fix, not a walk over to reassure (the
+            // veteran, run 2: "GETTING IMPATIENT" stayed up while the prompt read "[E] Answer support" for the same customer).
             bool over = ReassuredOnce || !impatient.isActiveAndEnabled || impatient.IsLeaving || !impatient.ShowsPatience
+                || impatient.JobNeedsAttention
                 || impatient.PatienceFraction >= SweatDropAt + .05f || now >= impatientUntil;
             if (!over) return true;
             impatient = null;

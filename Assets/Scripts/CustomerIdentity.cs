@@ -172,6 +172,16 @@ public class CustomerIdentity : MonoBehaviour
         topics = null;   // the camera visit's topics depend on the request
     }
 
+    /// <summary>
+    /// The drink a repair visit asks for while waiting (CustomerBrain.OrderLine): what {a drink} and {drink} say from then on,
+    /// lower case ("a hot chocolate", "an espresso"). A visit for a drink keeps the drink it came in for (SetStoryRequest).
+    /// </summary>
+    public void SetWishedDrink(string name)
+    {
+        if (drinkVisit || string.IsNullOrWhiteSpace(name)) return;
+        drinkName = name.Trim().ToLowerInvariant();
+    }
+
     private bool HasGraceReturn => GraceCameraEpisode.HasPendingReturn(previousVisit,
         DayClock.Instance != null ? DayClock.Instance.Day : 0);
 

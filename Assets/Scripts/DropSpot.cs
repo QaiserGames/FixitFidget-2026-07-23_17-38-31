@@ -4,8 +4,8 @@ using UnityEngine;
 // way — claim a free slot from an ItemSlotArea — because devices no longer
 // belong to a counter position.
 //
-// The Kind is kept purely so the prompt can say "Return item" at the counter
-// and "Set down" at the bench.
+// The Kind is kept purely so the prompt can say where it goes: "Put it on the intake tray" at the
+// counter (DropInteractable.IntakeTrayWords) and "Set down" at the bench.
 public class DropSpot : MonoBehaviour
 {
     public enum SpotKind { Bench, Counter }
