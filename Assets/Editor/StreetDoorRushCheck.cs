@@ -38,6 +38,17 @@ using Object = UnityEngine.Object;
 // Lab session only: the playtest save is never touched. So that every run tests the
 // same crowd, the café sends nobody new while it runs, and it starts once the lab's
 // own walkers have cleared the door and the kerb (they still count if they come by).
+//
+// EVERYONE THE DOOR CAMERA SEES (11 Oct, door rush at the dusty rose door 8/12 and
+// 10/12): pausing the spawners can't hold back people already in the café. Two of its
+// customers and a patron walked home through the dusty rose door while the rush ran;
+// one customer stood still 34 s by the step, and three street walkers stayed 44-47 s
+// on one spot, in one knot with the rush's walk-ins (the run before: three café
+// customers 18-53 s, street walkers 33-72 s). Only the rush's own ten were judged.
+// Now the café's own visitors who come through the door while the rush runs are
+// listed, and they and the street's walkers going by are held to the same rules:
+// nobody stands still in view for more than 25 s (a street walker: on one spot,
+// shuffling included), nobody is teleported.
 // ---------------------------------------------------------------------------
 public static class StreetDoorRushCheck
 {
@@ -49,6 +60,9 @@ public static class StreetDoorRushCheck
     const float Touching = .40f;         // centres closer than this: inside each other
     const float StillSpeed = .08f;
     const float Shoulder = .7f;          // standing this close: shoulder to shoulder
+    const float InView = 8f;             // metres from the doorway: what the door camera sees
+    const float OneSpot = 1.2f;          // a street walker that stays within this of where it stopped is on one spot
+    const float OutOfViewGap = 1f;       // seconds unseen after which someone's standing-still clock starts again
 
     static IEnumerator routine;
     static double resumeAt;
@@ -68,6 +82,16 @@ public static class StreetDoorRushCheck
         public string longestWhere = "";
         public int unstuck;
         public Vector3 last;
+    }
+
+    // Someone else in view while the rush runs: one of the café's own visitors, or a street walker.
+    sealed class Bystander
+    {
+        public string label;
+        public float seenAt = -1f, stillSince = -1f, longestStill;
+        public string longestWhere = "";
+        public Vector3 spot;                 // a street walker: where it last stopped making way
+        public int unstuckFrom, unstuck;
     }
 
     [MenuItem(ShopMenu)] static void ShopRun() => Run("shop door", r => r.name.StartsWith("From the courtyard shop", StringComparison.Ordinal));
@@ -167,6 +191,10 @@ public static class StreetDoorRushCheck
         float worstOpen = 1f;
         string bothNote = "", faceNote = "", touchNote = "", bunchNote = "";
         var lastFace = new Dictionary<string, float>();
+        // Everyone else in view while the rush runs: the café's own visitors and the street's walkers.
+        var rushBodies = new HashSet<GameObject>();
+        var cafeVisitors = new Dictionary<NpcJourney, Bystander>();
+        var streetWalkers = new Dictionary<Transform, Bystander>();
 
         while (Time.time - t0 < Limit)
         {
@@ -178,6 +206,7 @@ public static class StreetDoorRushCheck
                 GameObject npc = Object.Instantiate(body);
                 npc.name = $"Rush - going home {homeGoers + 1}";
                 spawned.Add(npc);
+                rushBodies.Add(npc);
                 bool ok = arrivals.EditorDepartOnFoot(npc, CafeArrivals.Kind.Customer, routeIndex, from);
                 if (ok) walkers.Add(new Walker { label = npc.name, npc = npc, born = now, last = npc.transform.position });
                 else Check(false, npc.name + " set off for home");
@@ -191,6 +220,7 @@ public static class StreetDoorRushCheck
                     GameObject npc = Object.Instantiate(body);
                     npc.name = $"Rush - walk-in {i + 1}";
                     spawned.Add(npc);
+                    rushBodies.Add(npc);
                     GameObject me = npc;
                     bool ok = arrivals.EditorArriveOnFoot(npc, CafeArrivals.Kind.Customer, routeIndex, () => CafeArrivals.TryDepart(me));
                     if (ok) walkers.Add(new Walker { label = npc.name, npc = npc, outFirst = true, born = now, last = npc.transform.position });
@@ -208,7 +238,7 @@ public static class StreetDoorRushCheck
                 // walks out or goes further in to wait for its turn: judge it from then on.
                 if (j.Age < .25f) continue;
                 Vector3 p = j.transform.position;
-                if (Flat(p - door.DoorwayPoint).magnitude > 8f) continue;
+                if (Flat(p - door.DoorwayPoint).magnitude > InView) continue;
                 // Inside the house waiting for their turn (or behind the hall's back wall): not on the street.
                 bool seen = !j.Unseen && door.Outside(p) > -(StreetDoorSteps.HallDepth - .05f);
                 near.Add((j.name, p, j.Velocity, j.Arriving, seen, j));
@@ -262,6 +292,39 @@ public static class StreetDoorRushCheck
                 if (o > -.05f && o < .25f && Flat(n.at - door.DoorwayPoint).magnitude < .8f) worstOpen = Mathf.Min(worstOpen, door.OpenAmount);
             }
 
+            // The café's own visitors in view (not the rush's ten): standing still and being helped on
+            // count for them as for the rush.
+            foreach (var n in near)
+            {
+                if (!n.seen || rushBodies.Contains(n.j.gameObject)) continue;
+                if (!cafeVisitors.TryGetValue(n.j, out Bystander b))
+                    cafeVisitors[n.j] = b = new Bystander
+                    {
+                        label = $"{n.name} #{cafeVisitors.Count + 1} ({(n.outward ? "out to the café" : "on their way home")})",
+                        unstuckFrom = n.j.Unstuck
+                    };
+                b.unstuck = Mathf.Max(b.unstuck, n.j.Unstuck - b.unstuckFrom);
+                Watch(b, n.at, Flat(n.v).magnitude < StillSpeed, now,
+                      n.j.Waiting ? ", waiting for " + n.j.WaitingFor : n.j.HeldBy.Length > 0 ? ", held by " + n.j.HeldBy : "");
+            }
+            // The street's walkers in view: on one spot (standing, or shuffling side to side) is standing still.
+            StreetLife street = StreetLife.Main;
+            if (street != null)
+                foreach (StreetLife.Actor a in street.actors)
+                {
+                    if (!IsStreetWalker(a)) continue;
+                    Vector3 p = a.actor.position;
+                    if (Flat(p - door.DoorwayPoint).magnitude > InView) continue;
+                    if (!streetWalkers.TryGetValue(a.actor, out Bystander b))
+                        streetWalkers[a.actor] = b = new Bystander { label = "street walker " + a.actor.name };
+                    bool fresh = b.seenAt < 0f || now - b.seenAt > OutOfViewGap;
+                    b.seenAt = now;
+                    // Moved off its spot (or just came into view): on a new one, and the clock starts again.
+                    if (fresh || Flat(p - b.spot).magnitude > OneSpot) { b.spot = p; b.stillSince = now; }
+                    float held = now - b.stillSince;
+                    if (held > b.longestStill) { b.longestStill = held; b.longestWhere = $"({p.x:0.0}, {p.z:0.0})"; }
+                }
+
             // Each of the rush's own people.
             foreach (Walker w in walkers)
             {
@@ -291,19 +354,36 @@ public static class StreetDoorRushCheck
         foreach (Walker w in walkers)
             Note($"{w.label}: " + (w.outFirst ? $"out and clear after {Fmt(w.outAt - w.born)}, " : "") + $"home after {Fmt(w.homeAt - w.born)}; " +
                  $"longest standing still in view {w.longestStill:0.0} s{(w.longestStill > 1f ? " at " + w.longestWhere : "")}" + (w.unstuck > 0 ? $"; teleported {w.unstuck}x" : ""));
+        // Who else the door saw: the café's own visitors (people already in the café or on the street when the
+        // rush began) and the street's walkers.
+        if (cafeVisitors.Count == 0) Note("None of the café's own visitors came by the door while the rush ran.");
+        else
+        {
+            Note($"The café's own visitors who came by the door while the rush ran: {cafeVisitors.Count} (on top of the rush's ten).");
+            foreach (Bystander b in cafeVisitors.Values)
+                Note($"{b.label}: longest standing still in view {b.longestStill:0.0} s{(b.longestStill > 1f ? " at " + b.longestWhere : "")}" + (b.unstuck > 0 ? $"; teleported {b.unstuck}x" : ""));
+        }
+        Bystander slowestStreet = streetWalkers.Values.OrderByDescending(b => b.longestStill).FirstOrDefault();
+        Note(slowestStreet == null ? "No street walker came by."
+            : $"Street walkers who came by: {streetWalkers.Count}; the longest any of them stayed on one spot in view: {slowestStreet.longestStill:0.0} s ({slowestStreet.label} at {slowestStreet.longestWhere}).");
         Check(walkers.Count == 2 * Each && walkers.All(w => w.homeAt > 0f), $"All ten got home ({walkers.Count(w => w.homeAt > 0f)} of {walkers.Count}) within {Limit:0} s");
         Check(walkers.Where(w => w.outFirst).All(w => w.outAt > 0f), $"All five walk-ins got out of the door and clear of it ({walkers.Count(w => w.outFirst && w.outAt > 0f)} of {Each})");
         Check(bothWays == 0, $"The single-file stretch was only ever used one way at a time ({bothWays} time(s) both ways{(bothNote.Length > 0 ? "; first: " + bothNote : "")})");
         Check(faceToFace == 0, $"Nobody met face to face in it ({faceToFace} time(s) within 1.5 m{(faceNote.Length > 0 ? "; first: " + faceNote : "")})");
         Check(touching == 0, $"Nobody walked or stood inside anybody near the door ({touching} time(s) closer than {Touching:0.00} m{(touchNote.Length > 0 ? "; first: " + touchNote : "")})");
         Check(bunched == 0, $"Nobody bunched up: never three standing shoulder to shoulder, within {Shoulder:0.0} m ({bunched} time(s){(bunchNote.Length > 0 ? "; first: " + bunchNote : "")})");
-        int teleported = walkers.Count(w => w.unstuck > 0);
-        Check(teleported == 0, $"Nobody had to be teleported past a jam ({teleported})");
+        int teleported = walkers.Count(w => w.unstuck > 0) + cafeVisitors.Values.Count(b => b.unstuck > 0);
+        Check(teleported == 0, $"Nobody had to be teleported past a jam ({teleported}; the café's own visitors in view count too)");
         int cutShort = arrivals.WalksCutShort - cutShortBefore;
         Check(cutShort <= 0, $"No walk hit the 2-minute backstop ({Mathf.Max(0, cutShort)})");
-        float longest = walkers.Count > 0 ? walkers.Max(w => w.longestStill) : 0f;
-        Walker longestWalker = walkers.OrderByDescending(w => w.longestStill).FirstOrDefault();
-        Check(longest <= 25f, $"Nobody stood still in view for more than 25 s (longest {longest:0.0} s{(longestWalker != null && longest > 1f ? ", " + longestWalker.label + " at " + longestWalker.longestWhere : "")})");
+        // The longest anyone stood still in view: the rush's ten, the café's own visitors, the street's walkers.
+        var standing = walkers.Select(w => (w.label, w.longestStill, w.longestWhere))
+            .Concat(cafeVisitors.Values.Select(b => (b.label, b.longestStill, b.longestWhere)))
+            .Concat(streetWalkers.Values.Select(b => (b.label, b.longestStill, b.longestWhere)))
+            .OrderByDescending(s => s.longestStill).ToList();
+        float longest = standing.Count > 0 ? standing[0].longestStill : 0f;
+        Check(longest <= 25f, $"Nobody stood still in view for more than 25 s, the café's own visitors and the street's walkers included " +
+                              $"(longest {longest:0.0} s{(standing.Count > 0 && longest > 1f ? ", " + standing[0].label + " at " + standing[0].longestWhere : "")})");
         Check(worstOpen >= .85f, $"The door was open whenever someone was in it ({worstOpen:0%} at worst)");
         DateTime saveAfter = File.Exists(playtestSave) ? File.GetLastWriteTimeUtc(playtestSave) : DateTime.MinValue;
         Check(saveAfter == saveBefore, "The playtest save was not written");
@@ -332,6 +412,31 @@ public static class StreetDoorRushCheck
     }
 
     // ---- helpers ----
+
+    // Standing still in view, timed; out of view for more than a moment starts the clock again.
+    static void Watch(Bystander b, Vector3 at, bool still, float now, string why)
+    {
+        if (b.seenAt >= 0f && now - b.seenAt > OutOfViewGap) b.stillSince = -1f;
+        b.seenAt = now;
+        if (!still) { b.stillSince = -1f; return; }
+        if (b.stillSince < 0f) b.stillSince = now;
+        float held = now - b.stillSince;
+        if (held > b.longestStill) { b.longestStill = held; b.longestWhere = $"({at.x:0.0}, {at.z:0.0})" + why; }
+    }
+
+    // One of the street's people on foot, in the scene right now, told apart the way StreetLife does it: not in a
+    // traffic lane, no wheels or wings, and legs or an Animator with the IsWalking switch (the passing birds have
+    // an Animator but no IsWalking, and fly over everyone).
+    static bool IsStreetWalker(StreetLife.Actor a)
+    {
+        if (a == null || a.actor == null || !a.actor.gameObject.activeInHierarchy || !string.IsNullOrWhiteSpace(a.trafficGroup)) return false;
+        if ((a.wings != null && a.wings.Length > 0) || (a.wheels != null && a.wheels.Length > 0)) return false;
+        if (a.legs != null && a.legs.Length > 0) return true;
+        if (a.animator == null || a.animator.runtimeAnimatorController == null) return false;
+        foreach (AnimatorControllerParameter p in a.animator.parameters)
+            if (p.type == AnimatorControllerParameterType.Bool && p.name == "IsWalking") return true;
+        return false;
+    }
 
     // Nobody (on a walk, or a street walker) within `radius` of the point.
     static bool Clear(Vector3 point, float radius)

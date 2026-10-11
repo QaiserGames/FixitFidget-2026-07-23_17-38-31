@@ -59,6 +59,7 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     private Vector3 offFrom;
     private const float AskAhead = 4.5f;      // metres before the stretch someone going in asks for their turn
     private const float ClearBeyond = .8f;    // coming out: through once this far past the stretch's outer end
+    private const float OnStretchLine = .25f; // back from a waiting spot: this near the stretch's line, past its start, is on it
 
     // Segments that may not be started until something says go: a front door that
     // must be open before someone walks through it (StreetDoor). Index = segment
@@ -117,9 +118,10 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
     /// <summary>Waiting inside a house, unseen and in nobody's way, for their turn to come out of its front door.</summary>
     public bool Unseen => unseen;
     /// <summary>How they stand with the front door on this walk, for traces: "" (none, or through), "on the way",
-    /// "waiting inside", "waiting outside", or "their turn".</summary>
-    public string DoorTurn => turnDoor == null || turnDone ? "" : turnGiven ? "their turn" : !turnAsked ? "on the way"
-                            : unseen ? "waiting inside" : "waiting outside";
+    /// "waiting inside", "waiting outside", "their turn", or "their turn, back from their spot" (walking from a
+    /// waiting spot to the start of the stretch: they head for that, not for <see cref="NextTarget"/>).</summary>
+    public string DoorTurn => turnDoor == null || turnDone ? "" : turnGiven ? (offPath ? "their turn, back from their spot" : "their turn")
+                            : !turnAsked ? "on the way" : unseen ? "waiting inside" : "waiting outside";
 
     public Vector3 Position => transform.position;
     public Vector3 Velocity => velocity;
@@ -611,7 +613,12 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
                 return true;
             }
             turnGiven = true;
-            if (offPath) offFrom = here;               // from the waiting spot back to the stretch
+            if (offPath)
+            {
+                offFrom = here;                        // from the waiting spot back to the stretch
+                bestRemaining = float.PositiveInfinity; // the walk back is measured from here (Rejoin)
+                lastProgressAt = Time.time;
+            }
             return offPath && Rejoin(here, dt);
         }
 
@@ -653,24 +660,70 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
 
     // From a waiting spot straight back to where the door's stretch starts (Doors 4 checked
     // that way is clear), then on along the path as usual.
+    //
+    // Door rush at the dusty rose door, 11 Oct: two or three people walking back from the spots
+    // at once (the door lets people going the same way follow each other a second apart) stood
+    // a step from the start for 43-85 s, with street walkers stuck behind them. Two things held
+    // them. Going round each other, one was pushed a step past the start, onto the stretch
+    // itself, and stood there trying to get back to the start through the others: now being on
+    // the stretch's line, past its start, counts as being back on the path, and they walk on in.
+    // And the walk back never counted as being stuck (the clock was reset every frame), so nobody
+    // ever squeezed past or was helped on: now getting no nearer counts, as it does on the path -
+    // after a few seconds they squeeze past, and in the end they are put on the start if nobody
+    // stands on it.
     private bool Rejoin(Vector3 here, float dt)
     {
         Vector3 start = points[doorFirst];
         Vector3 toStart = Flat(start - here);
-        if (toStart.magnitude < .2f)
+        float left = toStart.magnitude;
+        if (left < .2f || PastTheStart(here))
         {
-            offPath = false;
-            if (next < doorFirst + 1) next = doorFirst + 1;
-            bestRemaining = float.PositiveInfinity;
-            lastProgressAt = Time.time;
+            Rejoined();
             return false;
+        }
+        if (left < bestRemaining - .05f) { bestRemaining = left; lastProgressAt = Time.time; }
+        else if (Time.time - lastProgressAt > HelpAfter)
+        {
+            // As HelpOn on the path: onto the start of the stretch, but only onto free ground.
+            if (FreeOfBodies(start, BodyRadius * 2f + Personal))
+            {
+                Unstuck++;
+                transform.position = start;
+                velocity = Vector3.zero;
+                Rejoined();
+                return false;
+            }
+            lastProgressAt = Time.time - HelpAfter + 3f;   // nowhere free yet: look again in a few seconds
         }
         Vector3 line = Flat(start - offFrom);
         Vector3 lineDir = line.sqrMagnitude > 1e-4f ? line.normalized : toStart.normalized;
         Vector3 lineRight = new Vector3(lineDir.z, 0f, -lineDir.x);
-        lastProgressAt = Time.time;
         Steer(here, start, false, offFrom, start, offFrom, lineRight, OffPathRoom, OffPathRoom, dt, toStart, false);
         return true;
+    }
+
+    // Back on the path at the start of the door's stretch: on along it from there.
+    private void Rejoined()
+    {
+        offPath = false;
+        if (next < doorFirst + 1) next = doorFirst + 1;
+        bestRemaining = float.PositiveInfinity;
+        lastProgressAt = Time.time;
+    }
+
+    // Already on the stretch's first segment: past its start and within a short step of its line.
+    private bool PastTheStart(Vector3 here)
+    {
+        if (doorFirst < 0 || doorFirst + 1 >= points.Length) return false;
+        Vector3 a = points[doorFirst];
+        Vector3 d = Flat(points[doorFirst + 1] - a);
+        float length = d.magnitude;
+        if (length < 1e-3f) return false;
+        d /= length;
+        Vector3 p = Flat(here - a);
+        float along = Vector3.Dot(p, d);
+        float across = Mathf.Abs(Vector3.Dot(p, new Vector3(d.z, 0f, -d.x)));
+        return along > 0f && along < length && across <= OnStretchLine;
     }
 
     // No waiting spot free (or none marked at this door): wait in line beside the path itself,
