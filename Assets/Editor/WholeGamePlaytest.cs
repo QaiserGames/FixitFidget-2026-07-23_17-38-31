@@ -12,8 +12,9 @@ using UnityEngine;
 // by hand from Day 1's morning, as the real game runs it: Grace brings her camera in and mentions Barnaby, the
 // recap's "Close up for the night" leads into Night 1 (Barnaby on her step), calling it a night inside the café's
 // door (or dawn) opens Day 2 with her complaint and the straight face, and on, day after day and night after
-// night. The one difference from the real game is Grace's house: her door opens for Ace in every night of this
-// session (NightWalk.breakIns, off in the real game until the break-ins are ready). Every run starts afresh.
+// night. Grace's house works here exactly as in the real game: her door opens for Ace at night in both
+// (NightWalk.breakIns, on in the real game since 30 Sept; playtest 4 found this comment had said otherwise).
+// Every run starts afresh.
 internal static class WholeGamePlaytest
 {
     const string MenuPath = "Fixit Fidget/Playtest/Play the whole game from Day 1 (test save)";

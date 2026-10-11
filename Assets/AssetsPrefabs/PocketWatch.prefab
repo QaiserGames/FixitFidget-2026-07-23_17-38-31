@@ -2034,7 +2034,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RepairJob
   payout: 25
-  restHeight: 0.01
+  restHeight: 0.025
 --- !u!114 &8900163142322665516
 MonoBehaviour:
   m_ObjectHideFlags: 0

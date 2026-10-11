@@ -1,0 +1,133 @@
+{
+ "version": 1,
+ "kit": "cafe_intake",
+ "note": "Unity (x, y, z) = Blender (-x, z, -y); the walled front faces Unity +Z (the queue) as built, the open side Unity -Z (Ace). Placed by Fixit Fidget > Playtest 4 > Tray > 1 (Assets/Editor/Playtest4TraySteps.cs).",
+ "remaps": {
+  "CC_Wood_Counter": "Cafe grain - CC_Wood_Counter (Assets/Playtests/AcesCafeLayout/Cafe palette.asset)",
+  "CF_Felt": "Assets/Art/Materials/Cafe/CF_Felt.mat (made by the step from this manifest)"
+ },
+ "pieces": [
+  {
+   "name": "CK_IntakeTray",
+   "group": "Counter",
+   "what": "the intake tray: felt-lined chestnut, walled on the customers' side, open on Ace's; one under each intake slot, where an accepted device waits for the bench",
+   "stretch": false,
+   "tris": 204,
+   "size": [
+    0.36,
+    0.02,
+    0.305
+   ],
+   "bottom": 0.0,
+   "back": 0.138,
+   "materials": [
+    "CC_Wood_Counter",
+    "CF_Felt"
+   ],
+   "islands": 5,
+   "origin": "under the slot point, on the tray's bottom (the stone); the footprint runs 0.167 m toward the queue (Unity +z, the walled front) and 0.138 m toward Ace (Unity -z, the open side)",
+   "place": "a child of each intake slot (02 - intake and queue/IntakeShelf/Shelf_0..4), local rotation 0, local position (0, the stone's height under the slot, 0): the stone is 5 mm under the slot point today",
+   "collider": null,
+   "felt_top": 0.008,
+   "rim_top": 0.02,
+   "felt_bed": {
+    "x": [
+     -0.165,
+     0.165
+    ],
+    "z": [
+     -0.133,
+     0.152
+    ]
+   },
+   "footprint": {
+    "x": [
+     -0.18,
+     0.18
+    ],
+    "z": [
+     -0.138,
+     0.167
+    ]
+   },
+   "open_side": "Unity -z (toward Ace, the till side); the walled front faces Unity +z (the queue)",
+   "device_envelope": {
+    "jitter": {
+     "yaw_deg": 12.0,
+     "offset_m": 0.02,
+     "source": "CustomerBrain shelfYawJitter / shelfOffsetJitter"
+    },
+    "Grace's camera body": {
+     "x": [
+      -0.1603,
+      0.1603
+     ],
+     "z": [
+      -0.1353,
+      0.125
+     ],
+     "bottom_over_slot": 0.003
+    },
+    "pocket watch (case and bow)": {
+     "x": [
+      -0.095,
+      0.095
+     ],
+     "z": [
+      -0.095,
+      0.149
+     ],
+     "bottom_over_slot": -0.0117
+    },
+    "hero phone": {
+     "x": [
+      -0.0694,
+      0.0694
+     ],
+     "z": [
+      -0.0962,
+      0.0959
+     ],
+     "bottom_over_slot": 0.0042
+    },
+    "plain phone (PhoneJob)": {
+     "x": [
+      -0.0688,
+      0.0688
+     ],
+     "z": [
+      -0.0957,
+      0.0957
+     ],
+     "bottom_over_slot": 0.004
+    }
+   },
+   "references": [
+    {
+     "what": "Otto Frei watch-service counter tray, velvet pad: 14-3/4 x 8-1/4 x 1 in (375 x 210 x 25 mm)",
+     "url": "https://www.ottofrei.com/products/jewelry-tray-black-velvet-pad-full-size-14-3-4x8-1-4-1in-watch-bracelet-sizing"
+    },
+    {
+     "what": "Carver solid-wood front-loading desk tray (in-tray, cut-out front): 13.62 x 10.62 x 2.12 in (346 x 270 x 54 mm)",
+     "url": "https://www.officecrave.com/carver-cw07212.html"
+    }
+   ]
+  }
+ ],
+ "materials": {
+  "CF_Felt": {
+   "hex": "2E7D5B",
+   "smoothness": 0.08,
+   "metallic": 0.0,
+   "why": "NEW: the felt bed in the brand green (the bench mat's and the REPAIRS sign's green: green is where repairs live). Felt is matte: the existing DC_Sticker_Green (0.45) would take a highlight from the counter's pendants and read as plastic."
+  }
+ },
+ "existing_materials": {
+  "CC_Wood_Counter": {
+   "hex": "8F5B32",
+   "smoothness": 0.71,
+   "metallic": 0.0,
+   "use": "chestnut, the room's one wood: the board and the rims (Kit 1 maps it to \"Cafe grain - CC_Wood_Counter\", the grain at 1 m a tile)"
+  }
+ }
+}
