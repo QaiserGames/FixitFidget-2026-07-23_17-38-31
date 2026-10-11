@@ -278,6 +278,20 @@ public static class NpcLifeChecks
             : $"Five lounge seats are live ({lounge.Length})");
         if (lounge.Length == 0) yield break;
 
+        // Since playtest 4 every waiting customer would rather sit (Systems' S1) and the first customer reaches the till in
+        // about 12 s, so on a live lab day a customer (or a patron) may already sit in a seat under test, and the claims
+        // below would no longer be the check's own. Send the café's customers and patrons out first (the lab's own "leave
+        // now") and wait for the five to be free.
+        if (lounge.Any(s => s.IsOccupied))
+        {
+            int takenAtStart = lounge.Count(s => s.IsOccupied);
+            int sentOut = lab.CustomersLeaveNow() + lab.PatronsLeaveNow();
+            float freeBy = Time.time + 25f;
+            while (Time.time < freeBy && lounge.Any(s => s.IsOccupied)) yield return null;
+            Note($"{takenAtStart} seat(s) under test were taken by the day's own people: {sentOut} customer(s) and patron(s) sent out first " +
+                 $"({lounge.Count(s => s.IsOccupied)} still taken after {25f - Mathf.Max(0f, freeBy - Time.time):0.0} s).");
+        }
+
         // ---------- 1. simultaneous claims ----------
         // Hold every ordinary table seat, then ask for seven seats in one frame:
         // exactly the five lounge seats come back, no seat twice.
