@@ -41,13 +41,35 @@ public static class GraceRuleChecks
             "Six nights a week her usual night; the night after a Thursday, her odd one.");
         for (int i = 1; i < usual.Length; i++) Check(usual[i].at > usual[i - 1].at, "Her usual night's steps come in order.");
         for (int i = 1; i < thursday.Length; i++) Check(thursday[i].at > thursday[i - 1].at, "Her Thursday's steps come in order.");
+        Check(usual.Length == 9, "Her usual night has nine steps (playtest 4: a second cup, and bed at 1:20).");
         Check(usual[0].at == GraceNight.NightStarts && usual[0].act == GraceNight.Act.Sit, "At 11 PM she's in her armchair (the TV on).");
         Check(GraceNight.Clock(usual[1].at) == "11:35 PM" && usual[1].act == GraceNight.Act.Tea, "At 11:35 PM the kettle.");
         Check(GraceNight.Clock(usual[2].at) == "11:45 PM" && usual[2].act == GraceNight.Act.Sit, "At 11:45 PM back to her armchair.");
-        Check(GraceNight.Clock(usual[3].at) == "12:00 AM" && usual[3].act == GraceNight.Act.Bed, "At midnight up to bed.");
-        Check(GraceNight.Clock(usual[4].at) == "12:20 AM" && usual[4].act == GraceNight.Act.Sleep, "At 12:20 AM her lamp off: asleep.");
-        Check(GraceNight.Clock(usual[5].at) == "2:40 AM" && usual[5].act == GraceNight.Act.Water, "At 2:40 AM a glass of water.");
-        Check(GraceNight.Clock(usual[6].at) == "3:05 AM" && usual[6].act == GraceNight.Act.Sleep, "About 3:05 AM asleep again.");
+        Check(GraceNight.Clock(usual[3].at) == "12:30 AM" && usual[3].act == GraceNight.Act.Tea, "At 12:30 AM another cup.");
+        Check(GraceNight.Clock(usual[4].at) == "12:40 AM" && usual[4].act == GraceNight.Act.Sit, "At 12:40 AM back to her armchair.");
+        Check(GraceNight.Clock(usual[5].at) == "1:20 AM" && usual[5].act == GraceNight.Act.Bed && usual[5].at == GraceNight.UsualBed, "At 1:20 AM up to bed.");
+        Check(GraceNight.Clock(usual[6].at) == "1:40 AM" && usual[6].act == GraceNight.Act.Sleep && usual[6].at == GraceNight.UsualAsleep,
+            "At 1:40 AM her lamp off: asleep.");
+        Check(GraceNight.Clock(usual[7].at) == "2:40 AM" && usual[7].act == GraceNight.Act.Water && usual[7].at == GraceNight.UsualWater,
+            "At 2:40 AM a glass of water.");
+        Check(GraceNight.Clock(usual[8].at) == "3:05 AM" && usual[8].act == GraceNight.Act.Sleep, "About 3:05 AM asleep again.");
+        Check(GraceNight.At(usual, GraceNight.Act.Bed) == GraceNight.UsualBed && GraceNight.At(usual, GraceNight.Act.Tea, 1) == usual[3].at
+              && GraceNight.At(usual, GraceNight.Act.Sleep, 1) == usual[8].at && GraceNight.At(usual, GraceNight.Act.Out) < 0f
+              && GraceNight.At(thursday, GraceNight.Act.Water) < 0f, "Her hours are found by what she sets out to do (the checks read them there).");
+
+        // Playtest 4 (10 Oct 2026, the veteran: waiting her out on Night 2 was risk-free): the numbers in real seconds, at the
+        // night's 48 s an hour (NightWalk: 11 PM to 4 AM in four minutes). Night 2's player is on her stoop by about 11:15.
+        const float SecondsAnHour = 48f, OnHerStoop = 23.25f;
+        float waitForDark = (GraceNight.UsualAsleep - OnHerStoop) * SecondsAnHour;
+        float safe = (GraceNight.UsualWater - GraceNight.UsualAsleep) * SecondsAnHour;
+        float beforeDawn = (28f - (GraceNight.At(usual, GraceNight.Act.Sleep, 1) + 10f / 60f)) * SecondsAnHour;   // she's back in bed ~10 min after 3:05
+        Check(waitForDark >= 100f && waitForDark <= 130f, $"Waiting her out from her stoop costs about two minutes of a four-minute night ({waitForDark:0} s).");
+        Check(safe >= 40f && safe <= 60f, $"Then about {safe:0} s of a sleeping house before her bay lights up again at 2:40 (short, bounded).");
+        Check(beforeDawn >= 25f && beforeDawn <= 45f, $"Missing that, about {beforeDawn:0} s between her lamp going off again and dawn, less the walk to the bins.");
+        float longest = 0f;
+        for (int i = 1; i < usual.Length && usual[i - 1].act != GraceNight.Act.Bed; i++)
+            longest = Math.Max(longest, (usual[i].at - usual[i - 1].at) * SecondsAnHour);
+        Check(longest <= 40f, $"Up, her routine changes every 40 s or sooner (at most {longest:0} s in her armchair at a time): waiting isn't dead time.");
         Check(thursday[0].act == GraceNight.Act.Out && thursday[1].act == GraceNight.Act.ComeHome
               && GraceNight.Clock(GraceNight.ThursdayHome) == "1:30 AM" && GraceNight.Clock(thursday[1].at) == "1:00 AM"
               && thursday[1].at < GraceNight.ThursdayHome,
@@ -57,8 +79,9 @@ public static class GraceRuleChecks
             "Thursdays: bed at 1:50, asleep at 2:10.");
         Check(Array.FindIndex(thursday, s => s.act == GraceNight.Act.Water) < 0, "Thursdays there's no water at 2:40 (she has only just gone to bed).");
         Check(GraceNight.Now(usual, 22f) == 0 && GraceNight.Now(usual, 23f) == 0 && GraceNight.Now(usual, 23.5f) == 0
-              && GraceNight.Now(usual, 23.6f) == 1 && GraceNight.Now(usual, 24.1f) == 3 && GraceNight.Now(usual, 26.7f) == 5
-              && GraceNight.Now(usual, 28f) == 6, "The step under way is the last one begun.");
+              && GraceNight.Now(usual, 23.6f) == 1 && GraceNight.Now(usual, 24.1f) == 2 && GraceNight.Now(usual, 24.6f) == 3
+              && GraceNight.Now(usual, 25.4f) == 5 && GraceNight.Now(usual, 26.7f) == 7 && GraceNight.Now(usual, 28f) == 8,
+            "The step under way is the last one begun.");
         Check(GraceNight.Now(thursday, 24f) == 0 && GraceNight.Now(thursday, 25.3f) == 1 && GraceNight.Now(thursday, 26.5f) == 3,
             "Thursdays: out until she sets off, then home, bed, asleep.");
         Check(GraceNight.Clock(23f) == "11:00 PM" && GraceNight.Clock(24.5f) == "12:30 AM" && GraceNight.Clock(28f) == "4:00 AM",

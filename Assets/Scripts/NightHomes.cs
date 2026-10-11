@@ -24,7 +24,9 @@ using UnityEngine.SceneManagement;
 //   * Grace's house has one warm room until about midnight, and nothing marks it; since chunk C (6 Oct)
 //     she's at home (GraceAtHome) and her own bedside lamp lights her bays instead (Drive: her house's
 //     rooms follow what she switches, not the plan). Her ground floor has real rooms behind clear glass
-//     (the break-ins, GraceHouse), so her front window gets no pane of its own: her lamps light it;
+//     (the break-ins, GraceHouse), so her front window gets no pane of its own: her lamps light it. Since
+//     playtest 4 (10 Oct) her lit windows glow GraceGlow times brighter than the street's: seen edge on
+//     from the overhead, at the street's glow they didn't read as lit;
 //   * houses whose neighbour is still out (NightNeighbours) are dark until they come home, then a
 //     room lights, and later one upstairs.
 //
@@ -103,7 +105,7 @@ public sealed class NightHomes : MonoBehaviour
     readonly List<UnityEngine.Object> made = new();          // materials and textures to free
     readonly Dictionary<Material, Material> darkCurtains = new();
     readonly HashSet<Transform> away = new();
-    Material paneLit;
+    Material paneLit, gracePane;
     Transform graceHouse;
     bool settled;
     NightWalk.HomeHours hours;
@@ -265,7 +267,7 @@ public sealed class NightHomes : MonoBehaviour
         made.Clear();
         darkCurtains.Clear();
         away.Clear();
-        paneLit = null;
+        paneLit = gracePane = null;
         graceHouse = null;
         settled = false;
         LitNow = LitAtStart = MostLit = Changes = Houses = 0;
@@ -290,8 +292,15 @@ public sealed class NightHomes : MonoBehaviour
             List<Room> list = pair.Value;
             if (driven.ContainsKey(house))
             {
-                // Someone at home switches them (GraceAtHome): nothing planned.
-                foreach (Room r in list) r.driven = r.grace = true;
+                // Someone at home switches them (GraceAtHome): nothing planned. Lit, her windows glow brighter than the
+                // street's (playtest 4: from the overhead her bays are seen edge on, and at the street's glow they read as
+                // dull brown slivers, lit or not; her bedside lamp is a metre from the bay).
+                Material hers = GracePane();
+                foreach (Room r in list)
+                {
+                    r.driven = r.grace = true;
+                    if (hers != null && r.panes != null) r.panes.sharedMaterial = hers;
+                }
                 continue;
             }
             if (house == graceHouse)
@@ -482,6 +491,20 @@ public sealed class NightHomes : MonoBehaviour
         m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
         made.Add(m);
         return m;
+    }
+
+    /// <summary>How much brighter a lit window of a house someone switches by hand (Grace's) glows than the street's.</summary>
+    public const float GraceGlow = 2.4f;
+
+    // Her lit windows: the lit room's pane, its glow GraceGlow times the street's (HDR: the night look's bloom picks it up,
+    // so a bay seen edge on from the overhead still shows a warm halo). Made once a night, freed with the rest.
+    Material GracePane()
+    {
+        if (gracePane != null || paneLit == null) return gracePane;
+        gracePane = new Material(paneLit) { name = "Lit room, Grace's (night)", hideFlags = HideFlags.DontSave };
+        gracePane.SetColor(EmissionColorId, hours.roomGlow * GraceGlow);
+        made.Add(gracePane);
+        return gracePane;
     }
 
     // The curtains of a dark room: the curtain colour, a little dimmer, and no glow.

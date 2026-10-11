@@ -5,13 +5,24 @@ using System;
 // §7, all as Mansoor took them; claude/break-ins-spec.md §6 for the numbers)
 //
 // Her night by the night's clock (23 is 11 PM, 24 midnight, 26.667 is 2:40 AM; the night runs 11 PM to 4 AM in four
-// minutes, 48 s an hour):
+// minutes, 48 s an hour: 0.8 s of real time a minute):
 //
-//   a usual night: 11:00 her armchair and the TV, 11:35 the kettle, 11:45 back to her armchair, midnight up to bed (the
-//                  TV and her lamp off, the doors shut behind her), 12:20 her lamp off (asleep), 2:40 a glass of water
-//                  (down to the kitchen and back), about 3:05 asleep again;
+//   a usual night: 11:00 her armchair and the TV, 11:35 the kettle, 11:45 back to her armchair, 12:30 another cup, 12:40
+//                  back to her armchair, 1:20 up to bed (the TV and her lamp off, the doors shut behind her), 1:40 her
+//                  lamp off (asleep), 2:40 a glass of water (down to the kitchen and back), about 3:05 asleep again;
 //   Thursdays:     out till late (the house dark), home through her front door at 1:30, the kettle, bed at 1:50, asleep at
 //                  2:10, and no water at 2:40.
+//
+// Playtest 4 (10 Oct 2026; the veteran: "on the route a careful player takes ... Grace is asleep (Night 2)"; the lab waited
+// 52 s on her stoop, then was in and out in 9 s): until then she went up at midnight and slept from 12:20, so waiting her
+// out cost 52 s and bought 112 s of a sleeping house. Now she stays up till 1:20, so on Night 2 (the bins done at 11 PM,
+// her stoop by about 11:15) waiting her out costs about 105 s of real time to see her front window go dark and 116 s to see
+// her lamp go off, and buys about 48 s before her bay lights up again at 2:40 (her glass of water; she's downstairs by about
+// 2:52), or, missing that, about 35 s between her lamp going off again (about 3:15) and dawn, less the walk to the bins.
+// Meanwhile she's in her armchair facing the TV, the cups behind her, for three stretches (11:00-11:35, 11:47-12:30,
+// 12:42-1:20: 28, 34 and 30 s; 16 s of the first from her stoop): going in while she's up is the play, and for whoever
+// waits her routine changes every 40 s or sooner.
+// Every usual night, not Night 2 only: his page in the notebook gives one bedtime, and only Night 2's errand is indoors.
 //
 // Each step names what she sets out to do at its hour (Act). GraceAtHome walks her through it while the night runs; a
 // jump in the clock (a check's SetHour) puts her where that step leaves her at once.
@@ -53,14 +64,21 @@ public static class GraceNight
     /// at her door at 1:30 (GraceAtHome works out where and when).</summary>
     public const float ThursdayOnHerWay = 25f;
 
+    /// <summary>Her usual night's bedtime (1:20 AM: up the stairs) and when her lamp goes off (1:40 AM), for the checks.</summary>
+    public const float UsualBed = 25f + 20f * Minute, UsualAsleep = 25f + 40f * Minute;
+    /// <summary>Her glass of water (2:40 AM).</summary>
+    public const float UsualWater = 26f + 40f * Minute;
+
     public static readonly Step[] Usual =
     {
         new Step(23f, Act.Sit),
         new Step(23f + 35f * Minute, Act.Tea),
         new Step(23f + 45f * Minute, Act.Sit),
-        new Step(24f, Act.Bed),
-        new Step(24f + 20f * Minute, Act.Sleep),
-        new Step(26f + 40f * Minute, Act.Water),
+        new Step(24f + 30f * Minute, Act.Tea),
+        new Step(24f + 40f * Minute, Act.Sit),
+        new Step(UsualBed, Act.Bed),
+        new Step(UsualAsleep, Act.Sleep),
+        new Step(UsualWater, Act.Water),
         new Step(27f + 5f * Minute, Act.Sleep),
     };
 
@@ -81,6 +99,31 @@ public static class GraceNight
         int now = 0;
         for (int i = 0; i < plan.Length; i++) if (plan[i].at <= hour + 1e-4f) now = i;
         return now;
+    }
+
+    /// <summary>
+    /// The hour of the <paramref name="nth"/> step (0 the first) of <paramref name="plan"/> that sets out to do
+    /// <paramref name="act"/>; -1 when there's no such step. The checks read her hours from here, never as numbers of their own.
+    /// </summary>
+    public static float At(Step[] plan, Act act, int nth = 0)
+    {
+        if (plan == null) return -1f;
+        for (int i = 0; i < plan.Length; i++)
+            if (plan[i].act == act && nth-- == 0) return plan[i].at;
+        return -1f;
+    }
+
+    /// <summary>Her night in a line ("11:00 PM Sit, 11:35 PM Tea, ..."), for the logs.</summary>
+    public static string Describe(Step[] plan)
+    {
+        if (plan == null || plan.Length == 0) return "nothing planned";
+        var text = new System.Text.StringBuilder();
+        for (int i = 0; i < plan.Length; i++)
+        {
+            if (i > 0) text.Append(", ");
+            text.Append(Clock(plan[i].at)).Append(' ').Append(plan[i].act);
+        }
+        return text.ToString();
     }
 
     /// <summary>"11:35 PM" for 23.583.</summary>

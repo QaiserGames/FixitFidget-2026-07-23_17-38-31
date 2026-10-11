@@ -12,13 +12,22 @@ using UnityEngine.InputSystem;
 // His playtest: stealing her cups, "she just stays right at the door ... I faced right through her". The day visitor
 // frozen in her doorway was fixed first (989f043); this is the rest: at night she is home, and the house is hers.
 //
-// Her night (GraceNight has the times): her armchair and the TV from 11 PM, the kettle at 11:35, up to bed at midnight
-// (the TV and her lamp off, the landing light on the way up, her bedside lamp on, the doors shut behind her), her lamp
-// off at 12:20, a glass of water at 2:40 (her lamp, the doors, the landing light, down to the sink and back), asleep
+// Her night (GraceNight has the times): her armchair and the TV from 11 PM, the kettle at 11:35 and again at 12:30, up to
+// bed at 1:20 (the TV and her lamp off, the landing light on the way up, her bedside lamp on, the doors shut behind her),
+// her lamp off at 1:40, a glass of water at 2:40 (her lamp, the doors, the landing light, down to the sink and back), asleep
 // again. Thursdays she's out till 1:30 AM, comes home along the pavement and in at her front door, makes tea, and is in
 // bed by 1:50. The street reads it all from her windows: the front window lit (the TV flickering through it), then a
 // bedroom bay, then dark (NightHomes lights her bays as her bedside lamp says; her front window's curtains glow while the
 // front room's lamp is on).
+//
+// Playtest 4 (10 Oct 2026; the veteran at 12:19 AM: "From the night overhead I can't pick out her window, or tell whether
+// it's lit or dark"; the first hour: "at night the saffron house looks brown", no marker for her step): from the overhead
+// her street wall is seen edge on, so her windows' light now falls where the camera does look, on her pavement. A porch
+// light under the bay over her door, on all night every night (her house, her step and Barnaby on it); her front room's
+// light out of her front window onto the pavement while her standard lamp is on, the TV's colour jumping in it; her
+// bedroom's out of the bay while her bedside lamp is on (Fixit Fidget > Playtest 4 > Night > 1 puts the three lights in).
+// They are outside her walls and none of them is one of her lamps: what she sees by (7 m lit, 3 m dark) is unchanged. And
+// Listens: where a noise can be heard (inside her walls while she's home), the only place the noise rings show (NoiseRings).
 //
 // Her body: the café's patron body in her own look, put in her house at nightfall the way the man at the bins is put in
 // his dumpster (no brain, no navigation: she walks the house's set ways, GraceHouseMap, with the café's walk, and sits in
@@ -69,6 +78,16 @@ public sealed class GraceAtHome : MonoBehaviour
     public Transform armchair;
     [Tooltip("What Break-ins 6 added to the scene (the TV's light, the slept-in quilt): taken out with her.")]
     [HideInInspector] public GameObject[] addedByStep = Array.Empty<GameObject>();
+
+    [Header("Her house from the street (playtest 4: Fixit Fidget > Playtest 4 > Night > 1)")]
+    [Tooltip("A downlight under the bay over her front door: on all night, every night, off by day. Her house, her step and " +
+             "Barnaby on it read from the street. Not one of her lamps: she doesn't see by it.")]
+    public Light porchLight;
+    [Tooltip("Her front room's light falling out of her front window onto the pavement: on while her standard lamp is, the " +
+             "TV's colour jumping in it while the TV is on. Not one of her lamps: she doesn't see by it.")]
+    public Light frontSpill;
+    [Tooltip("Her bedroom's light falling out of the bay onto the pavement: on while her bedside lamp is. Not one of her lamps.")]
+    public Light bedroomSpill;
 
     [Header("Her pace")]
     [Range(.5f, 1.6f)] public float walkSpeed = 1.2f;
@@ -128,6 +147,13 @@ public sealed class GraceAtHome : MonoBehaviour
     public Mood Now => mood;
     public float Mark => mark;
     public bool SeesAce => seeing;
+    /// <summary>
+    /// The last time she saw Ace (her look, twice a second): her eye as it was, and the point on Ace's capsule she saw it by
+    /// (its head, or else its chest), world. For the checks: the cover check measures that very line against her bar as
+    /// drawn (playtest 4: a line from 1.6 m straight over her feet isn't the one she looks along).
+    /// </summary>
+    public Vector3 SawFromEye { get; private set; }
+    public Vector3 SawPoint { get; private set; }
     public bool TvOn => tvOn;
     public bool DoorsShut => doors <= 0f && doorsTo <= 0f;
     public bool DoorsOpen => doors >= 1f && doorsTo >= 1f;
@@ -233,6 +259,9 @@ public sealed class GraceAtHome : MonoBehaviour
     bool curtainsGlow = true;
     bool holdingFrontDoor;
     float liveSince;
+    // Her front window's light on the pavement as the step set it (the TV's flicker moves around it, and back).
+    float frontSpillBase = -1f;
+    Color frontSpillColour = Color.white;
 
     static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
@@ -307,6 +336,11 @@ public sealed class GraceAtHome : MonoBehaviour
         leafColliders = LeafColliders();
         RememberCurtains();
         FindTheScreen();
+        if (frontSpill != null && frontSpillBase < 0f)
+        {
+            frontSpillBase = frontSpill.intensity;
+            frontSpillColour = frontSpill.color;
+        }
         NightNoise.Made += Heard;
         jumpsSeen = night.Jumps;
         hour = night.Hour;
@@ -314,9 +348,9 @@ public sealed class GraceAtHome : MonoBehaviour
         mood = Mood.Calm;
         Settle(hour);
         Debug.Log($"[Grace at home] {Weekdays.Label(day)}, the night: " + (plan == OutAll ? "she's out all night" + (Why.Length > 0 ? $" ({Why})" : "")
-            : plan == GraceNight.Thursday ? "her Thursday: out till 1:30 AM, home along the pavement, the kettle, bed at 1:50"
-            : "her usual night: the TV, the kettle at 11:35, bed at midnight, her lamp off at 12:20, water at 2:40") +
-            $". Now ({GraceNight.Clock(hour)}): {Doing}.");
+            : plan == GraceNight.Thursday ? "her Thursday (" + GraceNight.Describe(plan) + ")"
+            : "her usual night (" + GraceNight.Describe(plan) + ")") +
+            $". Now ({GraceNight.Clock(hour)}): {Doing}. From the street: {Outside()}.");
     }
 
     void EndNight()
@@ -328,6 +362,7 @@ public sealed class GraceAtHome : MonoBehaviour
         ReleaseFrontDoor();
         foreach (Light l in lamps) if (l != null) l.enabled = false;
         SetTv(false, false);
+        OutsideLights();   // the night is over: the porch light and her windows' light on the pavement off
         if (tvLight != null && tvBaseKnown) tvLight.intensity = tvBase;
         if (house != null && house.house != null) NightHomes.Drive(house.house, 1, false);
         RestoreCurtains();
@@ -1246,7 +1281,34 @@ public sealed class GraceAtHome : MonoBehaviour
                 frontCurtains.sharedMaterials = glow ? curtainsLit : curtainsDark;
             curtainsGlow = glow;
         }
+        OutsideLights();
     }
+
+    // Her house from the street (playtest 4): the porch light all night, every night (out on a Thursday too: left on for
+    // coming home); her front window's light on the pavement while her standard lamp is on; her bedroom's while her bedside
+    // lamp is. Off whenever the night isn't running.
+    void OutsideLights()
+    {
+        bool front = nightOn && Lit(standardLamp), bedroom = nightOn && Lit(bedsideLamp);
+        if (porchLight != null && porchLight.enabled != nightOn) porchLight.enabled = nightOn;
+        if (bedroomSpill != null && bedroomSpill.enabled != bedroom) bedroomSpill.enabled = bedroom;
+        if (frontSpill != null && frontSpill.enabled != front) frontSpill.enabled = front;
+        if (!front || !tvOn) SteadySpill();
+    }
+
+    // Her front window's light as the step set it (the TV off, or the window dark).
+    void SteadySpill()
+    {
+        if (frontSpill == null || frontSpillBase < 0f) return;
+        frontSpill.intensity = frontSpillBase;
+        frontSpill.color = frontSpillColour;
+    }
+
+    /// <summary>What the street sees of her house's own lights now (reports).</summary>
+    public string Outside() =>
+        $"porch light {(porchLight == null ? "not built" : porchLight.enabled ? "on" : "off")}, " +
+        $"her front window's light on the pavement {(frontSpill == null ? "not built" : frontSpill.enabled ? "on" : "off")}, " +
+        $"her bedroom's {(bedroomSpill == null ? "not built" : bedroomSpill.enabled ? "on" : "off")}";
 
     static bool Same(Material[] a, Material[] b)
     {
@@ -1297,6 +1359,7 @@ public sealed class GraceAtHome : MonoBehaviour
     {
         if (tvOn == on && (on || tvLight == null || !tvLight.enabled)) return;
         tvOn = on;
+        if (!on) SteadySpill();
         if (tvLight != null) tvLight.enabled = on;
         if (tv != null && tvSlot >= 0)
         {
@@ -1338,6 +1401,13 @@ public sealed class GraceAtHome : MonoBehaviour
             tvLight.color = tvColour;
         }
         if (tvScreenLit != null) tvScreenLit.SetColor(EmissionColorId, tvColour * (.6f + .9f * tvLevel));
+        // Her front window on the pavement: the lamp's warm light with the TV's colour jumping in it (the spec's "the front
+        // room flickers while the TV is on", read from above).
+        if (frontSpill != null && frontSpill.enabled && frontSpillBase >= 0f)
+        {
+            frontSpill.color = Color.Lerp(frontSpillColour, tvColour, .35f * tvLevel);
+            frontSpill.intensity = frontSpillBase * (.8f + .3f * tvLevel);
+        }
     }
 
     void Quilt(bool asleep)
@@ -1712,6 +1782,13 @@ public sealed class GraceAtHome : MonoBehaviour
     static bool Loud(NoiseKind kind) =>
         kind == NoiseKind.Step || kind == NoiseKind.CreakyStair || kind == NoiseKind.Door || kind == NoiseKind.Knock || kind == NoiseKind.LockPick;
 
+    /// <summary>
+    /// Whether a noise made at <paramref name="at"/> is one she could hear: she's home (not out, not on her way home along the
+    /// pavement), awake or asleep, and it's made inside her walls (Heard takes no other). Where the noise rings show
+    /// (NoiseRings, playtest 4): a ring on her stoop or the street would draw a sound nobody hears.
+    /// </summary>
+    public bool Listens(Vector3 at) => nightOn && body != null && !away && !street && mood != Mood.Caught && house != null && Inside(at);
+
     // Twice a second: can she see Ace? Two points on Ace's capsule, its head and its chest (since session 5: until then two
     // points on the drawn body, still 1.09 m up crouched, so nothing 1 m tall could hide Ace), from her eyes: in her view,
     // within her range for the light where Ace is, and nothing solid between.
@@ -1738,6 +1815,11 @@ public sealed class GraceAtHome : MonoBehaviour
             bool lit = Lit(point);
             float rate = GraceNight.SeeRate(lit, distance, GraceNight.Range(lit, torch), off, half, sneaking, torch, tvHasHer);
             if (rate <= 0f || !Clear(eye, point)) continue;
+            if (!seeing)
+            {
+                SawFromEye = eye;
+                SawPoint = point;
+            }
             seeing = true;
             seeRate = Mathf.Max(seeRate, rate);
         }
@@ -1926,5 +2008,5 @@ public sealed class GraceAtHome : MonoBehaviour
         $"Grace at home: {Doing} at {GraceNight.Clock(hour)} ({(plan == null ? "no night" : plan == GraceNight.Thursday ? "her Thursday" : plan == OutAll ? "out all night" : "her usual night")}, " +
         $"step {stepNow}: {Step}); lights: {LightsNow()}; her bedroom doors {(DoorsShut ? "shut" : DoorsOpen ? "open" : "swinging")}; " +
         $"her mark {mark:0.00}{(seeing ? " (she sees Ace)" : "")}; noticed {Notices}, came to look {Searches}, woken {Wakes}, heard {SoundsHeard}, " +
-        $"creaks {Creaks}, doors opened {CreakyOpens} creaking and {QuietOpens} quietly, Ace hid {Hides}, caught {Catches}.";
+        $"creaks {Creaks}, doors opened {CreakyOpens} creaking and {QuietOpens} quietly, Ace hid {Hides}, caught {Catches}; from the street: {Outside()}.";
 }

@@ -158,8 +158,18 @@ public sealed class GraceHouse : MonoBehaviour
     public int FoundLocked { get; private set; }
     /// <summary>Ace stands on her stoop, in front of the door (within Door Reach and Door Outside, outside the doorway).</summary>
     public bool AceOnStoop => onStoop;
-    /// <summary>The way in is offered: Ace on the stoop, the door not yet open for Ace.</summary>
-    public bool DoorPromptShown => aceT != null && door != null && onStoop && !(door.IsOpen || Time.time < letInUntil);
+    /// <summary>
+    /// The way in is offered: Ace on the stoop, the door not yet open for Ace, and nothing in Ace's hand. Playtest 4 (10 Oct
+    /// 2026, the first-hour playtester, Night 1 at 11:24 PM): with Barnaby in hand her step said "[E] Let yourself in" while the
+    /// note said to bring him back to the bins, two directions at once. Not the test save only: the scene's NightWalk has the
+    /// break-ins on (since 30 Sept), so her door is offered every night of his own game too. What Ace carries at night is always
+    /// on its way somewhere (the bag to the dumpster, his favour to the man: NightCarry), so that direction wins; the door is
+    /// offered again once Ace's hand is empty.
+    /// </summary>
+    public bool DoorPromptShown => aceT != null && door != null && onStoop && !(door.IsOpen || Time.time < letInUntil) && !Carrying;
+
+    /// <summary>Something is in Ace's hand at night (NightCarry: the bin bag, the man's favour on its way to him).</summary>
+    public static bool Carrying => NightCarry.Current != null && NightCarry.Current.Holding;
     /// <summary>What the stoop's prompt says: the way in, or a door to try when the break-ins are off.</summary>
     public string DoorPrompt => BreakInsOn ? "Let yourself in" : "Try the door";
     /// <summary>The break-ins are on tonight (NightWalk.breakIns, the night running).</summary>

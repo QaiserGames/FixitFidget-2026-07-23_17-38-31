@@ -212,6 +212,11 @@ public sealed class NightOneCheck : MonoBehaviour
         Check(NightCycle.Instance.BeenOut, "the night knows Ace has been out");
         yield return Seconds(.5f);
         Check(interactor.CurrentPrompt == takePrompt, $"at her step the prompt reads \"{takePrompt}\" (it reads \"{interactor.CurrentPrompt}\")");
+        // Playtest 4 (the first hour, Night 1 at 11:04 PM: no marker, "at night the saffron house looks brown"): her porch light
+        // is on over her step and Barnaby on it, and her front room's light lies on the pavement (she's up, the TV on).
+        GraceAtHome atHome = GraceAtHome.Instance;
+        Check(atHome != null && atHome.porchLight != null && atHome.porchLight.enabled,
+            $"her porch light is on over her step: her house reads from the street ({(atHome != null ? atHome.Outside() : "Grace isn't at home in this scene")})");
         yield return Photo("03-at-grace-step");
 
         movement.SendMessage("OnInteract", SendMessageOptions.DontRequireReceiver);   // E

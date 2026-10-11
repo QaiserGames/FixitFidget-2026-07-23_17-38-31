@@ -613,10 +613,25 @@ public static class NightRuleChecks
         foreach (string line in new[] { sleeve.complaint, sleeve.held, sleeve.cracked })
             foreach (string beat in line.Split('\n'))
                 Check(beat.Trim().Length > 0 && beat.Length <= 150, $"Each line is short (\"{beat}\").");
+        // Playtest 4 (10 Oct 2026, the veteran: "the nerve test is one lenient press"): the cups' morning is harder than the
+        // gnome's, as Ace meets them both, with Nerve (the gnome's lesson comes before the cups are ever asked for). The band
+        // (the green and its "near enough" either side) is the share of the bar a press at any old moment lands in; the
+        // window is how long the needle stays in it on a pass: a hasty press, a reaction after it arrives (about 0.22 s),
+        // misses a short window often; a press timed after watching a sweep rarely does.
+        float Band(float green, float near, bool nerve) => LodgerStory.Green(green, nerve) + 2f * LodgerStory.Near(near, nerve);
+        float cupsBand = Band(sleeve.green, sleeve.near, true), gnomeBand = Band(gnome.green, gnome.near, true);
+        float cupsWindow = cupsBand * sleeve.sweepSeconds, gnomeWindow = gnomeBand * gnome.sweepSeconds;
+        Check(cupsBand <= .27f && gnomeBand >= .35f,
+            $"A press at any old moment holds about {cupsBand:0%} of the time for the cups (with Nerve), {gnomeBand:0%} for the gnome.");
+        Check(cupsWindow < .6f * gnomeWindow && cupsWindow >= .2f && cupsWindow <= .25f,
+            $"The cups' window ({cupsWindow * 1000f:0} ms a pass, with Nerve) is little over half the gnome's ({gnomeWindow * 1000f:0} ms): a hasty " +
+            "press often misses it, a watched one rarely.");
         var cupsMeter = new StraightFaceMeter(sleeve.sweepSeconds, sleeve.green, sleeve.near, sleeve.patience, .5f);
-        float cupsWindow = (cupsMeter.Green + 2f * cupsMeter.Near) * cupsMeter.SweepSeconds;
-        float gnomeWindow = (gnome.green + 2f * gnome.near) * gnome.sweepSeconds;
-        Check(cupsWindow < gnomeWindow && cupsWindow >= .2f, $"The cups' window ({cupsWindow:0.00} s) is a little shorter than the gnome's, and still fair.");
+        float bare = (cupsMeter.Green + 2f * cupsMeter.Near) * cupsMeter.SweepSeconds;
+        Check(bare < (gnome.green + 2f * gnome.near) * gnome.sweepSeconds && bare >= .15f,
+            $"Even without Nerve the cups' window ({bare * 1000f:0} ms) is shorter than the gnome's, and still fair.");
+        Check(sleeve.green < gnome.green && sleeve.sweepSeconds < gnome.sweepSeconds && sleeve.patience >= 3f * sleeve.sweepSeconds,
+            "Narrower and quicker than the gnome's, with time for a few sweeps before Ace cracks anyway.");
         return count;
     }
 

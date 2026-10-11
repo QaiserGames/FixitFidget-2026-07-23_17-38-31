@@ -106,8 +106,13 @@ public static class NightThings
         patience = 6f,
     };
 
-    // PLACEHOLDER COPY (see the header): Mansoor rewrites it. A little harder to keep a straight face about than the
-    // gnome (the break-ins spec, section 10: the deed is worse).
+    // PLACEHOLDER COPY (see the header): Mansoor rewrites it. Harder to keep a straight face about than the gnome (the
+    // break-ins spec, section 10: the deed is worse). Playtest 4 (10 Oct 2026; the veteran: "the nerve test is one lenient
+    // press"): by the cups' morning Ace always has Nerve (the gnome's lesson comes first), and with it the old meter (0.95 s,
+    // green 0.19, near 0.025) held 99.9% of presses made the instant the needle reached the green. Now (0.90 s, green 0.145,
+    // near 0.016; with Nerve a band of 0.26 of the bar, 231 ms a pass): a press at any old moment holds about 1 in 4, a hasty
+    // one (on the needle's first arrival, after a reaction) about 7 in 10, one timed after watching a sweep about 24 in 25.
+    // About as hard as the officer's word; the gnome's (Day 2, the first time) stays as it was.
     public static readonly NightThing CupsOfGrace = new NightThing
     {
         id = GraceCups,
@@ -128,9 +133,9 @@ public static class NightThings
         notebookTaken = "Took a sleeve of her reunion cups. It's on the shelf.",
         notebookTakenFor = "Took a sleeve of her cups for the man at the bins.",
         notebookCracked = "Smiled when she told me about her cups. She's counting them now.",
-        sweepSeconds = .95f,
-        green = .19f,
-        near = .025f,
+        sweepSeconds = .9f,
+        green = .145f,
+        near = .016f,
         patience = 5.5f,
     };
 

@@ -277,11 +277,26 @@ public sealed class NightTwoCheck : MonoBehaviour
         GraceAtHome atHome = GraceAtHome.Instance;
         if (atHome != null && atHome.NightOn)
         {
-            Check(atHome.Home && !atHome.Asleep, $"Grace is home and up ({atHome.Doing}; {atHome.LightsNow()})");
+            Check(atHome.Home && !atHome.Asleep, $"Grace is home and up ({atHome.Doing}; {atHome.LightsNow()}; from the street: {atHome.Outside()})");
             yield return Photo("04b-her-front-window-lit");
-            float waitFrom = Time.realtimeSinceStartup;
-            yield return Until(() => atHome.Asleep, 120f, "Ace waits on her stoop until she's asleep (her bedroom window goes dark)");
-            Note($"she was asleep {Time.realtimeSinceStartup - waitFrom:0} s later, at {GraceNight.Clock(NightWalk.Instance.Hour)}");
+            // Playtest 4: she's up till 1:20 and her lamp goes off about 1:40 (GraceNight), so waiting her out costs about two
+            // minutes of the night's four. The limit is her plan's, at the night's own speed, with a margin.
+            NightWalk walk = NightWalk.Instance;
+            float arrived = walk.Hour, waitFrom = Time.realtimeSinceStartup;
+            float plannedWait = (GraceNight.At(GraceNight.For(DayClock.Instance != null ? DayClock.Instance.Day : 2), GraceNight.Act.Sleep) - arrived)
+                                / Mathf.Max(1e-4f, walk.HoursPerSecond);
+            Note($"on her stoop at {GraceNight.Clock(arrived)}; her plan: {GraceNight.Describe(GraceNight.Usual)}; waiting for her lamp should take about {plannedWait:0} s");
+            bool frontDark = false;
+            float frontDarkAfter = -1f;
+            yield return Until(() =>
+            {
+                if (!frontDark && !atHome.Lit(atHome.standardLamp)) { frontDark = true; frontDarkAfter = Time.realtimeSinceStartup - waitFrom; }
+                return atHome.Asleep;
+            }, Mathf.Max(60f, plannedWait + 30f), "Ace waits on her stoop until she's asleep (her bedroom window goes dark)");
+            float waited = Time.realtimeSinceStartup - waitFrom, minutes = (walk.Hour - arrived) * 60f;
+            Note($"she was asleep {waited:0} s later, at {GraceNight.Clock(walk.Hour)}: {minutes:0} minutes of the night " +
+                 $"(her front window went dark after {frontDarkAfter:0} s); her glass of water at 2:40 is {(GraceNight.UsualWater - walk.Hour) / walk.HoursPerSecond:0} s away");
+            Check(waited >= 90f, $"waiting her out costs a careful player real time ({waited:0} s; it was 52 s before playtest 4)");
             yield return Photo("04c-her-house-dark-she-is-asleep");
         }
         else Note("Grace isn't at home in this scene (no GraceAtHome): straight in");
@@ -318,6 +333,18 @@ public sealed class NightTwoCheck : MonoBehaviour
         movement.ScriptedSneak = null;
         if (atHome != null && atHome.NightOn)
             Check(atHome.Asleep && atHome.Catches == 0 && atHome.Wakes == 0, $"she slept through it ({atHome.Doing}; woken {atHome.Wakes} times)");
+        // Playtest 4 (N5): on her stoop with the cups in hand, her door doesn't offer the way back in: the errand's way wins.
+        yield return Walk(Plan(house, (1.11f, 4.90f)), new List<float> { .25f }, "back up onto her stoop, the cups in hand");
+        yield return null;
+        yield return null;
+        Check(NightCarry.Current != null && NightCarry.Current.Holding && house.AceOnStoop && !house.DoorPromptShown && interactor.CurrentPrompt != house.DoorPrompt,
+            $"on her stoop with the cups in hand the way back in isn't offered (on the stoop: {house.AceOnStoop}; the prompt: \"{interactor.CurrentPrompt}\")");
+        // Playtest 4 (N3): inside her house each sound was a ring at its radius; outside, nobody heard, nothing was drawn.
+        NoiseRings rings = NightWalk.Instance != null ? NightWalk.Instance.Rings : null;
+        Check(rings != null && rings.ShownByKind[(int)NoiseKind.SneakStep] > 0 && rings.ShownByKind[(int)NoiseKind.Step] == 0
+              && rings.ShownByKind[(int)NoiseKind.Rustle] == 1 && rings.NotHeard > 0,
+            "the noise rings: her house's sneaking steps a ring of a metre each, the rustle one; the bins and the street none " +
+            $"({(rings != null ? rings.Describe() : "no rings tonight")})");
         yield return Walk(new List<Vector3>
         {
             new Vector3(WestStreet, 0f, stoop.z), new Vector3(WestStreet, 0f, BackStreet), new Vector3(set.giveSpot.position.x, 0f, BackStreet), set.giveSpot.position,

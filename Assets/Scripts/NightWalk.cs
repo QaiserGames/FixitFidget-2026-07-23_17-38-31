@@ -63,6 +63,9 @@ using UnityEngine.Rendering;
 //     House numbers and street-name signs are part of the scene, by day too
 //     (HouseNumber, StreetNameSign).
 //
+//   Playtest 4 (10 Oct 2026): the noise rings (NoiseRings): each sound Ace makes where
+//   someone could hear it drawn as a ring on the floor, at the radius it already carries.
+//
 // Nothing here runs by day. Only Begin() switches anything on, and End() (or
 // leaving Play Mode) puts it all back. Material copies are made at run time and
 // never saved: the scene keeps its originals.
@@ -240,6 +243,8 @@ public sealed class NightWalk : MonoBehaviour
     public NightNeighbours NeighbourWalks => neighbourWalks;
     public NightTorch Torch => torch;
     public NightNotebook NotebookPage => notebook;
+    /// <summary>The noise rings (playtest 4; null by day).</summary>
+    public NoiseRings Rings => rings;
     /// <summary>The see-through for buildings in the way (null by day).</summary>
     public NightSeeThrough SeeThrough => seeThrough;
 
@@ -286,6 +291,7 @@ public sealed class NightWalk : MonoBehaviour
     NightNeighbours neighbourWalks;
     NightTorch torch;
     NightNotebook notebook;
+    NoiseRings rings;
     readonly List<NightFlicker> flickers = new();
     readonly List<GameObject> brokenParts = new();
     readonly List<Material> brokenMaterials = new();
@@ -367,6 +373,9 @@ public sealed class NightWalk : MonoBehaviour
         torch.Begin();
         notebook = GetOrAdd<NightNotebook>();
         notebook.Begin();
+        // Playtest 4: sounds someone could hear, drawn as rings on the floor (NoiseRings).
+        rings = GetOrAdd<NoiseRings>();
+        rings.Begin();
         neighbourWalks = GetOrAdd<NightNeighbours>();
         PatronSpawner spawner = FindAnyObjectByType<PatronSpawner>();
         neighbourWalks.Begin(neighbours, homes, spawner != null ? spawner.PatronPrefab : null, Hour);
@@ -393,6 +402,7 @@ public sealed class NightWalk : MonoBehaviour
         if (homes != null) { homes.Clear(); Destroy(homes); homes = null; }
         if (torch != null) { torch.End(); Destroy(torch); torch = null; }
         if (notebook != null) { notebook.End(); Destroy(notebook); notebook = null; }
+        if (rings != null) { rings.End(); Destroy(rings); rings = null; }
         MendThings();
         if (viewMode != null) viewMode.FollowAce(false);
         viewMode = null;
@@ -924,6 +934,7 @@ public sealed class NightWalk : MonoBehaviour
         if (brokenSign < 0) sb.AppendLine("Broken: no sign to cut out.");
         if (torch != null) sb.AppendLine(torch.Describe());
         if (notebook != null) sb.AppendLine(notebook.Describe());
+        if (rings != null) sb.AppendLine(rings.Describe());
         foreach (var kv in copies)
         {
             var m = kv.Value;
