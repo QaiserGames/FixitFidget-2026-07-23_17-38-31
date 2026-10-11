@@ -38,6 +38,14 @@ public abstract class JobBase : MonoBehaviour
     /// <summary>You can't hand someone a device in pieces.</summary>
     public virtual bool CanHandBack => !HasDetachedParts;
 
+    /// <summary>
+    /// Every fault fixed and nothing off it: the repair's one ending (playtest 4, 10 Oct; the veteran: "a repair ends
+    /// twice"). "Fixed!" fires when this turns true (Juice), and a finished device offers nothing more to undo (its screws
+    /// and its cover go quiet). The device wakes earlier, the moment its last task completes (DeviceWake), which for a
+    /// device that was opened is before its cover and screws are back.
+    /// </summary>
+    public bool IsFinished => CanHandBack && Quality >= .999f;
+
     public JobGrade Grade
     {
         get

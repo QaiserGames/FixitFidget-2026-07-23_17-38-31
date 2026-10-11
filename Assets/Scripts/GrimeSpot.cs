@@ -45,6 +45,8 @@ public class GrimeSpot : MonoBehaviour
     const float BrushRadius = .0048f, ClothRadius = .0095f;
     const int Texels = 64;
     const float Lift = .0003f;   // the patch sits this far off the surface, so it never fights the surface for the pixel
+    /// <summary>Seconds after a smudge comes clean that its gleam sweeps (the cloth is lifting off it meanwhile; playtest 4).</summary>
+    public const float GleamAfter = .15f;
 
     public Kind What => kind;
     public ToolType Tool => kind == Kind.Smudge ? ToolType.Cloth : ToolType.Brush;
@@ -529,12 +531,14 @@ public class GrimeSpot : MonoBehaviour
             Juice.Sparkle(at);
             if (kind == Kind.Smudge)
             {
-                // the gleam sweeps the glass: across the patch and a little beyond, the way the player sees it
+                // the gleam sweeps the glass: across the patch and a little beyond, the way the player sees it. A beat late
+                // (playtest 4): the cloth lifts off the glass as the smudge comes clean (ToolPickup.LiftOff), and the gleam
+                // runs over the glass it has just cleared, not over the cloth
                 Camera cam = Camera.main;
                 Vector3 across = cam != null ? Vector3.ProjectOnPlane(cam.transform.right, transform.up).normalized : transform.right;
                 float half = Mathf.Max(Mathf.Abs(transform.lossyScale.x), Mathf.Abs(transform.lossyScale.z)) * .9f;
-                Juice.Gleam(at - across * half, at + across * half);
-                Sfx.Play("cloth.gleam", at);
+                Juice.Gleam(at - across * half, at + across * half, GleamAfter);
+                Sfx.PlayLater("cloth.gleam", at, GleamAfter);
             }
             else Sfx.Play("grime.clean", at);
             if (instant || !gameObject.activeInHierarchy) Destroy(gameObject);

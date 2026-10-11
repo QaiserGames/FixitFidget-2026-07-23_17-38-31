@@ -79,6 +79,8 @@ public static class PlaceholderSounds
             case "cloth.wipe":   return Noise(.1f, .28f, soft: true);
             case "cloth.squeak": return Sweep(.12f, 2400f, 3200f, .18f, .03f);
             case "cloth.gleam":  return Mix(.35f, Sine(2093f, .12f, .35f), Delay(.06f, Sine(2637f, .14f, .35f)), Delay(.12f, Sine(3136f, .16f, .3f)));
+            // the cloth lifted off the glass as a smudge comes clean (playtest 4): a soft cloth swish, longer and lower than a part's lift
+            case "cloth.lift":   return Swish(.16f, .16f);
             // the repair done (4b): "Fixed!", "back together", the sparkles
             case "repair.fixed": return Mix(.65f, Sine(880f, .10f, .38f), Delay(.10f, Sine(1109f, .12f, .38f)), Delay(.20f, Sine(1319f, .22f, .42f)), Delay(.20f, Sine(1760f, .18f, .18f)));
             case "repair.ready": return Mix(.35f, Sine(1047f, .08f, .32f), Delay(.09f, Sine(1319f, .12f, .32f)));

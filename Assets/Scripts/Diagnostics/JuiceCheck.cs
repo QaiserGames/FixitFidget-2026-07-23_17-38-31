@@ -20,7 +20,9 @@ using UnityEngine;
 //   3. paying: "+$6" and "+$3 tip" over one of them;
 //   4. the money in the corner counting up when the till takes $25 (ShopUI), and landing on the till's sum;
 //   5. handing over: a cup flies from Ace to one of them and pops into their hands;
-//   6. a repair done: the big sparkle and "Fixed!";
+//   6. a repair done: the one ending (playtest 4, 10 Oct), "Fixed! · Perfect" on its dark plate with the big sparkle,
+//      counted once, its contrast measured (the playtesters: pale green on the freshly lit white screen); and the quiet
+//      "Back together · Good" a device closed up with faults left gets instead (no sparkle, not an ending);
 //   7. a lasting badge (the man at the bins' mess on a table, playtest 3): up over a point, still up after a pop would
 //      have gone, and gone when it's taken down;
 // and nothing logs an error the whole time. A photo for each and report.txt go to Logs/Juice/juice-check-<time>/. Nothing is
@@ -212,7 +214,7 @@ public sealed class JuiceCheck : MonoBehaviour
             int edgesBefore = corners.EdgesShown;
             // As a customer paying does: the till and today's takings both go up.
             ShopEconomy.Instance.AddMoney(25);
-            DayClock.Instance.RecordPatronIncome(25);
+            DayClock.Instance.RecordServed(25, 0, false);   // a customer's payment (patrons pay quietly since playtest 4)
             yield return Seconds(.18f);
             string mid = corners.TakingsShown;
             float punch = corners.TakingsPunch;
@@ -252,14 +254,24 @@ public sealed class JuiceCheck : MonoBehaviour
         yield return Seconds(.45f);
         Check(GameObject.Find("Handed over (Juice check cup)") == null, "...and popped into their hands (the copy's gone)");
 
-        // ---------- 6. a repair done ----------
+        // ---------- 6. a repair done: the one ending (playtest 4), as the bench makes it ----------
         Vector3 bench = ace.transform.position + Flat(ace.transform.forward).normalized * .7f + Vector3.up * .15f;
-        Juice.Sparkle(bench, true);
-        Juice.Words(bench, "Fixed!", new Color(.62f, 1f, .7f, 1f));
+        int finishesBefore = Juice.Finishes;
+        Juice.FixedMoment(bench, bench + Vector3.up * .12f, JobGrade.Perfect);
         yield return Seconds(.12f);
         Check(Juice.SparksUp >= 16, $"a repair done: the big sparkle ({Juice.SparksUp} sparks flying)");
-        Check(Juice.PopsUp >= 1, "...and \"Fixed!\" pops up");
+        Check(Juice.PopsUp >= 1 && Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect",
+            $"...and \"{Juice.LastWords}\" pops up, counted once ({Juice.Finishes - finishesBefore})");
+        Check(Juice.LastWordsContrast >= 4.5f,
+            $"...on its dark plate, legible on any background: {Juice.LastWordsContrast:0.0}:1 over the plate on white, its worst case (4.5:1 is the bar)");
         yield return Photo("60-fixed");
+        yield return Seconds(2.3f);   // the ending stays up 2.1 s, a little longer than a word
+        // A device closed up with faults left: the quiet line, not an ending.
+        Juice.BackTogether(bench + Vector3.up * .12f, JobGrade.Good);
+        yield return Seconds(.3f);
+        Check(Juice.LastWords == "Back together · Good" && Juice.Finishes == finishesBefore + 1 && Juice.LastWordsContrast >= 4.5f,
+            $"closed up with faults left: \"{Juice.LastWords}\", quietly and not counted as an ending, {Juice.LastWordsContrast:0.0}:1 on its plate");
+        yield return Photo("61-back-together");
         yield return Seconds(1.6f);
         Note($"a moment later: {Juice.SparksUp} sparks, {Juice.PopsUp} pops up (the café's own may be among them)");
 

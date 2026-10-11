@@ -14265,8 +14265,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 80954154}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.18838969, y: -0.00000010617076, z: 0.000000020954756, w: 0.98209435}
-  m_LocalPosition: {x: 0, y: 0.77, z: -1.28}
+  m_LocalRotation: {x: 0.2354681, y: -0.2843118, z: 0.0722531, w: 0.92655337}
+  m_LocalPosition: {x: 0.325, y: 1.1, z: -1.5200001}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -49748,6 +49748,8 @@ MonoBehaviour:
   displayName: Screwdriver
   tint: {r: 0.2901961, g: 0.49803922, b: 0.7490196, a: 1}
   lean: 18
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!1 &330870270
 GameObject:
   m_ObjectHideFlags: 0
@@ -52912,6 +52914,8 @@ MonoBehaviour:
   displayName: Cleaning Brush
   tint: {r: 0.7882353, g: 0.63529414, b: 0.15294118, a: 1}
   lean: 28
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!1 &352723311
 GameObject:
   m_ObjectHideFlags: 0
@@ -82061,6 +82065,8 @@ MonoBehaviour:
   displayName: Pry Tool
   tint: {r: 0.7607843, g: 0.33333334, b: 0.23921569, a: 1}
   lean: 28
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!136 &536595956
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -136574,6 +136580,8 @@ MonoBehaviour:
   displayName: Glass Cloth
   tint: {r: 0.44, g: 0.61, b: 0.77, a: 1}
   lean: 18
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!1 &925099423
 GameObject:
   m_ObjectHideFlags: 0
@@ -192697,6 +192705,8 @@ MonoBehaviour:
   displayName: Screwdriver
   tint: {r: 0.2901961, g: 0.49803922, b: 0.7490196, a: 1}
   lean: 28
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!136 &1302675836
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -194448,6 +194458,8 @@ MonoBehaviour:
   displayName: Cleaning Brush
   tint: {r: 0.7882353, g: 0.63529414, b: 0.15294118, a: 1}
   lean: 18
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!1 &1318911828
 GameObject:
   m_ObjectHideFlags: 0
@@ -197120,6 +197132,8 @@ MonoBehaviour:
   displayName: Tweezers
   tint: {r: 0.49803922, g: 0.6901961, b: 0.4117647, a: 1}
   lean: 18
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!1 &1339863353
 GameObject:
   m_ObjectHideFlags: 0
@@ -231459,6 +231473,8 @@ MonoBehaviour:
   displayName: Pry Tool
   tint: {r: 0.7607843, g: 0.33333334, b: 0.23921569, a: 1}
   lean: 18
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!1001 &1574386721
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -262929,6 +262945,8 @@ MonoBehaviour:
   displayName: Tweezers
   tint: {r: 0.49803922, g: 0.6901961, b: 0.4117647, a: 1}
   lean: 28
+  padSize: 0.45
+  padThickness: 1.4
 --- !u!136 &1783914056
 CapsuleCollider:
   m_ObjectHideFlags: 0

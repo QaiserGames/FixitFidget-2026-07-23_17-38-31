@@ -6,9 +6,12 @@ using UnityEngine;
 //
 // The moment a repair's last task completes, the thing itself says so, with its own kept parts, before any word on
 // the screen does: the phone's screen lights up (its glass glows, a soft boot chime); the pocket watch is wound (the
-// crown turns) and starts to tick; the camera's advance is wound and the new shutter fires. "Fixed!" (Juice) pops with
-// it. One component per device prefab, wired by Fixit Fidget > Bench > Bench 4; Fire() is what Juice calls, and a
-// device without one just gets the words.
+// crown turns) and starts to tick; the camera's advance is wound and the new shutter fires. One component per device
+// prefab, wired by Fixit Fidget > Bench > Bench 4; Fire() is what Juice calls.
+//
+// The wake is quiet (playtest 4, 10 Oct: one ending): its own sounds and no words. "Fixed! · Perfect" (Juice) comes once,
+// when the device is back in one piece with every fault fixed: after the last screw for a device that was opened (it woke
+// at its last seat, with the cover still off), a beat after the wake for one that never was.
 // ---------------------------------------------------------------------------
 public class DeviceWake : MonoBehaviour
 {

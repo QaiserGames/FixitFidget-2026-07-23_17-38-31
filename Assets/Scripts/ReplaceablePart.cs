@@ -12,6 +12,11 @@ using UnityEngine;
 //
 // Activate does the whole swap by itself (the labs' hand, the Day 1 guide): the broken part goes to the tray, the fresh
 // one seats.
+//
+// A COVERED PART SAYS WHY (playtest 4, 10 Oct; the veteran: "'Cracked screen: Remove the back cover first' ... the back comes
+// off so the screen can lift out of the front, and nothing inside links the two. A ReStory player will read it as a gate,
+// not a cause"). The hover gives the cause in the part's own terms (CoveredHint): a screen's cable plugs in under the
+// back; a spring or a mechanism sits inside. No new step: nothing is unplugged (that would be a new verb).
 // ---------------------------------------------------------------------------
 public class ReplaceablePart : BenchInteractable
 {
@@ -121,8 +126,24 @@ public class ReplaceablePart : BenchInteractable
     public override string DisplayName => IsReplaced ? "Old " + partName.ToLowerInvariant() : partName;
     public override string Prompt => Loose ? "Hold to move it"
         : State == PartState.HeldBroken ? ""
-        : coveredBy != null && !coveredBy.IsRemoved ? $"Remove the {coveredBy.DisplayName.ToLowerInvariant()} first"
+        : coveredBy != null && !coveredBy.IsRemoved ? CoveredHint(partName, coveredBy.DisplayName)
         : "Hold to pinch it out";
+
+    /// <summary>
+    /// Why a part waits on the cover over it, in plain words under 90 characters (playtest 4): a screen comes out of the
+    /// front, but its cable plugs in under the back; a spring, a mechanism, a battery or a board sits inside; anything else
+    /// sits under the cover. The labs and the steps read the words from here.
+    /// </summary>
+    public static string CoveredHint(string part, string cover)
+    {
+        string p = (part ?? "").ToLowerInvariant();
+        string c = string.IsNullOrEmpty(cover) ? "cover" : cover.ToLowerInvariant();
+        if (p.Contains("screen") || p.Contains("display"))
+            return $"Its cable plugs in under the {c}. Take the cover off first";
+        if (p.Contains("spring") || p.Contains("movement") || p.Contains("mechanism") || p.Contains("battery") || p.Contains("board"))
+            return $"It sits inside, under the {c}. Take the cover off first";
+        return $"It sits under the {c}. Take the cover off first";
+    }
     public override ToolType RequiredTool => Loose ? ToolType.Hand : ToolType.Tweezers;
     public override bool Holdable => !Loose;
     public override bool Grabbable => Loose;
@@ -140,9 +161,10 @@ public class ReplaceablePart : BenchInteractable
         // Stock, not a piece of the device: it never stops the device being handed back (the gate is reassembly).
         if (job != null) job.RegisterLoose(freshVisual);
         // It arrives, rather than is there: dropped into the tray from a hand's height with its tink, and named for a
-        // moment (8 Oct: "this random prop on the table whenever I place an item").
+        // moment (8 Oct: "this random prop on the table whenever I place an item"). In the brand's light green: the words
+        // stand on the dark plate now (playtest 4), where the brand's own dark green would sink.
         if (BenchStage.Instance != null && Application.isPlaying)
-            Juice.Words(freshVisual.transform.position + Vector3.up * .02f, "New part", UiSkin.Brand);
+            Juice.Words(freshVisual.transform.position + Vector3.up * .02f, "New part", UiSkin.BrandBright);
     }
 
     // ---------- the broken part: pinch, lift, drop ----------
@@ -297,9 +319,11 @@ public class ReplaceablePart : BenchInteractable
         State = PartState.Replaced;
         Juice.Sparkle(f.position);   // in it goes: a little burst of sparks
         Sfx.Play("part.replace", f.position);   // "pull-out click, then magnetic snap"
-        // Grace's camera: its new shutter fires once, so you hear the camera work again.
+        // Grace's camera: its new shutter fires once, so you hear the camera work again. Unless this seat was its last task:
+        // then the camera wakes (DeviceWake winds it and fires the shutter) and one shutter is the beat, not two.
         GraceCameraRepairJob camera = (freshParent != null ? freshParent.GetComponentInParent<GraceCameraRepairJob>() : null);
-        if (camera != null && camera.Shutter == this) Sfx.PlayLater("camera.shutter", f.position, .45f);
+        if (camera != null && camera.Shutter == this && !(Application.isPlaying && camera.Quality >= .999f && camera.GetComponent<DeviceWake>() != null))
+            Sfx.PlayLater("camera.shutter", f.position, .45f);
     }
 
     // ---------- the whole swap by itself (the labs' hand, the Day 1 guide, older callers) ----------

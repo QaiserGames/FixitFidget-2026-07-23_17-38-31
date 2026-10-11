@@ -15,7 +15,10 @@ using UnityEngine.UI;
 //                                       they're furious or walk out
 //   Juice.Money(who, 6, 3)              "+$6" pops over them as they pay, "+$3 tip" with it, and both float up
 //   Juice.Sparkle(point, big)           sparks burst from a point (a part fitted, a spot of grime gone; big: a repair done)
-//   Juice.Words(point, "Fixed!")        a word pops at a point and floats up
+//   Juice.Words(point, "New part")      a word pops at a point and floats up, on a dark plate (playtest 4: it reads on
+//                                       any background; "Fixed!" was pale green on the freshly lit white screen)
+//   Juice.FixedMoment(...)              the repair's one ending: "Fixed! · Perfect", the big sparkle, the chime
+//   Juice.BackTogether(...)             a device closed up with faults left: "Back together · Good", quietly
 //   Juice.Dust(point)                   a puff of dust where the brush lifted some (4b)
 //   Juice.Gleam(from, to)               a gleam sweeps along a line (the glass just wiped clean, 4b)
 //   Juice.HandOver(item, to)            what Ace hands over flies to them in a short arc and pops into their hands
@@ -26,10 +29,15 @@ using UnityEngine.UI;
 //                                       Ace is busy (talking, at a station or the counter's repair view, holding something
 //                                       up to look at), paused, or once the day is over
 //
-// A repair finished on the bench gets its sparkle and "Fixed!" by itself (the item being worked on is watched): "Fixed!"
-// the moment the LAST TASK completes (the last seat, the last fleck; bench-spec-v2 §2.5), when the device also wakes
-// (DeviceWake: the phone's screen lights, the watch is wound and ticks, the camera's shutter fires), and the grade the
-// moment it is back in one piece ("Back together · Good"), so closing it up early is told before it is handed back.
+// A repair on the bench gets its moments by itself (the item being worked on is watched). ONE ENDING (playtest 4, 10 Oct;
+// the veteran: "a repair ends twice", "Fixed!" fired with the cover on the mat and both screws out, then "Back together ·
+// Perfect" came after the climax). Now: the moment the LAST TASK completes (the last seat, the last fleck), the device
+// wakes, quietly, with its own parts and sounds (DeviceWake: the phone's screen lights, the watch is wound and ticks, the
+// camera's shutter fires) and no words; "Fixed! · Perfect", the big sparkle and the chime fire ONCE, when it is back in one
+// piece with every fault fixed (JobBase.IsFinished): after the last screw for a device that was opened, at once (just
+// after the wake) for one that never was. A device closed up with faults left gets the quiet "Back together · Good"
+// (smaller, no sparkle), so closing it early is told before the customer tells it. This changes bench-spec-v2 §2.5 and §7
+// ("Fixed!" on the last seat): the wake stays on the last seat; "Fixed!" moved to the true end.
 //
 // LEVELLED UP (playtest 3, session 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §3.3): money pops in a chip of the
 // brand's green (no more yellow), the badges have thicker symbols and a rim in their own colour, they bounce in on a
@@ -50,6 +58,11 @@ public sealed class Juice : MonoBehaviour
     const float MarkerSize = 46f;
     const float EmoteLife = 1.5f, MoneyLife = 1.35f, WordsLife = 1.4f, SparkLife = .55f, BigSparkLife = .85f;
     const float IconSize = 58f, Rise = 46f;
+    // The one ending is read, not glanced at: it stays up longer than a word; the quiet closing a little less.
+    const float FixedLife = 2.1f, TogetherLife = 1.6f;
+    // When the device wakes in the same frame as "Fixed!" (a device never opened: its last task is the end), the device
+    // speaks first, with its own parts, and the words come a beat after (the phone's glow starts 0.25 s in).
+    const float WakeLead = .3f;
 
     static Juice instance;
 
@@ -62,8 +75,11 @@ public sealed class Juice : MonoBehaviour
         nextMarker = 0;
         LastWords = "";
         LastWordsAt = -1f;
+        LastWordsContrast = 0f;
         DustPuffs = 0;
         Gleams = 0;
+        Finishes = 0;
+        Wakes = 0;
     }
 
     sealed class Pop
@@ -77,6 +93,7 @@ public sealed class Juice : MonoBehaviour
         public Vector3 point;          // at this point in the world
         public Vector2 offset;         // reference pixels from where it's pinned
         public float born, life;
+        public bool clamp;             // words: kept inside the screen (a device zoomed in fills it)
     }
 
     sealed class Spark
@@ -112,19 +129,30 @@ public sealed class Juice : MonoBehaviour
     Camera cam;
     ItemInspector inspector;
     JobBase watched;
-    bool watchedDone, watchedTogether, hidden;
+    bool watchedDone, watchedTogether, watchedFinished, hidden;
     float nextInspectorLook;
 
     static Sprite[] sprites;
     static Sprite sparkSprite, dustSprite;
 
-    /// <summary>The last words popped (for checks), and when (UiClock).</summary>
+    /// <summary>The last words popped (for checks; plain, without the colour tags), and when (UiClock).</summary>
     public static string LastWords { get; private set; } = "";
     public static float LastWordsAt { get; private set; } = -1f;
+    /// <summary>The last words' contrast with their plate, as WCAG reckons it (the plate over white, its worst case; checks).</summary>
+    public static float LastWordsContrast { get; private set; }
     /// <summary>How many puffs of dust have gone up (checks).</summary>
     public static int DustPuffs { get; private set; }
     /// <summary>How many gleams have swept (checks).</summary>
     public static int Gleams { get; private set; }
+    /// <summary>How many times the repair's one ending ("Fixed!") has fired (checks: once a repair).</summary>
+    public static int Finishes { get; private set; }
+    /// <summary>How many times a device at the bench has woken (its last task done; checks).</summary>
+    public static int Wakes { get; private set; }
+
+    // The words' plate: the skin's band behind text over the world (the HUD's own dark), so a word reads over a lit white
+    // screen, the yellow cloth, the blue mat or the oak alike. The words keep their colour.
+    static readonly Color Plate = UiSkin.Band;
+    static readonly Color FixedColour = new Color(.62f, 1f, .7f, 1f);
 
     // ================================================================== what game code calls
 
@@ -179,24 +207,73 @@ public sealed class Juice : MonoBehaviour
     static readonly string TipColour = UiSkin.HexOf(UiSkin.GoldSoft);
     static readonly Color HeartColour = new Color(.91f, .31f, .36f), StarColour = UiSkin.Gold;
 
-    /// <summary>A word pops at <paramref name="point"/> and floats up ("Fixed!").</summary>
+    /// <summary>A word pops at <paramref name="point"/> and floats up ("New part"), on the dark plate.</summary>
     public static void Words(Vector3 point, string words, Color colour)
     {
         if (string.IsNullOrEmpty(words) || !Application.isPlaying) return;
         Juice j = Ensure();
         if (j == null) return;
-        Pop pop = j.Take();
+        j.Say(point, words, words, colour, 40f, WordsLife, 0f);
+    }
+
+    /// <summary>
+    /// The repair's one ending (playtest 4): the big sparkle at <paramref name="centre"/> (the device), "Fixed! · Perfect"
+    /// over it at <paramref name="wordsAt"/> on the plate, and the chime; <paramref name="delay"/> seconds from now (a beat
+    /// after the device wakes, when the two come together). Counted in <see cref="Finishes"/>.
+    /// </summary>
+    public static void FixedMoment(Vector3 centre, Vector3 wordsAt, JobGrade grade, float delay = 0f)
+    {
+        if (!Application.isPlaying) return;
+        Juice j = Ensure();
+        if (j == null) return;
+        Finishes++;
+        j.Sparks(centre, true, delay);
+        // "Fixed!" in its own pale green (kept: it is the repair's colour), the grade after it in the grade's, smaller.
+        string rich = $"Fixed!  <size=70%><color={UiSkin.HexOf(GradeColour(grade))}>· {grade}</color></size>";
+        j.Say(wordsAt, "Fixed! · " + grade, rich, FixedColour, 46f, FixedLife, delay);
+        if (delay > 0f) Sfx.Play2DLater("repair.fixed", delay);
+        else Sfx.Play2D("repair.fixed");
+    }
+
+    /// <summary>
+    /// A device closed up with faults left (playtest 4): "Back together · Good" at <paramref name="wordsAt"/>, smaller and
+    /// quieter than the ending (no sparkle, a softer chime), so the grade it would go back at is told before it goes back.
+    /// </summary>
+    public static void BackTogether(Vector3 wordsAt, JobGrade grade)
+    {
+        if (!Application.isPlaying) return;
+        Juice j = Ensure();
+        if (j == null) return;
+        string rich = $"Back together  <color={UiSkin.HexOf(GradeColour(grade))}>· {grade}</color>";
+        j.Say(wordsAt, "Back together · " + grade, rich, UiSkin.BandText, 30f, TogetherLife, 0f);
+        Sfx.Play2D("repair.ready", .6f);
+    }
+
+    /// <summary>A grade's own colour on the plate: Perfect gold, Good the brand's light green, less a warm grey.</summary>
+    public static Color GradeColour(JobGrade grade) =>
+        grade == JobGrade.Perfect ? UiSkin.Gold : grade == JobGrade.Good ? UiSkin.BrandBright : new Color(.78f, .78f, .74f, 1f);
+
+    // A plated word pop: `rich` is drawn, `plain` is what the checks read (LastWords). The plate is the pop's chip, sized to
+    // the words; the words are centred on it.
+    void Say(Vector3 point, string plain, string rich, Color colour, float size, float life, float delay)
+    {
+        Pop pop = Take();
         pop.image.enabled = false;
-        pop.chip.enabled = false;
         pop.text.enabled = true;
-        pop.text.text = words;
-        pop.text.fontSize = 40f;
+        pop.text.text = rich;
+        pop.text.fontSize = size;
         pop.text.color = colour;
-        pop.text.alignment = TextAlignmentOptions.Bottom;
-        pop.root.sizeDelta = new Vector2(320f, 70f);
-        j.Show(pop, null, point, new Vector2(0f, 26f), WordsLife);
-        LastWords = words;
+        pop.text.alignment = TextAlignmentOptions.Center;
+        Vector2 measured = pop.text.GetPreferredValues(rich, 9999f, 9999f);
+        pop.root.sizeDelta = new Vector2(Mathf.Ceil(measured.x) + size * .9f, Mathf.Ceil(size * 1.55f));
+        pop.chip.enabled = true;
+        pop.chip.color = Plate;
+        Show(pop, null, point, new Vector2(0f, 26f), life);
+        pop.born += Mathf.Max(0f, delay);
+        pop.clamp = true;
+        LastWords = plain;
         LastWordsAt = UiClock.Now;
+        LastWordsContrast = Contrast(colour, Plate);
     }
 
     /// <summary>Sparks burst from <paramref name="point"/>: a few for a step of a repair, many for a whole one.</summary>
@@ -205,11 +282,16 @@ public sealed class Juice : MonoBehaviour
         if (!Application.isPlaying) return;
         Juice j = Ensure();
         if (j == null) return;
+        j.Sparks(point, big, 0f);
+    }
+
+    void Sparks(Vector3 point, bool big, float delay)
+    {
         int n = big ? 16 : 7;
-        float now = UiClock.Now;
+        float now = UiClock.Now + Mathf.Max(0f, delay);
         for (int i = 0; i < n; i++)
         {
-            Spark s = j.TakeSpark();
+            Spark s = TakeSpark();
             float a = (i + Random.value * .6f) / n * Mathf.PI * 2f;
             float speed = (big ? 260f : 170f) * Random.Range(.65f, 1.1f);
             s.point = point;
@@ -226,8 +308,29 @@ public sealed class Juice : MonoBehaviour
             s.active = true;
             s.root.gameObject.SetActive(true);
         }
-        Sfx.Play(big ? "juice.sparkle.big" : "juice.sparkle", point, .7f);
+        if (delay > 0f) Sfx.PlayLater(big ? "juice.sparkle.big" : "juice.sparkle", point, delay, .7f);
+        else Sfx.Play(big ? "juice.sparkle.big" : "juice.sparkle", point, .7f);
     }
+
+    /// <summary>A colour's contrast on the words' plate, as WCAG reckons it, the plate over white (its worst case): the
+    /// steps report it for each colour the words come in.</summary>
+    public static float ContrastOnPlate(Color text) => Contrast(text, Plate);
+
+    /// <summary>"Fixed!"'s own pale green (kept: the repair's colour), for the steps' report.</summary>
+    public static Color FixedWordsColour => FixedColour;
+
+    // The contrast of a colour on the plate, as WCAG reckons it ((L1 + .05) / (L2 + .05)), the plate laid over white: its
+    // worst case (a dark plate is at its lightest over the lit screen).
+    static float Contrast(Color text, Color plate)
+    {
+        Color over = Color.Lerp(Color.white, new Color(plate.r, plate.g, plate.b, 1f), plate.a);
+        float a = Luminance(text), b = Luminance(over);
+        return (Mathf.Max(a, b) + .05f) / (Mathf.Min(a, b) + .05f);
+    }
+
+    static float Luminance(Color c) => .2126f * Linear(c.r) + .7152f * Linear(c.g) + .0722f * Linear(c.b);
+
+    static float Linear(float v) => v <= .03928f ? v / 12.92f : Mathf.Pow((v + .055f) / 1.055f, 2.4f);
 
     /// <summary>A little puff of dust goes up from <paramref name="point"/>: the brush lifted some (4b).</summary>
     public static void Dust(Vector3 point)
@@ -258,14 +361,15 @@ public sealed class Juice : MonoBehaviour
         }
     }
 
-    /// <summary>A gleam sweeps from <paramref name="from"/> to <paramref name="to"/>: the glass just wiped clean (4b).</summary>
-    public static void Gleam(Vector3 from, Vector3 to)
+    /// <summary>A gleam sweeps from <paramref name="from"/> to <paramref name="to"/>: the glass just wiped clean (4b), starting
+    /// <paramref name="delay"/> seconds from now (playtest 4: a beat, so the cloth lifting off the glass is clear of it).</summary>
+    public static void Gleam(Vector3 from, Vector3 to, float delay = 0f)
     {
         if (!Application.isPlaying) return;
         Juice j = Ensure();
         if (j == null) return;
         Gleams++;
-        float now = UiClock.Now;
+        float now = UiClock.Now + Mathf.Max(0f, delay);
         const int n = 9;
         for (int i = 0; i < n; i++)
         {
@@ -613,6 +717,7 @@ public sealed class Juice : MonoBehaviour
         pop.offset = offset;
         pop.born = UiClock.Now;
         pop.life = life;
+        pop.clamp = false;
         pop.active = true;
         pop.group.alpha = 0f;
         pop.root.localScale = Vector3.zero;
@@ -630,11 +735,14 @@ public sealed class Juice : MonoBehaviour
         WatchTheBench();
     }
 
-    // The item being worked on at the bench. Two beats (4b, bench-spec-v2 §2.5): the moment its LAST TASK completes
-    // (quality 1: the last seat, the last fleck), sparks, "Fixed!" and the device wakes (DeviceWake); and the moment it is
-    // back in one piece after having been opened, the grade it would hand back at ("Back together · Good"), quietly, so
-    // closing it up with work left under the cover is told before the customer tells it. A job never opened has only the
-    // first beat.
+    // The item being worked on at the bench: the one ending (playtest 4; the header). Three beats, each once:
+    //   its LAST TASK completes (quality 1: the last seat, the last fleck): the device wakes, quietly (DeviceWake: its own
+    //     parts and sounds; the seat's or the spot's own small sparkle has just gone off); no words;
+    //   it is FINISHED (every fault fixed, nothing off it: JobBase.IsFinished): "Fixed! · Perfect", the big sparkle and the
+    //     chime. For a device that was opened that is the last screw home; for one that never was, it is the last task
+    //     itself, and the words come a beat after the wake;
+    //   it is back in one piece WITH FAULTS LEFT: "Back together · Good", quietly.
+    // An item already finished (or already awake) when it is taken up shows none of them again.
     void WatchTheBench()
     {
         if (UiClock.Now >= nextInspectorLook && inspector == null)
@@ -648,28 +756,48 @@ public sealed class Juice : MonoBehaviour
             watched = item;
             watchedDone = item != null && item.Quality >= .999f;
             watchedTogether = item != null && item.CanHandBack;
+            watchedFinished = watchedDone && watchedTogether;
             return;
         }
         if (item == null || item is DrinkJob) return;
         bool done = item.Quality >= .999f;
+        bool together = item.CanHandBack;
+        bool wokeNow = false;
         if (done && !watchedDone)
         {
             watchedDone = true;
-            Vector3 at = Centre(item.gameObject);
-            Sparkle(at, true);
-            Words(at, "Fixed!", new Color(.62f, 1f, .7f, 1f));
-            Sfx.Play2D("repair.fixed");
+            wokeNow = true;
+            Wakes++;
             DeviceWake.Fire(item);
         }
-        bool together = item.CanHandBack;
-        if (together && !watchedTogether && item.Quality > 0f)
+        if (done && together && !watchedFinished)
         {
-            JobGrade grade = item.Grade;
-            Vector3 at = Centre(item.gameObject);
-            Words(at, "Back together · " + grade, grade == JobGrade.Perfect ? UiSkin.Gold : grade == JobGrade.Good ? UiSkin.BrandBright : new Color(.78f, .78f, .74f, 1f));
-            Sfx.Play2D("repair.ready", .8f);
+            watchedFinished = true;
+            FixedMoment(Centre(item.gameObject), Above(item.gameObject), item.Grade, wokeNow ? WakeLead : 0f);
         }
+        else if (together && !watchedTogether && !done && item.Quality > 0f)
+            BackTogether(Above(item.gameObject), item.Grade);
         watchedTogether = together;
+    }
+
+    // Just over the device as the camera sees it (the middle of its top edge on the screen), so the words never lie on the
+    // glass that has just lit up or been wiped. Without a camera, its middle.
+    Vector3 Above(GameObject go)
+    {
+        Vector3 centre = Centre(go);
+        if (cam == null || !cam.isActiveAndEnabled) cam = Camera.main;
+        if (cam == null || !RendererBounds(go, out Bounds b)) return centre;
+        Vector3 c = cam.WorldToScreenPoint(centre);
+        if (c.z <= 0f) return centre;
+        float top = float.NegativeInfinity;
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+            Vector3 s = cam.WorldToScreenPoint(corner);
+            if (s.z > 0f) top = Mathf.Max(top, s.y);
+        }
+        if (float.IsInfinity(top)) return centre;
+        return cam.ScreenToWorldPoint(new Vector3(c.x, top, c.z));
     }
 
     // ================================================================== placing and moving them
@@ -710,7 +838,16 @@ public sealed class Juice : MonoBehaviour
             float up = Rise * (1f - (1f - k) * (1f - k));
             p.root.localScale = new Vector3(grow, grow, 1f);
             p.group.alpha = t < .08f ? t / .08f : k > .72f ? Mathf.Clamp01((1f - k) / .28f) : 1f;
-            p.root.anchoredPosition = new Vector2(s.x / scale, s.y / scale) + p.offset + new Vector2(0f, up);
+            Vector2 at = new Vector2(s.x / scale, s.y / scale) + p.offset + new Vector2(0f, up);
+            if (p.clamp)
+            {
+                // Words stay on the screen whole (the device zoomed in to fill it put its top edge, and the words over it,
+                // off the top): kept 12 reference pixels inside each edge (the pivot is the bottom middle).
+                Vector2 area = canvasRect.rect.size, size = p.root.sizeDelta;
+                at.x = Mathf.Clamp(at.x, size.x * .5f + 12f, Mathf.Max(size.x * .5f + 12f, area.x - size.x * .5f - 12f));
+                at.y = Mathf.Clamp(at.y, 12f, Mathf.Max(12f, area.y - size.y - 12f));
+            }
+            p.root.anchoredPosition = at;
         }
         foreach (Spark sp in sparks)
         {
@@ -791,18 +928,20 @@ public sealed class Juice : MonoBehaviour
         }
     }
 
-    static Vector3 Centre(GameObject go)
+    static Vector3 Centre(GameObject go) => RendererBounds(go, out Bounds b) ? b.center : go.transform.position;
+
+    // What's drawn of a thing (its enabled renderers, particles aside), as one world box. False: nothing is drawn.
+    static bool RendererBounds(GameObject go, out Bounds b)
     {
-        Renderer[] rs = go.GetComponentsInChildren<Renderer>();
+        b = default;
         bool any = false;
-        Bounds b = default;
-        foreach (Renderer r in rs)
+        foreach (Renderer r in go.GetComponentsInChildren<Renderer>())
         {
             if (!r.enabled || r is ParticleSystemRenderer) continue;
             if (!any) { b = r.bounds; any = true; }
             else b.Encapsulate(r.bounds);
         }
-        return any ? b.center : go.transform.position;
+        return any;
     }
 
     // ================================================================== the icons, drawn in code

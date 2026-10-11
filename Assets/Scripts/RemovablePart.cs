@@ -11,6 +11,18 @@ using UnityEngine;
 // ("close it up anyway" is advice, not a gate). IsRemoved means off the device (in a hand or lying loose): a popped
 // cover still covers what is under it.
 //
+// THE PRY AT THE SEAM (playtest 4, 10 Oct; the veteran: "the pry tool stands upright on the middle of the back like the
+// screwdriver, instead of levering at the seam"). The cover knows its seam: the outline of the plate. Over a cover it can
+// pry, the pry tool sits with its blade's edge in the seam nearest the cursor, its handle out across the seam and up at a
+// pry angle, its blade flat to the cover (PryPose; ItemInspector puts the tool there). Held, the blade slides in under the
+// edge and the handle levers down (ToolPickup's lever), and the cover pops about the opposite edge; popped, the blade
+// stays under the lifted edge. The spec's words: "press and hold at a clip: the lever goes in, a short creak, the cover
+// pops up at that edge".
+//
+// On a finished device (every fault fixed, back in one piece: JobBase.IsFinished) a seated cover offers nothing (no verb):
+// there is nothing to undo. With its screws in it says why it won't come off ("Held on by its screws"), not just "Screws
+// first" (the veteran on the screen's hint: a gate reads as arbitrary, a cause doesn't).
+//
 // Activate does the old whole thing by itself (the labs' hand, the Day 1 guide): seated or popped, it lifts off and
 // lands on the mat; in a hand or loose, it snaps home.
 // ---------------------------------------------------------------------------
@@ -38,17 +50,29 @@ public class RemovablePart : BenchInteractable
     [Tooltip("Metres from its seat within which a dragged cover snaps home when let go.")]
     [SerializeField, Min(.005f)] private float snapDistance = .03f;
 
+    /// <summary>The pry tool's angle up from the cover at the seam, degrees (a spudger goes in low).</summary>
+    public const float PryAngle = 32f;
+    /// <summary>How far the blade slides in under the edge as the hold begins, metres.</summary>
+    public const float BladeIn = .003f;
+
     public enum CoverState { Seated, Popped, Held, Loose }
     public CoverState State { get; private set; } = CoverState.Seated;
 
     /// <summary>Off the device: in a hand, or lying loose. A popped cover still covers what is under it.</summary>
     public bool IsRemoved => State == CoverState.Held || State == CoverState.Loose;
     public bool IsPopped => State == CoverState.Popped;
+    /// <summary>Popping up at the edge the pry went in at (the moment between the creak and the pop; nobody's target).</summary>
+    public bool Popping => busy && State == CoverState.Seated && hasPryEdge;
 
     private bool busy;
     private float pryProgress;
     private Vector3 pryEdgeLocal;        // where the pry went in, in the device's frame
+    private Vector3 pryAcrossLocal;      // the way out across the seam there, in the device's frame
+    private Vector3 pryEdgeOnCover;      // the same two in the cover's own frame: they ride with it as it pops
+    private Vector3 pryAcrossOnCover;
+    private bool hasPryEdge;
     private Vector3 outwardLocal;        // the cover's outward normal, in the device's frame
+    private Vector3 outwardOnCover;      // ...and in its own (it tilts with the cover when it pops)
     private Vector3 homeLocalPos;
     private Quaternion homeLocalRot;
     private Transform homeParent;
@@ -75,6 +99,7 @@ public class RemovablePart : BenchInteractable
         Vector3 thin = ThinAxisWorld();
         Vector3 outward = Vector3.Dot(away, thin) >= 0f ? thin : -thin;
         outwardLocal = homeParent != null ? homeParent.InverseTransformDirection(outward) : outward;
+        outwardOnCover = transform.InverseTransformDirection(outward);
 
         // Tell each screw which plate it belongs to.
         if (heldBy != null) foreach (Screw s in heldBy)
@@ -119,6 +144,9 @@ public class RemovablePart : BenchInteractable
         }
     }
 
+    // The device is finished: a seated cover has nothing to offer (the editor's checks build covers without Awake: no job).
+    private bool DeviceFinished => job != null && job.IsFinished;
+
     public Vector3 Outward => homeParent != null ? homeParent.TransformDirection(outwardLocal).normalized : transform.up;
     public Vector3 HomePosition => homeParent != null ? homeParent.TransformPoint(homeLocalPos) : transform.position;
 
@@ -136,13 +164,114 @@ public class RemovablePart : BenchInteractable
 
     public override string Prompt => State switch
     {
-        CoverState.Seated => AllScrewsOut ? "Hold to pry it up" : "Screws first",
+        CoverState.Seated => DeviceFinished ? "" : AllScrewsOut ? "Hold to pry it up" : "Held on by its screws. Take them out first",
         CoverState.Popped => "Lift it off (drag)",
         CoverState.Loose => WorkBeneathDone ? "Pick up (drag it home to refit)" : "Pick up (close it up anyway: drag it home)",
         _ => ""
     };
 
     public override ToolType RequiredTool => State == CoverState.Seated ? ToolType.Pry : ToolType.Hand;
+
+    // ---------- the seam, and where the pry tool sits on it (playtest 4) ----------
+
+    /// <summary>
+    /// The point on this cover's seam nearest <paramref name="near"/>: on the plate's outline, a quarter of its thickness
+    /// out from its middle (where the pry has always gone in), kept 6 mm in from the corners (a lever goes in along an
+    /// edge, not at a corner); and the way out across the seam there, in the world.
+    /// </summary>
+    public void SeamAt(Vector3 near, out Vector3 seam, out Vector3 across)
+    {
+        Box(out Vector3 c, out Vector3 s);
+        Vector3 scale = transform.lossyScale;
+        var abs = new Vector3(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
+        Vector3 half = Vector3.Scale(s, abs) * .5f;                       // metres along the box's own axes
+        half = new Vector3(Mathf.Abs(half.x), Mathf.Abs(half.y), Mathf.Abs(half.z));
+        int thin = half.x <= half.y && half.x <= half.z ? 0 : half.y <= half.z ? 1 : 2;
+        int a = thin == 0 ? 1 : 0, b = thin == 2 ? 1 : 2;
+        Vector3 local = Vector3.Scale(transform.InverseTransformPoint(near) - c, abs);   // metres from the box's middle
+        float pa = Mathf.Clamp(local[a], -half[a], half[a]), pb = Mathf.Clamp(local[b], -half[b], half[b]);
+        Vector3 point = Vector3.zero, outward;
+        if (half[a] - Mathf.Abs(pa) <= half[b] - Mathf.Abs(pb))
+        {
+            float side = pa >= 0f ? 1f : -1f;
+            point[a] = side * half[a];
+            point[b] = Mathf.Clamp(pb, -half[b] + Corner(half[b]), half[b] - Corner(half[b]));
+            outward = Axis(a) * side;
+        }
+        else
+        {
+            float side = pb >= 0f ? 1f : -1f;
+            point[b] = side * half[b];
+            point[a] = Mathf.Clamp(pa, -half[a] + Corner(half[a]), half[a] - Corner(half[a]));
+            outward = Axis(b) * side;
+        }
+        point[thin] = (Vector3.Dot(Outward, Axis(thin)) >= 0f ? 1f : -1f) * half[thin] * .5f;
+        seam = transform.TransformPoint(c) + Axis(0) * point.x + Axis(1) * point.y + Axis(2) * point.z;
+        across = outward.normalized;
+    }
+
+    /// <summary>
+    /// Where the pry tool sits on this cover: its blade's edge in the seam (nearest <paramref name="near"/>, or where it went
+    /// in), its handle out across the seam and up at <see cref="PryAngle"/>, its flat side's normal (the tool's +Z) out and
+    /// down, so the lever turns the handle down toward the device and the blade's edge up. While the hold goes on the
+    /// blade slides in under the edge; popped, it stays under the lifted edge (the cover's own frame carries it).
+    /// False when the cover is off the device (in a hand or lying loose): the tool follows as any other.
+    /// </summary>
+    public bool PryPose(Vector3 near, out Vector3 tip, out Vector3 handle, out Vector3 flat, out Vector3 normal)
+    {
+        tip = handle = flat = normal = Vector3.zero;
+        if (State == CoverState.Held || State == CoverState.Loose) return false;
+        if (!awoke) Awake();
+        Vector3 seam, across;
+        if (hasPryEdge && (State == CoverState.Popped || pryProgress > 0f))
+        {
+            seam = transform.TransformPoint(pryEdgeOnCover);
+            across = transform.TransformDirection(pryAcrossOnCover);
+        }
+        else SeamAt(near, out seam, out across);
+        normal = transform.TransformDirection(outwardOnCover);
+        normal = normal.sqrMagnitude > .25f ? normal.normalized : Outward;
+        across = Vector3.ProjectOnPlane(across, normal);
+        if (across.sqrMagnitude < 1e-8f) return false;
+        across.Normalize();
+        float into = State == CoverState.Popped ? 1f : Mathf.Clamp01(pryProgress / .3f);
+        tip = seam - across * (BladeIn * into) - normal * (.0006f * into);
+        float rise = PryAngle * Mathf.Deg2Rad;
+        handle = (normal * Mathf.Sin(rise) + across * Mathf.Cos(rise)).normalized;
+        flat = (across * Mathf.Sin(rise) - normal * Mathf.Cos(rise)).normalized;
+        return true;
+    }
+
+    // The cover's solid in its own frame: its box collider (a cover is a plate), else its mesh's bounds, else a unit cube.
+    private void Box(out Vector3 centre, out Vector3 size)
+    {
+        var box = GetComponent<BoxCollider>();
+        if (box != null) { centre = box.center; size = box.size; return; }
+        var mf = GetComponent<MeshFilter>();
+        if (mf != null && mf.sharedMesh != null) { centre = mf.sharedMesh.bounds.center; size = mf.sharedMesh.bounds.size; return; }
+        centre = Vector3.zero;
+        size = Vector3.one;
+    }
+
+    // The cover's own axes in the world, unit length (a mirrored scale flips its axis, as it flips the box).
+    private Vector3 Axis(int i)
+    {
+        Vector3 scale = transform.lossyScale;
+        return i == 0 ? transform.right * Mathf.Sign(scale.x) : i == 1 ? transform.up * Mathf.Sign(scale.y) : transform.forward * Mathf.Sign(scale.z);
+    }
+
+    private static float Corner(float half) => Mathf.Min(.006f, half * .5f);
+
+    // Where the pry went in, kept in the device's frame (the pop's hinge, the tool's work point) and in the cover's own
+    // (the tool's blade under the lifted edge).
+    private void RememberPry(Vector3 edge, Vector3 across)
+    {
+        pryEdgeLocal = homeParent != null ? homeParent.InverseTransformPoint(edge) : edge;
+        pryAcrossLocal = homeParent != null ? homeParent.InverseTransformDirection(across) : across;
+        pryEdgeOnCover = transform.InverseTransformPoint(edge);
+        pryAcrossOnCover = transform.InverseTransformDirection(across);
+        hasPryEdge = true;
+    }
 
     // ---------- the pry (a hold) ----------
 
@@ -155,14 +284,10 @@ public class RemovablePart : BenchInteractable
     public override void HoldBegin(BenchHand hand)
     {
         if (State != CoverState.Seated) return;
-        // The edge nearest the press: the pry goes in there, and that side lifts.
-        Vector3 centre = BoundsCentre(transform);
-        Vector3 at = hand.hitSomething ? hand.hit.point : centre;
-        Vector3 d = Vector3.ProjectOnPlane(at - centre, Outward);
-        if (d.sqrMagnitude < 1e-8f) d = Vector3.ProjectOnPlane(transform.forward, Outward);
-        d.Normalize();
-        Vector3 edge = centre + d * ExtentAlong(d) + Outward * (ExtentAlong(Outward) * .5f);
-        pryEdgeLocal = homeParent != null ? homeParent.InverseTransformPoint(edge) : edge;
+        // The seam nearest the press: the pry goes in there, and that side lifts.
+        Vector3 at = hand.hitSomething ? hand.hit.point : BoundsCentre(transform);
+        SeamAt(at, out Vector3 edge, out Vector3 across);
+        RememberPry(edge, across);
         if (pryProgress <= 0f) Sfx.Play("cover.creak", edge);
     }
 
@@ -195,7 +320,11 @@ public class RemovablePart : BenchInteractable
         Vector3 centre = BoundsCentre(transform);
         Vector3 n = Outward;
         Vector3 edge = homeParent != null ? homeParent.TransformPoint(pryEdgeLocal) : centre;
-        Vector3 d = Vector3.ProjectOnPlane(edge - centre, n).normalized;
+        // About the edge opposite the seam the pry went in at (playtest 4: the seam's own outward side; an edge's middle
+        // gives the same hinge as before, a press near a corner no longer turns it about a diagonal).
+        Vector3 acrossWorld = homeParent != null ? homeParent.TransformDirection(pryAcrossLocal) : pryAcrossLocal;
+        Vector3 d = hasPryEdge && Vector3.ProjectOnPlane(acrossWorld, n).sqrMagnitude > 1e-8f
+            ? Vector3.ProjectOnPlane(acrossWorld, n).normalized : Vector3.ProjectOnPlane(edge - centre, n).normalized;
         Vector3 hinge = centre - d * ExtentAlong(d);       // the far edge stays where it is
         Vector3 axis = Vector3.Cross(d, n).normalized;      // turning about this lifts the pried edge outward
         Quaternion from = transform.rotation;
@@ -330,6 +459,7 @@ public class RemovablePart : BenchInteractable
         transform.localRotation = homeLocalRot;
         State = CoverState.Seated;
         pryProgress = 0f;
+        hasPryEdge = false;      // home again: the next pry goes in wherever it is pressed
         busy = false;
         Sfx.Play("part.on", transform.position);
         // Screws are NOT auto-returned — the player screws each one in again.
@@ -353,6 +483,7 @@ public class RemovablePart : BenchInteractable
                 transform.localRotation = homeLocalRot;
                 if (job != null) job.UnregisterDetached(gameObject);
                 State = CoverState.Seated;
+                hasPryEdge = false;
             }
             return;
         }
@@ -365,8 +496,10 @@ public class RemovablePart : BenchInteractable
         if (State == CoverState.Seated)
         {
             if (!AllScrewsOut) yield break;
+            // The seam at the cover's forward end, as the self-driven lift always pried it.
             Vector3 centre = BoundsCentre(transform);
-            pryEdgeLocal = homeParent != null ? homeParent.InverseTransformPoint(centre + Vector3.ProjectOnPlane(transform.forward, Outward).normalized * ExtentAlong(transform.forward)) : centre;
+            SeamAt(centre + Vector3.ProjectOnPlane(transform.forward, Outward).normalized * ExtentAlong(transform.forward), out Vector3 edge, out Vector3 across);
+            RememberPry(edge, across);
             yield return Pop();
         }
         busy = true;

@@ -39,6 +39,16 @@ using Unity.Cinemachine;
 // MOVED over it takes the dirt off where the bristles pass, a smudge on glass the same under the cloth; a tool held
 // still over dirt does nothing on a mouse (the pad scrubs at a steady rate as well, since a stick can't scrub back and
 // forth). The hover says how much has come off.
+//
+// PLAYTEST 4 (10 Oct 2026; the two playtester agents' notes on Bench 3):
+//   * the cloth, gathered into a pad in the hand (ToolPickup), lifts off the glass the moment a smudge comes clean, so the
+//     gleam and the clean glass are seen ("the smudge thinning and the gleam both happen under it"); wiping another smudge
+//     brings it straight back down;
+//   * the pry tool sits in the cover's seam, at a pry angle, its handle out across the seam (RemovablePart.PryPose), from
+//     the moment it is over a cover it can pry until the cover is lifted off ("the pry tool stands upright on the middle
+//     of the back like the screwdriver");
+//   * a finished device (JobBase.IsFinished) offers nothing to undo: over its screws and its cover the hover names the
+//     part with no verb ("'Back together · Perfect' sits over 'Screw: Hold to unscrew'").
 // ---------------------------------------------------------------------------
 public class ItemInspector : MonoBehaviour
 {
@@ -81,6 +91,7 @@ public class ItemInspector : MonoBehaviour
     // v2: the hold and the grab under way, the camera's zoom.
     private BenchInteractable holdTarget, grabTarget;
     private GrimeSpot scrubbing;            // the spot the tool is working on this stroke (4b)
+    private GrimeSpot liftedFor;            // the smudge the cloth last lifted off (playtest 4): once a smudge
     private Vector3 lastHeldPoint;          // where the cursor's ray met the bench last frame with the button held
     private bool hasLastHeld;
     private int lastHeldFrame = -1;
@@ -287,6 +298,7 @@ public class ItemInspector : MonoBehaviour
         SetBenchHover(null);
         ClearTool();
         scrubbing = null;
+        liftedFor = null;
         CurrentJobCard = "";
         HoverName = "";
         HoverAction = "";
@@ -400,8 +412,11 @@ public class ItemInspector : MonoBehaviour
         {
             HoverName = hovered.DisplayName;
 
+            // Not workable now: the part's own words where it has them (why not yet, or nothing at all on a finished device),
+            // else "Not yet".
             if (!hovered.CanInteract)
-                HoverAction = hovered is CircuitTile || hovered is ReplaceablePart || hovered is LoosePart || hovered is RemovablePart ? hovered.Prompt : "Not yet";
+                HoverAction = hovered is CircuitTile || hovered is ReplaceablePart || hovered is LoosePart || hovered is RemovablePart
+                              || hovered is ScrewTarget screwDone && screwDone.Done ? hovered.Prompt : "Not yet";
             else if (currentTool == hovered.RequiredTool || hovered.RequiredTool == ToolType.Hand)
             {
                 target = hovered;
@@ -444,7 +459,10 @@ public class ItemInspector : MonoBehaviour
                     // edge it crossed is brushed too, however long the frame (9 Oct night; GrimeSpot.StrokeFrom).
                     if (hasLastHeld && lastHeldFrame == Time.frameCount - 1) grime.StrokeFrom(lastHeldPoint);
                 }
+                // A lifted cloth comes straight back down onto a smudge it is wiping (playtest 4).
+                if (currentToolPickup != null && !grime.IsClean) currentToolPickup.Land();
                 grime.Scrub(hit.point, ScrubTravel(delta, dt));
+                AfterScrub(grime);
                 if (currentToolPickup != null)
                     currentToolPickup.Animate(grime.Tool == ToolType.Cloth ? ToolPickup.Motion.Circle : ToolPickup.Motion.Stroke, 0f, 1f, dt);
             }
@@ -452,7 +470,11 @@ public class ItemInspector : MonoBehaviour
             {
                 // The tool left the spot this frame: its path runs on to where it is now, so the edge it crossed going off
                 // is brushed too; then the stroke is over.
-                if (hitSomething && currentTool == scrubbing.Tool) scrubbing.Scrub(hit.point, ScrubTravel(delta, dt));
+                if (hitSomething && currentTool == scrubbing.Tool)
+                {
+                    scrubbing.Scrub(hit.point, ScrubTravel(delta, dt));
+                    AfterScrub(scrubbing);
+                }
                 scrubbing.EndStroke();
                 scrubbing = null;
             }
@@ -761,13 +783,24 @@ public class ItemInspector : MonoBehaviour
         return travel * scrubPower * brush;
     }
 
+    // A stroke of the cloth that brought a smudge clean: the cloth lifts off the glass, once, so the gleam sweeps clear glass
+    // and what wakes under it is seen (playtest 4; ToolPickup.LiftOff). The brush has nothing to lift: a stick over a spot.
+    private void AfterScrub(GrimeSpot spot)
+    {
+        if (spot == null || !spot.IsClean || spot == liftedFor || spot.Tool != ToolType.Cloth) return;
+        liftedFor = spot;
+        if (currentToolPickup != null) currentToolPickup.LiftOff();
+    }
+
     private void PlaceTool(BenchInteractable target, GrimeSpot grime, bool hitSomething, RaycastHit hit, Ray ray, float dt)
     {
         if (currentToolPickup == null) return;
         ToolPickup tool = currentToolPickup;
         if (holdTarget != null)
         {
-            tool.Follow(holdTarget.WorkPoint, holdTarget.WorkNormal, cam, true, dt);
+            // The pry levers in the seam it went in at (playtest 4); every other hold puts the tool on the part's work point.
+            if (!(currentTool == ToolType.Pry && holdTarget is RemovablePart prying && AtTheSeam(tool, prying, hitSomething, hit, true, dt)))
+                tool.Follow(holdTarget.WorkPoint, holdTarget.WorkNormal, cam, true, dt);
             float direction = holdTarget is ScrewSocket || holdTarget is ScrewTarget st && st.GetComponent<Screw>().IsOut ? -1f : 1f;
             ToolPickup.Motion motion = currentTool switch
             {
@@ -788,12 +821,31 @@ public class ItemInspector : MonoBehaviour
             tool.Animate(ToolPickup.Motion.Pinch, 1f, 1f, dt);
             return;
         }
-        if (target != null) { tool.Follow(target.WorkPoint, target.WorkNormal, cam, false, dt); return; }
+        if (target != null)
+        {
+            // Over a cover it can pry (or one it has just popped), the pry waits in the seam nearest the cursor (playtest 4).
+            if (currentTool == ToolType.Pry && target is RemovablePart cover && AtTheSeam(tool, cover, hitSomething, hit, false, dt)) return;
+            tool.Follow(target.WorkPoint, target.WorkNormal, cam, false, dt);
+            return;
+        }
+        // While a pried cover pops (a moment it is nobody's target), the pry stays in the seam under its edge (playtest 4).
+        if (currentTool == ToolType.Pry && hitSomething && hit.collider.GetComponentInParent<RemovablePart>() is RemovablePart popping && popping.Popping
+            && AtTheSeam(tool, popping, hitSomething, hit, true, dt)) return;
         if (grime != null && hitSomething) { tool.Follow(hit.point, hit.normal, cam, GamePointer.PrimaryHeld, dt); return; }
         if (hitSomething && hit.collider.GetComponentInParent<JobBase>() == focusedItem) { tool.Follow(hit.point, hit.normal, cam, false, dt); return; }
         // Over nothing: by the cursor, 35 cm out, tip toward the item.
         Vector3 point = cam.transform.position + ray.direction * .35f;   // 35 cm from the eye (the ray's own origin is out on the near plane)
         tool.Follow(point, -ray.direction, cam, false, dt);
+    }
+
+    // The pry tool in a cover's seam, the way the cover says (RemovablePart.PryPose): the seam nearest the cursor, or the one
+    // it went in at. False when the cover isn't the pry's (off the device, or in a hand): the tool follows as any other.
+    private bool AtTheSeam(ToolPickup tool, RemovablePart cover, bool hitSomething, RaycastHit hit, bool working, float dt)
+    {
+        Vector3 near = hitSomething ? hit.point : BenchInteractable.BoundsCentre(cover.transform);
+        if (!cover.PryPose(near, out Vector3 tip, out Vector3 handle, out Vector3 flat, out Vector3 normal)) return false;
+        tool.FollowPose(tip, handle, flat, normal, cam, working, dt);
+        return true;
     }
 
     // ---------- aim help on a pad (playtest 3, §2.3) ----------

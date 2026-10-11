@@ -31,9 +31,23 @@ using UnityEditor;
 //   spot of grime takes the dirt off only where it passed (a puff of dust, the hover's percentage), the other spot
 //   untouched; a raster of strokes brushes it clean (a sparkle, gone at 97%); the smudge wants the cloth ("Needs the
 //   cloth" under the brush; the cloth rests folded flat on the mat, clear of the caddy, and in the hand it is on the
-//   phone, lying flat on the glass: 9 Oct night), and wiped in circles it squeaks and goes with a gleam; the last spot by the check's hand:
-//   "Fixed!" the moment the last task completes, and the phone's screen lights up (DeviceWake). In act one: "Fixed!" when
-//   the fresh screen seats (the last task), the fresh screen lit, and "Back together · Perfect" when the last screw is home.
+//   phone, lying flat on the glass: 9 Oct night), and wiped in circles it squeaks and goes with a gleam.
+//
+// PLAYTEST 4 (10 Oct; the two playtester agents' notes on this check's own photos), checked as they go:
+//   * ONE ENDING: the fresh screen's seat wakes the phone (its new screen lights) with no words and no "Fixed!" (the cover is
+//     still on the mat); "Fixed! · Perfect" fires once, with the big sparkle, when the last screw is home, on a dark plate
+//     that reads on any background (its contrast measured); then a finished phone offers nothing to undo: a screw under the
+//     cursor reads "Screw" with no verb, and the driver held on it doesn't turn it. Act two's phone, never opened, gets the
+//     same one ending at its last task, the smudge, a beat after it wakes; no "Back together".
+//   * The pry tool waits in the cover's seam, at a pry angle, its handle out across the seam, not stood on the middle of
+//     the back; held, its handle levers down; popped, its blade stays under the lifted edge.
+//   * The cracked screen, under the back cover, says why the back comes off ("Its cable plugs in under the back cover...").
+//   * The cloth in the hand is a pad (about a fifth of the glass covered on screen, where the folded cloth covered two
+//     thirds); the moment the smudge comes clean it lifts off the glass, up and back, so the gleam and the waking screen are
+//     seen; photographed mid-lift.
+//   * Act three: Grace's camera, by the check's hand (it is about the moments, not the verbs): its lens and film path clean,
+//     no ending while the shutter is jammed; the new shutter in, the camera wakes and "Fixed! · Perfect" fires once; the
+//     strap is still there.
 //
 // Photos and report.txt go to Logs/Bench/bench-check-<time>/. Nothing is saved in the scene. The Game view must have
 // focus (the pad's cursor needs it), as for every lab check.
@@ -231,6 +245,15 @@ public sealed class BenchLab : PlayLab
         Check(peeked > 15f && Mathf.Abs(gapWhilePeeking) < .004f && Mathf.Abs(inspector.Tilt) < .5f && Quaternion.Angle(face0, device.transform.rotation) < .5f,
             $"a push of the stick tilts an edge up to peek under ({peeked:0}°, its low edge still on the mat) and, let go, it lies back flat");
 
+        // ---------- the cracked screen says why the back comes off (playtest 4: "a gate, not a cause") ----------
+        {
+            string why = part.Prompt;   // the part's own words (ReplaceablePart.CoveredHint), read from the source
+            yield return Hover(BenchInteractable.BoundsCentre(part.transform), part.DisplayName, why, "the cracked screen, its back cover on");
+            Check(why.Length <= 90 && why.Contains(cover.DisplayName.ToLowerInvariant()) && !why.StartsWith("Remove"),
+                $"it says why the back comes off, not only that it must (\"{why}\", {why.Length} characters)");
+            yield return Photo("01b-the-cable-under-the-back");
+        }
+
         // ---------- the flip: over onto its back, where the screws are ----------
         float heightBefore = device.transform.position.y;
         yield return PadPress(GamepadButton.North);
@@ -293,13 +316,46 @@ public sealed class BenchLab : PlayLab
         yield return SelectTool(ToolType.Pry);
         Vector3 edge = BenchInteractable.BoundsCentre(cover.transform) + cover.transform.forward * .05f;   // the end away from the screws
         yield return Hover(edge, cover.DisplayName, "Hold to pry it up", "the cover's far edge");
+        // Playtest 4 (the veteran: "the pry tool stands upright on the middle of the back like the screwdriver"): over a
+        // cover it can pry, the pry waits in the seam nearest the cursor, low, its handle out across the seam.
+        ToolPickup pry = ToolInHand(ToolType.Pry);
+        yield return Seconds(.4f);   // the tool settles on its spring
+        {
+            cover.SeamAt(edge, out Vector3 seam, out Vector3 across);
+            Vector3 n = cover.Outward;
+            float rise = Rise(pry, n);
+            float off = pry != null ? Vector3.Distance(pry.transform.position, seam) : 1f;
+            float outward = pry != null ? Vector3.Dot(Vector3.ProjectOnPlane(pry.transform.up, n).normalized, across) : -1f;
+            float fromMiddle = pry != null ? Vector3.ProjectOnPlane(pry.transform.position - BenchInteractable.BoundsCentre(cover.transform), n).magnitude : 0f;
+            Check(pry != null && off < .008f && rise > 20f && rise < 50f && outward > .8f,
+                $"the pry waits in the seam at a pry angle, its handle out across it ({off * 1000f:0.0} mm from the seam, {rise:0}° up from the cover, " +
+                $"{fromMiddle * 100f:0.0} cm from its middle), not stood upright on the middle of the back");
+            yield return Photo("04b-the-pry-at-the-seam");
+        }
         Quaternion coverRot0 = cover.transform.rotation;
+        float riseBefore = Rise(pry, cover.Outward), lowest = riseBefore;
         PadHold(RT);
-        yield return Until(() => cover.IsPopped, 2.5f, "held at the edge, the cover creaks and pops");
+        {
+            // (Until, but watching the handle as the lever goes in)
+            float until = Time.realtimeSinceStartup + 2.5f;
+            while (!cover.IsPopped && Time.realtimeSinceStartup < until)
+            {
+                lowest = Mathf.Min(lowest, Rise(pry, cover.Outward));
+                yield return null;
+            }
+            lastWait = cover.IsPopped;
+            Check(lastWait, "held at the edge, the cover creaks and pops" + (lastWait ? "" : " (gave up after 2.5 s)"));
+        }
+        Check(riseBefore - lowest > 6f, $"held, the pry levers: its handle went down {riseBefore - lowest:0}° as the edge came up (from {riseBefore:0}°)");
         yield return LetGo();
         yield return Seconds(.25f);
         float popped = Quaternion.Angle(coverRot0, cover.transform.rotation);
         Check(popped > 4f && popped < 20f, $"it sits up {popped:0.0}° at the pried edge");
+        {
+            bool under = cover.PryPose(edge, out Vector3 tipUnder, out _, out _, out _);
+            float off = pry != null && under ? Vector3.Distance(pry.transform.position, tipUnder) : 1f;
+            Check(under && off < .008f, $"popped, the pry's blade stays under the lifted edge ({off * 1000f:0.0} mm from it)");
+        }
         yield return Photo("05-popped");
 
         yield return Hover(BenchInteractable.BoundsCentre(cover.transform), cover.DisplayName, "Lift it off (drag)", "the popped cover");
@@ -368,20 +424,25 @@ public sealed class BenchLab : PlayLab
         PadCursor.GlideTo(Px(part.SeatPosition));
         yield return Seconds(.9f);
         float overSeat = Vector3.Distance(ReplaceablePart.AtDepthOf(fresh.transform.position, part.SeatPosition, cam), part.SeatPosition);
+        int finishesBefore = Juice.Finishes, wakesBefore = Juice.Wakes;
+        float wordsBefore = Juice.LastWordsAt;
         yield return LetGo();
         yield return Until(() => part.IsReplaced, 1f, $"let go over the empty seat ({overSeat * 1000f:0} mm off it as seen), it seats");
         Check(job.Quality >= .999f && job.Grade == JobGrade.Perfect, $"the screen is replaced: {job.Grade}");
         Check(!job.IsComplete && !job.CanHandBack, "but it isn't finished: the cover is on the mat and the screws are out");
         Check(InView(part.transform) && stage.InTray(part.transform.position) && job.LooseParts.Contains(part.gameObject),
             $"the broken one stays in the tray as scrap, in view ({TrayPlace(part.transform)})");
-        // 4b: the last task is done, so the moment is now, not at the last screw: "Fixed!", and the phone wakes (its new screen lights)
-        yield return Await(() => Juice.LastWords == "Fixed!", 1f);
-        Check(lastWait, $"\"Fixed!\" pops the moment the last task completes (the seat), with the cover still off (words: \"{Juice.LastWords}\")");
+        // Playtest 4, one ending: the last task is done, so the phone WAKES now (its new screen lights), quietly; "Fixed!"
+        // waits for the cover and the screws (the veteran: "'Fixed!' fires ... with the cover still on the mat").
         DeviceWake wake = device.GetComponent<DeviceWake>();
+        yield return Await(() => wake != null && wake.Woken, 1f);
         yield return Seconds(1.1f);
-        Check(wake != null && wake.Woken && wake.LitScreen != null && wake.LitScreen.gameObject.activeInHierarchy && wake.LitScreen.sharedMaterial.IsKeywordEnabled("_EMISSION"),
-            $"the device wakes: the fresh screen lights up ({(wake == null ? "no DeviceWake on the phone: run Bench 4" : wake.LitScreen == null ? "no screen lit" : wake.LitScreen.name + " glows")})");
-        yield return Photo("08-fresh-part-in");
+        Check(wake != null && wake.Woken && Juice.Wakes == wakesBefore + 1 && wake.LitScreen != null && wake.LitScreen.gameObject.activeInHierarchy
+              && wake.LitScreen.sharedMaterial.IsKeywordEnabled("_EMISSION"),
+            $"the last task done (the seat), the phone wakes: the fresh screen lights up ({(wake == null ? "no DeviceWake on the phone: run Bench 4" : wake.LitScreen == null ? "no screen lit" : wake.LitScreen.name + " glows")})");
+        Check(Juice.Finishes == finishesBefore && Juice.LastWordsAt == wordsBefore,
+            $"quietly: no \"Fixed!\" and no words while its cover is on the mat and its screws are out (endings so far: {Juice.Finishes - finishesBefore})");
+        yield return Photo("08-the-phone-wakes");
 
         // ---------- the cover home ----------
         yield return PadPress(GamepadButton.North);
@@ -410,13 +471,36 @@ public sealed class BenchLab : PlayLab
             yield return LetGo();
             Check(Vector3.Distance(s.transform.position, s.HomePosition) < .001f && !s.Socket.gameObject.activeSelf, "it sits in its hole, the hole's mark gone");
         }
-        Check(job.IsComplete && job.CanHandBack && job.Grade == JobGrade.Perfect, $"the repair is finished: {job.Grade}, in one piece");
-        yield return Await(() => Juice.LastWords.StartsWith("Back together"), 1f);
-        Check(lastWait && Juice.LastWords.Contains("Perfect"), $"back in one piece, the grade it would hand back at is told (words: \"{Juice.LastWords}\")");
-        yield return Seconds(.6f);
+        Check(job.IsComplete && job.CanHandBack && job.Grade == JobGrade.Perfect && job.IsFinished, $"the repair is finished: {job.Grade}, in one piece");
+        // Playtest 4: the one ending, now, at the true end; on its plate.
+        yield return Await(() => Juice.Finishes > finishesBefore, 1f);
+        Check(lastWait && Juice.LastWords == "Fixed! · Perfect" && Juice.SparksUp >= 12,
+            $"the one ending: \"Fixed! · Perfect\" and the big sparkle the moment the last screw is home (words: \"{Juice.LastWords}\", {Juice.SparksUp} sparks)");
+        Check(Juice.LastWordsContrast >= 4.5f,
+            $"on its dark plate the words read on any background ({Juice.LastWordsContrast:0.0}:1 over a white screen, the plate's worst case; 4.5:1 is the bar)");
+        yield return Seconds(.8f);
+        Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect",
+            $"it ends once: one \"Fixed!\", and no \"Back together\" after it (endings: {Juice.Finishes - finishesBefore}; the last words \"{Juice.LastWords}\")");
         Check(InView(part.transform) && stage.InTray(part.transform.position) && part.DisplayName.StartsWith("Old ") && part.Grabbable,
             $"the old screen is still there in the tray, scrap that can be moved ({TrayPlace(part.transform)})");
-        yield return Photo("10-fixed");
+        yield return Photo("10-fixed-once");
+
+        // Playtest 4 (both playtesters: "Back together · Perfect" sat over "Screw: Hold to unscrew"): a finished phone offers
+        // nothing to undo. Its screw reads "Screw" with no verb, and the driver held on it does nothing.
+        ScrewTarget seated = screws.FirstOrDefault(t => OnPx(t.WorkPoint));
+        Check(seated != null, "a screw of the finished phone is in view");
+        if (seated != null)
+        {
+            Screw ss = seated.GetComponent<Screw>();
+            yield return Hover(seated.WorkPoint, "Screw", "", "a screw of the finished phone (no verb)");
+            Check(seated.Done && !seated.CanInteract, "a finished phone offers nothing to undo: its screw can't be worked");
+            PadHold(RT);
+            yield return Seconds(.5f);
+            yield return LetGo();
+            Check(!ss.IsOut && ss.Progress < .01f && inspector.HoldTarget == null,
+                $"and the driver held on it doesn't turn it ({ss.Progress:P0} out)");
+            yield return Photo("10b-nothing-to-undo");
+        }
 
         // ---------- the clock, the catch, the sounds ----------
         Check(DayClock.Instance.SecondsIntoDay > clockBefore + 5f, $"the clock ran the whole time ({DayClock.Instance.SecondsIntoDay - clockBefore:0} s of the day)");
@@ -433,7 +517,7 @@ public sealed class BenchLab : PlayLab
         yield return Until(() => stage.SettledInTray().Contains(strayBody), 5f, "where the magnet settles it");
         string[] cues = { "screw.turn", "screw.free", "screw.drop", "screw.bounce", "screw.fetch", "screw.seat", "cover.creak", "cover.pop", "cover.lift",
                           "cover.clack", "part.on", "part.pinch", "part.lift", "part.drop", "part.replace", "tool.pick", "tool.down", "device.snap", "device.flip",
-                          "grime.scrub", "grime.clean", "cloth.wipe", "cloth.squeak", "cloth.gleam", "repair.fixed", "repair.ready", "phone.boot", "watch.wind",
+                          "grime.scrub", "grime.clean", "cloth.wipe", "cloth.squeak", "cloth.gleam", "cloth.lift", "repair.fixed", "repair.ready", "phone.boot", "watch.wind",
                           "watch.tick", "camera.wind", "camera.shutter", "juice.sparkle", "juice.sparkle.big" };
         string[] silent = cues.Where(c => !PlaceholderSounds.Has(c)).ToArray();
         Check(silent.Length == 0, "every bench cue has a placeholder sound" + (silent.Length > 0 ? " (missing: " + string.Join(", ", silent) + ")" : ""));
@@ -445,9 +529,14 @@ public sealed class BenchLab : PlayLab
         Check(!inspector.IsHoldingItem && Quaternion.Angle(device.transform.rotation, benchPose) < 1f, "stepping back puts the device down as it lay");
 
         yield return ActTwo();
+        yield return ActThree();
     }
 
     // ---------- act two (4b): the dirty phone: dirt as a layer the brush takes off where it touches, the smudge the cloth wipes, the device wakes ----------
+    //
+    // Playtest 4: the smudge is left for last (the other spot of grime goes by the check's hand), so the last wipe is the
+    // phone's last task, as a player's would be: the cloth lifts off the glass, the gleam sweeps it, the phone wakes and the
+    // one ending comes, and each is seen.
 
     IEnumerator ActTwo()
     {
@@ -533,6 +622,15 @@ public sealed class BenchLab : PlayLab
         Check(Mathf.Abs(job.Quality - 1f / 3f) < .01f, $"one of three cleaning tasks done: {job.Quality:P0}");
         Check(Sfx.Requested("grime.scrub") > 0 && Sfx.Requested("grime.clean") > 0, "the brush hissed where dust came off, and the spot chimed clean");
 
+        // the other spot by the check's hand: two of three tasks done, and nothing ends yet (no wake, no words)
+        int finishesBefore = Juice.Finishes, wakesBefore = Juice.Wakes;
+        float wordsBefore = Juice.LastWordsAt;
+        DeviceWake wake = device.GetComponent<DeviceWake>();
+        other.Scrub(100000f);
+        yield return Until(() => other == null && Mathf.Abs(job.Quality - 2f / 3f) < .01f, 1f, "the other spot cleaned (the check's hand): two of three tasks done");
+        Check(wake != null && !wake.Woken && Juice.Wakes == wakesBefore && Juice.Finishes == finishesBefore && Juice.LastWordsAt == wordsBefore,
+            $"with the smudge left nothing ends yet: no wake, no words ({job.Quality:P0}, {job.Grade}{(wake == null ? "; no DeviceWake on the phone: run Bench 4" : "")})");
+
         // the smudge: the cloth's. At rest the cloth lies folded flat on the mat, clear of the caddy (9 Oct night, his note:
         // "the cloth stuck inside the tray, it needs to sit and look correctly and be used correctly": Bench 2 had stood
         // it 12 mm into the caddy's block like the pointed tools, and it was buried in the wood).
@@ -554,15 +652,20 @@ public sealed class BenchLab : PlayLab
         yield return SelectTool(ToolType.Cloth);
         yield return Hover(cs, "Smudge", "Hold to wipe", "the smudge, under the cloth");
         float halfS = smudge.transform.lossyScale.x * .5f;
-        int gleamsBefore = Juice.Gleams;
+        // The smudge's patch, kept for after it has gone: a disc on the glass, to measure what the cloth hides of it.
+        Vector3 patchA = right * (halfS * .8f), patchB = fwd * (halfS * .8f);
+        Renderer glassRenderer = glass != null ? glass.GetComponent<Renderer>() : null;
+        float glassTop = glassRenderer != null ? glassRenderer.bounds.max.y : cs.y;
+        int gleamsBefore = Juice.Gleams, liftsBefore = Sfx.Requested("cloth.lift");
+        float seenWiping = -1f;
         PadHold(RT);
-        for (int lap = 0; lap < 3 && smudge != null; lap++)
-            for (int i = 0; i < 8 && smudge != null; i++)
+        for (int lap = 0; lap < 5 && !Gone(smudge); lap++)
+            for (int i = 0; i < 8 && !Gone(smudge); i++)
             {
                 float a = (i + .5f) / 8f * Mathf.PI * 2f;
                 float rr = lap == 0 ? .25f : lap == 1 ? .6f : .85f;
-                yield return Glide(cs + (right * Mathf.Cos(a) + fwd * Mathf.Sin(a)) * halfS * rr, .14f);
-                if (lap == 0 && i == 5)
+                yield return GlideUntil(cs + (right * Mathf.Cos(a) + fwd * Mathf.Sin(a)) * halfS * rr, .14f, () => Gone(smudge));
+                if (lap == 0 && i == 5 && !Gone(smudge))
                 {
                     // in the hand it is ON the phone, pressed flat on the glass (no lean, no swing), leading with its far fold
                     ToolPickup held = ToolInHand(ToolType.Cloth);
@@ -572,28 +675,145 @@ public sealed class BenchLab : PlayLab
                     Check(held != null && across < .07f && above > -.004f && above < .01f && off < 8f,
                         $"the cloth is in the hand, on the phone, wiping lying flat on the glass: its middle {across * 100f:0.0} cm from the smudge " +
                         $"(its fold leads), {above * 1000f:0.0} mm over the glass, {off:0}° off level");
+                    // Playtest 4 (the veteran: "the cloth covers about two-thirds of the screen while you wipe"): in the hand it is
+                    // gathered into a pad, so the glass it has just wiped shows behind its leading fold.
+                    Vector3 size = PadSize(held);
+                    Check(held != null && held.PadShown < .5f && size.x < .045f && size.z < .05f,
+                        $"in the hand it is gathered into a pad: {size.x * 1000f:0} x {size.z * 1000f:0} mm across the glass ({(held != null ? held.PadShown : 1f):P0} of its folded 75 x 90)");
+                    float hidden = glass != null && FlatFace(glass, out Vector3 gm, out Vector3 ga, out Vector3 gb) ? 1f - SeenPast(held, gm, ga, gb, false, 13) : 1f;
+                    Check(hidden <= .3f, $"wiping, it hides {hidden:P0} of the glass on screen (the folded cloth hid about two thirds)");
+                    seenWiping = SeenPast(held, cs, patchA, patchB, true);
+                    Note($"wiping: {seenWiping:P0} of the smudge's patch in view past the cloth; the hover reads \"{inspector.HoverName}: {inspector.HoverAction}\"");
                     yield return Photo("13a-the-cloth-wiping");
                 }
             }
+        bool cleaned = Gone(smudge);
+        float cleanAt = Time.realtimeSinceStartup;
         yield return LetGo();
-        yield return Until(() => smudge == null, 1.5f, "wiped in circles, the smudge thins and goes");
+        Check(cleaned, "wiped in circles, the smudge thins and comes clean" + (cleaned ? "" : $" (only {(smudge != null ? smudge.Progress : 0f):P0} after five laps)"));
         Check(Sfx.Requested("cloth.squeak") > 0, "the cloth squeaked while grease came off");
-        Check(Juice.Gleams > gleamsBefore && Sfx.Requested("cloth.gleam") > 0, "a gleam swept the glass when it came clean");
-        yield return Photo("13-wiped");
+        ToolPickup lifted = ToolInHand(ToolType.Cloth);
+        Check(lifted != null && lifted.Lifting && Sfx.Requested("cloth.lift") > liftsBefore,
+            "the moment it comes clean, the cloth lifts off the glass, with its swish (playtest 4: \"the gleam happens under it\")");
 
-        // the last spot by the check's hand: the last task, the moment, and the phone wakes
-        float wordsAtBefore = Juice.LastWordsAt;
+        // Watched for 2.2 s from the moment it came clean (the time the frames take, not a count of them): mid-lift (0.3 s)
+        // the gleam sweeps the glass the cloth has just left; by 1.15 s the phone has woken (the smudge was its last task),
+        // its screen is lit and the one ending is up, and the cloth is still clear; by 2.2 s it is back on the glass.
+        float highest = float.NegativeInfinity;
+        bool shotLift = false, shotLit = false;
+        while (cleaned && Time.realtimeSinceStartup < cleanAt + 1.3f)
+        {
+            if (lifted != null) highest = Mathf.Max(highest, lifted.transform.position.y - glassTop);
+            float t = Time.realtimeSinceStartup - cleanAt;
+            if (!shotLift && t >= .3f)
+            {
+                shotLift = true;
+                float seen = SeenPast(lifted, cs, patchA, patchB, true);
+                Check(lifted != null && lifted.Lifted > .5f && seen >= .8f,
+                    $"lifting, the cloth is off where the smudge was: {seen:P0} of it in view past the cloth ({t:0.00} s after; " +
+                    (seenWiping >= 0f ? $"{seenWiping:P0} while wiping)" : "not measured while wiping)"));
+                yield return Photo("13b-the-cloth-lifts");
+            }
+            if (!shotLit && t >= 1.15f)
+            {
+                shotLit = true;
+                Check(wake != null && wake.Woken && Juice.Wakes == wakesBefore + 1 && wake.LitScreen != null && wake.LitScreen.transform == glass
+                      && wake.LitScreen.sharedMaterial.IsKeywordEnabled("_EMISSION"),
+                    $"the smudge was its last task: the phone wakes, its working screen lights up ({(wake == null ? "no DeviceWake" : wake.LitScreen == null ? "nothing lit" : wake.LitScreen.name + " glows")})");
+                Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect" && job.IsFinished && job.Grade == JobGrade.Perfect,
+                    $"never opened, it is finished at that last wipe: \"Fixed! · Perfect\", once, a beat after the wake (words: \"{Juice.LastWords}\", endings: {Juice.Finishes - finishesBefore})");
+                Check(lifted != null && lifted.Lifted > .9f, $"and the cloth is still up, clear of the glass, while the screen lights ({(lifted != null ? lifted.Lifted : 0f):P0} lifted, {t:0.00} s after)");
+                Check(Juice.Gleams > gleamsBefore && Sfx.Requested("cloth.gleam") > 0, "a gleam swept the glass it had cleared");
+                yield return Photo("14-clean-and-lit");
+            }
+            yield return null;
+        }
+        Check(cleaned && highest >= .02f, $"lifted, the cloth rose {(float.IsInfinity(highest) ? 0f : highest * 1000f):0} mm off the glass, up and back toward the hand");
+        yield return Seconds(Mathf.Max(0f, cleanAt + 2.2f - Time.realtimeSinceStartup));
+        float down = lifted != null ? lifted.transform.position.y - glassTop : 1f;
+        Check(lifted != null && !lifted.Lifting && down < .012f,
+            $"then it comes back down to the cursor on the glass ({down * 1000f:0} mm over it, {Time.realtimeSinceStartup - cleanAt:0.0} s after it came clean)");
+        Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect", "it ended once: no \"Back together\" for a phone that was never opened");
+
+        inspector.CancelInspection();
+        yield return AfterBlend();
+        Check(!inspector.IsHoldingItem, "stepping back puts it down");
+    }
+
+    // ---------- act three (playtest 4): Grace's camera, the story's own device, ends the same way ----------
+    //
+    // By the check's hand (this act is about the moments, not the hands: Checks > Grace camera tweezers interaction proves
+    // the verbs on it): its lens and film path cleaned, and nothing ends while its shutter is jammed (a clean camera that
+    // can't take a picture isn't fixed: Quality 0); the new shutter in, the camera wakes (wound, its shutter fires once) and
+    // "Fixed! · Perfect" comes once. Its scratched strap is still on it.
+
+    IEnumerator ActThree()
+    {
+        if (inspector.IsHoldingItem) { inspector.CancelInspection(); yield return AfterBlend(); }   // act two stopped short
+        foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(job);
+        made.Remove(device);
+        Destroy(device);
+        yield return Frames(2);
+        GameObject cameraPrefab = null;
+#if UNITY_EDITOR
+        cameraPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/GraceShowcase/GraceReunionCamera.prefab");
+#endif
+        Check(cameraPrefab != null, "Grace's camera prefab loads");
+        if (cameraPrefab == null) yield break;
+        device = Instantiate(cameraPrefab, bench.StandPoint.position + Vector3.up * 1.2f, Quaternion.identity);
+        device.name = "Bench check Grace camera";
+        made.Add(device);
+        var definition = device.GetComponent<DeviceDefinition>();
+        job = device.GetComponent<JobBase>();
+        var grace = job as GraceCameraRepairJob;
+        DeviceFault fault = definition != null ? definition.GetFault(0) : null;
+        Check(definition != null && grace != null && fault != null && grace.Shutter != null, "it has a definition, Grace's camera job, its fault and a shutter");
+        if (definition == null || grace == null || fault == null || grace.Shutter == null) yield break;
+        definition.ApplyFault(0);
+        job.Configure(new Job
+        {
+            kind = JobKind.Repair, devicePrefab = cameraPrefab, deviceName = definition.displayName, faultIndex = 0,
+            faultType = fault.type, faultDescription = fault.description, payout = fault.payout, number = 97, color = Color.white
+        });
+        yield return Frames(2);
+        GrimeSpot[] spots = job.GetComponentsInChildren<GrimeSpot>();
         DeviceWake wake = device.GetComponent<DeviceWake>();
-        other.Scrub(100000f);
-        yield return Until(() => other == null && job.Quality >= .999f, 1f, "the last spot cleaned (the check's hand): every task done");
-        yield return Await(() => Juice.LastWords == "Fixed!" && Juice.LastWordsAt > wordsAtBefore, 1f);
-        Check(lastWait, $"\"Fixed!\" pops the moment the last task completes (words: \"{Juice.LastWords}\")");
-        Check(job.IsComplete && job.Grade == JobGrade.Perfect, $"never opened, it is finished and {job.Grade}");
-        yield return Seconds(1.1f);
-        Check(wake != null && wake.Woken && wake.LitScreen != null && wake.LitScreen.transform == glass && wake.LitScreen.sharedMaterial.IsKeywordEnabled("_EMISSION"),
-            $"the phone wakes: its working screen lights up ({(wake == null ? "no DeviceWake" : wake.LitScreen == null ? "nothing lit" : wake.LitScreen.name + " glows")})");
-        Check(Juice.LastWords == "Fixed!", "no \"back together\" for a phone that was never opened");
-        yield return Photo("14-clean-and-lit");
+        Check(spots.Length == 3 && wake != null && wake.What == DeviceWake.Kind.ShutterFires,
+            $"its lens and film path are dirty ({spots.Length} spots) and it wakes by firing its shutter ({(wake != null ? wake.What.ToString() : "no DeviceWake: run Bench 4")})");
+        Check(carry.TryPickUp(job), "Ace takes it");
+        PutAce(bench.StandPoint.position, bench.StandPoint.eulerAngles.y);
+        yield return Seconds(.4f);
+        bench.Interact(interactor);
+        Check(StationInteractable.BenchHolds(job), "it's on the bench");
+        yield return Seconds(.4f);
+        Check(inspector.BeginInspection(job), "the close-up opens on it");
+        if (!inspector.IsHoldingItem) yield break;
+        yield return AfterBlend();
+        yield return Frames(6);
+        yield return Photo("15-grace-camera-on-the-mat");
+
+        int finishesBefore = Juice.Finishes, wakesBefore = Juice.Wakes;
+        float wordsBefore = Juice.LastWordsAt;
+        foreach (GrimeSpot g in spots) if (g != null) g.Scrub(100000f);
+        yield return Until(() => job.GetComponentsInChildren<GrimeSpot>().Length == 0, 1f, "its lens and film path cleaned (the check's hand)");
+        yield return Seconds(.5f);
+        Check(job.Quality <= 0f && wake != null && !wake.Woken && Juice.Wakes == wakesBefore && Juice.Finishes == finishesBefore && Juice.LastWordsAt == wordsBefore,
+            $"clean, with its shutter jammed, it can't take a picture: no wake, no words, no grade yet ({job.Quality:P0}; \"{grace.TaskSummary}\")");
+        int windsBefore = Sfx.Requested("camera.wind"), shuttersBefore = Sfx.Requested("camera.shutter");
+        grace.Shutter.Activate();
+        yield return Until(() => grace.Shutter.IsReplaced, 3f, "the new shutter goes in (the check's hand: the jammed one out to the tray, the working one seated)");
+        yield return Await(() => Juice.Finishes > finishesBefore, 1.5f);
+        yield return Seconds(.6f);
+        Check(wake != null && wake.Woken && Juice.Wakes == wakesBefore + 1, "its last task done, the camera wakes: its advance wound, the new shutter fires");
+        Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect" && job.IsFinished && job.Grade == JobGrade.Perfect,
+            $"in one piece with every fault fixed, it ends once: \"Fixed! · Perfect\" (words: \"{Juice.LastWords}\", endings: {Juice.Finishes - finishesBefore})");
+        yield return Photo("16-grace-camera-fixed");
+        yield return Seconds(.5f);
+        Check(Sfx.Requested("camera.wind") > windsBefore && Sfx.Requested("camera.shutter") == shuttersBefore + 1,
+            $"one shutter is the beat, not two: the advance wound, then a single shutter ({Sfx.Requested("camera.shutter") - shuttersBefore} heard)");
+        Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect", "still one ending, and nothing after it");
+        Transform strap = device.transform.Find("KEEP - scratched sentimental strap");
+        Check(strap != null && strap.gameObject.activeInHierarchy, "its scratched strap is still on it: kept, never a part to replace");
 
         inspector.CancelInspection();
         yield return AfterBlend();
@@ -612,6 +832,80 @@ public sealed class BenchLab : PlayLab
         PadCursor.GlideTo(Px(world));
         yield return Frames(2);
         yield return Await(() => !PadCursor.Gliding, seconds);
+    }
+
+    // The same glide, watched every frame: it stops the moment `stop` comes true (the smudge comes clean), so what follows
+    // is timed from that frame, not from the end of a glide.
+    IEnumerator GlideUntil(Vector3 world, float seconds, Func<bool> stop)
+    {
+        PadCursor.GlideTo(Px(world));
+        for (int f = 0; f < 2 && !Safe(stop); f++) yield return null;
+        float until = Time.realtimeSinceStartup + seconds;
+        while (PadCursor.Gliding && !Safe(stop) && Time.realtimeSinceStartup < until) yield return null;
+    }
+
+    static bool Gone(GrimeSpot spot) => spot == null || spot.IsClean;
+
+    // ---------- measuring the tools (playtest 4) ----------
+
+    // The tool's handle (its +Y) up from a surface with normal n, degrees: 0 lying on it, 90 stood on its tip.
+    static float Rise(ToolPickup tool, Vector3 n) =>
+        tool == null ? 0f : Mathf.Asin(Mathf.Clamp(Vector3.Dot(tool.transform.up, n.normalized), -1f, 1f)) * Mathf.Rad2Deg;
+
+    // The cloth's size in the world now (its mesh's bounds at its scale): across the glass (x, z) and its height (y).
+    static Vector3 PadSize(ToolPickup cloth)
+    {
+        MeshFilter mf = cloth != null ? cloth.GetComponent<MeshFilter>() : null;
+        if (mf == null || mf.sharedMesh == null) return Vector3.one;
+        Vector3 s = cloth.transform.lossyScale;
+        return Vector3.Scale(mf.sharedMesh.bounds.size, new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z)));
+    }
+
+    // A flat thing's face toward the camera (its mesh's bounds): its middle and its two half-axes, in the world.
+    bool FlatFace(Transform t, out Vector3 middle, out Vector3 halfA, out Vector3 halfB)
+    {
+        middle = t.position;
+        halfA = halfB = Vector3.zero;
+        MeshFilter mf = t.GetComponent<MeshFilter>();
+        if (mf == null || mf.sharedMesh == null) return false;
+        Bounds b = mf.sharedMesh.bounds;
+        Vector3 e = b.extents;
+        int thin = e.x <= e.y && e.x <= e.z ? 0 : e.y <= e.z ? 1 : 2;
+        int i = thin == 0 ? 1 : 0, k = thin == 2 ? 1 : 2;
+        Vector3 up = Vector3.zero, da = Vector3.zero, db = Vector3.zero;
+        up[thin] = e[thin];
+        da[i] = e[i];
+        db[k] = e[k];
+        Vector3 top = t.TransformPoint(b.center + up), bottom = t.TransformPoint(b.center - up);
+        Vector3 eye = cam.transform.position;
+        middle = (top - eye).sqrMagnitude <= (bottom - eye).sqrMagnitude ? top : bottom;
+        halfA = t.TransformVector(da);
+        halfB = t.TransformVector(db);
+        return true;
+    }
+
+    // The share of a patch on the device (a grid of points over a disc or a rectangle, given by its middle and two half-axes)
+    // that the camera sees past the cloth in the hand: 1, none of it hidden. The cloth is its mesh's box, wherever it is now.
+    float SeenPast(ToolPickup cloth, Vector3 middle, Vector3 halfA, Vector3 halfB, bool round, int rows = 9)
+    {
+        MeshFilter mf = cloth != null ? cloth.GetComponent<MeshFilter>() : null;
+        if (mf == null || mf.sharedMesh == null || cam == null || rows < 2) return 1f;
+        Bounds box = mf.sharedMesh.bounds;
+        Vector3 eye = cloth.transform.InverseTransformPoint(cam.transform.position);
+        int seen = 0, all = 0;
+        for (int i = 0; i < rows; i++)
+            for (int k = 0; k < rows; k++)
+            {
+                float u = i / (rows - 1f) * 2f - 1f, v = k / (rows - 1f) * 2f - 1f;
+                if (round && u * u + v * v > 1f) continue;
+                all++;
+                Vector3 p = cloth.transform.InverseTransformPoint(middle + halfA * u + halfB * v);
+                Vector3 d = p - eye;
+                float length = d.magnitude;
+                if (length > 1e-6f && box.IntersectRay(new Ray(eye, d / length), out float hit) && hit < length) continue;
+                seen++;
+            }
+        return all > 0 ? seen / (float)all : 1f;
     }
 
     // ---------- the hands ----------
