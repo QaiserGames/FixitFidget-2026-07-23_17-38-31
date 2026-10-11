@@ -11,9 +11,10 @@ using UnityEngine.InputSystem.LowLevel;
 // ---------------------------------------------------------------------------
 // STATIONS AS REACH: A PLAY CHECK (playtest 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §2.5)
 //
-// Fixit Fidget > Playtest > Stations as reach - play check, overhead / first person (lab, drives itself). A fresh Day 1
-// in the lab; the café's own arrivals stop and the check brings its own two customers, the Day 1 lesson's (a drink,
-// then a repair on the bench), and plays each with a virtual gamepad the way a player would, in the one view:
+// Fixit Fidget > Playtest > Stations as reach - play check, overhead / first person (lab, drives itself), or the same as
+// Fixit Fidget > Playtest 4 > Systems > Lab A / B - Stations and the repair bar, from above / first person. A fresh Day 1
+// in the lab; the café's own arrivals stop and the check brings its own customers, the Day 1 lesson's (a drink, then a
+// repair on the bench, then a drink again), and plays each with a virtual gamepad the way a player would, in the one view:
 //
 //   1. the drink: behind the counter, A talks to them (the prompt says their name; no station first); A, A takes the
 //      order; at the dispenser a cup (LB, the left hand), under the nozzle (A), the paddle (A), the poured drink (A);
@@ -22,8 +23,21 @@ using UnityEngine.InputSystem.LowLevel;
 //      in first person RT works on it, from above A does; the lab's hand does the repair (the bench's own feel is
 //      session 4); A picks it up and steps back in one press; A hands it back.
 //
+// PLAYTEST 4 (10 Oct 2026, the repair bar): the repair's customer waits at a repair-bar stool (the rest of the room is
+// held while their request is taken, so a stool is their only choice), and Ace, still behind the bench with their
+// finished device, hands it back OVER THE COUNTER with A: no step taken (the walk round the counter's east end was about
+// 20 m). Carrying their device to the bench while they wait right there, A still sets it down on the bench (it isn't
+// finished). Then
+//   3. a drink over the repair bar: a drink customer waits at a stool; the drink is made as in 1; behind the bench, A
+//      serves it over the counter, no step taken.
+// Photographed from the game's camera ("repair-over-the-counter", "bar-drink-over-the-counter": run it from above for
+// the overhead photos).
+//
 // Every press is written down with what it was for, and the station presses (ones that only step into or out of a
 // station or a close-up) are counted: none in first person, at most one per station from above (the plan's targets).
+// The total and the conversation's share are REPORTED, not asserted (playtest 4: the conversation's own pacing decides
+// how many a player needs, and the check reads like a player: it waits for the line to reveal and the replies to come up
+// before pressing, and presses to hear them out only when they don't come up by themselves).
 // It also checks that walking away from each station works and that nothing stays open. Aiming in first person is
 // done the way a mouse does it (the view turned onto the thing); the pad's aim help has its own check (AimHelpCheck).
 // Photos and report.txt go to Logs/Stations/stations-<view>-<time>/. Nothing is saved in the scene.
@@ -72,9 +86,22 @@ public sealed class StationsCheck : PlayLab
     CustomerSpawner spawner;
     bool aimWas, spawnerWas = true;
 
-    struct PressNote { public string customer, what; public bool station; }
+    struct PressNote { public string customer, what; public bool station, talk; }
     readonly List<PressNote> presses = new List<PressNote>();
     string customer = "";
+    // Presses inside a conversation are counted as the conversation's (TakeOrder).
+    bool talking;
+
+    // The repair bar (playtest 4): the room's other places to wait, held for a moment so the next customer waits at a stool.
+    static readonly FieldInfo BrainSpot = typeof(CustomerBrain).GetField("waitingSpot", Any);
+    static readonly FieldInfo BrainState = typeof(CustomerBrain).GetField("state", Any);
+    GameObject seatHolder;
+    readonly List<WaitingSpot> heldSeats = new List<WaitingSpot>();
+    readonly List<string> overTheCounter = new List<string>();
+    bool reported;
+    // The longest a speech takes to come up by itself: its lines at reading pace (ConversationUI: 1.4-4.5 s each, at most
+    // three on screen) and the listening beat (at most 1 s) before Ace's replies appear. A reader waits that long.
+    const float ReadingWait = 12f;
 
     protected override IEnumerator Run()
     {
@@ -149,20 +176,60 @@ public sealed class StationsCheck : PlayLab
         }
         Check(owner != null, $"a repair customer with a device for the bench comes in ({(owner != null ? owner.CustomerName + ", " + owner.Record.Subject + ", " + owner.Record.faultType : "none")})");
         if (owner == null) yield break;
-        yield return TakeOrder(owner);
+        // The repair bar (playtest 4): they wait at one of its stools, across the counter from the bench. The rest of the
+        // room is held while their request is taken, and the stools let go the moment it is (they choose a place when the
+        // conversation closes: CustomerBrain.BeginWaiting).
+        List<TableSeat> stools = RepairBarStools();
+        int freeStools = HoldTheRoom(stools);
+        Check(stools.Count > 0 && freeStools > 0,
+            $"the repair bar has stools across the counter from the bench ({stools.Count} within E's reach over it, {freeStools} free; 3 in the redesign)");
+        yield return TakeOrder(owner, () => FreeTheStools(stools));
         if (!lastWait || owner == null || !owner.WasAccepted) yield break;
         yield return Until(() => owner.ActiveJob != null, 4f, "their device is on the intake shelf");
         JobBase job = owner.ActiveJob;
         if (job == null) yield break;
-        yield return Repair(job);
+        yield return AtAStool(owner, stools);
+        if (!lastWait) yield break;
+        yield return Repair(job, owner);
         if (!lastWait) yield break;
         // Taken back is the device leaving Ace's hands for theirs; they go home only when nobody owes them anything, so a
-        // drink still to come keeps them in their seat (CustomerBrain.CompleteJob).
-        yield return Hand(owner, () => owner.JobReady, "hand it back", "they take their device back",
+        // drink still to come keeps them in their seat (CustomerBrain.CompleteJob). Over the counter, from the bench.
+        yield return HandOverTheCounter(owner, () => owner.JobReady, "hand it back over the counter", "they take their device back",
             () => owner == null || owner.IsLeaving || owner.ActiveJob == null);
+        if (!lastWait) yield break;
         opening.FinishVisit();
         Check(!interactor.InCloseUp && !inspector.IsHoldingItem && !conversation.InConversation,
             "after the repair nothing is left open (no close-up, no item, no conversation)");
+        if (owner != null && !owner.IsLeaving)
+        {
+            // Staying for a drink they asked for while they waited: sent home, so the next drink can only be the next customer's.
+            Note($"  {owner.CustomerName} stays on for a drink they asked for meanwhile: sent home before the next customer");
+            Destroy(owner.gameObject);
+            yield return Frames(2);
+        }
+
+        // ---------- 3. a drink over the repair bar (playtest 4) ----------
+        customer = "bar-drink";
+        opening.Reset(true);                        // the Day 1 lesson's first visit again: a drink
+        Spawn();
+        CustomerBrain barDrinker = spawner.OpeningCustomer;
+        Check(barDrinker != null && barDrinker.Record != null && barDrinker.Record.kind == JobKind.Drink,
+            $"another drink customer comes in ({(barDrinker != null ? barDrinker.CustomerName : "nobody")}, {(barDrinker != null && barDrinker.Record != null ? barDrinker.Record.Subject : "")})");
+        if (barDrinker == null) yield break;
+        freeStools = HoldTheRoom(stools);
+        Check(freeStools > 0, $"a repair-bar stool is free for them ({freeStools} of {stools.Count}; the rest of the room held while their order is taken)");
+        yield return TakeOrder(barDrinker, () => FreeTheStools(stools));
+        if (!lastWait || barDrinker == null || !barDrinker.WasAccepted) yield break;
+        yield return AtAStool(barDrinker, stools);
+        if (!lastWait) yield break;
+        yield return MakeDrink(barDrinker.WantedDrink);
+        if (!lastWait) yield break;
+        yield return HandOverTheCounter(barDrinker, () => barDrinker.CanReceiveDrink, "serve the drink over the counter", "they take the drink",
+            () => barDrinker == null || barDrinker.IsLeaving || !barDrinker.HasDrinkOrder);
+        if (!lastWait) yield break;
+        opening.FinishVisit();
+        Check(!interactor.InCloseUp && !inspector.IsHoldingItem && !conversation.InConversation,
+            "after the drink over the bar nothing is left open (no close-up, no item, no conversation)");
 
         // ---------- the presses ----------
         Report();
@@ -176,11 +243,17 @@ public sealed class StationsCheck : PlayLab
         if (conversation != null && conversation.InConversation) conversation.End();
         AimAssist.Enabled = aimWas;
         if (spawner != null) spawner.enabled = spawnerWas;
+        ReleaseHeldSeats();
+        if (seatHolder != null) Destroy(seatHolder);
+        // A check that stopped early still says what was pressed up to there.
+        Report();
     }
 
     // ---------- the counter ----------
 
-    IEnumerator TakeOrder(CustomerBrain who)
+    // accepted: run the moment their request is taken, while their thanks is still on screen (the repair bar's legs let
+    // the stools go then).
+    IEnumerator TakeOrder(CustomerBrain who, Action accepted = null)
     {
         string name = who.CustomerName;
         yield return Until(() => who == null || who.CanHearIntake, 90f, $"{name} reaches the counter");
@@ -195,17 +268,28 @@ public sealed class StationsCheck : PlayLab
         Check(prompt.Contains(name) && interactor.Focused is CustomerInteractable,
             $"the prompt names whoever is waiting, with nothing stepped up to: \"{prompt}\"");
         yield return Photo($"{customer}-1-at-the-counter");
+        talking = true;
         yield return Press(GamepadButton.South, $"talk to {name}");
         yield return Until(() => conversation.InConversation, 3f, "A starts the conversation from behind the counter");
-        if (!lastWait) yield break;
-        for (int i = 0; i < 10 && conversation.InConversation && !who.WasAccepted; i++)
+        if (!lastWait) { talking = false; yield break; }
+        // Read like a player (playtest 4): their speech comes up line by line at reading pace and Ace's replies follow by
+        // themselves, so A only once they're up; "hear them out" (everything at once) only if they don't come up within a
+        // reading's time. The check used to press every 0.45 s, which counted two presses a player needn't make.
+        float listened = 0f;
+        for (int i = 0; i < 10 && who != null && conversation.InConversation && !who.WasAccepted; i++)
         {
+            float from = Time.realtimeSinceStartup;
+            yield return Await(() => who == null || !conversation.InConversation || who.WasAccepted || conversation.RepliesShowing, ReadingWait);
+            listened += Time.realtimeSinceStartup - from;
+            if (who == null || !conversation.InConversation || who.WasAccepted) break;
             yield return Press(GamepadButton.South, conversation.RepliesShowing ? "take the request" : "hear them out");
             yield return Seconds(.45f);
         }
-        Check(who != null && who.WasAccepted, $"{name}'s request is taken");
+        Check(who != null && who.WasAccepted, $"{name}'s request is taken (their speech and the replies came up in {listened:0.0} s, read)");
+        if (who != null && who.WasAccepted) accepted?.Invoke();
         yield return Await(() => !conversation.InConversation, 5f);
         if (conversation.InConversation) yield return Press(GamepadButton.South, "close their thanks");
+        talking = false;
         yield return Until(() => !conversation.InConversation, 4f, "the conversation closes");
         yield return AfterBlend();
     }
@@ -239,6 +323,16 @@ public sealed class StationsCheck : PlayLab
             yield return Until(() => interactor.IsAtStation, 2f, "A opens the drinks close-up");
             if (!lastWait) yield break;
             yield return AfterBlend();
+        }
+
+        if (firstPerson)
+        {
+            // The whole dispenser first, as a player walking up looks at it (playtest 4, the Bench lead's B7: aimed at
+            // the cup stack the far paddles are off screen, so this photo is the one that shows what a player sees).
+            Bounds face = new Bounds(Point(stack), Vector3.zero);
+            foreach (BeverageControl c in drinks.GetComponentsInChildren<BeverageControl>()) face.Encapsulate(Point(c));
+            yield return AimAt(face.center);
+            yield return Photo($"{customer}-2a-the-whole-dispenser");
         }
 
         yield return AimAt(Point(stack));
@@ -282,7 +376,9 @@ public sealed class StationsCheck : PlayLab
 
     // ---------- the bench ----------
 
-    IEnumerator Repair(JobBase job)
+    // waiting: its owner, waiting across the counter from the bench (the repair bar, playtest 4): the device isn't
+    // finished, so at the bench A still sets it down rather than handing it back.
+    IEnumerator Repair(JobBase job, CustomerBrain waiting = null)
     {
         // Off the intake shelf: behind the counter, level with it.
         Transform till = interactor.CounterStation.StandPoint;
@@ -304,7 +400,11 @@ public sealed class StationsCheck : PlayLab
         yield return Frames(4);
         if (firstPerson) yield return LookAt(BenchTop(bench));
         yield return Frames(3);
-        Check(interactor.Focused == bench, $"at the bench A sets it down: \"{interactor.CurrentPrompt}\"");
+        string across = waiting != null
+            ? $" ({waiting.CustomerName} waits across the counter, {Flat(waiting.transform.position - movement.transform.position).magnitude:0.00} m away, " +
+              $"in E's reach over it: {interactor.AcrossTheCounter(waiting.transform.position)}; an unfinished device isn't handed back)"
+            : "";
+        Check(interactor.Focused == bench, $"at the bench A sets it down{across}: \"{interactor.CurrentPrompt}\"");
         yield return Press(GamepadButton.South, "set it down on the bench");
         yield return Until(() => StationInteractable.BenchHolds(job), 2f, "it's on the bench");
         if (!lastWait) yield break;
@@ -427,54 +527,198 @@ public sealed class StationsCheck : PlayLab
         yield return Frames(3);
         bool on = interactor.Focused is CustomerInteractable ci && ci.GetComponent<CustomerBrain>() == who;
         Check(on, $"walking up to {name}, A is for them: \"{interactor.CurrentPrompt}\"");
-        if (!on && firstPerson && Camera.main != null)
-        {
-            // What the crosshair's ray met instead, nearest first (for the report).
-            Ray ray = Camera.main.ViewportPointToRay(new Vector3(.5f, .5f));
-            RaycastHit[] hits = Physics.RaycastAll(ray, 4f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-            CustomerInteractable mine = who.GetComponent<CustomerInteractable>();
-            Note($"  the crosshair's ray: {string.Join("; ", hits.Take(5).Select(h => $"{h.collider.name} at {h.distance:0.00} m{(h.collider.isTrigger ? " (trigger)" : "")}"))}" +
-                 $"; their prompt \"{(mine != null ? mine.Prompt : "")}\", available {(mine != null && mine.IsAvailable)}, on the floor {(mine != null && mine.FloorAvailable)}");
-            Vector3 eyeNow = Camera.main.transform.position;
-            Note($"  Ace's eye at {eyeNow.x:0.00}, {eyeNow.y:0.00}, {eyeNow.z:0.00} looking {Camera.main.transform.forward.x:0.00}, {Camera.main.transform.forward.y:0.00}, {Camera.main.transform.forward.z:0.00}; " +
-                 $"{name} at {who.transform.position.x:0.00}, {who.transform.position.y:0.00}, {who.transform.position.z:0.00}, face {(who.LookTarget != null ? who.LookTarget.position.ToString("0.00") : "none")}");
-            foreach (Collider c in who.GetComponentsInChildren<Collider>(true))
-                Note($"  their collider {c.name} ({c.GetType().Name}): on {c.enabled && c.gameObject.activeInHierarchy}, trigger {c.isTrigger}, layer {LayerMask.LayerToName(c.gameObject.layer)}, bounds {c.bounds.center:0.00} size {c.bounds.size:0.00}");
-        }
+        if (!on && firstPerson) NoteTheCrosshair(who);
         yield return Press(GamepadButton.South, what);
         yield return Until(finished, 4f, done);
     }
+
+    // What the crosshair's ray met instead of them, nearest first (for the report).
+    void NoteTheCrosshair(CustomerBrain who)
+    {
+        if (who == null || Camera.main == null) return;
+        Ray ray = Camera.main.ViewportPointToRay(new Vector3(.5f, .5f));
+        RaycastHit[] hits = Physics.RaycastAll(ray, 4f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        CustomerInteractable mine = who.GetComponent<CustomerInteractable>();
+        Note($"  the crosshair's ray: {string.Join("; ", hits.Take(5).Select(h => $"{h.collider.name} at {h.distance:0.00} m{(h.collider.isTrigger ? " (trigger)" : "")}"))}" +
+             $"; their prompt \"{(mine != null ? mine.Prompt : "")}\", available {(mine != null && mine.IsAvailable)}, on the floor {(mine != null && mine.FloorAvailable)}");
+        Vector3 eyeNow = Camera.main.transform.position;
+        Note($"  Ace's eye at {eyeNow.x:0.00}, {eyeNow.y:0.00}, {eyeNow.z:0.00} looking {Camera.main.transform.forward.x:0.00}, {Camera.main.transform.forward.y:0.00}, {Camera.main.transform.forward.z:0.00}; " +
+             $"{who.CustomerName} at {who.transform.position.x:0.00}, {who.transform.position.y:0.00}, {who.transform.position.z:0.00}, face {(who.LookTarget != null ? who.LookTarget.position.ToString("0.00") : "none")}");
+        foreach (Collider c in who.GetComponentsInChildren<Collider>(true))
+            Note($"  their collider {c.name} ({c.GetType().Name}): on {c.enabled && c.gameObject.activeInHierarchy}, trigger {c.isTrigger}, layer {LayerMask.LayerToName(c.gameObject.layer)}, bounds {c.bounds.center:0.00} size {c.bounds.size:0.00}");
+    }
+
+    // ---------- the repair bar: over the counter (playtest 4) ----------
+
+    // Behind the repair bar's bench, holding what someone at a stool across the counter is waiting for: A hands it over,
+    // no step taken. From above E is for them whatever else is nearer (the bench, which would take a device set down);
+    // in first person the crosshair says who, and reaches over the counter.
+    IEnumerator HandOverTheCounter(CustomerBrain who, Func<bool> ready, string what, string done, Func<bool> finished)
+    {
+        string name = who != null ? who.CustomerName : "them";
+        Transform stand = Bench().StandPoint;
+        // Behind the bench: where the repair was done (Ace is there already), or, with a drink from the dispenser, along
+        // behind the counter to it (a player walks it; never round the counter).
+        float along = Flat(movement.transform.position - stand.position).magnitude;
+        if (along > .05f)
+        {
+            Note($"  Ace takes it along behind the counter to the bench: {along:0.0} m, straight");
+            PutAce(stand.position, stand.eulerAngles.y);
+            yield return Frames(4);
+            yield return Seconds(.8f);              // the camera catches up with him before the photo
+        }
+        yield return Until(() => who == null || ready(), 30f, $"{name} is ready for it");
+        if (!lastWait || who == null) { lastWait = false; yield break; }
+        if (firstPerson) yield return AfterBlend();
+        Vector3 standing = movement.transform.position;
+        float across = Flat(who.transform.position - standing).magnitude;
+        Check(interactor.OnStaffSide, "Ace is behind the repair bar's bench (the staff side of the counter)");
+        if (firstPerson) yield return LookAt(SeenPoint(Eye(), who));
+        yield return Frames(3);
+        string prompt = interactor.CurrentPrompt ?? "";
+        bool on = interactor.Focused is CustomerInteractable ci && ci.Brain == who;
+        Check(on, $"behind the bench, A is for {name} at the stool across the counter, {across:0.00} m away (flat; E reaches " +
+                  $"{interactor.AcrossCounterReach:0.0} m over it): \"{prompt}\"");
+        if (!on && firstPerson) NoteTheCrosshair(who);
+        yield return Photo($"{customer}-over-the-counter");
+        yield return Press(GamepadButton.South, what);
+        yield return Until(finished, 4f, done);
+        bool handed = lastWait;
+        float walked = Flat(movement.transform.position - standing).magnitude;
+        Check(walked < .05f, $"no step taken for it: Ace walked {walked:0.00} m (round the counter's east end it was about 20 m)");
+        overTheCounter.Add($"{customer}: \"{prompt}\" to {name} at the stool, {across:0.00} m across the counter (flat), " +
+                           $"{(handed ? "taken" : "NOT taken")}; Ace walked {walked:0.00} m");
+        lastWait = handed;
+    }
+
+    // The repair bar's stools: the seats across the counter from the bench (in front of its stand point, the way it faces,
+    // and within E's reach over the counter from there), west to east.
+    List<TableSeat> RepairBarStools()
+    {
+        var stools = new List<TableSeat>();
+        StationInteractable bench = Bench();
+        if (bench == null || bench.StandPoint == null) return stools;
+        Vector3 from = bench.StandPoint.position;
+        Vector3 toward = Flat(bench.StandPoint.forward);
+        if (toward.sqrMagnitude < 1e-6f) return stools;
+        toward.Normalize();
+        foreach (TableSeat seat in FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude))
+        {
+            if (seat == null || !seat.isActiveAndEnabled) continue;
+            Vector3 d = Flat(seat.StandPoint.position - from);
+            if (Vector3.Dot(d, toward) > .5f && d.magnitude <= interactor.AcrossCounterReach) stools.Add(seat);
+        }
+        stools.Sort((a, b) => a.StandPoint.position.x.CompareTo(b.StandPoint.position.x));
+        return stools;
+    }
+
+    // Holds every free place to wait in the room, the stools too (claimed by the check, as a patron claims a seat), so
+    // nobody else takes a stool while the next request is taken (and patrons don't come in meanwhile: PatronSpawner keeps
+    // seats free for customers). How many stools were free.
+    int HoldTheRoom(List<TableSeat> stools)
+    {
+        ReleaseHeldSeats();
+        return Hold(stools, true);
+    }
+
+    // Their request taken: whatever was freed meanwhile is held too, and the stools are let go: the only places left.
+    void FreeTheStools(List<TableSeat> stools)
+    {
+        Hold(stools, false);
+        if (seatHolder == null) return;
+        foreach (TableSeat stool in stools)
+            if (heldSeats.Remove(stool)) stool.Release(seatHolder.transform);
+    }
+
+    int Hold(List<TableSeat> stools, bool stoolsToo)
+    {
+        if (seatHolder == null) seatHolder = new GameObject("Stations check: the room held (this Play session only)");
+        int free = 0;
+        foreach (WaitingSpot spot in FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
+        {
+            if (spot == null || !spot.isActiveAndEnabled || heldSeats.Contains(spot) || !spot.IsAvailable) continue;
+            bool stool = spot is TableSeat seat && stools.Contains(seat);
+            if (stool && !stoolsToo) continue;
+            if (!spot.Claim(seatHolder.transform)) continue;
+            heldSeats.Add(spot);
+            if (stool) free++;
+        }
+        return free;
+    }
+
+    void ReleaseHeldSeats()
+    {
+        if (seatHolder != null)
+            foreach (WaitingSpot spot in heldSeats)
+                if (spot != null) spot.Release(seatHolder.transform);
+        heldSeats.Clear();
+    }
+
+    // They settle at a stool (the room is the café's again once they have).
+    IEnumerator AtAStool(CustomerBrain who, List<TableSeat> stools)
+    {
+        string name = who != null ? who.CustomerName : "them";
+        Check(BrainSpot != null && BrainState != null, "the check can see where a customer waits (CustomerBrain's waitingSpot and state)");
+        yield return Await(() => who == null || who.IsLeaving || AtStool(who, stools), 30f);
+        ReleaseHeldSeats();
+        bool there = who != null && !who.IsLeaving && AtStool(who, stools);
+        WaitingSpot spot = SpotOf(who);
+        Vector3 bench = Bench().StandPoint.position;
+        Check(there, there
+            ? $"{name} waits at a repair-bar stool ({spot.name}, draining x{spot.DrainMultiplier:0.00}), {Flat(who.transform.position - bench).magnitude:0.00} m from the bench's stand point, flat"
+            : $"{name} waits at a repair-bar stool (they're {(who == null ? "gone" : StateOf(who))}, at {(spot != null ? spot.name : "no place yet")})");
+        lastWait = there;
+    }
+
+    bool AtStool(CustomerBrain who, List<TableSeat> stools) =>
+        StateOf(who) == "Waiting" && SpotOf(who) is TableSeat seat && stools.Contains(seat);
+
+    static WaitingSpot SpotOf(CustomerBrain who) => who != null && BrainSpot != null ? BrainSpot.GetValue(who) as WaitingSpot : null;
+    static string StateOf(CustomerBrain who) => who != null && BrainState != null ? BrainState.GetValue(who)?.ToString() ?? "" : "";
 
     // ---------- the presses ----------
 
     IEnumerator Press(GamepadButton button, string what, bool station = false)
     {
-        presses.Add(new PressNote { customer = customer, what = what, station = station });
+        presses.Add(new PressNote { customer = customer, what = what, station = station, talk = talking });
         yield return PadPress(button);
     }
 
     IEnumerator Pull(string what, bool station = false)
     {
-        presses.Add(new PressNote { customer = customer, what = what, station = station });
+        presses.Add(new PressNote { customer = customer, what = what, station = station, talk = talking });
         yield return PadTrigger(true);
     }
 
+    // The presses each visit took, written down; the station presses checked (none in first person, at most one a visit
+    // from above). How many presses a visit takes in all is REPORTED, not checked (playtest 4): the conversation's share
+    // is its own pacing (the Content lead's lines), and the check reads it like a player.
     void Report()
     {
+        if (reported) return;
+        reported = true;
         report.AppendLine();
-        report.AppendLine($"The presses, {(firstPerson ? "first person" : "from above")} (station presses: only stepping into or out of a station or a close-up):");
+        report.AppendLine($"The presses, {(firstPerson ? "first person" : "from above")} (STATION: only stepping into or out of a station or a close-up; talk: in the conversation):");
         foreach (var group in presses.GroupBy(p => p.customer))
         {
-            report.AppendLine($"  {group.Key}: {group.Count()} presses, {group.Count(p => p.station)} of them station presses");
-            foreach (PressNote p in group) report.AppendLine($"     {(p.station ? "STATION " : "        ")}{p.what}");
+            report.AppendLine($"  {group.Key}: {group.Count()} presses, {group.Count(p => p.talk)} of them the conversation's, {group.Count(p => p.station)} station presses");
+            foreach (PressNote p in group) report.AppendLine($"     {(p.station ? "STATION " : p.talk ? "talk    " : "        ")}{p.what}");
         }
-        int drinkStation = presses.Count(p => p.customer == "drink" && p.station);
-        int repairStation = presses.Count(p => p.customer == "repair" && p.station);
-        if (firstPerson)
-            Check(drinkStation == 0 && repairStation == 0, $"first person: no station presses (the drink {drinkStation}, the repair {repairStation}; 4 and 3 before)");
-        else
-            Check(drinkStation <= 1 && repairStation <= 1, $"from above: at most one a station (the drink {drinkStation}, the repair {repairStation}; 4 and 3 before)");
+        report.AppendLine("  (Playtest 4's run: 9 a drink and 9 a repair, 4 of each the conversation's, pressed every 0.45 s before the replies came up by themselves.)");
+        if (overTheCounter.Count > 0)
+        {
+            report.AppendLine("Over the counter (the repair bar, playtest 4):");
+            foreach (string line in overTheCounter) report.AppendLine("  " + line);
+        }
+        foreach (string visit in presses.Select(p => p.customer).Distinct())
+        {
+            int station = presses.Count(p => p.customer == visit && p.station);
+            if (firstPerson)
+                Check(station == 0, $"first person, the {visit}: no station presses ({station}; before playtest 3, 4 a drink and 3 a repair)");
+            else
+                Check(station <= 1, $"from above, the {visit}: at most one station press ({station}; before playtest 3, 4 a drink and 3 a repair)");
+        }
     }
 
     // ---------- the café ----------
@@ -515,6 +759,9 @@ public sealed class StationsCheck : PlayLab
                 Note($"  queue slot {i} at {P(p)}: {Flat(p - till.position).magnitude:0.00} m from the till; behind the counter: {interactor.IsBehindCounter(p + Vector3.up)}");
             }
         Note($"the dispenser's stand point at {P(drinks.position)} ({Flat(drinks.position - till.position).magnitude:0.00} m from the till); the bench's at {P(bench.position)}");
+        foreach (TableSeat stool in RepairBarStools())
+            Note($"  repair-bar stool {stool.name} at {P(stool.StandPoint.position)}: {Flat(stool.StandPoint.position - bench.position).magnitude:0.00} m from the bench's stand point " +
+                 $"(E reaches {interactor.AcrossCounterReach:0.0} m over the counter); drains x{stool.DrainMultiplier:0.00}, sat on: {stool.SnapToSeat}");
     }
 
     static string P(Vector3 v) => $"({v.x:0.00}, {v.z:0.00})";
@@ -535,13 +782,17 @@ public sealed class StationsCheck : PlayLab
     // First person: turn the view onto a point (as a mouse would); the close-up: glide its look onto it.
     IEnumerator LookAt(Vector3 point)
     {
-        Vector3 eye = Camera.main != null ? Camera.main.transform.position : movement.transform.position + Vector3.up * .65f;
-        // The camera trails a frame: work out the eye from the view instead.
-        float floor = movement.transform.position.y - 1f;
-        eye = new Vector3(movement.transform.position.x, floor + view.eyeHeight - movement.EyeDrop, movement.transform.position.z);
-        Vector2 a = AimAssist.Angles(eye, point);
+        Vector2 a = AimAssist.Angles(Eye(), point);
         view.LookTo(a.x, a.y);
         yield return Frames(3);
+    }
+
+    // Ace's first-person eye where he stands (the camera trails a frame: worked out from the view instead).
+    Vector3 Eye()
+    {
+        Vector3 at = movement.transform.position;
+        float floor = at.y - 1f;
+        return new Vector3(at.x, floor + view.eyeHeight - movement.EyeDrop, at.z);
     }
 
     IEnumerator AimAt(Vector3 point)

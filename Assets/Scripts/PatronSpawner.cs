@@ -185,8 +185,10 @@ public class PatronSpawner : MonoBehaviour
 
         if (payPerPatron > 0 && ShopEconomy.Instance != null)
         {
+            // PLAYTEST 4 (10 Oct 2026, the first-hour playtester): "the money rises to $65 with '+$5' pops while
+            // nobody is served". The café still earns from them, quietly: no "+$" pop over a patron, so the pops a
+            // player sees are their own pay (a hand-back, a drink). The money and the day's record stay.
             ShopEconomy.Instance.AddMoney(payPerPatron);
-            Juice.Money(brain.transform, payPerPatron);
 
             // Through DayClock as well, or the till climbs while "Earned today"
             // sits still and the recap quietly under-reports the day.

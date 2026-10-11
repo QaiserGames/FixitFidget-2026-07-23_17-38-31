@@ -28,7 +28,7 @@ MonoBehaviour:
   - phaseName: Recover
     startsAt: 0.8
     spawnInterval: 24
-  patienceMultiplier: 1.4
+  patienceMultiplier: 2
   maxCustomers: 2
   drinkOnlyChance: 0.55
   guidedOpening: 0

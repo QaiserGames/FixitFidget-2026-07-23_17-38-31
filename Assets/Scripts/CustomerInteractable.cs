@@ -29,6 +29,27 @@ public class CustomerInteractable : Interactable
                           brain.CanApologiseForDrink || brain.CanRequestFocus || brain.HasColdDrinkForOrder ||
                          (brain.CanReassure && !brain.JobNeedsAttention));
 
+    /// <summary>Whose E this is.</summary>
+    public CustomerBrain Brain => brain;
+
+    // ACROSS THE COUNTER (playtest 4, 10 Oct 2026; PlayerInteractor): the repair bar hands things over the counter.
+
+    /// <summary>
+    /// Waiting for what Ace is holding: their drink, or their device finished (in one piece, nothing left to fix). From
+    /// behind the counter or the repair bar's bench, E hands it over whatever else is nearer.
+    /// </summary>
+    public bool HandOverReady => brain != null && (brain.CanReceiveDrink
+        || brain.JobReady && brain.ActiveJob != null && brain.ActiveJob.IsComplete);
+
+    /// <summary>
+    /// Anything else E would do for them from the floor, over the counter, when nothing nearer is in reach: everything
+    /// but handing back a device that isn't finished (E on them would hand it back unfixed; at the bench it's set down,
+    /// and a deliberate early hand-back is still a walk round, or the crosshair in first person) and a cold cup (E does
+    /// nothing with that).
+    /// </summary>
+    public bool HelpAcrossTheCounter => brain != null && FloorAvailable && !brain.HasColdDrinkForOrder
+        && (brain.CanReceiveDrink || !brain.JobReady || brain.ActiveJob != null && brain.ActiveJob.IsComplete);
+
     public override string Prompt
     {
         get

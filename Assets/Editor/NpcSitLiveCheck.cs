@@ -35,6 +35,11 @@ using Object = UnityEngine.Object;
 // 0.745 m stool, so a customer waits standing beside the stool facing the counter (CafeSeatsSteps.cs, 'THE BAR
 // STOOLS DON'T SIT'). A customer who waits at one of those is not expected to sit: the report names them in a NOTE
 // and the sitting check counts only the seats people sit on.
+//
+// PLAYTEST 4 (10 Oct 2026): the Impatient and Rushed walk-ins stood by choice (a standing spot drains x1.15, a seat
+// x0.6) and 17 of 18 standing waiters were lost; every archetype now waits in a seat (Playtest 4 > Systems > 1). Two
+// lines check it: every customer whose job was taken prefers a seat, and nobody waited standing while a seat was free.
+// A bar stool counts as a seat (it drains at a seat's rate; they stand beside it).
 public static class NpcSitLiveCheck
 {
     private const string Menu = "Fixit Fidget/NPC/Sit 4 - Live sit check (Play Mode)";
@@ -67,6 +72,11 @@ public static class NpcSitLiveCheck
         public bool standsAtSeat;
         // When they went to wait (real time), so the check doesn't end while one is still on the way to their seat.
         public float waitAt = -1f;
+        // Playtest 4: where they'd rather wait (their profile's, else their archetype's), who they are, and how many seats
+        // were free the moment they took a place.
+        public WaitingSpot.SpotKind? prefers;
+        public string sort = "";
+        public int freeSeatsThen = -1;
         public readonly StringBuilder timeline = new();
     }
 
@@ -229,6 +239,11 @@ public static class NpcSitLiveCheck
                 w.waitAt = Time.realtimeSinceStartup;
                 WaitingSpot spot = BrainSpot?.GetValue(brain) as WaitingSpot;
                 w.standsAtSeat = spot is TableSeat stool && !stool.SnapToSeat;
+                CustomerIdentity identity = brain.Identity;
+                w.prefers = identity != null ? identity.PreferredWaitKind : (WaitingSpot.SpotKind?)null;
+                w.sort = identity == null ? "" : identity.Profile != null ? identity.Profile.name
+                    : identity.Archetype != null ? identity.Archetype.archetypeName : "";
+                w.freeSeatsThen = WaitingArea.FreeSeats;
                 Note(w, "went to wait at a " + brain.WaitKind.Value.ToString().ToLowerInvariant() + " spot" +
                         (spot != null ? $" ({spot.name}" + (w.standsAtSeat ? ", Snap To Seat off: waits standing beside it" : "") + ")" : ""));
             }
@@ -475,6 +490,20 @@ public static class NpcSitLiveCheck
             else
                 report.AppendLine($"NOTE  None of the {jobsAccepted} customers whose jobs were taken chose a seat they sit on to wait this time, " +
                                   "so customer sitting was not exercised (patrons were).");
+
+            // Playtest 4: everyone waits in a seat now, the impatient and the rushed too; standing only when no seat is free.
+            var waited = watches.Where(w => w.customer && w.waitKind != null).ToList();
+            if (waited.Count > 0)
+            {
+                var wouldStand = waited.Where(w => w.prefers != null && w.prefers != WaitingSpot.SpotKind.Seat).ToList();
+                Check(wouldStand.Count == 0,
+                    $"Every waiting customer would rather sit, the impatient and rushed too ({waited.Count - wouldStand.Count} of {waited.Count}" +
+                    (wouldStand.Count > 0 ? ": " + string.Join(", ", wouldStand.Select(w => $"{w.name} ({w.sort}) prefers {w.prefers}")) : "") + ")");
+                var stoodWithSeatsFree = waited.Where(w => w.waitKind == WaitingSpot.SpotKind.Loiter && w.freeSeatsThen > 0).ToList();
+                Check(stoodWithSeatsFree.Count == 0,
+                    $"Nobody waited standing while a seat was free ({waited.Count(w => w.waitKind == WaitingSpot.SpotKind.Loiter)} stood" +
+                    (stoodWithSeatsFree.Count > 0 ? ": " + string.Join(", ", stoodWithSeatsFree.Select(w => $"{w.name} ({w.sort}) with {w.freeSeatsThen} seat(s) free")) : "") + ")");
+            }
         }
         if (measured.Count > 0)
         {

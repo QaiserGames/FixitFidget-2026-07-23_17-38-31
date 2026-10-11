@@ -49,6 +49,30 @@ public class CustomerSpawner : MonoBehaviour
     [SerializeField] private float openingGraceMin = 4f;
     [SerializeField] private float openingGraceMax = 9f;
 
+    [Header("The day's shape at the counter (playtest 4)")]
+
+    // PLAYTEST 4 (10 Oct 2026). The veteran playtester measured that walk-ins
+    // appear 18-21 m down the street or in the car park and take 25-52 s
+    // (median 38) to reach the till, so Day 5's authored Opening / Morning
+    // rush / Lull / Lunch rush / Last orders reached the counter as
+    // 0 / 2 / 3 / 1 / 3: the lull was the busiest stretch, and every day
+    // opened with about 40 s of nothing. People still walk in from the street
+    // (the city's life is part of the look); the schedule now accounts for the
+    // walk. The phases are authored as what the COUNTER sees, so the spawner
+    // reads the phase at "now + the walk", in seconds (the same at 180 s and
+    // at the 420 s ship length).
+    [Tooltip("Seconds from a walk-in appearing outside to reaching the counter, used until today's arrivals have measured " +
+             "it (each one who reaches the counter teaches it). Measured 10 Oct on the Day 5 lab: 25-52 s, median 38.")]
+    [SerializeField, Min(0f)] private float walkLeadSeconds = 36f;
+
+    [Tooltip("How far each customer who reaches the counter moves the measured walk (0 = never learn, 1 = only the last).")]
+    [SerializeField, Range(0f, 1f)] private float leadLearning = .3f;
+
+    [Tooltip("At the open, the first arrival is already on their way: this many metres short of the café's door along " +
+             "their route, and they walk straight to the counter. At the till about 12 s after opening (was 39-41 s). " +
+             "0 = the old opening (a quiet 4-9 s, then the whole walk in).")]
+    [SerializeField, Min(0f)] private float openerMetresOut = 3f;
+
     [Tooltip("Radius around the spawn point that arrivals appear within.")]
     [SerializeField] private float spawnScatter = 1.2f;
 
@@ -116,6 +140,21 @@ public class CustomerSpawner : MonoBehaviour
     private const float FirstThingWaitsAtMost = 60f;
     private readonly CustomerVisitRoster roster = new();
 
+    // Playtest 4: the walk in, learned from the people who make it (spawned -> at the counter, seconds), kept across the
+    // session's days; -1 until the first one arrives. Who is still on the way, and when they set off.
+    private float measuredLead = -1f;
+    private int leadSamples;
+    private readonly List<(CustomerBrain brain, float since)> walkingIn = new();
+    private const float LongestLeadSeconds = 90f;    // a walk cut short or a day that stood still: not a measurement
+    // The day's first arrival, already on the way (openerMetresOut): spawned a beat into the day, never on the frame the
+    // day changes (CafeArrivals clears its walkers when it sees a new day).
+    private bool openerPending;
+    private const float OpenerDelay = .5f;
+    private const float OpenerWithin = 15f;          // seconds into the day: after that, an ordinary arrival
+    // occupancy-and-pacing.md: never more than six customers in the café at once. A named visit the day was written
+    // around may go past the day's own cap (the walk-ins' cap), never past this.
+    private const int MostCustomersEver = 6;
+
     private readonly DayOneOpening opening = new();
     private CustomerBrain openingCustomer;
     private CustomerBrain featuredCustomer;
@@ -136,6 +175,10 @@ public class CustomerSpawner : MonoBehaviour
     // With a schedule, the base interval comes from wherever we are in the day
     // rather than being one number for the whole day. That single change is
     // what turns a flat drip into calm / build / rush / recover.
+    //
+    // Playtest 4: "wherever we are in the day" is where the day will be when
+    // the person spawned now reaches the counter (CounterFraction), because
+    // that is where the authored shape is felt.
     private float NextGap
     {
         get
@@ -143,7 +186,7 @@ public class CustomerSpawner : MonoBehaviour
             float baseInterval = spawnInterval;
 
             if (today != null && DayClock.Instance != null)
-                baseInterval = today.IntervalAt(DayFraction) * escalation;
+                baseInterval = today.IntervalAt(CounterFraction) * escalation;
 
             float gap = baseInterval * Random.Range(1f - spawnJitter, 1f + spawnJitter);
 
@@ -157,17 +200,35 @@ public class CustomerSpawner : MonoBehaviour
     }
 
     // How far through the day we are, 0 at opening and 1 at close.
-    private float DayFraction
-    {
-        get
-        {
-            DayClock c = DayClock.Instance;
-            if (c == null) return 0f;
+    private float DayFraction => FractionAt(SecondsNow);
 
-            float length = c.SecondsIntoDay + c.TimeRemaining;
-            return length <= 0f ? 0f : Mathf.Clamp01(c.SecondsIntoDay / length);
-        }
+    // Where the day will be when someone spawned now reaches the counter (playtest 4): the authored phases, featured and
+    // story visits are all read here, so they happen at the counter when they were written for.
+    public float CounterFraction => FractionAt(SecondsNow + LeadSeconds);
+
+    private static float SecondsNow => DayClock.Instance != null ? DayClock.Instance.SecondsIntoDay : 0f;
+
+    // A moment of today, as a fraction of the day (0 at opening, 1 at close).
+    private static float FractionAt(float seconds)
+    {
+        DayClock c = DayClock.Instance;
+        if (c == null) return 0f;
+
+        float length = c.SecondsIntoDay + c.TimeRemaining;
+        return length <= 0f ? 0f : Mathf.Clamp01(seconds / length);
     }
+
+    /// <summary>
+    /// How long a walk-in takes from appearing outside to reaching the counter, seconds: today's measured walk once anyone
+    /// has made it, else Walk Lead Seconds (playtest 4). The spawner looks this far ahead.
+    /// </summary>
+    public float LeadSeconds => measuredLead > 0f ? measuredLead : walkLeadSeconds;
+
+    /// <summary>How many walks in have been measured this session (reports).</summary>
+    public int LeadSamples => leadSamples;
+
+    /// <summary>Today's authored day, or null (reports and the day-shape check).</summary>
+    public DayDefinition Today => today;
 
     // The authored day for this day number, or the last one repeated with a
     // compounding squeeze. You'll author five or eight days; the arc runs to
@@ -231,7 +292,13 @@ public class CustomerSpawner : MonoBehaviour
             }
             opening.Reset(guide);
             lastPhase = "";
-            timer = Random.Range(openingGraceMin, openingGraceMax);
+            walkingIn.Clear();
+            // Playtest 4: the day's first arrival is already on the street when the café opens (TryArriveNearTheDoor),
+            // so the till sees them about 12 s in instead of 40. Without the arrivals system they would appear at the
+            // door in view, and the guided Day 1 lesson paces itself: both keep the old quiet opening.
+            openerPending = openerMetresOut > 0f && !opening.IsActive
+                            && CafeArrivals.Instance != null && CafeArrivals.Instance.isActiveAndEnabled;
+            timer = openerPending ? OpenerDelay : Random.Range(openingGraceMin, openingGraceMax);
 
             DayClock.Instance.PatienceMultiplier =
                 today != null ? today.patienceMultiplier : 1f;
@@ -253,6 +320,8 @@ public class CustomerSpawner : MonoBehaviour
             timer = opening.IsActive ? blockedRetryInterval : NextGap;
         }
 
+        LearnTheWalk();
+
         if (DayClock.Instance != null && !DayClock.Instance.IsOpen) return;
 
         // Someone coming in to tell Ace about last night is still on their way over: the next
@@ -272,17 +341,28 @@ public class CustomerSpawner : MonoBehaviour
         // watching the clock walk toward midday.
         if (today != null)
         {
-            string phase = today.PhaseNameAt(DayFraction);
+            // The phase the people setting off now will reach the counter in (playtest 4: the spawner works that far ahead).
+            string phase = today.PhaseNameAt(CounterFraction);
             if (phase != lastPhase)
             {
                 lastPhase = phase;
-                Debug.Log($"[Day {lastSeenDay}] phase: {phase} " +
-                          $"(gaps ~{today.IntervalAt(DayFraction) * escalation:0.0}s)");
+                Debug.Log($"[Day {lastSeenDay}] phase at the counter: {phase} " +
+                          $"(gaps ~{today.IntervalAt(CounterFraction) * escalation:0.0}s; " +
+                          $"{DayFraction * 100f:0}% through the day, the walk in ~{LeadSeconds:0} s)");
             }
         }
 
         int cap = today != null ? today.maxCustomers : maxCustomers;
         if (opening.IsActive) cap = 1;
+        else
+        {
+            // PLAYTEST 4 (10 Oct 2026): a named visit the day was written around - the officer's coffee on Day 1, a
+            // regular with news of last night - comes when it is due; the day's cap limits walk-ins. Day 1's cap of 2
+            // kept the officer's coffee (written for 35% of the day) out until 6:47 PM, behind Grace and one walk-in.
+            // Never past six in the café (occupancy-and-pacing.md), and never without a place at the counter (below).
+            WhoIsDue(out bool featuredDue, out bool morningDue, out bool wordDue, out int storyDue);
+            if (featuredDue || morningDue || wordDue || storyDue >= 0) cap = Mathf.Max(cap, MostCustomersEver);
+        }
 
         int living = FindObjectsByType<CustomerBrain>(
             FindObjectsInactive.Exclude).Length;
@@ -324,25 +404,15 @@ public class CustomerSpawner : MonoBehaviour
         CustomerBrain brain = go.GetComponent<CustomerBrain>();
         CustomerIdentity id = go.GetComponent<CustomerIdentity>();
 
+        // The day's first arrival, already on the way (playtest 4): only at the very start of the day.
+        bool opener = openerPending && SecondsNow < OpenerWithin;
+        openerPending = false;
+
         // Who is this? A featured regular takes the next available arrival
         // slot after their authored time. If the counter is full, they wait for
         // a real opening rather than spawning into nowhere.
         CustomerProfile profile = null;
-        bool featuredDue = today != null
-                        && today.featuredRegular != null
-                        && !featuredRegularSpawned
-                        && roster.CanVisit(today.featuredRegular.PersistentId)
-                        && opening.AllowsFeatured(DayFraction, today.featuredRegularArrivesAt);
-
-        bool morningDue = !featuredDue && morningVisitor != null && !morningVisitorSpawned
-                          && !opening.IsActive && roster.CanVisit(morningVisitor.PersistentId);
-
-        // The officer, on the morning the man at the bins has had a word with him: the next slot after those two.
-        bool wordDue = !featuredDue && !morningDue && wordVisitor != null && !wordVisitorSpawned && !opening.IsActive
-                       && roster.CanVisit(wordVisitor.PersistentId) && opening.AllowsFeatured(DayFraction, WordVisitorArrivesAt);
-
-        // A story visit (the officer) whose time has come takes the next slot after those.
-        int storyDue = featuredDue || morningDue || wordDue ? -1 : StoryVisitDue();
+        WhoIsDue(out bool featuredDue, out bool morningDue, out bool wordDue, out int storyDue);
 
         if (featuredDue)
         {
@@ -409,9 +479,25 @@ public class CustomerSpawner : MonoBehaviour
         // a neighbour's front door and walks over; they only start - counter slot,
         // patience, drift into the room - once they reach the door. Without
         // CafeArrivals in the scene they start at the door, as they always did.
-        bool walkingOver = !opening.IsActive && CafeArrivals.TryArrive(go, CafeArrivals.Kind.Customer,
-            () => brain.Init(counterQueue, exitPoint, job, wish));
+        //
+        // Playtest 4: the day's first is already on the café's own pavement when
+        // it opens, a few metres short of the door, and walks straight to the
+        // counter (no look round the room): at the till about 12 s in.
+        bool walkingOver = false;
+        if (!opening.IsActive)
+        {
+            if (opener)
+            {
+                brain.StraightToCounter = true;
+                walkingOver = CafeArrivals.TryArriveNearTheDoor(go, CafeArrivals.Kind.Customer, openerMetresOut,
+                    () => brain.Init(counterQueue, exitPoint, job, wish));
+            }
+            else walkingOver = CafeArrivals.TryArrive(go, CafeArrivals.Kind.Customer,
+                () => brain.Init(counterQueue, exitPoint, job, wish));
+        }
         if (!walkingOver) brain.Init(counterQueue, exitPoint, job, wish);
+        // The opener's walk is a short one on purpose: it would teach the spawner the wrong walk.
+        if (walkingOver && !opener) walkingIn.Add((brain, SecondsNow));
         if (featuredDue) featuredCustomer = brain;
         if (walkingOver && HasNightNews(profile))
         {
@@ -420,6 +506,29 @@ public class CustomerSpawner : MonoBehaviour
         }
         if (profile != null) roster.RecordArrival(profile.PersistentId);
         if (opening.TryStartVisit()) openingCustomer = brain;
+    }
+
+    // Who the next arrival is, by the day's authored visits: a featured regular, the morning's visitor (news of last
+    // night), the officer after the man's word, then a story visit; at most one of them (all false and -1: a walk-in or
+    // a random regular). Their times are read at the counter (CounterFraction, playtest 4): a visit written for 35% of the
+    // day is at the counter at about 35%, not a walk later.
+    private void WhoIsDue(out bool featuredDue, out bool morningDue, out bool wordDue, out int storyDue)
+    {
+        featuredDue = today != null
+                      && today.featuredRegular != null
+                      && !featuredRegularSpawned
+                      && roster.CanVisit(today.featuredRegular.PersistentId)
+                      && opening.AllowsFeatured(CounterFraction, today.featuredRegularArrivesAt);
+
+        morningDue = !featuredDue && morningVisitor != null && !morningVisitorSpawned
+                     && !opening.IsActive && roster.CanVisit(morningVisitor.PersistentId);
+
+        // The officer, on the morning the man at the bins has had a word with him: the next slot after those two.
+        wordDue = !featuredDue && !morningDue && wordVisitor != null && !wordVisitorSpawned && !opening.IsActive
+                  && roster.CanVisit(wordVisitor.PersistentId) && opening.AllowsFeatured(CounterFraction, WordVisitorArrivesAt);
+
+        // A story visit (the officer) whose time has come takes the next slot after those.
+        storyDue = featuredDue || morningDue || wordDue ? -1 : StoryVisitDue();
     }
 
     // Today's first story visit whose time has come and who hasn't been in yet, or -1. Never during the Day 1 lesson's
@@ -432,9 +541,27 @@ public class CustomerSpawner : MonoBehaviour
         {
             StoryVisit visit = visits[i];
             if (visit == null || visit.who == null || storySpawned[i]) continue;
-            if (roster.CanVisit(visit.who.PersistentId) && opening.AllowsFeatured(DayFraction, visit.arrivesAt)) return i;
+            if (roster.CanVisit(visit.who.PersistentId) && opening.AllowsFeatured(CounterFraction, visit.arrivesAt)) return i;
         }
         return -1;
+    }
+
+    // The walk in, measured (playtest 4): each customer who set off from the street and has now reached the counter
+    // moves the spawner's look-ahead towards how long it took them. Walkers who never got there (turned back at closing,
+    // or removed) teach nothing.
+    private void LearnTheWalk()
+    {
+        for (int i = walkingIn.Count - 1; i >= 0; i--)
+        {
+            CustomerBrain who = walkingIn[i].brain;
+            if (who == null) { walkingIn.RemoveAt(i); continue; }
+            if (who.ReachedCounterAt < 0f) continue;
+            float took = who.ReachedCounterAt - walkingIn[i].since;
+            walkingIn.RemoveAt(i);
+            if (took <= 0f || took > LongestLeadSeconds || leadLearning <= 0f) continue;
+            measuredLead = measuredLead > 0f ? Mathf.Lerp(measuredLead, took, leadLearning) : took;
+            leadSamples++;
+        }
     }
 
     /// <summary>Who is still to come in today on a story visit, in order (reports and checks).</summary>

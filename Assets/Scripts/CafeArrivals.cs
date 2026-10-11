@@ -445,6 +445,21 @@ public sealed class CafeArrivals : MonoBehaviour
     }
 
     /// <summary>
+    /// The day's first arrival (playtest 4, 10 Oct 2026: "every day opens with about 40 s of nothing"): already on their
+    /// way when the café opens, the last <paramref name="metresOut"/> metres of one of the walking routes short of the
+    /// door (a regular on their own route), so they reach the counter about ten seconds after opening instead of forty.
+    /// They walk in from the street like everyone else; only the start of the walk is taken as already done. On foot,
+    /// never out of a front door or on a road (the start never falls on a crossing or the doorstep). False: no arrival
+    /// system or no route (the caller starts them at the door, as before).
+    /// </summary>
+    public static bool TryArriveNearTheDoor(GameObject npc, Kind kind, float metresOut, Action atDoor)
+    {
+        CafeArrivals arrivals = Instance;
+        if (arrivals == null || !arrivals.isActiveAndEnabled || npc == null) return false;
+        return arrivals.BeginArrivalNearTheDoor(npc, kind, Mathf.Max(0f, metresOut), atDoor);
+    }
+
+    /// <summary>
     /// Called by a brain that reached the exit: walks them back to their car or home
     /// instead of vanishing. False: the caller destroys them as before.
     /// </summary>
@@ -513,6 +528,85 @@ public sealed class CafeArrivals : MonoBehaviour
             journey.Gate(0, () => frontDoor == null || frontDoor.IsOpen, "their front door to open");
         }
         if (visit.car != null) ArrivedByCar++; else ArrivedOnFoot++;
+        return true;
+    }
+
+    // The day's first arrival (TryArriveNearTheDoor): the whole way in is laid out as usual, then only its last metres
+    // are walked. Walking back from the door point: a segment over a road ends the search at its café-side kerb, and the
+    // route's first segment (a front door's doorstep) is never part of it.
+    private bool BeginArrivalNearTheDoor(GameObject npc, Kind kind, float metresOut, Action atDoor)
+    {
+        if (DayClock.Instance != null && !DayClock.Instance.IsOpen) return false;
+        int home = HomeRouteFor(npc);
+        int route = home >= 0 ? home : PickFootRoute();
+        if (route < 0 || route >= footRoutes.Length || footRoutes[route] == null || footRoutes[route].points.Length < 2) return false;
+
+        var full = new List<Vector3>();
+        var fullCross = new List<StreetCrossing>();
+        var fullLeft = new List<float>();
+        var fullRight = new List<float>();
+        Append(footRoutes[route], false, full, fullCross, fullLeft, fullRight);
+        AppendPoint(DoorPoint(), full, fullCross, fullLeft, fullRight);
+        if (full.Count < 2 || fullCross.Count != full.Count - 1) return false;
+
+        // Segment s runs full[s] -> full[s + 1]; the walk starts on segment `first`, at `start`.
+        int first = full.Count - 2;
+        Vector3 start = full[first];
+        float left = metresOut;
+        bool placed = false;
+        for (int s = full.Count - 2; s >= 1; s--)
+        {
+            if (fullCross[s] != null)
+            {
+                // Over a road: start on the café's side of it.
+                first = Mathf.Min(s + 1, full.Count - 2);
+                start = full[first];
+                placed = true;
+                break;
+            }
+            Vector3 along = full[s] - full[s + 1];
+            along.y = 0f;
+            float length = along.magnitude;
+            if (length >= left)
+            {
+                first = s;
+                start = full[s + 1] + (full[s] - full[s + 1]) * (length > 1e-4f ? left / length : 0f);
+                placed = true;
+                break;
+            }
+            left -= length;
+        }
+        if (!placed)
+        {
+            // The route is shorter than that (after its doorstep): the whole of it but the doorstep.
+            first = Mathf.Min(1, full.Count - 2);
+            start = full[first];
+        }
+
+        var path = new List<Vector3> { start };
+        var cross = new List<StreetCrossing>();
+        var roomLeft = new List<float>();
+        var roomRight = new List<float>();
+        for (int s = first; s < full.Count - 1; s++)
+        {
+            cross.Add(fullCross[s]);
+            roomLeft.Add(s < fullLeft.Count ? fullLeft[s] : JointRoom);
+            roomRight.Add(s < fullRight.Count ? fullRight[s] : JointRoom);
+            path.Add(full[s + 1]);
+        }
+
+        var visit = new Visit { kind = kind, atDoor = atDoor, record = new Comings { kind = kind, who = kind == Kind.Patron ? "a patron" : "a customer" } };
+        visit.footRoute = route;
+        visit.record.cameFrom = footRoutes[route].name + " (on the way already when the café opened)";
+        if (home >= 0) SetHome(npc, visit, footRoutes[route]);
+        StepOffTheFloor(npc, visit);
+        visits[npc] = visit;
+        Record(visit.record);
+        NpcJourney journey = npc.GetComponent<NpcJourney>();
+        if (journey == null) journey = npc.AddComponent<NpcJourney>();
+        visit.journey = journey;
+        journey.Begin(path.ToArray(), cross.ToArray(), roomLeft.ToArray(), roomRight.ToArray(), RandomWalkSpeed(), true, kind, () => ReachedTheDoor(npc));
+        ArrivedOnFoot++;
         return true;
     }
 

@@ -282,6 +282,20 @@ public class CustomerBrain : MonoBehaviour
     private WaitingSpot.SpotKind? lastWaitKind;
 
     public float ArrivedAt => arrivedAt;
+
+    // PLAYTEST 4 (10 Oct 2026): when they reached the counter (their place in the line), seconds into the day; -1 until
+    // then. ArrivedAt is the café's door, and from the door the look round the room takes 1-3 s more for some than
+    // others, so "who has waited longest at the counter" (PlayerInteractor.QueueHead) is measured from here. The spawner
+    // also learns how long the walk in takes from it (spawned -> at the counter).
+    private float reachedCounterAt = -1f;
+    public float ReachedCounterAt => reachedCounterAt;
+
+    /// <summary>
+    /// Playtest 4: the day's first customer, already on the way when the café opens (CustomerSpawner), skips the look round
+    /// the room and walks straight to the counter, so they're at the till about ten seconds after opening. Set before Init.
+    /// </summary>
+    public bool StraightToCounter { get; set; }
+
     public bool  WasAccepted => wasAccepted;
     public LostReason Loss => lossReason;
     public WaitingSpot.SpotKind? WaitKind => lastWaitKind;
@@ -790,9 +804,10 @@ public class CustomerBrain : MonoBehaviour
 
         // Veer into the room before heading for the counter. Not the full
         // Drifting state from GDD §4.5 — just enough that six arrivals don't
-        // trace the same line to the same spot.
+        // trace the same line to the same spot. (Not the day's first, who is
+        // expected at the till: StraightToCounter.)
         Vector3 drift;
-        if (PickDriftPoint(out drift))
+        if (!StraightToCounter && PickDriftPoint(out drift))
         {
             locomotion.MoveTo(drift, Walk("drift"));
         }
@@ -961,6 +976,8 @@ public class CustomerBrain : MonoBehaviour
 
                         state = State.WaitingInQueue;
                         patienceLeft = queueMax;
+                        if (reachedCounterAt < 0f)
+                            reachedCounterAt = DayClock.Instance != null ? DayClock.Instance.SecondsIntoDay : Time.time;
                         StopSteering();     // stop shoving whoever's in front
                     }
                     else if (!driftDone && locomotion.StuckStage >= 1)

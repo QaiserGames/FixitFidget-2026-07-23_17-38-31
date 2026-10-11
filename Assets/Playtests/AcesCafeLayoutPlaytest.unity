@@ -58391,6 +58391,9 @@ MonoBehaviour:
   blockedRetryInterval: 1.5
   openingGraceMin: 4
   openingGraceMax: 9
+  walkLeadSeconds: 36
+  leadLearning: 0.3
+  openerMetresOut: 3
   spawnScatter: 1.2
   spawnJitter: 0
   devicePrefabs:
@@ -58432,7 +58435,7 @@ MonoBehaviour:
     patienceMultiplier: 0.7
     tipMultiplier: 0.9
     moodColor: {r: 0.9, g: 0.45, b: 0.35, a: 1}
-    preferredWaitKind: 0
+    preferredWaitKind: 1
     drinkWishChance: 0.25
     lines:
       intake:
@@ -58494,7 +58497,7 @@ MonoBehaviour:
     patienceMultiplier: 0.6
     tipMultiplier: 1.3
     moodColor: {r: 0.85, g: 0.62, b: 0.3, a: 1}
-    preferredWaitKind: 0
+    preferredWaitKind: 1
     drinkWishChance: 0.15
     lines:
       intake:
@@ -154946,6 +154949,8 @@ MonoBehaviour:
   stationEnterRange: 1.5
   counterRange: 2.5
   counterReach: 4
+  acrossCounterReach: 3.5
+  benchRange: 2
 --- !u!114 &1039162929
 MonoBehaviour:
   m_ObjectHideFlags: 0
