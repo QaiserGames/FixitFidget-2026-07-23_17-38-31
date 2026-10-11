@@ -217,22 +217,26 @@ public sealed class AimHelpCheck : PlayLab
         yield return AfterBlend();
     }
 
-    // D-pad right from a corner of the screen, once for each part of the work and once more: where the cursor lands each time.
+    // D-pad right from a corner of the screen, once for each stop of the work and once more: where the cursor lands each time.
+    // The stops are ItemInspector's (GatherWork): every part that work can be done on now, and every grime spot it can reach
+    // (nothing between the camera and it), which comes at 2 in the work's order. Playtest 4: the check counted parts only,
+    // so on a cleaning job (a watch with debris inside) the grime, a stop by design, read as "on nothing" (-1).
     IEnumerator DpadRun(JobBase job, Camera cam, string when)
     {
         PadCursor.GlideTo(new Vector2(Screen.width * .08f, Screen.height * .9f));
         yield return Seconds(.4f);
-        int points = AllParts(job).Count(p => p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform));
+        List<GrimeSpot> grime = ReachableGrime(job, cam);
+        int points = AllParts(job).Count(p => p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform)) + grime.Count;
         var orders = new List<int>();
         for (int i = 0; i < Mathf.Max(2, points + 1); i++)
         {
             yield return PadPress(GamepadButton.DpadRight);
             yield return Seconds(.3f);
-            BenchInteractable under = NearestPart(job, cam, PadCursor.Position, out float px);
-            orders.Add(under != null && px < 12f * Mathf.Max(.5f, Screen.height / 1080f) ? ItemInspector.WorkOrder(under) : -1);
+            orders.Add(StopUnder(job, cam, grime, PadCursor.Position));
         }
         int first = AllParts(job).Where(p => p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform))
-            .Select(ItemInspector.WorkOrder).DefaultIfEmpty(-1).Min();
+            .Select(ItemInspector.WorkOrder).Concat(grime.Select(_ => 2)).DefaultIfEmpty(-1).Min();
+        if (grime.Count > 0) Note($"{when}: {grime.Count} grime spot(s) the D-pad steps to as well (the work's place 2)");
         bool ordered = true;
         for (int i = 1; i < Mathf.Min(orders.Count, points); i++) ordered &= orders[i] >= orders[i - 1];
         Check(orders.Count > 0 && orders[0] == first && ordered && !orders.Contains(-1),
@@ -346,6 +350,42 @@ public sealed class AimHelpCheck : PlayLab
         float tolerance = 3f * Mathf.Max(.5f, Screen.height / 1080f);
         yield return Await(() => (PadCursor.Position - target).magnitude <= tolerance, .5f);
         Check(lastWait, $"the cursor let go {what} of a screw settles on it in {Time.realtimeSinceStartup - letGo:0.00} s ({(PadCursor.Position - target).magnitude:0.0} px off)");
+    }
+
+    // The work's place of what the pad's cursor sits on, within 12 px (at 1080p): a part's (ItemInspector.WorkOrder), a
+    // reachable grime spot's (2), or -1 for nothing.
+    static int StopUnder(JobBase job, Camera cam, List<GrimeSpot> grime, Vector2 at)
+    {
+        float limit = 12f * Mathf.Max(.5f, Screen.height / 1080f);
+        BenchInteractable part = NearestPart(job, cam, at, out float px);
+        float grimePx = float.PositiveInfinity;
+        foreach (GrimeSpot g in grime)
+        {
+            if (g == null) continue;
+            Vector3 s = cam.WorldToScreenPoint(Centre(g.transform));
+            if (s.z > 0f) grimePx = Mathf.Min(grimePx, (new Vector2(s.x, s.y) - at).magnitude);
+        }
+        if (part != null && px < limit && px <= grimePx) return ItemInspector.WorkOrder(part);
+        return grimePx < limit ? 2 : -1;
+    }
+
+    // The grime spots the D-pad steps to, as ItemInspector gathers them: active, on screen, and nothing between the camera
+    // and the spot (ItemInspector.Uncovered's ray).
+    static List<GrimeSpot> ReachableGrime(JobBase job, Camera cam)
+    {
+        var found = new List<GrimeSpot>();
+        var roots = new List<Transform> { job.transform };
+        foreach (GameObject loose in job.LooseParts) if (loose != null) roots.Add(loose.transform);
+        foreach (Transform root in roots)
+            foreach (GrimeSpot g in root.GetComponentsInChildren<GrimeSpot>())
+            {
+                if (!g.isActiveAndEnabled || !On(cam, g.transform)) continue;
+                Vector3 to = Centre(g.transform) - cam.transform.position;
+                if (Physics.Raycast(cam.transform.position, to.normalized, out RaycastHit hit, to.magnitude + .05f)
+                    && hit.collider.GetComponentInParent<GrimeSpot>() != g) continue;
+                found.Add(g);
+            }
+        return found;
     }
 
     static BenchInteractable NearestPart(JobBase job, Camera cam, Vector2 at, out float px)
