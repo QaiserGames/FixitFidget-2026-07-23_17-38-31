@@ -31,6 +31,10 @@ using UnityEngine.UI;
 //   7. W/S scroll, and a pad (a virtual one, added for the check and removed after): LB/RB, the right
 //      stick, the D-pad and A, and the gold ring that shows the pad's selection;
 //   8. back on Tonight, Close up puts the phone away, and the night begins.
+// Playtest 4 (10 Oct 2026): every review says its verdict in words ("Loved it" ... "Never again"), with no stars on a
+// review (the reputation spec §10.2); the summary's bars are the verdicts'; before the first star Tonight says what it
+// still needs ("3 to your first star", on a made-up evening shown with the phone's Preview, then back); the takings card
+// says what Ace's work earned apart from the café's guests.
 // A key that never reaches the game (the Game view didn't have the keyboard) is noted and done directly,
 // so the phone is still checked. A photo of every app and report.txt go to the check's folder. Nothing is
 // saved in the scene; the lab save is the only file written (by the game), and the playtest save is checked
@@ -160,6 +164,9 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         List<ReviewCard> picks = ReputationLedger.PickCards(rep.Cards);
         Check(picks.Count >= 1 && picks.Count <= 3 && phone.TonightLines == picks.Count && picks.All(p => tonight.Contains(p.line) && tonight.Contains(p.name)),
             $"the {picks.Count} review lines worth reading (the best, the worst, a regular's), each with its name");
+        Check(picks.All(p => tonight.Contains(RecapPhone.VerdictWord(p.review))) && VerdictsUnder("Review line") == picks.Count
+              && StarsUnder("Review line") == 0,
+            $"each says its verdict in words ({string.Join(", ", picks.Select(p => RecapPhone.VerdictWord(p.review)))}), with no stars on a review");
         NotebookFactData todays = NotebookRecap.Tonight(saves.Notebook, day);
         Check(todays != null && tonight.Contains(NotebookRecap.Sentence(todays.text)) && phone.ContentButton("notebook") != null,
             $"one line of notebook, today's newest (\"{(todays != null ? NotebookRecap.Sentence(todays.text) : "")}\")");
@@ -173,6 +180,27 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(moreSays.StartsWith("More") && !moreSays.Contains("low stock"), $"More doesn't say the low stock twice (\"{moreSays}\")");
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("01-tonight");
+
+        // Before the first star, Tonight says what it still needs (playtest 4: "no stars yet" said nothing about it). A
+        // made-up evening with no star yet, shown with the phone's Preview (as Fixit Fidget > Reputation > Preview does),
+        // then the evening's own again.
+        int few = Mathf.Max(0, ReputationRules.NextThreshold(0) - 3);
+        var noStarYet = new ReputationLedger();
+        noStarYet.Restore(few, 0, day, false, null);
+        phone.Preview(noStarYet);
+        yield return null;
+        string noStarText = phone.ContentText();
+        string needs = RecapPhone.StarsLine(0, few);
+        Check(needs == $"{ReputationRules.NextThreshold(0) - few} to your first star" && noStarText.Contains(needs) && !noStarText.Contains("no stars yet"),
+            $"with no star yet, Tonight says what the first one needs (\"{needs}\")");
+        // Two words more than "no stars yet": said, so a long notebook line on a starless evening is seen (the rule is checked
+        // on the evening's own screen above).
+        Note($"that screen has {phone.TonightWords} words before the review lines (the rule is {WordBudget.ClosingScreen})");
+        yield return Photo("01b-tonight-before-the-first-star");
+        phone.Preview(null);
+        yield return null;
+        Check(phone.Current == RecapPhone.App.Tonight && phone.ContentText().Contains("New star!"), "...and back to the evening's own");
+        more = phone.ContentButton("more");
         Click(more);
         yield return null;
         Check(phone.Current == RecapPhone.App.Reviews && phone.Tab(RecapPhone.App.Reviews).gameObject.activeInHierarchy,
@@ -186,6 +214,14 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         int newest = rep.Cards.Count > 0 ? reviews.IndexOf(rep.Cards[rep.Cards.Count - 1].line, StringComparison.Ordinal) : -1;
         int oldest = rep.Cards.Count > 0 ? reviews.IndexOf(rep.Cards[0].line, StringComparison.Ordinal) : -1;
         Check(newest >= 0 && oldest > newest, "newest first");
+        Check(rep.Cards.All(c => reviews.Contains(RecapPhone.VerdictWord(c.review))) && VerdictsUnder("Review") == rep.Cards.Count
+              && StarsUnder("Review") == 0, "every card says its verdict in words, in its colour, with no stars on a review");
+        Check(RecapPhone.VerdictOrder.All(v => reviews.Contains(RecapPhone.VerdictWord(v))) && StarsUnder("Summary") == 0,
+            "the summary has a bar for each verdict, by name (Loved it ... Never again)");
+        int guests = DayClock.Instance.PatronIncome;
+        string split = RecapPhone.TakingsSplit(DayClock.Instance.Earned, guests);
+        Check(guests > 0 ? reviews.Contains(split) : !reviews.Contains("from café guests"),
+            guests > 0 ? $"the takings say what Ace's work earned apart from the café's guests (\"{split}\")" : "no guests paid: no split line");
         Check(reviews.Contains("regular") && reviews.Contains("a walk-in") && !reviews.Contains("Walk-in 2"),
             "a regular is tagged, and a walk-in signs \"a walk-in\"");
         Check(reviews.IndexOf("average", StringComparison.OrdinalIgnoreCase) < 0, "no average anywhere");
@@ -198,8 +234,8 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Click(details);
         yield return null;
         string opened = phone.ContentText();
-        Check(phone.DetailsOpen && opened.Contains("People served") && opened.Contains("Closing till") && opened.Contains("Passable"),
-            "Details shows the day's full numbers");
+        Check(phone.DetailsOpen && opened.Contains("People served") && opened.Contains("Closing till") && opened.Contains("Passable")
+              && opened.Contains("Café guests"), "Details shows the day's full numbers");
         yield return Photo("03-reviews-details");
         Click(phone.ContentButton("details"));
         yield return null;
@@ -638,6 +674,26 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             }
         }
         return true;
+    }
+
+    // How many of the phone's star pictures (its "Star" sprite: "Recap phone - Star") sit on the app's cards of this name
+    // ("Review line" on Tonight, "Review" and "Summary" in Reviews): a review shows its verdict, not stars (playtest 4).
+    int StarsUnder(string card) => CountUnder(card, "Recap phone - Star");
+
+    // How many verdict pills (RecapPhone.Verdict) sit on the app's cards of this name.
+    int VerdictsUnder(string card) => CountUnder(card, "Verdict");
+
+    int CountUnder(string card, string part)
+    {
+        int n = 0;
+        if (phone == null || phone.Root == null) return 0;
+        foreach (Transform box in phone.Root.GetComponentsInChildren<Transform>(false))
+        {
+            if (box.name != card) continue;
+            foreach (Transform inside in box.GetComponentsInChildren<Transform>(false))
+                if (inside != box && inside.name == part) n++;
+        }
+        return n;
     }
 
     static int Count(string text, string part)

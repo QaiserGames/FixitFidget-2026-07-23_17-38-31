@@ -6,6 +6,17 @@ using UnityEngine;
 
 // No Test Framework assembly setup needed. This checks the actual policy and
 // loaded assets in Edit Mode, without changing the scene, assets, or save data.
+//
+// PLAYTEST 4 (10 Oct 2026; the first-hour playtester's #1 and #2):
+//   - A step's card stays until the step is done (DayOneHintTimer): in full, then compact, then in full again with one
+//     pulse when the step is stuck; a step seen before comes back compact; a note shows once. ("Expired hint cannot repeat"
+//     was the rule that left Grace unheard at the counter with no card on screen.)
+//   - The Day 1 the café scene actually plays is tested: its spawner's schedule[0] (Day_01_GraceCamera, the Grace
+//     showcase), as well as Day_01_LearnTheShop (the built lesson the scene doesn't schedule). Open the café scene first.
+//   - The words: the first card says who you are, the device waits on the intake tray (not the shelf), the card after the
+//     featured visit says something true, the impatience card says how to reassure. Read from DayOneGuideUI, where the
+//     cards get them.
+//   - Arrival times, patience and the customer cap are the Systems lead's numbers: not asserted here any more.
 public static class DayOneOnboardingChecks
 {
     private const string DayFolder = "Assets/Data/Days/";
@@ -22,47 +33,59 @@ public static class DayOneOnboardingChecks
         // pad's wording and failed (9 Oct night). The keyboard for the check, then whatever was there before.
         MethodInfo setPad = typeof(PadInput).GetProperty("UsingPad", BindingFlags.Static | BindingFlags.Public)?.GetSetMethod(true);
         bool padWas = PadInput.UsingPad;
+        string scheduled;
         try
         {
             setPad?.Invoke(null, new object[] { false });
             CheckSequence();
             CheckHintTiming();
             CheckDefinitions();
+            scheduled = CheckScheduledDayOne();
             CheckFeaturedHints();
+            CheckWords();
             CheckJobRolls();
         }
         finally
         {
             setPad?.Invoke(null, new object[] { padWas });
         }
-        Debug.Log("[Day 1 onboarding] PASS: sequence, failure-safe progression, " +
-                  "day isolation, Grace visit hints, pending drink guidance, opening job selection, and configurable hint timing. " +
-                  "Still run the in-game checklist for input, navigation, and HUD layout.");
+        Debug.Log("[Day 1 onboarding] PASS: sequence, failure-safe progression, day isolation, cards that stay until their " +
+                  $"step is done (compact, then back in full when stuck), the scene's own Day 1 ({scheduled}), Grace's visit " +
+                  "cards, pending drink guidance, the cards' words (who you are, the intake tray, a true end of the visit, " +
+                  "reassuring), and opening job selection. Still run the Day 1 guide lab for the cards and pins on screen.");
     }
 
     private static void CheckHintTiming()
     {
+        var full = DayOneHintTimer.Look.Full;
+        var compact = DayOneHintTimer.Look.Compact;
+        var hidden = DayOneHintTimer.Look.Hidden;
         var timer = new DayOneHintTimer();
-        Require(!timer.IsVisible(0f), "No hint before the first action.");
-        Require(timer.Observe("drink:cup", 10f, 6f), "A new action starts a toast.");
-        Require(timer.IsVisible(15.99f), "Hint remains visible for six seconds.");
-        Require(!timer.Observe("drink:cup", 15.99f, 6f), "Polling cannot restart the timer.");
-        Require(!timer.IsVisible(16f), "Hint disappears at six seconds.");
-        Require(!timer.Observe("drink:cup", 50f, 6f) && !timer.IsVisible(50f), "Expired hint cannot repeat.");
-        Require(timer.Observe("drink:brew", 51f, 6f), "Next action gets its own hint.");
-        Require(!timer.Observe("drink:cup", 52f, 6f) && !timer.IsVisible(52f), "Returning to an old action clears stale text without replay.");
-        Require(timer.Observe("drink:serve", 60f, 6f), "Delivery is a new action.");
+        Require(!timer.IsVisible(0f), "No card before the first step.");
+        Require(timer.Observe("talk", 10f, 6f), "A new step starts a card.");
+        Require(timer.LookAt(15.99f) == full, "In full for six seconds.");
+        Require(!timer.Observe("talk", 15.99f, 6f), "Polling the same step changes nothing.");
+        Require(timer.LookAt(16f) == compact && timer.IsVisible(16f), "Then compact: it stays on screen until the step is done.");
+        Require(timer.LookAt(25.99f) == compact && !timer.Reminding(25.99f), "Compact while the player gets on with it.");
+        Require(timer.LookAt(26f) == full && timer.Reminding(26f) && timer.PulseAt(26.3f) > .5f,
+            "Stuck ten seconds more: back in full, with one pulse.");
+        Require(timer.PulseAt(26.7f) == 0f && timer.LookAt(60f) == full, "One pulse only; then it stays in full.");
+        Require(timer.Observe("carry", 61f, 6f) && timer.LookAt(61f) == full, "The next step gets its own card, in full.");
+        Require(timer.Observe("talk", 62f, 6f) && timer.LookAt(62f) == compact, "Going back to a step seen before: it comes back compact.");
+        Require(timer.LookAt(72f) == full && timer.Reminding(72f), "...and in full again if it's stuck there.");
         timer.Dismiss();
-        Require(!timer.IsVisible(61f), "Conversation/disable dismisses immediately.");
-        Require(!timer.Observe("drink:serve", 62f, 6f) && !timer.IsVisible(62f), "Closing dialogue does not replay the old toast.");
-        Require(timer.Observe("repair:cup", 70f, 6f), "Separate lesson may teach the same action.");
+        Require(!timer.IsVisible(73f), "A conversation dismisses the card at once.");
+        Require(timer.Observe("talk", 74f, 6f) && timer.LookAt(74f) == compact, "After the conversation the same step comes back, compact.");
+        Require(timer.Observe("wait", 80f, 6f, DayOneHintTimer.Kind.Wait) && timer.LookAt(86f) == compact
+                && timer.LookAt(200f) == compact && !timer.Reminding(200f), "A waiting card settles and never pulses.");
+        Require(timer.Observe("over", 210f, 6f, DayOneHintTimer.Kind.Note) && timer.LookAt(215.99f) == full && timer.LookAt(216f) == hidden,
+            "A note shows for its time, then goes.");
+        Require(!timer.Observe("over", 220f, 6f, DayOneHintTimer.Kind.Note) && !timer.IsVisible(220f), "A note never comes back.");
+        Require(timer.Observe("custom", 230f, 7f) && timer.LookAt(236.99f) == full && timer.LookAt(237f) == compact, "A seven-second setting is honoured.");
+        Require(timer.Observe("short", 240f, 1f) && timer.LookAt(242.99f) == full && timer.LookAt(243f) == compact, "Durations are kept within 3-10 s.");
         timer.Reset();
-        Require(!timer.IsVisible(70f), "Reset hides the current hint.");
-        Require(timer.Observe("custom", 80f, 7f), "A custom duration can start a toast.");
-        Require(timer.IsVisible(86.99f) && !timer.IsVisible(87f), "A seven-second setting is honored.");
-        timer.Reset();
-        Require(timer.Observe("drink:cup", 90f, 6f), "Fresh run can show hints again.");
-        Require(!timer.Observe("", 91f, 6f) && !timer.IsVisible(91f), "Empty action hides the panel.");
+        Require(!timer.IsVisible(250f) && timer.Observe("talk", 250f, 6f) && timer.LookAt(250f) == full, "A fresh day shows every step in full again.");
+        Require(!timer.Observe("", 251f, 6f) && !timer.IsVisible(251f), "An empty step hides the card.");
     }
 
     private static void CheckSequence()
@@ -98,6 +121,37 @@ public static class DayOneOnboardingChecks
         Require(lesson.Current == DayOneOpening.Step.Drink && !lesson.VisitInProgress, "Fresh Day 1 restarts cleanly.");
     }
 
+    // The Day 1 the café scene plays: its spawner's schedule[0] (Day_01_GraceCamera since the Grace showcase; the first-hour
+    // playtester found this check testing Day_01_LearnTheShop, which the scene doesn't schedule).
+    private static string CheckScheduledDayOne()
+    {
+        CustomerSpawner spawner = UnityEngine.Object.FindAnyObjectByType<CustomerSpawner>(FindObjectsInactive.Include);
+        Require(spawner != null, "The café scene is open: this check reads its spawner's schedule (open AcesCafeLayoutPlaytest first).");
+        var serialized = new SerializedObject(spawner);
+        SerializedProperty schedule = serialized.FindProperty("schedule");
+        Require(schedule != null && schedule.isArray && schedule.arraySize > 0, "The scene's spawner has a schedule.");
+        DayDefinition first = schedule.GetArrayElementAtIndex(0).objectReferenceValue as DayDefinition;
+        Require(first != null, "The schedule's first day is set.");
+        string path = AssetDatabase.GetAssetPath(first);
+        Require(first.dayNumber == 1, path + " (the scene's first day) is Day 1.");
+        Require(first.GuidesOpeningOn(1) || first.GuidesFeaturedVisitOn(1), path + " guides its first day (the opening lesson or its featured visit).");
+        Require(first.openingHintDuration >= 3f && first.openingHintDuration <= 10f, path + ": a card is in full for 3-10 s before it settles.");
+        if (first.GuidesFeaturedVisitOn(1))
+        {
+            Require(!first.GuidesFeaturedVisitOn(2), path + ": its featured hints don't repeat on a later day.");
+            string name = first.featuredRegular.characterName;
+            string card = DayOneGuideUI.FirstCard(name, true);
+            Require(card.StartsWith("You're Ace.") && card.Contains(name) && card.Length <= 90,
+                $"{path}: the first card says who you are and who is coming (\"{card}\", {card.Length} characters).");
+        }
+        // Whoever else comes in on a story visit that day is guided too (the Officer's coffee): said, for the report.
+        foreach (StoryVisit visit in first.StoryVisitsOn(1))
+            if (visit != null && visit.who != null)
+                Debug.Log($"[Day 1 onboarding] {path}: {visit.who.characterName} comes in too (a {visit.who.primaryVisitKind} visit" +
+                          $"{(visit.who.preferredDrink != null ? ", " + visit.who.preferredDrink.drinkName : "")}); the guide's cards follow it.");
+        return path;
+    }
+
     private static void CheckFeaturedHints()
     {
         string[] paths = { "Assets/GraceShowcase/Day_01_GraceCamera.asset", "Assets/GraceShowcase/Day_02_GraceReturn.asset" };
@@ -108,6 +162,7 @@ public static class DayOneOnboardingChecks
             Require(!day.guidedOpening, "Featured hints do not restore the old opening sequence.");
             Require(!day.GuidesFeaturedVisitOn(day.dayNumber + 1), "Repeating a day asset cannot repeat its featured hints.");
         }
+        CustomerProfile grace = AssetDatabase.LoadAssetAtPath<DayDefinition>(paths[0]).featuredRegular;
         var defaults = ScriptableObject.CreateInstance<DayDefinition>();
         var host = new GameObject("Temporary featured hint check") { hideFlags = HideFlags.HideAndDontSave };
         host.SetActive(false);
@@ -115,13 +170,21 @@ public static class DayOneOnboardingChecks
         {
             Require(!defaults.showFeaturedVisitHints && !defaults.GuidesFeaturedVisitOn(1), "Unconfigured days remain opt-out.");
             var guide = host.AddComponent<DayOneGuideUI>();
+            MethodInfo featuredAction = typeof(DayOneGuideUI).GetMethod("FeaturedAction", PrivateInstance);
+
+            // Before Grace comes in on Day 1: who you are, and who is coming (no Ace here, so "go behind the counter").
+            typeof(DayOneGuideUI).GetField("hintDay", PrivateInstance).SetValue(guide, 1);
+            string welcome = (string)featuredAction.Invoke(guide, new object[] { null, grace });
+            Require(welcome == DayOneGuideUI.FirstCard(grace.characterName, false),
+                $"Day 1's first card, before Grace comes in, names Ace (\"{welcome}\").");
+            typeof(DayOneGuideUI).GetField("hintDay", PrivateInstance).SetValue(guide, -1);
+
             var customer = host.AddComponent<CustomerBrain>();
             typeof(CustomerBrain).GetField("wasAccepted", PrivateInstance).SetValue(customer, true);
             typeof(CustomerBrain).GetField("repairReturned", PrivateInstance).SetValue(customer, true);
             typeof(CustomerBrain).GetField("drinkOrdered", PrivateInstance).SetValue(customer, true);
-            string next = (string)typeof(DayOneGuideUI).GetMethod("FeaturedAction", PrivateInstance)
-                .Invoke(guide, new object[] { customer, null });
-            Require(next.StartsWith("Repair returned.") && !next.Contains("intake shelf"),
+            string next = (string)featuredAction.Invoke(guide, new object[] { customer, null });
+            Require(next.StartsWith("Repair returned.") && !next.Contains("intake"),
                 "Returning the repair cannot hide an outstanding drink behind a missing-item hint.");
             var job = host.AddComponent<RepairJob>();
             var inspector = host.AddComponent<ItemInspector>();
@@ -140,9 +203,39 @@ public static class DayOneOnboardingChecks
         }
     }
 
+    // The cards' words, read from DayOneGuideUI (where the cards get them): short, true, and in the player's words.
+    private static void CheckWords()
+    {
+        string there = DayOneGuideUI.FirstCard("Grace", true), away = DayOneGuideUI.FirstCard("Grace", false);
+        Require(there.StartsWith("You're Ace.") && there.Contains("Grace") && !there.Contains("behind the counter") && there.Length <= 90,
+            $"Behind the counter already, the first card doesn't send Ace there (\"{there}\").");
+        Require(away.StartsWith("You're Ace.") && away.Contains("behind the counter") && away.Length <= 90,
+            $"Elsewhere, it does (\"{away}\").");
+        string over = DayOneGuideUI.VisitOver("Grace", 0), open = DayOneGuideUI.VisitOver("Grace", 2);
+        Require(!over.Contains("request") && !over.Contains("order") && over.Length <= 90,
+            $"With nothing open, the card after the visit says nothing about requests (\"{over}\").");
+        Require(open.Contains("open orders") && open.Length <= 90, $"With orders open, it says to finish them (\"{open}\").");
+        string tray = DayOneGuideUI.PickUpFromTray("Grace", "reunion film camera");
+        Require(tray.Contains("intake tray") && !tray.Contains("shelf") && tray.StartsWith("Press E") && tray.Length <= 90,
+            $"The device waits on the intake tray (\"{tray}\").");
+        string calm = DayOneGuideUI.ReassureWords("Walter");
+        Require(calm.Contains("Walter") && calm.Contains("press E") && calm.Length <= 90, $"The impatience card says how to reassure (\"{calm}\").");
+        Require(DayOneGuideUI.TalkWords("the Officer", false, true).Contains("E takes the order")
+                && DayOneGuideUI.TalkWords("Grace", false, false).Contains("E takes the job")
+                && DayOneGuideUI.TalkWords("Grace", true, false).StartsWith("Look at Grace."),
+            "Talking takes the job (or the order, for a drink), in the words of the view in use.");
+        Require(DayOneGuideUI.Possessive("Grace") == "Grace's" && DayOneGuideUI.Possessive("the Officer") == "the Officer's"
+                && DayOneGuideUI.Possessive("Agnes") == "Agnes'", "Names take their possessive.");
+        Require(FocusNameUI.BenchName == "Repair bench" && FocusNameUI.TrayName == "Intake tray" && FocusNameUI.DrinksName == "Drinks",
+            "The stations' names are words a player knows.");
+    }
+
     private static DayDefinition DayOne() =>
         AssetDatabase.LoadAssetAtPath<DayDefinition>(DayFolder + "Day_01_LearnTheShop.asset");
 
+    // The built lesson (Day_01_LearnTheShop: one drink, then one repair). The scene schedules the Grace showcase instead
+    // (CheckScheduledDayOne), but the lesson stays built and correct. Its arrival time, patience and cap are the Systems
+    // lead's numbers (not asserted here any more).
     private static void CheckDefinitions()
     {
         DayDefinition first = DayOne();
@@ -150,9 +243,8 @@ public static class DayOneOnboardingChecks
         Require(first.GuidesOpeningOn(1) && first.SuppressesRepairDrinksOn(1), "Day 1 opts in.");
         Require(!first.GuidesOpeningOn(2) && !first.SuppressesRepairDrinksOn(2), "Repeating Day 1 cannot leak rules to Day 2.");
         Require(first.openingDrink != null && first.openingDrink.drinkName == "Coffee", "First drink is Coffee.");
-        Require(Mathf.Approximately(first.openingHintDuration, 6f), "Day 1 hints default to six seconds.");
-        Require(first.maxCustomers == 3 && Mathf.Approximately(first.patienceMultiplier, 1.4f), "Original cap and patience retained.");
-        Require(first.featuredRegular != null && Mathf.Approximately(first.featuredRegularArrivesAt, 0.55f), "Featured visit and 55% timing retained.");
+        Require(Mathf.Approximately(first.openingHintDuration, 6f), "Day 1's cards are in full for six seconds before they settle.");
+        Require(first.featuredRegular != null, "Featured visit retained.");
         Require(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(first.featuredRegular))
                 == "dfd14ad338d46de49bd81a423294b439", "Featured profile is still Grace.");
         Require(first.devices != null && first.devices.Length > 0 && first.devices[0] != null, "Day 1 has a repair prefab.");

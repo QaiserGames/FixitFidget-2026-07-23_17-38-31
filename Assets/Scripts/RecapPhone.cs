@@ -16,16 +16,22 @@ using Object = UnityEngine.Object;
 // 6 Oct 2026, claude/playtest-3-notes-and-plan.md §5.3: "WAYYY too many words"), with four apps behind a tap:
 //
 //   Tonight    the closing screen, no scrolling, no tab bar: the day and its takings (counting up), the café's stars
-//              (and a new one), how many reviews and what they did; the three review lines worth reading (the best,
-//              the worst, a regular's: ReputationLedger.PickCards); one line of notebook (today's newest fact, his
-//              pages first, under whose it is, as a review line is under its name); a low-stock line only when true;
-//              Close up for the night; and under it "More", which opens the apps (and says how many notes are new; the
-//              low stock is already on the screen). At most WordBudget.ClosingScreen words before the review lines
-//              (the check counts).
-//   Reviews    today's takings on a dark card (the day's full numbers behind Details, and a failed
-//              save in red), a summary with five bars, and every review of the day as a card, newest
-//              first: an avatar, the name, 1-5 stars, "today" and the line. No average anywhere, so
-//              "stars" still only ever means the café's (Franchise).
+//              (and a new one, or how much is still needed for the first), how many reviews and what they did; the
+//              three review lines worth reading (the best, the worst, a regular's: ReputationLedger.PickCards), each
+//              with its verdict; one line of notebook (today's newest fact, his pages first, under whose it is, as a
+//              review line is under its name); a low-stock line only when true; Close up for the night; and under it
+//              "More", which opens the apps (and says how many notes are new; the low stock is already on the screen).
+//              At most WordBudget.ClosingScreen words before the review lines (the check counts).
+//   Reviews    today's takings on a dark card (what your own work earned and what the café's guests paid, the day's
+//              full numbers behind Details, and a failed save in red), a summary with a bar for each verdict, and
+//              every review of the day as a card, newest first: an avatar, the name, its verdict, "today" and the
+//              line. No average anywhere, so "stars" only ever means the café's (Franchise).
+//
+// PLAYTEST 4 (10 Oct 2026). A review says its verdict in the game's own words, each in its own colour ("Loved it",
+// "Liked it", "Fine", "Let down", "Never again": the reputation spec §3 and §10.2, decided 25 Sept: "Reviews are verdicts
+// shown as faces, not stars, so 'stars' only ever means the café"); playtest 3's phone had drifted to 1-5 stars a review.
+// Under the café's stars, "3 to your first star" instead of "no stars yet" (the first hour, Day 5: nothing said what earns
+// one). The takings say what your work earned apart from the café's guests, who pay without a pop now.
 //   Franchise  the café's stars, its level, the bar to the next star, HQ's requests, and what changed
 //              today (with one line about the day's worst kind of review).
 //   Shop       what the café has (cups and beans, low under 10), the restock and the upgrades. Buying
@@ -57,8 +63,8 @@ using Object = UnityEngine.Object;
 // this phone in another mode, so it looks, scrolls and steers the same, with fewer apps:
 //
 //   Today      (by day; the Reviews tab, renamed) today so far on the dark card: the takings, what's in the till (the
-//              HUD shows only today's), the café's stars and the time; then the reviews as they come in (the
-//              reputation's live cards), newest first.
+//              HUD shows only today's), the café's stars (and what's still needed for the first, today's reviews counted
+//              in) and the time; then the reviews as they come in (the reputation's live cards), newest first.
 //   Notes      the notebook, as at closing.
 //   Settings   sound, controls and picture (GameSettings), and Quit, which says plainly that the day so far isn't kept.
 //
@@ -944,7 +950,8 @@ public sealed class RecapPhone : MonoBehaviour
         }
         else
         {
-            TMP_Text count = Counted(Words(card, stars == 0 ? "no stars yet" : stars == 1 ? "1 star" : stars + " stars", 0f, 0f, 0f, 15f, DarkFaint,
+            // Before the first star, how much reputation it still needs (playtest 4: "no stars yet" said nothing about it).
+            TMP_Text count = Counted(Words(card, StarsLine(stars, rep != null ? rep.Reputation : 0), 0f, 0f, 0f, 15f, DarkFaint,
                 wrap: false, rich: false));
             Place(count.rectTransform, right - count.rectTransform.sizeDelta.x, underStars, count.rectTransform.sizeDelta.x, count.rectTransform.sizeDelta.y);
             underStars = Bottom(count.rectTransform);
@@ -965,7 +972,7 @@ public sealed class RecapPhone : MonoBehaviour
         return y + card.sizeDelta.y + CardGap;
     }
 
-    // One review worth reading: the avatar, the name and its stars on one row, the line under them.
+    // One review worth reading: the avatar, the name and its verdict on one row, the line under them.
     float ReviewLine(float y, ReviewCard review)
     {
         RectTransform card = CardBox("Review line", y);
@@ -973,13 +980,13 @@ public sealed class RecapPhone : MonoBehaviour
         float x = CardPadX + 44f, width = ContentWidth - x - CardPadX;
         TMP_Text name = Words(card, review.name, x, 10f, 0f, 15.5f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         float nameWidth = name.rectTransform.sizeDelta.x;
-        if (nameWidth > width - 5f * 16f - 10f)
+        if (nameWidth > width - VerdictRoom - 10f)
         {
             Object.Destroy(name.gameObject);
-            name = Words(card, review.name, x, 10f, width - 5f * 16f - 10f, 15.5f, Ink, style: FontStyles.Bold, rich: false);
+            name = Words(card, review.name, x, 10f, width - VerdictRoom - 10f, 15.5f, Ink, style: FontStyles.Bold, rich: false);
             nameWidth = name.rectTransform.sizeDelta.x;
         }
-        Stars(card, x + nameWidth + 8f, 10f + name.rectTransform.sizeDelta.y / 2f - 6.5f, 13f, 3f, review.Stars);
+        Verdict(card, review.review, x + nameWidth + 8f, 10f + name.rectTransform.sizeDelta.y / 2f, 13f);
         TMP_Text line = Words(card, review.line, x, Bottom(name.rectTransform) + 2f, width, 15.5f, Soft, rich: false);
         return FinishCard(card, Mathf.Max(12f + 32f, Bottom(line.rectTransform)) + 11f, y);
     }
@@ -1125,6 +1132,10 @@ public sealed class RecapPhone : MonoBehaviour
         Button details = Pill(card, DetailsOpen ? "Hide details" : "Details", right, Bottom(money.rectTransform) + 3f, 14f,
             DarkLine, DarkText, "details", ToggleDetails, true);
         float bottom = Mathf.Max(Bottom(earned.rectTransform), Bottom((RectTransform)details.transform));
+        // What the player's own work earned, apart from the café's guests (they pay at the tables without a pop now).
+        string split = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome) : "";
+        if (split.Length > 0)
+            bottom = Bottom(Words(card, split, CardPadX, bottom + 6f, ContentWidth - 2f * CardPadX, 15f, DarkFaint, rich: false).rectTransform);
         if (DetailsOpen && clock != null) bottom = DetailsList(card, clock, bottom + 11f);
         string error = SaveManager.Instance != null ? SaveManager.Instance.LastSaveError : "";
         if (!string.IsNullOrEmpty(error))
@@ -1151,7 +1162,7 @@ public sealed class RecapPhone : MonoBehaviour
         Row("Customers lost", c.Lost.ToString());
         Row("Turned away", c.Declined.ToString());
         Row("Orders completed", c.Served.ToString());
-        Row("Café walk-ins", "$" + c.PatronIncome);
+        Row("Café guests", "$" + c.PatronIncome);
         Row("Repairs completed", c.Repairs.ToString());
         Row("      Perfect", c.Perfect.ToString());
         Row("      Good", c.Good.ToString());
@@ -1165,7 +1176,7 @@ public sealed class RecapPhone : MonoBehaviour
         return Mathf.Max(Bottom(left.rectTransform), Bottom(right.rectTransform));
     }
 
-    // How many reviews, the reputation they made, and a bar for each number of stars.
+    // How many reviews, the reputation they made, and a bar for each verdict, best first, in its colour.
     float SummaryCard(float y, ReputationLedger rep)
     {
         RectTransform card = CardBox("Summary", y);
@@ -1176,22 +1187,24 @@ public sealed class RecapPhone : MonoBehaviour
             Tag(card, ReputationRecap.Signed(rep.TodayChange) + " reputation", CardPadX + heading.rectTransform.sizeDelta.x + 8f,
                 13f + heading.rectTransform.sizeDelta.y / 2f, AccentSoft, Accent);
         float cy = Bottom(heading.rectTransform) + 8f;
-        float trackX = CardPadX + 22f, trackWidth = ContentWidth - 2f * CardPadX - 22f - 36f;
-        for (int stars = 5; stars >= 1; stars--)
+        const float labelWidth = 92f;
+        float trackX = CardPadX + labelWidth + 6f, trackWidth = ContentWidth - 2f * CardPadX - labelWidth - 6f - 36f;
+        foreach (Review verdict in VerdictOrder)
         {
-            int count = rep != null ? rep.Count((Review)stars) : 0;
-            TMP_Text label = Words(card, stars.ToString(), CardPadX, cy, 18f, 15f, Soft, rich: false);
+            int count = rep != null ? rep.Count(verdict) : 0;
+            VerdictColours(verdict, out _, out Color strong);
+            TMP_Text label = Words(card, VerdictWord(verdict), CardPadX, cy, labelWidth, 15f, Soft, wrap: false, rich: false);
             float row = label.rectTransform.sizeDelta.y, barTop = cy + row / 2f - 5f;
             Paint(Box("Bar", card, trackX, barTop, trackWidth, 10f), Track, 5f);
             if (count > 0 && total > 0)
-                Paint(Box("Share", card, trackX, barTop, Mathf.Max(10f, trackWidth * count / total), 10f), Gold, 5f);
+                Paint(Box("Share", card, trackX, barTop, Mathf.Max(10f, trackWidth * count / total), 10f), strong, 5f);
             Words(card, count.ToString(), trackX + trackWidth, cy, 36f, 15f, Soft, TextAlignmentOptions.TopRight, rich: false);
             cy += row + 3f;
         }
         return FinishCard(card, cy + 10f, y);
     }
 
-    // One review: an avatar with the initial, the name (and "regular"), 1-5 stars, "today", the line.
+    // One review: an avatar with the initial, the name (and "regular"), its verdict, "today", the line.
     float ReviewCardView(float y, ReviewCard review)
     {
         RectTransform card = CardBox("Review", y);
@@ -1200,14 +1213,76 @@ public sealed class RecapPhone : MonoBehaviour
         TMP_Text name = Words(card, review.name, x, 12f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         if (review.regular)
             Tag(card, "regular", x + name.rectTransform.sizeDelta.x + 8f, 12f + name.rectTransform.sizeDelta.y / 2f, AccentSoft, Accent);
-        float starsTop = Bottom(name.rectTransform) + 3f;
-        Stars(card, x, starsTop, 17f, 3f, review.Stars);
+        float verdictTop = Bottom(name.rectTransform) + 3f;
+        RectTransform pill = Verdict(card, review.review, x, verdictTop + 11f, 14f);
         TMP_Text when = Words(card, "today", 0f, 0f, 0f, 15f, Faint, wrap: false, rich: false);
         Vector2 whenSize = when.rectTransform.sizeDelta;
-        Place(when.rectTransform, x + 5f * 20f + 4f, starsTop + 8.5f - whenSize.y / 2f, whenSize.x, whenSize.y);
-        TMP_Text line = Words(card, review.line, x, starsTop + 17f + 6f, width, 18f, Ink, rich: false);
+        Place(when.rectTransform, x + pill.sizeDelta.x + 8f, verdictTop + 11f - whenSize.y / 2f, whenSize.x, whenSize.y);
+        TMP_Text line = Words(card, review.line, x, verdictTop + 22f + 6f, width, 18f, Ink, rich: false);
         return FinishCard(card, Mathf.Max(14f + 40f, Bottom(line.rectTransform)) + 14f, y);
     }
+
+    // ------------------------------------------------------------------ the verdicts (playtest 4)
+
+    /// <summary>The verdicts, best first: the reputation spec's order (§3: Loved it +2, Liked it +1, Fine 0, Let down -1,
+    /// Never again -2).</summary>
+    public static readonly Review[] VerdictOrder = { Review.LovedIt, Review.LikedIt, Review.Fine, Review.LetDown, Review.NeverAgain };
+
+    /// <summary>A review's verdict as the phone says it: the game's own words (ReputationRules.Label).</summary>
+    public static string VerdictWord(Review review) => ReputationRules.Label(review);
+
+    // A verdict's pill: wide enough for the widest word ("Never again") at the line's size.
+    const float VerdictRoom = 96f;
+
+    // Each verdict in its own colour (the reputation spec §12: "Verdicts are words for now, each in its own colour"): its
+    // soft colour behind, its strong colour for the word and for its bar.
+    static void VerdictColours(Review review, out Color back, out Color ink)
+    {
+        switch (review)
+        {
+            case Review.LovedIt: back = GreenSoft; ink = Green; break;
+            case Review.LikedIt: back = Hex(0xe7f1d6); ink = Hex(0x5a7d2c); break;
+            case Review.LetDown: back = AccentSoft; ink = Accent; break;
+            case Review.NeverAgain: back = UiSkin.RedSoft; ink = Red; break;
+            default: back = Track; ink = Soft; break;   // Fine, and no review
+        }
+    }
+
+    // A verdict, in words and its colour, as a pill whose left edge is at x, centred on centreY.
+    RectTransform Verdict(RectTransform card, Review review, float x, float centreY, float size)
+    {
+        VerdictColours(review, out Color back, out Color ink);
+        RectTransform pill = Tag(card, VerdictWord(review), x, centreY, back, ink, size);
+        pill.name = "Verdict";
+        return pill;
+    }
+
+    /// <summary>
+    /// Under the café's stars: before the first star, the reputation it still needs ("3 to your first star"; playtest 4: "no
+    /// stars yet" said nothing about what earns one); after it, how many ("1 star", "2 stars").
+    /// </summary>
+    public static string StarsLine(int stars, int reputation)
+    {
+        stars = Mathf.Clamp(stars, 0, ReputationRules.MaxStars);
+        if (stars == 0) return $"{Mathf.Max(1, ReputationRules.NextThreshold(0) - Mathf.Max(0, reputation))} to your first star";
+        return stars == 1 ? "1 star" : stars + " stars";
+    }
+
+    /// <summary>The same by day (the phone's Today), with today's reviews counted in as they will be at closing: "a new star
+    /// at closing" once they reach the next one.</summary>
+    public static string LiveStarsLine(ReputationLedger rep)
+    {
+        if (rep == null) return StarsLine(0, 0);
+        int stars = Mathf.Clamp(rep.StarsEarned, 0, ReputationRules.MaxStars);
+        int projected = Mathf.Max(0, rep.Settled ? rep.Reputation : rep.Reputation + rep.TodayChange);
+        int next = ReputationRules.NextThreshold(stars);
+        if (next >= 0 && !rep.Settled && projected >= next) return "a new star at closing";
+        return StarsLine(stars, projected);
+    }
+
+    /// <summary>"$132 from your work · $10 from café guests" when the café's guests paid today; "" when they didn't.</summary>
+    public static string TakingsSplit(int earned, int patronIncome) =>
+        patronIncome <= 0 ? "" : $"${Mathf.Max(0, earned - patronIncome)} from your work · ${patronIncome} from café guests";
 
     // ------------------------------------------------------------------ Franchise
 
@@ -1547,12 +1622,14 @@ public sealed class RecapPhone : MonoBehaviour
         float starsWidth = 5f * starSize + 4f * starGap;
         int stars = rep != null ? Mathf.Clamp(rep.StarsEarned, 0, ReputationRules.MaxStars) : 0;
         Stars(card, right - starsWidth, top + 8f, starSize, starGap, stars, dark: true);
-        TMP_Text count = Words(card, stars == 0 ? "no stars yet" : stars == 1 ? "1 star" : stars + " stars", 0f, 0f, 0f, 15f, DarkFaint,
-            wrap: false, rich: false);
+        TMP_Text count = Words(card, LiveStarsLine(rep), 0f, 0f, 0f, 15f, DarkFaint, wrap: false, rich: false);
         Vector2 countSize = count.rectTransform.sizeDelta;
         Place(count.rectTransform, right - countSize.x, top + 8f + starSize + 7f, countSize.x, countSize.y);
 
         float cy = Mathf.Max(Bottom(label.rectTransform), Bottom(count.rectTransform)) + 12f;
+        // What the player's own work earned, apart from the café's guests (they pay at the tables without a pop now).
+        string split = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome) : "";
+        if (split.Length > 0) cy = Bottom(Words(card, split, CardPadX, cy - 6f, width, 15f, DarkFaint, rich: false).rectTransform) + 12f;
         Paint(Box("Rule", card, CardPadX, cy, width, 1f), DarkLine, 0f);
         cy += 10f;
         int till = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;

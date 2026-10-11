@@ -31,7 +31,12 @@ public class ShopUI : MonoBehaviour
                 shownCups = int.MinValue, shownBeans = int.MinValue, shownNightMinute = int.MinValue;
     private bool shownOpen, shownCafeTime, shownNightClock;
     private string shownHint, shownHintBase, shownNightPrompt, shownPromptLine, shownInteract, shownAction, shownToolName;
-    private bool shownHintNight, shownPromptPad, shownPromptHolding, shownPromptDebug, shownPromptHand;
+    private bool shownHintNight, shownPromptPad, shownPromptHolding, shownPromptDebug, shownPromptHand, shownHintWalk;
+
+    /// <summary>The controls strip at the bottom middle, as it reads now (labs).</summary>
+    public string ViewHint => shownHint ?? "";
+    /// <summary>The prompt line, as it reads now (labs).</summary>
+    public string PromptLine => shownPromptLine ?? "";
 
     // ONE UI SKIN AND THE HUD'S CORNERS (playtest 3, session 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §3)
     // By day the corners (HudCorners) carry what the money, the clock and the stock lines used to: today's takings as a cash
@@ -49,6 +54,8 @@ public class ShopUI : MonoBehaviour
         DayOneGuideUI guide = GetComponent<DayOneGuideUI>();
         if (guide == null) guide = gameObject.AddComponent<DayOneGuideUI>();
         guide.Initialize(promptText, interactor, inspector, conversation, recapPanel);
+        // The names, the patience bars and Day 1's pins over the café (playtest 4): made now, so the first frame has them.
+        UiPins.Ensure();
         Skin();
         // The corners need the day's clock; a scene without one keeps the old lines.
         if (DayClock.Instance != null || FindAnyObjectByType<DayClock>() != null)
@@ -115,6 +122,22 @@ public class ShopUI : MonoBehaviour
     private static readonly string KeyColour = UiSkin.HexOf(UiSkin.BrandBright);
     private static string Key(string label) => $"<color={KeyColour}>[{label}]</color>";
 
+    // AT THE BENCH WITH A MOUSE (playtest 4; the first hour: with a mouse the close-up said only "[E] Pick up item and step
+    // back", the tools line was a pad's alone). The real bindings (ItemInspector.HandleBench): a click on a tool in the caddy
+    // takes it; with bare hands a drag that starts off the parts turns the device and R flips it; a held click uses the tool
+    // in hand; right-click puts the tool down (with bare hands, the item: the close-up ends).
+    private static string MouseToolsLine(string toolName, bool hand) => hand || string.IsNullOrEmpty(toolName)
+        ? $"{Key("Click a tool")}  Take it        {Key("Drag")}  Turn it        {Key(ControlHints.Flip)}  Flip it        {Key(ControlHints.Cancel)}  Put item down"
+        : $"{Key("Hold click")}  Use the {toolName.ToLowerInvariant()}        {Key("Click a tool")}  Swap        {Key(ControlHints.Cancel)}  Put tool down";
+
+    // DAY 1'S FIRST STEPS (playtest 4; the first hour: "Nothing anywhere says how to move"): how to walk and use, at the
+    // front of the controls strip, the keys in the brand's light green, until Ace has walked a few metres and used E once.
+    private static string MovementWords()
+    {
+        string walk = PadInput.UsingPad ? "Left stick" : "WASD";
+        return $"<color={KeyColour}>{walk}</color>  Move    <color={KeyColour}>{ControlHints.Interact}</color>  Use    ";
+    }
+
     private void Update()
     {
         // The recap owns the screen — hide the in-game HUD behind it (the recap phone, or the old panel).
@@ -135,12 +158,14 @@ public class ShopUI : MonoBehaviour
             {
                 string hintBase = viewMode.ControlsHint;   // built by the view only when its state changes
                 bool atNight = night != null;
-                if (!ReferenceEquals(hintBase, shownHintBase) && hintBase != shownHintBase || atNight != shownHintNight)
+                // Day 1, until Ace has walked a few metres and used E (DayOneGuideUI): how to walk and use, first.
+                bool walk = !atNight && DayOneGuideUI.MovementHintWanted;
+                if (!ReferenceEquals(hintBase, shownHintBase) && hintBase != shownHintBase || atNight != shownHintNight || walk != shownHintWalk)
                 {
-                    shownHintBase = hintBase; shownHintNight = atNight;
+                    shownHintBase = hintBase; shownHintNight = atNight; shownHintWalk = walk;
                     shownHint = atNight
                         ? hintBase + $"    {ControlHints.Sneak}  Sneak    {ControlHints.Torch}  Torch    {ControlHints.NotebookPage}  Notebook"
-                        : hintBase;
+                        : walk ? MovementWords() + hintBase : hintBase;
                     viewHintText.text = shownHint;
                 }
             }
@@ -252,7 +277,8 @@ public class ShopUI : MonoBehaviour
         // to step up to by day any more (playtest 3), so F has no line.
         string action = interactor.WorkPrompt;
         bool pad = PadInput.UsingPad;
-        bool holding = pad && inspector != null && inspector.IsHoldingItem;
+        // At the bench: the tools line, on a pad and (playtest 4) with a mouse too.
+        bool holding = inspector != null && inspector.IsHoldingItem;
         string toolName = holding ? inspector.CurrentToolName : null;
         bool hand = holding && inspector.CurrentTool == ToolType.Hand;
         // What's in hand, named, over the prompt (8 Oct: from above you couldn't tell you'd picked a phone up).
@@ -271,10 +297,12 @@ public class ShopUI : MonoBehaviour
             if (!string.IsNullOrEmpty(interact)) line += $"{Key(ControlHints.Interact)}  {interact}";
             if (!string.IsNullOrEmpty(action))
                 line += (line.Length > 0 ? "        " : "") + $"{Key(ControlHints.Use)}  {action}";
-            // Working on an item with a controller: say how to change tools and put things down.
+            // Working on an item: say how to change tools and put things down (a controller's buttons, or the mouse's).
             if (holding)
-                line += $"\n<size=80%>{Key(ControlHints.Tools)}  {toolName}        {Key(ControlHints.Use)}  Use        {Key(ControlHints.Back)}  "
-                    + (!hand ? "Put tool down" : "Put item down") + "</size>";
+                line += pad
+                    ? $"\n<size=80%>{Key(ControlHints.Tools)}  {toolName}        {Key(ControlHints.Use)}  Use        {Key(ControlHints.Back)}  "
+                        + (!hand ? "Put tool down" : "Put item down") + "</size>"
+                    : $"\n<size=80%>{MouseToolsLine(toolName, hand)}</size>";
 
             if (showDebug)
                 line += "\n" + interactor.DebugInfo;

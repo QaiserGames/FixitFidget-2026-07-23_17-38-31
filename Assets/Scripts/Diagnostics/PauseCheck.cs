@@ -20,6 +20,9 @@ using UnityEngine.UI;
 // change the settings and are put back, Quit asking again (never pressed twice), the phone refusing to come up over a
 // close-up (Esc steps out of the close-up first), and the HUD's corners (the takings, the sign's three faces, the tabs,
 // a low-stock chip). Photos of each, for the look. The lab's own save; your playtest save is not used.
+//
+// Playtest 4 (10 Oct 2026): the clock line under the sign keeps the day and the time apart on every weekday; Today says
+// what the café's next star needs (not "no stars yet") and what Ace's work earned apart from the café's guests.
 // ---------------------------------------------------------------------------
 public sealed class PauseCheck : PlayLab
 {
@@ -74,6 +77,17 @@ public sealed class PauseCheck : PlayLab
         Check(corners.Showing && corners.BottomShowing, "the corners are up by day: today's takings top right, the sign bottom left");
         Check(corners.SignWord == "OPEN" && !corners.LastOrders && !corners.SignClosed, $"the sign reads {corners.SignWord}");
         Check(corners.ClockLine.Contains(Weekdays.Label(clock.Day)), $"under it, the day and the time: \"{corners.ClockLine}\"");
+        // Playtest 4 (the first hour: "Wednesday · Day 3 9:09 AM" ran together): the day and the time keep apart, measured
+        // with the time at its widest, on today's line and on every weekday's (a long day number too).
+        Check(corners.ClockGap >= 10f, $"...with room between them ({corners.ClockGap:0} px with the time at its widest, at {corners.ClockLineSize:0.#} px)");
+        float least = float.MaxValue;
+        string tightest = "";
+        foreach (int d in new[] { 1, 2, 3, 4, 5, 6, 7, 10, 100 })
+        {
+            float gap = corners.GapFor(Weekdays.Label(d), "12:00 PM");
+            if (gap < least) { least = gap; tightest = Weekdays.Label(d); }
+        }
+        Check(least >= 10f, $"...and on every weekday's line (the tightest, \"{tightest}   12:00 PM\", keeps {least:0} px)");
         Check(corners.TakingsShown == "$" + clock.Earned, $"today's takings read {corners.TakingsShown} (today ${clock.Earned})");
         ShopUI hud = FindAnyObjectByType<ShopUI>();
         Check(!HudText(hud, "moneyText") && !HudText(hud, "clockText") && !HudText(hud, "stockText"),
@@ -88,7 +102,7 @@ public sealed class PauseCheck : PlayLab
         // A payment: the stack and the figure.
         int before = clock.Earned;
         ShopEconomy.Instance.AddMoney(30);
-        clock.RecordPatronIncome(30);
+        clock.RecordServed(30, 0, false);   // a customer's payment (patrons pay quietly since playtest 4)
         yield return Seconds(.15f);
         Check(corners.TakingsPunch > 1.01f || corners.TakingsShown != "$" + before, $"a payment punches the figure ({corners.TakingsPunch:0.00}x, {corners.TakingsShown})");
         yield return Photo("02-paid");
@@ -197,6 +211,14 @@ public sealed class PauseCheck : PlayLab
         string today = phone.ContentText();
         Check(today.Contains("earned so far today") && today.Contains("In the till") && today.Contains("$" + clock.Earned),
             $"{when}: Today shows today's takings (${clock.Earned}) and what's in the till");
+        // Playtest 4: under the café's stars, what the next one needs (today's reviews counted in), not "no stars yet"; and
+        // what Ace's work earned apart from the café's guests.
+        ReputationLedger rep = SaveManager.Instance != null ? SaveManager.Instance.Reputation : null;
+        string starsLine = RecapPhone.LiveStarsLine(rep);
+        Check(today.Contains(starsLine) && !today.Contains("no stars yet"), $"{when}: under the café's stars, \"{starsLine}\"");
+        string split = RecapPhone.TakingsSplit(clock.Earned, clock.PatronIncome);
+        Check(split.Length == 0 ? !today.Contains("from café guests") : today.Contains(split),
+            split.Length == 0 ? $"{when}: no guests have paid: no split line" : $"{when}: \"{split}\"");
         yield return Photo($"1{(when == "early" ? 0 : when == "midday" ? 1 : 2)}-phone-{when.Replace(' ', '-')}");
 
         yield return Seconds(3f);

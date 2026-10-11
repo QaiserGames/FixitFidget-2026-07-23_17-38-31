@@ -7,14 +7,55 @@ using UnityEngine;
 
 // Rule checks for the café's reputation (claude/reputation-spec.md). Pure: no
 // scene, no save file, no assets. Also compiled by Tests/ReputationRules.
+//
+// Playtest 4 (10 Oct 2026): a review shows its verdict in words on the phone, not 1-5 stars (the reputation spec §10.2:
+// "stars" only ever means the café's); the café's stars say what the first one still needs. The phone's words are checked
+// in Unity (CheckPhoneWords: RecapPhone is the game's, not the pure rules').
 public static class ReputationRuleChecks
 {
 #if UNITY_EDITOR
     [MenuItem("Fixit Fidget/Checks/Reputation rules")]
     public static void Run()
     {
-        int count = RunAll() + CheckUnityJson();
+        int count = RunAll() + CheckUnityJson() + CheckPhoneWords();
         Debug.Log("[Reputation rules] PASS: " + count + " assertions. No scene, save or asset changes.");
+    }
+
+    // The phone's words for the reviews and the stars (RecapPhone), read from where the phone gets them.
+    static int CheckPhoneWords()
+    {
+        int n = 0;
+        void Check(bool ok, string why) { n++; if (!ok) throw new InvalidOperationException(why); }
+
+        Review[] order = RecapPhone.VerdictOrder;
+        Check(order.Length == 5 && order[0] == Review.LovedIt && order[1] == Review.LikedIt && order[2] == Review.Fine
+              && order[3] == Review.LetDown && order[4] == Review.NeverAgain, "The phone lists the verdicts best first, as the spec orders them.");
+        for (int i = 1; i < order.Length; i++)
+            Check(ReputationRules.Points(order[i]) == ReputationRules.Points(order[i - 1]) - 1, "Each verdict is a point below the one before it.");
+        string[] spec = { "Loved it", "Liked it", "Fine", "Let down", "Never again" };
+        for (int i = 0; i < order.Length; i++)
+            Check(RecapPhone.VerdictWord(order[i]) == ReputationRules.Label(order[i]) && RecapPhone.VerdictWord(order[i]) == spec[i],
+                $"A review says \"{spec[i]}\", the game's own verdict, not stars.");
+
+        int first = ReputationRules.NextThreshold(0);
+        Check(RecapPhone.StarsLine(0, 0) == first + " to your first star", $"No reputation yet: \"{first} to your first star\".");
+        Check(RecapPhone.StarsLine(0, first - 2) == "2 to your first star" && RecapPhone.StarsLine(0, -3) == first + " to your first star",
+            "Before the first star the line counts down what it still needs (never below nothing).");
+        Check(RecapPhone.StarsLine(1, first + 2) == "1 star" && RecapPhone.StarsLine(3, 140) == "3 stars", "After the first, it says how many.");
+        Check(!RecapPhone.StarsLine(0, 0).Contains("no stars"), "\"no stars yet\" is gone.");
+
+        var live = new ReputationLedger();
+        live.Restore(first - 4, 0, 3, false, null);
+        live.Record(new ReviewEntry { review = Review.LovedIt, reason = ReviewReason.LovedDrink, name = "Priya" });
+        Check(RecapPhone.LiveStarsLine(live) == "2 to your first star", "By day, today's reviews count toward the first star as they come in.");
+        live.Record(new ReviewEntry { review = Review.LovedIt, reason = ReviewReason.LovedDrink, name = "Tomas" });
+        Check(RecapPhone.LiveStarsLine(live) == "a new star at closing", "...and once they reach it, the star comes at closing.");
+        live.Settle(3, (e, i) => "x");
+        Check(live.StarsEarned == 1 && RecapPhone.LiveStarsLine(live) == "1 star", "Settled, it says how many.");
+
+        Check(RecapPhone.TakingsSplit(142, 10) == "$132 from your work · $10 from café guests", "The takings split the café's guests from Ace's work.");
+        Check(RecapPhone.TakingsSplit(50, 0) == "", "No guests paid: no split line.");
+        return n;
     }
 
     // Unity's own serializer, which is what the real save uses.
@@ -289,8 +330,11 @@ public static class ReputationRuleChecks
             && phoneDay.Cards[3].name == "Saamin", "Cards keep the order the reviews were written in, signed as the quotes are.");
         Check(phoneDay.Cards[3].line == "Took my watch." && phoneDay.Cards[2].line == "Liked it.",
             "A card's line is trimmed, and a kind of visit with no line shows its verdict.");
-        Check(phoneDay.Cards[0].Stars == 5 && phoneDay.Cards[1].Stars == 2 && phoneDay.Cards[2].Stars == 4 && phoneDay.Cards[3].Stars == 1
-            && phoneDay.Cards[2].regular && !phoneDay.Cards[0].regular, "Stars follow the verdict (Loved it 5 ... Never again 1), and regulars are marked.");
+        // Playtest 4: the phone shows each card's verdict in words (the reputation spec §10.2), not 1-5 stars.
+        Check(phoneDay.Cards[0].review == Review.LovedIt && phoneDay.Cards[1].review == Review.LetDown
+            && phoneDay.Cards[2].review == Review.LikedIt && phoneDay.Cards[3].review == Review.NeverAgain
+            && ReputationRules.Label(phoneDay.Cards[0].review) == "Loved it" && ReputationRules.Label(phoneDay.Cards[3].review) == "Never again"
+            && phoneDay.Cards[2].regular && !phoneDay.Cards[0].regular, "Each card keeps its verdict (Loved it ... Never again), and regulars are marked.");
         Check(phoneDay.Quotes.Count == 3, "The quotes are still picked as before.");
         phoneDay.Settle(5, (e, i) => "again", e => "again");
         Check(phoneDay.Cards.Count == 4 && phoneDay.Cards[0].line == "Tomas wrote this.", "Settling twice changes no card.");
@@ -311,8 +355,9 @@ public static class ReputationRuleChecks
         Check(ReputationRecap.Lesson(phoneDay.Cards) == "Walk-outs after you'd taken the job cost the most."
             && ReputationRecap.Lesson(null) == "" && ReputationRecap.Lesson(new[] { new ReviewCard { review = Review.LovedIt } }) == "Every review was a good one.",
             "The day's line picks its worst kind of review.");
-        Check(ReputationRules.StarsOf(Review.None) == 0 && ReputationRules.StarsOf(Review.Fine) == 3 && ReputationRules.StarsOf(Review.LovedIt) == 5,
-            "No review, no stars; Fine is three.");
+        Check(ReputationRules.Label(Review.None) == "No review" && ReputationRules.Label(Review.Fine) == "Fine"
+            && ReputationRules.Label(Review.LikedIt) == "Liked it" && ReputationRules.Label(Review.LetDown) == "Let down",
+            "Every verdict has its words; no review says so.");
 
         // ---------- live cards (the phone by day, playtest 3 session 3) ----------
         var liveDay = new ReputationLedger();

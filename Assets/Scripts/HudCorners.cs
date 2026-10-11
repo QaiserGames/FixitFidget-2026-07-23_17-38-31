@@ -61,12 +61,16 @@ public sealed class HudCorners : MonoBehaviour
     TextMeshProUGUI figure, figureLabel, popText;
     readonly List<RectTransform> edges = new List<RectTransform>();
     int shownMoney = int.MinValue, targetMoney, fromMoney, edgesShown = -1;
+    int patronIncomeSeen;   // Playtest 4 (Systems S7): today's patron money already counted, quietly (DayClock.PatronIncome)
     float countSince = -10f, paidAt = -10f;
 
     // The sign.
     RectTransform sign, sway, flipper, front, back, track, fill;
     Image frontBorder, frontFace, backBorder, backFace, fillImage, cup, vignette;
     TextMeshProUGUI frontWord, frontSub, backWord, backSub, dayLine, clockLine;
+    string laidOutDay;
+    TMP_FontAsset laidOutFont;
+    float clockGap;
     enum State { Open, LastOrders, Closed }
     State state = State.Open;
     bool stateKnown;
@@ -112,6 +116,10 @@ public sealed class HudCorners : MonoBehaviour
     public bool SignClosed => state == State.Closed;
     /// <summary>The day and the time under the bar ("Monday · Day 1   9:30 AM").</summary>
     public string ClockLine => dayLine != null ? dayLine.text + "   " + clockLine.text : "";
+    /// <summary>The space between the day and the time under the bar, with the time at its widest (reference pixels).</summary>
+    public float ClockGap => clockGap;
+    /// <summary>The day and the time's size now (16 px; less for a long weekday and day number, 12 px at the least).</summary>
+    public float ClockLineSize => dayLine != null ? dayLine.fontSize : 0f;
     public bool CupsChipShowing => cupsChip != null && cupsChip.showing;
     public bool BeansChipShowing => beansChip != null && beansChip.showing;
     public string ChipsText => (cupsChip != null && cupsChip.showing ? cupsChip.text.text : "") + (beansChip != null && beansChip.showing ? " | " + beansChip.text.text : "");
@@ -350,6 +358,7 @@ public sealed class HudCorners : MonoBehaviour
     void UpdateCash(DayClock clock)
     {
         int money = Mathf.Max(0, clock.Earned);
+        int patrons = Mathf.Max(0, clock.PatronIncome);
         float now = UiClock.Now;
         if (shownMoney == int.MinValue || money < targetMoney)
         {
@@ -361,13 +370,16 @@ public sealed class HudCorners : MonoBehaviour
         }
         else if (money > targetMoney)
         {
-            // Paid: the pop, the jolt, the drop, the glow, and the figure counting up.
-            Paid(money - targetMoney, now);
+            // Paid: the pop, the jolt, the drop, the glow, and the figure counting up. A patron's coffee counts up in
+            // the figure with no pop, jolt or drop: those are the player's own pay (playtest 4: "+$5" pops with nobody served).
+            int quiet = Mathf.Clamp(patrons - patronIncomeSeen, 0, money - targetMoney);
+            if (money - targetMoney - quiet > 0) Paid(money - targetMoney - quiet, now);
             fromMoney = shownMoney;
             targetMoney = money;
             countSince = now;
             SetEdges(money);
         }
+        patronIncomeSeen = patrons;
 
         if (countSince > -5f)
         {
@@ -521,6 +533,7 @@ public sealed class HudCorners : MonoBehaviour
             dayLine.text = Weekdays.Label(clock.Day);
             clockLine.text = ShopUI.FormatHour(clock.CurrentHour);
         }
+        if (dayLine.text != laidOutDay || dayLine.font != laidOutFont) LayoutClockLine(dayLine.text);
         int closing = Mathf.RoundToInt(clock.ClosingHour * 60f);
         if (closing != shownClosingHour)
         {
@@ -563,6 +576,71 @@ public sealed class HudCorners : MonoBehaviour
     {
         string time = ShopUI.FormatHour(hour);
         return time.EndsWith(":00 PM") || time.EndsWith(":00 AM") ? time.Replace(":00", "") : time;
+    }
+
+    // THE DAY AND THE TIME KEEP APART (playtest 4; the first hour: "Wednesday · Day 3 9:09 AM" ran together). The two
+    // boxes under the bar overlapped (the day's 144 px from the left, the time's 116 px from the right), so a long weekday
+    // ran into the time: "Wednesday · Day 3" is about 152 px at 16 px. Now both are measured, the time at its widest, and
+    // set at 16 px when there are at least 12 px between them; a long weekday (or a long day number) sets both a little
+    // smaller, 12 px at the least. Laid out again only when the day's words (or the font) change.
+    const float LineSize = 16f, LineSizeMin = 12f, LineGap = 12f;
+    const float LineRoom = SignWidth - 4f;   // from 2 px in at the left to 2 px in at the right
+    static readonly string[] WidestTimes = { "12:00 PM", "10:00 AM", "10:00 PM" };
+
+    void LayoutClockLine(string dayLabel)
+    {
+        laidOutDay = dayLabel;
+        laidOutFont = dayLine.font;
+        float size = SizeFor(dayLabel);
+        dayLine.fontSize = clockLine.fontSize = size;
+        float day = Measure(dayLine, dayLabel), time = WidestTime();
+        dayLine.rectTransform.sizeDelta = new Vector2(Mathf.Ceil(day) + 2f, 22f);
+        clockLine.rectTransform.sizeDelta = new Vector2(Mathf.Ceil(time) + 2f, 22f);
+        clockGap = LineRoom - day - time;
+    }
+
+    // The largest size, in half pixels from 16 down to 12, that leaves the gap; 12 when none does.
+    float SizeFor(string dayLabel)
+    {
+        for (float size = LineSize; size > LineSizeMin; size -= .5f)
+        {
+            dayLine.fontSize = clockLine.fontSize = size;
+            if (LineRoom - Measure(dayLine, dayLabel) - WidestTime() >= LineGap) return size;
+        }
+        return LineSizeMin;
+    }
+
+    float WidestTime()
+    {
+        float most = 0f;
+        foreach (string time in WidestTimes) most = Mathf.Max(most, Measure(clockLine, time));
+        return most;
+    }
+
+    // A text's width for some words at its size now. TextMesh Pro measures a text's own words (measuring other words leaves
+    // them in its buffers): other words are set in for the measure and put back, within the frame, so they're never drawn.
+    static float Measure(TMP_Text text, string words)
+    {
+        string was = text.text;
+        if (was == words) return text.GetPreferredValues(999f, 999f).x;
+        text.text = words;
+        float width = text.GetPreferredValues(999f, 999f).x;
+        text.text = was;
+        return width;
+    }
+
+    /// <summary>The space the line would leave between <paramref name="dayLabel"/> and <paramref name="time"/> (checks: every
+    /// weekday). The line on screen is left as it is.</summary>
+    public float GapFor(string dayLabel, string time)
+    {
+        if (dayLine == null || clockLine == null) return 0f;
+        float was = dayLine.fontSize, wasTime = clockLine.fontSize;
+        float size = SizeFor(dayLabel);
+        dayLine.fontSize = clockLine.fontSize = size;
+        float gap = LineRoom - Measure(dayLine, dayLabel) - Measure(clockLine, time);
+        dayLine.fontSize = was;
+        clockLine.fontSize = wasTime;
+        return gap;
     }
 
     // Past the end and back (a flip with weight).
