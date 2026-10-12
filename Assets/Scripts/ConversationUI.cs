@@ -196,7 +196,8 @@ public class ConversationUI : MonoBehaviour
     {
         int count = rows != null ? rows.Count : 0;
         footer ??= "";
-        bool same = count == shownRows.Count && highlighted == shownLit && footer == shownFooter;
+        bool same = count == shownRows.Count && highlighted == shownLit && footer == shownFooter
+            && (optionsText == null || optionsText.text == footer);
         for (int i = 0; same && i < count; i++) same = rows[i] == shownRows[i];
         if (same) return;
         shownRows.Clear();
@@ -319,8 +320,11 @@ public class ConversationUI : MonoBehaviour
     private const float LineSize = 32f;
     private const float NameSize = 24f;
     private const float PortraitSize = 88f;
-    private const float ColumnLeft = 160f;         // the replies' left edge, right of the screen's middle (their face)
-    private const float ColumnAboveFace = 34f;     // the first reply's top, over their face's height
+    /// <summary>The replies' left edge, right of the screen's middle (their face), reference pixels. The straight-face meter
+    /// takes the same place (StraightFaceUI).</summary>
+    public const float ColumnLeft = 160f;
+    /// <summary>The first reply's top, over their face's height, reference pixels.</summary>
+    public const float ColumnAboveFace = 34f;
     private const float ReplySize = 32f;
     private const float PlatePadX = 20f, PlatePadY = 10f, PlateGap = 8f, PlateMin = 320f, PlateMax = 640f;
     private const float FooterSize = 22f;
@@ -416,6 +420,7 @@ public class ConversationUI : MonoBehaviour
             hint.pivot = new Vector2(0f, 1f);
             hint.sizeDelta = new Vector2(PlateMax, FooterSize * 1.6f);
             optionsText.alignment = TextAlignmentOptions.TopLeft;
+            optionsText.text = "";   // the scene's text says "New Text" (the lab's photo, 12 Oct: it showed in the morning scene)
             UiSkin.UseFont(optionsText);
             optionsText.fontSize = FooterSize;
             optionsText.color = UiSkin.BandText;

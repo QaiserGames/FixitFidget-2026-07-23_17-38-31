@@ -319,7 +319,8 @@ public sealed class NightOneCheck : MonoBehaviour
         yield return Until(() => face.Now == MorningFace.Step.Meter, 15f, "the straight-face meter appears once she has said it");
         if (!lastWait) yield break;
         Check(StraightFaceUI.Showing, "the meter is on screen");
-        Check(MeterClearOfTheLine(), "…beside her line, clear of it (in the place of Ace's replies)");
+        Check(MeterClearOfTheLine(), "…clear of her line");
+        Check(MeterInTheRepliesPlace(out string meterPlace), $"…in the place of Ace's replies: right of her face, inside the screen's 5% margins ({meterPlace})");
         yield return Seconds(.35f);
         yield return Photo("08-the-meter");
 
@@ -500,6 +501,20 @@ public sealed class NightOneCheck : MonoBehaviour
         GameObject panel = Field<GameObject>(meterScreen, "panel");
         TMP_Text line = Field<TMP_Text>(FindAnyObjectByType<ConversationUI>(), "dialogueText");
         return panel != null && line != null && !OnScreen((RectTransform)panel.transform).Overlaps(OnScreen(line.rectTransform));
+    }
+
+    // Since 12 Oct the replies sit in a column right of the speaker's face (the screen's middle), inside 5% margins
+    // (ConversationUI); the meter takes their place.
+    bool MeterInTheRepliesPlace(out string place)
+    {
+        object meterScreen = typeof(StraightFaceUI).GetField("instance", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null);
+        GameObject panel = Field<GameObject>(meterScreen, "panel");
+        place = "no meter";
+        if (panel == null) return false;
+        Rect box = OnScreen((RectTransform)panel.transform);
+        float w = Screen.width, h = Screen.height;
+        place = $"x {box.xMin / w:0.00}-{box.xMax / w:0.00}, y {box.yMin / h:0.00}-{box.yMax / h:0.00} of the screen";
+        return box.xMin > w * .5f && box.xMax <= w * .95f + 1f && box.yMin >= h * .05f - 1f && box.yMax <= h * .95f + 1f;
     }
 
     // The note's box and the HUD's prompt box, on screen (both canvases are overlays): apart.

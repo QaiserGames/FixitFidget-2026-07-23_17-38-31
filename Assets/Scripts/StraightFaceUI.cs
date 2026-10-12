@@ -5,9 +5,10 @@ using UnityEngine.UI;
 // ---------------------------------------------------------------------------
 // THE STRAIGHT-FACE METER ON SCREEN (the Night 1 slice; MorningFace runs it)
 //
-// A small panel in the conversation's bottom row, beside the person's line, where Ace's replies and their
-// key hints go (bottom right, since the dialogue pass): it takes their place while it's up, so the
-// speaker's face and what they're saying both stay clear.
+// A small panel where Ace's replies go (since 12 Oct 2026, the column just right of the person's face; ConversationUI): it
+// takes their place while it's up, so the speaker's face and what they're saying both stay clear. (Until 12 Oct the replies,
+// and this, sat bottom right; the line, now centred under the face and wider, would have run under it: Night 1's lab caught
+// it.)
 // Its title gives the key and "Keep a straight face"; below it a bar with its green mark (and a paler
 // band either side, the "near enough"), and the needle sweeping across. When the needle stops, the
 // title says how it went, and then the key to go on. HUD only: the reaction itself is in the
@@ -31,6 +32,8 @@ public sealed class StraightFaceUI : MonoBehaviour
     static StraightFaceUI instance;
 
     GameObject panel;
+    RectTransform box;
+    ConversationUI conversationUi;
     TMP_Text title;
     RectTransform near, green, needle;
     StraightFaceMeter shown;
@@ -91,6 +94,13 @@ public sealed class StraightFaceUI : MonoBehaviour
     void Place(StraightFaceMeter meter, string outcome, string extra)
     {
         if (!panel.activeSelf) panel.SetActive(true);
+        // In the replies' place: right of the face, from a little over its height (the conversation's camera holds the face
+        // there; ConversationUI.FaceAboveMiddle).
+        if (conversationUi == null) conversationUi = FindAnyObjectByType<ConversationUI>();
+        float face = conversationUi != null ? conversationUi.FaceAboveMiddle : .07f;
+        box.anchorMin = box.anchorMax = new Vector2(.5f, .5f + face);
+        box.pivot = new Vector2(0f, 1f);
+        box.anchoredPosition = new Vector2(ConversationUI.ColumnLeft, ConversationUI.ColumnAboveFace);
         if (shown != meter)
         {
             shown = meter;
@@ -127,14 +137,11 @@ public sealed class StraightFaceUI : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = .5f;
 
-        // Since the dialogue pass the person's line is a subtitle, x 390-1250 and from 44 up (bottom
-        // aligned, up to three lines of it), and Ace's replies sit to its right, x 1304-1864 from 44 up
-        // (ConversationUI.Look). The meter takes the replies' place, which the morning scene leaves empty:
-        // x 1284-1864, 44 to 122 up, on the subtitle's baseline. (Under the old layout it sat in the key-hint
-        // row under the line, which is where the subtitle is now; on top of the line it covered the
-        // speaker's face.)
-        RectTransform box = Rect("Meter", canvasObject.transform, new Vector2(1f, 0f), new Vector2(-56f, 44f), new Vector2(580f, 78f));
-        box.pivot = new Vector2(1f, 0f);
+        // The meter takes the replies' place, which the morning scene leaves empty (Place puts it there each time: the
+        // column right of the person's face, 12 Oct). Before the dialogue pass it sat in the key-hint row under the line;
+        // on top of the line it covered the speaker's face.
+        box = Rect("Meter", canvasObject.transform, new Vector2(.5f, .57f), new Vector2(ConversationUI.ColumnLeft, ConversationUI.ColumnAboveFace), new Vector2(580f, 78f));
+        box.pivot = new Vector2(0f, 1f);
         UiSkin.Paint(box, Backing, UiSkin.Radius);
         var lift = box.gameObject.AddComponent<Shadow>();
         lift.effectColor = new Color(0f, 0f, 0f, .35f);

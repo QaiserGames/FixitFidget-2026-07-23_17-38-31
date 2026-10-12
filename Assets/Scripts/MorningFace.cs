@@ -201,8 +201,8 @@ public sealed class MorningFace
         string what = question != null && !string.IsNullOrWhiteSpace(question.title) ? question.title : "Keep a straight face";
         stopHint = $"[{StopKey}]  {what}" + (Nerve ? "   <color=#A6A6A6>Nerve</color>" : "");
         Now = Step.Meter;
-        // The meter takes the place of Ace's replies (bottom right) and gives its key itself
-        // (StraightFaceUI), so it sits beside the person's line instead of over it or their face.
+        // The meter takes the place of Ace's replies (since 12 Oct the column right of the person's face) and gives its key
+        // itself (StraightFaceUI), so it sits clear of the person's line and their face.
         ui.SetOptions("");
         StraightFaceUI.Draw(meter, stopHint);
     }
