@@ -319,9 +319,11 @@ public sealed class NightOneCheck : MonoBehaviour
         yield return Until(() => face.Now == MorningFace.Step.Meter, 15f, "the straight-face meter appears once she has said it");
         if (!lastWait) yield break;
         Check(StraightFaceUI.Showing, "the meter is on screen");
+        // Measured as the photo shows it: the meter's canvas is made with its first frame and scales itself to the screen
+        // only after that (on 12 Oct the first-frame rect read x 0.56-0.79 against the photo's 0.58-0.89).
+        yield return Seconds(.35f);
         Check(MeterClearOfTheLine(), "…clear of her line");
         Check(MeterInTheRepliesPlace(out string meterPlace), $"…in the place of Ace's replies: right of her face, inside the screen's 5% margins ({meterPlace})");
-        yield return Seconds(.35f);
         yield return Photo("08-the-meter");
 
         StraightFaceMeter meter = face.Meter;
