@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,13 +11,24 @@ using TMPro;
 //   * what they say is a subtitle under their face, the whole line at once (no letters typing out);
 //   * a speech of several lines (a "\n" between them) plays one line after another, at reading pace,
 //     the earlier ones staying on screen dimmed, so what they asked for is still there when Ace decides;
-//   * after a short listening beat Ace's replies appear on the right (ConversationController builds
-//     them; they're drawn in optionsText);
+//   * after a short listening beat Ace's replies appear beside them (ConversationController builds
+//     them; each is drawn on its own plate, with the keys' hint line in optionsText: the new layout below);
 //   * E (SkipReveal) shows everything they're saying at once and ends the beat: the first press never
 //     answers, which keeps "dialogue gates the decision".
-// The placeholder portrait box and the name above it stay as they were (Mansoor, 28 Sept). The line and
-// the replies are placed and given a shadow while playing (Look), so the scene is not rebuilt for it.
+// The line and the replies are placed and given a shadow while playing (Look), so the scene is not rebuilt for it.
 // The UI skin (playtest 3, session 3): the skin's lettering and its one shadow, the band in the phone's warm ink.
+//
+// THE NEW LAYOUT (12 Oct 2026). Mansoor's playtest: "i also noticed the dialogue choice option placement to be too far to
+// the left, remember it should always be readable for the player." Measured in the labs, the replies sat bottom right in
+// small type (27 px) over the busy till, and a 320 x 400 placeholder box filled the bottom left to show one letter; he saw
+// the replies bottom left on his screen. Agreed (claude/playtest-4-findings-and-proposals.md §3), and placed from the middle
+// of the screen, so no shape of screen can push them into a corner:
+//   * their line: centred under their face (the conversation's camera holds the face a little above the middle), 32 px;
+//   * Ace's replies: a column just right of their face, from face height down, each on its own soft dark plate, 32 px; the
+//     highlighted one in the brand's light green, with ► and its key, and a green edge; the keys' hint line under them;
+//   * the placeholder box gives way to a small name card over their line: the name, and how they feel when it isn't plain
+//     (the box's letter and mood word, 28 Sept). A real portrait, once there is art for one, sits small beside the name;
+//   * everything inside safe margins: 5% of the screen from each edge.
 // ---------------------------------------------------------------------------
 public class ConversationUI : MonoBehaviour
 {
@@ -35,9 +47,9 @@ public class ConversationUI : MonoBehaviour
     [SerializeField] private Vector2 listenBeat = new Vector2(.35f, 1f);
 
     private bool visible;
-    private TextMeshProUGUI fallbackFace;
-    private string portraitInitial = "?";
-    private Color portraitTint = Color.gray;
+    private string speaker = "";
+    private string mood = "";
+    private bool realPortrait;
     private bool humanLayout;
     private Vector2 savedOptionsSize, savedOptionsPosition, savedDialoguePosition;
 
@@ -91,70 +103,48 @@ public class ConversationUI : MonoBehaviour
     public void Show(string who, Color tint, Sprite face)
     {
         visible = true;
-        portraitInitial = !string.IsNullOrWhiteSpace(who) ? who.Trim().Substring(0, 1).ToUpperInvariant() : "?";
-        portraitTint = Color.Lerp(Color.black, tint, 0.35f);
+        speaker = who ?? "";
+        mood = "";
 
         if (nameText != null)
-        {
-            nameText.text = who;
-            nameText.color = tint;
-        }
+            // Their colour, lifted toward white so it reads on the dark band (a theme colour can be deep).
+            nameText.color = Color.Lerp(tint, Color.white, .35f);
 
         SetPortrait(face, PortraitExpression.Neutral);
+        RefreshNameCard();
 
-        if (optionsText != null) optionsText.text = "";
+        SetOptions("");
     }
 
+    /// <summary>
+    /// How they look now: a real portrait (when there is art for them) sits small beside their name; otherwise the name card
+    /// says how they feel when it isn't plain ("Concerned"), as the old box's mood word did.
+    /// </summary>
     public void SetPortrait(Sprite face, PortraitExpression expression)
     {
+        string feeling = expression switch
+        {
+            PortraitExpression.Happy => "Pleased",
+            PortraitExpression.Worried => "Concerned",
+            PortraitExpression.Impatient => "Impatient",
+            PortraitExpression.Surprised => "Surprised",
+            _ => ""
+        };
+        if (feeling != mood) { mood = feeling; RefreshNameCard(); }
         if (portrait == null) return;
         Sprite chosen = face != null ? face : defaultPortrait;
         if (portrait.sprite != chosen) portrait.sprite = chosen;
         portrait.preserveAspect = true;
-        portrait.color = chosen != null ? Color.white : portraitTint;
-
-        // Missing art still gives the player a readable identity card. Replace
-        // it simply by assigning portrait sprites; no scene rebuilding needed.
-        if (chosen == null && fallbackFace == null)
-        {
-            var host = new GameObject("Portrait identity", typeof(RectTransform), typeof(TextMeshProUGUI));
-            host.transform.SetParent(portrait.transform, false);
-            fallbackFace = host.GetComponent<TextMeshProUGUI>();
-            fallbackFace.font = nameText != null ? nameText.font : TMP_Settings.defaultFontAsset;
-            UiSkin.UseFont(fallbackFace);
-            fallbackFace.fontSize = 30f;
-            fallbackFace.enableAutoSizing = true;
-            fallbackFace.fontSizeMin = 12f;
-            fallbackFace.fontSizeMax = 30f;
-            fallbackFace.alignment = TextAlignmentOptions.Center;
-            fallbackFace.color = Color.white;
-            fallbackFace.raycastTarget = false;
-            RectTransform rect = fallbackFace.rectTransform;
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = new Vector2(6f, 6f);
-            rect.offsetMax = new Vector2(-6f, -6f);
-        }
-        if (fallbackFace == null) return;
-        fallbackFace.gameObject.SetActive(chosen == null);
-        if (chosen == null)
-        {
-            string mood = expression switch
-            {
-                PortraitExpression.Happy => "Pleased",
-                PortraitExpression.Worried => "Concerned",
-                PortraitExpression.Impatient => "Impatient",
-                PortraitExpression.Surprised => "Surprised",
-                _ => ""
-            };
-            string label = string.IsNullOrEmpty(mood) ? portraitInitial : portraitInitial + "\n" + mood;
-            if (fallbackFace.text != label) fallbackFace.text = label;
-        }
+        portrait.color = Color.white;
+        bool real = chosen != null;
+        if (portrait.enabled != real) portrait.enabled = real;
+        if (real != realPortrait) { realPortrait = real; PlaceNameCard(); }
     }
 
     public void Hide()
     {
         SetHumanLayout(false);
+        SetReplies(null, -1, "");
         visible = false;
         nextAt = -1f;
         LineFinished = true;
@@ -194,9 +184,28 @@ public class ConversationUI : MonoBehaviour
         StartBeat();
     }
 
-    public void SetOptions(string text)
+    /// <summary>Only a hint line where the replies go (no replies), or "" for nothing there.</summary>
+    public void SetOptions(string text) => SetReplies(null, -1, text);
+
+    /// <summary>
+    /// Ace's replies, each on its own plate in the column right of their face (<paramref name="rows"/> in rich text, as
+    /// ConversationController draws them; null or empty: none), <paramref name="highlighted"/> lit (-1: none), and
+    /// <paramref name="footer"/> (the keys' hint line) under them.
+    /// </summary>
+    public void SetReplies(IReadOnlyList<string> rows, int highlighted, string footer)
     {
-        if (optionsText != null && optionsText.text != text) optionsText.text = text;
+        int count = rows != null ? rows.Count : 0;
+        footer ??= "";
+        bool same = count == shownRows.Count && highlighted == shownLit && footer == shownFooter;
+        for (int i = 0; same && i < count; i++) same = rows[i] == shownRows[i];
+        if (same) return;
+        shownRows.Clear();
+        for (int i = 0; i < count; i++) shownRows.Add(rows[i] ?? "");
+        shownLit = highlighted;
+        shownFooter = footer;
+        if (optionsText != null && optionsText.text != footer) optionsText.text = footer;
+        if (count > 0) EnsureColumn();
+        LayOutReplies();
     }
 
     // Reserve space for three short choices, then restore the authored intake
@@ -279,6 +288,8 @@ public class ConversationUI : MonoBehaviour
         }
         dialogueText.text = text.ToString();
         dialogueText.maxVisibleCharacters = 99999;
+        PlaceNameCard();
+        LayOutReplies();
     }
 
     private float ReadTime(string beat) =>
@@ -299,48 +310,332 @@ public class ConversationUI : MonoBehaviour
         return result;
     }
 
-    // ---------- the look (placed while playing; the scene keeps its own layout) ----------
+    // ---------- the look (placed while playing; the scene keeps its own layout; 12 Oct, see the header) ----------
 
-    // Reference pixels (the HUD canvas is 1920 x 1080): the portrait box sits bottom left (x 40-360), so
-    // the subtitle runs from x 390 to 1250 and the replies from 1304 to 1864, both sitting on the same
-    // bottom line, over a soft dark band so they read against the bright windows.
+    // Reference pixels (the HUD canvas is 1920 x 1080 at 16:9; other shapes keep the height near 1080).
+    private const float SafeShare = .05f;          // the margin kept clear at every edge, as a share of the screen
+    private const float LineBottom = 72f;          // their line's foot, over the bottom edge
+    private const float LineWidth = 1100f;
+    private const float LineSize = 32f;
+    private const float NameSize = 24f;
+    private const float PortraitSize = 88f;
+    private const float ColumnLeft = 160f;         // the replies' left edge, right of the screen's middle (their face)
+    private const float ColumnAboveFace = 34f;     // the first reply's top, over their face's height
+    private const float ReplySize = 32f;
+    private const float PlatePadX = 20f, PlatePadY = 10f, PlateGap = 8f, PlateMin = 320f, PlateMax = 640f;
+    private const float FooterSize = 22f;
+
+    /// <summary>Where the conversation's camera holds their face: above the screen's middle, as a share of its height.</summary>
+    public float FaceAboveMiddle { get; set; } = .07f;
+
+    // The replies' column and its plates (made the first time there are replies), and the hint line's own plate (the lab's
+    // photos, 12 Oct: over a bright window the hint line was faint without one).
+    private RectTransform column, footerPlate;
+    private readonly List<RectTransform> plates = new();
+    private readonly List<Image> plateImages = new();
+    private readonly List<Image> plateEdges = new();
+    private readonly List<TMP_Text> plateTexts = new();
+    private readonly List<string> shownRows = new();
+    private int shownLit = -1;
+    private string shownFooter = "";
+    private Vector2 laidOutFor;
+
+    private static readonly Color PlateColour = new Color(UiSkin.Ink.r, UiSkin.Ink.g, UiSkin.Ink.b, .78f);
+    private static readonly Color PlateLit = new Color(UiSkin.Ink.r, UiSkin.Ink.g, UiSkin.Ink.b, .9f);
+    private static readonly Color HintPlateColour = new Color(UiSkin.Ink.r, UiSkin.Ink.g, UiSkin.Ink.b, .62f);
+
+    /// <summary>The replies' plates on the screen, in pixels (labs: never over the face, inside the margins).</summary>
+    public List<Rect> ReplyPlatesOnScreen()
+    {
+        var rects = new List<Rect>();
+        for (int i = 0; i < plates.Count; i++)
+            if (plates[i] != null && plates[i].gameObject.activeSelf) rects.Add(ScreenRect(plates[i]));
+        return rects;
+    }
+
+    /// <summary>Their line as drawn, in pixels (labs).</summary>
+    public Rect LineOnScreen => TextOnScreen(dialogueText);
+
+    /// <summary>The name card as drawn, in pixels (labs).</summary>
+    public Rect NameCardOnScreen => TextOnScreen(nameText);
+
+    /// <summary>The keys' hint line under the replies, in pixels (labs).</summary>
+    public Rect FooterOnScreen => TextOnScreen(optionsText);
+
+    /// <summary>What the name card says (labs).</summary>
+    public string NameCard => nameText != null ? nameText.text : "";
+
+    /// <summary>The replies' type size and the line's, reference pixels (labs).</summary>
+    public Vector2 TypeSizes => new Vector2(ReplySize, dialogueText != null ? dialogueText.fontSize : 0f);
+
     private void Look()
     {
         UiSkin.UseFont(nameText);
-        if (fallbackFace != null) UiSkin.UseFont(fallbackFace);
         if (dialogueText != null)
         {
             RectTransform line = dialogueText.rectTransform;
             line.anchorMin = line.anchorMax = new Vector2(.5f, 0f);
             line.pivot = new Vector2(.5f, 0f);
-            line.anchoredPosition = new Vector2(-140f, 44f);
-            line.sizeDelta = new Vector2(860f, 250f);
+            line.anchoredPosition = new Vector2(0f, LineBottom);
+            line.sizeDelta = new Vector2(LineWidth, 250f);
             dialogueText.alignment = TextAlignmentOptions.Bottom;
             UiSkin.UseFont(dialogueText);
-            dialogueText.fontSize = 30f;
+            dialogueText.fontSize = LineSize;
             dialogueText.color = UiSkin.BandText;
             dialogueText.textWrappingMode = TextWrappingModes.Normal;
             UiSkin.Shadowed(dialogueText);
         }
+        if (nameText != null)
+        {
+            RectTransform name = nameText.rectTransform;
+            name.anchorMin = name.anchorMax = new Vector2(.5f, 0f);
+            name.pivot = new Vector2(.5f, 0f);
+            name.sizeDelta = new Vector2(LineWidth, NameSize * 1.5f);
+            nameText.alignment = TextAlignmentOptions.Bottom;
+            nameText.fontSize = NameSize;
+            nameText.fontStyle = FontStyles.Normal;
+            nameText.textWrappingMode = TextWrappingModes.NoWrap;
+            nameText.richText = true;
+            nameText.raycastTarget = false;
+            UiSkin.Shadowed(nameText);
+        }
+        if (portrait != null)
+        {
+            RectTransform face = portrait.rectTransform;
+            face.anchorMin = face.anchorMax = new Vector2(.5f, 0f);
+            face.pivot = new Vector2(1f, 0f);
+            face.sizeDelta = new Vector2(PortraitSize, PortraitSize);
+            portrait.raycastTarget = false;
+            portrait.enabled = false;   // until there is art for someone (SetPortrait)
+        }
         if (optionsText != null)
         {
-            RectTransform replies = optionsText.rectTransform;
-            replies.anchorMin = replies.anchorMax = new Vector2(1f, 0f);
-            replies.pivot = new Vector2(1f, 0f);
-            replies.anchoredPosition = new Vector2(-56f, 44f);
-            replies.sizeDelta = new Vector2(560f, 330f);
-            optionsText.alignment = TextAlignmentOptions.BottomLeft;
+            // The keys' hint line under the replies (the replies themselves are plates of their own, made when needed).
+            RectTransform hint = optionsText.rectTransform;
+            hint.anchorMin = hint.anchorMax = new Vector2(.5f, .5f);
+            hint.pivot = new Vector2(0f, 1f);
+            hint.sizeDelta = new Vector2(PlateMax, FooterSize * 1.6f);
+            optionsText.alignment = TextAlignmentOptions.TopLeft;
             UiSkin.UseFont(optionsText);
-            optionsText.fontSize = 27f;
+            optionsText.fontSize = FooterSize;
             optionsText.color = UiSkin.BandText;
-            optionsText.lineSpacing = 14f;
-            optionsText.textWrappingMode = TextWrappingModes.Normal;
+            optionsText.lineSpacing = 0f;
+            optionsText.textWrappingMode = TextWrappingModes.NoWrap;
+            optionsText.raycastTarget = false;
             UiSkin.Shadowed(optionsText);
+            if (footerPlate == null && hint.parent != null)
+            {
+                footerPlate = new GameObject("Hint plate (while playing)", typeof(RectTransform)).GetComponent<RectTransform>();
+                footerPlate.SetParent(hint.parent, false);
+                footerPlate.SetSiblingIndex(hint.GetSiblingIndex());   // drawn just before the hint, so under it
+                footerPlate.anchorMin = footerPlate.anchorMax = new Vector2(.5f, .5f);
+                footerPlate.pivot = new Vector2(0f, 1f);
+                UiSkin.Paint(footerPlate, HintPlateColour, 10f);
+                footerPlate.gameObject.SetActive(false);
+            }
         }
         Band();
+        PlaceNameCard();
+        LayOutReplies();
     }
 
-    // A dark band along the bottom of the screen, behind everything in the panel (it fades with it).
+    private void LateUpdate()
+    {
+        // A window resized (or the Game view changed shape): lay the column out again for the new screen.
+        Vector2 size = PanelSize();
+        if (size != laidOutFor) { PlaceNameCard(); LayOutReplies(); }
+    }
+
+    private Vector2 PanelSize()
+    {
+        RectTransform panel = (group != null ? group.transform : transform) as RectTransform;
+        return panel != null ? panel.rect.size : new Vector2(1920f, 1080f);
+    }
+
+    private void RefreshNameCard()
+    {
+        if (nameText == null) return;
+        string card = string.IsNullOrEmpty(mood) ? speaker
+            : $"{speaker}<color={UiSkin.HexOf(UiSkin.BandFaint)}>  ·  {mood}</color>";
+        if (nameText.text != card) nameText.text = card;
+        PlaceNameCard();
+    }
+
+    // The name card sits just over their line's top (the line grows upward as the lines come), with the portrait, if any,
+    // to its left.
+    private void PlaceNameCard()
+    {
+        if (nameText == null) return;
+        float lineHeight = 0f;
+        if (dialogueText != null && !string.IsNullOrEmpty(dialogueText.text))
+            lineHeight = dialogueText.GetPreferredValues(dialogueText.text, LineWidth, 0f).y;
+        float y = LineBottom + lineHeight + 6f;
+        nameText.rectTransform.anchoredPosition = new Vector2(0f, y);
+        if (portrait != null && realPortrait)
+        {
+            float half = nameText.GetPreferredValues(nameText.text, LineWidth, 0f).x * .5f;
+            portrait.rectTransform.anchoredPosition = new Vector2(-half - 12f, y - 6f);
+        }
+    }
+
+    private void EnsureColumn()
+    {
+        if (column != null) return;
+        Transform panel = group != null ? group.transform : transform;
+        column = new GameObject("Replies (while playing)", typeof(RectTransform)).GetComponent<RectTransform>();
+        column.SetParent(panel, false);
+        column.anchorMin = column.anchorMax = new Vector2(.5f, .5f);
+        column.pivot = new Vector2(0f, 1f);
+        column.sizeDelta = Vector2.zero;
+        if (optionsText != null) column.SetSiblingIndex(optionsText.transform.GetSiblingIndex());
+    }
+
+    private void EnsurePlates(int count)
+    {
+        while (plates.Count < count)
+        {
+            var plate = new GameObject("Reply " + (plates.Count + 1), typeof(RectTransform)).GetComponent<RectTransform>();
+            plate.SetParent(column, false);
+            plate.anchorMin = plate.anchorMax = new Vector2(0f, 1f);
+            plate.pivot = new Vector2(0f, 1f);
+            Image image = UiSkin.Paint(plate, PlateColour, UiSkin.Radius);
+            var edge = new GameObject("Lit edge", typeof(RectTransform)).GetComponent<RectTransform>();
+            edge.SetParent(plate, false);
+            edge.anchorMin = new Vector2(0f, 0f);
+            edge.anchorMax = new Vector2(0f, 1f);
+            edge.pivot = new Vector2(0f, .5f);
+            edge.offsetMin = new Vector2(0f, 6f);
+            edge.offsetMax = new Vector2(5f, -6f);
+            Image edgeImage = UiSkin.Paint(edge, UiSkin.BrandBright, 2.5f);
+            TextMeshProUGUI text = UiSkin.Text("Words", plate, ReplySize, UiSkin.BandText, TextAlignmentOptions.MidlineLeft, FontStyles.Normal, true);
+            RectTransform words = text.rectTransform;
+            words.anchorMin = Vector2.zero;
+            words.anchorMax = Vector2.one;
+            words.offsetMin = new Vector2(PlatePadX, PlatePadY);
+            words.offsetMax = new Vector2(-PlatePadX, -PlatePadY);
+            plates.Add(plate);
+            plateImages.Add(image);
+            plateEdges.Add(edgeImage);
+            plateTexts.Add(text);
+        }
+    }
+
+    /// <summary>
+    /// Labs: the replies' plates as they would stand on a screen of <paramref name="size"/> (canvas units: at 16:9 1920 x
+    /// 1080; a 4:3 screen is about 1663 x 1247), each box from that screen's bottom-left corner. They are laid out for that
+    /// screen, measured, and laid out again for the real one.
+    /// </summary>
+    public List<Rect> PlatesIfTheScreenWere(Vector2 size)
+    {
+        var boxes = new List<Rect>();
+        LayOutReplies(size);
+        if (column != null)
+            for (int i = 0; i < plates.Count && i < shownRows.Count; i++)
+            {
+                Vector2 topLeft = size * .5f + column.anchoredPosition + plates[i].anchoredPosition;
+                Vector2 box = plates[i].sizeDelta;
+                boxes.Add(new Rect(topLeft.x, topLeft.y - box.y, box.x, box.y));
+            }
+        LayOutReplies();
+        return boxes;
+    }
+
+    private void LayOutReplies() => LayOutReplies(PanelSize());
+
+    // The column: just right of the screen's middle (their face), its top a little over the face's height, the plates one
+    // width (the widest reply's), the hint line under them; kept inside the margins and clear of their line.
+    private void LayOutReplies(Vector2 size)
+    {
+        laidOutFor = PanelSize();
+        int count = shownRows.Count;
+        if (column == null)
+        {
+            if (optionsText != null) PlaceFooter(size, ColumnTop(size), 0f, PlateMin);
+            return;
+        }
+        EnsurePlates(count);
+        float safeX = size.x * SafeShare, safeY = size.y * SafeShare;
+        float widest = Mathf.Max(PlateMin, Mathf.Min(PlateMax, size.x * .5f - ColumnLeft - safeX));
+        float inner = widest - PlatePadX * 2f;
+        float want = 0f;
+        for (int i = 0; i < count; i++)
+            want = Mathf.Max(want, plateTexts[i].GetPreferredValues(shownRows[i], inner, 0f).x);
+        float width = Mathf.Clamp(Mathf.Ceil(want) + PlatePadX * 2f + 2f, PlateMin, widest);
+
+        var heights = new float[count];
+        float total = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            heights[i] = Mathf.Ceil(plateTexts[i].GetPreferredValues(shownRows[i], width - PlatePadX * 2f, 0f).y) + PlatePadY * 2f;
+            total += heights[i] + (i > 0 ? PlateGap : 0f);
+        }
+        float footer = optionsText != null && !string.IsNullOrEmpty(shownFooter) ? FooterSize * 1.6f + PlateGap : 0f;
+
+        // From a little over their face's height down; up again if it would reach their line, never above the top margin.
+        float top = ColumnTop(size);
+        float lineTop = -size.y * .5f + LineBottom + LineHeightNow() + NameSize * 1.5f + 18f;
+        float bottom = top - total - footer;
+        if (bottom < lineTop) top += lineTop - bottom;
+        top = Mathf.Min(top, size.y * .5f - safeY);
+        column.anchoredPosition = new Vector2(ColumnLeft, top);
+
+        float y = 0f;
+        for (int i = 0; i < plates.Count; i++)
+        {
+            bool on = i < count;
+            if (plates[i].gameObject.activeSelf != on) plates[i].gameObject.SetActive(on);
+            if (!on) continue;
+            bool lit = i == shownLit;
+            plates[i].anchoredPosition = new Vector2(0f, -y);
+            plates[i].sizeDelta = new Vector2(width, heights[i]);
+            plateImages[i].color = lit ? PlateLit : PlateColour;
+            plateEdges[i].enabled = lit;
+            if (plateTexts[i].text != shownRows[i]) plateTexts[i].text = shownRows[i];
+            y += heights[i] + PlateGap;
+        }
+        if (optionsText != null) PlaceFooter(size, top, y, width);
+    }
+
+    private float ColumnTop(Vector2 size) => size.y * FaceAboveMiddle + ColumnAboveFace;
+
+    // The keys' hint line under the replies, on its own lighter plate, lined up with the replies' plates.
+    private void PlaceFooter(Vector2 size, float top, float below, float width)
+    {
+        RectTransform hint = optionsText.rectTransform;
+        hint.anchoredPosition = new Vector2(ColumnLeft + 12f, top - below - 5f);
+        hint.sizeDelta = new Vector2(Mathf.Max(width, PlateMin), FooterSize * 1.6f);
+        if (footerPlate == null) return;
+        bool any = !string.IsNullOrEmpty(shownFooter);
+        if (footerPlate.gameObject.activeSelf != any) footerPlate.gameObject.SetActive(any);
+        if (!any) return;
+        float words = optionsText.GetPreferredValues(shownFooter, 4000f, 0f).x;
+        footerPlate.anchoredPosition = new Vector2(ColumnLeft, top - below);
+        footerPlate.sizeDelta = new Vector2(Mathf.Ceil(words) + 24f, FooterSize * 1.6f + 6f);
+    }
+
+    private float LineHeightNow() =>
+        dialogueText != null && !string.IsNullOrEmpty(dialogueText.text)
+            ? dialogueText.GetPreferredValues(dialogueText.text, LineWidth, 0f).y : 0f;
+
+    private static Rect ScreenRect(RectTransform rect)
+    {
+        if (rect == null) return default;
+        var corners = new Vector3[4];
+        rect.GetWorldCorners(corners);   // a screen-space overlay canvas: world is screen pixels
+        return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
+    }
+
+    // A text's drawn extent (not its box), in pixels.
+    private static Rect TextOnScreen(TMP_Text text)
+    {
+        if (text == null || !text.isActiveAndEnabled || string.IsNullOrEmpty(text.text)) return default;
+        text.ForceMeshUpdate();
+        Bounds b = text.textBounds;
+        Vector3 a = text.transform.TransformPoint(b.min), c = text.transform.TransformPoint(b.max);
+        return Rect.MinMaxRect(Mathf.Min(a.x, c.x), Mathf.Min(a.y, c.y), Mathf.Max(a.x, c.x), Mathf.Max(a.y, c.y));
+    }
+
+    // A dark band along the bottom of the screen, behind their line (it fades with the panel).
     private void Band()
     {
         Transform panel = group != null ? group.transform : transform;
@@ -352,7 +647,7 @@ public class ConversationUI : MonoBehaviour
         rect.anchorMax = new Vector2(1f, 0f);
         rect.pivot = new Vector2(.5f, 0f);
         rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = new Vector2(0f, 430f);
+        rect.sizeDelta = new Vector2(0f, 380f);
         var image = rect.GetComponent<Image>();
         image.raycastTarget = false;
         const int height = 64;

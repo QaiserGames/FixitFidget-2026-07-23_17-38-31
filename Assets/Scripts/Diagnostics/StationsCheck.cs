@@ -21,7 +21,8 @@ using UnityEngine.InputSystem.LowLevel;
 //      from above the dispenser is a close-up first (A at it; walking out leaves it); then A serves them;
 //   2. the repair: the same at the counter; A picks the device up off the intake shelf, A sets it down on the bench;
 //      in first person RT works on it, from above A does; the lab's hand does the repair (the bench's own feel is
-//      session 4); A picks it up and steps back in one press; A hands it back.
+//      session 4); X picks it up and steps back in one press (12 Oct: in the close-up A uses, as RT does; before, A took
+//      it away, the first thing a pad player presses on a screw); A hands it back.
 //
 // PLAYTEST 4 (10 Oct 2026, the repair bar): the repair's customer waits at a repair-bar stool (the rest of the room is
 // held while their request is taken, so a stool is their only choice), and Ace, still behind the bench with their
@@ -443,8 +444,12 @@ public sealed class StationsCheck : PlayLab
 
         yield return LabHand(job);
         Check(job.IsComplete, $"the repair is done (by the lab's hand: the bench's feel is session 4); grade {job.Grade}");
-        yield return Press(GamepadButton.South, "pick it up and step back");
-        yield return Until(() => carry.Contains(job) && !inspector.IsHoldingItem, 3f, "A picks it up and leaves the close-up in one press");
+        // In the close-up A uses, as RT does (12 Oct): over nothing it leaves the device where it is. (A press the check makes
+        // to prove it, not one a player needs: not counted with the visit's presses.)
+        yield return PadPress(GamepadButton.South);
+        Check(inspector.IsHoldingItem && inspector.FocusedItem == job && !carry.Contains(job), "A in the close-up doesn't take the device away");
+        yield return Press(GamepadButton.West, "pick it up and step back (X)");
+        yield return Until(() => carry.Contains(job) && !inspector.IsHoldingItem, 3f, "X picks it up and leaves the close-up in one press");
         Check(inspectCam == null || inspectCam.Priority == 0, "the inspection camera lets go");
         Check(!interactor.InCloseUp, "nothing stays open after the bench");
         lastWait = true;

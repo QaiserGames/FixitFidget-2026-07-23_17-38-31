@@ -363,8 +363,9 @@ public class PlayerInteractor : MonoBehaviour
             focused = null;
             CurrentPrompt = inspector != null && inspector.IsHoldingItem ? inspector.CollectionPrompt : "";
             WorkPrompt = "";
-            // Controller A collects the inspected item, exactly like E.
-            if (PadInput.Pressed(PadButton.South)) PerformInteraction(-1);
+            // X picks the device up and steps back, as E does (12 Oct, Mansoor: "A uses, X takes it"). A uses at the bench
+            // now (ItemInspector): it had picked the device up and ended the work, the first thing a pad player presses.
+            if (inspector != null && inspector.IsHoldingItem && PadInput.Pressed(PadButton.West)) PerformInteraction(-1);
             return;
         }
 
@@ -652,6 +653,8 @@ public class PlayerInteractor : MonoBehaviour
         if (counterRepair != null && counterRepair.OwnsInput) return;
         if (inspector != null && inspector.IsHoldingItem)
         {
+            // The Interact action brings the pad's A here too; at the bench A uses (ItemInspector), so not that press.
+            if (PadInput.Pressed(PadButton.South) && !(Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)) return;
             lastInteractionFrame = Time.frameCount;
             inspector.TryCollectInspectedItem();
             return;

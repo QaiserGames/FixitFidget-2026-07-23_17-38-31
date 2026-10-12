@@ -284,8 +284,11 @@ public sealed class Day1GuideCheck : PlayLab
         JobMarker[] markers = FindObjectsByType<JobMarker>(FindObjectsInactive.Exclude);
         Check(markers.All(m => m.LabelText.Length == 0), $"no job number anywhere ({markers.Length} job tags up in the café)");
         Check(!markers.Any(m => m.TagShowing && m.GetComponentInParent<JobBase>(true) == inspector.FocusedItem), "no tag over the device on the mat");
-        Check(shop.PromptLine.Contains("[Click a tool]") && shop.PromptLine.Contains("[Drag]") && shop.PromptLine.Contains("[Right-click]"),
-            $"the mouse's tools line, with its real bindings: \"{Plain(shop.PromptLine)}\"");
+        // The close-up's controls are on their own card since 12 Oct (BenchCards), not the bottom prompt's tools line.
+        yield return Await(() => BenchCards.ControlsText.Contains("[Click a tool]"), 2f);
+        string controls = BenchCards.ControlsText;
+        Check(controls.Contains("[Click a tool]") && controls.Contains("[Drag]") && controls.Contains("[Right-click]") && BenchCards.ControlsInFull,
+            $"the mouse's controls card, in full, with its real bindings: \"{Plain(controls)}\"");
         yield return Photo1080("08-at-the-bench");
         inspector.StepBack();
         yield return Until(() => !inspector.IsHoldingItem, 3f, "...and right-click with bare hands puts it down and steps back");

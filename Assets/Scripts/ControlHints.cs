@@ -42,4 +42,12 @@ public static class ControlHints
     public static string AimStep => Pad ? "D-pad" : "";
     /// <summary>The phone and the pause (PausePhone, playtest 3 session 3): Esc, or the pad's Start / Options / Plus.</summary>
     public static string Pause => Pad ? PadInput.Label(PadButton.Start) : "Esc";
+    /// <summary>At the bench: pick the device up and step back. E, or X on a pad (12 Oct: A uses there).</summary>
+    public static string TakeFromBench => Pad ? PadInput.Label(PadButton.West) : "E";
+    /// <summary>At the bench: use the tool in hand. Click, or A / RT on a pad (12 Oct).</summary>
+    public static string BenchUse => Pad ? PadInput.Label(PadButton.South) + " / " + PadInput.Label(PadButton.RightTrigger) : "Hold click";
+    /// <summary>At the bench: zoom. The scroll wheel, or the D-pad up and down.</summary>
+    public static string BenchZoom => Pad ? "D-pad up/down" : "Scroll";
+    /// <summary>At the bench: the full controls card again, held (BenchCards). Tab, or View / Select on a pad.</summary>
+    public static string BenchHelp => Pad ? PadInput.Label(PadButton.Select) : "Tab";
 }

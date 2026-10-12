@@ -47,6 +47,10 @@ using UnityEngine.Playables;
 // seen from where Ace stands, so the body hides in them too, and stays hidden while the camera pulls back
 // out of one until it is a few metres off (Clear Of Camera). Since the body came (29 Sept), the
 // conversation's camera behind the counter had been looking through the back of Ace's shirt.
+//
+// Over his shoulder (12 Oct 2026): a conversation begun from the overhead view is now seen from just behind Ace's shoulder
+// (ConversationController, Skyrim's way), so the body stays drawn through it, turned to face them (FaceToward), and stays
+// drawn as the view rises back. In first person the conversation is seen from his eyes, and the body hides as ever.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent, DefaultExecutionOrder(120)]
 public sealed class AceBody : MonoBehaviour
@@ -572,6 +576,8 @@ public sealed class AceBody : MonoBehaviour
     const float ClearOfCamera = 3f;
     // A close-up has had the screen, and the camera may still be pulling back out of it.
     bool afterCloseUp;
+    // The last frame a conversation was seen from just behind Ace's shoulder (12 Oct).
+    int shoulderShotFrame = -10;
     Transform viewCamera;
 
     // Drawn only while the overhead view is on screen: not in first person, at a station or in a close-up
@@ -581,6 +587,10 @@ public sealed class AceBody : MonoBehaviour
         if (view == null) return true;
         // Hidden in a cupboard or a wardrobe (GraceAtHome): set aside, and back the moment Ace comes out.
         if (view.AceSetAside) return false;
+        // A conversation seen from just behind his shoulder (12 Oct): he's in the picture. In the frame it closes in (the
+        // conversation still owns that frame) he stays drawn, as the view rises from his shoulder; never a close-up's hiding.
+        if (view.TalkingOverShoulder) { shoulderShotFrame = Time.frameCount; return true; }
+        if (Time.frameCount - shoulderShotFrame <= 1) return true;
         if (!(view.isActiveAndEnabled ? view.OverheadShown : view.ShowsAce))
         {
             afterCloseUp = true;

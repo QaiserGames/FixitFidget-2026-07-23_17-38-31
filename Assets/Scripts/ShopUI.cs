@@ -122,13 +122,7 @@ public class ShopUI : MonoBehaviour
     private static readonly string KeyColour = UiSkin.HexOf(UiSkin.BrandBright);
     private static string Key(string label) => $"<color={KeyColour}>[{label}]</color>";
 
-    // AT THE BENCH WITH A MOUSE (playtest 4; the first hour: with a mouse the close-up said only "[E] Pick up item and step
-    // back", the tools line was a pad's alone). The real bindings (ItemInspector.HandleBench): a click on a tool in the caddy
-    // takes it; with bare hands a drag that starts off the parts turns the device and R flips it; a held click uses the tool
-    // in hand; right-click puts the tool down (with bare hands, the item: the close-up ends).
-    private static string MouseToolsLine(string toolName, bool hand) => hand || string.IsNullOrEmpty(toolName)
-        ? $"{Key("Click a tool")}  Take it        {Key("Drag")}  Turn it        {Key(ControlHints.Flip)}  Flip it        {Key(ControlHints.Cancel)}  Put item down"
-        : $"{Key("Hold click")}  Use the {toolName.ToLowerInvariant()}        {Key("Click a tool")}  Swap        {Key(ControlHints.Cancel)}  Put tool down";
+    // AT THE BENCH (playtest 4; 12 Oct): the close-up's controls, the mouse's and the pad's, are on their own card (BenchCards).
 
     // DAY 1'S FIRST STEPS (playtest 4; the first hour: "Nothing anywhere says how to move"): how to walk and use, at the
     // front of the controls strip, the keys in the brand's light green, until Ace has walked a few metres and used E once.
@@ -277,7 +271,7 @@ public class ShopUI : MonoBehaviour
         // to step up to by day any more (playtest 3), so F has no line.
         string action = interactor.WorkPrompt;
         bool pad = PadInput.UsingPad;
-        // At the bench: the tools line, on a pad and (playtest 4) with a mouse too.
+        // At the bench: the tool in hand (it still keys the line below; the controls themselves are on BenchCards' card).
         bool holding = inspector != null && inspector.IsHoldingItem;
         string toolName = holding ? inspector.CurrentToolName : null;
         bool hand = holding && inspector.CurrentTool == ToolType.Hand;
@@ -293,16 +287,13 @@ public class ShopUI : MonoBehaviour
             string line = "";
             if (!string.IsNullOrEmpty(inHand)) line += $"<size=72%><color={UiSkin.HexOf(UiSkin.BrandBright)}>In hand</color>  {inHand}</size>\n";
             // Keys follow the device in use: [E] / [Click] on a keyboard and mouse, the pad's
-            // own labels once a controller is being used (see ControlHints).
-            if (!string.IsNullOrEmpty(interact)) line += $"{Key(ControlHints.Interact)}  {interact}";
+            // own labels once a controller is being used (see ControlHints). At the bench, X on a pad (12 Oct: A uses there).
+            if (!string.IsNullOrEmpty(interact)) line += $"{Key(holding ? ControlHints.TakeFromBench : ControlHints.Interact)}  {interact}";
             if (!string.IsNullOrEmpty(action))
                 line += (line.Length > 0 ? "        " : "") + $"{Key(ControlHints.Use)}  {action}";
-            // Working on an item: say how to change tools and put things down (a controller's buttons, or the mouse's).
-            if (holding)
-                line += pad
-                    ? $"\n<size=80%>{Key(ControlHints.Tools)}  {toolName}        {Key(ControlHints.Use)}  Use        {Key(ControlHints.Back)}  "
-                        + (!hand ? "Put tool down" : "Put item down") + "</size>"
-                    : $"\n<size=80%>{MouseToolsLine(toolName, hand)}</size>";
+            // Working on an item: the controls are on their own card now, every one of them, in the device's own glyphs
+            // (BenchCards, 12 Oct: the pad's line said "[LB / RB] Hands  [RT] Use  [B] Put item down", nothing of the left
+            // stick's turn or Y's flip, and "Hands" read as if LB / RB meant hands).
 
             if (showDebug)
                 line += "\n" + interactor.DebugInfo;

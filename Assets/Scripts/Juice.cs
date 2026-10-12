@@ -930,19 +930,9 @@ public sealed class Juice : MonoBehaviour
 
     static Vector3 Centre(GameObject go) => RendererBounds(go, out Bounds b) ? b.center : go.transform.position;
 
-    // What's drawn of a thing (its enabled renderers, particles aside), as one world box. False: nothing is drawn.
-    static bool RendererBounds(GameObject go, out Bounds b)
-    {
-        b = default;
-        bool any = false;
-        foreach (Renderer r in go.GetComponentsInChildren<Renderer>())
-        {
-            if (!r.enabled || r is ParticleSystemRenderer) continue;
-            if (!any) { b = r.bounds; any = true; }
-            else b.Encapsulate(r.bounds);
-        }
-        return any;
-    }
+    // What's drawn of a thing (its own solid parts: not its job tag, sprites, lines or particles; DeviceBounds), as one
+    // world box. False: nothing is drawn. (12 Oct: with the phone's stray tag counted, "Fixed!" landed about 30 cm off it.)
+    static bool RendererBounds(GameObject go, out Bounds b) => DeviceBounds.TryGet(go, out b);
 
     // ================================================================== the icons, drawn in code
 

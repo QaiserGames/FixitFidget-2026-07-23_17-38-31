@@ -58,6 +58,19 @@ public sealed class ConversationReply
 // sooner (§6.1's fast path: three). The fourth was a press thrown away: for 0.2 s after opening every press was ignored, so
 // a quick second E did nothing. Now one press does one thing: in the frame a press opened it, asked or picked, no press
 // counts again; from the next frame every press is the player's own (inputDelay can still add a wait; the café scene's is 0).
+//
+// THE VIEW, SKYRIM'S WAY (12 Oct 2026). Mansoor's playtest: "when talking to the customer to the far left, lets say im right
+// infront of this customer whose on the left side, even if im looking right at him and talk, the camera angle shifts to the
+// right and downwards ... it should feel like how it feels when talking to anyone in skyrim". The conversation's camera was a
+// fixed one behind the counter (x -0.48, 1.47 m up, 0.8 m behind the till) that only turned: for the customer on the left
+// the view jumped 2.2 m right, 18 cm down and 72 cm back (the conversation view probe). Agreed (claude/playtest-4-findings-
+// and-proposals.md §2.2): the same camera, placed where Ace is.
+//   * In first person it sits at Ace's eyes (CafeViewMode.EyePoint): on E the view only turns to their face and leans in,
+//     the lens going from the walk's 65° to 45° over the brain's blend; their face a little above the middle of the screen,
+//     so the subtitle and the replies never cover it. When it ends the view eases back to where Ace was looking.
+//   * From the overhead view it comes down to just behind Ace's shoulder (Shoulder Offset), and Ace is drawn in the shot,
+//     turned to face them (CafeViewMode.TalkingOverShoulder, AceBody). With no room behind him for it (a wall, a shelf), it is
+//     seen from his eyes instead.
 // ---------------------------------------------------------------------------
 public class ConversationController : MonoBehaviour
 {
@@ -74,9 +87,31 @@ public class ConversationController : MonoBehaviour
              "them at the counter longer.")]
     [SerializeField] private float closingPause = 1.2f;
 
+    [Header("The view (12 Oct: Skyrim's way)")]
+    [Tooltip("The conversation's lens, degrees (the walk's is 65): the lean in.")]
+    [SerializeField, Range(25f, 70f)] private float lensDegrees = 45f;
+    [Tooltip("Where their face sits on the screen, above the middle as a share of its height: a little above, so the " +
+             "subtitle and the replies never cover it.")]
+    [SerializeField, Range(-.3f, .3f)] private float faceAboveMiddle = .07f;
+    [Tooltip("From the overhead view: where the view sits from Ace's eyes, metres, as he faces them: x to his right, y up, " +
+             "z forward (negative: behind him). His head and shoulder stay at the left edge of the picture.")]
+    [SerializeField] private Vector3 shoulderOffset = new Vector3(.5f, .06f, -.45f);
+    [Tooltip("The least room behind Ace the shot over his shoulder needs, metres from his eyes. With less (a wall, a shelf), " +
+             "the conversation is seen from his eyes instead.")]
+    [SerializeField, Range(.1f, .8f)] private float shoulderRoom = .35f;
+
     // Keep ownership through the closing frame, so Escape cannot also move
     // the player out of something else later in that same frame.
     public bool InConversation => conversationOpen || Time.frameCount == closedAtFrame;
+
+    /// <summary>The conversation open now is seen from just behind Ace's shoulder (it began in the overhead view): Ace is drawn.</summary>
+    public bool SeenOverShoulder => conversationOpen && seenOverShoulder;
+
+    /// <summary>The conversation's camera (the labs measure it).</summary>
+    public CinemachineCamera ConversationCamera => conversationCam;
+
+    /// <summary>Who Ace is talking to, or null.</summary>
+    public CustomerBrain Partner => conversationOpen ? partner : null;
 
     /// <summary>
     /// A conversation is open, whoever it's with. The floating patience bars hide meanwhile
@@ -89,6 +124,10 @@ public class ConversationController : MonoBehaviour
     private static void ResetStatics() => AnyOpen = false;
 
     private CustomerBrain partner;
+    private CafeViewMode view;
+    private AceBody aceBody;
+    // This conversation is seen from just behind Ace's shoulder (it began in the overhead view, with room behind him).
+    private bool seenOverShoulder;
     private float inputReadyAt;
     // The frame a press last did something here (opened it, asked, picked): no press counts again in that frame, so one press
     // can't do two things. A press in any later frame is the player's own (playtest 4).
@@ -154,16 +193,32 @@ public class ConversationController : MonoBehaviour
         // Take ownership of their body. Until End(), nothing moves them.
         brain.OnConversationOpened(this);
 
-        // Frame them. Rotation Composer holds the shot, so look input does nothing.
+        // Frame them, from where Ace is (12 Oct): his eyes in first person, just behind his shoulder from above. The Rotation
+        // Composer holds the shot on their face, so look input does nothing.
         if (conversationCam != null)
         {
+            if (view == null) view = GetComponent<CafeViewMode>();
+            if (aceBody == null) aceBody = GetComponent<AceBody>();
             conversationCam.Target.TrackingTarget = brain.LookTarget != null
                 ? brain.LookTarget : brain.transform;
+            seenOverShoulder = view != null && view.isActiveAndEnabled && !view.FirstPersonSelected
+                && RoomBehindAce(out _, out _) >= shoulderRoom;
+            if (seenOverShoulder && aceBody != null) aceBody.FaceToward(brain.transform.position);
+            PlaceTheView();
+            conversationCam.Lens.FieldOfView = lensDegrees;
+            var composer = conversationCam.GetComponent<CinemachineRotationComposer>();
+            if (composer != null)
+            {
+                ScreenComposerSettings composition = composer.Composition;
+                composition.ScreenPosition = new Vector2(0f, -faceAboveMiddle);   // the composer's y runs down the screen
+                composer.Composition = composition;
+            }
             conversationCam.Priority = 40;
         }
 
         Sprite face = brain.Identity != null ? brain.Identity.Portrait : null;
         Color tint = brain.Identity != null ? brain.Identity.ThemeColor : Color.white;
+        ui.FaceAboveMiddle = faceAboveMiddle;   // the replies' column starts beside their face (12 Oct)
         ui.Show(brain.CustomerName, tint, face);
 
         // First beat: whatever they came here to say. The morning after a night,
@@ -188,6 +243,7 @@ public class ConversationController : MonoBehaviour
         var counterCustomer = counterAfterClose;
         counterAfterClose = null;
         conversationOpen = false;
+        seenOverShoulder = false;
         AnyOpen = false;
         closing = false;
         replies.Clear();
@@ -225,6 +281,7 @@ public class ConversationController : MonoBehaviour
         }
         if (Time.timeScale <= 0f) return;
         RefreshPortrait();
+        PlaceTheView();
 
         bool ready = Time.time >= inputReadyAt && Time.frameCount > pressedFrame;
         Keyboard kb = Keyboard.current;
@@ -276,7 +333,7 @@ public class ConversationController : MonoBehaviour
         BuildReplies();
         if (replies.Count == 0)
         {
-            ui.SetOptions(Footer());
+            ui.SetReplies(null, -1, Footer());
             return;
         }
         highlighted = Mathf.Clamp(highlighted, 0, replies.Count - 1);
@@ -294,7 +351,7 @@ public class ConversationController : MonoBehaviour
                 if (turnAway >= 0) { Choose(turnAway); return; }
             }
         }
-        ui.SetOptions(Render());
+        ui.SetReplies(Render(), highlighted, Footer());
     }
 
     /// <summary>
@@ -335,6 +392,49 @@ public class ConversationController : MonoBehaviour
     }
 
     private void OnDisable() => End();
+
+    // ---------- the view ----------
+
+    // Where the conversation is seen from: Ace's eyes, or just behind his shoulder (stopping short of anything behind him).
+    private void PlaceTheView()
+    {
+        if (conversationCam == null || partner == null) return;
+        if (view == null) view = GetComponent<CafeViewMode>();
+        if (view == null) return;
+        Vector3 eye = view.EyePoint;
+        if (!seenOverShoulder)
+        {
+            conversationCam.transform.position = eye;
+            return;
+        }
+        float room = RoomBehindAce(out Vector3 toward, out float wanted);
+        // Never nearer his eyes than the room it began with allowed (no sudden lurch into his head), never into what's behind.
+        float distance = Mathf.Clamp(room - .05f, Mathf.Min(wanted, shoulderRoom - .05f), wanted);
+        conversationCam.transform.position = eye + toward * distance;
+    }
+
+    // How far the view can go from Ace's eyes toward the place over his shoulder before it meets something (a wall, a shelf,
+    // the back counter), metres; <paramref name="toward"/> is that way, <paramref name="wanted"/> how far the place is.
+    private float RoomBehindAce(out Vector3 toward, out float wanted)
+    {
+        toward = Vector3.back;
+        wanted = 0f;
+        if (view == null || partner == null) return 0f;
+        Vector3 eye = view.EyePoint;
+        Vector3 face = partner.LookTarget != null ? partner.LookTarget.position : partner.transform.position + Vector3.up * 1.6f;
+        Vector3 forward = face - eye;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 1e-4f) forward = transform.forward;
+        forward.Normalize();
+        Vector3 right = Vector3.Cross(Vector3.up, forward);
+        Vector3 offset = right * shoulderOffset.x + Vector3.up * shoulderOffset.y + forward * shoulderOffset.z;
+        wanted = offset.magnitude;
+        if (wanted < 1e-3f) return 0f;
+        toward = offset / wanted;
+        // A sphere the size of a camera's head room, from inside Ace's own capsule (a cast ignores what it starts in).
+        return Physics.SphereCast(eye, .1f, toward, out RaycastHit hit, wanted, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+            ? hit.distance : wanted;
+    }
 
     // ---------- the replies ----------
 
@@ -472,36 +572,39 @@ public class ConversationController : MonoBehaviour
         return -1;
     }
 
-    private const string Gold = "#D4A23A", Bright = "#FFFFFF", Soft = "#E4DFD6", Faded = "#8E8980",
-        KeyColour = "#CFC27D", HintColour = "#9C968C";
+    private const string Gold = "#D4A23A", Soft = "#E4DFD6", Faded = "#8E8980", KeyColour = "#CFC27D", HintColour = "#B9B1A6";
+    // The highlighted reply: the brand's light green (12 Oct, the new layout), on its plate with a green edge (ConversationUI).
+    private static readonly string Lit = UiSkin.HexOf(UiSkin.BrandBright);
+    private readonly List<string> rows = new();
 
-    // The list as drawn: the highlighted reply bright with a marker and its key, asked topics faded
-    // (with "noted" when Ace learned something), the turn-away line with Q, and a small footer.
-    private string Render()
+    // The list as drawn, a row a reply (ConversationUI puts each on its own plate): the highlighted reply in light green with
+    // a marker and its key, asked topics faded (with "noted" when Ace learned something), the turn-away line with its key.
+    private List<string> Render()
     {
+        rows.Clear();
         var text = new StringBuilder();
         for (int i = 0; i < replies.Count; i++)
         {
             ConversationReply reply = replies[i];
             bool on = i == highlighted;
             bool asked = reply.Topic != null && reply.Topic.Asked;
-            text.Append(on ? $"<color={Gold}>►</color><space=0.35em>" : "<space=1.15em>");
-            text.Append($"<color={(on ? Bright : asked ? Faded : Soft)}>{reply.Text}</color>");
+            text.Clear();
+            text.Append(on ? $"<color={Lit}>►</color><space=0.35em>" : "<space=1.15em>");
+            text.Append($"<color={(on ? Lit : asked ? Faded : Soft)}>{reply.Text}</color>");
             if (asked && reply.Topic.Taught) text.Append($" <size=72%><color={Gold}>noted</color></size>");
             if (on) text.Append($"  <size=78%><color={KeyColour}>[{ControlHints.Interact}]</color></size>");
             else if (reply.Kind == ReplyKind.Refuse) text.Append($"  <size=78%><color={KeyColour}>[{ControlHints.Refuse}]</color></size>");
-            text.Append('\n');
+            rows.Add(text.ToString());
         }
-        text.Append(Footer());
-        return text.ToString();
+        return rows;
     }
 
     private string Footer()
     {
         string back = ControlHints.Say("Esc", ControlHints.Back);
-        if (replies.Count < 2) return $"<size=74%><color={HintColour}>[{back}]  Step away</color></size>";
+        if (replies.Count < 2) return $"<color={HintColour}>[{back}]  Step away</color>";
         string choose = ControlHints.Pad ? "D-pad" : "W/S";
-        return $"<size=74%><color={HintColour}>[{choose}]  Choose      [{back}]  Step away</color></size>";
+        return $"<color={HintColour}>[{choose}]  Choose      [{back}]  Step away</color>";
     }
 
     // ---------- closing ----------

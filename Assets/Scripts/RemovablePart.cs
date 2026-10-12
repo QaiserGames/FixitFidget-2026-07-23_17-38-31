@@ -147,6 +147,26 @@ public class RemovablePart : BenchInteractable
     // The device is finished: a seated cover has nothing to offer (the editor's checks build covers without Awake: no job).
     private bool DeviceFinished => job != null && job.IsFinished;
 
+    /// <summary>The screws that hold it on (the bench's checklist counts them, RepairChecklist).</summary>
+    public System.Collections.Generic.IReadOnlyList<Screw> HeldBy => heldBy != null ? heldBy : System.Array.Empty<Screw>();
+
+    /// <summary>
+    /// This job's work lies under it, not done yet: a fault of this job still there (a fault the device doesn't have today is
+    /// switched off; grime destroys itself when clean), or a part of this job not replaced yet. The checklist's reason to
+    /// open it (12 Oct). Unlike WorkBeneathDone, which only words the prompt, it ignores the faults switched off.
+    /// </summary>
+    public bool WorkBeneathToDo
+    {
+        get
+        {
+            if (faultsBeneath != null) foreach (GameObject f in faultsBeneath)
+                if (f != null && f.activeInHierarchy) return true;
+            if (replacementsBeneath != null) foreach (ReplaceablePart r in replacementsBeneath)
+                if (r != null && r.gameObject.activeInHierarchy && !r.IsReplaced) return true;
+            return false;
+        }
+    }
+
     public Vector3 Outward => homeParent != null ? homeParent.TransformDirection(outwardLocal).normalized : transform.up;
     public Vector3 HomePosition => homeParent != null ? homeParent.TransformPoint(homeLocalPos) : transform.position;
 

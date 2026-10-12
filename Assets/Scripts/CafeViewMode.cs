@@ -169,6 +169,14 @@ public sealed class CafeViewMode : MonoBehaviour
     public bool AceInsideCafe => CafeDaylight.CafeInside.Contains(new Vector2(transform.position.x, transform.position.z));
     /// <summary>Ace is drawn: not in first person and not at a station (the capsule's rule, which AceBody follows).</summary>
     public bool ShowsAce => !AtStation && !firstPerson;
+    /// <summary>
+    /// A conversation begun from the overhead view, seen from just behind Ace's shoulder (ConversationController, 12 Oct): Ace's
+    /// body is drawn in it (AceBody), though the overhead view itself is off the screen meanwhile.
+    /// </summary>
+    public bool TalkingOverShoulder => isActiveAndEnabled && !firstPerson && !AtStation
+        && conversation != null && conversation.SeenOverShoulder
+        && !(inspector != null && inspector.IsHoldingItem)
+        && !(counterRepair != null && counterRepair.OwnsInput);
     /// <summary>Set by AceBody while Ace's stand-in body is drawn instead of the capsule: the capsule's mesh hides.</summary>
     public bool BodyStandsIn { get; set; }
     /// <summary>
@@ -265,6 +273,9 @@ public sealed class CafeViewMode : MonoBehaviour
 
     /// <summary>A D-pad step in first person (PlayerInteractor): the view glides to look at <paramref name="point"/>.</summary>
     public void StepAimTo(Vector3 point) => aim.StepTo(point);
+
+    /// <summary>Where Ace's eyes are (the first-person camera's place): the conversation is seen from here (12 Oct).</summary>
+    public Vector3 EyePoint => Eye;
 
     // Where the first-person eye is (as RefreshCameraPose puts it).
     Vector3 Eye

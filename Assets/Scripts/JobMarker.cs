@@ -64,12 +64,19 @@ public class JobMarker : MonoBehaviour
     private void Awake()
     {
         // The prefabs' label still says "#1": it never shows (the HUD spec §4).
-        if (label != null)
-        {
-            label.text = "";
-            label.enabled = false;
-        }
+        SilenceLabel();
         Hide();
+    }
+
+    // The old text off, and its renderer with it (12 Oct): switched off, an empty text's renderer still had a place, and on the
+    // phone that place was 70 cm along its length, so the bench measured a customer's phone as 77 cm long (DeviceBounds).
+    void SilenceLabel()
+    {
+        if (label == null) return;
+        label.text = "";
+        label.enabled = false;
+        Renderer r = label.GetComponent<Renderer>();
+        if (r != null) r.enabled = false;
     }
 
     /// <summary>The job's tag, in its colour (the number is not shown: the HUD spec §4).</summary>
@@ -86,11 +93,7 @@ public class JobMarker : MonoBehaviour
     void ShowTag(Color color)
     {
         TagColour = color;
-        if (label != null)
-        {
-            label.text = "";
-            label.enabled = false;
-        }
+        SilenceLabel();
         if (Application.isPlaying)
         {
             Build();
@@ -195,8 +198,7 @@ public class JobMarker : MonoBehaviour
         Bounds b = default;
         foreach (Renderer r in solids)
         {
-            if (r == null || !r.enabled || !r.gameObject.activeInHierarchy || r.transform.IsChildOf(transform)) continue;
-            if (r is LineRenderer || r is ParticleSystemRenderer || r is SpriteRenderer) continue;
+            if (r == null || r.transform.IsChildOf(transform) || !DeviceBounds.Counts(r)) continue;
             if (!any) { b = r.bounds; any = true; }
             else b.Encapsulate(r.bounds);
         }

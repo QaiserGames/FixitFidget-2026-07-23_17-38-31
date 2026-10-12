@@ -49,6 +49,14 @@ using Unity.Cinemachine;
 //     of the back like the screwdriver");
 //   * a finished device (JobBase.IsFinished) offers nothing to undo: over its screws and its cover the hover names the
 //     part with no verb ("'Back together · Perfect' sits over 'Screw: Hold to unscrew'").
+//
+// HIS PLAYTEST WITH A CONTROLLER (12 Oct 2026; claude/playtest-4-findings-and-proposals.md §1):
+//   * the device is measured by its own solid parts only (DeviceBounds): a customer's phone had its job tag counted, a
+//     leftover 70 cm along its length, and was laid 31.5 cm off the mat's middle, off the screen;
+//   * the device worked on always lies in the middle of the mat; a device already lying there takes its place until the
+//     work is done ("device to the middle": from the bench's second slot it lay low on the left of the close-up);
+//   * on a pad, A uses, as RT does ("A uses, X takes it"): A had picked the device up and ended the work, the first thing
+//     a pad player presses. X picks it up and steps back now (PlayerInteractor); B is back, as before.
 // ---------------------------------------------------------------------------
 public class ItemInspector : MonoBehaviour
 {
@@ -77,6 +85,16 @@ public class ItemInspector : MonoBehaviour
     private JobBase focusedItem;
     private Vector3 restPosition;
     private Quaternion restRotation;
+
+    // A device that lay in the middle of the mat, moved to this one's place for the work, and its own place to go back to.
+    private Transform swappedDevice;
+    private Vector3 swappedPosition;
+    private Quaternion swappedRotation;
+
+    /// <summary>Ace's inspector (one in the café), for the HUD's bench cards and the pad's cursor.</summary>
+    public static ItemInspector Instance { get; private set; }
+    /// <summary>The close-up is up: something is being worked on at the bench.</summary>
+    public static bool Working => Instance != null && Instance.focusedItem != null;
 
     private BenchInteractable currentBenchHover;
     private ToolType currentTool = ToolType.Hand;
@@ -153,7 +171,22 @@ public class ItemInspector : MonoBehaviour
     {
         cam = Camera.main;
         interaction = GetComponent<PlayerInteractor>();
+        Instance = this;
     }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => Instance = null;
+
+    // A on a pad uses, as RT does (12 Oct, Mansoor: "A uses, X takes it"). Only in the close-up: everywhere else A keeps E's job.
+    private static bool UsePressed => GamePointer.PrimaryPressed
+        || GamePointer.PadCursorActive && PadInput.Pressed(PadButton.South) && !PadCursor.PressConsumed;
+    private static bool UseHeld => GamePointer.PrimaryHeld
+        || GamePointer.PadCursorActive && PadInput.Held(PadButton.South) && !PadCursor.PressConsumed;
 
     private void Update()
     {
@@ -217,8 +250,10 @@ public class ItemInspector : MonoBehaviour
         inspectCam.Priority = 30;
         CurrentJobCard = item.JobCard;
 
-        // Laid on the mat, the face that was up on the bench still up, square to the view. It goes back as it lay.
-        tableTop = TableTopPoint(item.transform);
+        // Laid on the mat, the face that was up on the bench still up, square to the view. It goes back as it lay. Always in
+        // the middle of the mat (12 Oct, "device to the middle"): a device lying there takes this one's place until it's done.
+        tableTop = TableTopPoint(inspectPoint);
+        MakeRoomInTheMiddle(item);
         camOffset = camRestPosition - tableTop;
         MeasureSlab(item.transform);
         faceSign = Vector3.Dot(item.transform.rotation * thinAxis, Vector3.up) >= 0f ? 1f : -1f;
@@ -285,6 +320,13 @@ public class ItemInspector : MonoBehaviour
         {
             focusedItem.transform.position = restPosition;
             focusedItem.transform.rotation = restRotation;
+        }
+        // The device that made room in the middle goes back there (if it is still on the bench).
+        if (swappedDevice != null)
+        {
+            JobBase other = swappedDevice.GetComponent<JobBase>();
+            if (other != null && StationInteractable.BenchHolds(other)) swappedDevice.SetPositionAndRotation(swappedPosition, swappedRotation);
+            swappedDevice = null;
         }
         focusedItem = null;
         if (inspectCam != null)
@@ -429,13 +471,13 @@ public class ItemInspector : MonoBehaviour
 
         SetBenchHover(holdTarget != null ? holdTarget : grabTarget != null ? grabTarget : target);
 
-        // Left click / RT.
-        if (GamePointer.PrimaryPressed)
+        // Left click / RT, or A on a pad (12 Oct).
+        if (UsePressed)
         {
             HandleBenchPress(hovered, grime, hoveredTool, overBoard);
         }
 
-        bool held = GamePointer.PrimaryHeld;
+        bool held = UseHeld;
         if (held)
         {
             Vector2 delta = GamePointer.Delta;
@@ -508,8 +550,9 @@ public class ItemInspector : MonoBehaviour
 
     // ---------- the device on the mat: its pose, the spin's inertia and the settle, the peek, the flip ----------
 
-    // Where the device rests: on the mat's top, where it was set down (its own slot, so two devices on the mat never share
-    // a spot; the zoom closes on it there). Without a stage, the inspect point, as before.
+    // A point on the mat's top, under the given one, kept well inside the mat. The device worked on rests at the inspect
+    // point's (the middle: 12 Oct; until then where it was set down, so a device from the second slot lay low on the left of
+    // the close-up). Without a stage, the inspect point, as before.
     private Vector3 TableTopPoint(Transform item)
     {
         Vector3 p = inspectPoint.position;
@@ -527,6 +570,35 @@ public class ItemInspector : MonoBehaviour
         }
         return p;
     }
+
+    // A device lying in the middle of the mat (another job, set down there) moves to this one's place on the bench for the
+    // work, and goes back on Release. Devices lie on the same mat, so each keeps its own height on it.
+    private void MakeRoomInTheMiddle(JobBase item)
+    {
+        swappedDevice = null;
+        Vector3 middle = Flat(tableTop);
+        if ((Flat(item.transform.position) - middle).sqrMagnitude < .04f * .04f) return;   // it lies there already
+        JobBase other = null;
+        float best = .09f * .09f;
+        foreach (JobBase job in FindObjectsByType<JobBase>())
+        {
+            if (job == null || job == item || !StationInteractable.BenchHolds(job)) continue;
+            float d = (Flat(job.transform.position) - middle).sqrMagnitude;
+            if (d < best) { best = d; other = job; }
+        }
+        if (other == null) return;
+        swappedDevice = other.transform;
+        swappedPosition = other.transform.position;
+        swappedRotation = other.transform.rotation;
+        Vector3 to = restPosition;
+        to.y = swappedPosition.y;
+        other.transform.position = to;
+    }
+
+    private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+    /// <summary>A device moved out of the middle of the mat for this one's work (labs).</summary>
+    public Transform MadeRoomFor => swappedDevice;
 
     // The view's forward laid flat on the table: "up the screen" on the mat. Square-on means the device's long side runs
     // this way (a phone stands portrait on the screen).
@@ -591,6 +663,17 @@ public class ItemInspector : MonoBehaviour
         if (float.IsInfinity(lowest)) lowest = 0f;
         t.position = new Vector3(tableTop.x - centre.x, tableTop.y - lowest + extraLift, tableTop.z - centre.z);
     }
+
+    /// <summary>Turns the device over onto its other face, as Y or R does (the labs' hand). False while it can't (mid-flip).</summary>
+    public bool FlipOver()
+    {
+        if (focusedItem == null || flipping != null) return false;
+        flipping = StartCoroutine(Flip());
+        return true;
+    }
+
+    /// <summary>The device is still turning over (FlipOver, Y, R).</summary>
+    public bool Flipping => flipping != null;
 
     /// <summary>Lays the device flat and square at a yaw (the labs' hand; the device's own settle does this by itself).</summary>
     public void LayDown(float aboutUp = 0f)
@@ -692,7 +775,8 @@ public class ItemInspector : MonoBehaviour
         Quaternion unturn = Quaternion.Inverse(root.rotation);
         foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
         {
-            if (!r.enabled || r.GetComponent<BenchOutlineHull>() != null) continue;
+            // Its own solid parts only (DeviceBounds, 12 Oct): not its job tag, sprites, lines, particles, nothing without a mesh.
+            if (!DeviceBounds.Counts(r) || r.GetComponent<BenchOutlineHull>() != null) continue;
             // The mesh's own box, carried into the world, so a turned device measures the same as a square one.
             var mf = r.GetComponent<MeshFilter>();
             Bounds b = mf != null && mf.sharedMesh != null ? mf.sharedMesh.bounds : r.bounds;
@@ -832,7 +916,7 @@ public class ItemInspector : MonoBehaviour
         // While a pried cover pops (a moment it is nobody's target), the pry stays in the seam under its edge (playtest 4).
         if (currentTool == ToolType.Pry && hitSomething && hit.collider.GetComponentInParent<RemovablePart>() is RemovablePart popping && popping.Popping
             && AtTheSeam(tool, popping, hitSomething, hit, true, dt)) return;
-        if (grime != null && hitSomething) { tool.Follow(hit.point, hit.normal, cam, GamePointer.PrimaryHeld, dt); return; }
+        if (grime != null && hitSomething) { tool.Follow(hit.point, hit.normal, cam, UseHeld, dt); return; }
         if (hitSomething && hit.collider.GetComponentInParent<JobBase>() == focusedItem) { tool.Follow(hit.point, hit.normal, cam, false, dt); return; }
         // Over nothing: by the cursor, 35 cm out, tip toward the item.
         Vector3 point = cam.transform.position + ray.direction * .35f;   // 35 cm from the eye (the ray's own origin is out on the near plane)

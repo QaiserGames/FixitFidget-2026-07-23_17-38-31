@@ -482,7 +482,7 @@ public class DayOneGuideUI : MonoBehaviour
             if (inspecting)
                 return carry != null && !carry.HasSpace
                     ? "Fixed! Free a hand before collecting the item."
-                    : $"Fixed! Press {E} to pick up the item and step back from inspection.";
+                    : $"Fixed! Press {ControlHints.TakeFromBench} to pick up the item and step back from inspection.";   // X on a pad: A uses at the bench (12 Oct)
             if (carrying)
                 return Over(customer, $"{job.Grade} repair. Take it to {name}; {E} hands it back."
                     + (job.Grade == JobGrade.Perfect ? "" : " You can keep repairing for a higher grade."));
@@ -574,6 +574,8 @@ public class DayOneGuideUI : MonoBehaviour
                         ? $"Pry tool in hand. {Hold("an edge of the loosened cover")} until it pops."
                         : $"{Select("pry tool")} to pop the loosened cover.";
 
+        // The first spot still dirty, in the device's own order: the bench's checklist cleans in the same order (RepairChecklist,
+        // 12 Oct), so the two never point at different tools.
         GrimeSpot spot = job.GetComponentInChildren<GrimeSpot>();
         if (spot != null)
         {

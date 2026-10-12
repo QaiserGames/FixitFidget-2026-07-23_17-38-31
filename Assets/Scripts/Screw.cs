@@ -98,7 +98,8 @@ public class Screw : MonoBehaviour
         Bounds b = new Bounds(root.position, Vector3.zero);
         foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
         {
-            if (r.transform == transform) continue;
+            // The device's own solid parts (DeviceBounds): its job tag counted, a phone's screws fell toward a point 70 cm off.
+            if (r.transform == transform || !DeviceBounds.Counts(r)) continue;
             if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
         }
         return any ? b.center : root.position;

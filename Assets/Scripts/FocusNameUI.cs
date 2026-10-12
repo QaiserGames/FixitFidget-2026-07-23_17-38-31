@@ -159,20 +159,8 @@ public class FocusNameUI : MonoBehaviour
         return top;
     }
 
-    /// <summary>The top middle of what's drawn of a thing (its renderers' bounds), or its position.</summary>
-    public static Vector3 TopOf(GameObject thing)
-    {
-        if (thing == null) return Vector3.zero;
-        bool any = false;
-        Bounds b = default;
-        foreach (Renderer r in thing.GetComponentsInChildren<Renderer>())
-        {
-            if (!r.enabled || r is ParticleSystemRenderer || r is LineRenderer) continue;
-            if (!any) { b = r.bounds; any = true; }
-            else b.Encapsulate(r.bounds);
-        }
-        return any ? new Vector3(b.center.x, b.max.y, b.center.z) : thing.transform.position;
-    }
+    /// <summary>The top middle of what's drawn of a thing (its own solid parts: DeviceBounds), or its position.</summary>
+    public static Vector3 TopOf(GameObject thing) => thing == null ? Vector3.zero : DeviceBounds.Top(thing);
 
     /// <summary>The bench's or the counter's drop spot (they don't come and go: found once a Play session).</summary>
     public static DropSpot SpotOf(DropSpot.SpotKind kind)

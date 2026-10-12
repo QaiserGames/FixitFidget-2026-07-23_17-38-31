@@ -60,6 +60,11 @@ public sealed class PadCursor : MonoBehaviour
     public static bool PressConsumed => instance != null
         && (instance.consumedFrame == Time.frameCount || instance.consumedHold);
 
+    // The cursor's "use": RT, and at the bench A too (12 Oct, "A uses, X takes it": ItemInspector), so A presses a button under
+    // the cursor there (the circuit's retry) the way RT does, and that press is spent on it.
+    private static bool UsePressedNow => PadInput.Pressed(PadButton.RightTrigger) || ItemInspector.Working && PadInput.Pressed(PadButton.South);
+    private static bool UseHeld => PadInput.Held(PadButton.RightTrigger) || ItemInspector.Working && PadInput.Held(PadButton.South);
+
     /// <summary>Views that need a pointer call this every frame they want one.</summary>
     public static void Request() => requestedFrame = Time.frameCount;
 
@@ -117,7 +122,7 @@ public sealed class PadCursor : MonoBehaviour
         if (wanted && !active) { position = new Vector2(Screen.width * .5f, Screen.height * .5f); gliding = false; stickMoving = false; }
         active = wanted;
         delta = Vector2.zero;
-        if (!PadInput.Held(PadButton.RightTrigger)) consumedHold = false;
+        if (!UseHeld) consumedHold = false;
 
         if (active)
         {
@@ -152,7 +157,7 @@ public sealed class PadCursor : MonoBehaviour
             next.y = Mathf.Clamp(next.y, 0f, Mathf.Max(0f, Screen.height - 1f));
             delta = next - position;
             position = next;
-            if (PadInput.Pressed(PadButton.RightTrigger) && PressUiAt(position))
+            if (UsePressedNow && PressUiAt(position))
             {
                 consumedFrame = Time.frameCount;
                 consumedHold = true;
@@ -207,7 +212,7 @@ public sealed class PadCursor : MonoBehaviour
         if (canvas == null) Build();
         canvas.enabled = true;
         float scale = Mathf.Max(.5f, Screen.height / 1080f);
-        bool pressed = PadInput.Held(PadButton.RightTrigger);
+        bool pressed = UseHeld;
         ring.sizeDelta = Vector2.one * size * scale * (pressed ? .8f : 1f);
         ring.position = position;
     }
