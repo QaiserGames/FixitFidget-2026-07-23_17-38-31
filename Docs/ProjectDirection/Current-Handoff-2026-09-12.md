@@ -1,6 +1,6 @@
 # Current handoff — September 12, 2026
 
-## October 12 (01:19 → 09:00) — his controller playtest stopped at the bench: the bench's view, A uses and X takes it, the checklist and the controls card, the conversation camera Skyrim's way, the replies' new layout, "Leaf green" back, a Cinematics & Camera lead; on `playtest-2`; built and checked on the Mac
+## October 12 (01:19 → 09:30) — his controller playtest stopped at the bench: the bench's view, A uses and X takes it, the checklist and the controls card, the conversation camera Skyrim's way, the replies' new layout, "Leaf green" back, a Cinematics & Camera lead; on `playtest-2`; built and checked on the Mac
 
 **Read this entry first.** His message (12 Oct, 01:19), in short: with a controller, a customer's phone left the view as soon as he started working on it; nothing said how to use the bench, and turning or flipping the phone or the watch was "near impossible"; the patience bar cleaner, a little bigger please; an intro every morning ("coffee grinding and screws unwinding ... blended together") and someone in the studio for intros, cutscenes and montages; the conversation camera "shifts to the right and downwards" even straight in front of the customer on the left: "it should feel like how it feels when talking to anyone in skyrim"; the replies too far left ("it should always be readable"); a journal-like repair menu with a checklist; a lived-in café and natural NPCs; and everything in his notes and the playtesters' addressed. The causes were proven first (two probes, lab saves only) and discussed (`claude/playtest-4-findings-and-proposals.md`, Project); he picked; this is what he picked. The studio's note: `Docs/Studio/sessions/2026-10-12.md`.
 
@@ -18,6 +18,8 @@
 - `Docs/Studio/agents/cinematics-camera.md` (new), the Bible 2.2 (§7, §9), `CLAUDE.md`.
 
 **The labs** (lab saves only; his Day 5 save untouched): Bench 5 75/75; Conversation view 54/54; Bench 3 161/161; Stations 89/89 and 87/87; Aim help 26/26; Day 1 guide 72/72; conversation 33/33; Controller 28/28; Juice 33/33; edit-mode: Human counter integration, Recap input isolation, Two-hand bench placement, Grace camera tweezers, Circuit integration, Dialogue rules (167 lines, 0 problems), Human conversation rules (52) PASS.
+
+**Afterwards, the night's labs** (`a05af42`): Night 1's morning after Day 2 caught the straight-face meter still bottom right (the replies' old place), over the end of Grace's now-centred line, and a stray "New Text" beside her head (`ConversationUI`'s hint line kept its scene text). `StraightFaceUI` now puts the meter in the replies' new place, right of the face (`ConversationUI.ColumnLeft` and `ColumnAboveFace` are public for it); `ConversationUI.Look` clears the hint line and `SetReplies` compares with what is on screen; `NightOneCheck` adds "in the place of Ace's replies: right of her face, inside the screen's 5% margins"; `MorningFace`'s comment. Night 1 75/75, cracking 78/78, Night 2 107/107, Night 0 96/96, Conversation view 54/54, conversation 33/33.
 
 **Decisions his to overrule:** listed in the session note ("Calls Claude made").
 
