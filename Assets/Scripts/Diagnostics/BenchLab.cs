@@ -480,8 +480,9 @@ public sealed class BenchLab : PlayLab
             float rise = Depth(part.SeatPosition) - Depth(part.transform.position);
             Check(rise > .025f && rise < .06f, $"lifted, it rides toward the camera, held up clear of its seat ({rise * 1000f:0} mm nearer than the seat)");
         }
-        // Over the tray's far side from the device (the fresh part lies across its near side), at the depth the held part rides at, so that, let go, it falls in beside it.
-        Vector3 overTheTray = Above(stage.Tray.position + stage.TrayLongAxis * .04f, part.transform.position);
+        // Over the tray's device side (the fresh part lies across its far side since 13 Oct: in plain view past a long device's
+        // overhang), at the depth the held part rides at, so that, let go, it falls in beside it.
+        Vector3 overTheTray = Above(stage.Tray.position - stage.TrayLongAxis * .04f, part.transform.position);
         PadCursor.GlideTo(Px(overTheTray));
         yield return Seconds(.8f);
         {

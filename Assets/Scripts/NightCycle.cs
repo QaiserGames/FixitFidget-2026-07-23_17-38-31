@@ -367,9 +367,10 @@ public sealed class NightCycle : MonoBehaviour
         yield return new WaitForSecondsRealtime(1.3f);
         Safely("the night's last sound", () => Sfx.Play2D("night.caught"));
         yield return Fade(1f, .8f);
-        // PLACEHOLDER COPY (the card's second line names where she saw Ace from).
+        // PLACEHOLDER COPY (the card's second line names where she saw Ace from). "The cells come later" went on 13 Oct:
+        // a newcomer read it as jail ahead (the First Hour); what being caught costs beyond tonight is the Director's.
         Caption("Caught.", $"Grace saw Ace {LastCaughtWhere}. Whatever Ace took tonight goes back.\n" +
-                           "<size=80%>For now that's all. The cells come later.</size>");
+                           "<size=80%>For now, that's all.</size>");
         int night = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         Safely("putting back what Ace took", () => PutBack(night));
         Safely("putting the night away", PutTheNightAway);

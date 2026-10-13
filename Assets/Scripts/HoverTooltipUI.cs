@@ -45,6 +45,9 @@ public class HoverTooltipUI : MonoBehaviour
             UiSkin.UseFont(actionText);
             actionText.color = UiSkin.BrandBright;
         }
+        // Hidden from the first frame: the scene keeps the card's template words ("Name" / "Action") and a visible alpha,
+        // and the fade below took a second to clear them off the floor of the first screen (13 Oct, the First Hour).
+        HideImmediately();
     }
 
     private void Update()

@@ -346,7 +346,7 @@ public class ReplaceablePart : BenchInteractable
         Lift();
         // Out and over to the tray, then the fresh one in.
         Vector3 from = transform.position;
-        Vector3 to = BenchStage.Instance != null ? BenchStage.Instance.TrayDropPoint() : from + Vector3.up * .05f;
+        Vector3 to = BenchStage.Instance != null ? BenchStage.Instance.TrayDropPoint(.03f, .018f, 0f, -.045f) : from + Vector3.up * .05f;   // the device side: the fresh one waits at the far side
         float t = 0f;
         while (t < 1f)
         {
@@ -409,14 +409,17 @@ public class LoosePart : BenchInteractable
         {
             // Laid flat in the tray, a touch askew, from just above the floor: ACROSS the tray, the way the device's parts lie
             // (the device lies portrait toward the camera, so a part pinched out of it and dropped in the tray lands across
-            // it too), and at the tray's device side, so the broken one dropped in has the rest of the tray to itself and
-            // doesn't land on it (8 Oct; 7 Oct: a 12 cm screen in a 13 cm tray lay across its wall, hence the 16 cm tray).
+            // it too), and at the tray's FAR side from the device, in plain view: at the device side (8 Oct) Grace's camera,
+            // 33 cm long over a 16 cm tray, hung over it and hid the fresh shutter under its body, and the D-pad's "next
+            // part" (parts in sight only) skipped it (13 Oct, the First Hour: Day 1's only repair). The broken one, when the
+            // swap does itself, goes to the device side instead, so neither lands on the other (7 Oct: a 12 cm screen in a
+            // 13 cm tray lay across its wall, hence the 16 cm tray).
             BenchStage stage = BenchStage.Instance;
             Vector3 extents = loose.GetComponent<Collider>() is BoxCollider b ? Vector3.Scale(b.size, freshVisual.transform.lossyScale) : freshVisual.transform.lossyScale;
             Vector3 longLocal = Mathf.Abs(extents.x) >= Mathf.Abs(extents.z) ? Vector3.right : Vector3.forward;
             Quaternion lay = Quaternion.AngleAxis(Random.Range(-6f, 6f), Vector3.up)
                              * Quaternion.FromToRotation(longLocal, Vector3.ProjectOnPlane(stage.TrayAcrossAxis, Vector3.up).normalized);
-            Vector3 at = stage.TrayDropPoint(.07f, .005f, 0f, -.045f);
+            Vector3 at = stage.TrayDropPoint(.07f, .005f, 0f, .045f);
             // Through the rigidbody as well as the transform: an interpolating body snaps the transform back to its own pose
             // the next frame, and the part was left inside the device, shoved out and dropped on the mat (7 Oct).
             freshVisual.transform.SetPositionAndRotation(at, lay);

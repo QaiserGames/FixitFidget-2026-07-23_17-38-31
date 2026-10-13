@@ -1071,7 +1071,10 @@ public class ItemInspector : MonoBehaviour
 
     private void OfferAimHelp()
     {
-        if (!GamePointer.PadCursorActive || !AimAssist.Enabled) return;
+        // The points are gathered whenever the pad's cursor is in use: the D-pad's "next part" is a control the card
+        // lists, not help, so it works with aim help switched off too (13 Oct, the First Hour: with the setting Off the
+        // D-pad did nothing while the card said it stepped). Only the snapping is the help.
+        if (!GamePointer.PadCursorActive) return;
         snapPoints.Clear();
         workPoints.Clear();
         // The checklist's step to do now (BenchCards builds it): among equals, its tool's spot comes first, so "next part"
@@ -1086,7 +1089,7 @@ public class ItemInspector : MonoBehaviour
         if (railTools == null) railTools = FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude);
         foreach (ToolPickup tool in railTools)
             if (tool != null && !tool.InHand && OnScreen(BoundsCentre(tool.transform), out Vector2 s)) snapPoints.Add(s);
-        PadCursor.OfferSnapPoints(snapPoints);
+        if (AimAssist.Enabled) PadCursor.OfferSnapPoints(snapPoints);
 
         int direction = PadInput.Pressed(PadButton.DpadRight) ? 1 : PadInput.Pressed(PadButton.DpadLeft) ? -1 : 0;
         if (direction == 0 || workPoints.Count == 0) return;
