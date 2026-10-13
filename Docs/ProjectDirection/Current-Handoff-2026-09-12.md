@@ -22,7 +22,7 @@
 
 **Decisions his to overrule:** listed in the session note ("Calls Claude made"): ★1 as her window (her step itself is never watched), BarScale 1.5, the laptops off the window counter, last orders 45 s, the pair's 1.65 m, the springs, the labs' measures.
 
-**Not done, and why:** the push (his); the roster into `.claude/agents/` (his, one copy); batch 2 of the Mixamo clips (his download: `claude/mixamo-clips-batch2.md`); the first real sounds (Audio); the intro's weak frames (the grinder's beans, the screw's "tink": the Cinematics lead's second pass from his notes); the tub chairs' shoe dip (the NPC lead); QA's ★1 proposal (a landing-bay sight, a door-opening beat: reported, not built).
+**Not done, and why:** the push (his: done 10:05); the roster into `.claude/agents/` (only if he runs Claude Code himself in a terminal; never installed on the Mac); batch 2 of the Mixamo clips (his download: `claude/mixamo-clips-batch2.md`); the first real sounds (Audio); the intro's weak frames (the grinder's beans, the screw's "tink": the Cinematics lead's second pass from his notes); the tub chairs' shoe dip (the NPC lead); QA's ★1 proposal (a landing-bay sight, a door-opening beat: reported, not built).
 
 ## October 12 (01:19 → 09:30) — his controller playtest stopped at the bench: the bench's view, A uses and X takes it, the checklist and the controls card, the conversation camera Skyrim's way, the replies' new layout, "Leaf green" back, a Cinematics & Camera lead; on `playtest-2`; built and checked on the Mac
 
