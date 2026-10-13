@@ -74,6 +74,8 @@ public sealed class HudCorners : MonoBehaviour
     enum State { Open, LastOrders, Closed }
     State state = State.Open;
     bool stateKnown;
+    // The day intro (13 Oct 2026, Cinematics): the sign waits on CLOSED while it plays and flips over to OPEN as the HUD comes back.
+    bool waitedForTheIntro;
     float flipFrom, flipTo, flipSince = -10f, swayPhase, closedAt = -10f;
     const float ClosedGlowSeconds = 1.8f;
     int shownDay = int.MinValue, shownMinute = int.MinValue, shownClosingHour = int.MinValue;
@@ -320,13 +322,20 @@ public sealed class HudCorners : MonoBehaviour
         if (canvas == null) return;
         DayClock clock = DayClock.Instance;
         bool night = NightWalk.Instance != null && NightWalk.Instance.Active;
-        bool show = clock != null && !clock.DayOver && !night && !RecapUI.Showing;
+        // The day intro (13 Oct 2026, Cinematics): the corners wait while it plays (UiPins reads DayIntro.Playing by name).
+        bool show = clock != null && !clock.DayOver && !night && !RecapUI.Showing && !UiPins.DayIntroPlaying;
         if (canvas.enabled != show) canvas.enabled = show;
         if (!show)
         {
             top.alpha = 0f;
             bottom.alpha = 0f;
             wasShown = false;
+            if (UiPins.DayIntroPlaying && front != null)
+            {
+                // Under the intro the sign is CLOSED (as the night left it), so that it flips over to OPEN when the HUD returns.
+                if (!stateKnown || state != State.Closed) { state = State.Closed; stateKnown = true; ShowState(State.Closed, false); }
+                waitedForTheIntro = true;
+            }
             return;
         }
         float dt = UiClock.Delta;
@@ -468,7 +477,8 @@ public sealed class HudCorners : MonoBehaviour
         State want = !clock.IsOpen ? State.Closed : clock.CurrentHour >= lastHour ? State.LastOrders : State.Open;
         if (!stateKnown || want != state)
         {
-            bool animate = stateKnown && !(state == State.Closed && want != State.Closed);   // a new morning just turns back
+            bool animate = waitedForTheIntro || stateKnown && !(state == State.Closed && want != State.Closed);   // a new morning just turns back (after the intro: it flips)
+            waitedForTheIntro = false;
             State was = state;
             state = want;
             stateKnown = true;

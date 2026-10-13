@@ -22,6 +22,11 @@ using System.Collections.Generic;
 // on each side of it, so she can walk round to look behind it. Furniture lists the footprints the rule checks keep every way
 // clear of (by her half-width, 0.25 m; the way up to her armchair, which she sits back into, by 0.15 m).
 //
+// Her front window (12 Oct 2026, playtest 4's ★1: Grace sees out of her front window): a spot at the window's north end,
+// between her armchair's back and the coat stand, 0.57 m from the glass, joined to the spot in front of her armchair. She
+// stands there with her tea on the way back from the kettle, looking out (GraceAtHome), and comes there to look when she
+// has seen someone outside. 0.17 m from the armchair's footprint along X 4.62, as the way up to her chair already is.
+//
 // Paths are the shortest by length (Dijkstra over a few dozen spots). No Unity types: Tests/GraceRules checks the map
 // (every spot reaches every other; her armchair to her bed goes up both flights; nothing crosses a wall or her furniture).
 // ---------------------------------------------------------------------------
@@ -48,7 +53,8 @@ public static class GraceHouseMap
     public const int Doorway = 0, Entry = 1, EntryByStairs = 2, FrontRoomWest = 3, Pocket = 4, TowardKitchen = 5, CupboardCorner = 6,
         Kettle = 7, Kitchen = 8, Sink = 9, Fridge = 10, FrontRoomEast = 11, Armchair = 12, FootOfStairs = 13, BottomStep = 14,
         LowerFlightTop = 15, Landing = 16, UpperFlightFoot = 17, UpperFlightTop = 18, TopOfStairs = 19, LandingUpstairs = 20,
-        BedroomDoorway = 21, InsideBedroomDoor = 22, Bedside = 23, Bedroom = 24, AcrossBedroom = 25, Wardrobe = 26, BehindTheBar = 27;
+        BedroomDoorway = 21, InsideBedroomDoor = 22, Bedside = 23, Bedroom = 24, AcrossBedroom = 25, Wardrobe = 26, BehindTheBar = 27,
+        FrontWindow = 28;
 
     public static readonly Spot[] Spots =
     {
@@ -80,6 +86,7 @@ public static class GraceHouseMap
         new Spot("across the bedroom", 1.85f, 3.42f, 2.40f),
         new Spot("at the wardrobe", 1.25f, 3.62f, 2.40f),
         new Spot("behind her breakfast bar, by the front window", 2.35f, 3.45f),
+        new Spot("at her front window", 4.62f, 3.45f),
     };
 
     // The straight ways between spots (both directions).
@@ -94,6 +101,7 @@ public static class GraceHouseMap
         (LandingUpstairs, BedroomDoorway), (BedroomDoorway, InsideBedroomDoor), (InsideBedroomDoor, Bedside),
         (InsideBedroomDoor, Bedroom), (Bedroom, AcrossBedroom), (AcrossBedroom, Wardrobe),
         (EntryByStairs, BehindTheBar), (FrontRoomWest, BehindTheBar),
+        (Armchair, FrontWindow),
     };
 
     /// <summary>A piece of her furniture's footprint, in plan metres, and its floor (0 the ground floor, 1 upstairs).</summary>

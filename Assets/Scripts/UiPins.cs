@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,11 +13,12 @@ using UnityEngine.UI;
 // in first person, the way the badges and the barks are pinned (Barks.HeadPointOf for a person, a point for a thing):
 //
 //   The patience bars   every customer's, while they wait (PatienceBar still says when: shown and hidden exactly as
-//                        before). 56 x 7 px at 1080p, coloured the way the ticket's meter is (green, amber, red), with its
-//                        top just under the head point: a badge pops up from the head point and a bark sits over it, so
-//                        neither ever covers the bar. Once their job is taken, a dot in the job's colour at its left end:
-//                        the tape on their ticket and the tag on their device are that colour too (the HUD spec §4).
-//                        The bar it replaces was a 0.6 x 0.08 m strip in the world: 23-26 x 3 px from the default camera.
+//                        before). BarWidth x BarHeight at 1080p (one number sets the size: BarScale, below), coloured the
+//                        way the ticket's meter is (green, amber, red), with its top just under the head point: a badge
+//                        pops up from the head point and a bark sits over it, so neither ever covers the bar. Once their
+//                        job is taken, a dot in the job's colour at its left end: the tape on their ticket and the tag on
+//                        their device are that colour too (the HUD spec §4). The bar it replaces was a 0.6 x 0.08 m strip
+//                        in the world: 23-26 x 3 px from the default camera.
 //   The name             of whoever or whatever E acts on, over them, in the overhead view (FocusNameUI). It used to be a
 //                        label fixed under the middle of the screen: "Grace" over the empty floor while she stood at the
 //                        counter. It sits above a badge, a bark or a speech bubble over the same head, never on them.
@@ -25,25 +28,59 @@ using UnityEngine.UI;
 //
 // Sorting order 30: over the HUD (0) and its corners (2), under the night's notebook (40), the recap phone (60), the
 // juice (75) and the barks (80). Everything is hidden while the recap has the screen, at night, while a conversation is
-// open, and while Ace is in a close-up (the bench, the drinks machine, the counter phone): the close-up has its own words.
+// open, while Ace is in a close-up (the bench, the drinks machine, the counter phone): the close-up has its own words; and
+// since 12 Oct while the morning's intro plays (DayIntro.Playing, read by name: below).
 // Placed just before the canvases are drawn, after every camera has moved (as the barks and the juice are). Built in code
 // while playing: nothing in the scene changes.
 //
 // Run 2 (11 Oct): a pin shows its new words only where it now belongs. When Day 1's step changed, the green pin faded out
 // where it was already showing the next step's name (a half-faded "Officer" over the bench; "Walter" over the bench while
 // the same name was pinned over Walter at the counter): a pin fading out now keeps its old words.
+//
+// 12-13 Oct (his playtest 4, the findings doc §4; his answer: "make the patience bar bigger i guess in a sense for it to
+// feel right, not too big obviously but enough for it to feel good and look good"): the bar's sizes are one family set by
+// one number, BarScale. 1.3 was the findings' pick (72 x 9); photographed over real heads from the game's overhead camera
+// on 13 Oct (Logs/UI/day1-guide-2026-10-13_070451), 72 x 9 read as a thin dash and 84 x 10 as a bar, so 1.5 (84 x 10, the
+// dot 14, the name 22). His to overrule: this one number.
 // ---------------------------------------------------------------------------
 public sealed class UiPins : MonoBehaviour
 {
     public const int SortingOrder = 30;
 
     // ---- sizes (reference pixels, 1920 x 1080) ----
-    public const float BarWidth = 56f, BarHeight = 7f;
-    const float BarGap = 3f;          // from the head point down to the bar's top
-    const float TagDot = 10f;         // the job colour's dot, its paper rim included
+    //
+    // THE BAR'S FAMILY: one number. What each scale gives at 1080p:
+    //   1.0   bar 56 x 7    dot 10   name 18   Day 1's pins 17   (10 Oct)
+    //   1.3   bar 72 x 9    dot 12   name 20   Day 1's pins 19   (the findings' pick)
+    //   1.5   bar 84 x 10   dot 14   name 22   Day 1's pins 21
+    // The bar is its 10 Oct size times the scale, rounded down to whole pixels (72.8 is 72, so at 1.3 it keeps its 8:1
+    // shape). The job's dot and the words over heads grow by as many pixels as the bar grew in height, rounded up to an
+    // even number: they keep with the bar, but slower, so the bar is what got bigger and every name over every head doesn't
+    // get loud (a name at 1.3 times 18 would be 23 px, bigger than the Day 1 card's own words, 21, and the controls strip's,
+    // 19; at 20 it sits with the HUD's reading sizes, beside the payment pop's 20). Day 1's green pin and "You" grow
+    // with the name, so when the green pin hands a person over to their name (the same place, the same moment) the words
+    // don't jump in size. The gaps the bar is laid out with (under the head point, between the dot and the bar) scale like
+    // the bar; the strokes stay hairlines (the dark track's 1 px edge round the fill, the dot's 1.5 px paper rim).
+    public const float BarScale = 1.5f;
+    const int BaseBarWidth = 56, BaseBarHeight = 7, BaseTagDot = 10, BaseNameSize = 18, BasePinTextSize = 17, BaseGap = 3;
+    // How much the dot and the words grow: the bar's growth in height, rounded up to an even number (2 at 1.3, 4 at 1.5).
+    const int Grown = ((int)(BaseBarHeight * BarScale) - BaseBarHeight + 1) / 2 * 2;
+
+    /// <summary>The patience bar's width and height over a head (reference pixels at 1080p).</summary>
+    public const float BarWidth = (int)(BaseBarWidth * BarScale), BarHeight = (int)(BaseBarHeight * BarScale);
+    /// <summary>The job colour's dot beside the bar, its paper rim included.</summary>
+    public const float TagDot = BaseTagDot + Grown;
+    /// <summary>The name over whoever or whatever E acts on.</summary>
+    public const float NameSize = BaseNameSize + Grown;
+    /// <summary>Day 1's green pin and "You".</summary>
+    public const float PinTextSize = BasePinTextSize + Grown;
+    const float BarGap = (int)(BaseGap * BarScale);   // from the head point down to the bar's top
+    const float DotGap = (int)(BaseGap * BarScale);   // from the dot's right edge to the bar's left end
+    const float TrackEdge = 1f;      // the dark track showing round the fill
+    const float DotRim = 1.5f;       // the paper round the job's colour
     const float PinGap = 4f;          // from what's under a pin to the pin's point
     const float PopHeight = 62f;      // a badge over a head (Juice's 58 px icon, with room)
-    const float NameSize = 18f, PinTextSize = 17f, PointerHeight = 8f;
+    const float PointerHeight = 8f;
     const float EdgeMargin = 18f, TopReserve = 150f;   // clear of the tabs and today's takings at the top
     const float FadeRate = 8f;
 
@@ -57,6 +94,8 @@ public sealed class UiPins : MonoBehaviour
         Instance = null;
         bars.Clear();
         pointer = null;
+        introPlaying = null;
+        introLookedUp = false;
     }
 
     /// <summary>The pins of this Play session (made on first use; nothing outside Play).</summary>
@@ -99,7 +138,7 @@ public sealed class UiPins : MonoBehaviour
         public RectTransform root, fill, rim, dot;
         public Image track, fillImage, rimImage, dotImage;
         public PatienceBar bar;
-        public Rect onScreen;
+        public Rect onScreen, dotOnScreen;
     }
 
     Canvas canvas;
@@ -135,6 +174,9 @@ public sealed class UiPins : MonoBehaviour
     public string FocusText => focus != null ? focus.text : "";
     public string GuideText => guide != null ? guide.text : "";
     public string SelfText => self != null ? self.text : "";
+    /// <summary>The size the name's words are drawn at (NameSize), and Day 1's pins' (PinTextSize).</summary>
+    public float FocusTextSize => focus != null ? focus.label.fontSize : 0f;
+    public float GuideTextSize => guide != null ? guide.label.fontSize : 0f;
     /// <summary>Where each was last drawn, in screen pixels from the bottom left.</summary>
     public Rect FocusOnScreen => focus != null ? focus.onScreen : default;
     public Rect GuideOnScreen => guide != null ? guide.onScreen : default;
@@ -154,15 +196,30 @@ public sealed class UiPins : MonoBehaviour
         onScreen = default;
         colour = default;
         dot = false;
+        BarView v = ViewOf(who);
+        if (v == null) return false;
+        onScreen = v.onScreen;
+        colour = v.fillImage.color;
+        dot = v.rim.gameObject.activeSelf;   // the rim holds the dot: the dot's own activeSelf never changes
+        return true;
+    }
+
+    /// <summary>The job colour's dot beside the bar over <paramref name="who"/> as last drawn (screen pixels from the
+    /// bottom left, its paper rim included), when it shows.</summary>
+    public bool TryGetDot(Transform who, out Rect onScreen)
+    {
+        onScreen = default;
+        BarView v = ViewOf(who);
+        if (v == null || !v.rim.gameObject.activeSelf) return false;
+        onScreen = v.dotOnScreen;
+        return true;
+    }
+
+    BarView ViewOf(Transform who)
+    {
         foreach (BarView v in views)
-        {
-            if (v.bar == null || v.bar.Owner != who || !v.root.gameObject.activeSelf) continue;
-            onScreen = v.onScreen;
-            colour = v.fillImage.color;
-            dot = v.rim.gameObject.activeSelf;   // the rim holds the dot: the dot's own activeSelf never changes
-            return true;
-        }
-        return false;
+            if (v.bar != null && v.bar.Owner == who && v.root.gameObject.activeSelf) return v;
+        return null;
     }
 
     /// <summary>The bar's colour at this much patience: the ticket's meter's (JobTicket), brightened for the dark track.</summary>
@@ -172,6 +229,10 @@ public sealed class UiPins : MonoBehaviour
         Color low = new Color(.93f, .36f, .29f), mid = UiSkin.Gold, high = UiSkin.BrandBright;
         return patience < .5f ? Color.Lerp(low, mid, patience * 2f) : Color.Lerp(mid, high, (patience - .5f) * 2f);
     }
+
+    /// <summary>The family as it stands, for reports: "bar 72 x 9, dot 12, name 20, Day 1's pins 19 (BarScale 1.3)".</summary>
+    public static string Family() =>
+        $"bar {BarWidth:0} x {BarHeight:0}, dot {TagDot:0}, name {NameSize:0}, Day 1's pins {PinTextSize:0} (BarScale {BarScale:0.0#})";
 
     // ------------------------------------------------------------------ making it
 
@@ -254,14 +315,14 @@ public sealed class UiPins : MonoBehaviour
         v.fill.anchorMin = new Vector2(0f, 0f);
         v.fill.anchorMax = new Vector2(0f, 1f);
         v.fill.pivot = new Vector2(0f, .5f);
-        v.fill.offsetMin = new Vector2(1f, 1f);
-        v.fill.offsetMax = new Vector2(BarWidth - 1f, -1f);
-        v.fillImage = UiSkin.Paint(v.fill, UiSkin.BrandBright, (BarHeight - 2f) * .5f);
+        v.fill.offsetMin = new Vector2(TrackEdge, TrackEdge);
+        v.fill.offsetMax = new Vector2(BarWidth - TrackEdge, -TrackEdge);
+        v.fillImage = UiSkin.Paint(v.fill, UiSkin.BrandBright, (BarHeight - 2f * TrackEdge) * .5f);
         // The job's colour: a dot on a paper rim, just left of the bar.
         v.rim = Box("Their job's colour", v.root);
         v.rim.anchorMin = v.rim.anchorMax = new Vector2(0f, .5f);
         v.rim.pivot = new Vector2(1f, .5f);
-        v.rim.anchoredPosition = new Vector2(-3f, 0f);
+        v.rim.anchoredPosition = new Vector2(-DotGap, 0f);
         v.rim.sizeDelta = new Vector2(TagDot, TagDot);
         v.rimImage = v.rim.gameObject.AddComponent<Image>();
         v.rimImage.sprite = UiSkin.Circle;
@@ -271,7 +332,7 @@ public sealed class UiPins : MonoBehaviour
         v.dot.anchorMin = v.dot.anchorMax = new Vector2(.5f, .5f);
         v.dot.pivot = new Vector2(.5f, .5f);
         v.dot.anchoredPosition = Vector2.zero;
-        v.dot.sizeDelta = new Vector2(TagDot - 3f, TagDot - 3f);
+        v.dot.sizeDelta = new Vector2(TagDot - 2f * DotRim, TagDot - 2f * DotRim);
         v.dotImage = v.dot.gameObject.AddComponent<Image>();
         v.dotImage.sprite = UiSkin.Circle;
         v.dotImage.raycastTarget = false;
@@ -311,9 +372,10 @@ public sealed class UiPins : MonoBehaviour
 
     // ------------------------------------------------------------------ placing them
 
-    // Whether everything is put away: the recap, the night, a conversation, a close-up.
+    // Whether everything is put away: the recap, the night, a conversation, a close-up, the morning's intro.
     bool Hidden()
     {
+        if (IntroPlaying()) return true;
         if (RecapUI.Showing) return true;
         if (NightWalk.Instance != null && NightWalk.Instance.Active) return true;
         if (ConversationController.AnyOpen) return true;
@@ -337,6 +399,37 @@ public sealed class UiPins : MonoBehaviour
         PlacePin(focus, scale, dt, false);
         PlacePin(guide, scale, dt, SameAsFocus());
         PlacePin(self, scale, dt, false);
+    }
+
+    // The morning's intro (12-13 Oct, the Cinematics lead's DayIntro, whose static Playing says it has the screen): nothing is
+    // pinned over its shots. On Day 1 "You" is up from the first frame, and a pin whose thing is off the screen waits at its
+    // edge, so without this they'd sit on the grinder's close-up. Read by name, so this file compiles and runs the same with or
+    // without DayIntro (no intro: never playing); looked up once a Play session. A property is read through a delegate (no
+    // garbage a frame); a plain field, if that's what it is, through its FieldInfo.
+    static Func<bool> introPlaying;
+    static bool introLookedUp;
+
+    /// <summary>The morning's intro has the screen now (DayIntro.Playing; false when there is no intro). The HUD's other
+    /// scripts can ask here and compile the same with or without the intro.</summary>
+    public static bool DayIntroPlaying => IntroPlaying();
+
+    static bool IntroPlaying()
+    {
+        if (!introLookedUp)
+        {
+            introLookedUp = true;
+            Type intro = Type.GetType("DayIntro");
+            const BindingFlags StaticPublic = BindingFlags.Public | BindingFlags.Static;
+            PropertyInfo property = intro != null ? intro.GetProperty("Playing", StaticPublic) : null;
+            MethodInfo get = property != null && property.PropertyType == typeof(bool) ? property.GetGetMethod() : null;
+            if (get != null) introPlaying = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), get);
+            else
+            {
+                FieldInfo field = intro != null ? intro.GetField("Playing", StaticPublic) : null;
+                if (field != null && field.FieldType == typeof(bool)) introPlaying = () => (bool)field.GetValue(null);
+            }
+        }
+        return introPlaying != null && introPlaying();
     }
 
     // Day 1's pin over the very thing the name is pinned over would say it twice, one pin on the other: the name is enough.
@@ -371,7 +464,7 @@ public sealed class UiPins : MonoBehaviour
             // Its top just under the head point: a badge or a bark over the same head sits above it.
             v.root.anchoredPosition = new Vector2(s.x / scale, s.y / scale - BarGap);
             float f = Mathf.Clamp01(bar.Fraction);
-            v.fill.offsetMax = new Vector2(Mathf.Max(BarHeight - 2f, (BarWidth - 2f) * f) + 1f, -1f);
+            v.fill.offsetMax = new Vector2(Mathf.Max(BarHeight - 2f * TrackEdge, (BarWidth - 2f * TrackEdge) * f) + TrackEdge, -TrackEdge);
             Color c = ColourAt(f);
             // Losing patience (the ticket says so under a quarter): the fill breathes, to catch the eye.
             if (f <= .25f) c.a = .7f + .3f * (.5f + .5f * Mathf.Sin(UiClock.Now * Mathf.PI * 2f / 1.1f));
@@ -384,7 +477,10 @@ public sealed class UiPins : MonoBehaviour
                 Color job = customer.JobColor;
                 v.dotImage.color = new Color(job.r, job.g, job.b, 1f);
             }
-            v.onScreen = new Rect(s.x - BarWidth * .5f * scale, s.y - (BarGap + BarHeight) * scale, BarWidth * scale, BarHeight * scale);
+            // Where the bar and the dot are drawn, as drawn (on an overlay canvas a corner's world position is its screen pixel),
+            // so a check measures what's on the screen rather than the sizes it was given.
+            v.onScreen = DrawnRect(v.root);
+            v.dotOnScreen = DrawnRect(v.rim);
         }
         BarsShowing = shown;
     }
@@ -410,12 +506,19 @@ public sealed class UiPins : MonoBehaviour
         Vector2 at = new Vector2(s.x / scale, bottom / scale);
         if (pin.bob) at.y += 3f * (.5f + .5f * Mathf.Sin(UiClock.Now * Mathf.PI * 2f / 1.6f));
         // Kept on the screen (a pinned thing orbited out of view still has its pin at the edge), clear of the top corners.
+        // The bigger words of 12 Oct make a pin a few pixels taller and wider: both clamps measure the pin as it is now.
         Vector2 size = pin.root.sizeDelta;
         Rect area = canvasRect.rect;
         at.x = Mathf.Clamp(at.x, EdgeMargin + size.x * .5f, Mathf.Max(EdgeMargin + size.x * .5f, area.width - EdgeMargin - size.x * .5f));
         at.y = Mathf.Clamp(at.y, EdgeMargin, Mathf.Max(EdgeMargin, area.height - TopReserve - size.y));
         pin.root.anchoredPosition = at;
         pin.onScreen = new Rect((at.x - size.x * .5f) * scale, at.y * scale, size.x * scale, size.y * scale);
+    }
+
+    static Rect DrawnRect(RectTransform rect)
+    {
+        rect.GetWorldCorners(corners);
+        return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
     }
 
     // The lowest a pin over this head can sit, in screen pixels: above the head point, and above a badge, a bark or a

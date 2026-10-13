@@ -149,6 +149,15 @@ public class WaitingArea : MonoBehaviour
 
     // People who have claimed a spot at the same table but are not sitting in
     // it yet (still walking over): heading there too would converge on them.
+    //
+    // PLAYTEST 4 (12 Oct 2026; the veteran, run 2: "Only the x -3.2 stool ever took a waiting customer: 4 of 4
+    // repair-bar waits; 0 at -4.2 and -5.2"). "Not in the chair yet" was read off NpcSeating.Busy alone, and at a
+    // bar stool nobody ever gets into the chair (Snap To Seat off: the customer waits standing beside it), so whoever
+    // held the first stool counted as still on their way for their whole wait, and the two stools beside them
+    // (1.0 and 2.0 m away) carried the 2.5 m penalty the whole time. From the counter's middle and west places that
+    // put the second stool (4.2 and 2.6 m) behind the nearest floor seat (the bistro's west chair at 5.0 m, the
+    // communal table's at 4.9 m), which is where the recordings show people going. Someone standing on their stand
+    // point has arrived, chair or no chair.
     private static int OnTheirWayNear(WaitingSpot candidate, Component asker)
     {
         Vector3 here = candidate is TableSeat c ? c.SeatPose.position : candidate.StandPoint.position;
@@ -161,10 +170,25 @@ public class WaitingArea : MonoBehaviour
             Vector3 d = there - here;
             d.y = 0f;
             if (d.sqrMagnitude > 2f * 2f) continue;
-            NpcSeating seating = s.Occupant.GetComponent<NpcSeating>();
-            if (seating == null || !seating.Busy) count++;   // claimed, and not in (or getting into) the chair yet
+            if (!HasArrived(s)) count++;   // claimed, and still on the way there
         }
         return count;
+    }
+
+    // A walk to a spot ends within arriveDistance + 0.15 m of its stand point (CustomerBrain 0.3 m, NpcLocomotion's
+    // arrive radius); the repair bar's stools are 1 m apart, so 0.8 m can only mean this spot's own occupant.
+    private const float ArrivedWithin = .8f;
+
+    /// <summary>
+    /// Whether the spot's occupant has got there: in (or getting into) the chair (NpcSeating), or standing on the
+    /// stand point, which is how a bar stool, a standing spot and anyone without a seating component are waited at.
+    /// </summary>
+    public static bool HasArrived(WaitingSpot spot)
+    {
+        if (spot == null || spot.Occupant == null) return false;
+        NpcSeating seating = spot.Occupant.GetComponent<NpcSeating>();
+        if (seating != null && seating.Busy) return true;
+        return Flat(spot.Occupant.transform.position - spot.StandPoint.position).sqrMagnitude <= ArrivedWithin * ArrivedWithin;
     }
 
     // Metres along the floor, or a pessimistic straight line when there is no route.

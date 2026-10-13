@@ -20,6 +20,10 @@ using UnityEngine;
 //   5. the cover back on and its screws back in (the lists closing steps for every cover it opens).
 // Each step knows from the parts themselves whether it's done; the current step is the first not done. Nothing here is a
 // rule: the bench works as before, in any order its parts allow. BenchCards draws it.
+//
+// A step also knows when its parts lie on the face turned down (Under; 12-13 Oct, his controller playtest: "rotating and
+// just trying to flip the phone ... was near impossible" and nothing said when to): the card then says to flip the device
+// over instead of "hold on each one", and the aim help's "next part" (ItemInspector) follows the same order as this list.
 // ---------------------------------------------------------------------------
 public static class RepairChecklist
 {
@@ -33,6 +37,8 @@ public static class RepairChecklist
         public ToolType tool;
         /// <summary>How, in a few words ("hold at its edge").</summary>
         public string how;
+        /// <summary>Every part this step works on lies on the face turned down: the device has to be flipped over first.</summary>
+        public bool under;
         public bool done;
         public bool current;
     }
@@ -82,29 +88,33 @@ public static class RepairChecklist
             int screws = Count(cover);
             if (screws > 0)
                 Add(steps, screws == 1 ? "Take out the screw" : $"Take out the {screws} screws", "Screws out", ToolType.Screwdriver,
-                    "hold on each one", off || AllOut(cover));
+                    "hold on each one", off || AllOut(cover), ScrewsUnder(cover, false));
             Add(steps, $"Pry off the {name}", Short(name) + " off", ToolType.Pry,
-                cover.IsPopped ? "lift it off with your hand" : "hold at its edge", off);
+                cover.IsPopped ? "lift it off with your hand" : "hold at its edge", off, !off && Under(cover.Outward));
         }
 
         // 2. The grime and the smudges. A done one first; while both are left, the one the device's first dirty spot wants (the
         // Day 1 guide names that spot's tool too: the two never point at different tools, the lab's photo, 12 Oct).
-        int dirtLeft = 0, smudgesLeft = 0;
+        // A spot is on the underside when it lies below the device's middle (a patch's own up isn't its side: the watch's
+        // debris, reached from the back, is authored with its up toward the dial).
+        int dirtLeft = 0, smudgesLeft = 0, dirtUnder = 0, smudgesUnder = 0;
         GrimeSpot firstLeft = null;
+        Vector3 middle = DeviceBounds.TryGet(job.gameObject, out Bounds box) ? box.center : job.transform.position;
         foreach (GrimeSpot spot in job.GetComponentsInChildren<GrimeSpot>())
         {
             if (spot == null || spot.IsClean) continue;
             if (firstLeft == null) firstLeft = spot;
-            if (spot.Tool == ToolType.Cloth) smudgesLeft++;
-            else dirtLeft++;
+            bool under = Under(BenchInteractable.BoundsCentre(spot.transform) - middle);
+            if (spot.Tool == ToolType.Cloth) { smudgesLeft++; if (under) smudgesUnder++; }
+            else { dirtLeft++; if (under) dirtUnder++; }
         }
         bool smudgesFirst = plan.dirt > 0 && plan.smudges > 0
             && (smudgesLeft == 0 || dirtLeft > 0 && firstLeft != null && firstLeft.Tool == ToolType.Cloth);
-        if (smudgesFirst) Smudges(steps, plan, smudgesLeft);
+        if (smudgesFirst) Smudges(steps, plan, smudgesLeft, smudgesUnder);
         if (plan.dirt > 0)
             Add(steps, plan.dirt == 1 ? "Brush off the grime" : $"Brush off the grime ({plan.dirt - Mathf.Min(dirtLeft, plan.dirt)} of {plan.dirt})",
-                "Grime off", ToolType.Brush, "hold and scrub over it", dirtLeft == 0);
-        if (!smudgesFirst) Smudges(steps, plan, smudgesLeft);
+                "Grime off", ToolType.Brush, "hold and scrub over it", dirtLeft == 0, dirtLeft > 0 && dirtUnder == dirtLeft);
+        if (!smudgesFirst) Smudges(steps, plan, smudgesLeft, smudgesUnder);
 
         // 3. The parts: the broken one out, the fresh one in.
         for (int i = 0; i < plan.parts.Length; i++)
@@ -113,15 +123,16 @@ public static class RepairChecklist
             if (part == null) continue;
             string name = plan.partNames[i];
             bool replaced = part.IsReplaced;
+            bool seatUnder = Under(part.Outward);
             Add(steps, $"Lift out the {name}", "Old part out", ToolType.Tweezers, "hold on it, let go over the tray",
-                replaced || part.State != ReplaceablePart.PartState.InPlace);
-            Add(steps, "Seat the new one from the tray", "New part in", ToolType.Tweezers, "pinch it, let go over the empty seat", replaced);
+                replaced || part.State != ReplaceablePart.PartState.InPlace, seatUnder);
+            Add(steps, "Seat the new one from the tray", "New part in", ToolType.Tweezers, "pinch it, let go over the empty seat", replaced, seatUnder);
         }
 
         // 4. The circuit.
         foreach (CircuitPuzzle circuit in plan.circuits)
             if (circuit != null)
-                Add(steps, "Reconnect the circuit", "Circuit", ToolType.Hand, "the tiles, in order", circuit.Finished);
+                Add(steps, "Reconnect the circuit", "Circuit", ToolType.Hand, "the tiles, in order", circuit.Finished, false);
 
         // 5. Closing up, the last cover opened first.
         for (int i = covers.Count - 1; i >= 0; i--)
@@ -130,11 +141,11 @@ public static class RepairChecklist
             bool opened = plan.opened.Contains(cover);
             bool seated = cover.State == RemovablePart.CoverState.Seated;
             Add(steps, $"Put the {Lower(cover.DisplayName)} back on", Short(Lower(cover.DisplayName)) + " on", ToolType.Hand,
-                "drag it home: it snaps on", opened && seated);
+                "drag it home: it snaps on", opened && seated, !seated && Under(cover.Outward));
             int screws = Count(cover);
             if (screws > 0)
                 Add(steps, screws == 1 ? "Put the screw back in" : "Put the screws back in", "Screws in", ToolType.Screwdriver,
-                    "hold on each hole", opened && seated && !AnyOut(cover));
+                    "hold on each hole", opened && seated && !AnyOut(cover), ScrewsUnder(cover, true));
         }
 
         foreach (Step step in steps)
@@ -142,10 +153,30 @@ public static class RepairChecklist
     }
 
     /// <summary>The step to do now, or null when every step is done.</summary>
-    public static Step Current(List<Step> steps)
+    public static Step Current(IReadOnlyList<Step> steps)
     {
+        if (steps == null) return null;
         foreach (Step step in steps) if (step.current) return step;
         return null;
+    }
+
+    /// <summary>
+    /// A part's outward points down: it lies on the face turned to the mat, and the device has to be flipped over to reach it
+    /// (within 45° of straight down, so a peeked edge, 35° up, still reads as the face it is on).
+    /// </summary>
+    public static bool Under(Vector3 outward) => Vector3.Dot(outward.normalized, Vector3.down) > .7f;
+
+    // Every screw of the cover still to be worked (in, to come out; or out, to go back in) sits on the face turned down.
+    static bool ScrewsUnder(RemovablePart cover, bool goingIn)
+    {
+        bool any = false;
+        foreach (Screw s in cover.HeldBy)
+        {
+            if (s == null || s.IsOut != goingIn) continue;
+            any = true;
+            if (!Under(s.Axis)) return false;
+        }
+        return any;
     }
 
     static Plan PlanFor(JobBase job)
@@ -191,15 +222,15 @@ public static class RepairChecklist
         return plan;
     }
 
-    static void Smudges(List<Step> steps, Plan plan, int smudgesLeft)
+    static void Smudges(List<Step> steps, Plan plan, int smudgesLeft, int smudgesUnder)
     {
         if (plan.smudges <= 0) return;
         Add(steps, plan.smudges == 1 ? "Wipe the smudge" : $"Wipe the smudges ({plan.smudges - Mathf.Min(smudgesLeft, plan.smudges)} of {plan.smudges})",
-            "Smudge off", ToolType.Cloth, "hold and wipe in circles", smudgesLeft == 0);
+            "Smudge off", ToolType.Cloth, "hold and wipe in circles", smudgesLeft == 0, smudgesLeft > 0 && smudgesUnder == smudgesLeft);
     }
 
-    static void Add(List<Step> steps, string text, string chip, ToolType tool, string how, bool done) =>
-        steps.Add(new Step { text = text, chip = chip, tool = tool, how = how, done = done });
+    static void Add(List<Step> steps, string text, string chip, ToolType tool, string how, bool done, bool under) =>
+        steps.Add(new Step { text = text, chip = chip, tool = tool, how = how, done = done, under = under && !done });
 
     static int Count(RemovablePart cover)
     {

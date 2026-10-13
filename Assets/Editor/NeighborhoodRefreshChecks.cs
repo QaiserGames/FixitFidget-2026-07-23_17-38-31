@@ -37,7 +37,8 @@ public static class NeighborhoodRefreshChecks
         // 21 since the café's furnishing pass (the 23 Sept baseline had 16); counted again in playtest 3 (7 Oct).
         // 24 since the San Francisco seat plan (Seats 1, 10 Oct 2026: three repair-bar stools, six at the banquette's 2-tops,
         // eight at the communal table, four at the bistro 2-tops, three at the window counter); 21 again after its Undo.
-        int expected = SeatPlanLaid() ? 24 : 21;
+        // 26 since the reading corner (Lived in 2, 13 Oct 2026: the two tub chairs at the low table); 24 again after its Undo.
+        int expected = (SeatPlanLaid() ? 24 : 21) + (ReadingCornerLaid() ? 2 : 0);
         Require(seats.Length == expected, $"Expected the café's {expected} active table seats (found {seats.Length}).");
         Require(spots.Any(s => s.Kind == WaitingSpot.SpotKind.Loiter), "No active loiter spots remain.");
         // Loiter spots have no separate stand point by design: WaitingSpot.StandPoint
@@ -221,6 +222,9 @@ public static class NeighborhoodRefreshChecks
 
     // The seat plan is laid when Seats 1's record (CafeRedesignRecord, on the café's root) is in the scene.
     static bool SeatPlanLaid() => InScene<CafeRedesignRecord>().Any(r => r.step == "Seats 1 - The San Francisco seat plan");
+
+    // The reading corner is laid when Lived in 2's record (CafeRedesignRecord, on the café's root) is in the scene.
+    static bool ReadingCornerLaid() => InScene<CafeRedesignRecord>().Any(r => r.step == CafeLivedInSteps.Title);
 
     static string Key(Object value) => GlobalObjectId.GetGlobalObjectIdSlow(value).ToString();
     static T[] InScene<T>() where T : Component => SceneManager.GetActiveScene().GetRootGameObjects()

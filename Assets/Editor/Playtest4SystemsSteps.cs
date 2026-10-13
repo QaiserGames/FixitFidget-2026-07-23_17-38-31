@@ -27,6 +27,14 @@ using Object = UnityEngine.Object;
 //       Checks: every archetype and regular waits in a seat; the multipliers are unchanged; Day 1 is x2.0; every bar
 //       stool (Snap To Seat off: a customer waits standing beside it) drains at a seat's rate, so the impatient who
 //       pick one aren't back to a stander's drain.
+//   Fixit Fidget > Playtest 4 > Systems > 2 - Rushed patience x0.6 -> x0.75 (scene)
+//       12 Oct 2026 (the playtesters' #4, his "yes and i trust the judgement"): the stools' fix (WaitingArea: a stander
+//       at a bar stool has arrived) puts the second stool within E's reach for a queue of two or more, but it moves no
+//       clock. A seated Rushed bench repair on Day 5 lasts 40.5 s, 64.3 s with three reassures from the bench; his
+//       repairs take 41-84 s (median 63) plus about 9 s of talk, carry and hand-back. At x0.75: 50.6 s seated, 80.4 s
+//       with the reassures, 27.0 s in the queue (was 21.6): won by going straight to it and keeping them calm, lost by
+//       making them wait behind another job. Impatient (x0.7) is left alone: 47.2 s seated, 75.0 s with the reassures.
+//       Checks: Rushed is x0.75 and still seated; every other archetype keeps its multiplier; the arithmetic in the report.
 //
 // The labs (each one Play session in the lab's own save; your playtest save is never used):
 //   Fixit Fidget > Playtest 4 > Systems > Lab A / B - Stations and the repair bar, from above / first person
@@ -48,8 +56,16 @@ public static class Playtest4SystemsSteps
     // What a waiting customer's patience drains at: a seat (TableSeat's 0.6) and a standing spot (WaitSpot's 1.15).
     const float SeatDrain = .6f, StandingDrain = 1.15f;
 
+    // Step 2 (12 Oct): the Rushed walk-ins' patience, x0.6 -> x0.75. Reassure (CustomerBrain): +30% of the max, then
+    // x0.6 of that each time, three times at most, 12 s apart.
+    const string RushedName = "Rushed";
+    const float RushedWas = .6f, RushedPatience = .75f;
+    const float ReassureAmount = .3f, ReassureFalloff = .6f;
+    const int ReassureUses = 3;
+
     const string MenuCheckFirst = Menu + "0 - Check first (read-only)";
     const string MenuSeat = Menu + "1 - Seat the impatient and rushed, Day 1's patience (scene + assets)";
+    const string MenuRushed = Menu + "2 - Rushed patience x0.6 to x0.75 (scene)";
     const string MenuStationsAbove = Menu + "Lab A - Stations and the repair bar, from above (drives itself)";
     const string MenuStationsFirst = Menu + "Lab B - Stations and the repair bar, first person (drives itself)";
     const string MenuShape = Menu + "Lab C - The day's shape at the counter, Day 5 (the scene's 180 s day)";
@@ -88,7 +104,16 @@ public static class Playtest4SystemsSteps
     [MenuItem(MenuSeat, true)]
     static bool CanSeatThem() => Playtest4Shared.NotPlaying();
 
-    // ---------- the survey (both items): Info and Require only, so nothing here can fail the step ----------
+    // ---------- 2 - Rushed patience x0.6 -> x0.75 (12 Oct) ----------
+
+    [MenuItem(MenuRushed, false, 2)]
+    static void RushedPatienceStep() => Playtest4Shared.Step("Playtest 4 · Systems · 2 - Rushed patience x0.6 to x0.75",
+        "systems-2-rushed-patience", Survey, ChangeRushed, ChecksRushed);
+
+    [MenuItem(MenuRushed, true)]
+    static bool CanRushedPatienceStep() => Playtest4Shared.NotPlaying();
+
+    // ---------- the survey (all three items): Info and Require only, so nothing here can fail the step ----------
 
     static void Survey(Playtest4Shared.Run run)
     {
@@ -200,11 +225,117 @@ public static class Playtest4SystemsSteps
         Field(run, spawner, "walkLeadSeconds", "CustomerSpawner: the walk in from the street, before it is measured (s)");
         Field(run, spawner, "leadLearning", "CustomerSpawner: how fast the measured walk is learnt (0-1)");
         Field(run, spawner, "openerMetresOut", "CustomerSpawner: the day's first arrival starts this far short of the door (m)");
+        Field(run, spawner, "lastOrdersLeadSeconds", "CustomerSpawner: last orders for walk-ins, this long before closing (s; 12 Oct, #9)");
         PlayerInteractor ace = Object.FindAnyObjectByType<PlayerInteractor>(FindObjectsInactive.Include);
         if (ace != null)
         {
             Field(run, ace, "acrossCounterReach", "PlayerInteractor: E's reach over the counter, flat (m)");
             Field(run, ace, "benchRange", "PlayerInteractor: behind the repair bar's bench, within this of its stand point (m)");
+        }
+
+        // The Rushed walk-ins against a bench repair at a person's pace (12 Oct, #4): the arithmetic behind step 2.
+        run.Section("The Rushed walk-ins against a bench repair at a person's pace (step 2; seated, Reassure from the bench)");
+        run.Info("A seated wait after \"yes\": 45 s x the person x the day, draining x0.6. Reassure: +30% of the max, then x0.6 of that " +
+                 $"each time, {ReassureUses} at most, 12 s apart (CustomerBrain). His own repairs (yes -> walked out): 41-84 s, median 63, " +
+                 "plus about 9 s of talk, carry and hand-back; the lab's hands at human speed 45-90 s.");
+        for (int d = 0; d < found.days.Count; d++)
+        {
+            DayDefinition day = found.days[d];
+            if (day == null || !day.AllowsArchetype(RushedName)) continue;
+            run.Info($"    Day {d + 1} (x{day.patienceMultiplier:0.##}): " + RushedLine(RushedWas, day.patienceMultiplier) + "   <- now");
+            run.Info($"    Day {d + 1} (x{day.patienceMultiplier:0.##}): " + RushedLine(RushedPatience, day.patienceMultiplier) + "   <- step 2");
+        }
+        run.Info("    The stools' fix (WaitingArea.HasArrived) puts the second stool within E's reach when two or more queue; it moves no clock. " +
+                 "At x0.6 a median repair is lost even when started at once and reassured three times (64 s against about 72); at x0.75 it " +
+                 "is won that way (80 s) and still lost when they wait behind another job.");
+
+        // Last orders for walk-ins (12 Oct, #9): when they fall on each day length.
+        SerializedProperty lastOrders = new SerializedObject(spawner).FindProperty("lastOrdersLeadSeconds");
+        if (lastOrders != null)
+        {
+            DayClock clock = Object.FindAnyObjectByType<DayClock>(FindObjectsInactive.Include);
+            SerializedProperty length = clock != null ? new SerializedObject(clock).FindProperty("dayLengthSeconds") : null;
+            float scene = length != null ? length.floatValue : 180f;
+            run.Section("Last orders for walk-ins (12 Oct, #9: nobody new reaches the till after closing)");
+            run.Info($"No walk-in sets off with less than {lastOrders.floatValue:0} s left on the clock (or today's longest measured walk to the till, " +
+                     $"if longer): on the scene's {scene:0} s day that is {scene - lastOrders.floatValue:0} s in ({ClockWords(clock, (scene - lastOrders.floatValue) / scene)}), " +
+                     $"on the ship's 420 s day {420f - lastOrders.floatValue:0} s in ({ClockWords(clock, (420f - lastOrders.floatValue) / 420f)}). " +
+                     "Arrivals go on until closing (the walk takes that long); only the ones who would have come after it are gone. " +
+                     "The LAST ORDERS sign (the café's last hour) stays its own warning.");
+            run.Info("On the human-speed Day 5 of 11 Oct that is two people: Saamin (a support call, served at 0.1: $75 + $6) and Beatriz (walked out " +
+                     "unserved, a \"Never again\"): about $81 of the day's $446 ($376 from Ace's work), and one storm-out fewer.");
+        }
+    }
+
+    // A Rushed customer's seconds on one day: in the queue, seated after "yes", and with the three reassures.
+    static string RushedLine(float multiplier, float dayMultiplier)
+    {
+        float m = multiplier * dayMultiplier;
+        float seated = Service(m, SeatDrain);
+        float gain = 0f;
+        for (int i = 0; i < ReassureUses; i++) gain += seated * ReassureAmount * Mathf.Pow(ReassureFalloff, i);
+        return $"x{multiplier:0.##}: {found.queuePatience * m:0.0} s in the queue; after \"yes\" {seated:0.0} s seated, {seated + gain:0.0} s with " +
+               $"{ReassureUses} reassures (+{seated * ReassureAmount:0.0}, +{seated * ReassureAmount * ReassureFalloff:0.0}, +{seated * ReassureAmount * ReassureFalloff * ReassureFalloff:0.0})";
+    }
+
+    // A moment of the day as the café's clock would show it (opening to closing hours, DayClock).
+    static string ClockWords(DayClock clock, float fraction)
+    {
+        float open = 9f, close = 20f;
+        if (clock != null)
+        {
+            var so = new SerializedObject(clock);
+            SerializedProperty o = so.FindProperty("openingHour"), c = so.FindProperty("closingHour");
+            if (o != null) open = o.floatValue;
+            if (c != null) close = c.floatValue;
+        }
+        float hour = Mathf.Lerp(open, close, Mathf.Clamp01(fraction));
+        int h = Mathf.FloorToInt(hour), m = Mathf.RoundToInt((hour - h) * 60f);
+        if (m == 60) { h++; m = 0; }
+        return $"{(h % 12 == 0 ? 12 : h % 12)}:{m:00} {(h >= 12 ? "PM" : "AM")} on the café's clock";
+    }
+
+    // ---------- step 2: the change and its checks (12 Oct) ----------
+
+    static void ChangeRushed(Playtest4Shared.Run run)
+    {
+        var so = new SerializedObject(found.spawner);
+        SerializedProperty archetypes = run.Prop(so, "archetypes");
+        int index = -1;
+        for (int i = 0; i < archetypes.arraySize; i++)
+            if (archetypes.GetArrayElementAtIndex(i).FindPropertyRelative("archetypeName").stringValue == RushedName) index = i;
+        run.Require(index >= 0, $"The café's CustomerSpawner has no \"{RushedName}\" archetype.");
+        float now = archetypes.GetArrayElementAtIndex(index).FindPropertyRelative("patienceMultiplier").floatValue;
+        run.Require(Mathf.Approximately(now, RushedWas) || Mathf.Approximately(now, RushedPatience),
+            $"The {RushedName} walk-ins' patience is x{now:0.###}, neither x{RushedWas} nor x{RushedPatience}: someone tuned it by hand. Nothing changed; tell Claude.");
+        run.SetFloat(found.spawner, $"archetypes.Array.data[{index}].patienceMultiplier", RushedPatience,
+            $"the {RushedName} walk-ins' patience (CustomerSpawner.archetypes[{index}].patienceMultiplier)");
+    }
+
+    static void ChecksRushed(Playtest4Shared.Run run)
+    {
+        var so = new SerializedObject(found.spawner);
+        SerializedProperty archetypes = so.FindProperty("archetypes");
+        DayDefinition day5 = found.days.Count >= 5 ? found.days[4] : found.days.LastOrDefault(d => d != null);
+        for (int i = 0; i < archetypes.arraySize; i++)
+        {
+            SerializedProperty a = archetypes.GetArrayElementAtIndex(i);
+            string name = a.FindPropertyRelative("archetypeName").stringValue;
+            float multiplier = a.FindPropertyRelative("patienceMultiplier").floatValue;
+            var kind = (WaitingSpot.SpotKind)a.FindPropertyRelative("preferredWaitKind").enumValueIndex;
+            if (name == RushedName)
+            {
+                run.Check(Mathf.Approximately(multiplier, RushedPatience), $"the {name} walk-ins' patience is x{multiplier:0.###} (was x{RushedWas})");
+                run.Check(kind == WaitingSpot.SpotKind.Seat, $"the {name} walk-ins still wait in a seat (step 1)");
+                if (day5 != null && day5.AllowsArchetype(name))
+                    run.Check(Service(multiplier * day5.patienceMultiplier, SeatDrain) >= 50f,
+                        $"on {day5.name}: " + RushedLine(multiplier, day5.patienceMultiplier) + " (at least 50 s seated)");
+            }
+            else
+            {
+                bool kept = found.multiplierBefore.TryGetValue(name, out float before) && Mathf.Approximately(before, multiplier);
+                run.Check(kept, $"the {name} walk-ins keep their patience x{multiplier:0.##}");
+            }
         }
     }
 

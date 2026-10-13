@@ -192,15 +192,19 @@ public sealed class CafeViewMode : MonoBehaviour
     float DistanceMax => inHouse ? houseDistanceMax : NightFraming ? followDistanceMax : maximumDistance;
     Vector3 AceFocus => AceFeet + Vector3.up * followHeight;
     bool AtStation => interactor != null && interactor.IsAtStation;
+    // The day intro (12 Oct 2026, Cinematics) owns the screen for its 6-8 s: the view takes no input meanwhile (no V, no look),
+    // and the first delta after it is dropped as after any blend, so the player's own view comes back exactly where it was.
     bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.RecapOwnsInput
         || conversation != null && conversation.InConversation || inspector != null && inspector.IsHoldingItem
-        || counterRepair != null && counterRepair.OwnsInput;
+        || counterRepair != null && counterRepair.OwnsInput || DayIntro.Playing;
     // Pausing or opening the end-of-day recap does not change the camera's
-    // presentation. Keep the cutaway consistent until a close-up owns it.
+    // presentation. Keep the cutaway consistent until a close-up owns it. The day intro's shots are
+    // close-ups too (the storefront seen from the street wants its walls solid and its pendants hung).
     bool OverheadPresentation => !firstPerson && !AtStation
         && !(conversation != null && conversation.InConversation)
         && !(inspector != null && inspector.IsHoldingItem)
-        && !(counterRepair != null && counterRepair.OwnsInput);
+        && !(counterRepair != null && counterRepair.OwnsInput)
+        && !(DayIntro.Playing && !(DayIntro.Instance != null && DayIntro.Instance.PullingOut));   // the walls open as the pull-out begins (QA, 13 Oct)
 
     void Awake()
     {

@@ -210,10 +210,20 @@ public class DayClock : MonoBehaviour
         // The opening bell, a beat into the day rather than inside StartDay: StartDay also runs while the
         // scene loads, before a restored recap closes the day again or the night walk stops this clock,
         // and neither should ring it (claude/sound-plan.md §5).
+        //
+        // The day intro (12 Oct 2026, Cinematics; Mansoor: "an intro every time the day starts so that it
+        // always feels fresh"): where the bell rang, the morning's intro begins instead and rings the bell
+        // itself, where its sign beat lands (Full) or under its title (Short). It stops this clock for its
+        // length by disabling it (OnDisable / OnEnable above, the night walk's way), so this frame ends
+        // here. Off, or in a lab session that didn't ask for it, nothing plays and the bell rings as before.
         if (announceOpen)
         {
             announceOpen = false;
-            if (IsOpen && !DayOver) Sfx.Play2DLater("day.open", .4f);
+            if (IsOpen && !DayOver)
+            {
+                if (DayIntro.TryBegin(this)) return;
+                Sfx.Play2DLater("day.open", .4f);
+            }
         }
 
         if (DayOver) return;

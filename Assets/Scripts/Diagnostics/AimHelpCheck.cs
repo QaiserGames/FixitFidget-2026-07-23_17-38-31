@@ -24,6 +24,11 @@ using UnityEngine.InputSystem.LowLevel;
 //
 // The mouse is never helped, and with aim help switched off nothing settles (checked last). Photos and report.txt go
 // to Logs/AimHelp/aim-help-<time>/. Nothing is saved in the scene.
+//
+// SEEN PARTS ONLY (12-13 Oct, the simplicity pass): the help offers only parts the camera can see (ItemInspector.Seen): a
+// phone arrives face up with its screws in its back, and the D-pad used to send the cursor to them, under the glass. So
+// this check counts seen parts as the game does, and turns the device over (the lab's hand, as Y would) when no screw is
+// in sight, before the screw and the D-pad beats.
 // ---------------------------------------------------------------------------
 public sealed class AimHelpCheck : PlayLab
 {
@@ -175,8 +180,17 @@ public sealed class AimHelpCheck : PlayLab
         yield return Frames(6);
         Check(PadCursor.IsActive, "the pad's cursor is on screen");
         Camera cam = Camera.main;
-        ScrewTarget screw = job.GetComponentsInChildren<ScrewTarget>().FirstOrDefault(s => On(cam, s.transform));
-        Check(screw != null, "a screw is in view");
+        // The screws are in the device's back (the phone's are): with none in sight, over it goes, as Y would turn it.
+        ScrewTarget[] allScrews = job.GetComponentsInChildren<ScrewTarget>();
+        if (allScrews.Length > 0 && !allScrews.Any(s => On(cam, s.transform) && Seen(cam, s.transform)))
+        {
+            Note("no screw is in sight on the face that's up (they're in the back): turning it over, as Y would");
+            inspector.FlipOver();
+            yield return Await(() => !inspector.Flipping, 2f);
+            yield return Seconds(.3f);
+        }
+        ScrewTarget screw = allScrews.FirstOrDefault(s => On(cam, s.transform) && Seen(cam, s.transform));
+        Check(screw != null, "a screw is in view, in the camera's sight");
         if (screw != null)
         {
             Vector2 at = cam.WorldToScreenPoint(Centre(screw.transform));
@@ -218,15 +232,16 @@ public sealed class AimHelpCheck : PlayLab
     }
 
     // D-pad right from a corner of the screen, once for each stop of the work and once more: where the cursor lands each time.
-    // The stops are ItemInspector's (GatherWork): every part that work can be done on now, and every grime spot it can reach
-    // (nothing between the camera and it), which comes at 2 in the work's order. Playtest 4: the check counted parts only,
-    // so on a cleaning job (a watch with debris inside) the grime, a stop by design, read as "on nothing" (-1).
+    // The stops are ItemInspector's (GatherWork): every part that work can be done on now and is in the camera's sight, and
+    // every grime spot it can reach (nothing between the camera and it), which comes at 2 in the work's order. Playtest 4:
+    // the check counted parts only, so on a cleaning job (a watch with debris inside) the grime, a stop by design, read as
+    // "on nothing" (-1). 12 Oct: parts out of sight (the screws under a phone lying face up) are no longer stops.
     IEnumerator DpadRun(JobBase job, Camera cam, string when)
     {
         PadCursor.GlideTo(new Vector2(Screen.width * .08f, Screen.height * .9f));
         yield return Seconds(.4f);
         List<GrimeSpot> grime = ReachableGrime(job, cam);
-        int points = AllParts(job).Count(p => p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform)) + grime.Count;
+        int points = AllParts(job).Count(p => p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform) && Seen(cam, p.transform)) + grime.Count;
         var orders = new List<int>();
         for (int i = 0; i < Mathf.Max(2, points + 1); i++)
         {
@@ -234,7 +249,7 @@ public sealed class AimHelpCheck : PlayLab
             yield return Seconds(.3f);
             orders.Add(StopUnder(job, cam, grime, PadCursor.Position));
         }
-        int first = AllParts(job).Where(p => p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform))
+        int first = AllParts(job).Where(p => p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform) && Seen(cam, p.transform))
             .Select(ItemInspector.WorkOrder).Concat(grime.Select(_ => 2)).DefaultIfEmpty(-1).Min();
         if (grime.Count > 0) Note($"{when}: {grime.Count} grime spot(s) the D-pad steps to as well (the work's place 2)");
         bool ordered = true;
@@ -250,15 +265,34 @@ public sealed class AimHelpCheck : PlayLab
         return all;
     }
 
-    // What the cursor may settle on, on screen: the parts that can be worked on, the grime, the tools.
+    // What the cursor may settle on, on screen and in the camera's sight: the parts that can be worked on, the grime, the tools.
     static IEnumerable<Vector2> SnapPoints(JobBase job, Camera cam)
     {
         foreach (BenchInteractable p in AllParts(job))
-            if (p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform)) yield return cam.WorldToScreenPoint(Centre(p.transform));
+            if (p.isActiveAndEnabled && p.CanInteract && On(cam, p.transform) && Seen(cam, p.transform)) yield return cam.WorldToScreenPoint(Centre(p.transform));
         foreach (GrimeSpot g in job.GetComponentsInChildren<GrimeSpot>())
-            if (On(cam, g.transform)) yield return cam.WorldToScreenPoint(Centre(g.transform));
+            if (On(cam, g.transform) && Seen(cam, g.transform)) yield return cam.WorldToScreenPoint(Centre(g.transform));
         foreach (ToolPickup t in FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude))
             if (On(cam, t.transform)) yield return cam.WorldToScreenPoint(Centre(t.transform));
+    }
+
+    // A thing is in the camera's sight, as ItemInspector.Seen reckons it: nothing solid between the camera and its middle but
+    // the thing itself (the tool in the hand aside). A screw in the back of a phone lying face up is not.
+    static bool Seen(Camera cam, Transform thing)
+    {
+        Vector3 from = cam.transform.position;
+        Vector3 to = Centre(thing) - from;
+        float length = to.magnitude;
+        if (length < 1e-4f) return true;
+        RaycastHit[] hits = Physics.RaycastAll(from, to / length, length + .02f, ~0, QueryTriggerInteraction.Ignore);
+        float nearest = float.PositiveInfinity;
+        Transform first = null;
+        foreach (RaycastHit h in hits)
+        {
+            if (h.collider == null || h.collider.GetComponentInParent<ToolPickup>() != null) continue;
+            if (h.distance < nearest) { nearest = h.distance; first = h.collider.transform; }
+        }
+        return first == null || first.IsChildOf(thing);
     }
 
     protected override void Restore()
@@ -394,7 +428,7 @@ public sealed class AimHelpCheck : PlayLab
         BenchInteractable best = null;
         foreach (BenchInteractable p in AllParts(job))
         {
-            if (!p.isActiveAndEnabled) continue;
+            if (!p.isActiveAndEnabled || !Seen(cam, p.transform)) continue;   // a part under the device can't be what the cursor sits on
             Vector3 s = cam.WorldToScreenPoint(Centre(p.transform));
             if (s.z <= 0f) continue;
             float d = (new Vector2(s.x, s.y) - at).magnitude;

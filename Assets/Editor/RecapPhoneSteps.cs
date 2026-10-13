@@ -92,13 +92,13 @@ internal static class RecapPhoneSteps
             var recap = new RecapSaveData
             {
                 day = 3, peopleServed = 3, customersLost = 2, turnedAway = 1, ordersCompleted = 4, repairs = 1, drinks = 3,
-                perfect = 1, tips = 9, earned = 142, patronIncome = 10, closingTill = 641, elapsedSeconds = 360f,
+                perfect = 1, tips = 9, earned = 142, patronIncome = 10, closingTill = 199, elapsedSeconds = 360f,   // 641 until 13 Oct 2026: the upgrade ladder is cheaper now (Progression), and the pad step needs the upgrades out of reach after one buy
             };
             ledger.WriteRecap(recap);
             return new SaveData
             {
                 day = 3,
-                money = 641,
+                money = 199,   // 641 until 13 Oct 2026 (see the recap above): $169 after the restock buys Bulk Restock ($100); $69 reaches nothing else
                 cups = 12,
                 beans = 9,
                 reputation = ledger.Reputation,

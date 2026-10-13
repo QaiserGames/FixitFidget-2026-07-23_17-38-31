@@ -16,4 +16,4 @@ MonoBehaviour:
   description: More beans and cups per purchase.
   type: 3
   valuePerLevel: 5
-  costPerLevel: 90010000e8030000
+  costPerLevel: 64000000fa000000

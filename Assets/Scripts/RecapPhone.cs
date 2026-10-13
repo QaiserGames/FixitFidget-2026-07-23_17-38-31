@@ -32,6 +32,14 @@ using Object = UnityEngine.Object;
 // shown as faces, not stars, so 'stars' only ever means the café"); playtest 3's phone had drifted to 1-5 stars a review.
 // Under the café's stars, "3 to your first star" instead of "no stars yet" (the first hour, Day 5: nothing said what earns
 // one). The takings say what your work earned apart from the café's guests, who pay without a pop now.
+//
+// 12-13 OCT 2026 (his answers to the findings doc). Tonight says it too (§10.7, his pick: "$X from your work · $Y from café
+// guests"; the first hour's Day 1 read "$65 earned today" with nobody served, all of it the guests'): one quiet line under
+// "earned today", only on an evening the guests paid, landing as the count-up lands (the day's total first, then what it
+// was made of). Its 8 words count against the closing screen's budget like every other word there; RecapPhoneCheck's
+// limit rises by exactly those 8, only on such an evening. Settings gains "Swap the sticks at the bench" (CONTROLS) and a
+// MORNINGS section above PICTURE: "The morning", Full / Short / Off (GameSettings.SwapBenchSticks, GameSettings.DayIntro;
+// §1b and §6).
 //   Franchise  the café's stars, its level, the bar to the next star, HQ's requests, and what changed
 //              today (with one line about the day's worst kind of review).
 //   Shop       what the café has (cups and beans, low under 10), the restock and the upgrades. Buying
@@ -66,7 +74,8 @@ using Object = UnityEngine.Object;
 //              HUD shows only today's), the café's stars (and what's still needed for the first, today's reviews counted
 //              in) and the time; then the reviews as they come in (the reputation's live cards), newest first.
 //   Notes      the notebook, as at closing.
-//   Settings   sound, controls and picture (GameSettings), and Quit, which says plainly that the day so far isn't kept.
+//   Settings   sound, controls (the bench's sticks among them), the morning (the day intro: Full, Short or Off) and the
+//              picture (GameSettings), and Quit, which says plainly that the day so far isn't kept.
 //
 // At night it opens on Notes, with Settings. Its bottom button is "Back to work" ("Back to the night"), and Esc, Start
 // or B put it away too (PausePhone). It draws over everything but the pad's cursor (95).
@@ -158,6 +167,14 @@ public sealed class RecapPhone : MonoBehaviour
     public int TonightWords { get; private set; }
     public int TonightLines { get; private set; }
     public int PeopleListed { get; private set; }
+    /// <summary>Tonight's takings split as last built ("$132 from your work · $10 from café guests"; "" on an evening the café's
+    /// guests paid nothing), and the words it added to TonightWords.</summary>
+    public string TonightSplit { get; private set; } = "";
+    public int TonightSplitWords { get; private set; }
+    /// <summary>Tonight's split is on screen in full (it lands as the count-up does).</summary>
+    public bool TonightSplitShown => tonightSplit != null && tonightSplit.gameObject.activeInHierarchy && tonightSplit.alpha >= .99f;
+    /// <summary>Today's takings are still counting up (or about to, a quarter of a second after the evening's phone opens).</summary>
+    public bool TakingsCounting => countSince >= 0f;
 
     TMP_FontAsset font;
     RectTransform phoneBody, viewport, content, focusRing, tabBar, closeRect;
@@ -187,6 +204,9 @@ public sealed class RecapPhone : MonoBehaviour
     float countSince = -1f;
     bool countDue = true;
     const float CountSeconds = .9f;
+    // Tonight's split comes up as the count lands, over a quarter of a second.
+    TMP_Text tonightSplit;
+    const float SplitFade = .25f;
     GameObject lastRevealed;
     ReputationLedger preview;   // a made-up day (Fixit Fidget > Reputation > Preview), until the phone closes
     Sprite rounded, ring, circle, star, house, bag, note, tick, cupBody, cupLid, bean, beanCrease, moon, gear;
@@ -514,7 +534,8 @@ public sealed class RecapPhone : MonoBehaviour
     public string HintText => hintText != null ? hintText.text : "";
 
     /// <summary>A button in the current app by its key: "details", "restock", "upgrade:&lt;asset name&gt;", "more", "notebook",
-    /// "stock", "person:&lt;who&gt;". Null if it isn't there.</summary>
+    /// "stock", "person:&lt;who&gt;"; in Settings "invert", "aimhelp", "movehelp", "swapsticks", "morning:&lt;Full|Short|Off&gt;",
+    /// "quality:&lt;Low|Medium|High&gt;", "quit". Null if it isn't there.</summary>
     public Button ContentButton(string key)
     {
         foreach (KeyValuePair<Button, string> pair in buttonKeys)
@@ -566,6 +587,7 @@ public sealed class RecapPhone : MonoBehaviour
         TrackSelection();
         UpdateHint();
         CountUp();
+        LandSplit();
     }
 
     // Today's takings, counting up (the text is made again only when the figure changes).
@@ -587,6 +609,17 @@ public sealed class RecapPhone : MonoBehaviour
             countSince = -1f;
             Sfx.Play2D("recap.counted");
         }
+    }
+
+    // Tonight's split stays out of sight while the takings count up, then comes up as they land (with "recap.counted"): the
+    // day's total first, then what it was made of. Built after the count (another app and back, a Preview), it's simply there.
+    // The count itself is untouched: this only reads whether it is still running.
+    void LandSplit()
+    {
+        if (tonightSplit == null) return;
+        float want = countSince >= 0f ? 0f : 1f;
+        if (Mathf.Approximately(tonightSplit.alpha, want)) return;
+        tonightSplit.alpha = Mathf.MoveTowards(tonightSplit.alpha, want, Time.unscaledDeltaTime / SplitFade);
     }
 
     void LateUpdate()
@@ -739,6 +772,7 @@ public sealed class RecapPhone : MonoBehaviour
         sliderKeys.Clear();
         navRow = 0;
         sameRow = false;
+        tonightSplit = null;   // Tonight makes it again; another app has none
         for (int i = content.childCount - 1; i >= 0; i--)
         {
             GameObject old = content.GetChild(i).gameObject;
@@ -957,8 +991,27 @@ public sealed class RecapPhone : MonoBehaviour
             underStars = Bottom(count.rectTransform);
         }
 
+        // What Ace's own work earned apart from the café's guests (12 Oct, his pick of the findings' §10.7: "$X from your work
+        // · $Y from café guests" on Tonight too; the first hour's Day 1 read "$65 earned today" with nobody served, all of it
+        // the guests'). Under "earned today", small, in the card's quiet colour: the same line, size and colour as on the
+        // Reviews and Today cards. Nothing on an evening the guests paid nothing. Out of sight while the takings count up, it
+        // lands with them (LandSplit). Its words count against the budget (8, always: two figures, six words).
+        float cy = Mathf.Max(Bottom(earned.rectTransform), underStars);
+        TonightSplit = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome) : "";
+        TonightSplitWords = 0;
+        if (TonightSplit.Length > 0)
+        {
+            int before = TonightWords;
+            TMP_Text split = Counted(Words(card, TonightSplit, CardPadX, cy + 6f, ContentWidth - 2f * CardPadX, 15f, DarkFaint, rich: false));
+            TonightSplitWords = TonightWords - before;
+            split.name = "Takings split";
+            split.alpha = countSince >= 0f ? 0f : 1f;
+            tonightSplit = split;
+            cy = Bottom(split.rectTransform);
+        }
+
         // The reviews, and what they did to the reputation.
-        float cy = Mathf.Max(Bottom(earned.rectTransform), underStars) + 12f;
+        cy += 12f;
         Paint(Box("Rule", card, CardPadX, cy, ContentWidth - 2f * CardPadX, 1f), DarkLine, 0f);
         cy += 10f;
         int n = rep != null ? rep.ReviewCount : 0;
@@ -1427,6 +1480,18 @@ public sealed class RecapPhone : MonoBehaviour
         if (upgrades != null && upgrades.Catalogue != null && upgrades.Catalogue.Length > 0)
         {
             y = Section(y, "UPGRADES");
+            // Progression (13 Oct 2026): what today pointed at, in one line, so the first upgrade answers "what screwed me
+            // today?" (the first hour's note). PLACEHOLDER COPY.
+            DayClock today = DayClock.Instance;
+            if (today != null)
+            {
+                string pointer = today.Lost > 0
+                    ? $"{today.Lost} walked out waiting today. Faster tools buy seconds; Shelf Space takes one more job."
+                    : today.Declined > 0
+                        ? $"{today.Declined} turned away today. Shelf Space takes one more repair at the till."
+                        : "Nobody lost today. Bigger Bench opens two devices at once.";
+                y = HintBox(y, pointer);
+            }
             RectTransform card = CardBox("Upgrades", y);
             float cy = 12f;
             bool first = true;
@@ -1678,7 +1743,20 @@ public sealed class RecapPhone : MonoBehaviour
         cy = Rule(controls, cy);
         cy = SwitchRow(controls, cy, "Movement help", "On a pad: walking straightens along the café.", GameSettings.MovementHelp,
             () => Flip(() => GameSettings.MovementHelp = !GameSettings.MovementHelp), "movehelp");
+        // At the bench only (12 Oct, his 1b: "i want the rotating and just the controls overall to be simple"), for players who
+        // expect the right stick to turn things; off by default, since the right stick aims everywhere else. PLACEHOLDER COPY.
+        cy = Rule(controls, cy);
+        cy = SwitchRow(controls, cy, "Swap the sticks at the bench", "Left stick moves your hand, right stick turns the device.",
+            GameSettings.SwapBenchSticks, () => Flip(() => GameSettings.SwapBenchSticks = !GameSettings.SwapBenchSticks), "swapsticks");
         y = FinishCard(controls, cy + 2f, y);
+
+        // The morning's few seconds of the café waking up (12 Oct, his 6: every day, skippable, with Short and Off here). A
+        // section of its own above the picture: it's the game's rhythm, not its controls or its looks. PLACEHOLDER COPY.
+        y = Section(y, "MORNINGS");
+        RectTransform mornings = CardBox("Mornings", y);
+        cy = ChoiceRow(mornings, 12f, "The morning", "A few seconds of the café waking up, every day. Short: just the title.",
+            MorningWords, GameSettings.DayIntro.ToString(), "morning", word => GameSettings.DayIntro = MorningOf(word));
+        y = FinishCard(mornings, cy + 2f, y);
 
         y = Section(y, "PICTURE");
         RectTransform picture = CardBox("Picture", y);
@@ -1687,6 +1765,16 @@ public sealed class RecapPhone : MonoBehaviour
 
         y = Section(y, "LEAVING");
         return QuitCard(y);
+    }
+
+    // The morning's three ways in the row's order (the setting's own), and their words on the pills: Full, Short, Off.
+    static readonly DayIntroMode[] Mornings = { DayIntroMode.Full, DayIntroMode.Short, DayIntroMode.Off };
+    static readonly string[] MorningWords = Array.ConvertAll(Mornings, mode => mode.ToString());
+
+    static DayIntroMode MorningOf(string word)
+    {
+        int at = Array.IndexOf(MorningWords, word);
+        return at >= 0 ? Mornings[at] : DayIntroMode.Full;
     }
 
     static string Percent(float v) => Mathf.RoundToInt(v * 100f) + "%";
@@ -1791,27 +1879,35 @@ public sealed class RecapPhone : MonoBehaviour
         return Mathf.Max(bottom, mid + h / 2f) + 10f;
     }
 
-    // Low, Medium and High side by side (one row for the D-pad: left and right along it); the one in force in green.
-    float QualityRow(RectTransform card, float cy)
+    // Low, Medium and High side by side; the one in force in green.
+    float QualityRow(RectTransform card, float cy) =>
+        ChoiceRow(card, cy, "Quality", "Lower runs smoother on a laptop.", QualityPreset.Names, GameSettings.Quality, "quality",
+            level => GameSettings.Quality = level);
+
+    // A name, a line saying what it does, and its choices side by side as pills, the one in force in green: one row for the
+    // D-pad (left and right along it; up and down to the rows above and under, like any row), so a pad reaches the morning
+    // the way it reaches the picture. A press sets it and builds the app again (Flip), the pad keeping its place. Each pill's
+    // key is "<key>:<choice>" ("quality:Medium", "morning:Short").
+    float ChoiceRow(RectTransform card, float cy, string label, string detail, string[] choices, string current, string key,
+                    Action<string> choose)
     {
         float width = ContentWidth - 2f * CardPadX;
-        TMP_Text name = Words(card, "Quality", CardPadX, cy, width, 17f, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, label, CardPadX, cy, width, 17f, Ink, style: FontStyles.Bold, rich: false);
         float top = Bottom(name.rectTransform) + 2f;
-        top = Bottom(Words(card, "Lower runs smoother on a laptop.", CardPadX, top, width, 14.5f, Soft, rich: false).rectTransform) + 9f;
+        top = Bottom(Words(card, detail, CardPadX, top, width, 14.5f, Soft, rich: false).rectTransform) + 9f;
         const float gap = 8f, height = 38f;
-        float each = (width - 2f * gap) / 3f;
-        string current = GameSettings.Quality;
-        for (int i = 0; i < QualityPreset.Names.Length; i++)
+        float each = (width - (choices.Length - 1) * gap) / choices.Length;
+        for (int i = 0; i < choices.Length; i++)
         {
-            string level = QualityPreset.Names[i];
-            bool on = current == level;
-            RectTransform pill = Box("Button: quality:" + level, card, CardPadX + i * (each + gap), top, each, height);
+            string choice = choices[i];
+            bool on = current == choice;
+            RectTransform pill = Box("Button: " + key + ":" + choice, card, CardPadX + i * (each + gap), top, each, height);
             Image face = Paint(pill, on ? Green : ButtonOff, height / 2f);
-            TMP_Text words = Words(pill, level, 0f, 0f, each, 15.5f, on ? Color.white : Soft, TextAlignmentOptions.Center, wrap: false,
+            TMP_Text words = Words(pill, choice, 0f, 0f, each, 15.5f, on ? Color.white : Soft, TextAlignmentOptions.Center, wrap: false,
                 style: FontStyles.Bold, rich: false);
             Place(words.rectTransform, 0f, 0f, each, height);
             sameRow = i > 0;
-            Pressable(pill, face, "quality:" + level, () => Flip(() => GameSettings.Quality = level), dark: on);
+            Pressable(pill, face, key + ":" + choice, () => Flip(() => choose(choice)), dark: on);
             sameRow = false;
         }
         return top + height + 12f;

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.UI;
@@ -23,10 +24,19 @@ using UnityEngine.UI;
 //
 // Playtest 4 (10 Oct 2026): the clock line under the sign keeps the day and the time apart on every weekday; Today says
 // what the café's next star needs (not "no stars yet") and what Ace's work earned apart from the café's guests.
+//
+// 12-13 Oct 2026 (his answers to the findings doc, §1b and §6): the two settings the other leads read. Settings › CONTROLS'
+// "Swap the sticks at the bench" flips GameSettings.SwapBenchSticks; the new MORNINGS section (above PICTURE) has "The
+// morning", Full / Short / Off, and each pill sets GameSettings.DayIntro. Every change is kept in PlayerPrefs at once and
+// reads back as kept (GameSettings.Reload, then read again), the switch and the pills showing it. A pad reaches the morning
+// the way it reaches the picture's quality: its routes, then a virtual pad's D-pad and A. Both settings are put back.
 // ---------------------------------------------------------------------------
 public sealed class PauseCheck : PlayLab
 {
     public const string PendingKey = "FixitFidget.Pause.Check";
+
+    const string SwapKey = "swapsticks";
+    static readonly DayIntroMode[] Mornings = { DayIntroMode.Full, DayIntroMode.Short, DayIntroMode.Off };
 
     protected override string Title => "The phone by day (the pause) and the HUD's corners - play check";
     protected override string Tag => "[Pause check]";
@@ -56,6 +66,9 @@ public sealed class PauseCheck : PlayLab
     // The settings as they were, put back at the end whatever happens.
     float masterWas = -1f;
     bool invertWas, invertTouched;
+    bool swapWas, swapTouched;
+    DayIntroMode introWas;
+    bool introTouched;
 
     protected override IEnumerator Run()
     {
@@ -268,8 +281,9 @@ public sealed class PauseCheck : PlayLab
         phone.Open(RecapPhone.App.Settings);
         yield return Frames(2);
         string settings = phone.ContentText();
-        Check(settings.Contains("SOUND") && settings.Contains("CONTROLS") && settings.Contains("PICTURE") && settings.Contains("Quit"),
-            "Settings: sound, controls, the picture, and Quit");
+        int mornings = settings.IndexOf("MORNINGS", StringComparison.Ordinal), picture = settings.IndexOf("PICTURE", StringComparison.Ordinal);
+        Check(settings.Contains("SOUND") && settings.Contains("CONTROLS") && mornings >= 0 && picture > mornings && settings.Contains("Quit"),
+            "Settings: sound, controls, the morning (above the picture), the picture, and Quit");
         yield return Photo("14-phone-settings");
 
         Slider master = phone.ContentSlider("master");
@@ -298,6 +312,11 @@ public sealed class PauseCheck : PlayLab
             Check(GameSettings.InvertY == invertWas, "and back");
             invertTouched = false;
         }
+
+        // The two settings the other leads read (12-13 Oct).
+        yield return TheBenchSticks(phone);
+        yield return TheMorning(phone);
+
         Button quit = phone.ContentButton("quit");
         Check(quit != null && phone.ContentText().Contains("isn't kept"), "Quit says plainly that the day so far isn't kept");
         if (quit != null)
@@ -315,6 +334,158 @@ public sealed class PauseCheck : PlayLab
         pause.Resume();
         yield return Frames(3);
     }
+
+    // Settings › CONTROLS: "Swap the sticks at the bench" flips GameSettings.SwapBenchSticks, kept in PlayerPrefs at once
+    // (FixitFidget.Settings.SwapBenchSticks: 0 or 1) and read back as kept, the switch showing it; then back as it was.
+    IEnumerator TheBenchSticks(RecapPhone phone)
+    {
+        string text = phone.ContentText();
+        Button swap = phone.ContentButton(SwapKey);
+        Check(swap != null && text.Contains("Swap the sticks at the bench") && text.Contains("Left stick moves your hand, right stick turns the device."),
+            "CONTROLS: \"Swap the sticks at the bench\", its line, and its switch");
+        if (swap == null) yield break;
+        swapWas = GameSettings.SwapBenchSticks;
+        swapTouched = true;
+        Check(SwitchOn(phone, SwapKey) == swapWas, $"...the switch shows the setting as it stands ({(swapWas ? "on" : "off")})");
+        swap.onClick.Invoke();
+        yield return Frames(2);
+        bool now = GameSettings.SwapBenchSticks;
+        int kept = PlayerPrefs.GetInt(GameSettings.SwapBenchSticksKey, -1);
+        Check(now != swapWas && kept == (now ? 1 : 0), $"its switch turns it {(now ? "on" : "off")}, kept at once ({GameSettings.SwapBenchSticksKey} = {kept})");
+        GameSettings.Reload();
+        Check(GameSettings.SwapBenchSticks == now && SwitchOn(phone, SwapKey) == now, "...read back as kept, and the switch shows it");
+        phone.RevealKey(SwapKey);
+        yield return Frames(2);
+        yield return Photo("14a-settings-swap-the-sticks");
+        Button back = phone.ContentButton(SwapKey);
+        if (back != null) back.onClick.Invoke();
+        yield return Frames(2);
+        GameSettings.Reload();
+        Check(GameSettings.SwapBenchSticks == swapWas && PlayerPrefs.GetInt(GameSettings.SwapBenchSticksKey, -1) == (swapWas ? 1 : 0),
+            "and back, kept and read back");
+        // swapTouched stays up: Restore puts it back once more at the end, whatever a later step pressed.
+    }
+
+    // Settings › MORNINGS: "The morning", Full / Short / Off. Each pill sets GameSettings.DayIntro, kept in PlayerPrefs at once
+    // (FixitFidget.Settings.DayIntro: 0, 1 or 2) and read back as kept, its pill in green and the others not; a whole turn
+    // from Short. Then a pad, and back as it was.
+    IEnumerator TheMorning(RecapPhone phone)
+    {
+        string text = phone.ContentText();
+        Check(text.Contains("The morning") && text.Contains("A few seconds of the café waking up, every day. Short: just the title."),
+            "MORNINGS: \"The morning\", with its line");
+        introWas = GameSettings.DayIntro;
+        introTouched = true;
+        Check(OnlyPillOn(phone, introWas), $"...three pills, Full / Short / Off, the one in force ({introWas}) in green");
+        foreach (DayIntroMode mode in new[] { DayIntroMode.Short, DayIntroMode.Off, DayIntroMode.Full })
+        {
+            Button pill = phone.ContentButton("morning:" + mode);
+            if (pill == null) { Check(false, $"\"{mode}\" has its pill"); yield break; }
+            pill.onClick.Invoke();
+            yield return Frames(2);
+            int kept = PlayerPrefs.GetInt(GameSettings.DayIntroKey, -1);
+            GameSettings.Reload();
+            Check(GameSettings.DayIntro == mode && kept == (int)mode && OnlyPillOn(phone, mode),
+                $"\"{mode}\" sets the morning to {mode}: kept as {kept}, read back as {GameSettings.DayIntro}, its pill in green");
+            if (mode != DayIntroMode.Short) continue;
+            phone.RevealKey("morning:Short");
+            yield return Frames(2);
+            yield return Photo("14b-settings-the-morning");
+        }
+        yield return PadToTheMorning(phone);
+        GameSettings.DayIntro = introWas;
+        phone.RebuildNow();
+        yield return Frames(2);
+        GameSettings.Reload();
+        Check(GameSettings.DayIntro == introWas && PlayerPrefs.GetInt(GameSettings.DayIntroKey, -1) == (int)introWas && OnlyPillOn(phone, introWas),
+            $"and back to {introWas}");
+        // introTouched stays up: Restore puts it back once more at the end.
+    }
+
+    // A pad reaches the morning the way it reaches the picture's quality. First the routes the D-pad follows (the phone's
+    // WireNavigation): down from the switch above onto Full, along the row to Short and Off, down to the quality's pills
+    // (Short over Medium) and back up. Then the D-pad and A themselves, on a virtual pad added for this and removed after.
+    IEnumerator PadToTheMorning(RecapPhone phone)
+    {
+        Button swap = phone.ContentButton(SwapKey), full = phone.ContentButton("morning:Full"), shortPill = phone.ContentButton("morning:Short"),
+            off = phone.ContentButton("morning:Off"), medium = phone.ContentButton("quality:Medium");
+        if (swap == null || full == null || shortPill == null || off == null || medium == null)
+        {
+            Check(false, "the pad's routes: the switch, the morning's three pills and the quality's Medium are all on the phone");
+            yield break;
+        }
+        Check(swap.navigation.selectOnDown == full && full.navigation.selectOnUp == swap && full.navigation.selectOnRight == shortPill
+              && shortPill.navigation.selectOnLeft == full && shortPill.navigation.selectOnRight == off && off.navigation.selectOnRight == null
+              && shortPill.navigation.selectOnDown == medium && medium.navigation.selectOnUp == shortPill,
+            "the pad's routes: down from the switch onto Full, along to Short and Off, down to the quality's (Short over Medium), and back up");
+
+        PlugInPad("Pause check pad (settings)");
+        // The UI's D-pad steps come through PlayerInput's actions, which listen to the devices of the control scheme it last
+        // switched to: a player's first press on a pad switches it; a pad made in code a moment ago may not have been yet (as
+        // the recap phone's check found), so the check switches it, as that first press would.
+        var playerInput = FindAnyObjectByType<PlayerInput>();
+        if (playerInput != null && !playerInput.devices.Contains(pad))
+        {
+            bool switched = playerInput.SwitchCurrentControlScheme(pad);
+            Note($"PlayerInput switched to the check's pad ({(switched ? playerInput.currentControlScheme : "it wouldn't")})");
+        }
+        // One press up first makes the pad the device in use (the phone keeps a pad's selection only then, and up moves nothing
+        // a slider would take as a change); then the pad starts on the switch above the row.
+        yield return PadPress(GamepadButton.DpadUp);
+        EventSystem events = EventSystem.current;
+        Button from = phone.ContentButton(SwapKey);
+        if (events != null && from != null) events.SetSelectedGameObject(from.gameObject);
+        yield return Frames(2);
+        Check(PadInput.UsingPad && from != null && Selected() == from.gameObject, $"a pad, on the switch above the row (on {Name(Selected())})");
+        yield return PadPress(GamepadButton.DpadDown);
+        Button fullNow = phone.ContentButton("morning:Full");
+        bool onFull = fullNow != null && Selected() == fullNow.gameObject;
+        Check(onFull, $"the D-pad goes down onto Full (on {Name(Selected())}; the editor {(Application.isFocused ? "focused" : "NOT focused")})");
+        Button shortNow = null;
+        if (onFull)
+        {
+            yield return PadPress(GamepadButton.DpadRight);
+            shortNow = phone.ContentButton("morning:Short");
+            Check(shortNow != null && Selected() == shortNow.gameObject, $"...right onto Short (on {Name(Selected())})");
+        }
+        // A presses whatever is selected: only on Short, or a lost step would press something else (a switch, a quality).
+        if (shortNow == null || Selected() != shortNow.gameObject)
+        {
+            Note("the pad isn't on Short: A isn't pressed, and the rest of the pad's steps are skipped (the routes above still hold)");
+            InputSystem.RemoveDevice(pad);
+            pad = null;
+            yield return Frames(2);
+            yield break;
+        }
+        yield return PadPress(GamepadButton.South);
+        yield return Frames(2);
+        GameSettings.Reload();
+        Button shortAfter = phone.ContentButton("morning:Short");
+        Check(GameSettings.DayIntro == DayIntroMode.Short && OnlyPillOn(phone, DayIntroMode.Short) && shortAfter != null && Selected() == shortAfter.gameObject,
+            $"...and A sets the morning to Short ({GameSettings.DayIntro}), the pad staying on it as the phone builds again (on {Name(Selected())})");
+        yield return Photo("14c-settings-the-morning-on-a-pad");
+        InputSystem.RemoveDevice(pad);
+        pad = null;
+        yield return Frames(2);
+    }
+
+    // A switch row's switch is green when it's on (RecapPhone.SwitchRow paints its track the brand's green).
+    static bool SwitchOn(RecapPhone phone, string key) => Green(phone.ContentButton(key));
+
+    // The morning's pill for this mode is green, and the other two aren't (RecapPhone.ChoiceRow).
+    static bool OnlyPillOn(RecapPhone phone, DayIntroMode mode) =>
+        Mornings.All(m => Green(phone.ContentButton("morning:" + m)) == (m == mode));
+
+    static bool Green(Button button)
+    {
+        var face = button != null ? button.targetGraphic as Image : null;
+        if (face == null) return false;
+        Color c = face.color, g = UiSkin.Brand;
+        return Mathf.Abs(c.r - g.r) + Mathf.Abs(c.g - g.g) + Mathf.Abs(c.b - g.b) < .02f;
+    }
+
+    static GameObject Selected() => EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+    static string Name(GameObject go) => go != null ? go.name : "nothing";
 
     // The drinks close-up: Esc steps out of it, and the phone doesn't come up over it.
     IEnumerator NotOverACloseUp()
@@ -337,6 +508,8 @@ public sealed class PauseCheck : PlayLab
         if (PausePhone.Paused) pause.Resume();
         if (masterWas >= 0f) GameSettings.Master = masterWas;
         if (invertTouched) GameSettings.InvertY = invertWas;
+        if (swapTouched) GameSettings.SwapBenchSticks = swapWas;
+        if (introTouched) GameSettings.DayIntro = introWas;
         GameSettings.Save();
         if (Time.timeScale <= 0f && !RecapUI.Showing) Time.timeScale = 1f;
     }

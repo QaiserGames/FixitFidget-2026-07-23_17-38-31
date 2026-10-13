@@ -34,6 +34,13 @@ using UnityEngine.InputSystem.LowLevel;
 // Photographed from the game's camera ("repair-over-the-counter", "bar-drink-over-the-counter": run it from above for
 // the overhead photos).
 //
+// REASSURE FROM BEHIND THE BENCH (12 Oct 2026, the playtesters' #8): while Ace carries the repair's device to the bench,
+// its owner at the stool runs low (the check drains them to 25%: the sweat drop's line is 30%, DayOneGuideUI.Frustrated).
+// With the device in hand, A at the bench still sets it down (the mat wins). With empty hands, from above A is for the
+// frustrated customer across the counter before the device on the mat ("Reassure"), one press and no step taken; in
+// first person the crosshair decides: on the device E is the device's, on them it reaches over the counter. Once they're
+// calmer, E is the mat's again. Their patience is then put back, so the rest of the leg is not their race.
+//
 // Every press is written down with what it was for, and the station presses (ones that only step into or out of a
 // station or a close-up) are counted: none in first person, at most one per station from above (the plan's targets).
 // The total and the conversation's share are REPORTED, not asserted (playtest 4: the conversation's own pacing decides
@@ -96,6 +103,12 @@ public sealed class StationsCheck : PlayLab
     // The repair bar (playtest 4): the room's other places to wait, held for a moment so the next customer waits at a stool.
     static readonly FieldInfo BrainSpot = typeof(CustomerBrain).GetField("waitingSpot", Any);
     static readonly FieldInfo BrainState = typeof(CustomerBrain).GetField("state", Any);
+    // Reassure from behind the bench (12 Oct, #8): the owner's patience, drained to the sweat drop and put back after.
+    static readonly FieldInfo BrainPatience = typeof(CustomerBrain).GetField("patienceLeft", Any);
+    static readonly FieldInfo BrainServiceMax = typeof(CustomerBrain).GetField("serviceMax", Any);
+    static readonly FieldInfo BrainReassureUses = typeof(CustomerBrain).GetField("reassureUses", Any);
+    static readonly FieldInfo BrainReassureReadyAt = typeof(CustomerBrain).GetField("reassureReadyAt", Any);
+    const float FrustratedAt = .25f;   // under the sweat drop's 30% (DayOneGuideUI.SweatDropAt), with room to drain while the check looks
     GameObject seatHolder;
     readonly List<WaitingSpot> heldSeats = new List<WaitingSpot>();
     readonly List<string> overTheCounter = new List<string>();
@@ -404,14 +417,30 @@ public sealed class StationsCheck : PlayLab
         yield return Frames(4);
         if (firstPerson) yield return LookAt(BenchTop(bench));
         yield return Frames(3);
+        // (12 Oct, #8) Their patience has run low while Ace carried their device over: the sweat drop (under 30%).
+        bool frustrated = false;
+        if (waiting != null)
+        {
+            frustrated = MakeFrustrated(waiting);
+            yield return Frames(3);
+            frustrated = frustrated && DayOneGuideUI.Frustrated(waiting);
+            Check(frustrated, $"{waiting.CustomerName} is frustrated at the stool while Ace holds their device (patience {waiting.PatienceFraction:P0}; the sweat drop's line is {DayOneGuideUI.SweatDropAt:P0})");
+        }
         string across = waiting != null
             ? $" ({waiting.CustomerName} waits across the counter, {Flat(waiting.transform.position - movement.transform.position).magnitude:0.00} m away, " +
-              $"in E's reach over it: {interactor.AcrossTheCounter(waiting.transform.position)}; an unfinished device isn't handed back)"
+              $"in E's reach over it: {interactor.AcrossTheCounter(waiting.transform.position)}{(frustrated ? ", frustrated" : "")}; an unfinished device isn't handed back)"
             : "";
-        Check(interactor.Focused == bench, $"at the bench A sets it down{across}: \"{interactor.CurrentPrompt}\"");
+        Check(interactor.Focused == bench, $"at the bench, the device in hand, A sets it down{(frustrated ? ": the mat wins over a frustrated customer while the hands are full" : "")}{across}: \"{interactor.CurrentPrompt}\"");
         yield return Press(GamepadButton.South, "set it down on the bench");
         yield return Until(() => StationInteractable.BenchHolds(job), 2f, "it's on the bench");
         if (!lastWait) yield break;
+
+        // (12 Oct, #8) Hands empty now: a word over the counter for the frustrated owner, then the mat is E's again.
+        if (waiting != null && frustrated)
+        {
+            yield return ReassureFromTheBench(waiting, job);
+            CalmDown(waiting);
+        }
 
         // Work on it.
         if (firstPerson) yield return LookAt(Middle(job.transform));
@@ -598,6 +627,72 @@ public sealed class StationsCheck : PlayLab
         overTheCounter.Add($"{customer}: \"{prompt}\" to {name} at the stool, {across:0.00} m across the counter (flat), " +
                            $"{(handed ? "taken" : "NOT taken")}; Ace walked {walked:0.00} m");
         lastWait = handed;
+    }
+
+    // ---------- the repair bar: a word over the counter (12 Oct, #8) ----------
+
+    // Behind the bench with empty hands, the owner frustrated at their stool across the counter: from above A is for them
+    // before the device on the mat; in first person the crosshair says who (on the device, E is still the device's). One
+    // press reassures them, no step taken; calmer, they let the mat have E again.
+    IEnumerator ReassureFromTheBench(CustomerBrain who, JobBase job)
+    {
+        string name = who != null ? who.CustomerName : "them";
+        if (who == null) yield break;
+        float before = who.PatienceFraction;
+        Vector3 standing = movement.transform.position;
+        Check(interactor.HandsEmpty && !interactor.IsBehindCounter(movement.transform.position) && interactor.OnStaffSide,
+            "Ace is behind the repair bar's bench (not the till) with empty hands");
+        if (firstPerson)
+        {
+            // The crosshair decides. On the device: E is the device's, whoever is frustrated across the counter.
+            yield return LookAt(Middle(job.transform));
+            yield return Frames(3);
+            Check(interactor.Focused is ItemInteractable onMat && onMat.Job == job,
+                $"first person, hands empty, the crosshair on the device: E is still the device's, {name} frustrated or not: \"{interactor.CurrentPrompt}\"");
+            yield return LookAt(SeenPoint(Eye(), who));
+        }
+        yield return Frames(3);
+        string prompt = interactor.CurrentPrompt ?? "";
+        bool on = interactor.Focused is CustomerInteractable ci && ci.Brain == who;
+        Check(on && prompt == "Reassure", firstPerson
+            ? $"first person, the crosshair on {name} at the stool: E reaches them over the counter: \"{prompt}\""
+            : $"from above, hands empty, {name} frustrated at the stool ({before:P0}): E is for them before the device on the mat: \"{prompt}\"");
+        if (!on && firstPerson) NoteTheCrosshair(who);
+        yield return Photo($"{customer}-reassure-over-the-counter");
+        // A press a player would make here, not one of the repair's own: not counted with the visit's presses.
+        yield return PadPress(GamepadButton.South);
+        yield return Await(() => who == null || who.PatienceFraction > before + .1f, 3f);
+        float after = who != null ? who.PatienceFraction : 0f;
+        Check(lastWait, $"{name} is reassured from behind the bench with one press (patience {before:P0} → {after:P0})");
+        float walked = Flat(movement.transform.position - standing).magnitude;
+        Check(walked < .05f, $"no step taken for it: Ace walked {walked:0.00} m (round the counter's east end it was about 20 m)");
+        overTheCounter.Add($"{customer}: \"{prompt}\" to {name} at the stool, frustrated ({before:P0} → {after:P0}), from behind the bench with " +
+                           $"empty hands, {(lastWait ? "reassured" : "NOT reassured")}; Ace walked {walked:0.00} m");
+
+        // Calmer (the sweat drop gone), the device on the mat has E again.
+        if (firstPerson) yield return LookAt(Middle(job.transform));
+        yield return Frames(4);
+        Check(interactor.Focused is ItemInteractable again && again.Job == job,
+            $"{name} calmer, E is the device on the mat's again: \"{interactor.CurrentPrompt}\"");
+    }
+
+    // Drains them to the sweat drop (under 30%: DayOneGuideUI.Frustrated), through the field the game drains.
+    bool MakeFrustrated(CustomerBrain who)
+    {
+        if (who == null || BrainPatience == null || BrainServiceMax == null) return false;
+        float max = (float)BrainServiceMax.GetValue(who);
+        if (max <= 0f) return false;
+        BrainPatience.SetValue(who, max * FrustratedAt);
+        return true;
+    }
+
+    // Their patience back to full and the reassurance forgotten, so the rest of the leg isn't their race.
+    void CalmDown(CustomerBrain who)
+    {
+        if (who == null || BrainPatience == null || BrainServiceMax == null) return;
+        BrainPatience.SetValue(who, (float)BrainServiceMax.GetValue(who));
+        BrainReassureUses?.SetValue(who, 0);
+        BrainReassureReadyAt?.SetValue(who, 0f);
     }
 
     // The repair bar's stools: the seats across the counter from the bench (in front of its stand point, the way it faces,

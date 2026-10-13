@@ -20,6 +20,13 @@ using UnityEngine.UI;
 //     full for the first three close-ups (counted outside the labs, like a setting), then one line; holding Tab, or View on
 //     a pad, shows it all again.
 //
+// THE SIMPLICITY PASS (12-13 Oct; his answer to 1b: "i just want it to feel easy for anyone to play it"): the pad's lines
+// run in the order a stranger needs them (the hand, use, the tool, then turning and flipping, then the helpers, then the
+// ways out); the turn says it is a quarter at a time; "Use" says it is a hold; the two sticks' names follow the swap
+// setting (ControlHints.BenchHandStick / BenchTurnStick); and the checklist's step says "flip it over" when every part it
+// wants lies on the face turned down (RepairChecklist.Step.under), instead of "hold on each one" for screws nobody can see.
+// The mouse's card keeps its words (the Day 1 guide's check reads "[Click a tool]", "[Drag]" and "[Right-click]" from it).
+//
 // Made while playing, on a canvas of its own, between the HUD's corners and the pins: nothing is saved in the scene.
 // ---------------------------------------------------------------------------
 public sealed class BenchCards : MonoBehaviour
@@ -122,8 +129,11 @@ public sealed class BenchCards : MonoBehaviour
             bool inHand = inspector.CurrentTool == now.tool;
             string tool = RepairChecklist.ToolName(now.tool);
             string change = inHand ? " in hand" : ControlHints.Pad ? $" ({ControlHints.Tools})" : now.tool == ToolType.Hand ? " (right-click the tool away)" : " (click it in the caddy)";
+            // The step's parts lie on the face turned down (the phone's screws are in its back): say to flip it, not how to
+            // hold on screws nobody can see (12 Oct: nothing had said when to flip). PLACEHOLDER COPY.
+            string how = now.under ? $"on the other side: flip it over ({ControlHints.Flip})" : now.how;
             text.Append($"<color={Gold}>►</color> <b>{now.text}</b>\n");
-            text.Append($"<size=80%><color={Key}>{tool}</color>{change} · {now.how}</size>");
+            text.Append($"<size=80%><color={Key}>{tool}</color>{change} · {how}</size>");
         }
         else if (job.IsFinished)
             text.Append($"<color={Done}>Done.</color> <b>Pick it up and take it back</b>\n<size=80%><color={Key}>[{ControlHints.TakeFromBench}]</color> Pick it up and step back</size>");
@@ -148,18 +158,20 @@ public sealed class BenchCards : MonoBehaviour
 
     static string K(string label) => $"<color={Key}>[{label}]</color>";
 
+    // The pad's lines in the order a stranger needs them (the simplicity pass, 12-13 Oct): the hand and what it does, the
+    // tool, then turning the device, then the helpers, then the two ways out. The sticks' names follow the swap setting.
     string Controls(ItemInspector inspector)
     {
         bool hand = inspector.CurrentTool == ToolType.Hand;
         string back = hand ? "Step back" : "Put the tool down";
         if (ControlHints.Pad)
-            return $"{K("Right stick")}  Move your hand\n"
-                 + $"{K("Left stick")}  Turn it · up/down: peek under\n"
-                 + $"{K(PadInput.Label(PadButton.North))}  Flip it over\n"
+            return $"{K(ControlHints.BenchHandStick)}  Move your hand\n"
+                 + $"{K(ControlHints.BenchUse)}  Use (hold)\n"
                  + $"{K(ControlHints.Tools)}  Change tool <color={Faint}>({inspector.CurrentToolName})</color>\n"
-                 + $"{K(ControlHints.BenchUse)}  Use\n"
-                 + $"{K("D-pad up/down")}  Zoom\n"
+                 + $"{K(ControlHints.BenchTurnStick)}  Turn it a quarter · up/down: peek under\n"
+                 + $"{K(PadInput.Label(PadButton.North))}  Flip it over\n"
                  + $"{K("D-pad left/right")}  Next part\n"
+                 + $"{K("D-pad up/down")}  Zoom\n"
                  + $"{K(ControlHints.Back)}  {back}\n"
                  + $"{K(ControlHints.TakeFromBench)}  Pick it up and step back";
         return $"{K("Click a tool")}  Take it <color={Faint}>(now: {inspector.CurrentToolName})</color>\n"

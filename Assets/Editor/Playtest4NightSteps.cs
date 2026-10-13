@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -9,6 +10,14 @@ using UnityEngine;
 //
 //   Fixit Fidget > Playtest 4 > Night > 0 - Check first                              (read-only)
 //   Fixit Fidget > Playtest 4 > Night > 1 - Her window and her porch light (scene)
+//   Fixit Fidget > Playtest 4 > Night > 2 - Her front window: what she sees from inside (read-only)   (★1, 12 Oct)
+//
+// Item 2 (12 Oct 2026, playtest 4's ★1, "Grace sees out of her front window"): nothing in the scene changes for it; her sight
+// out of the glass is code (GraceAtHome: the same eyes, through the pane the night makes solid, past the frame and the drapes).
+// This read-only check measures the window as the scene has it (the pane, the trim's jambs, mullion and transom, the two
+// curtain panels, the pier, her armchair and the TV) against the numbers her eyes and the checks work with
+// (GraceAtHome.WindowSouth and the rest), and prints what the glass shows her from her armchair and from the window spot:
+// the bands of pavement a standing head is seen in. Run it before the labs; if the window ever moves, it says so.
 //
 // Step 1 answers the veteran at 12:19 AM on Night 2 ("From the night overhead I can't pick out her window, or tell whether
 // it's lit or dark") and the first hour on Night 1 ("at night the saffron house looks brown", no marker for her step). From
@@ -189,6 +198,163 @@ internal static class Playtest4NightSteps
 
     [MenuItem(Menu + "1 - Her window and her porch light (scene)", true)]
     static bool CanHerLights() => Playtest4Shared.NotPlaying();
+
+    // ================================================================== 2 - Her front window: what she sees from inside (read-only)
+
+    [MenuItem(Menu + "2 - Her front window: what she sees from inside (read-only)")]
+    static void HerFrontWindow() => Playtest4Shared.Survey("Playtest 4 · Night · 2 - Her front window: what she sees from inside", "night-2-her-front-window", run =>
+    {
+        GraceAtHome home = Playtest4Shared.One<GraceAtHome>(run);
+        GraceHouse house = home.house;
+        run.Require(house != null && house.house != null, "Grace at home has no house (Break-ins 6 - Put Grace at home).");
+        run.Info($"Grace at home: {Playtest4Shared.PathOf(home.gameObject)}; she stands at her front window {home.windowSeconds:0.0} s with each cup of tea " +
+                 $"(GraceAtHome.windowSeconds); her front window is watched {home.WindowHours()}");
+        run.Check(home.windowSeconds > 0f, "her pause at the glass is on (Window Seconds above 0: 0 would leave her eyes off the street for good)");
+
+        // ---- the pane: a part of its own since Break-ins 1, clear glass (plan metres from its vertices) ----
+        run.Section("The window as the scene has it (plan metres: X north along the street, Y toward it, z up from her floor)");
+        Transform pane = FindChild(house.house, GraceHouse.FrontGlassName), drapes = FindChild(house.house, GraceHouse.FrontCurtainsName), trim = house.house.Find("Cream trim");
+        run.Check(pane != null && pane.GetComponent<MeshFilter>() != null && pane.GetComponent<MeshFilter>().sharedMesh != null,
+            $"her front window's pane is a part of its own, '{GraceHouse.FrontGlassName}' (the night gives it a collider by that name; her eyes look through it)");
+        run.Check(drapes != null && drapes.GetComponent<MeshFilter>() != null && drapes.GetComponent<MeshFilter>().sharedMesh != null,
+            $"her curtain panels are a part of their own, '{GraceHouse.FrontCurtainsName}' (solid by night: fabric)");
+        run.Check(pane == null || pane.GetComponent<Collider>() == null, "the pane has no collider of its own by day (by night the night walk's copy, named by its path)");
+        if (pane != null && Bounds(house, pane, out Vector3 paneMin, out Vector3 paneMax, null))
+        {
+            run.Info($"the pane: X {paneMin.x:0.000}-{paneMax.x:0.000}, z {paneMin.z:0.000}-{paneMax.z:0.000}, Y {paneMin.y:0.000}-{paneMax.y:0.000}");
+            run.Check(Near(paneMin.x, GraceAtHome.WindowSouth) && Near(paneMax.x, GraceAtHome.WindowNorth) && Near(paneMin.z, GraceAtHome.WindowSill) && Near(paneMax.z, GraceAtHome.WindowHead),
+                $"...as her eyes have the opening (X {GraceAtHome.WindowSouth}-{GraceAtHome.WindowNorth}, sill {GraceAtHome.WindowSill}, head {GraceAtHome.WindowHead})");
+            run.Check(Near((paneMin.y + paneMax.y) * .5f, GraceAtHome.GlassY, .03f), $"...the glass at Y {(paneMin.y + paneMax.y) * .5f:0.000} (her eyes: {GraceAtHome.GlassY})");
+        }
+        // ---- the two curtain panels: 0.5 m each side, the middle clear ----
+        if (drapes != null)
+        {
+            bool south = Bounds(house, drapes, out Vector3 sMin, out Vector3 sMax, p => p.x < (GraceAtHome.WindowSouth + GraceAtHome.WindowNorth) * .5f);
+            bool north = Bounds(house, drapes, out Vector3 nMin, out Vector3 nMax, p => p.x >= (GraceAtHome.WindowSouth + GraceAtHome.WindowNorth) * .5f);
+            if (south) run.Info($"the south drape: X {sMin.x:0.000}-{sMax.x:0.000}, z {sMin.z:0.000}-{sMax.z:0.000}, Y {sMin.y:0.000}-{sMax.y:0.000}");
+            if (north) run.Info($"the north drape: X {nMin.x:0.000}-{nMax.x:0.000}, z {nMin.z:0.000}-{nMax.z:0.000}, Y {nMin.y:0.000}-{nMax.y:0.000}");
+            run.Check(south && north && Near(sMin.x, GraceAtHome.DrapeSouthFrom) && Near(sMax.x, GraceAtHome.DrapeSouthTo) && Near(nMin.x, GraceAtHome.DrapeNorthFrom) && Near(nMax.x, GraceAtHome.DrapeNorthTo)
+                      && Near((sMin.y + sMax.y) * .5f, GraceAtHome.DrapesY, .03f),
+                $"...two panels where her eyes have them (X {GraceAtHome.DrapeSouthFrom}-{GraceAtHome.DrapeSouthTo} and {GraceAtHome.DrapeNorthFrom}-{GraceAtHome.DrapeNorthTo}, at Y {GraceAtHome.DrapesY}); " +
+                $"the clear middle between them is {GraceAtHome.DrapeNorthFrom - GraceAtHome.DrapeSouthTo:0.00} m wide");
+        }
+        // ---- the trim in front of the glass: the jambs, the mullion and the transom rail, which block a grazing look ----
+        if (trim != null && trim.GetComponent<MeshFilter>() != null && trim.GetComponent<MeshFilter>().sharedMesh != null)
+        {
+            var xs = new HashSet<float>();
+            var zs = new HashSet<float>();
+            float yMin = float.MaxValue, yMax = float.MinValue;
+            int near = 0;
+            foreach (Vector3 v in trim.GetComponent<MeshFilter>().sharedMesh.vertices)
+            {
+                Vector3 p = house.Plan(trim.TransformPoint(v));
+                if (p.x < 2.5f || p.x > 5f || p.z < .5f || p.z > 2.2f || p.y < 4.15f || p.y > 4.35f) continue;
+                near++;
+                xs.Add(Mathf.Round(p.x * 200f) / 200f);
+                zs.Add(Mathf.Round(p.z * 200f) / 200f);
+                yMin = Mathf.Min(yMin, p.y);
+                yMax = Mathf.Max(yMax, p.y);
+            }
+            run.Info($"the trim round the glass: {near} corners, X {{{string.Join(", ", Sorted(xs))}}}, z {{{string.Join(", ", Sorted(zs))}}}, Y {yMin:0.000}-{yMax:0.000}");
+            bool jambs = Has(xs, GraceAtHome.JambSouthFrom) && Has(xs, GraceAtHome.JambSouthTo) && Has(xs, GraceAtHome.JambNorthFrom) && Has(xs, GraceAtHome.JambNorthTo);
+            bool mullion = Has(xs, GraceAtHome.MullionFrom) && Has(xs, GraceAtHome.MullionTo);
+            bool transom = Has(zs, GraceAtHome.TransomFrom) && Has(zs, GraceAtHome.TransomTo);
+            run.Check(near > 0 && jambs && mullion && transom && Near(yMin, GraceAtHome.TrimFrom, .02f) && Near(yMax, GraceAtHome.TrimTo, .02f),
+                $"...its jambs (X {GraceAtHome.JambSouthFrom}-{GraceAtHome.JambSouthTo}, {GraceAtHome.JambNorthFrom}-{GraceAtHome.JambNorthTo}), its mullion (X {GraceAtHome.MullionFrom}-{GraceAtHome.MullionTo}) " +
+                $"and its transom rail (z {GraceAtHome.TransomFrom}-{GraceAtHome.TransomTo}), {GraceAtHome.TrimFrom}-{GraceAtHome.TrimTo} out, are where her eyes have them");
+        }
+        else run.Check(false, "her house has a 'Cream trim' mesh (the window's frame)");
+        // ---- the pier between her door and her window, her armchair and the TV ----
+        Transform pier = FindChild(house.transform, "Street wall, by the window (above the sill)");
+        if (pier != null && pier.GetComponent<MeshFilter>() != null && Bounds(house, pier, out Vector3 pMin, out Vector3 pMax, null))
+            run.Check(Near(pMin.x, GraceAtHome.DoorNorth, .02f) && Near(pMax.x, GraceAtHome.WindowSouth, .02f),
+                $"the pier between her door and her window spans X {pMin.x:0.000}-{pMax.x:0.000} (her eyes: {GraceAtHome.DoorNorth}-{GraceAtHome.WindowSouth}): her step is behind it from her front room");
+        else run.Check(false, "her house has the pier 'Street wall, by the window (above the sill)' (Break-ins 1)");
+        if (home.armchair != null)
+        {
+            Vector3 chair = house.Plan(home.armchair.position);
+            run.Info($"her armchair at plan ({chair.x:0.00}, {chair.y:0.00}); the TV at (5.10, 2.83); the window spot of her map at (4.62, 3.45), 0.57 m from the glass");
+            run.Check(chair.y < GraceAtHome.StreetWallInside - 1f && chair.x < GraceAtHome.WindowNorth, "her armchair stands back from the window, facing the TV along the wall, not the street");
+        }
+        // ---- the outside lights she sees by out there ----
+        run.Check(home.porchLight != null && home.frontSpill != null, "her porch light and her front window's light on the pavement are wired (step 1): what she sees by outside");
+
+        // ---- what the glass shows her, by the numbers her eyes work with ----
+        run.Section("What the glass shows her (GraceAtHome.ThroughTheFrontWall; a standing head, 1.8 m up)");
+        Vector3 seat = new Vector3(4.35f, 2.83f, 1.30f), glass = new Vector3(4.62f, 3.60f, 1.60f);
+        run.Info("from her armchair (seated, facing the TV at +X; the window is 66°-145° off it, outside her TV slice of ±30° and her view of ±55°):");
+        run.Info("    " + Bands(seat));
+        Vector2 looks = new Vector2(GraceAtHome.StreetAhead.x - 4.62f, GraceAtHome.StreetAhead.y - 3.45f);
+        float half = GraceNight.Cone * .5f;
+        run.Info($"from the glass (standing at the window spot with her tea, looking at the road in front of her door, plan ({GraceAtHome.StreetAhead.x:0.00}, {GraceAtHome.StreetAhead.y:0.0}): " +
+                 $"{Vector2.Angle(looks, Vector2.up):0}° off straight out toward her door, since straight out from the spot there is only the north drape; her cone ±{half:0}°):");
+        run.Info("    " + Bands(glass));
+        foreach (var (what, at) in new[] { ("on her step at her door", new Vector3(1.11f, 4.78f, 1.8f)), ("the foot of her steps", new Vector3(1.11f, 5.30f, Pavement + 1.8f)),
+                                           ("where Barnaby is taken from", new Vector3(1.73f, 5.55f, Pavement + 1.8f)), ("a pace back from her door", new Vector3(1.20f, 5.50f, Pavement + 1.8f)),
+                                           ("under her window, 1.7 m out", new Vector3(3.76f, 5.70f, Pavement + 1.8f)), ("2 m out in front of her door's middle", new Vector3(1.11f, 6.20f, Pavement + 1.8f)) })
+        {
+            GraceAtHome.Through fromSeat = GraceAtHome.ThroughTheFrontWall(seat, at, out _, out _, out string seatBy);
+            GraceAtHome.Through fromGlass = GraceAtHome.ThroughTheFrontWall(glass, at, out _, out _, out string glassBy);
+            float off = Vector2.Angle(looks, new Vector2(at.x - glass.x, at.y - glass.y));
+            run.Info($"{what} ({at.x:0.00}, {at.y:0.00}): from her armchair {(fromSeat == GraceAtHome.Through.Window ? "in view of the glass (but off her TV)" : seatBy)}; " +
+                     $"from the glass {(fromGlass == GraceAtHome.Through.Window ? (off <= half ? "SEEN" : $"through the glass but {off:0}° off where she looks") : glassBy)} ({off:0}° off where she looks)");
+        }
+        run.Check(Vector2.Angle(looks, new Vector2(1.20f - glass.x, 5.50f - glass.y)) < half - 15f && Vector2.Angle(looks, new Vector2(1.11f - glass.x, 6.20f - glass.y)) < half - 15f,
+            "the pavement in front of her door, a pace to 2 m out, lies inside her cone from the glass with 15° to spare: the frame and the drapes decide there, not the cone's edge");
+        run.Check(GraceAtHome.ThroughTheFrontWall(glass, new Vector3(1.11f, 4.78f, 1.8f), out _, out _) == GraceAtHome.Through.Wall,
+            "pressed to her door Ace is out of her sight from the glass: the careful player's place");
+        run.Check(GraceAtHome.ThroughTheFrontWall(glass, new Vector3(1.20f, 5.50f, Pavement + 1.8f), out _, out _) == GraceAtHome.Through.Window,
+            "a pace back from her door Ace is in her sight from the glass: \"Hm?\" in about 0.7 s, caught in about 2 s standing still (twice that crouched)");
+        run.Info("The labs: Night > Break-ins 7 - Grace at home: her front window (the rays against these numbers, her eye as it really stands); " +
+                 "Night 2 - Play check (the careful route at her door, the nervous player's pace back); Night 1 (Barnaby at a walk, still calm by her timetable).");
+    });
+
+    [MenuItem(Menu + "2 - Her front window: what she sees from inside (read-only)", true)]
+    static bool CanHerFrontWindow() => Playtest4Shared.NotPlaying();
+
+    // The bands of X (plan metres) a standing head is seen in from an eye, at a few distances out from her wall.
+    static string Bands(Vector3 eyePlan)
+    {
+        var text = new System.Text.StringBuilder();
+        foreach (float y in new[] { 4.78f, 5.3f, 5.6f, 6.2f, 7.0f })
+        {
+            float from = float.NaN, last = float.NaN;
+            var bands = new List<string>();
+            for (float x = -1f; x <= 6.5f; x += .05f)
+            {
+                bool seen = GraceAtHome.ThroughTheFrontWall(eyePlan, new Vector3(x, y, (y < 5f ? 0f : Pavement) + 1.8f), out _, out _) == GraceAtHome.Through.Window;
+                if (seen && float.IsNaN(from)) from = x;
+                if (seen) last = x;
+                if (!seen && !float.IsNaN(from)) { bands.Add($"{from:0.00}-{last:0.00}"); from = float.NaN; }
+            }
+            if (!float.IsNaN(from)) bands.Add($"{from:0.00}-{last:0.00}");
+            text.Append($"{y - GraceAtHome.StreetWallOutside:0.0} m out: X {(bands.Count > 0 ? string.Join(", ", bands) : "nothing")}; ");
+        }
+        return text.ToString().TrimEnd(' ', ';') + " (her door X 0.46-1.76, the window X 2.64-4.89)";
+    }
+
+    // A mesh's corners (those a filter keeps) in plan metres: the least and the most along each axis.
+    static bool Bounds(GraceHouse house, Transform part, out Vector3 min, out Vector3 max, Func<Vector3, bool> keep)
+    {
+        min = Vector3.positiveInfinity;
+        max = Vector3.negativeInfinity;
+        MeshFilter filter = part.GetComponent<MeshFilter>();
+        if (filter == null || filter.sharedMesh == null) return false;
+        int n = 0;
+        foreach (Vector3 v in filter.sharedMesh.vertices)
+        {
+            Vector3 p = house.Plan(part.TransformPoint(v));
+            if (keep != null && !keep(p)) continue;
+            min = Vector3.Min(min, p);
+            max = Vector3.Max(max, p);
+            n++;
+        }
+        return n > 0;
+    }
+
+    static bool Near(float a, float b, float within = .015f) => Mathf.Abs(a - b) <= within;
+    static bool Has(HashSet<float> values, float wanted) => values.Any(v => Mathf.Abs(v - wanted) <= .015f);
+    static string[] Sorted(HashSet<float> values) => values.OrderBy(v => v).Select(v => v.ToString("0.000")).ToArray();
 
     // ================================================================== helpers
 

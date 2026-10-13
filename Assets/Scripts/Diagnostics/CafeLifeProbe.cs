@@ -249,14 +249,20 @@ public sealed class CafeLifeProbe : MonoBehaviour
         if (social != null)
         {
             NpcSocial.Beat beat = social.CurrentBeat;
-            life = $";prof={social.ProfileName};gait={loco.WalkStyle};sit={social.Current}" +
-                   (beat != NpcSocial.Beat.None ? $";beat={beat}" : "") + (social.InChat ? ";chat" : "");
+            // 13 Oct 2026 (the NPC life pass): the walk asked for by mood, hurried legs, a pair, a prop in use.
+            life = $";prof={social.ProfileName};gait={loco.WalkStyle}" +
+                   (loco.RequestedGait != NpcLocomotion.Gait.Profile ? $";ask={loco.RequestedGait}" : "") + (loco.Hurried ? ";hurry" : "") +
+                   $";sit={social.Current}" +
+                   (beat != NpcSocial.Beat.None ? $";beat={beat}" : "") + (social.InChat ? ";chat" : "") +
+                   (social.Companion != null ? ";pair" : "") + (social.Prop != null ? ";prop" : "");
             NpcSeating seating = go.GetComponent<NpcSeating>();
             if (seating != null && seating.Seat != null) life += $";chair={seating.Seat.Style}";
         }
-        // The Mixamo clip showing on the Beats layer, if any, and how much of it, 0-1 (Step B, 27 Sept).
+        // The Mixamo clip showing, how much of it, 0-1 (Step B, 27 Sept), and ^ when it rides the upper-body layer (13 Oct 2026).
         NpcBeats mixamo = go.GetComponent<NpcBeats>();
-        if (mixamo != null && mixamo.Playing) life += ";mx=" + mixamo.CurrentName + "@" + Num(mixamo.Shown);
+        if (mixamo != null && mixamo.Playing) life += ";mx=" + mixamo.CurrentName + "@" + Num(mixamo.Shown) + (mixamo.OnUpperLayer ? "^" : "");
+        NpcCup cup = go.GetComponent<NpcCup>();
+        if (cup != null && cup.State != NpcCup.Where.Gone && cup.State != NpcCup.Where.Hidden) life += ";cup=" + cup.State;
         return $";leg={loco.Purpose};rec={loco.LastRecovery}{(loco.GaveUp ? ";gaveup" : "")}{looking}{gaveWay}{life}";
     }
 

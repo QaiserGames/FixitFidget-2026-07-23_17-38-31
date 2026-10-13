@@ -17,6 +17,7 @@ using Object = UnityEngine.Object;
 //   Fixit Fidget > Night > Break-ins 6 - Take Grace back out (scene)
 //   Fixit Fidget > Night > Break-ins 7 - Grace at home: her night and her eyes and ears (lab, a check)
 //   Fixit Fidget > Night > Break-ins 7 - Grace at home: her Thursday (lab, a check)
+//   Fixit Fidget > Night > Break-ins 7 - Grace at home: her front window (lab, a check)   (playtest 4's ★1, 12 Oct)
 //   Fixit Fidget > Night > Break-ins 8 - Grace's cover (lab, a check)     (playtest 3 session 5, 9 Oct: GraceCoverSteps)
 //
 // Put (Edit Mode, with undo; save the scene afterwards; safe to run again, it refreshes what it found):
@@ -31,7 +32,9 @@ using Object = UnityEngine.Object;
 //
 // The labs use a test save only (Day 5, a Friday: her usual night; Day 4, a Thursday: her odd one); the playtest save is
 // never touched. The checks (GraceAtHomeCheck) report to Logs/Night/grace-at-home-<mode>-<time>/. The cover lab is the
-// part of her night's check about cover (crouched behind her breakfast bar and the boxes upstairs), on its own.
+// part of her night's check about cover (crouched behind her breakfast bar and the boxes upstairs), on its own. The front
+// window lab (12 Oct 2026) is her sight out of the glass: what it shows her and what it doesn't, her pause at the window with
+// her tea, the nervous player stepping back against her door, and a catch through the window (the night ends on it).
 // ---------------------------------------------------------------------------
 internal static class GraceAtHomeSteps
 {
@@ -206,6 +209,7 @@ internal static class GraceAtHomeSteps
     [MenuItem(Menu + "Break-ins 6 - Take Grace back out (scene)", true)]
     [MenuItem(Menu + "Break-ins 7 - Grace at home: her night and her eyes and ears (lab, a check)", true)]
     [MenuItem(Menu + "Break-ins 7 - Grace at home: her Thursday (lab, a check)", true)]
+    [MenuItem(Menu + "Break-ins 7 - Grace at home: her front window (lab, a check)", true)]
     [MenuItem(Menu + "Break-ins 8 - Grace's cover (lab, a check)", true)]
     static bool NotPlaying() => !EditorApplication.isPlayingOrWillChangePlaymode;
 
@@ -216,6 +220,9 @@ internal static class GraceAtHomeSteps
 
     [MenuItem(Menu + "Break-ins 7 - Grace at home: her Thursday (lab, a check)")]
     static void CheckHerThursday() => StartCheck(GraceAtHomeCheck.Mode.Thursday, 4);
+
+    [MenuItem(Menu + "Break-ins 7 - Grace at home: her front window (lab, a check)")]
+    static void CheckHerWindow() => StartCheck(GraceAtHomeCheck.Mode.Window, 5);
 
     [MenuItem(Menu + "Break-ins 8 - Grace's cover (lab, a check)")]
     static void CheckHerCover() => StartCheck(GraceAtHomeCheck.Mode.Cover, 5);
@@ -250,7 +257,8 @@ internal static class GraceAtHomeSteps
         PlayerPrefs.SetInt(GraceHouse.LabKey, 1);
         PlayerPrefs.SetInt(GraceAtHomeCheck.PendingKey, (int)mode);
         PlayerPrefs.Save();
-        string what = mode == GraceAtHomeCheck.Mode.Thursday ? "her Thursday" : mode == GraceAtHomeCheck.Mode.Cover ? "her cover" : "her night and her eyes and ears";
+        string what = mode == GraceAtHomeCheck.Mode.Thursday ? "her Thursday" : mode == GraceAtHomeCheck.Mode.Cover ? "her cover"
+            : mode == GraceAtHomeCheck.Mode.Window ? "her front window" : "her night and her eyes and ears";
         Debug.Log(Tag + $"Grace at home, a check ({what}): " +
                   $"a lab session on a test save (Day {day}, {Weekdays.Name(day)}; {path}); your playtest save is not used. Leave the mouse and " +
                   "keyboard alone for a few minutes; the photos and the report go to Logs/Night/grace-at-home-<mode>-<time>/.");

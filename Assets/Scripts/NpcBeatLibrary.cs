@@ -36,6 +36,14 @@ public sealed class NpcBeatLibrary : ScriptableObject
     public const string ResourceName = "NpcBeatLibrary";
     /// <summary>The animator layer the beats play on (Mixamo 3 adds it; weight 0 unless a beat is showing).</summary>
     public const string LayerName = "Beats";
+    /// <summary>
+    /// The upper-body layer (Fixit Fidget > NPC > Life 1 adds it, 12 Oct 2026): the same standing clips behind an avatar
+    /// mask from the spine up, so Texting, a phone call or a holding pose can play on a walking body while the base
+    /// layer keeps the legs (the feet stay planted). Weight 0 unless NpcBeats shows something there.
+    /// </summary>
+    public const string UpperLayerName = "UpperBeats";
+    /// <summary>The upper-body mask's name inside the controller asset (Life 1 makes it: every transform from the spine up).</summary>
+    public const string UpperMaskName = "Upper body (spine up)";
     /// <summary>The empty state the Beats layer rests in.</summary>
     public const string RestState = "No beat";
     /// <summary>The animator's placeholder clips are named this plus the beat's name.</summary>

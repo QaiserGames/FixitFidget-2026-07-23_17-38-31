@@ -45,6 +45,29 @@ using UnityEngine.InputSystem;
 // and the night ends on "Caught.": NightCycle.Caught). Asleep she sees nothing; a loud sound near her wakes her for 20 s:
 // her lamp on, "Hello?", a look round from her bed.
 //
+// Her front window (12 Oct 2026; playtest 4's ★1, the veteran: "on the route a careful player takes ... there is no
+// nerve"; the Producer's pick: "Grace sees out of her front window", her existing sight, no new rule). Her eyes now reach
+// outside her walls too: Ace in front of her house, within 7.5 m of her street wall, is looked at like Ace indoors (the
+// same cone, rates and ranges), lit by her porch light and her front window's light on the pavement (LitOutside: a spot's
+// pool, as her lamps' pools are read inside), with the same rays: her walls, the pier between her door and her window, her
+// shut door and her two curtain panels block; the clear glass of her front window doesn't (the night gives the pane a
+// collider of its own, by name: GraceHouse.FrontGlassName). The scene's geometry decides the rest, and it is narrow: from
+// her armchair the window is 66°-145° off her TV (her TV slice is ±30°), the drapes leave a 0.94 m slot of clear glass
+// (X 3.29-4.23), and her step itself is behind the pier (X 1.76-2.64) from everywhere in the room. In her old routine she
+// faced the street for half a second a night. So on her way back from the kettle with her tea she now stands at her front
+// window a moment before she sits down (windowSeconds, about 8 s: 11:49-11:59 PM and 12:44-12:54 AM): the minutes the
+// pavement in front of her door (1-3 m out, under her porch light) and the near road are watched. She stands at the
+// window's north end, by the drape (the map's spot, where her furniture leaves room), so straight out of it there is only
+// the drape: she looks out through the window's two clear middle lights, toward the pavement in front of her door and the
+// road beyond it (StreetAhead, about 32° off straight out), and her 110° cone takes in the pavement from the north end of
+// her bay to well past her door. Pressed against her door, Ace is out of her sight; out on the pavement in front of it,
+// "Hm?" in about 0.7 s and caught in about 2 s standing, twice that crouched. Her ears are unchanged (inside her walls only:
+// her step is 4.0-4.3 m from her chair, at the very edge
+// of a walking step's 4 m, so hearing it would be luck, not a rule). Seen outside at "Hm?" she looks toward the window as
+// she looks toward anything; past half she comes to the glass to look (her existing search, from the window spot); full,
+// she comes to the glass (or stays at her door), says it from there, Ace held from the moment she saw him, and the night
+// ends on "Caught." as inside (NightCycle.Caught, which says where she saw Ace from).
+//
 // Ace hides behind her furniture, crouched (playtest 3 session 5, 9 Oct 2026: "the hide buttons out"; her breakfast bar and
 // the boxes at the foot of her bed are the cover, claude/playtest-3-sessions-2-6-plan.md §6.1), and opens her bedroom doors
 // (BedroomDoorsZone: at a walk at once, with a creak; sneaking, slowly and quietly). The cupboard under the stairs and her
@@ -89,6 +112,12 @@ public sealed class GraceAtHome : MonoBehaviour
     [Tooltip("Her bedroom's light falling out of the bay onto the pavement: on while her bedside lamp is. Not one of her lamps.")]
     public Light bedroomSpill;
 
+    [Header("Her front window (playtest 4's ★1, 12 Oct 2026)")]
+    [Tooltip("On her way back from the kettle with her tea she stands at her front window this long (seconds) before she sits down, " +
+             "looking out at the street: the minutes the pavement in front of her door is watched. 0: straight back to her chair, " +
+             "and her eyes never rest on the street.")]
+    [Range(0f, 30f)] public float windowSeconds = 8f;
+
     [Header("Her pace")]
     [Range(.5f, 1.6f)] public float walkSpeed = 1.2f;
     [Range(.3f, 1.2f)] public float stairsSpeed = .85f;
@@ -125,7 +154,39 @@ public sealed class GraceAtHome : MonoBehaviour
     const float InBedBeforeLampOff = 4f;   // seconds in bed before her lamp goes off, at the earliest
     static readonly GraceNight.Step[] OutAll = { new GraceNight.Step(23f, GraceNight.Act.Out) };
 
+    // ---- her front window, in plan metres, read from the scene and the house's meshes (12 Oct 2026) ----
+    // The opening cut through her street wall (GraceHouseSteps; the lining's inside face at Y 4.02, the shell's outside face at
+    // 4.11); the pane in front of the shell (Y 4.175-4.225: clear glass, hers to look through); its cream trim 10 cm deep in
+    // front of the glass (Y 4.195-4.295): a 9 cm jamb each side, a 4.5 cm mullion up the middle, a 6.5 cm transom rail at
+    // 1.3 m, which divide the window into four lights and block a grazing look along the wall; her two curtain panels (Break-ins
+    // 1 and 5), hanging 0.5 m wide at each side at Y 4.22-4.24, which leave the two middle lights clear (X 3.29-3.74 and
+    // 3.78-4.23); her door; her pavement's height.
+    public const float StreetWallInside = 4.02f, StreetWallOutside = 4.11f, GlassY = 4.20f, TrimFrom = 4.195f, TrimTo = 4.295f, DrapesY = 4.23f;
+    public const float WindowSouth = 2.635f, WindowNorth = 4.885f, WindowSill = .605f, WindowHead = 2.055f;
+    public const float JambSouthFrom = 2.59f, JambSouthTo = 2.68f, JambNorthFrom = 4.84f, JambNorthTo = 4.93f;
+    public const float MullionFrom = 3.738f, MullionTo = 3.783f, TransomFrom = 1.297f, TransomTo = 1.363f;
+    public const float DrapeSouthFrom = 2.792f, DrapeSouthTo = 3.287f, DrapeNorthFrom = 4.233f, DrapeNorthTo = 4.728f, DrapeBottom = .655f, DrapeTop = 2.005f;
+    public const float DoorSouth = .46f, DoorNorth = 1.76f, DoorHead = 2.19f;
+    /// <summary>How far in front of her street wall Ace is hers to look at (metres); her eyes' own 7 m lit / 3 m dark do the rest.</summary>
+    public const float OutsideReach = 7.5f;
+    /// <summary>Her pavement, under her ground floor (plan metres).</summary>
+    public const float Pavement = -.15f;
+    /// <summary>
+    /// What she looks at from her front window (plan metres): the road in front of her door. Her spot at the window is at
+    /// its north end, behind the north drape (where her armchair, her sideboard and her coat stand leave room), so straight
+    /// out of it there is only the drape; she looks out through the two clear middle lights, down toward her door, about 32°
+    /// off straight out, and her 110° cone then reaches from the north end of her bay to well past her door (the pavement
+    /// a pace from her door is 26-30° off her middle, 2 m out in front of it 20-22°, under her window 9-11°).
+    /// </summary>
+    public static readonly Vector3 StreetAhead = new Vector3(1.11f, 9.0f, 0f);
+    // How long she may take to come to the glass when she has caught Ace outside before she says it from wherever she has
+    // got to; and how far out her search looks from.
+    const float CatchWalkLimit = 4f, LookFromReachOutside = 6f;
+
     public enum Mood { Calm, Looking, Searching, Woken, Caught }
+    /// <summary>What the line she saw Ace along crossed: nothing (Ace indoors), the clear glass of her front window, her open
+    /// doorway; or, for a line that would be blocked, the wall, the pier or a drape (ThroughTheFrontWall).</summary>
+    public enum Through { Inside, Window, Door, Wall }
     enum Pose { Standing, SittingDown, Seated, StandingUp, InBed }
     enum Station { Away, Armchair, Kettle, InBed, Asleep }
 
@@ -154,6 +215,25 @@ public sealed class GraceAtHome : MonoBehaviour
     /// </summary>
     public Vector3 SawFromEye { get; private set; }
     public Vector3 SawPoint { get; private set; }
+    /// <summary>What that line crossed: nothing (Ace indoors), her front window's clear glass, or her open doorway.</summary>
+    public Through SawThrough => sawThrough;
+    /// <summary>Her last look saw Ace outside her walls (through her front window or her open door).</summary>
+    public bool SeesOutside => seeing && seeingOutside;
+    /// <summary>Looks (twice a second) that saw Ace outside her walls, this night.</summary>
+    public int OutsideSightings { get; private set; }
+    /// <summary>Catches of Ace outside her walls (through her window or her door), this night.</summary>
+    public int OutsideCatches { get; private set; }
+    /// <summary>She stands at her front window with her tea, looking out (her routine's pause on the way back from the kettle).</summary>
+    public bool AtTheWindow { get; private set; }
+    /// <summary>How often her routine has brought her to her front window, this night.</summary>
+    public int WindowLooks { get; private set; }
+    /// <summary>She has caught Ace outside and is on her way to the glass (or her door) to say it; the night ends once she has.</summary>
+    public bool Catching => mood == Mood.Caught && catching;
+    /// <summary>Ace's feet where she last saw Ace (world).</summary>
+    public Vector3 LastSeenFeet => lastSeen;
+    /// <summary>Where her eyes are now (world): her head bone a little forward, or her pillow in bed. For the checks, which work
+    /// out from it what the glass should show her (ThroughTheFrontWall) before they put Ace there.</summary>
+    public Vector3 EyeNow => body == null ? (house != null ? W(Pillow) : transform.position) : Eye(out _, out _, out _);
     public bool TvOn => tvOn;
     public bool DoorsShut => doors <= 0f && doorsTo <= 0f;
     public bool DoorsOpen => doors >= 1f && doorsTo >= 1f;
@@ -228,10 +308,18 @@ public sealed class GraceAtHome : MonoBehaviour
 
     // ---- her eyes and ears ----
     float mark, seeRate, nextLook, lastNoticed = -10f, lastSoundAt = -10f, lookUntil, wokenUntil, lastBark = -10f;
-    bool seeing;
+    bool seeing, seeingOutside, catching;
+    Through sawThrough;
     Vector3 noticePoint, lastSeen;
-    static readonly RaycastHit[] Hits = new RaycastHit[16];
+    // A look out of her window crosses the glass, a drape, the pier's boxes, the shell and whatever stands on the pavement:
+    // room for all of them (a full buffer would drop a hit and let her see through something).
+    static readonly RaycastHit[] Hits = new RaycastHit[32];
     Light[] lamps = Array.Empty<Light>();
+    Light[] outsideLights = Array.Empty<Light>();   // her porch light and her front window's light on the pavement
+    // Caught outside: the beat (she comes to the glass, says it) runs on its own while her mood is Caught, Ace held meanwhile.
+    readonly Stack<IEnumerator> beat = new Stack<IEnumerator>();
+    readonly object caughtHold = new object();
+    bool holdingAce;
 
     // ---- Ace ----
     PlayerMovement ace;
@@ -274,6 +362,7 @@ public sealed class GraceAtHome : MonoBehaviour
         // Her house's upstairs rooms follow her lamps, not the night's guess (NightHomes).
         if (house != null && house.house != null) NightHomes.Drive(house.house, 1, false);
         lamps = new[] { standardLamp, bedsideLamp, landingLight, kitchenLight, tvLight };
+        outsideLights = new[] { porchLight, frontSpill };
     }
 
     void OnDisable()
@@ -300,6 +389,7 @@ public sealed class GraceAtHome : MonoBehaviour
         if (dt <= 0f) return;
         Sense(dt);
         RunRoutine();
+        if (catching) Advance(beat);   // caught outside: she comes to the glass and says it
         Move(dt);
         SwingDoors(dt);
         Flicker(dt);
@@ -326,6 +416,7 @@ public sealed class GraceAtHome : MonoBehaviour
         int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         plan = outAllNight ? OutAll : GraceNight.For(day);
         lamps = new[] { standardLamp, bedsideLamp, landingLight, kitchenLight, tvLight };
+        outsideLights = new[] { porchLight, frontSpill };
         if (plan != OutAll && !MakeBody())
         {
             Why = "no body to put in her house (the patron prefab is missing): she's out tonight";
@@ -346,11 +437,15 @@ public sealed class GraceAtHome : MonoBehaviour
         hour = night.Hour;
         mark = 0f;
         mood = Mood.Calm;
+        seeingOutside = catching = false;
+        OutsideSightings = OutsideCatches = WindowLooks = 0;
+        AtTheWindow = false;
+        beat.Clear();
         Settle(hour);
         Debug.Log($"[Grace at home] {Weekdays.Label(day)}, the night: " + (plan == OutAll ? "she's out all night" + (Why.Length > 0 ? $" ({Why})" : "")
             : plan == GraceNight.Thursday ? "her Thursday (" + GraceNight.Describe(plan) + ")"
             : "her usual night (" + GraceNight.Describe(plan) + ")") +
-            $". Now ({GraceNight.Clock(hour)}): {Doing}. From the street: {Outside()}.");
+            $". Now ({GraceNight.Clock(hour)}): {Doing}. From the street: {Outside()}. Her front window: {WindowHours()}.");
     }
 
     void EndNight()
@@ -380,6 +475,11 @@ public sealed class GraceAtHome : MonoBehaviour
         tvScreenLit = null;
         routine.Clear();
         search.Clear();
+        beat.Clear();
+        // Caught outside, Ace was held from the moment she saw him; the night over, he's free (the morning finds him home).
+        if (holdingAce) { PlayerMovement.Release(caughtHold); holdingAce = false; }
+        catching = false;
+        AtTheWindow = false;
         mood = Mood.Calm;
         mark = 0f;
         away = true;
@@ -578,12 +678,49 @@ public sealed class GraceAtHome : MonoBehaviour
 
     IEnumerator GoSit()
     {
+        // On her way back from the kettle with her tea (not at nightfall, not after a look round): a moment at her front window.
+        bool withHerTea = station == Station.Kettle && pose == Pose.Standing && !away;
         station = Station.Armchair;
         if (pose == Pose.InBed) GetOutOfBed();
         Lamp(standardLamp, true);
+        if (withHerTea && windowSeconds > 0f) yield return AtHerWindow();
         yield return SitInHerChair();
         Lamp(kitchenLight, false);   // already off: it goes off behind her as she leaves the kitchen (Passed)
         SetTv(true, true);
+    }
+
+    // With her tea, she stands at her front window and looks out at the street before she sits down (playtest 4's ★1, 12 Oct
+    // 2026): the minutes the pavement in front of her door is watched. Her existing walk and her existing eyes; the only thing
+    // new is where she stops. A "Hm?" meanwhile pauses the routine where it is (RunRoutine) and resumes it after.
+    IEnumerator AtHerWindow()
+    {
+        yield return GoTo(GraceHouseMap.FrontWindow);
+        yield return Face(W(StreetAhead));
+        WindowLooks++;
+        AtTheWindow = true;
+        float until = Time.time + windowSeconds;
+        while (Time.time < until) yield return null;
+        AtTheWindow = false;
+    }
+
+    /// <summary>
+    /// The hours her routine brings her to her front window ("11:49-11:59 PM and 12:44-12:54 AM"), by the night's clock: each
+    /// Sit step after a Tea step (GraceNight.WindowPauses), the walk from the kettle (about 3 s), then Window Seconds there.
+    /// "never" when she doesn't (a Thursday, or Window Seconds 0).
+    /// </summary>
+    public string WindowHours()
+    {
+        float[] pauses = GraceNight.WindowPauses(plan ?? GraceNight.Usual);
+        if (pauses.Length == 0 || windowSeconds <= 0f) return "never";
+        float perSecond = HoursPerSecond;
+        var text = new System.Text.StringBuilder();
+        for (int i = 0; i < pauses.Length; i++)
+        {
+            float from = pauses[i] + 3f * perSecond, to = from + windowSeconds * perSecond;
+            if (i > 0) text.Append(i == pauses.Length - 1 ? " and " : ", ");
+            text.Append(GraceNight.Clock(from)).Append('-').Append(GraceNight.Clock(to));
+        }
+        return text.ToString();
     }
 
     IEnumerator SitInHerChair()
@@ -891,6 +1028,9 @@ public sealed class GraceAtHome : MonoBehaviour
     {
         routine.Clear();
         search.Clear();
+        AtTheWindow = false;
+        // Caught outside and still on her way to the glass: she says it from where she is, and the night ends.
+        if (catching) SayItAndEnd();
         if (plan == null) return;
         int i = GraceNight.Now(plan, h);
         stepNow = stepDone = i;
@@ -1153,7 +1293,8 @@ public sealed class GraceAtHome : MonoBehaviour
                 }
                 break;
             case Pose.Standing:
-                bool wait = held || mood == Mood.Caught || street && AceInTheWay();
+                // Caught outside she walks to the glass to say it (catching); caught indoors, or stopped by a "Hm?", she stands.
+                bool wait = (held || mood == Mood.Caught) && !catching || street && AceInTheWay();
                 if (!wait && route.Count > 0)
                 {
                     float speed = Mathf.Abs(route[0].z - segmentFrom.z) > .3f ? stairsSpeed : walkSpeed;
@@ -1694,12 +1835,17 @@ public sealed class GraceAtHome : MonoBehaviour
 
     // She comes to look where she last saw or heard Ace, from the spot of her house nearest the place that sees it
     // (LookFrom: cover hides Ace from a glance, not from someone who walks round it), and goes back to what she was doing.
+    // A place outside her walls (seen through her front window): from the spot that sees it through the glass, as far as 6 m
+    // (her window spot is 3.6 m from the pavement in front of her door); if nothing inside sees it, she comes to her front
+    // door (the entry, inside, the door shut) and looks from there.
     void StartSearch(Vector3 point)
     {
         mood = Mood.Searching;
         held = false;
         Searches++;
-        SearchedFrom = LookFrom(house.Plan(point));
+        bool outside = !Inside(point);
+        SearchedFrom = LookFrom(house.Plan(point), outside ? LookFromReachOutside : LookFromReach, out bool sees);
+        if (outside && !sees) SearchedFrom = GraceHouseMap.Entry;
         search.Clear();
         search.Push(Search(point, SearchedFrom));
     }
@@ -1721,7 +1867,11 @@ public sealed class GraceAtHome : MonoBehaviour
     /// which a crouched Ace's head there (0.8 m up) is in plain sight of a standing eye (1.6 m: nothing solid between); the
     /// nearest spot on its floor if none sees it; -1 if there is none.
     /// </summary>
-    public int LookFrom(Vector3 plan)
+    public int LookFrom(Vector3 plan) => LookFrom(plan, LookFromReach, out _);
+
+    // The same, within <paramref name="reach"/> metres (flat); <paramref name="sees"/> says whether the spot found sees the place
+    // or is only the nearest one.
+    int LookFrom(Vector3 plan, float reach, out bool sees)
     {
         int best = -1;
         float bestDistance = float.MaxValue;
@@ -1733,11 +1883,12 @@ public sealed class GraceAtHome : MonoBehaviour
             if (Mathf.Abs(s.Z - plan.z) > 1f) continue;
             float dx = s.X - plan.x, dy = s.Y - plan.y;
             float d = Mathf.Sqrt(dx * dx + dy * dy);
-            if (d > LookFromReach || d >= bestDistance) continue;
+            if (d > reach || d >= bestDistance) continue;
             if (!Clear(W(new Vector3(s.X, s.Y, s.Z + StandingEye)), target)) continue;
             best = i;
             bestDistance = d;
         }
+        sees = best >= 0;
         return best >= 0 ? best : GraceHouseMap.Nearest(plan.x, plan.y, plan.z);
     }
 
@@ -1791,14 +1942,18 @@ public sealed class GraceAtHome : MonoBehaviour
 
     // Twice a second: can she see Ace? Two points on Ace's capsule, its head and its chest (since session 5: until then two
     // points on the drawn body, still 1.09 m up crouched, so nothing 1 m tall could hide Ace), from her eyes: in her view,
-    // within her range for the light where Ace is, and nothing solid between.
+    // within her range for the light where Ace is, and nothing solid between. Since 12 Oct Ace outside her walls too, in
+    // front of her house (InFront), while she's downstairs and not in bed: the same eyes, lit by her outside lights, through
+    // her front window's glass or her open door, and never through a wall, the pier, a drape or a shut door (Clear).
     void Look()
     {
         seeing = false;
+        seeingOutside = false;
         seeRate = 0f;
         if (!CanSee || aceT == null || view == null || hiddenIn != null) return;
         Vector3 aceFeet = view.AceFeet;
-        if (!Inside(aceFeet + Vector3.up * .5f)) return;
+        bool inside = Inside(aceFeet + Vector3.up * .5f);
+        if (!inside && !(CanSeeOutside && InFront(aceFeet))) return;
         Vector3 eye = Eye(out Vector3 forward, out float half, out bool tvHasHer);
         float tall = AceTall;
         bool sneaking = ace != null && ace.Sneaking;
@@ -1812,19 +1967,96 @@ public sealed class GraceAtHome : MonoBehaviour
             float distance = to.magnitude;
             Vector3 flat = new Vector3(to.x, 0f, to.z);
             float off = flat.sqrMagnitude > 1e-6f && flatForward.sqrMagnitude > 1e-6f ? Vector3.Angle(flatForward, flat) : 0f;
-            bool lit = Lit(point);
+            bool lit = inside ? Lit(point) : LitOutside(point);
             float rate = GraceNight.SeeRate(lit, distance, GraceNight.Range(lit, torch), off, half, sneaking, torch, tvHasHer);
             if (rate <= 0f || !Clear(eye, point)) continue;
             if (!seeing)
             {
                 SawFromEye = eye;
                 SawPoint = point;
+                sawThrough = inside ? Through.Inside : ThroughTheFrontWall(house.Plan(eye), house.Plan(point), out _, out _);
             }
             seeing = true;
             seeRate = Mathf.Max(seeRate, rate);
         }
-        if (seeing) lastSeen = aceFeet;
+        if (seeing)
+        {
+            lastSeen = aceFeet;
+            seeingOutside = !inside;
+            if (!inside) OutsideSightings++;
+        }
     }
+
+    // Downstairs and up (in her chair or on her feet), she can look out; in bed, or upstairs, she can't (the bays are over her bed
+    // and her landing, and she looks round her room from her pillow).
+    bool CanSeeOutside => pose != Pose.InBed && feet.z < 1.8f;
+
+    /// <summary>
+    /// A point outside her walls that her eyes may reach: in front of her house, from her street wall out to Outside Reach
+    /// (the pavement and the near road, not the far side of the street), along her frontage and a little beyond it, at street
+    /// level (plan metres; the world is turned into them here).
+    /// </summary>
+    public bool InFront(Vector3 world)
+    {
+        Vector3 p = house.Plan(world);
+        return p.y > StreetWallInside && p.y < StreetWallInside + OutsideReach && p.x > -1.5f && p.x < 7f && p.z > -1f && p.z < 2.6f;
+    }
+
+    /// <summary>
+    /// Where a straight line from an eye inside her front room to a point outside gets through her street wall (plan metres):
+    /// through the clear glass of her front window (Window: in at the opening through the wall, past the trim's jambs, mullion
+    /// and transom rail, between the drapes), through her doorway (Door: seen through only while her door stands open), or not
+    /// at all (Wall: the wall, the pier between her door and her window, the frame, a drape). <paramref name="crossX"/> and
+    /// <paramref name="crossZ"/> say where it meets the wall's inside face, and <paramref name="blockedBy"/> names what stopped
+    /// it. Pure geometry, for the checks and the reports; her eyes use the rays (Clear), which agree with it.
+    /// </summary>
+    public static Through ThroughTheFrontWall(Vector3 eyePlan, Vector3 pointPlan, out float crossX, out float crossZ, out string blockedBy)
+    {
+        crossX = crossZ = float.NaN;
+        blockedBy = "the wall";
+        float dy = pointPlan.y - eyePlan.y;
+        if (Mathf.Abs(dy) < 1e-4f) return Through.Wall;
+        Vector2 At(float y)
+        {
+            float t = (y - eyePlan.y) / dy;
+            return new Vector2(eyePlan.x + (pointPlan.x - eyePlan.x) * t, eyePlan.z + (pointPlan.z - eyePlan.z) * t);
+        }
+        float tIn = (StreetWallInside - eyePlan.y) / dy;
+        if (tIn < 0f || tIn > 1f) return Through.Wall;
+        Vector2 inside = At(StreetWallInside), outside = At(StreetWallOutside);
+        crossX = inside.x;
+        crossZ = inside.y;
+        bool opening = inside.x >= WindowSouth && inside.x <= WindowNorth && inside.y >= WindowSill && inside.y <= WindowHead
+                       && outside.x >= WindowSouth && outside.x <= WindowNorth && outside.y >= WindowSill && outside.y <= WindowHead;
+        if (!opening)
+        {
+            if (inside.x >= DoorSouth && inside.x <= DoorNorth && inside.y >= 0f && inside.y <= DoorHead
+                && outside.x >= DoorSouth && outside.x <= DoorNorth && outside.y >= 0f && outside.y <= DoorHead) return Through.Door;
+            blockedBy = inside.x > DoorNorth && inside.x < WindowSouth ? "the pier" : "the wall";
+            return Through.Wall;
+        }
+        // The trim, 10 cm deep: a line meets it if at any depth it is within a jamb, the mullion or the transom rail.
+        for (int k = 0; k <= 4; k++)
+        {
+            Vector2 p = At(Mathf.Lerp(TrimFrom, TrimTo, k * .25f));
+            bool withinFrame = p.x >= JambSouthFrom && p.x <= JambNorthTo;
+            if (p.x >= JambSouthFrom && p.x <= JambSouthTo || p.x >= JambNorthFrom && p.x <= JambNorthTo) { blockedBy = "the window's jamb"; return Through.Wall; }
+            if (p.x >= MullionFrom && p.x <= MullionTo) { blockedBy = "the window's mullion"; return Through.Wall; }
+            if (withinFrame && p.y >= TransomFrom && p.y <= TransomTo) { blockedBy = "the window's transom rail"; return Through.Wall; }
+        }
+        Vector2 d = At(DrapesY);
+        if (d.y >= DrapeBottom && d.y <= DrapeTop && (d.x >= DrapeSouthFrom && d.x <= DrapeSouthTo || d.x >= DrapeNorthFrom && d.x <= DrapeNorthTo))
+        {
+            blockedBy = d.x < MullionFrom ? "the south drape" : "the north drape";
+            return Through.Wall;
+        }
+        blockedBy = "";
+        return Through.Window;
+    }
+
+    /// <summary>The same, without the name of what blocked.</summary>
+    public static Through ThroughTheFrontWall(Vector3 eyePlan, Vector3 pointPlan, out float crossX, out float crossZ) =>
+        ThroughTheFrontWall(eyePlan, pointPlan, out crossX, out crossZ, out _);
 
     /// <summary>Ace's capsule's height now, metres: 2.0 standing, 1.0 crouched, between while crouching or standing up.</summary>
     float AceTall => ace != null && aceT != null ? ace.CapsuleHeight * Mathf.Abs(aceT.lossyScale.y) : PlayerMovement.StandingHeight;
@@ -1899,7 +2131,58 @@ public sealed class GraceAtHome : MonoBehaviour
         return false;
     }
 
-    // Nothing solid between her eyes and the point but Ace's own capsule (her own body is never solid).
+    // Lit where Ace is outside: in the pool of her porch light or her front window's light on the pavement (a spot: within its
+    // cone and its reach, less a little, as her lamps' pools inside). Her bedroom's light on the pavement doesn't count: it's
+    // on while she's in bed, when she doesn't look out. The street's own lamps don't either: what she sees by is hers.
+    bool LitOutside(Vector3 point)
+    {
+        foreach (Light l in outsideLights)
+        {
+            if (l == null || !l.enabled || !l.gameObject.activeInHierarchy) continue;
+            Vector3 d = point - l.transform.position;
+            float m = d.magnitude, reach = l.range * .8f;
+            if (m < 1e-4f || m >= reach) continue;
+            if (l.type == LightType.Spot && Vector3.Angle(l.transform.forward, d) > l.spotAngle * .5f) continue;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>Whether her porch light or her front window's light lights a point outside now (for the checks).</summary>
+    public bool LitByHerOutsideLights(Vector3 point) => LitOutside(point);
+
+    /// <summary>
+    /// Whether her eyes, as they are this moment (where her eye is, which way she looks, how wide), could take in a point
+    /// outside, by the geometry alone: in front of her house, through the clear glass or her open doorway (ThroughTheFrontWall),
+    /// inside her cone, and within her reach for how her outside lights light it (no torch). <paramref name="why"/> says what
+    /// rules it out, or how it's seen. For the checks and the reports: her eyes themselves use the rays (Look), which agree.
+    /// </summary>
+    public bool CouldSeeOutside(Vector3 world, out float offAxis, out float distance, out string why)
+    {
+        offAxis = 0f;
+        distance = 0f;
+        if (house == null) { why = "no house"; return false; }
+        if (!CanSeeOutside) { why = pose == Pose.InBed ? "she's in bed" : "she's upstairs"; return false; }
+        if (!InFront(world)) { why = "not in front of her house, within her reach"; return false; }
+        Vector3 eye = Eye(out Vector3 forward, out float half, out _);
+        Through through = ThroughTheFrontWall(house.Plan(eye), house.Plan(world), out _, out _, out string blockedBy);
+        if (through != Through.Window && through != Through.Door) { why = blockedBy; return false; }
+        if (through == Through.Door && (house.door == null || house.door.OpenAmount < .3f)) { why = "her door, shut"; return false; }
+        Vector3 to = world - eye;
+        distance = to.magnitude;
+        Vector3 flat = new Vector3(to.x, 0f, to.z), flatForward = new Vector3(forward.x, 0f, forward.z);
+        offAxis = flat.sqrMagnitude > 1e-6f && flatForward.sqrMagnitude > 1e-6f ? Vector3.Angle(flatForward, flat) : 0f;
+        if (offAxis > half) { why = $"{offAxis:0}° off where she looks (she sees ±{half:0}°)"; return false; }
+        bool lit = LitOutside(world);
+        float range = GraceNight.Range(lit, false);
+        if (distance > range) { why = $"{distance:0.0} m off, {(lit ? "lit" : "in the dark")}: beyond her {range:0} m"; return false; }
+        why = $"through {(through == Through.Window ? "the glass" : "her open door")}, {offAxis:0}° off where she looks (±{half:0}°), {distance:0.0} m, {(lit ? "lit by her outside lights" : "in the dark")}";
+        return true;
+    }
+
+    // Nothing solid between her eyes and the point but Ace's own capsule (her own body is never solid), and her front window's
+    // clear glass (by night a collider of its own, named by its scene path: she looks through it, as anyone does; her curtain
+    // panels keep theirs: fabric).
     bool Clear(Vector3 from, Vector3 to)
     {
         Vector3 d = to - from;
@@ -1912,6 +2195,7 @@ public sealed class GraceAtHome : MonoBehaviour
             if (c == null) continue;
             if (aceT != null && c.transform.IsChildOf(aceT)) continue;
             if (body != null && c.transform.IsChildOf(body.transform)) continue;
+            if (c.name.EndsWith(GraceHouse.FrontGlassName, StringComparison.Ordinal)) continue;
             return false;
         }
         return true;
@@ -1925,13 +2209,21 @@ public sealed class GraceAtHome : MonoBehaviour
     }
 
     // Full: she has caught Ace. "Ace?! What on earth—", and the night ends on "Caught." (NightCycle.Caught: the placeholder
-    // until getting caught has its own chunk; whatever Ace took tonight goes back).
+    // until getting caught has its own chunk; whatever Ace took tonight goes back). Caught outside (through her front window
+    // or her open door, 12 Oct 2026), the moment needs a beat that reads: Ace is held where she saw him, she comes to the
+    // glass (or stays at her door) and says it from there, then the night ends the same way.
     void Catch()
     {
+        bool outside = seeingOutside;
         mood = Mood.Caught;
         mark = 1f;
         held = true;
         Catches++;
+        if (outside)
+        {
+            CaughtOutside();
+            return;
+        }
         if (pose == Pose.Standing && aceT != null)
         {
             turnTo = aceT.position;
@@ -1941,6 +2233,52 @@ public sealed class GraceAtHome : MonoBehaviour
         Sfx.Play2D("grace.caught");
         bool ended = NightCycle.Instance != null && NightCycle.Instance.Caught();
         Debug.Log($"[Grace at home] She caught Ace at {GraceNight.Clock(hour)} ({Doing}); " +
+                  (ended ? "the night ends on \"Caught.\"" : "no night cycle to end the night (a lab without one)") + ".");
+    }
+
+    void CaughtOutside()
+    {
+        OutsideCatches++;
+        // Held from the moment she saw him, as the night cycle holds him indoors; free again when the night is put away.
+        if (!holdingAce) { PlayerMovement.Hold(caughtHold); holdingAce = true; }
+        Sfx.Play2D("grace.caught");
+        catching = true;
+        beat.Clear();
+        beat.Push(ComeToTheGlass());
+        Debug.Log($"[Grace at home] She saw Ace outside at {GraceNight.Clock(hour)} ({Doing}), through her " +
+                  (sawThrough == Through.Door ? "open door" : "front window") + ": she comes to say it.");
+    }
+
+    // She stands (if she was sitting) and comes to her front window, or to her entry if she saw Ace through her open door, faces
+    // him and says it; a few seconds at most, then she says it from wherever she has got to. Her walk is her own (Move lets her
+    // walk while catching); Ace can't move.
+    IEnumerator ComeToTheGlass()
+    {
+        int spot = sawThrough == Through.Door ? GraceHouseMap.Entry : GraceHouseMap.FrontWindow;
+        float limit = Time.time + CatchWalkLimit;
+        IEnumerator go = GoTo(spot);
+        while (Time.time < limit && go.MoveNext()) yield return null;
+        if (aceT != null)
+        {
+            IEnumerator face = Face(aceT.position);
+            while (Time.time < limit + 1f && face.MoveNext()) yield return null;
+        }
+        SayItAndEnd();
+    }
+
+    // The end of the beat: her line from where she stands, and the night ends on "Caught.", saying where she saw Ace from.
+    void SayItAndEnd()
+    {
+        if (!catching) return;
+        catching = false;
+        beat.Clear();
+        turning = false;
+        Say(Barks.PoolLine("grace", "grace.caught"), "Ace?! What on earth—", 3f, force: true);
+        string where = sawThrough == Through.Door ? "from her front door" : "from her front window";
+        bool ended = NightCycle.Instance != null && NightCycle.Instance.Caught(where);
+        // No night cycle to end the night (a lab without one): Ace isn't left standing held.
+        if (!ended && holdingAce) { PlayerMovement.Release(caughtHold); holdingAce = false; }
+        Debug.Log($"[Grace at home] She caught Ace {where} at {GraceNight.Clock(hour)} ({Doing}); " +
                   (ended ? "the night ends on \"Caught.\"" : "no night cycle to end the night (a lab without one)") + ".");
     }
 
@@ -1973,10 +2311,11 @@ public sealed class GraceAtHome : MonoBehaviour
             if (!nightOn) return "not at night";
             if (away) return outAllNight ? "out all night" : "out (her house dark)";
             if (street) return "on her way home along the pavement";
-            if (mood == Mood.Caught) return "has caught Ace";
+            if (mood == Mood.Caught) return catching ? "has caught Ace outside, coming to say it" : "has caught Ace";
             if (mood == Mood.Woken) return "woken, her lamp on, looking round from her bed";
             if (mood == Mood.Searching) return "come to look where she noticed Ace";
             if (mood == Mood.Looking) return "stopped to look (\"Hm?\")";
+            if (AtTheWindow && pose == Pose.Standing && route.Count == 0) return "at her front window with her tea, looking out";
             switch (pose)
             {
                 case Pose.Seated: return tvOn ? "in her armchair, watching TV" : "in her armchair";
@@ -2007,6 +2346,7 @@ public sealed class GraceAtHome : MonoBehaviour
     public string Describe() =>
         $"Grace at home: {Doing} at {GraceNight.Clock(hour)} ({(plan == null ? "no night" : plan == GraceNight.Thursday ? "her Thursday" : plan == OutAll ? "out all night" : "her usual night")}, " +
         $"step {stepNow}: {Step}); lights: {LightsNow()}; her bedroom doors {(DoorsShut ? "shut" : DoorsOpen ? "open" : "swinging")}; " +
-        $"her mark {mark:0.00}{(seeing ? " (she sees Ace)" : "")}; noticed {Notices}, came to look {Searches}, woken {Wakes}, heard {SoundsHeard}, " +
-        $"creaks {Creaks}, doors opened {CreakyOpens} creaking and {QuietOpens} quietly, Ace hid {Hides}, caught {Catches}; from the street: {Outside()}.";
+        $"her mark {mark:0.00}{(seeing ? seeingOutside ? " (she sees Ace outside)" : " (she sees Ace)" : "")}; noticed {Notices}, came to look {Searches}, woken {Wakes}, heard {SoundsHeard}, " +
+        $"creaks {Creaks}, doors opened {CreakyOpens} creaking and {QuietOpens} quietly, Ace hid {Hides}, caught {Catches} ({OutsideCatches} outside); " +
+        $"her front window: at it {WindowLooks} time(s) ({WindowHours()}), {OutsideSightings} look(s) saw Ace outside; from the street: {Outside()}.";
 }

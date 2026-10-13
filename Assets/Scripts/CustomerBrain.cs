@@ -341,6 +341,19 @@ public class CustomerBrain : MonoBehaviour
     // Backstop for the walk to the door.
     private float leaveDeadline = float.MaxValue;
 
+    // ---------- the NPC life pass (12 Oct 2026): the walk out, the cup, the bin ----------
+    //
+    // How they walk out: a storm-out is brisk and sets off at once; someone leaving with a Perfect repair strolls;
+    // everyone else keeps their own walk (NpcLocomotion.RequestWalk). Set by the exit paths, applied in Depart.
+    private NpcLocomotion.Gait leavingGait = NpcLocomotion.Gait.Profile;
+    private float leavingPace = 1f;
+    private bool leavingHurried;
+    // On the way out with a cup: the stop at the three-bin station by the door (NpcLifeProps.TryGetBin), the cup
+    // dropped in, a beat's pause, then the door. Without a station the cup goes with them.
+    private bool binStop;
+    private Vector3 binMouth;
+    private float binDeadline, walkOutAt = -1f;
+
     // When they asked out loud for a drink. The espresso machine serves in
     // this order — see EspressoMachine.PendingOrders.
     public float DrinkOrderedAt { get; private set; }
@@ -812,15 +825,40 @@ public class CustomerBrain : MonoBehaviour
         // trace the same line to the same spot. (Not the day's first, who is
         // expected at the till: StraightToCounter.)
         Vector3 drift;
+        Vector3 firstLeg;
         if (!StraightToCounter && PickDriftPoint(out drift))
         {
             locomotion.MoveTo(drift, Walk("drift"));
+            firstLeg = drift;
         }
         else
         {
             driftDone = true;
-            locomotion.MoveTo(QueuePoint(slotIndex), Walk("slot"));
+            firstLeg = QueuePoint(slotIndex);
+            locomotion.MoveTo(firstLeg, Walk("slot"));
         }
+        WalkInBeats(firstLeg);
+    }
+
+    // The upper body on the walk in (12 Oct 2026, NpcBeats' UpperBeats layer): a repair customer with a phone to mend
+    // carries it in (Holding Idle with the city smartphone), most of the time; otherwise now and then someone walks
+    // in texting or on a call (a Distracted person far more often). The legs are the walk's either way.
+    private void WalkInBeats(Vector3 firstLeg)
+    {
+        if (beats == null || !beats.HasUpperLayer) return;
+        float seconds = SecondsToWalk(firstLeg) + (StraightToCounter ? 0f : 4f);
+        bool phoneToMend = record != null && record.kind == JobKind.Repair && !IsCounterRepair;
+        if (phoneToMend && Random.value < .65f && beats.TryHoldingWalk(seconds + 8f)) return;
+        beats.TryWalkingBeat(seconds);
+    }
+
+    // About how long a walk to `to` takes at this person's pace (a straight line, generous).
+    private float SecondsToWalk(Vector3 to)
+    {
+        Vector3 d = to - transform.position;
+        d.y = 0f;
+        float speed = locomotion != null ? Mathf.Max(.5f, locomotion.WalkSpeed) : 1.3f;
+        return d.magnitude * 1.15f / speed;
     }
 
     // ---------- standing in the queue ----------
@@ -919,6 +957,13 @@ public class CustomerBrain : MonoBehaviour
             && (!GestureStillPlaying() || Time.time >= moveAllowedAt + gestureWaitMax))
         {
             hasPendingDestination = false;
+            // Off to their spot: frustrated people go briskly (12 Oct 2026), and now and then someone walks over
+            // texting (the upper body only; the legs are the walk's).
+            if (state == State.Settling && locomotion != null)
+            {
+                locomotion.RequestWalk(PatienceFraction < .3f ? NpcLocomotion.Gait.Brisk : NpcLocomotion.Gait.Profile);
+                if (beats != null) beats.TryWalkingBeat(SecondsToWalk(settleDestination), .7f);
+            }
             locomotion.MoveTo(pendingDestination, pendingMove);
 
             // THE COUNTER SLOT IS RELEASED HERE, NOT ON ACCEPT.
@@ -974,8 +1019,9 @@ public class CustomerBrain : MonoBehaviour
                             float urgency = social != null && social.Profile != null ? social.Profile.urgency : .5f;
                             float pause = Random.Range(driftPauseMin, driftPauseMax) * (1.35f - .7f * urgency);
                             MoveAfter(QueuePoint(slotIndex), Walk("slot"), pause);
-                            // Taking the room in, with the whole body when the clips are there.
-                            if (beats != null) beats.React(NpcBeats.Moment.LookAround, seconds: pause + .3f);
+                            // Taking the room in, with the whole body when the clips are there (not while they carry
+                            // their phone in or text on the way: that goes on, and the head does the looking).
+                            if (beats != null && !beats.OnUpperLayer) beats.React(NpcBeats.Moment.LookAround, seconds: pause + .3f);
                             break;
                         }
 
@@ -1061,6 +1107,7 @@ public class CustomerBrain : MonoBehaviour
                 }
 
                 TickDrinkWish();
+                TendTheCup();
 
                 patienceLeft -= Time.deltaTime * DrainRate;
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
@@ -1081,6 +1128,21 @@ public class CustomerBrain : MonoBehaviour
                                      $"{leaveTimeout}s — removing them. Check the " +
                                      $"NavMesh between the shop floor and the door.", this);
                     Destroy(gameObject);
+                    break;
+                }
+
+                // The cup into the bins by the door first (12 Oct 2026): at the station, or when it can't be reached,
+                // the cup is dealt with and the walk to the door starts after a beat.
+                if (binStop)
+                {
+                    if (locomotion.HasArrived || locomotion.GaveUp || Time.time >= binDeadline) DropTheCup(locomotion.HasArrived);
+                    break;
+                }
+                if (walkOutAt > 0f)
+                {
+                    if (Time.time < walkOutAt) break;
+                    walkOutAt = -1f;
+                    WalkToExit();
                     break;
                 }
 
@@ -1325,6 +1387,20 @@ public class CustomerBrain : MonoBehaviour
             if (ace != null && !(seating != null && seating.Busy)) locomotion.Face(FacingTowards(ace.transform.position));
         }
         HoldAttention(1.5f);
+    }
+
+    /// <summary>
+    /// Ace picked a reply in the conversation (ConversationController, wired by the Producer; safe never to be called):
+    /// a nod as they take it in, and on their feet now and then the whole nod (Head Nod Yes), so talking at the counter
+    /// is a two-way thing (12 Oct 2026). Nothing about the conversation changes.
+    /// </summary>
+    public void OnAceReplied()
+    {
+        if (!InConversation || IsLeaving) return;
+        if (social != null) social.Nod(7f);
+        else if (lookAt != null) lookAt.Nod(7f);
+        bool seated = seating != null && seating.Busy;
+        if (!seated && beats != null && !beats.Playing && Random.value < .4f) beats.PlayClip(NpcBeats.Clip.NodYes, 1.6f);
     }
 
     // Called by ConversationController.End(), which fires only after the
@@ -1891,8 +1967,11 @@ public class CustomerBrain : MonoBehaviour
         paidTip  += tip;
         wasServed = true;
 
-        // The cup flies to them in a short arc instead of vanishing from Ace's hand (Juice: a copy of it makes the trip).
+        // The cup flies to them in a short arc instead of vanishing from Ace's hand (Juice: a copy of it makes the trip),
+        // and once it lands they hold a cup of their own (NpcCup, 12 Oct 2026): in the hand, on the table once they
+        // settle, and into the bins by the door on the way out.
         Juice.HandOver(drink.gameObject, transform);
+        NpcCup.Give(gameObject, drink.Drink, .4f);
         carry.Consume();
         drinkOrdered = false;
         drinkStarted = false;
@@ -2096,8 +2175,17 @@ public class CustomerBrain : MonoBehaviour
         string line = identity != null ? identity.Say(CustomerIdentity.Beat.StormedOut) : "";
         Say(line, broadcast: true);   // shouting at the room, not talking to you
         LeaveAfterSpeaking(line, false);
+        // The first beat of the angry gesture standing, then they go while the line is still up (the bubble goes with
+        // them, and the door waits for it): a storm-out does not stand and finish its sentence politely (12 Oct 2026).
+        speakTimer = Mathf.Min(speakTimer, 1.1f);
         // The angry gesture (or a dismissive wave) before they go; in a chair, an angry one there.
         if (beats != null) beats.React(NpcBeats.Moment.StormOut);
+        // Then out briskly, setting off at once (12 Oct 2026: a storm-out used to stroll out at the pace it came in).
+        leavingGait = NpcLocomotion.Gait.Brisk;
+        leavingPace = 1.15f;
+        leavingHurried = true;
+        // The room notices: people near them watch them go (NpcAttentionDirector).
+        NpcAttentionDirector.NotifyStormOut(transform);
     }
 
     // Remove them immediately, with no goodbye and no walk to the door.
@@ -2233,10 +2321,76 @@ public class CustomerBrain : MonoBehaviour
             });
 
         hasPendingDestination = false;
+        // How they go (12 Oct 2026): a storm-out briskly, at once; someone whose repair came back Perfect strolls out;
+        // the rest at their own walk. Then the cup into the bins by the door, if they carry one.
+        if (happy && repairReturned && lastGrade == JobGrade.Perfect) { leavingGait = NpcLocomotion.Gait.Relaxed; leavingPace = .92f; leavingHurried = false; }
+        if (locomotion != null) locomotion.RequestWalk(leavingGait, leavingPace, leavingHurried);
         // Seated customers stand up first (NpcLocomotion asks NpcSeating), and
         // the walk uses an ordinary priority again: parked at 0, everyone else
         // would pin them against a table on the way out.
+        LeaveTheCafe();
+    }
+
+    // ---------- the cup, and the bins by the door (12 Oct 2026) ----------
+
+    // Waiting with a cup: once the hand-over has landed and they are settled in a chair, the cup goes on the table;
+    // standing, it stays in the hand. Getting up again, it comes back into the hand (TakeInHand in LeaveTheCafe).
+    private void TendTheCup()
+    {
+        NpcCup cup = NpcCup.Of(gameObject);
+        if (cup == null || !cup.InHand) return;
+        if (seating == null || seating.Current != NpcSeating.Phase.Seated || !(waitingSpot is TableSeat seat)) return;
+        if (Time.time - drinkServedAt < 2.5f) return;
+        cup.PutOnTable(seat);
+    }
+
+    // Out of the café: by the three-bin station with the cup first, then the door. Without a station (the Environment
+    // lead places it this session), or none they can reach, straight to the door as before, cup in hand.
+    private void LeaveTheCafe()
+    {
+        binStop = false;
+        walkOutAt = -1f;
+        NpcCup cup = NpcCup.Of(gameObject);
+        if (cup != null && cup.Held)
+        {
+            cup.TakeInHand();
+            if (NpcLifeProps.TryGetBin(out Vector3 drop, out Vector3 mouth) && !NpcLifeProps.BinBusy(locomotion) && Reachable(transform.position, drop))
+            {
+                binStop = true;
+                binMouth = mouth;
+                binDeadline = Time.time + 10f;
+                leaveDeadline += 12f;   // the detour and the pause come on top of the walk to the door
+                locomotion.MoveTo(drop, NpcLocomotion.Move.To(.25f, RollMovingPriority(), "bin"));
+                if (beats != null) beats.TryWalkingBeat(SecondsToWalk(drop) + 4f, .5f);
+                return;
+            }
+        }
         WalkToExit();
+        if (beats != null) beats.TryWalkingBeat(exitPoint != null ? SecondsToWalk(exitPoint.position) : 6f, .5f);
+    }
+
+    // At the bins (or giving up on reaching them): the cup goes in, they stand a beat, then the door.
+    private void DropTheCup(bool atTheBin)
+    {
+        binStop = false;
+        NpcCup cup = NpcCup.Of(gameObject);
+        if (atTheBin && cup != null && cup.Held)
+        {
+            locomotion.Park(FacingTowards(binMouth));
+            cup.DropInto(binMouth);
+            walkOutAt = Time.time + .8f;
+            return;
+        }
+        // Couldn't get there: the cup goes with them.
+        walkOutAt = Time.time + .05f;
+    }
+
+    // A route exists along the floor from `from` to `to` (the agent may be off while seated, so the NavMesh is asked).
+    private static bool Reachable(Vector3 from, Vector3 to)
+    {
+        if (!NavMesh.SamplePosition(from, out NavMeshHit start, 1.5f, NavMesh.AllAreas)) return false;
+        var path = new NavMeshPath();
+        return NavMesh.CalculatePath(start.position, to, NavMesh.AllAreas, path) && path.status == NavMeshPathStatus.PathComplete;
     }
 
     private void OnDestroy()

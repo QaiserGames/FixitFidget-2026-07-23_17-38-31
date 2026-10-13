@@ -16,4 +16,4 @@ MonoBehaviour:
   description: Hold one more device on the bench at once.
   type: 2
   valuePerLevel: 1
-  costPerLevel: 8403000060090000
+  costPerLevel: fa0000008a020000

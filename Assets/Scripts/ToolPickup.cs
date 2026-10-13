@@ -263,12 +263,19 @@ public class ToolPickup : MonoBehaviour
     }
 
     // The tip on a spring, critically damped: it arrives without a bounce and never jumps; the turn eased toward the target.
+    // Solved exactly for the frame, not stepped: the stepped form (v += (-w²x - 2wv)·dt; x += v·dt) runs away once w·dt
+    // passes about 1, which at w 26 is a 40 ms frame. With Unity behind other windows the Mac ran the bench lab at 15-20
+    // fps and the cloth in hand went 58 m from the smudge, then 7,000 km (13 Oct, Bench 3); a player's hitch would do the
+    // same for a frame or two. x(t) = (x0 + (v0 + w·x0)·t)·e^(-wt) at any frame length.
     private void Spring(Vector3 targetPos, Quaternion target, bool working, float dt)
     {
         float w = working ? 26f : 16f;
-        Vector3 to = transform.position - targetPos;
-        velocity += (-w * w * to - 2f * w * velocity) * dt;
-        transform.position += velocity * dt;
+        Vector3 x = transform.position - targetPos;
+        Vector3 c2 = velocity + w * x;
+        float decay = Mathf.Exp(-w * dt);
+        Vector3 drift = x + c2 * dt;
+        transform.position = targetPos + drift * decay;
+        velocity = (c2 - w * drift) * decay;
         transform.rotation = Quaternion.Slerp(transform.rotation, target, 1f - Mathf.Exp(-(working ? 22f : 14f) * dt));
     }
 

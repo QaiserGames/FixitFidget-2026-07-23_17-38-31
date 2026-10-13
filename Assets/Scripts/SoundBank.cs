@@ -240,5 +240,16 @@ public sealed class SoundBank : ScriptableObject
         C("night.door.soft", SoundBus.World, true, .3f, "Ace eases her bedroom doors open, sneaking: a careful latch, almost silent.", 1f, 6f, .3f, 1),
         C("night.hide", SoundBus.Ace, true, .3f, "Ace slips into the cupboard under her stairs or her wardrobe: a door drawn to from inside.", 1f, 8f, .3f, 1),
         C("night.unhide", SoundBus.Ace, true, .3f, "Ace comes out of hiding: the door eased open.", 1f, 8f, .3f, 1),
+
+        // The day intro (12 Oct 2026, Cinematics; DayIntro): the morning's montage, 6-8 s, every day. Flat (the picture carries
+        // them, not Ace's ears); placeholders made in code (PlaceholderSounds) until these have files. Its other beats are the
+        // game's own cues, already listed: screw.turn (three ticks), screw.free, screw.drop (the tink in the tray), drink.pour
+        // (the dispenser's pour, through its own file), phone.boot (the fixed phone's screen), and day.open (the bell, which the
+        // intro rings where its sign beat lands).
+        C("intro.grind", SoundBus.UI, false, .35f, "The espresso grinder running, about 1.3 s: the whirr the intro opens on, beans in the hopper; the match cut lands on its spin.", 1.5f, 12f, .5f, 1),
+        C("intro.pour", SoundBus.UI, false, .3f, "A latte pouring into a paper cup, about 1 s (only when the dispenser's own pour file isn't there).", 1.5f, 12f, .5f, 1),
+        C("intro.sign", SoundBus.UI, false, .35f, "The OPEN sign's wooden flap, two knocks, on the cut to the storefront; the bell (day.open) follows 0.15 s later.", 1.5f, 12f, .5f, 1),
+        C("intro.lamp", SoundBus.UI, false, .3f, "The bench's magnifier lamp switched on over the tools: a click and an LED ring's tick.", 1.5f, 12f, .5f, 1),
+        C("intro.sting", SoundBus.UI, false, .35f, "The morning's musical sting under the day's title, about 1.6 s, rising (the signature family, A major): the same every day, so it becomes the café's.", 1.5f, 12f, 1f, 1),
     };
 }

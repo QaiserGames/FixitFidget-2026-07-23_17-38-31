@@ -43,6 +43,8 @@ public static class NpcBeatChecks
 {
     private const string Menu = "Fixit Fidget/NPC/Mixamo 5 - Beat check (Play Mode, lab session)";
     private const string LoungeGroup = "Lounge seats (pass 2)";
+    // Lived in 2 (13 Oct 2026): the reading corner's two tub chairs at the low table, seats without a table in front.
+    private const string ReadingCornerGroup = "Reading corner";
     private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
     private static readonly FieldInfo PatienceField = typeof(CustomerBrain).GetField("patienceLeft", Any);
     private static readonly FieldInfo LeaveAtField = typeof(PatronBrain).GetField("leaveAt", Any);
@@ -143,7 +145,8 @@ public static class NpcBeatChecks
 
         // ---------- 1. people in chairs, on the sofas and in the queue ----------
         var seats = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude);
-        var lounge = seats.Where(s => s.transform.parent != null && s.transform.parent.name == LoungeGroup).ToArray();
+        var lounge = seats.Where(s => s.transform.parent != null
+                                      && (s.transform.parent.name == LoungeGroup || s.transform.parent.name == ReadingCornerGroup)).ToArray();
         var withTable = seats.Where(NpcBeats.TableInFront).ToArray();
         var noTable = seats.Where(s => !NpcBeats.TableInFront(s)).ToArray();
         // Since the seat plan: no lounge and no seat without a table in front.
@@ -285,8 +288,9 @@ public static class NpcBeatChecks
                 if (moving >= 0f && b.Shown < .1f) cleared = Time.time;
                 yield return null;
             }
-            Check(moving >= 0f && cleared >= 0f && cleared - moving <= .35f,
-                  $"Walking off mid-beat: the beat is gone {(cleared >= 0f && moving >= 0f ? $"{(cleared - moving) * 1000f:0} ms" : "never")} after they set off; phone {(b.Phone == null ? "put away" : "STILL OUT")}");
+            // 13 Oct 2026 (the NPC life pass): a phone beat may ride the upper-body layer on while they walk (Life 1), so it going on is right.
+            Check(moving >= 0f && (cleared >= 0f && cleared - moving <= .35f || b.OnUpperLayer),
+                  $"Walking off mid-beat: {(b.OnUpperLayer ? "the beat moved to the upper-body layer and goes on while they walk" : $"the beat is gone {(cleared >= 0f && moving >= 0f ? $"{(cleared - moving) * 1000f:0} ms" : "never")} after they set off")}; phone {(b.Phone == null ? "put away" : b.OnUpperLayer ? "in hand (texting on the way)" : "STILL OUT")}");
         }
 
         // ---------- 5. a minute of the café by itself ----------
@@ -315,7 +319,7 @@ public static class NpcBeatChecks
                 if (b.Shown > .5f)
                 {
                     watched += Time.deltaTime;
-                    if (speed > .35f) { sliding += Time.deltaTime; worstSlide = $"{b.name} '{b.CurrentName}' at {speed:0.00} m/s"; }
+                    if (speed > .35f && !b.OnUpperLayer) { sliding += Time.deltaTime; worstSlide = $"{b.name} '{b.CurrentName}' at {speed:0.00} m/s"; }
                 }
             }
             if (sent == 0 && Time.time > runUntil - 45f) { lab.SendCustomersNow(2); sent++; }

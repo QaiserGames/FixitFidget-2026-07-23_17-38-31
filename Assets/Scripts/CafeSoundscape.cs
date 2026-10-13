@@ -46,6 +46,13 @@ public sealed class CafeSoundscape : MonoBehaviour
     /// </summary>
     public static CafeSoundscape Instance { get; private set; }
 
+    /// <summary>
+    /// Someone crossed the café's doorway and the bell rang for them (the NPC life pass, 12 Oct 2026): who, and whether
+    /// they are now inside. NpcAttentionDirector listens, so people near the door look up at who came in or went out.
+    /// Raised from the door check, at most every 0.2 s a person; nothing here changes who rings or how.
+    /// </summary>
+    public static event System.Action<Transform, bool> DoorCrossed;
+
     public bool Night { get; private set; }
     /// <summary>Customers and patrons inside the café's room (counted once a second).</summary>
     public int People { get; private set; }
@@ -54,7 +61,11 @@ public sealed class CafeSoundscape : MonoBehaviour
     public int FarOffs { get; private set; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics() => Instance = null;
+    static void ResetStatics()
+    {
+        Instance = null;
+        DoorCrossed = null;
+    }
 
     void Awake()
     {
@@ -175,6 +186,9 @@ public sealed class CafeSoundscape : MonoBehaviour
         {
             Crossings++;
             Sfx.Play("door.bell", who.position + Vector3.up * 1.2f, volume);
+            // Whoever listens (the people near the door) hears it whether or not the bank has the file yet.
+            try { DoorCrossed?.Invoke(who, inside); }
+            catch (System.Exception e) { Debug.LogWarning("[Soundscape] A door listener failed: " + e.Message, this); }
         }
         wasInside[who] = inside;
     }

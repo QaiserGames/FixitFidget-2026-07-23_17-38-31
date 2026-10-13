@@ -21,8 +21,14 @@ public sealed class NpcGaitData : ScriptableObject
         public float clipSpeed = 1.35f;
     }
 
-    [Tooltip("Indexed by NpcMovementProfile.WalkStyle: 0 normal, 1 relaxed, 2 brisk.")]
+    [Tooltip("Indexed by NpcMovementProfile.WalkStyle: 0 normal, 1 relaxed, 2 brisk. Batch 2 (NpcLocomotion.Gait): " +
+             "3 hurry, 4 jog, 5 run, 6 angry; until those are baked the locomotion falls back to brisk at a higher pace.")]
     public Walk[] walks = new Walk[0];
+
+    /// <summary>The walk styles by index, for traces and the bake's names.</summary>
+    public static readonly string[] StyleNames = { "normal", "relaxed", "brisk", "hurry", "jog", "run", "angry" };
+
+    public static string StyleName(int style) => style >= 0 && style < StyleNames.Length ? StyleNames[style] : style.ToString();
     [Tooltip("Indexed by NpcMovementProfile.IdleStyle: 0 normal, 1 relaxed.")]
     public AnimationClip[] idles = new AnimationClip[0];
     [Tooltip("Standing talk loop, played while a standing customer talks (Standing Talk state).")]

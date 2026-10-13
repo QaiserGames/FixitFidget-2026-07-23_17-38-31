@@ -37,7 +37,13 @@ using UnityEngine.InputSystem;
 //     E hands it over, whatever else is nearer (even standing at the bench, where E would otherwise set it down);
 //   * holding a device that isn't finished, or isn't theirs, E sets it down on the bench as before;
 //   * otherwise (reassure them, say you're out of their drink) only when nothing else is in reach, so the bench's
-//     close-up and the queue head behind the counter (OverheadOffer, QueueHead) are offered exactly as before.
+//     close-up and the queue head behind the counter (OverheadOffer, QueueHead) are offered exactly as before;
+//   * REASSURE FROM BEHIND THE BENCH (12 Oct 2026, the playtesters' #8, his pick): behind the repair bar's bench with
+//     nothing in Ace's hands, E prefers a FRUSTRATED customer across the counter (the sweat drop's threshold, under 30%
+//     patience: DayOneGuideUI.Frustrated, the same test the GETTING IMPATIENT card uses) over the device on the mat.
+//     Before, a customer going under at a stool could only be reassured by walking round or in first person. With a
+//     device in hand, or nobody frustrated in reach, the mat wins as before; at the till the queue head still comes
+//     first; X in the close-up (take it away) is untouched.
 // In first person the crosshair aims, so a customer in front of the counter is reachable out to Counter Reach.
 // ---------------------------------------------------------------------------
 public class PlayerInteractor : MonoBehaviour
@@ -217,7 +223,11 @@ public class PlayerInteractor : MonoBehaviour
     // Someone waiting in front of the counter, within reach over it, nearest first. handOver: only someone waiting for
     // what Ace holds (their finished device, their drink: CustomerInteractable.HandOverReady); otherwise anyone E can help
     // from the floor but for handing back a device that isn't finished (that's set down on the bench, or a walk round).
-    private CustomerInteractable AcrossTheCounterTarget(bool handOver)
+    private CustomerInteractable AcrossTheCounterTarget(bool handOver) =>
+        AcrossTheCounterTarget(handOver ? (System.Func<CustomerInteractable, bool>)(who => who.HandOverReady)
+                                        : who => who.HelpAcrossTheCounter);
+
+    private CustomerInteractable AcrossTheCounterTarget(System.Func<CustomerInteractable, bool> wanted)
     {
         if (!StaffSide(transform.position, out Vector3 from, out Vector3 toward)) return null;
         int count = Physics.OverlapSphereNonAlloc(transform.position, acrossCounterReach, AcrossBuffer);
@@ -229,7 +239,7 @@ public class PlayerInteractor : MonoBehaviour
             if (c == null) continue;
             CustomerInteractable who = c.GetComponentInParent<CustomerInteractable>();
             if (who == null || who == best || !who.IsAvailable) continue;
-            if (handOver ? !who.HandOverReady : !who.HelpAcrossTheCounter) continue;
+            if (!wanted(who)) continue;
             Vector3 at = who.transform.position;
             float flat = Flat(at - transform.position).magnitude;
             if (flat > acrossCounterReach || flat >= nearest) continue;
@@ -238,6 +248,27 @@ public class PlayerInteractor : MonoBehaviour
             best = who;
         }
         return best;
+    }
+
+    /// <summary>Nothing in either of Ace's hands.</summary>
+    public bool HandsEmpty
+    {
+        get
+        {
+            if (carry == null) carry = GetComponent<PlayerCarry>();
+            return carry == null || carry.Count == 0;
+        }
+    }
+
+    /// <summary>
+    /// Behind the repair bar's bench (not at the till, whose queue comes first) with empty hands: the nearest frustrated
+    /// customer across the counter (DayOneGuideUI.Frustrated: the sweat drop, under 30% patience, and reassuring would
+    /// help them now), or null. From above E is for them before the device on the mat (12 Oct, the playtesters' #8).
+    /// </summary>
+    public CustomerInteractable FrustratedAcrossTheBench()
+    {
+        if (!HandsEmpty || IsBehindCounter(transform.position) || !BehindTheBench(transform.position, out _)) return null;
+        return AcrossTheCounterTarget(who => who.HelpAcrossTheCounter && who.Brain != null && DayOneGuideUI.Frustrated(who.Brain));
     }
 
     private static Vector3 Flat(Vector3 v)
@@ -438,6 +469,11 @@ public class PlayerInteractor : MonoBehaviour
         // Across the counter (playtest 4): holding what someone in front of it is waiting for, E hands it over.
         CustomerInteractable handOver = AcrossTheCounterTarget(true);
         if (handOver != null) return handOver;
+        // Behind the bench with empty hands, someone across the counter going under comes before the device on the mat
+        // (12 Oct, #8): a word over the counter, then E is the mat's again. With a device in hand, or nobody frustrated in
+        // reach, nothing here changes.
+        CustomerInteractable worried = FrustratedAcrossTheBench();
+        if (worried != null) return worried;
         Interactable offer = OverheadOffer();
         if (offer != null && (best == null || best.Priority <= StationCloseUp.OfferPriority)) return offer;
         // Anything else for someone over the counter (a word of reassurance) only when nothing here is in reach.

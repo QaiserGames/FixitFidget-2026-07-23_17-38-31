@@ -273,30 +273,56 @@ public sealed class NightTwoCheck : MonoBehaviour
             $"behind her kitchen wall, a metre from the cups, they aren't offered (seen: {trophy.Seen}; the prompt \"{interactor.CurrentPrompt}\")");
         MoveAce(there);
         yield return Seconds(.3f);
-        // ---------- she's home (break-ins chunk C): Ace waits on her stoop until she's asleep, as a player would ----------
+        // ---------- she's home (break-ins chunk C): Ace waits at her door until she's asleep, as a careful player would ----------
+        // Playtest 4's ★1 (12 Oct 2026): her eyes reach the pavement in front of her door through her front window while she stands
+        // at the glass with her tea (about 11:49 and 12:44), through the window's two middle lights; her step at her door is behind
+        // the window's jamb and the pier from everywhere in her front room. So the careful player waits pressed to her door, not out
+        // on the pavement; and at her first pause at the glass this check steps down a pace, as a nervous player might, to measure
+        // what that costs ("Hm?", how fast her mark fills), then steps back up before she has had a proper look.
         GraceAtHome atHome = GraceAtHome.Instance;
         if (atHome != null && atHome.NightOn)
         {
             Check(atHome.Home && !atHome.Asleep, $"Grace is home and up ({atHome.Doing}; {atHome.LightsNow()}; from the street: {atHome.Outside()})");
             yield return Photo("04b-her-front-window-lit");
+            yield return Walk(Plan(house, (OnHerStep.x, OnHerStep.y)), new List<float> { .2f }, "up onto her step, pressed to her door (out of her window's sight)");
+            Note($"her front window is watched {atHome.WindowHours()} (GraceAtHome.windowSeconds {atHome.windowSeconds:0.0} s at the glass each time)");
             // Playtest 4: she's up till 1:20 and her lamp goes off about 1:40 (GraceNight), so waiting her out costs about two
             // minutes of the night's four. The limit is her plan's, at the night's own speed, with a margin.
             NightWalk walk = NightWalk.Instance;
             float arrived = walk.Hour, waitFrom = Time.realtimeSinceStartup;
             float plannedWait = (GraceNight.At(GraceNight.For(DayClock.Instance != null ? DayClock.Instance.Day : 2), GraceNight.Act.Sleep) - arrived)
                                 / Mathf.Max(1e-4f, walk.HoursPerSecond);
-            Note($"on her stoop at {GraceNight.Clock(arrived)}; her plan: {GraceNight.Describe(GraceNight.Usual)}; waiting for her lamp should take about {plannedWait:0} s");
-            bool frontDark = false;
-            float frontDarkAfter = -1f;
-            yield return Until(() =>
+            Note($"at her door at {GraceNight.Clock(arrived)}; her plan: {GraceNight.Describe(GraceNight.Usual)}; waiting for her lamp should take about {plannedWait:0} s");
+            bool frontDark = false, probed = false, atWindowBefore = false;
+            float frontDarkAfter = -1f, markAtHerDoor = 0f;
+            var pauses = new List<string>();
+            float limit = Time.realtimeSinceStartup + Mathf.Max(60f, plannedWait + 45f);
+            while (!atHome.Asleep && Time.realtimeSinceStartup < limit)
             {
                 if (!frontDark && !atHome.Lit(atHome.standardLamp)) { frontDark = true; frontDarkAfter = Time.realtimeSinceStartup - waitFrom; }
-                return atHome.Asleep;
-            }, Mathf.Max(60f, plannedWait + 30f), "Ace waits on her stoop until she's asleep (her bedroom window goes dark)");
+                if (atHome.AtTheWindow && !atWindowBefore) pauses.Add(GraceNight.Clock(walk.Hour));
+                atWindowBefore = atHome.AtTheWindow;
+                if (!probed && atHome.AtTheWindow && atHome.Now == GraceAtHome.Mood.Calm)
+                {
+                    probed = true;
+                    yield return TheNervousPlayer(atHome);
+                    continue;
+                }
+                markAtHerDoor = Mathf.Max(markAtHerDoor, atHome.Mark);
+                yield return null;
+            }
+            Check(atHome.Asleep, $"Ace waits at her door until she's asleep (her bedroom window goes dark){(atHome.Asleep ? "" : $" (gave up; {atHome.Doing})")}");
             float waited = Time.realtimeSinceStartup - waitFrom, minutes = (walk.Hour - arrived) * 60f;
             Note($"she was asleep {waited:0} s later, at {GraceNight.Clock(walk.Hour)}: {minutes:0} minutes of the night " +
                  $"(her front window went dark after {frontDarkAfter:0} s); her glass of water at 2:40 is {(GraceNight.UsualWater - walk.Hour) / walk.HoursPerSecond:0} s away");
             Check(waited >= 90f, $"waiting her out costs a careful player real time ({waited:0} s; it was 52 s before playtest 4)");
+            Check(pauses.Count >= 2, $"meanwhile she stood at her front window with her tea {pauses.Count} time(s) (at {string.Join(" and ", pauses)}): " +
+                                     "the minutes the pavement in front of her door is watched");
+            Check(probed && probeSeen, $"a pace back from her door while she stood at the glass, Ace was seen through her window{probeWhere}");
+            Check(probed && probeHm > 0f, $"...and \"Hm?\" came {probeHm:0.00} s after she first saw him (her mark fills about {probeRate:0.00} a second there: " +
+                                           $"standing still, caught in about {(probeRate > 0f ? 1f / probeRate : 0f):0.0} s)");
+            Check(markAtHerDoor < GraceNight.Third && atHome.Catches == 0,
+                $"pressed to her door Ace was never seen from the glass, and she lost him there after the probe (her mark at most {markAtHerDoor:0.00} at her door; caught {atHome.Catches})");
             yield return Photo("04c-her-house-dark-she-is-asleep");
         }
         else Note("Grace isn't at home in this scene (no GraceAtHome): straight in");
@@ -473,6 +499,53 @@ public sealed class NightTwoCheck : MonoBehaviour
         Check(saves.Notebook.Knows(asked.id) && !saves.Notebook.Knows(asked.id + ".flinched"), "the notebook has his description");
         report.AppendLine();
         report.AppendLine("The night's ledger now: " + JsonUtility.ToJson(ledger.Snapshot()));
+    }
+
+    // Plan metres: on her step, pressed to her door (the careful player's place: behind the window's jamb and the pier from the
+    // glass); and a pace back from her door on the pavement, where the glass shows her Ace through one of the window's two middle
+    // lights (which one depends on where exactly her eye is: picked against it, as GraceAtHomeCheck does).
+    static readonly Vector2 OnHerStep = new Vector2(1.11f, 4.78f);
+    static readonly Vector2[] AStepBack = { new Vector2(1.20f, 5.50f), new Vector2(1.11f, 5.60f), new Vector2(1.35f, 5.45f), new Vector2(1.00f, 5.70f), new Vector2(1.50f, 5.40f), new Vector2(1.25f, 5.80f) };
+    bool probeSeen;
+    float probeHm = -1f, probeRate;
+    string probeWhere = "";
+
+    // At her first pause at the glass: a pace down onto the pavement in front of her door, standing, as a nervous player might;
+    // the moment she says "Hm?" (or after 2.5 s) back up against her door; then until she has lost him. Nothing is pressed.
+    IEnumerator TheNervousPlayer(GraceAtHome atHome)
+    {
+        GraceHouse house = GraceHouse.Instance;   // the check's house is a local of the run; this probe finds it again
+        if (house == null) yield break;
+        Vector3 eye = house.Plan(atHome.EyeNow);
+        Vector2 back = AStepBack[0];
+        string light = "none of its lights, by the geometry and her cone", how = "";
+        foreach (Vector2 c in AStepBack)
+        {
+            // Her eyes as they are (through the glass, inside her cone, within her reach), for a standing head or chest.
+            bool head = atHome.CouldSeeOutside(house.World(c.x, c.y, GraceAtHome.Pavement + 1.8f), out _, out _, out string headHow);
+            bool chest = atHome.CouldSeeOutside(house.World(c.x, c.y, GraceAtHome.Pavement + 1.1f), out _, out _, out string chestHow);
+            if (!head && !chest) continue;
+            GraceAtHome.ThroughTheFrontWall(eye, new Vector3(c.x, c.y, GraceAtHome.Pavement + (head ? 1.8f : 1.1f)), out float x, out _);
+            back = c;
+            light = x < GraceAtHome.MullionFrom ? "its south light" : "its north light";
+            how = "; " + (head ? headHow : chestHow);
+            break;
+        }
+        probeWhere = $" (through {light}; her eye at plan ({eye.x:0.00}, {eye.y:0.00}), Ace at ({back.x:0.00}, {back.y:0.00}){how})";
+        Note($"{GraceNight.Clock(NightWalk.Instance.Hour)}: she's at her window with her tea ({atHome.Doing}); the nervous player steps down a pace, to plan ({back.x:0.00}, {back.y:0.00})");
+        yield return Walk(Plan(house, (back.x, back.y)), new List<float> { .15f }, "down onto the pavement, a pace back from her door");
+        int notices = atHome.Notices;
+        float from = Time.realtimeSinceStartup, seenAt = -1f, markAtHm = 0f;
+        while (Time.realtimeSinceStartup - from < 2.5f)
+        {
+            if (seenAt < 0f && atHome.SeesOutside) { seenAt = Time.realtimeSinceStartup; probeSeen = true; }
+            if (atHome.Notices > notices) { probeHm = Time.realtimeSinceStartup - Mathf.Max(seenAt, from); markAtHm = atHome.Mark; break; }
+            yield return null;
+        }
+        if (probeHm > 0f) yield return Photo("04b2-hm-from-her-window-a-pace-from-her-door");
+        yield return Walk(Plan(house, (OnHerStep.x, OnHerStep.y)), new List<float> { .2f }, "back up against her door");
+        probeRate = probeHm > .05f ? markAtHm / probeHm : 0f;
+        yield return Until(() => atHome.Now == GraceAtHome.Mood.Calm && atHome.Mark < .3f, 25f, $"back against her door, out of her sight, she loses him ({atHome.Doing})");
     }
 
     // Visit and Note: the night ends without the cups, and the morning after costs the day (playtest 3).

@@ -24,6 +24,13 @@ using System;
 // waits her routine changes every 40 s or sooner.
 // Every usual night, not Night 2 only: his page in the notebook gives one bedtime, and only Night 2's errand is indoors.
 //
+// Her front window (12 Oct 2026, playtest 4's ★1, "Grace sees out of her front window"): on her way back from the kettle with
+// her tea (each Sit step that follows a Tea step: 11:45 and 12:40) she stands at her front window for a moment before she
+// sits down (GraceAtHome.windowSeconds, about 8 s: 11:49-11:59 and 12:44-12:54 by the night's clock), looking out at the
+// street. Those are the minutes the pavement in front of her door is watched: from her armchair she can't see out (the
+// window is 66°-145° off her TV), and her step itself is behind the pier between her door and her window from everywhere
+// in the room. WindowPauses lists the hours her routine brings her to the glass, for the checks and the reports.
+//
 // Each step names what she sets out to do at its hour (Act). GraceAtHome walks her through it while the night runs; a
 // jump in the clock (a check's SetHour) puts her where that step leaves her at once.
 //
@@ -111,6 +118,22 @@ public static class GraceNight
         for (int i = 0; i < plan.Length; i++)
             if (plan[i].act == act && nth-- == 0) return plan[i].at;
         return -1f;
+    }
+
+    /// <summary>
+    /// The hours her routine takes her past her front window: each Sit step that follows a Tea step (she carries her tea to
+    /// the glass and stands there a moment before sitting down: GraceAtHome.windowSeconds). The hour is the step's; she's at
+    /// the window about a quarter of a minute of the night (3 s) later. Empty on a Thursday (no Sit after her tea).
+    /// </summary>
+    public static float[] WindowPauses(Step[] plan)
+    {
+        if (plan == null) return new float[0];
+        int n = 0;
+        for (int i = 1; i < plan.Length; i++) if (plan[i].act == Act.Sit && plan[i - 1].act == Act.Tea) n++;
+        var hours = new float[n];
+        n = 0;
+        for (int i = 1; i < plan.Length; i++) if (plan[i].act == Act.Sit && plan[i - 1].act == Act.Tea) hours[n++] = plan[i].at;
+        return hours;
     }
 
     /// <summary>Her night in a line ("11:00 PM Sit, 11:35 PM Tea, ..."), for the logs.</summary>

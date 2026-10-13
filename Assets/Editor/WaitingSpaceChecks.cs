@@ -16,9 +16,20 @@ using UnityEngine.SceneManagement;
 //     Snap To Seat off, but it is a seat's wait);
 //   * the repair bar's stools are within E's reach over the counter from the bench's stand point
 //     (PlayerInteractor.acrossCounterReach), so a hand-back there is no walk round the counter.
+//
+// THE STOOLS NOBODY USED (12 Oct 2026; the veteran, run 2: "Only the x -3.2 stool ever took a waiting customer: 4 of 4
+// repair-bar waits; 0 at -4.2 and -5.2"). WaitingArea adds 2.5 m to a seat for each person who has claimed a seat within
+// 2 m of it and is "not sitting yet" (so a group spreads over the room). Not sitting yet was NpcSeating.Busy alone, and
+// at a bar stool nobody ever sits (Snap To Seat off), so whoever held the first stool counted as still on the way for
+// their whole wait and the two stools beside them carried the penalty the whole time: from the counter's middle and west
+// places that put the second stool behind the nearest floor seat. Now someone standing on their stand point has arrived
+// (WaitingArea.HasArrived). Checked here on synthetic spots (arrived / still walking), and in the café scene: the three
+// stools' stand points are far enough apart to be claimed together, and with the east stool held by someone standing at
+// it, a customer claiming from the counter's west place is given the middle stool (before: the banquette's chair).
 public static class WaitingSpaceChecks
 {
     const float SeatDrain = .6f;
+    const BindingFlags Hidden = BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
 
     [MenuItem("Fixit Fidget/Checks/Waiting space reservations")]
     public static void Run()
@@ -26,7 +37,7 @@ public static class WaitingSpaceChecks
         if (EditorApplication.isPlayingOrWillChangePlaymode)
             throw new InvalidOperationException("Stop Play Mode before checking waiting spaces.");
         var scene = EditorSceneManager.NewPreviewScene();
-        WaitingSpot seatA = null, seatB = null;
+        WaitingSpot seatA = null, seatB = null, stoolA = null, stoolB = null;
         try
         {
             GameObject host = new GameObject("Reservation checks");
@@ -59,12 +70,38 @@ public static class WaitingSpaceChecks
             Lifecycle(seatA, "OnDisable");
             Require(seatB.Claim(second.transform), "Disabled seat releases its physical reservation.");
             Debug.Log("[Waiting space] PASS: shared occupancy, overlapping markers, release and disable.");
+
+            // The stools (12 Oct): two spots a metre apart, as the repair bar's are; someone standing on the first's stand
+            // point has arrived, so the second carries no "still on the way" penalty; someone still walking over does.
+            GameObject sa = new GameObject("Stool A"), sb = new GameObject("Stool B"), stander = new GameObject("Standing at stool A");
+            foreach (var go in new[] { sa, sb, stander }) go.transform.SetParent(host.transform);
+            sa.transform.position = new Vector3(10050, 0, 10000);
+            sb.transform.position = sa.transform.position + Vector3.right;
+            stoolA = sa.AddComponent<WaitingSpot>();
+            stoolB = sb.AddComponent<WaitingSpot>();
+            Lifecycle(stoolA, "OnEnable");
+            Lifecycle(stoolB, "OnEnable");
+            MethodInfo onTheirWay = typeof(WaitingArea).GetMethod("OnTheirWayNear", Hidden);
+            Require(onTheirWay != null, "WaitingArea has OnTheirWayNear (the check reads it by name).");
+            stander.transform.position = sa.transform.position;              // on the stand point: arrived, chair or no chair
+            Require(stoolA.Claim(stander.transform), "The first stool is claimed by someone standing at it.");
+            Require(WaitingArea.HasArrived(stoolA), "Standing on the stand point counts as arrived (no seating component needed).");
+            int penalised = (int)onTheirWay.Invoke(null, new object[] { stoolB, second.transform });
+            Require(penalised == 0, $"The stool beside someone who has arrived carries no on-the-way penalty (counted {penalised}; before 12 Oct it was 1 for the whole wait).");
+            stander.transform.position = sa.transform.position + Vector3.forward * 1.5f;   // still walking over
+            Require(!WaitingArea.HasArrived(stoolA), "Someone 1.5 m from the stand point has not arrived.");
+            penalised = (int)onTheirWay.Invoke(null, new object[] { stoolB, second.transform });
+            Require(penalised == 1, $"The stool beside someone still walking over carries the penalty (counted {penalised}).");
+            stoolA.Release(stander.transform);
+            Debug.Log("[Waiting space] PASS: arrived at a stool (standing on the stand point) against still on the way.");
         }
         finally
         {
             // Leave the static registry as it was found.
             if (seatA != null) WaitingArea.Unregister(seatA);
             if (seatB != null) WaitingArea.Unregister(seatB);
+            if (stoolA != null) WaitingArea.Unregister(stoolA);
+            if (stoolB != null) WaitingArea.Unregister(stoolB);
             EditorSceneManager.ClosePreviewScene(scene);
         }
         CafeScene();
@@ -115,17 +152,33 @@ public static class WaitingSpaceChecks
             .FirstOrDefault(s => s != null && s.IsWorkSurface && s.StandPoint != null);
         SerializedProperty reachProp = ace != null ? new SerializedObject(ace).FindProperty("acrossCounterReach") : null;
         Expect(ace != null && bench != null && reachProp != null, "Ace's reach over the counter and the repair bench are found");
+        var barStools = new List<TableSeat>();
         if (bench != null && reachProp != null)
         {
             float reach = reachProp.floatValue;
             Vector3 from = bench.StandPoint.position, toward = bench.StandPoint.forward;
             toward.y = 0f;
             toward.Normalize();
-            var barStools = seats.Where(s => !s.SnapToSeat).Select(s => (seat: s, d: Flat(s.StandPoint.position - from)))
-                                 .Where(x => Vector3.Dot(x.d, toward) > .5f && x.d.magnitude < reach + 1.5f).ToList();
-            Expect(barStools.Count > 0, $"the repair bar's stools are found in front of the bench ({barStools.Count})");
-            foreach (var x in barStools)
+            var inFront = seats.Where(s => !s.SnapToSeat).Select(s => (seat: s, d: Flat(s.StandPoint.position - from)))
+                               .Where(x => Vector3.Dot(x.d, toward) > .5f && x.d.magnitude < reach + 1.5f).ToList();
+            Expect(inFront.Count > 0, $"the repair bar's stools are found in front of the bench ({inFront.Count})");
+            foreach (var x in inFront)
                 Expect(x.d.magnitude <= reach, $"{x.seat.name} is {x.d.magnitude:0.00} m from the bench's stand point: within E's reach over the counter ({reach:0.0} m)");
+            barStools = inFront.Select(x => x.seat).OrderByDescending(s => s.StandPoint.position.x).ToList();   // east first: nearest the till
+        }
+
+        // The stools nobody used (12 Oct): they can be claimed together (their stand points clear each other's footprint), and
+        // with the east one held by someone standing at it, the claim from the counter's west place is the middle one.
+        if (barStools.Count >= 2)
+        {
+            for (int i = 0; i < barStools.Count; i++)
+                for (int j = i + 1; j < barStools.Count; j++)
+                {
+                    float apart = Flat(barStools[i].StandPoint.position - barStools[j].StandPoint.position).magnitude;
+                    float needed = Footprint(barStools[i]) + Footprint(barStools[j]) + .1f;
+                    Expect(apart >= needed, $"{barStools[i].name} and {barStools[j].name} stand {apart:0.00} m apart, clear of each other's footprint ({needed:0.00} m): both can be taken");
+                }
+            TheSecondStool(barStools, Expect);
         }
 
         string text = $"[Waiting space] The café scene: {passes.Count} passed, {failures.Count} failed.\n" +
@@ -137,6 +190,74 @@ public static class WaitingSpaceChecks
         }
         Debug.Log(text);
     }
+
+    // A customer at the counter claims a seat with the east stool held by someone STANDING at it (a bar stool is waited at
+    // standing). The scene's own WaitingArea does the choosing (the walking distance along the NavMesh, or its straight-line
+    // fallback when the NavMesh isn't loaded in Edit Mode: from the place nearest the stools the answer is the same either
+    // way: the middle stool is 2.6 m off and the nearest floor seat 4.7). The café's spots are registered for the test (Edit
+    // Mode sends no OnEnable), the two stand-in bodies live in a preview scene, and everything is released after it.
+    private static void TheSecondStool(List<TableSeat> barStools, Action<bool, string> expect)
+    {
+        WaitingArea area = UnityEngine.Object.FindAnyObjectByType<WaitingArea>(FindObjectsInactive.Exclude);
+        CounterQueue queue = UnityEngine.Object.FindAnyObjectByType<CounterQueue>(FindObjectsInactive.Exclude);
+        expect(area != null && queue != null && queue.SlotCount > 0, "the café has a WaitingArea and a CounterQueue with places");
+        if (area == null || queue == null || queue.SlotCount == 0) return;
+        TableSeat east = barStools[0], middle = barStools[1];
+        var registered = new List<WaitingSpot>();
+        var preview = EditorSceneManager.NewPreviewScene();
+        GameObject holder = new GameObject("Waiting space check: standing at the east stool");
+        GameObject customer = new GameObject("Waiting space check: a customer at the counter");
+        SceneManager.MoveGameObjectToScene(holder, preview);
+        SceneManager.MoveGameObjectToScene(customer, preview);
+        try
+        {
+            foreach (WaitingSpot spot in UnityEngine.Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
+            {
+                if (spot == null || !spot.isActiveAndEnabled) continue;
+                int before = WaitingArea.RegisteredSpots;
+                WaitingArea.Register(spot);
+                if (WaitingArea.RegisteredSpots > before) registered.Add(spot);
+            }
+            holder.transform.position = east.StandPoint.position;
+            expect(east.Claim(holder.transform), $"{east.name} (the east stool) is held by someone standing at it");
+            expect(WaitingArea.HasArrived(east), $"standing on {east.name}'s stand point counts as arrived (12 Oct; before, a stander never did)");
+
+            // The counter place nearest the stools (the west one) must give the middle stool; the others are reported.
+            int nearest = -1;
+            float nearestDistance = float.PositiveInfinity;
+            for (int i = 0; i < queue.SlotCount; i++)
+            {
+                Transform slot = queue.SlotPoint(i);
+                if (slot == null) continue;
+                float d = Flat(slot.position - east.StandPoint.position).magnitude;
+                if (d < nearestDistance) { nearestDistance = d; nearest = i; }
+            }
+            for (int i = 0; i < queue.SlotCount; i++)
+            {
+                Transform slot = queue.SlotPoint(i);
+                if (slot == null) continue;
+                customer.transform.position = slot.position;
+                WaitingSpot given = area.Claim(customer.transform, WaitingSpot.SpotKind.Seat);
+                float toMiddle = Flat(middle.StandPoint.position - slot.position).magnitude;
+                string line = $"from the counter's place {i} at ({slot.position.x:0.0}, {slot.position.z:0.0}) with the east stool held, the claim gives " +
+                              $"{(given != null ? given.name : "nothing")} (the middle stool is {toMiddle:0.00} m away, straight)";
+                if (i == nearest) expect(given == middle, line + ": the middle stool (before 12 Oct the banquette's chair: the stool carried 2.5 m for a stander who had arrived)");
+                else expect(true, line + " (reported, not required: from here a floor seat can be as near)");
+                if (given != null) given.Release(customer.transform);
+            }
+        }
+        finally
+        {
+            foreach (WaitingSpot spot in UnityEngine.Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
+                if (spot != null) { spot.Release(customer.transform); spot.Release(holder.transform); }
+            foreach (WaitingSpot spot in registered) WaitingArea.Unregister(spot);
+            EditorSceneManager.ClosePreviewScene(preview);
+        }
+    }
+
+    // The room WaitingArea keeps round a bar stool's stand point for other claims (its own clearance radius; a stander's
+    // body otherwise).
+    private static float Footprint(TableSeat stool) => stool.ClearanceRadius > 0f ? stool.ClearanceRadius : .35f;
 
     private static Vector3 Flat(Vector3 v)
     {

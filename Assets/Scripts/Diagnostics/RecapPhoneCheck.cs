@@ -35,6 +35,12 @@ using UnityEngine.UI;
 // review (the reputation spec §10.2); the summary's bars are the verdicts'; before the first star Tonight says what it
 // still needs ("3 to your first star", on a made-up evening shown with the phone's Preview, then back); the takings card
 // says what Ace's work earned apart from the café's guests.
+// 12-13 Oct 2026 (his pick of the findings' §10.7): Tonight says it too, "$132 from your work · $10 from café guests" under
+// "earned today", small, in the card's quiet colour, landing as the count-up lands; and on an evening the guests paid
+// nothing, no line at all. Both are shown on the evening's own screen and on two made-up ones (the day's figures restored
+// the way the game restores a recap, DayClock.RestoreRecap, then the evening's own again): no guests, and every dollar
+// from the guests (the first hour's Day 1, "$65 earned today" with nobody served). The split's 8 words count in Tonight's
+// words, and the budget's limit rises by exactly those 8 on an evening the guests paid (SplitWords).
 // A key that never reaches the game (the Game view didn't have the keyboard) is noted and done directly,
 // so the phone is still checked. A photo of every app and report.txt go to the check's folder. Nothing is
 // saved in the scene; the lab save is the only file written (by the game), and the playtest save is checked
@@ -43,6 +49,13 @@ using UnityEngine.UI;
 public sealed class RecapPhoneCheck : MonoBehaviour
 {
     public const string PendingKey = "FixitFidget.RecapPhone.Check";
+
+    // Tonight's takings split, "$132 from your work · $10 from café guests" (12 Oct, his pick of the findings' §10.7), is 8 of
+    // the closing screen's words: two figures and six words, whatever the figures. They count in TonightWords like every
+    // word there, and the budget's limit here rises by exactly those 8, only on an evening the café's guests paid (an evening
+    // without them keeps the rule's 40). The rule itself stays his (WordBudget.ClosingScreen, which BarkRuleChecks holds at
+    // 40). If the split's wording ever grows, the check that it adds exactly SplitWords fails first, so the room can't creep.
+    const int SplitWords = 8;
 
     public string folder;
 
@@ -151,13 +164,30 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(phone.HintText.Contains("Q / E"), $"the hint under it is the keyboard's (\"{phone.HintText}\")");
 
         // ---------- Tonight: one screen ----------
+        // Tonight's split (12 Oct): out of sight while the takings count up, it lands with them.
+        int guestsPaid = DayClock.Instance.PatronIncome;
+        string splitLine = RecapPhone.TakingsSplit(DayClock.Instance.Earned, guestsPaid);
+        if (phone.TakingsCounting)
+            Check(!phone.TonightSplitShown && !phone.ContentText().Contains("$" + DayClock.Instance.Earned),
+                $"the takings still count up from $0 (not yet ${DayClock.Instance.Earned}), and nothing shows under them yet");
+        else Note("the takings had already landed when the check first looked (a slow first frame): the count and the split's wait aren't checked");
         yield return Until(() => phone.ContentText().Contains("$" + DayClock.Instance.Earned), 3f, "the takings count up to the day's figure");
+        if (guestsPaid > 0) yield return Until(() => phone.TonightSplitShown, 2f, "...and as they land, the split comes up under them");
         string tonight = phone.ContentText();
         Check(!phone.Tab(RecapPhone.App.Reviews).gameObject.activeInHierarchy, "no tab bar on Tonight");
         Check(phone.ScrollRange <= .5f, $"nothing to scroll ({phone.ScrollRange:0} over)");
-        Check(phone.TonightWords <= WordBudget.ClosingScreen, $"within the budget: {phone.TonightWords} words before the review lines (the rule is {WordBudget.ClosingScreen})");
+        Check(WithinBudget(out string budget), "within the budget: " + budget);
         Check(tonight.Contains(Weekdays.Label(day).ToUpperInvariant()) && tonight.Contains("$" + DayClock.Instance.Earned) && tonight.Contains("earned today"),
             "the day (its weekday too), and what it earned");
+        if (guestsPaid > 0)
+        {
+            Check(phone.TonightSplit == splitLine && tonight.Contains(splitLine),
+                $"the café's guests paid ${guestsPaid}: under it, what Ace's own work earned apart from them (\"{splitLine}\")");
+            Check(phone.TonightSplitWords == SplitWords && WordBudget.Words(splitLine) == SplitWords,
+                $"...{phone.TonightSplitWords} words, counted in Tonight's words (the budget's room for it: exactly {SplitWords})");
+            Check(SplitPlaced(out string placed), "...in its place: " + placed);
+        }
+        else Check(phone.TonightSplit.Length == 0 && !tonight.Contains("from café guests"), "no guests paid tonight: no split line");
         Check(rep.EarnedStarToday && tonight.Contains("New star!"), "a new star, in gold");
         Check(tonight.Contains($"{rep.ReviewCount} reviews today") && tonight.Contains(ReputationRecap.Signed(rep.TodayChange) + " reputation"),
             "how many reviews, and the reputation they made");
@@ -181,6 +211,57 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("01-tonight");
 
+        // ---------- Tonight's split on two made-up evenings, then the evening's own again ----------
+        // The day's figures are put back the way the game restores a recap at closing (DayClock.RestoreRecap: no day-end
+        // events, nothing saved); the phone is built again from them. The reviews, notes and stock stay the evening's own.
+        DayClock clock = DayClock.Instance;
+        RecapSaveData own = clock.CaptureRecap();
+        int wordsOwn = phone.TonightWords;
+        float cardOwn = CardHeight("Tonight");
+        // 1. The café's guests paid nothing: no line, no room taken.
+        RecapSaveData none = clock.CaptureRecap();
+        none.earned = Mathf.Max(0, own.earned - own.patronIncome);
+        none.patronIncome = 0;
+        clock.RestoreRecap(none);
+        phone.RebuildNow();
+        yield return null;
+        string noGuests = phone.ContentText();
+        Check(phone.TonightSplit.Length == 0 && TextNamed("Takings split") == null && !noGuests.Contains("from café guests") && !noGuests.Contains("from your work"),
+            $"an evening the café's guests paid nothing (${none.earned}, all of it Ace's own work): no split line");
+        Check(own.patronIncome <= 0 || CardHeight("Tonight") < cardOwn - 10f,
+            $"...and no gap where it would be (the card {CardHeight("Tonight"):0} px tall, {cardOwn:0} with the line)");
+        Check(phone.TonightWords <= WordBudget.ClosingScreen && (own.patronIncome <= 0 || phone.TonightWords == wordsOwn - SplitWords),
+            $"...{phone.TonightWords} words: within the rule's {WordBudget.ClosingScreen}, no room added" +
+            (own.patronIncome > 0 ? $" (exactly {SplitWords} fewer than with the split)" : ""));
+        Check(phone.ScrollRange <= .5f && Fits(), "...still one screen, every line fitting");
+        yield return Photo("01c-tonight-no-guests");
+        // 2. Every dollar from the guests, nobody served (the first hour's Day 1 read "$65 earned today").
+        RecapSaveData allGuests = clock.CaptureRecap();
+        allGuests.earned = 65;
+        allGuests.patronIncome = 65;
+        allGuests.tips = 0;
+        allGuests.ordersCompleted = allGuests.repairs = allGuests.drinks = allGuests.peopleServed = 0;
+        allGuests.perfect = allGuests.good = allGuests.passable = 0;
+        clock.RestoreRecap(allGuests);
+        phone.RebuildNow();
+        yield return null;
+        string zero = RecapPhone.TakingsSplit(65, 65);
+        Check(zero == "$0 from your work · $65 from café guests" && phone.TonightSplit == zero && phone.ContentText().Contains(zero)
+              && phone.ContentText().Contains("$65") && phone.TonightSplitShown,
+            $"an evening every dollar came from the guests: \"{zero}\" under the $65 (shown at once: the count had landed)");
+        Check(SplitPlaced(out string placedZero), "...in its place: " + placedZero);
+        Check(WithinBudget(out string budgetZero) && phone.TonightWords == wordsOwn + (own.patronIncome > 0 ? 0 : SplitWords),
+            "...within the budget: " + budgetZero);
+        Check(phone.ScrollRange <= .5f && Fits(), "...still one screen, every line fitting");
+        yield return Photo("01d-tonight-all-from-the-guests");
+        // The evening's own again.
+        clock.RestoreRecap(own);
+        phone.RebuildNow();
+        yield return null;
+        Check(clock.Earned == own.earned && clock.PatronIncome == own.patronIncome && phone.TonightSplit == splitLine
+              && phone.ContentText().Contains("$" + own.earned) && phone.TonightWords == wordsOwn,
+            $"...and the evening's own again (${own.earned}, ${own.patronIncome} of it from the guests)");
+
         // Before the first star, Tonight says what it still needs (playtest 4: "no stars yet" said nothing about it). A
         // made-up evening with no star yet, shown with the phone's Preview (as Fixit Fidget > Reputation > Preview does),
         // then the evening's own again.
@@ -195,7 +276,8 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             $"with no star yet, Tonight says what the first one needs (\"{needs}\")");
         // Two words more than "no stars yet": said, so a long notebook line on a starless evening is seen (the rule is checked
         // on the evening's own screen above).
-        Note($"that screen has {phone.TonightWords} words before the review lines (the rule is {WordBudget.ClosingScreen})");
+        WithinBudget(out string starless);
+        Note($"that screen has {starless}");
         yield return Photo("01b-tonight-before-the-first-star");
         phone.Preview(null);
         yield return null;
@@ -674,6 +756,53 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             }
         }
         return true;
+    }
+
+    // Tonight's words against the budget: the rule's 40 (WordBudget.ClosingScreen), and SplitWords more on an evening the
+    // café's guests paid, when the split is on the screen. What it says goes in the report either way.
+    bool WithinBudget(out string what)
+    {
+        bool split = phone.TonightSplit.Length > 0;
+        int room = WordBudget.ClosingScreen + (split ? SplitWords : 0);
+        what = $"{phone.TonightWords} words before the review lines (the rule is {WordBudget.ClosingScreen}" +
+               (split ? $", and {SplitWords} more for the takings split: {room}" : "") + ")";
+        return phone.TonightWords <= room;
+    }
+
+    // Tonight's split where it belongs: under "earned today" (their left edges together), above the card's rule, in the card's
+    // quiet colour ("earned today"'s), no bigger than "earned today". The reason goes in what, either way.
+    bool SplitPlaced(out string what)
+    {
+        TMP_Text split = TextNamed("Takings split"), earned = TextSaying("earned today");
+        Transform card = TonightCardBox();
+        var rule = card != null ? card.Find("Rule") as RectTransform : null;
+        if (split == null || earned == null || rule == null)
+        {
+            what = $"not found: {(split == null ? "the split " : "")}{(earned == null ? "\"earned today\" " : "")}{(rule == null ? "the card's rule" : "")}";
+            return false;
+        }
+        Rect s = ScreenRect(split.rectTransform), e = ScreenRect(earned.rectTransform), r = ScreenRect(rule);
+        bool under = s.yMax <= e.yMin + .5f && Mathf.Abs(s.xMin - e.xMin) <= 1f;
+        bool aboveRule = r.yMax <= s.yMin + .5f;
+        Color a = split.color, b = earned.color;
+        bool quiet = Mathf.Abs(a.r - b.r) + Mathf.Abs(a.g - b.g) + Mathf.Abs(a.b - b.b) < .02f;
+        bool small = split.fontSize <= earned.fontSize + .01f;
+        what = $"{(under ? "under" : "NOT under")} \"earned today\", {(aboveRule ? "above" : "NOT above")} the card's rule, " +
+               $"{(quiet ? "in its quiet colour" : "NOT in its colour")}, {split.fontSize:0.#} px ({(small ? "no bigger than" : "BIGGER than")} its {earned.fontSize:0.#})";
+        return under && aboveRule && quiet && small;
+    }
+
+    // A piece of text on the phone's current app by its object's name, or by exactly what it says.
+    TMP_Text TextNamed(string name) => phone.Viewport.GetComponentsInChildren<TMP_Text>(false).FirstOrDefault(t => t.name == name);
+    TMP_Text TextSaying(string words) => phone.Viewport.GetComponentsInChildren<TMP_Text>(false).FirstOrDefault(t => t.text == words);
+
+    // Tonight's dark card (RecapPhone.TonightCard's "Tonight" box), and its height.
+    Transform TonightCardBox() => phone.Viewport.GetComponentsInChildren<Transform>(false).FirstOrDefault(t => t.name == "Tonight");
+
+    float CardHeight(string name)
+    {
+        Transform box = phone.Viewport.GetComponentsInChildren<Transform>(false).FirstOrDefault(t => t.name == name);
+        return box is RectTransform rect ? rect.sizeDelta.y : 0f;
     }
 
     // How many of the phone's star pictures (its "Star" sprite: "Recap phone - Star") sit on the app's cards of this name

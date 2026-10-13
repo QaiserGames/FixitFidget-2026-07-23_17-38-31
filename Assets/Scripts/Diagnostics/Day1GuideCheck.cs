@@ -17,8 +17,9 @@ using UnityEngine.InputSystem.LowLevel;
 //   1. the first screen: "You're Ace. ..." on the card, "You" over Ace, "WASD Move · E Use" in the strip;
 //   2. a step along the counter on Ace's own legs (a scripted stick, as the café lab walks him): "You" goes; the strip
 //      stays until he has walked a few metres and used E;
-//   3. Grace at the counter: the talk card, her name pinned over her head (E's target), her patience bar 56 x 7 px over
-//      her, coloured by her patience; the card settles to one line after ~6 s and comes back in full after ~10 s more;
+//   3. Grace at the counter: the talk card, her name pinned over her head (E's target), her patience bar over her at the
+//      bar's size (UiPins.BarWidth x BarHeight: 72 x 9 px at BarScale 1.3), coloured by her patience; the card settles to
+//      one line after ~6 s and comes back in full after ~10 s more;
 //   4. in first person nothing is pinned (the crosshair has the name); a few metres more on foot; E for real (when the
 //      Game view has the keyboard): the conversation, no card and no pins over it, the strip's movement words go; she's
 //      heard and the camera taken;
@@ -32,6 +33,10 @@ using UnityEngine.InputSystem.LowLevel;
 // Playtest 4 run 2 (11 Oct): right after the pickup at the till, E won't give the camera straight back unfixed; a walk-in
 // sent in at the door as the Officer sets off reaches the counter first, and the card names whoever E talks to (that
 // walk-in, "the Officer is at the counter too"); at the drinks machine the card stays on his coffee, not Grace's latte.
+// 12-13 Oct (the findings' §4: the bar bigger, "not too big obviously but enough for it to feel good and look good"): the bar,
+// the name over her head and her job's dot are measured against UiPins' one family (BarScale), never a number of their own;
+// and three close-ups of her head (name, bar, dot) at three times a 1080p screen's size, for the Producer's eye on the size:
+// 02b when her bar first shows, 05b with her job's colour beside it, 09b impatient (the bar low and red, her name pinned).
 // The repair itself is the bench's (Bench 3). Photos and report.txt go to Logs/UI/day1-guide-<time>/. Nothing is saved in
 // the scene; the lab's save is the only file the game writes. Play mode ends by itself when it reports.
 // ---------------------------------------------------------------------------
@@ -157,11 +162,15 @@ public sealed class Day1GuideCheck : PlayLab
         Rect name = pins.FocusOnScreen;
         Vector3 head = Camera.main.WorldToScreenPoint(Barks.HeadPointOf(grace.transform));
         Check(name.yMin >= head.y - 1f && Mathf.Abs(name.center.x - head.x) < name.width, $"...above her head ({name.yMin:0} px up; her head point {head.y:0})");
+        Check(Mathf.Abs(pins.FocusTextSize - UiPins.NameSize) < .01f,
+            $"...her name at {pins.FocusTextSize:0} px, the bar's family ({UiPins.Family()})");
         float sf = PinsScale();
-        if (pins.TryGetBar(grace.transform, out Rect bar, out Color colour, out bool dot))
+        bool barUp = pins.TryGetBar(grace.transform, out Rect bar, out Color colour, out bool dot);
+        if (barUp)
         {
             Check(Mathf.Abs(bar.width - UiPins.BarWidth * sf) <= 1.5f && Mathf.Abs(bar.height - UiPins.BarHeight * sf) <= 1f,
-                $"her patience bar is {bar.width / sf:0} x {bar.height / sf:0} px at 1080p ({bar.width:0} x {bar.height:0} on this screen; the rule is 56 x 7)");
+                $"her patience bar is {bar.width / sf:0} x {bar.height / sf:0} px at 1080p ({bar.width:0} x {bar.height:0} on this screen; " +
+                $"the rule is {UiPins.BarWidth:0} x {UiPins.BarHeight:0}, BarScale {UiPins.BarScale:0.0#})");
             Color want = UiPins.ColourAt(grace.PatienceFraction);
             Check(Mathf.Abs(colour.r - want.r) + Mathf.Abs(colour.g - want.g) + Mathf.Abs(colour.b - want.b) < .08f,
                 $"...coloured by her patience ({grace.PatienceFraction:0.00})");
@@ -170,6 +179,8 @@ public sealed class Day1GuideCheck : PlayLab
         }
         else Check(false, "her patience bar is drawn over her (UiPins)");
         yield return Photo1080("02-grace-at-the-counter-name-and-bar");
+        // Close on her head the moment her bar shows: her name over it, the bar under it (the Producer judges the size by eye).
+        if (barUp) yield return CloseOnHead("02b-patience-bar-close", grace.transform);
 
         // The card stays: settled to one line after ~6 s, back in full after ~10 s more with no progress.
         yield return Until(() => guide.CardCompact, 9f, "after about six seconds the card settles to one smaller line, still on screen");
@@ -237,9 +248,17 @@ public sealed class Day1GuideCheck : PlayLab
         PutAce(bench.StandPoint.position, bench.StandPoint.eulerAngles.y);   // a step away: nothing in reach, so the pin shows alone
         yield return Seconds(.6f);
         Check(pins.GuideShowing && pins.GuideText == FocusNameUI.TrayName, "...on screen, from across the café");
-        if (pins.TryGetBar(grace.transform, out _, out _, out bool tagged))
+        bool tagged = false;
+        if (pins.TryGetBar(grace.transform, out Rect waiting, out _, out tagged))
+        {
             Check(tagged, "her bar has her job's colour beside it now (the ticket's tape, the device's tag)");
+            if (tagged && pins.TryGetDot(grace.transform, out Rect jobDot))
+                Check(Mathf.Abs(jobDot.width - UiPins.TagDot * sf) <= 1f && Mathf.Abs(jobDot.center.y - waiting.center.y) <= 1f
+                      && jobDot.xMax <= waiting.xMin + .5f,
+                    $"...a {jobDot.width / sf:0} px dot (the family's {UiPins.TagDot:0}), level with the bar, just left of it");
+        }
         yield return Photo1080("05-the-intake-tray");
+        if (tagged) yield return CloseOnHead("05b-patience-bar-close-her-job-colour", grace.transform);
 
         // ---------- 6. picked up ----------
         PutAce(till.position, till.eulerAngles.y);
@@ -332,7 +351,10 @@ public sealed class Day1GuideCheck : PlayLab
                 $"...in the guide's words: \"{Plain(text)}\"");
             yield return Seconds(.4f);   // the pin fades in (UiPins.FadeRate): judge it once it has
             Check((pins.GuideShowing && pins.GuideText == "Grace") || (pins.FocusShowing && pins.FocusText == "Grace"), "...with her name pinned over her");
+            if (pins.GuideShowing && pins.GuideText == "Grace")
+                Check(Mathf.Abs(pins.GuideTextSize - UiPins.PinTextSize) < .01f, $"...Day 1's pin at {pins.GuideTextSize:0} px, the family's {UiPins.PinTextSize:0}");
             yield return Photo1080("09-getting-impatient");
+            yield return CloseOnHead("09b-patience-bar-close-impatient", grace.transform);
             grace.Reassure();   // what E beside her does (CustomerInteractable)
             yield return Until(() => DayOneGuideUI.ReassuredOnce && !guide.ImpatienceShowing, 3f, "reassured: the card goes, and won't come back this session");
         }
@@ -522,6 +544,65 @@ public sealed class Day1GuideCheck : PlayLab
     }
 
     static string Plain(string rich) => Short(RecapPhone.Plain(rich ?? ""));
+
+    // A close look at one head, for the Producer's eye on the bar's size (the findings' §4): 320 x 180 px of a 1080p screen
+    // round the head point (the bar just under it and the face under that, the name and Day 1's pin over it, room for a
+    // badge), saved three times as large as a 1080p screen shows it, as a PNG (no JPEG smear on a 9 px bar). Cut from the
+    // screenshot the way AceTurnCheck cuts its close-ups; enlarged here on the CPU, smoothly, so the colours pass through as
+    // they were drawn. Nothing when the head is off the screen.
+    const float CloseWidth = 320f, CloseBelow = 70f, CloseAbove = 110f, CloseZoom = 3f;
+
+    IEnumerator CloseOnHead(string name, Transform who)
+    {
+        yield return new WaitForEndOfFrame();
+        Camera cam = Camera.main;
+        if (who == null || cam == null) yield break;
+        Vector3 head = cam.WorldToScreenPoint(Barks.HeadPointOf(who));
+        if (head.z <= 0f || head.x < 0f || head.x > Screen.width || head.y < 0f || head.y > Screen.height)
+        {
+            Note($"{name}: the head isn't on the screen, so no close-up");
+            yield break;
+        }
+        Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        Texture2D big = null;
+        try
+        {
+            float sx = shot.width / (float)Mathf.Max(1, Screen.width), sy = shot.height / (float)Mathf.Max(1, Screen.height);
+            float sf = PinsScale();
+            int w = Mathf.Clamp(Mathf.RoundToInt(CloseWidth * sf * sx), 8, shot.width);
+            int h = Mathf.Clamp(Mathf.RoundToInt((CloseBelow + CloseAbove) * sf * sy), 8, shot.height);
+            int x = Mathf.Clamp(Mathf.RoundToInt(head.x * sx) - w / 2, 0, shot.width - w);
+            int y = Mathf.Clamp(Mathf.RoundToInt((head.y - CloseBelow * sf) * sy), 0, shot.height - h);
+            Color[] cut = shot.GetPixels(x, y, w, h);
+            int bw = Mathf.RoundToInt(CloseWidth * CloseZoom), bh = Mathf.RoundToInt((CloseBelow + CloseAbove) * CloseZoom);
+            var pixels = new Color[bw * bh];
+            for (int j = 0; j < bh; j++)
+            {
+                float fy = Mathf.Clamp((j + .5f) * h / bh - .5f, 0f, h - 1f);
+                int y0 = (int)fy, y1 = Mathf.Min(y0 + 1, h - 1);
+                float ty = fy - y0;
+                for (int i = 0; i < bw; i++)
+                {
+                    float fx = Mathf.Clamp((i + .5f) * w / bw - .5f, 0f, w - 1f);
+                    int x0 = (int)fx, x1 = Mathf.Min(x0 + 1, w - 1);
+                    float tx = fx - x0;
+                    Color low = Color.Lerp(cut[y0 * w + x0], cut[y0 * w + x1], tx), high = Color.Lerp(cut[y1 * w + x0], cut[y1 * w + x1], tx);
+                    pixels[j * bw + i] = Color.Lerp(low, high, ty);
+                }
+            }
+            big = new Texture2D(bw, bh, TextureFormat.RGB24, false);
+            big.SetPixels(pixels);
+            big.Apply();
+            photos++;
+            File.WriteAllBytes(Path.Combine(folder, name + ".png"), big.EncodeToPNG());
+            Note($"{name}.png: her head close up at {CloseZoom:0}x a 1080p screen ({UiPins.Family()})");
+        }
+        finally
+        {
+            if (big != null) Destroy(big);
+            Destroy(shot);
+        }
+    }
 
     // A photo at 1920 x 1080 (the screen's, resampled when the Game view is another size): what a 1080p player sees.
     IEnumerator Photo1080(string name)

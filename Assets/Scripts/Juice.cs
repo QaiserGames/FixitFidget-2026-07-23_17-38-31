@@ -39,6 +39,12 @@ using UnityEngine.UI;
 // (smaller, no sparkle), so closing it early is told before the customer tells it. This changes bench-spec-v2 §2.5 and §7
 // ("Fixed!" on the last seat): the wake stays on the last seat; "Fixed!" moved to the true end.
 //
+// FACE UP FOR THE WORDS (12-13 Oct; the veteran's second run: after a screen swap the phone ends back up, its last screws are
+// in its back, and "Fixed! · Perfect" landed on its back; his pick, the findings' §10.5: turn it face up for the moment).
+// A device finished lying on its face is turned over first (ItemInspector.ShowFace, a third of a second), and the words,
+// the sparkle and the chime come when it lies face up, placed on it then. OnFixed tells anyone who asks (the NPC lead's
+// reactions) once, at that moment, with the job.
+//
 // LEVELLED UP (playtest 3, session 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §3.3): money pops in a chip of the
 // brand's green (no more yellow), the badges have thicker symbols and a rim in their own colour, they bounce in on a
 // spring, and a heart or a star throws a tiny burst of its colour as it lands. The lettering and its shadow are the UI
@@ -75,12 +81,20 @@ public sealed class Juice : MonoBehaviour
         nextMarker = 0;
         LastWords = "";
         LastWordsAt = -1f;
+        LastWordsPoint = Vector3.zero;
         LastWordsContrast = 0f;
         DustPuffs = 0;
         Gleams = 0;
         Finishes = 0;
         Wakes = 0;
+        OnFixed = null;
     }
+
+    /// <summary>
+    /// A repair at the bench has just ended ("Fixed!" is going up over the device, face up): once a repair, with its job.
+    /// For whatever reacts to the moment (the room, 12 Oct: "nobody turns ... when a 'Fixed!' goes off at the repair bar").
+    /// </summary>
+    public static event System.Action<JobBase> OnFixed;
 
     sealed class Pop
     {
@@ -131,6 +145,9 @@ public sealed class Juice : MonoBehaviour
     JobBase watched;
     bool watchedDone, watchedTogether, watchedFinished, hidden;
     float nextInspectorLook;
+    // A repair finished lying on its face: its ending waits for the device to turn face up (ShowFace), a moment at most.
+    JobBase finishing;
+    float finishingDelay, finishingBy;
 
     static Sprite[] sprites;
     static Sprite sparkSprite, dustSprite;
@@ -138,6 +155,8 @@ public sealed class Juice : MonoBehaviour
     /// <summary>The last words popped (for checks; plain, without the colour tags), and when (UiClock).</summary>
     public static string LastWords { get; private set; } = "";
     public static float LastWordsAt { get; private set; } = -1f;
+    /// <summary>Where in the world the last words were pinned (checks: "Fixed!" over the device's face, not its back).</summary>
+    public static Vector3 LastWordsPoint { get; private set; }
     /// <summary>The last words' contrast with their plate, as WCAG reckons it (the plate over white, its worst case; checks).</summary>
     public static float LastWordsContrast { get; private set; }
     /// <summary>How many puffs of dust have gone up (checks).</summary>
@@ -273,6 +292,7 @@ public sealed class Juice : MonoBehaviour
         pop.clamp = true;
         LastWords = plain;
         LastWordsAt = UiClock.Now;
+        LastWordsPoint = point;
         LastWordsContrast = Contrast(colour, Plate);
     }
 
@@ -733,6 +753,7 @@ public sealed class Juice : MonoBehaviour
             canvas.enabled = !hide;
         }
         WatchTheBench();
+        FinishOnceFaceUp();
     }
 
     // The item being worked on at the bench: the one ending (playtest 4; the header). Three beats, each once:
@@ -740,7 +761,8 @@ public sealed class Juice : MonoBehaviour
     //     parts and sounds; the seat's or the spot's own small sparkle has just gone off); no words;
     //   it is FINISHED (every fault fixed, nothing off it: JobBase.IsFinished): "Fixed! · Perfect", the big sparkle and the
     //     chime. For a device that was opened that is the last screw home; for one that never was, it is the last task
-    //     itself, and the words come a beat after the wake;
+    //     itself, and the words come a beat after the wake. A device finished lying on its face is turned face up first
+    //     (12 Oct, §10.5), and the ending comes when it lies face up (FinishOnceFaceUp);
     //   it is back in one piece WITH FAULTS LEFT: "Back together · Good", quietly.
     // An item already finished (or already awake) when it is taken up shows none of them again.
     void WatchTheBench()
@@ -773,11 +795,42 @@ public sealed class Juice : MonoBehaviour
         if (done && together && !watchedFinished)
         {
             watchedFinished = true;
-            FixedMoment(Centre(item.gameObject), Above(item.gameObject), item.Grade, wokeNow ? WakeLead : 0f);
+            float delay = wokeNow ? WakeLead : 0f;
+            // Finished lying on its face (the phone after a screen swap: its last screws are in its back): over it goes, and
+            // the words wait for its face. Otherwise, now.
+            if (inspector != null && inspector.ShowFace())
+            {
+                finishing = item;
+                finishingDelay = delay;
+                finishingBy = UiClock.Now + 1.5f;   // the flip takes a third of a second; this is only a net
+            }
+            else Finish(item, delay);
         }
         else if (together && !watchedTogether && !done && item.Quality > 0f)
             BackTogether(Above(item.gameObject), item.Grade);
         watchedTogether = together;
+    }
+
+    // The ending held back for the flip comes the frame the device lies face up (or is no longer the one in the close-up:
+    // taken away mid-turn, it ends where it is), placed on the device as it lies then.
+    void FinishOnceFaceUp()
+    {
+        if (finishing == null) return;
+        bool stillTurning = inspector != null && inspector.FocusedItem == finishing && inspector.Flipping;
+        if (stillTurning && UiClock.Now < finishingBy) return;
+        JobBase job = finishing;
+        finishing = null;
+        Finish(job, finishingDelay);
+    }
+
+    // The one ending, on the device where it lies now: the big sparkle at its middle, the words over it, the chime; and the
+    // word to the room (OnFixed), once.
+    void Finish(JobBase item, float delay)
+    {
+        if (item == null) return;
+        FixedMoment(Centre(item.gameObject), Above(item.gameObject), item.Grade, delay);
+        try { OnFixed?.Invoke(item); }
+        catch (System.Exception e) { Debug.LogException(e); }
     }
 
     // Just over the device as the camera sees it (the middle of its top edge on the screen), so the words never lie on the

@@ -65,6 +65,16 @@ using UnityEngine.AI;
 /// (<see cref="walkOnHold"/>), the heading keeps turning at the pace the spot
 /// turn left it, and a walk from a standstill builds up over its first steps
 /// (<see cref="setOffAcceleration"/>) the way people start walking.
+///
+/// WALKS BY PERSON AND MOOD (the NPC life pass, 12 Oct 2026). Measured in the
+/// 10 Oct recordings: 23 of 23 customers kept one walk for every leg, so a
+/// Rushed customer came in at a Relaxed patron's pace and a storm-out strolled
+/// out. The brains now ask for a walk over the profile's: who they are
+/// (<see cref="SetPersonGait"/>: NpcSocial, from the archetype) and the mood of
+/// a leg (<see cref="RequestWalk"/>: a storm-out brisk and hurried, a happy
+/// customer strolling out, patrons strolling). Batch 2's walks (hurry, jog,
+/// run, angry) are indexed 3-6 in the gait data and fall back to Brisk at a
+/// higher pace until they are baked; the feet stay planted either way.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NavMeshAgent))]
@@ -72,6 +82,15 @@ using UnityEngine.AI;
 public sealed class NpcLocomotion : MonoBehaviour
 {
     public enum Recovery { None, Repath, StepAside, PushThrough, GaveUp, PassThrough, Yield }
+
+    /// <summary>
+    /// A walk asked for over the profile's (the NPC life pass, 12 Oct 2026): by person (a Rushed customer hurries in)
+    /// or by mood for one leg (a storm-out is brisk, a happy customer strolls out, patrons stroll). Normal, Relaxed and
+    /// Brisk are the three walks baked today (NpcGaitData.walks 0-2); Hurry, Jog, Run and Angry are batch 2's, indexed
+    /// 3-6 in the gait data once baked. Until then they fall back to Brisk at a higher pace (the feet stay planted: the
+    /// clip rate follows the speed), so the hooks are live now and the clips drop in later.
+    /// </summary>
+    public enum Gait { Profile = -1, Normal = 0, Relaxed = 1, Brisk = 2, Hurry = 3, Jog = 4, Run = 5, Angry = 6 }
 
     /// <summary>How one leg should be walked.</summary>
     public struct Move
@@ -193,6 +212,12 @@ public sealed class NpcLocomotion : MonoBehaviour
     // The movement profile's share of the numbers above (pass 2): 1 = the prefab's values.
     private float profileSpeed = 1f, profileAcceleration = 1f, profileTurn = 1f, profileUrgency = .5f;
     private int walkStyle;
+    // The walks asked for over the profile's (12 Oct 2026): who they are (NpcSocial, from the archetype) and the mood
+    // of this leg (the brains). Mood wins over person wins over profile. The WalkStyle parameter eases between walks.
+    private Gait personGait = Gait.Profile, moodGait = Gait.Profile;
+    private float personScale = 1f, moodScale = 1f;
+    private bool hurried;
+    private float styleShown = -1f;
 
     // The current leg.
     private bool hasGoal;
@@ -262,13 +287,24 @@ public sealed class NpcLocomotion : MonoBehaviour
     public string Purpose => hasGoal ? move.purpose : "";
     /// <summary>Every café NPC's locomotion that is enabled (read only), e.g. to see who is standing where.</summary>
     public static IReadOnlyList<NpcLocomotion> All => everyone;
-    public float WalkSpeed => baseSpeed * speedMultiplier * profileSpeed;
-    /// <summary>The walk clip in use (NpcMovementProfile.WalkStyle), for traces.</summary>
-    public int WalkStyle => walkStyle;
+    public float WalkSpeed => baseSpeed * speedMultiplier * profileSpeed * RequestedScale;
+    /// <summary>The walk clip in use (NpcGaitData.walks index: 0 normal, 1 relaxed, 2 brisk, batch 2's 3-6), for traces.</summary>
+    public int WalkStyle => EffectiveStyle(out _);
+    /// <summary>The walk asked for over the profile's, for traces: the mood's, else the person's, else Profile.</summary>
+    public Gait RequestedGait => moodGait != Gait.Profile ? moodGait : personGait;
+    /// <summary>The leg is a hurried one (a storm-out): it set off at once, turning on the way.</summary>
+    public bool Hurried => hurried;
     /// <summary>The natural speed of the walk clip in use at this body's scale, m/s.</summary>
-    public float ClipSpeed => gait != null && gait.HasWalk(walkStyle)
-        ? gait.ClipSpeed(walkStyle, walkClipSpeed / Mathf.Max(.1f, transform.lossyScale.y)) * transform.lossyScale.y
-        : walkClipSpeed;
+    public float ClipSpeed
+    {
+        get
+        {
+            int style = EffectiveStyle(out _);
+            return gait != null && gait.HasWalk(style)
+                ? gait.ClipSpeed(style, walkClipSpeed / Mathf.Max(.1f, transform.lossyScale.y)) * transform.lossyScale.y
+                : walkClipSpeed;
+        }
+    }
 
     /// <summary>
     /// Take on a movement profile (pass 2): speed, acceleration, turning and
@@ -283,17 +319,98 @@ public sealed class NpcLocomotion : MonoBehaviour
         profileUrgency = profile.urgency;
         walkStyle = gait != null && gait.HasWalk((int)profile.walkStyle) ? (int)profile.walkStyle : 0;
         ApplyAgentSettings();
-        if (animator != null && animator.runtimeAnimatorController != null)
+        ApplyStyle(true);
+    }
+
+    /// <summary>
+    /// Who they are as a walker, over the profile (NpcSocial, from the archetype: a Rushed customer hurries, an
+    /// Impatient one is brisk), for the whole visit, the street walk included. Gait.Profile: the profile's walk.
+    /// <paramref name="speedScale"/> multiplies the walking speed (1 = unchanged).
+    /// </summary>
+    public void SetPersonGait(Gait walk, float speedScale = 1f)
+    {
+        personGait = walk;
+        personScale = Mathf.Clamp(speedScale, .5f, 2f);
+        ApplyAgentSettings();
+        ApplyStyle(true);
+    }
+
+    /// <summary>
+    /// The mood of the next legs (the brains, 12 Oct 2026): a storm-out is Brisk and hurried (it sets off at once, turning
+    /// on the way instead of on the spot first), a happy customer with a perfect repair strolls (Relaxed), patrons
+    /// stroll. Gait.Profile puts the person's own walk back. Presentation only.
+    /// </summary>
+    public void RequestWalk(Gait walk, float speedScale = 1f, bool hurry = false)
+    {
+        moodGait = walk;
+        moodScale = Mathf.Clamp(speedScale, .5f, 2f);
+        hurried = hurry;
+        ApplyAgentSettings();
+        ApplyStyle(false);
+    }
+
+    private float RequestedScale => (moodGait != Gait.Profile ? moodScale : personGait != Gait.Profile ? personScale : 1f) * FallbackPace;
+
+    // Batch 2's walks before they are baked: Brisk at a higher pace (hurry 1.18, jog 1.35, run 1.7, angry 1.12).
+    private float FallbackPace
+    {
+        get
         {
-            CheckAnimator();
-            if (hasWalkStyle) animator.SetFloat(WalkStyleHash, walkStyle);
+            Gait asked = RequestedGait;
+            if (asked == Gait.Profile || gait != null && gait.HasWalk((int)asked)) return 1f;
+            switch (asked)
+            {
+                case Gait.Hurry: return 1.18f;
+                case Gait.Jog: return 1.35f;
+                case Gait.Run: return 1.7f;
+                case Gait.Angry: return 1.12f;
+                default: return 1f;
+            }
         }
+    }
+
+    // The walk clip to play: the mood's, else the person's, else the profile's; one that is not baked falls back to
+    // Brisk (batch 2's walks), and Brisk to the profile's when even that is missing.
+    private int EffectiveStyle(out bool fallback)
+    {
+        fallback = false;
+        Gait asked = RequestedGait;
+        if (asked == Gait.Profile) return walkStyle;
+        int style = (int)asked;
+        if (gait != null && gait.HasWalk(style)) return style;
+        fallback = true;
+        return gait != null && gait.HasWalk((int)Gait.Brisk) ? (int)Gait.Brisk : walkStyle;
+    }
+
+    // The WalkStyle parameter: at once when a person is made or takes on a profile, eased over a third of a second
+    // between walks mid-visit (the blend tree blends the two walks; the rate follows the walk aimed at).
+    private void ApplyStyle(bool atOnce)
+    {
+        if (animator == null || animator.runtimeAnimatorController == null) return;
+        CheckAnimator();
+        if (!hasWalkStyle) return;
+        int style = EffectiveStyle(out _);
+        if (atOnce || styleShown < 0f)
+        {
+            styleShown = style;
+            animator.SetFloat(WalkStyleHash, style);
+        }
+    }
+
+    private void EaseStyle(float dt)
+    {
+        if (!hasWalkStyle || animator == null) return;
+        int style = EffectiveStyle(out _);
+        if (styleShown < 0f) { styleShown = style; animator.SetFloat(WalkStyleHash, style); return; }
+        if (Mathf.Approximately(styleShown, style)) return;
+        styleShown = Mathf.MoveTowards(styleShown, style, dt / .35f);
+        if (animator.isActiveAndEnabled) animator.SetFloat(WalkStyleHash, styleShown);
     }
 
     private float TurnSpeed => turnSpeed * profileTurn;
     private float TurnSmoothing => Mathf.Clamp(turnSmoothing / Mathf.Max(.5f, profileTurn), .02f, .6f);
-    // A hurried person steps off sooner; a relaxed one finishes the turn first.
-    private float TurnFirstMax => Mathf.Max(turnFirstMax, turnOnSpotMax) * (1.2f - .5f * profileUrgency);
+    // A hurried person steps off sooner; a relaxed one finishes the turn first. A hurried leg (a storm-out) barely turns.
+    private float TurnFirstMax => hurried ? .22f : Mathf.Max(turnFirstMax, turnOnSpotMax) * (1.2f - .5f * profileUrgency);
     private float SpotTurnSpeed => turnOnSpotSpeed * profileTurn;
 
     private void Awake()
@@ -335,7 +452,7 @@ public sealed class NpcLocomotion : MonoBehaviour
         if (agent == null) return;
         agent.updateRotation = false;   // the body's heading is this component's
         agent.autoBraking = true;
-        agent.speed = baseSpeed * speedMultiplier * profileSpeed;
+        agent.speed = baseSpeed * speedMultiplier * profileSpeed * RequestedScale;
         agent.acceleration = setOffUntil > 0f ? Mathf.Min(acceleration, setOffAcceleration) * profileAcceleration : acceleration * profileAcceleration;
     }
 
@@ -426,7 +543,9 @@ public sealed class NpcLocomotion : MonoBehaviour
         Vector3 route = RouteDirection();
         float angle = route.sqrMagnitude > 1e-4f ? Vector3.Angle(Flat(transform.forward), route) : 0f;
         float moving = Mathf.Max(Speed, bodySpeed);
-        if (angle < turnFirstBeyond)
+        // A hurried leg (a storm-out, 12 Oct 2026) sets off at once for anything short of an about-turn: the turn is
+        // walked, the way an angry person leaves, not stepped round first.
+        if (angle < (hurried ? 110f : turnFirstBeyond))
         {
             turningFirst = false;
             // Straight off: from a standstill the first steps build up; already
@@ -480,7 +599,7 @@ public sealed class NpcLocomotion : MonoBehaviour
         Vector3 route = agent.hasPath && !agent.pathPending ? Flat(agent.steeringTarget - transform.position) : Flat(goal - transform.position);
         if (route.sqrMagnitude < 1e-4f) route = Flat(goal - transform.position);
         float angle = route.sqrMagnitude > 1e-4f ? Vector3.Angle(Flat(transform.forward), route) : 0f;
-        if ((angle <= (crowdedTurn ? 75f : setOffWithin) && !agent.pathPending) || Time.time >= turnFirstUntil)
+        if ((angle <= (hurried ? 95f : crowdedTurn ? 75f : setOffWithin) && !agent.pathPending) || Time.time >= turnFirstUntil)
         {
             turningFirst = false;
             agent.isStopped = false;
@@ -581,6 +700,7 @@ public sealed class NpcLocomotion : MonoBehaviour
         }
 
         float dt = Time.deltaTime;
+        EaseStyle(dt);
         if (setOffUntil > 0f && Time.time >= setOffUntil) EndSetOff();
         if (hasGoal && !paused && turningFirst) TurnFirst(dt);
         if (hasGoal && !paused) { WatchProgress(); WatchStall(); }
@@ -903,7 +1023,11 @@ public sealed class NpcLocomotion : MonoBehaviour
             if (p.nameHash == WalkRateHash && p.type == AnimatorControllerParameterType.Float) hasWalkRate = true;
             if (p.nameHash == WalkStyleHash && p.type == AnimatorControllerParameterType.Float) hasWalkStyle = true;
         }
-        if (hasWalkStyle) animator.SetFloat(WalkStyleHash, walkStyle);
+        if (hasWalkStyle)
+        {
+            styleShown = EffectiveStyle(out _);
+            animator.SetFloat(WalkStyleHash, styleShown);
+        }
     }
 
     private void Animate(float speed, bool mayWalk, bool stoppedNow, float dt, bool steppingRound = false)

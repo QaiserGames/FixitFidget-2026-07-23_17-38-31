@@ -16,4 +16,4 @@ MonoBehaviour:
   description: Screws come out faster.
   type: 1
   valuePerLevel: 0.3
-  costPerLevel: 5e01000084030000d0070000
+  costPerLevel: 7d00000045010000bc020000

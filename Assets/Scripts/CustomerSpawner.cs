@@ -73,6 +73,19 @@ public class CustomerSpawner : MonoBehaviour
              "0 = the old opening (a quiet 4-9 s, then the whole walk in).")]
     [SerializeField, Min(0f)] private float openerMetresOut = 3f;
 
+    // LAST ORDERS (12 Oct 2026; the playtesters' #9, the Producer's call: nobody new reaches the till after closing,
+    // everyone already inside is served). On the human-speed Day 5 two walk-ins who set off before 8 PM reached the
+    // till 6.5 and 11.7 s after it, and service ran 67 s past closing. The clock already stops arrivals at closing and
+    // CafeArrivals turns back anyone still on the street then; what let them through was the walk itself: a walk-in
+    // needs 25-61 s (median about 38) from the street to the till, through the door and a look round the room. So no
+    // walk-in sets off with less than the longest walk left on the clock. The authored phases are read at the till
+    // (CounterFraction), so Last orders still gets its arrivals: only the ones who would have come after 8 PM go.
+    [Tooltip("Last orders for walk-ins: none sets off with less than this long left on the clock (seconds), or less than " +
+             "today's longest measured walk to the till if that is longer: the walk from the street to the till, through the " +
+             "door and the look round (measured 10-11 Oct: 25-61 s, the far door about 45-51 s). Named visits keep their own " +
+             "rules; whoever is inside is served. The LAST ORDERS sign is its own, earlier warning.")]
+    [SerializeField, Min(0f)] private float lastOrdersLeadSeconds = 45f;   // 55 in the first draft; 45 keeps more of a 180 s day hectic (QA, 13 Oct), the longest walk raises it
+
     [Tooltip("Radius around the spawn point that arrivals appear within.")]
     [SerializeField] private float spawnScatter = 1.2f;
 
@@ -146,6 +159,10 @@ public class CustomerSpawner : MonoBehaviour
     private int leadSamples;
     private readonly List<(CustomerBrain brain, float since)> walkingIn = new();
     private const float LongestLeadSeconds = 90f;    // a walk cut short or a day that stood still: not a measurement
+    // Last orders (12 Oct): the longest walk to the till measured this session (0 until one is), and when today's last
+    // orders for walk-ins were called (seconds into the day; -1 until they are).
+    private float longestLead;
+    private float lastOrdersCalledAt = -1f;
     // The day's first arrival, already on the way (openerMetresOut): spawned a beat into the day, never on the frame the
     // day changes (CafeArrivals clears its walkers when it sees a new day).
     private bool openerPending;
@@ -227,6 +244,21 @@ public class CustomerSpawner : MonoBehaviour
     /// <summary>How many walks in have been measured this session (reports).</summary>
     public int LeadSamples => leadSamples;
 
+    /// <summary>The longest walk from the street to the till measured this session, seconds (0 until one is).</summary>
+    public float LongestWalkMeasured => longestLead;
+
+    /// <summary>
+    /// Last orders for walk-ins (12 Oct, #9): how long before closing the last walk-in may set off, seconds: the longest
+    /// walk to the till (Last Orders Lead Seconds, or today's longest measured walk if that is longer).
+    /// </summary>
+    public float LastOrdersLead => Mathf.Max(lastOrdersLeadSeconds, longestLead);
+
+    /// <summary>True once no walk-in may set off any more today: less than the longest walk is left on the clock.</summary>
+    public bool LastOrdersForWalkIns => DayClock.Instance != null && DayClock.Instance.TimeRemaining <= LastOrdersLead;
+
+    /// <summary>When today's last orders for walk-ins were called, seconds into the day; -1 until they are (reports).</summary>
+    public float LastOrdersCalledAt => lastOrdersCalledAt;
+
     /// <summary>Today's authored day, or null (reports and the day-shape check).</summary>
     public DayDefinition Today => today;
 
@@ -293,6 +325,7 @@ public class CustomerSpawner : MonoBehaviour
             opening.Reset(guide);
             lastPhase = "";
             walkingIn.Clear();
+            lastOrdersCalledAt = -1f;
             // Playtest 4: the day's first arrival is already on the street when the café opens (TryArriveNearTheDoor),
             // so the till sees them about 12 s in instead of 40. Without the arrivals system they would appear at the
             // door in view, and the guided Day 1 lesson paces itself: both keep the old quiet opening.
@@ -361,7 +394,24 @@ public class CustomerSpawner : MonoBehaviour
             // kept the officer's coffee (written for 35% of the day) out until 6:47 PM, behind Grace and one walk-in.
             // Never past six in the café (occupancy-and-pacing.md), and never without a place at the counter (below).
             WhoIsDue(out bool featuredDue, out bool morningDue, out bool wordDue, out int storyDue);
-            if (featuredDue || morningDue || wordDue || storyDue >= 0) cap = Mathf.Max(cap, MostCustomersEver);
+            bool named = featuredDue || morningDue || wordDue || storyDue >= 0;
+            if (named) cap = Mathf.Max(cap, MostCustomersEver);
+
+            // Last orders for walk-ins (12 Oct, #9): with less than the longest walk left on the clock, a walk-in setting
+            // off now would reach the till after closing, so none does. A named visit keeps its own rule (it is due by
+            // the day's authored time, read at the till, so it is normally in long before this).
+            if (!named && LastOrdersForWalkIns)
+            {
+                if (lastOrdersCalledAt < 0f)
+                {
+                    lastOrdersCalledAt = SecondsNow;
+                    Debug.Log($"[Day {lastSeenDay}] last orders for walk-ins: {DayClock.Instance.TimeRemaining:0} s before closing " +
+                              $"(the walk to the till takes up to {LastOrdersLead:0} s" +
+                              $"{(longestLead > 0f ? $", the longest measured today {longestLead:0} s" : "")}). " +
+                              "Nobody new reaches the till after closing; everyone inside is served.");
+                }
+                return;
+            }
         }
 
         int living = FindObjectsByType<CustomerBrain>(
@@ -561,6 +611,8 @@ public class CustomerSpawner : MonoBehaviour
             if (took <= 0f || took > LongestLeadSeconds || leadLearning <= 0f) continue;
             measuredLead = measuredLead > 0f ? Mathf.Lerp(measuredLead, took, leadLearning) : took;
             leadSamples++;
+            // The longest walk is what last orders go by (12 Oct): someone CAN take this long to the till.
+            longestLead = Mathf.Max(longestLead, took);
         }
     }
 

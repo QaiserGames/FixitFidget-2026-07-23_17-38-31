@@ -277,11 +277,13 @@ public static class Playtest4ProducerSteps
                 run.Check(coarse.Count == 0, $"the café life setup's test: no walkable NavMesh between 0.2 and 0.9 m that people can walk up onto ({samples} connected samples; {islands} unreachable island samples ignored)");
                 List<Plateau> fine = FindPlateaus(.25f, out int fineIslands, out int fineSamples);
                 run.Check(fine.Count == 0, $"on a 0.25 m grid too ({fineSamples} connected samples{(fine.Count > 0 ? ", the first at " + Where(fine[0]) : "")}; {fineIslands} island samples ignored)");
+                // 26 seats and 33 places since the reading corner (Lived in 2, 13 Oct 2026); 24 and 31 without it.
+                bool corner = Object.FindObjectsByType<CafeRedesignRecord>(FindObjectsInactive.Include).Any(r => r != null && r.step == CafeLivedInSteps.Title);
                 string layout = AcesCafeLayoutSetup.ValidateLayout();
-                run.Check(layout.Contains("24 seats") && layout.EndsWith("PASS", System.StringComparison.Ordinal),
+                run.Check(layout.Contains(corner ? "26 seats" : "24 seats") && layout.EndsWith("PASS", System.StringComparison.Ordinal),
                     "every seat, waiting spot, queue place and station is still reached from the spawn: " + layout);
                 string circulation = AcesCafeLayoutSetup.ValidateOccupiedCirculationV2();
-                run.Check(circulation.Contains("31/31") && circulation.Contains("PASS"), "the occupied-circulation guard: " + circulation);
+                run.Check(circulation.Contains(corner ? "33/33" : "31/31") && circulation.Contains("PASS"), "the occupied-circulation guard: " + circulation);
                 // Where and how the routes changed. A pot that is Not Walkable is walked round: the floor within its reach plus
                 // the agent's radius leaves the routes; the ramps the bake had laid up its rounded sides (sloped polygons
                 // reaching a metre and more over the bare floor) come down to the floor. Nothing else may change, and no cell

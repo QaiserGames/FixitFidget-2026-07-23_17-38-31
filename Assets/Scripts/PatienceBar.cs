@@ -9,7 +9,7 @@ using UnityEngine;
 //
 // PLAYTEST 4 (10 Oct 2026; the first-hour playtester's #3): the bar used to be this object's own 0.6 x 0.08 m strip in the
 // world, 23-26 x 3 px from the default camera ("a red dot by the end"). While playing it is now drawn on the pins' screen
-// over the person's head (UiPins), the same size at any zoom and in first person (56 x 7 px at 1080p), coloured the way the
+// over the person's head (UiPins), the same size at any zoom and in first person (UiPins.BarWidth x BarHeight at 1080p: 72 x 9 at BarScale 1.3, 13 Oct 2026), coloured the way the
 // ticket's meter is, with the job's colour beside it once their job is taken. The strip in the world is put away while
 // playing; in Edit Mode, or in a scene with nothing to draw the pins, it is drawn as it always was.
 // ---------------------------------------------------------------------------

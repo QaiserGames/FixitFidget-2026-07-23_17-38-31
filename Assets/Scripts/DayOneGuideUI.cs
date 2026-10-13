@@ -160,6 +160,8 @@ public class DayOneGuideUI : MonoBehaviour
 
     private void LateUpdate()
     {
+        // The day intro (13 Oct 2026, Cinematics): the cards wait while it plays; the hints' clock (UiClock) is held with it.
+        if (UiPins.DayIntroPlaying) { Show(false); return; }
         DayClock clock = DayClock.Instance;
         float now = UiClock.Now;
         if (clock != null && hintDay != clock.Day)
@@ -646,7 +648,9 @@ public class DayOneGuideUI : MonoBehaviour
     public static string PickUpFromTray(string name, string device) => $"Press {E} to pick up {Possessive(name)} {device} from the intake tray.";
 
     /// <summary>The impatience card: the first time someone waiting on Ace gets frustrated.</summary>
-    public static string ReassureWords(string name) => $"{name} is getting impatient. Walk over and press {E} to reassure.";
+    // 13 Oct 2026 (Systems): from behind the bench, E reaches a frustrated customer at a repair-bar stool over the counter, so the
+    // card no longer says "walk over". PLACEHOLDER COPY.
+    public static string ReassureWords(string name) => $"{name} is getting impatient. Get in reach and press {E} to reassure.";
 
     /// <summary>A customer as a sentence says them: "Grace", "the Officer" (his name is his job).</summary>
     public static string Called(CustomerBrain customer)

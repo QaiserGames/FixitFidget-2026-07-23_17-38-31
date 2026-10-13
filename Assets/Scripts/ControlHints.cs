@@ -50,4 +50,12 @@ public static class ControlHints
     public static string BenchZoom => Pad ? "D-pad up/down" : "Scroll";
     /// <summary>At the bench: the full controls card again, held (BenchCards). Tab, or View / Select on a pad.</summary>
     public static string BenchHelp => Pad ? PadInput.Label(PadButton.Select) : "Tab";
+    /// <summary>
+    /// At the bench: the stick that moves the hand (the pad's cursor). The right one, as everywhere else the right stick
+    /// aims; the left one with the sticks swapped (GameSettings.SwapBenchSticks, 12 Oct: "a setting to swap the sticks").
+    /// </summary>
+    public static string BenchHandStick => GameSettings.SwapBenchSticks ? "Left stick" : "Right stick";
+    /// <summary>At the bench: the stick that turns the device a quarter at a time (and lifts an edge to peek under). The
+    /// left one; the right one with the sticks swapped.</summary>
+    public static string BenchTurnStick => GameSettings.SwapBenchSticks ? "Right stick" : "Left stick";
 }

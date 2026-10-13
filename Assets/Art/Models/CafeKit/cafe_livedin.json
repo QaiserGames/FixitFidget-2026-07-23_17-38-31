@@ -1,0 +1,616 @@
+{
+ "version": 1,
+ "kit": "cafe_livedin",
+ "note": "Unity (x, y, z) = Blender (-x, z, -y); the front of each piece faces Unity +Z as built. The lived-in pass (findings 12 Oct, section 8), built by Tools/Blender/cafe_livedin.py; textures by cafe_livedin_textures.py into Assets/Art/Textures/Cafe/LI_*.png. collider: the piece's solid in its own Unity frame ({centre, size}, cafe_seating.json's form), null for none. A y of 0 in a place line means the floor's top: find it by a ray down, as CafeFurnishing.Mat does (TopAt); where the bench and drink mats lie it is 0.0165, and a rug set at y 0 there would sit under the floor. The kid's drawing's words are PLACEHOLDER COPY (THANK YOU ACE!, LILY 6).",
+ "pieces": [
+  {
+   "name": "LI_Rug_Corner",
+   "group": "Floor",
+   "what": "flatweave rug 1.60 x 1.10, 10 mm, oat with rust and charcoal stripes near the ends (texture)",
+   "stretch": false,
+   "tris": 20,
+   "size": [
+    1.6,
+    0.01,
+    1.1
+   ],
+   "bottom": 0.0,
+   "back": 0.55,
+   "materials": [
+    "LI_RugCorner"
+   ],
+   "islands": 1,
+   "origin": "bottom centre",
+   "place": "the reading corner, where people sit softly: under a low table between two soft seats, never under chairs that slide. The caf\u00e9 has no corner like that since the redesign; a free one: the front-west corner beside the fiddle-leaf fig, about (-5.5, 0, 2.0), long side along x (clear of the fig at (-6.85, 0, 0.75) and the banquette's south end at z 3.62). On the floor, no turn needed",
+   "collider": null,
+   "references": [
+    "https://www.bunnings.com.au/aura-flatwoven-designer-wool-rug-6237-ivory-black-110x160cm_p1107701",
+    "https://www.ikea.com/gb/en/p/-40456757/"
+   ],
+   "label": {
+    "material": "LI_RugCorner",
+    "faces": 1,
+    "size_m": [
+     1.6,
+     1.1
+    ],
+    "uv": "0..1 over the top, u along the rug's length (x), v across it, as seen from above with the front at the bottom; the chamfers take the picture's outer 4 mm (the hems), the sides and the bottom one hem texel"
+   }
+  },
+  {
+   "name": "LI_Rug_Entry",
+   "group": "Floor",
+   "what": "plain coir entry mat 1.20 x 0.70 x 0.017 on a black PVC back (texture)",
+   "stretch": false,
+   "tris": 32,
+   "size": [
+    1.202,
+    0.017,
+    0.702
+   ],
+   "bottom": 0.0,
+   "back": 0.351,
+   "materials": [
+    "LI_CoirMat",
+    "CF_Black"
+   ],
+   "islands": 2,
+   "origin": "bottom centre",
+   "place": "inside the door. CK_EntryMosaic covers z 0.20-1.40 from the threshold, so the mat lies on the door's inner side past it, its near edge on the mosaic's inner edge: about (0, 0, 1.78), long side along x. If the mosaic should stay the only entry floor, leave this one out (Environment's call)",
+   "collider": null,
+   "references": [
+    "https://www.coba.com/za/product/coir"
+   ],
+   "label": {
+    "material": "LI_CoirMat",
+    "faces": 1,
+    "size_m": [
+     1.2,
+     0.7
+    ],
+    "uv": "0..1 over the top as seen from above (u along x, v along y), the chamfer the picture's cut edge; the sides one coir texel; the PVC backing is CF_Black"
+   }
+  },
+  {
+   "name": "LI_TillMat",
+   "group": "Floor",
+   "what": "black anti-fatigue mat 0.914 x 0.610 x 0.0127 (36 x 24 x 1/2 in), bevelled, drainage holes (texture)",
+   "stretch": false,
+   "tris": 20,
+   "size": [
+    0.914,
+    0.013,
+    0.61
+   ],
+   "bottom": 0.0,
+   "back": 0.305,
+   "materials": [
+    "LI_RubberMat"
+   ],
+   "islands": 1,
+   "origin": "bottom centre",
+   "place": "behind the till where Ace stands: CounterStandPoint is at (-0.26, 0, 14.54); about (-0.20, 0, 14.62), long side along x, on the floor where the bench and drink mats lie (their y is 0.0165)",
+   "collider": null,
+   "references": [
+    "https://www.restaurantware.ae/products/serve-secure-beveled-edge-floor-mat-black-2x3-foot-1-count-box",
+    "https://wincous.com/products/rbm-35k"
+   ],
+   "label": {
+    "material": "LI_RubberMat",
+    "faces": 5,
+    "size_m": [
+     0.914,
+     0.61
+    ],
+    "uv": "0..1 over the top and the bevelled ramp as seen from above (the ramp is the picture's outer 25 mm); the 1.5 mm lip one ramp texel"
+   }
+  },
+  {
+   "name": "LI_NapkinDispenser",
+   "group": "Tables",
+   "what": "brushed-steel napkin dispenser, two-faced, 0.165 x 0.100 x 0.150, the stack in its windows",
+   "stretch": false,
+   "tris": 128,
+   "size": [
+    0.165,
+    0.15,
+    0.123
+   ],
+   "bottom": 0.0,
+   "back": 0.05,
+   "materials": [
+    "DC_Steel",
+    "DC_Chalk",
+    "CF_Black"
+   ],
+   "islands": 5,
+   "origin": "bottom centre (on the table top)",
+   "place": "one per table, on the top (the 2-tops and the communal table are 0.75 high): at the table's middle or its wall end, clear of every seat's cup spot (TableSeat.CupSpot); either face may face a seat",
+   "collider": {
+    "centre": [
+     -0.0,
+     0.075,
+     -0.0
+    ],
+    "size": [
+     0.165,
+     0.15,
+     0.1
+    ]
+   },
+   "references": [
+    "https://www.sustainablesupply.com/products/palmer-fixture-table-top-minifold-napkin-dispenser-bs-nd0055-13-c1966647",
+    "https://www.gofoodservice.com/p/dixie-51602"
+   ]
+  },
+  {
+   "name": "LI_CondimentStation",
+   "group": "Counter",
+   "what": "self-serve condiment tray 0.60 x 0.30: napkins, lids, sleeves, sugar caddy, stirrers, milk jug",
+   "stretch": false,
+   "tris": 442,
+   "size": [
+    0.6,
+    0.162,
+    0.3
+   ],
+   "bottom": 0.0,
+   "back": 0.15,
+   "materials": [
+    "CC_Wood_Counter",
+    "DC_Chalk",
+    "CF_Black",
+    "CF_Kraft",
+    "LI_CupPaper",
+    "DC_Steel"
+   ],
+   "islands": 13,
+   "origin": "bottom centre of the tray",
+   "place": "on the front counter's stone top at the pickup end, between the intake shelf (its last tray ends at x 1.74) and the pastry case (x 3.2), about (2.85, 1.095, 13.50), turned 180 degrees so its front faces the customers (the water station's way)",
+   "collider": {
+    "centre": [
+     -0.0,
+     0.015,
+     -0.0
+    ],
+    "size": [
+     0.6,
+     0.03,
+     0.3
+    ]
+   },
+   "references": [
+    "https://demo.dealercommander.com/ORGANIZER-CF-CNDMNT-14-BK/EMS-MIND-READER-LLC/EMSCOMORG02BLK/details.php",
+    "https://argo.webstaurantstore.com/american-metalcraft-pws4-4-natural-poplar-wood-sugar-caddy/124PWS4.html",
+    "https://sabert.com/sites/default/files/catalog-files/Kraft-CupSleeves.pdf",
+    "https://shop.boelter.com/kitchen-supplies-s/steamtable-accessories/plastic-lids-acces/cups-lids/lid-plas-dome-sip-f-12-20oz-hot-cup-blk.html",
+    "https://imperialdade.com/catalog/product-detail/coffee-coffee-stirrer-5-5x0-2x0-04-in-wood-natural-wrapped-1000-count-pack-10-packs-case-10000-count-case-packnwood-210SPATBE?id=114572",
+    "https://www.katom.com/482-83706.html"
+   ]
+  },
+  {
+   "name": "LI_BinStation",
+   "group": "Bins",
+   "what": "San Francisco's three-stream station 0.956 x 0.430 x 0.851: RECYCLING, COMPOST, LANDFILL (labels textured)",
+   "stretch": false,
+   "tris": 486,
+   "size": [
+    0.956,
+    0.851,
+    0.432
+   ],
+   "bottom": 0.0,
+   "back": 0.215,
+   "materials": [
+    "CF_Black",
+    "DC_Steel",
+    "LI_RecycleBlue",
+    "LI_BinLabels",
+    "LI_CompostGreen"
+   ],
+   "islands": 12,
+   "origin": "bottom centre (the back at y +0.215)",
+   "place": "inside, near the door where leaving guests pass, its back to a wall: e.g. against the front wall's inner face west of the door beside the olive tree, about (-2.75, 0, 0.24) with no turn (it faces the room), or on the west wall's free stretch (z 1.3-3.5) at about (-7.17, 0, 2.4) turned 90 degrees. It stands 7 cm above the 0.78 sill: fine in front of a window",
+   "collider": {
+    "centre": [
+     -0.0,
+     0.4255,
+     0.001
+    ],
+    "size": [
+     0.956,
+     0.851,
+     0.432
+    ]
+   },
+   "references": [
+    "https://uk.glasdon.com/recycling-bins/triple-recycling-units/nexus-evolution-recycling-stations/nexus-evolution-trio-recycling-bin",
+    "https://sfenvironment.org/mandatory-recycling-and-composting-ordinance",
+    "https://missionlocal.org/2009/09/newsoms-trash-math-fewer-cans-less-trash/"
+   ],
+   "label": {
+    "material": "LI_BinLabels",
+    "faces": 3,
+    "size_m": [
+     0.24,
+     0.3
+    ],
+    "uv": "three plates share the texture: the left plate (RECYCLING) maps to the left third, COMPOST the middle, LANDFILL the right (columns round(k*1024/3)..round((k+1)*1024/3), inset 3 px); u to the reader's right, v up, on each plate's front; its edges one border texel of its own third"
+   }
+  },
+  {
+   "name": "LI_StreetBin",
+   "group": "Street",
+   "what": "the city's green litter can, round, 0.676 x 1.0: grillwork, a dome lid, a hooded mouth",
+   "stretch": false,
+   "tris": 672,
+   "size": [
+    0.676,
+    0.998,
+    0.699
+   ],
+   "bottom": 0.0,
+   "back": 0.338,
+   "materials": [
+    "LI_StreetGreen",
+    "CF_Black"
+   ],
+   "islands": 26,
+   "origin": "bottom centre",
+   "place": "outside on the pavement near the caf\u00e9's door, by the kerb, the mouth toward the pavement (no turn: it faces +z, turn it 180 degrees to face the caf\u00e9); clear of the patio, the bench and the A-frame at (3.48, 0, -2.32)",
+   "collider": {
+    "centre": [
+     -0.0,
+     0.499,
+     0.0115
+    ],
+    "size": [
+     0.676,
+     0.998,
+     0.699
+    ]
+   },
+   "references": [
+    "https://forms-surfaces.com/urban-renaissance-litter-recycling-receptacle",
+    "https://www.kqed.org/news/11906815/the-sordid-saga-of-san-franciscos-trash-cans",
+    "https://sfgov.org/arts/sites/default/files/SFTRASHCAN_PRES_092120.pdf"
+   ]
+  },
+  {
+   "name": "LI_Laptop_Open",
+   "group": "People",
+   "what": "plain 14 in laptop, open at 110 degrees, the screen on, no brand",
+   "stretch": false,
+   "tris": 184,
+   "size": [
+    0.314,
+    0.223,
+    0.307
+   ],
+   "bottom": 0.0,
+   "back": 0.194,
+   "materials": [
+    "DC_Steel",
+    "CF_Black",
+    "DC_SteelDark",
+    "LI_Screen"
+   ],
+   "islands": 6,
+   "origin": "bottom centre of the base",
+   "place": "on a table in front of a seated patron, its front (the keyboard's edge) toward the seat, 6-10 cm in from the table's edge; it takes the place of the cup spot's neighbourhood, not the spot itself",
+   "collider": {
+    "centre": [
+     -0.0,
+     0.1115,
+     -0.0405
+    ],
+    "size": [
+     0.314,
+     0.223,
+     0.307
+    ]
+   },
+   "references": [
+    "https://www.dell.com/en-ie/shop/laptop-computers-2-in-1-pcs/dell-14-laptop/spd/dell-dc14255-laptop"
+   ]
+  },
+  {
+   "name": "LI_Laptop_Closed",
+   "group": "People",
+   "what": "the same laptop, shut",
+   "stretch": false,
+   "tris": 148,
+   "size": [
+    0.314,
+    0.017,
+    0.227
+   ],
+   "bottom": 0.0,
+   "back": 0.114,
+   "materials": [
+    "DC_Steel",
+    "CF_Black"
+   ],
+   "islands": 3,
+   "origin": "bottom centre of the base",
+   "place": "on a table (a patron arriving or packing up), or on a seat",
+   "collider": {
+    "centre": [
+     -0.0,
+     0.0085,
+     -0.0005
+    ],
+    "size": [
+     0.314,
+     0.017,
+     0.227
+    ]
+   },
+   "references": [
+    "https://www.dell.com/en-ie/shop/laptop-computers-2-in-1-pcs/dell-14-laptop/spd/dell-dc14255-laptop"
+   ]
+  },
+  {
+   "name": "LI_ToteBag",
+   "group": "People",
+   "what": "natural canvas tote 0.38 x 0.15 x 0.32, slumped, its handles flopped",
+   "stretch": false,
+   "tris": 292,
+   "size": [
+    0.384,
+    0.316,
+    0.173
+   ],
+   "bottom": 0.0,
+   "back": 0.093,
+   "materials": [
+    "DC_Chalk",
+    "DC_Fabric"
+   ],
+   "islands": 3,
+   "origin": "bottom centre",
+   "place": "at a seated patron's chair foot, on the floor, leaning: e.g. 0.30 m to the side of the chair's centre, turned to taste",
+   "collider": null,
+   "references": [
+    "https://www.walmart.com/ip/6003288447"
+   ]
+  },
+  {
+   "name": "LI_Coat_OnChair",
+   "group": "People",
+   "what": "slate-blue chore coat hung over a chair back by its shoulders, corduroy collar",
+   "stretch": false,
+   "tris": 284,
+   "size": [
+    0.646,
+    0.708,
+    0.157
+   ],
+   "bottom": 0.205,
+   "back": 0.371,
+   "materials": [
+    "DC_Ink",
+    "DC_Fabric"
+   ],
+   "islands": 3,
+   "origin": "the chair's origin (the floor under the chair's centre): built on CK_Chair_Cafe's top rail",
+   "place": "a child of the chair: on a CK_Chair_Cafe at local (0, 0, 0), rotation 0; on a CK_Chair_Spindle at local (0, -0.0324, 0.0208), rotation 0. It hangs behind the chair (the walking side), 0.31 m deep at the hem",
+   "collider": null,
+   "references": [
+    "https://www.bostongeneralstore.com/pages/le-laboureur-cotton-chore-coat-size-chart",
+    "Tools/Blender/cafe_seating.py (chair_cafe, chair_spindle: the two top rails, measured)"
+   ],
+   "fits": {
+    "CK_Chair_Cafe": {
+     "local_position_unity": [
+      -0.0,
+      0.0,
+      -0.0
+     ],
+     "local_rotation": [
+      0,
+      0,
+      0
+     ]
+    },
+    "CK_Chair_Spindle": {
+     "local_position_unity": [
+      -0.0,
+      -0.0324,
+      0.0208
+     ],
+     "local_rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "name": "LI_KidsDrawing",
+   "group": "Wall",
+   "what": "a child's crayon thank-you drawing of the caf\u00e9, US letter landscape, pinned (texture)",
+   "stretch": false,
+   "tris": 30,
+   "size": [
+    0.279,
+    0.216,
+    0.009
+   ],
+   "bottom": 0.0,
+   "back": 0.001,
+   "materials": [
+    "LI_KidsDrawing",
+    "CF_PinYellow"
+   ],
+   "islands": 2,
+   "origin": "bottom centre of the back (the back at y = 0)",
+   "place": "on CK_NoticeBoard (the east pier, (7.4, 1.15, 3.5)): a child of the board at local (-0.270, 0.042, 0.0150), turned 3 degrees about the board's normal. It covers the foot of the watch flyer (4.6 cm) and nothing else; its pin is on bare cork",
+   "collider": null,
+   "references": [
+    "US letter, 8.5 x 11 in (ANSI A)",
+    "Tools/Blender/cafe_signs.py (notice_board: the board, its flyers and its push pins)"
+   ],
+   "label": {
+    "material": "LI_KidsDrawing",
+    "faces": 1,
+    "size_m": [
+     0.279,
+     0.216
+    ],
+    "uv": "0..1 on the front of the quad (u to the reader's right, v up); a single quad facing -Y"
+   }
+  },
+  {
+   "name": "LI_LeftCup",
+   "group": "Tables",
+   "what": "the caf\u00e9's paper cup (the game's) left behind with a black sip lid, 0.092 x 0.125",
+   "stretch": false,
+   "tris": 224,
+   "size": [
+    0.092,
+    0.125,
+    0.092
+   ],
+   "bottom": 0.0,
+   "back": 0.046,
+   "materials": [
+    "LI_CupPaper",
+    "CF_Black"
+   ],
+   "islands": 1,
+   "origin": "bottom centre",
+   "place": "on a table at a seat's cup spot (TableSeat.CupSpot), for a moment after its guest leaves",
+   "collider": null,
+   "references": [
+    "Assets/Scripts/DrinkLiquidVisual.cs (BuildShell: the cup the game serves in; PaperColour)",
+    "https://shop.boelter.com/kitchen-supplies-s/steamtable-accessories/plastic-lids-acces/cups-lids/lid-plas-dome-sip-f-12-20oz-hot-cup-blk.html"
+   ]
+  }
+ ],
+ "materials": {
+  "LI_RugCorner": {
+   "hex": "C9B89B",
+   "smoothness": 0.08,
+   "metallic": 0.0,
+   "why": "NEW, textured: the flatweave's top (oat, rust, charcoal; no existing rug material is in the root folder the kit importer searches, and the house kit's HK_Rug_* are flat colours)",
+   "texture": "Assets/Art/Textures/Cafe/LI_RugCorner.png"
+  },
+  "LI_CoirMat": {
+   "hex": "A07545",
+   "smoothness": 0.05,
+   "metallic": 0.0,
+   "why": "NEW, textured: coir bristles (HK_Coir is a flat colour in a sub-folder the importer does not search)",
+   "texture": "Assets/Art/Textures/Cafe/LI_CoirMat.png"
+  },
+  "LI_RubberMat": {
+   "hex": "2B2927",
+   "smoothness": 0.22,
+   "metallic": 0.0,
+   "why": "NEW, textured: black rubber and its drainage holes, smoothness as the bench and drink mats' \"Mat - rubber\" (0.22), which lives in Assets/Art/CafeFurnishing and cannot be mapped by name",
+   "texture": "Assets/Art/Textures/Cafe/LI_RubberMat.png"
+  },
+  "LI_BinLabels": {
+   "hex": "2C67A3",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "NEW, textured: the three stream labels, vinyl stickers (satin)",
+   "texture": "Assets/Art/Textures/Cafe/LI_BinLabels.png"
+  },
+  "LI_KidsDrawing": {
+   "hex": "F7F5EF",
+   "smoothness": 0.05,
+   "metallic": 0.0,
+   "why": "NEW, textured: printer paper and wax crayon",
+   "texture": "Assets/Art/Textures/Cafe/LI_KidsDrawing.png"
+  },
+  "LI_RecycleBlue": {
+   "hex": "2C67A3",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "NEW: the recycling stream's blue (San Francisco's blue cart), moulded plastic"
+  },
+  "LI_CompostGreen": {
+   "hex": "4F8F3A",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "NEW: the compost stream's green, a grass green kept well apart from Ace's teal #2E7D5B"
+  },
+  "LI_StreetGreen": {
+   "hex": "2E4636",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "NEW: the city litter can's dark green powder coat (darker and greyer than Ace's green)"
+  },
+  "LI_CupPaper": {
+   "hex": "E8D9B3",
+   "smoothness": 0.08,
+   "metallic": 0.0,
+   "why": "NEW: the caf\u00e9's paper cup, the exact colour the game draws it in (DrinkLiquidVisual.PaperColour 0.91, 0.85, 0.70, \"Warm ivory paper\", smoothness 0.08); also the birch stirrers"
+  },
+  "LI_Screen": {
+   "hex": "20272D",
+   "smoothness": 0.85,
+   "metallic": 0.0,
+   "why": "NEW: the laptop's screen, glass, on (a dim cool glow: emission 28343D)",
+   "emission": "28343D"
+  }
+ },
+ "existing_materials": {
+  "CC_Wood_Counter": {
+   "hex": "8F5B32",
+   "smoothness": 0.71,
+   "metallic": 0.0,
+   "use": "chestnut, the room's one wood: the condiment tray (Kit 1 maps it to \"Cafe grain - CC_Wood_Counter\")"
+  },
+  "DC_Steel": {
+   "hex": "93908A",
+   "smoothness": 0.5,
+   "metallic": 0.0,
+   "use": "warm steel: the napkin dispenser, the milk jug, the laptop, the bin station's body (Assets/Art/Materials)"
+  },
+  "DC_SteelDark": {
+   "hex": "4E4B47",
+   "smoothness": 0.5,
+   "metallic": 0.0,
+   "use": "dark warm steel: the laptop's trackpad (Assets/Art/Materials)"
+  },
+  "DC_Chalk": {
+   "hex": "E8E4D8",
+   "smoothness": 0.05,
+   "metallic": 0.0,
+   "use": "matte off-white: paper napkins, white sugar packets, the tote's natural canvas (Assets/Art/Materials)"
+  },
+  "DC_Ink": {
+   "hex": "4A4E5A",
+   "smoothness": 0.05,
+   "metallic": 0.0,
+   "use": "a matte slate blue: the coat's cloth (Assets/Art/Materials)"
+  },
+  "DC_Fabric": {
+   "hex": "A8957C",
+   "smoothness": 0.12,
+   "metallic": 0.0,
+   "use": "oat: the coat's corduroy collar, the jumper in the tote (Assets/Art/Materials)"
+  },
+  "CF_Black": {
+   "hex": "2B2724",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "use": "black plastic and powder coat: lids, the sugar caddy, the keyboard and hinge, the bins' liners, the coir mat's PVC back (Assets/Art/Materials/Cafe, made by Kit 1 from cafe_props.json)"
+  },
+  "CF_Kraft": {
+   "hex": "B08A5E",
+   "smoothness": 0.15,
+   "metallic": 0.0,
+   "use": "kraft: cup sleeves, raw-sugar packets (Assets/Art/Materials/Cafe, from cafe_props.json)"
+  },
+  "CF_PinYellow": {
+   "hex": "D9A93A",
+   "smoothness": 0.6,
+   "metallic": 0.0,
+   "use": "the drawing's push pin, the notice board's own pins (Assets/Art/Materials/Cafe, from cafe_signs.json)"
+  }
+ }
+}

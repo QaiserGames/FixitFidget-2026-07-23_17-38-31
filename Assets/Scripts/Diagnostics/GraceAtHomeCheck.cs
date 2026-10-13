@@ -33,11 +33,21 @@ using UnityEngine;
 // light on the pavement checked against her lamps at every step; the noise rings: the rustle's reaching her chair, sneaking
 // against walking near her (photos 18a, 18b), nothing drawn on the street; with Barnaby in Ace's hand her stoop doesn't offer
 // the way in (photo 00); and how long from her "Hm?" to "Caught." in her lamplight.
+//
+// Her front window (12 Oct 2026, playtest 4's ★1, "Grace sees out of her front window"; a fourth mode, Fixit Fidget > Night >
+// Break-ins 7 - Grace at home: her front window): her sight lines out of the glass, said in numbers first (ThroughTheFrontWall:
+// her step is behind the pier from everywhere, the window is 66°-145° off her TV); then Ace in front of her door under the porch
+// light while she watches TV (nothing); her pause at the glass with her tea on the way back from the kettle (11:49); Ace on her
+// step then (out of her sight), at the foot of her steps (seen: how fast, "Hm?", and the nervous player stepping back against
+// her door loses her), crouched there (seen at half the rate: a crouched head is 4.5 cm over her sill), beside the pier and out
+// on the road (where the geometry says); and, staying at the foot of her steps, caught: Ace held from the moment she saw him,
+// her line from the glass, "Caught." naming her window, the night over, the morning. Her night's own mode now checks her two
+// pauses at the window on the way back from the kettle, with Ace parked across the street (out of her reach) meanwhile.
 // ---------------------------------------------------------------------------
 public sealed class GraceAtHomeCheck : MonoBehaviour
 {
     public const string PendingKey = "FixitFidget.GraceAtHome.Check";
-    public enum Mode { Night = 1, Thursday = 2, Cover = 3 }
+    public enum Mode { Night = 1, Thursday = 2, Cover = 3, Window = 4 }
 
     public Mode mode = Mode.Night;
     public string folder;
@@ -57,7 +67,12 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
     GraceAtHome grace;
     NightWalk night;
     SaveManager saves;
-    Vector3 pavement;
+    // Where the lab put Ace at the start (her pavement, 2.4 m out from her doorway), and where Ace is parked between tests: across
+    // the street, beyond her eyes' reach (since 12 Oct she sees the pavement in front of her door from her window; parked there,
+    // Ace would be caught at her first cup of tea).
+    Vector3 pavement, away;
+    // She stands at her front window this long for this lab (her own pause is about 8 s; the probes need longer), put back after.
+    float windowSecondsBefore = -1f;
 
 #if UNITY_EDITOR
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -75,7 +90,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         var go = new GameObject("Grace at home check (this Play session only)");
         var check = go.AddComponent<GraceAtHomeCheck>();
         check.mode = (Mode)asked;
-        string name = check.mode == Mode.Thursday ? "thursday" : check.mode == Mode.Cover ? "cover" : "night";
+        string name = check.mode == Mode.Thursday ? "thursday" : check.mode == Mode.Cover ? "cover" : check.mode == Mode.Window ? "window" : "night";
         check.folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night", $"grace-at-home-{name}-{DateTime.Now:yyyy-MM-dd_HHmmss}"));
     }
 #endif
@@ -86,7 +101,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         if (string.IsNullOrEmpty(folder))
             folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Night", $"grace-at-home-{DateTime.Now:yyyy-MM-dd_HHmmss}"));
         Directory.CreateDirectory(folder);
-        report.AppendLine($"Grace at home - {(mode == Mode.Thursday ? "her Thursday" : mode == Mode.Cover ? "her cover" : "her night, her eyes and her ears")} (a lab session)");
+        report.AppendLine($"Grace at home - {(mode == Mode.Thursday ? "her Thursday" : mode == Mode.Cover ? "her cover" : mode == Mode.Window ? "her front window" : "her night, her eyes and her ears")} (a lab session)");
         report.AppendLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm"));
         report.AppendLine();
         Debug.Log($"[Grace at home check] Running: a few minutes. Hands off the mouse and keyboard until it reports. {folder}");
@@ -129,6 +144,10 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         if (view.FirstPersonSelected) view.SetFirstPerson(false);
         yield return Seconds(1.5f);   // the lab puts Ace at her door; the camera arrives
         pavement = movement.transform.position;
+        // Across the street from her door, beyond her eyes' reach (GraceAtHome.OutsideReach), on the road's far half.
+        away = house.World(1.11f, GraceAtHome.StreetWallInside + GraceAtHome.OutsideReach + .5f, GraceAtHome.Pavement);
+        if (Physics.Raycast(away + Vector3.up * 2f, Vector3.down, out RaycastHit roadHit, 4f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            away.y = roadHit.point.y;
         int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         Check(grace.look != null, $"her look is set ({(grace.look != null ? grace.look.name : "none: POLYGON City isn't on this machine?")})");
         Check(grace.standardLamp != null && grace.bedsideLamp != null && grace.landingLight != null && grace.kitchenLight != null && grace.tvLight != null
@@ -137,6 +156,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         Note(grace.Describe());
         if (mode == Mode.Thursday) yield return HerThursday(day);
         else if (mode == Mode.Cover) yield return HerCover();
+        else if (mode == Mode.Window) yield return HerWindow(day);
         else
         {
             yield return HerNight(day);
@@ -178,7 +198,12 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         yield return Photo("01-11pm-from-the-street-the-tv-on");
         yield return HerHouseFromTheStreet("a", "she's up, the TV on");
 
-        // 11:35: the kettle; 11:45 back to her chair.
+        // Her front window (12 Oct): on the way back from the kettle she stands at the glass; Ace on the pavement in front of
+        // her door would be seen from there, so he's parked across the street for her teas.
+        PutAce(away);
+        Note($"her front window is watched {grace.WindowHours()} (GraceAtHome.windowSeconds {grace.windowSeconds:0.0} s at the glass each time)");
+
+        // 11:35: the kettle; 11:45 back to her chair, by way of her front window.
         night.SetHour(tea - .033f);
         yield return Seconds(.3f);
         Check(grace.Seated, $"{GraceNight.Clock(tea - .033f)}: still in her chair");
@@ -186,7 +211,8 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         CheckLights("at the kettle", standard: true, tv: true, kitchen: true, landing: false, bedside: false);
         yield return Seconds(.4f);
         yield return Photo("02-1135-the-kettle");
-        yield return Until(() => grace.Seated && grace.Step == GraceNight.Act.Sit, 16f, "back in her chair with her tea");
+        yield return HerPauseAtTheWindow("with her tea", "02b-1149-at-her-front-window");
+        yield return Until(() => grace.Seated && grace.Step == GraceNight.Act.Sit, 30f, "then back in her chair with her tea");
         CheckLights("back in her chair", standard: true, tv: true, kitchen: false, landing: false, bedside: false);
 
         // 12:30: another cup (playtest 4: up till 1:20, her routine changes every half-minute or so for whoever waits).
@@ -195,7 +221,8 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         Check(grace.Seated, $"{GraceNight.Clock(secondTea - .033f)}: in her chair");
         yield return Until(() => grace.Spot == GraceHouseMap.Kettle && !grace.Walking && !grace.Seated, 12f, $"{GraceNight.Clock(secondTea)}: up for another cup");
         CheckLights("at the kettle again", standard: true, tv: true, kitchen: true, landing: false, bedside: false);
-        yield return Until(() => grace.Seated && grace.Step == GraceNight.Act.Sit, 16f, "back in her chair with it");
+        yield return HerPauseAtTheWindow("with her second cup", null);
+        yield return Until(() => grace.Seated && grace.Step == GraceNight.Act.Sit, 30f, "then back in her chair with it");
 
         // 1:20: up to bed.
         night.SetHour(bed - .03f);
@@ -248,6 +275,43 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         yield return Photo("05-0240-a-glass-of-water");
         yield return Until(() => grace.InBed && grace.DoorsShut, 30f, "back up the stairs, the doors shut, into bed");
         yield return Until(() => grace.Asleep && !grace.Lit(grace.bedsideLamp), 15f, $"and asleep again (her lamp off at {Clock()})");
+    }
+
+    // Her pause at her front window on the way back from the kettle (12 Oct, playtest 4's ★1): she stops at the window spot,
+    // faces the road in front of her door (GraceAtHome.StreetAhead), stands there about Window Seconds, then goes to her chair.
+    IEnumerator HerPauseAtTheWindow(string what, string photo)
+    {
+        int looks = grace.WindowLooks;
+        yield return Until(() => grace.AtTheWindow && grace.WindowLooks > looks, 20f, $"on her way back {what} she stops at her front window");
+        if (!lastWait) yield break;
+        float at = night.Hour;
+        bool facing = FacesTheStreet(out float off, out float fromStraightOut);
+        Check(grace.Spot == GraceHouseMap.FrontWindow && !grace.Walking && !grace.Seated && facing,
+            $"at the glass at {GraceNight.Clock(at)}, facing the road in front of her door ({off:0}° off it; {fromStraightOut:0}° off straight out, toward her door): {grace.Doing}");
+        if (photo != null)
+        {
+            yield return Seconds(.4f);
+            yield return Photo(photo);
+        }
+        float from = Time.realtimeSinceStartup;
+        yield return Until(() => !grace.AtTheWindow, grace.windowSeconds + 6f, "...and after a moment she turns from it");
+        Note($"she stood at her window {Time.realtimeSinceStartup - from:0.0} s (Window Seconds {grace.windowSeconds:0.0}), {GraceNight.Clock(at)} to {Clock()}");
+    }
+
+    // How far her body faces off the way from her window spot to the road in front of her door (GraceAtHome.StreetAhead,
+    // what she looks at from the glass), degrees; within 10° counts. And how far that is off straight out of her window
+    // (toward her door's side: about 32°), for the report.
+    bool FacesTheStreet(out float off, out float fromStraightOut)
+    {
+        off = 180f;
+        fromStraightOut = 0f;
+        if (grace.Body == null) return false;
+        Vector3 spot = house.World(4.62f, 3.45f);
+        Vector3 toTheRoad = Flat(house.World(GraceAtHome.StreetAhead.x, GraceAtHome.StreetAhead.y) - spot).normalized;
+        Vector3 outward = Flat(house.World(4.62f, 9f) - spot).normalized;
+        off = Vector3.Angle(Flat(grace.Body.forward), toTheRoad);
+        fromStraightOut = Vector3.Angle(Flat(grace.Body.forward), outward);
+        return off < 10f;
     }
 
     // A line of hers on screen now: up and not faded, the barks' canvas showing, and where it is (for the report).
@@ -352,7 +416,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         if (carry != null) carry.Drop();
         if (stand != null) Destroy(stand);
         yield return Until(() => house.DoorPromptShown && interactor.CurrentPrompt == house.DoorPrompt, 3f, "his hand empty, the way in is offered again");
-        PutAce(pavement);
+        PutAce(away);
         yield return Seconds(.4f);
     }
 
@@ -402,7 +466,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         CheckBarkDrawn("her \"Hm?\"");
         yield return Photo("07-the-rustle-hm");
         movement.ScriptedSneak = false;
-        PutAce(pavement);
+        PutAce(away);
         yield return Until(() => grace.Now == GraceAtHome.Mood.Calm && grace.Mark < .3f, 20f, $"Ace gone, she settles ({grace.Doing})");
         yield return Until(() => grace.Seated && grace.WatchingTv, 20f, "back to her TV");
 
@@ -463,7 +527,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         yield return Until(() => grace.Wakes > wakes, 1f, "the creak wakes her (5 m)");
         Check(grace.WokeTo == NoiseKind.Door, $"woken by the doors ({grace.WokeTo})");
         yield return Until(() => grace.DoorsOpen, 1.5f, "the doors open");
-        PutAce(pavement);   // out of her sight before she has a proper look
+        PutAce(away);   // out of her sight before she has a proper look
         yield return Seconds(.5f);
         Check(grace.Catches == 0, $"Ace gone before she saw enough (her mark {grace.Mark:0.00})");
     }
@@ -596,7 +660,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         }
         float markSeen = grace.Mark;
         if (seen) yield return Photo("09-cover-standing-she-sees-ace");
-        PutAce(pavement);
+        PutAce(away);
         Check(seen && grace.Catches == 0, $"standing there, she sees Ace over the bar (her mark {markSeen:0.00})");
         yield return Until(() => grace.Now == GraceAtHome.Mood.Calm && grace.Mark < .3f, 30f, $"Ace gone, she settles ({grace.Doing})");
         yield return Until(() => grace.Spot == GraceHouseMap.Kettle && !grace.Walking, 20f, $"back at the kettle ({grace.Doing})");
@@ -629,7 +693,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
             else yield return null;
         }
         if (sawRound) yield return Photo("09b-cover-she-comes-round-the-bar");
-        PutAce(pavement);
+        PutAce(away);
         // The line she saw Ace along (playtest 4: her eye as it was, in front of her head, not 1.6 m straight over her feet;
         // the point on Ace she saw it by) against the bar as drawn, its furthest reach from the floor to its top (1.12 m):
         // past the bar's end, or over a corner of it, never into it.
@@ -654,7 +718,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         yield return Until(() => !house.Faded("her breakfast bar"), 3f, "behind it from the camera's side, Ace is in plain view: the bar comes back");
 
         // ---- woken in bed: crouched beyond the boxes Ace isn't seen; standing, Ace is ----
-        PutAce(pavement);
+        PutAce(away);
         night.SetHour(Asleep);
         yield return Seconds(.6f);
         Check(grace.Asleep, $"{GraceNight.Clock(Asleep)}: asleep ({grace.Doing})");
@@ -689,7 +753,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
             else yield return null;
         }
         markSeen = grace.Mark;
-        PutAce(pavement);
+        PutAce(away);
         Check(seen && grace.Catches == 0, $"standing there, she sees Ace over the boxes (her mark {markSeen:0.00})");
         movement.ScriptedSneak = false;
         night.ClockHeld = false;
@@ -790,6 +854,287 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
         Note($"the HUD's clock reads \"{HudClock().Replace("\n", " / ")}\"");
         yield return Seconds(.5f);
         yield return Photo("14-the-morning-after-the-hud");
+    }
+
+    // ================================================================== her front window (playtest 4's ★1, 12 Oct 2026)
+
+    // Plan metres. On her step at her door (z 0): the one place in front of her house her window can't show her (the jamb and the
+    // pier), where a careful player waits. Where Ace stands to take Barnaby (1.5 m out, the door's north half). Under her window
+    // where its light lands (behind the north drape from the glass). Across the street, out of her reach. The pavement a step
+    // back from her door (1.0-1.6 m out), seen through one of the window's two middle lights: which of these the glass shows
+    // her depends on her exact eye, so the lab picks one against her eye as it stands there (SeenSpot).
+    static readonly Vector2 OnHerStep = new Vector2(1.11f, 4.78f), BarnabySpot = new Vector2(1.73f, 5.55f), UnderHerWindow = new Vector2(3.76f, 5.70f),
+        InFrontOfHerDoor = new Vector2(1.11f, 6.20f);
+    static readonly Vector2[] AStepBack = { new Vector2(1.20f, 5.50f), new Vector2(1.11f, 5.60f), new Vector2(1.35f, 5.45f), new Vector2(1.00f, 5.70f), new Vector2(1.50f, 5.40f), new Vector2(1.25f, 5.80f) };
+    const float OnHerStepZ = 0f, Standing = 1.8f;
+
+    IEnumerator HerWindow(int day)
+    {
+        Check(day == 5 && !grace.Thursday, $"Day {day} is a {Weekdays.Name(day)}: her usual night");
+        Note("her plan: " + GraceNight.Describe(GraceNight.Usual) + $"; her front window is watched {grace.WindowHours()}");
+        Check(GraceHouseMap.Find("at her front window") == GraceHouseMap.FrontWindow && GraceHouseMap.Joined(GraceHouseMap.Armchair, GraceHouseMap.FrontWindow),
+            "her house has a spot at her front window, a step from her armchair");
+
+        // ---- the geometry, in numbers (ThroughTheFrontWall): from her seat, from the glass, by the map's own eyes ----
+        Vector3 seat = new Vector3(4.35f, 2.83f, 1.30f), atTheGlass = new Vector3(4.62f, 3.60f, 1.60f);
+        GraceAtHome.Through step = GraceAtHome.ThroughTheFrontWall(atTheGlass, Point(OnHerStep, OnHerStepZ + Standing), out float stepX, out _, out string stepBy);
+        GraceAtHome.Through barnaby = GraceAtHome.ThroughTheFrontWall(seat, Point(BarnabySpot, GraceAtHome.Pavement + Standing), out _, out _, out string barnabyBy);
+        GraceAtHome.Through under = GraceAtHome.ThroughTheFrontWall(atTheGlass, Point(UnderHerWindow, GraceAtHome.Pavement + Standing), out _, out _, out string underBy);
+        Check(step == GraceAtHome.Through.Wall, $"from the glass her step is out of sight: {stepBy} (the line meets her wall's inside face at X {stepX:0.00})");
+        Check(barnaby == GraceAtHome.Through.Wall, $"from her armchair the pavement in front of her door is out of sight: {barnabyBy}");
+        Check(under == GraceAtHome.Through.Wall, $"from the glass the pavement right under her window is out of sight: {underBy}");
+        float toWindowSouth = AngleOffHerTv(seat, new Vector3(GraceAtHome.WindowSouth, GraceAtHome.StreetWallInside, 1.3f));
+        float toWindowNorth = AngleOffHerTv(seat, new Vector3(GraceAtHome.WindowNorth, GraceAtHome.StreetWallInside, 1.3f));
+        Check(Mathf.Min(toWindowSouth, toWindowNorth) > GraceNight.TvCone * .5f + 20f,
+            $"from her armchair the window is {toWindowNorth:0}°-{toWindowSouth:0}° off her TV: outside her TV slice (±{GraceNight.TvCone * .5f:0}°) and her whole view (±{GraceNight.Cone * .5f:0}°)");
+        Note(Bands(atTheGlass));
+
+        // ---- 11:10, in her chair with the TV: Ace in front of her door under the porch light, and nothing ----
+        night.SetHour(23.17f);
+        yield return Seconds(.6f);
+        Check(grace.Seated && grace.WatchingTv, $"11:10: in her armchair, the TV on ({grace.Doing})");
+        movement.ScriptedSneak = false;
+        PutAce(BarnabySpot.x, BarnabySpot.y, GraceAtHome.Pavement);
+        yield return Seconds(.5f);
+        grace.AceSightPoints(out Vector3 head, out Vector3 chest);
+        Check(grace.InFront(view.AceFeet), "Ace in front of her door, 1.5 m out (where Barnaby is taken from): in front of her house, within her reach");
+        Check(grace.LitByHerOutsideLights(chest), $"...under her porch light (his chest lit{(grace.LitByHerOutsideLights(head) ? ", his head too" : "; his head at the pool's edge")})");
+        float peak = 0f;
+        bool seen = false;
+        float until = Time.realtimeSinceStartup + 3f;
+        while (Time.realtimeSinceStartup < until)
+        {
+            if (grace.SeesOutside) seen = true;
+            peak = Mathf.Max(peak, grace.Mark);
+            yield return null;
+        }
+        Check(!seen && peak < .05f, $"while the TV has her she sees nothing outside: her mark {peak:0.00} after 3 s (the window is off the screen's side of her)");
+        yield return Photo("w01-1110-ace-at-her-door-she-watches-tv");
+
+        // ---- 11:45: back from the kettle she stops at her front window; Ace pressed to her door is out of her sight ----
+        PutAce(OnHerStep.x, OnHerStep.y, OnHerStepZ);
+        windowSecondsBefore = grace.windowSeconds;
+        grace.windowSeconds = 60f;   // long enough for the probes below; put back at the end
+        float tea = At(GraceNight.Act.Tea), sit = GraceNight.WindowPauses(GraceNight.Usual)[0];
+        night.SetHour(sit - .03f);
+        yield return Seconds(.3f);
+        Check(grace.Spot == GraceHouseMap.Kettle && !grace.Seated, $"{GraceNight.Clock(sit - .03f)}: at the kettle with her tea since {GraceNight.Clock(tea)} ({grace.Doing})");
+        int looks = grace.WindowLooks;
+        yield return Until(() => grace.AtTheWindow && grace.WindowLooks > looks, 20f, $"{GraceNight.Clock(sit)}: she comes back and stops at her front window");
+        if (!lastWait) yield break;
+        bool facing = FacesTheStreet(out float off, out float fromStraightOut);
+        Check(facing, $"at the glass, facing the road in front of her door ({off:0}° off it; {fromStraightOut:0}° off straight out, toward her door) at {Clock()}");
+        Vector3 eye = house.Plan(grace.EyeNow);
+        Note($"her eye at the glass: plan ({eye.x:0.00}, {eye.y:0.00}), {eye.z:0.00} m up (the map's spot is (4.62, 3.45)); " + Bands(eye));
+        // Her cone from there (±55°, standing, calm): the pavement a pace from her door is well inside it, and so is the rest of
+        // the pavement in front of her door; what hides Ace there is the glass's frame and the drapes, never the cone's edge.
+        float worst = 0f;
+        foreach (Vector2 c in AStepBack)
+        {
+            Vector3 toward = Flat(house.World(c.x, c.y) - grace.EyeNow);
+            worst = Mathf.Max(worst, Vector3.Angle(Flat(grace.Body.forward), toward));
+        }
+        Check(worst < GraceNight.Cone * .5f - 15f, $"the pavement a pace from her door is inside her cone from there (at most {worst:0}° off where she looks; she sees ±{GraceNight.Cone * .5f:0}°)");
+        yield return Seconds(.6f);
+        yield return Photo("w02-1149-at-her-window-ace-on-her-step");
+        peak = 0f;
+        seen = false;
+        until = Time.realtimeSinceStartup + 2f;
+        while (Time.realtimeSinceStartup < until)
+        {
+            if (grace.SeesOutside) seen = true;
+            peak = Mathf.Max(peak, grace.Mark);
+            yield return null;
+        }
+        GraceAtHome.ThroughTheFrontWall(eye, Point(OnHerStep, OnHerStepZ + Standing), out _, out _, out stepBy);
+        Check(!seen && peak < .05f, $"Ace pressed to her door, on her step: out of her sight from the glass ({(stepBy.Length > 0 ? stepBy : "the geometry says otherwise")}; her mark {peak:0.00})");
+
+        // ---- a step back from her door: seen through one of the window's middle lights; "Hm?"; the nervous player steps back up ----
+        Vector2 back = SeenSpot(eye, out string light);
+        Note($"a step back from her door, seen through {light}: plan ({back.x:0.00}, {back.y:0.00})");
+        yield return SeenFromHerWindow(back, false, "standing a step back from her door", "w03-hm-from-her-window");
+        // ---- crouched there: seen too, at half the rate (a crouched head is 4.5 cm over her sill) ----
+        yield return SeenFromHerWindow(back, true, "crouched a step back from her door", null);
+        Check(rateStanding > 0f && rateCrouched > 0f && rateCrouched < rateStanding * .7f,
+            $"crouched, her mark fills slower ({rateCrouched:0.00}/s against {rateStanding:0.00}/s standing), not never: a crouched head (0.80 m) " +
+            $"is {(1f - .2f) - (GraceAtHome.WindowSill - GraceAtHome.Pavement):0.000} m over her sill");
+        // ---- two more places against the geometry (her eye as it is): under her window; 2 m out in front of her door ----
+        yield return WhereSheCanSee(UnderHerWindow, "under her window, where her window's light lands");
+        yield return WhereSheCanSee(InFrontOfHerDoor, "2 m out in front of her door's middle");
+
+        // ---- staying a step back from her door: caught, her line from the glass, the night ends ----
+        Check(grace.AtTheWindow && grace.Now == GraceAtHome.Mood.Calm, $"she's still at her window ({grace.Doing})");
+        movement.ScriptedSneak = false;
+        PutAce(back.x, back.y, GraceAtHome.Pavement);
+        // In first person, looking at her window: what the player sees of her at the glass (if the player can see her, she can see him).
+        if (view.SetFirstPerson(true))
+        {
+            Vector3 toGlass = Flat(house.World(3.9f, GraceAtHome.StreetWallInside) - movement.transform.position);
+            view.LookTo(Mathf.Atan2(toGlass.x, toGlass.z) * Mathf.Rad2Deg, -4f);
+        }
+        int notices = grace.Notices, catches = grace.Catches;
+        float from = Time.realtimeSinceStartup, hmAt = -1f, caughtAt = -1f, heldAt = -1f;
+        yield return Until(() =>
+        {
+            if (hmAt < 0f && grace.Notices > notices) hmAt = Time.realtimeSinceStartup;
+            if (heldAt < 0f && PlayerMovement.Held) heldAt = Time.realtimeSinceStartup;
+            if (caughtAt < 0f && grace.Catches > catches) caughtAt = Time.realtimeSinceStartup;
+            return grace.Catches > catches;
+        }, 8f, "standing a step back from her door while she's at her window, Ace is seen and caught");
+        if (!lastWait) yield break;
+        Check(grace.OutsideCatches == 1 && grace.SawThrough == GraceAtHome.Through.Window, $"...through her front window (she saw him through: {grace.SawThrough})");
+        Check(PlayerMovement.Held && heldAt >= 0f && heldAt - caughtAt < .1f, "Ace is held from the moment she saw him");
+        Note($"\"Hm?\" {hmAt - from:0.00} s after he stood there, caught {caughtAt - from:0.00} s after (from \"Hm?\" to caught {caughtAt - hmAt:0.00} s), standing, under her porch light, from the glass");
+        yield return Until(() => Barks.TryGetShown(grace.Body, out Barks.Shown said) && said.text.StartsWith("Ace?!", StringComparison.Ordinal), 6f,
+            "she says it from the glass (\"Ace?! What on earth—\")");
+        Check(grace.Spot == GraceHouseMap.FrontWindow && !grace.Walking, $"...standing at her front window ({grace.Doing})");
+        yield return Seconds(.3f);
+        yield return Photo("w05-caught-from-her-window-first-person");
+        yield return Until(() => NightCycle.Instance != null && NightCycle.Instance.LastEnding == "caught" && Caption() == "Caught.", 6f,
+            $"the screen goes dark on \"Caught.\" (\"{Caption()}\")");
+        Check(NightCycle.Instance != null && NightCycle.Instance.LastCaughtWhere == "from her front window",
+            $"the card says where she saw Ace from (\"{(NightCycle.Instance != null ? NightCycle.Instance.LastCaughtWhere : "")}\")");
+        yield return Seconds(.3f);
+        yield return Photo("w06-the-caught-card");
+        yield return Until(() => !night.Active, 6f, "and the night ends there");
+        yield return Until(() => NightCycle.Instance.Now == NightCycle.Phase.Day && !PlayerMovement.Held, 8f, "the morning: Ace free to move");
+        if (view.FirstPersonSelected) view.SetFirstPerson(false);
+        int today = DayClock.Instance != null ? DayClock.Instance.Day : 0;
+        yield return Until(() => HudClock().Contains(Weekdays.Label(today)), 3f, $"the HUD names the day (\"{Weekdays.Label(today)}\")");
+        yield return Seconds(.5f);
+        yield return Photo("w07-the-morning-after");
+    }
+
+    float rateStanding, rateCrouched;
+
+    // A place on the pavement a step back from her door that her eyes as they are could take in (the first of a few candidates
+    // CouldSeeOutside allows for a standing head or chest: through the glass, inside her cone, within her reach), and which light
+    // it is seen through; the first candidate if none is (the check that follows then says so).
+    Vector2 SeenSpot(Vector3 eyePlan, out string light)
+    {
+        foreach (Vector2 c in AStepBack)
+        {
+            bool head = grace.CouldSeeOutside(house.World(c.x, c.y, GraceAtHome.Pavement + Standing), out _, out _, out _);
+            bool chest = grace.CouldSeeOutside(house.World(c.x, c.y, GraceAtHome.Pavement + 1.1f), out _, out _, out _);
+            if (!head && !chest) continue;
+            GraceAtHome.ThroughTheFrontWall(eyePlan, Point(c, GraceAtHome.Pavement + (head ? Standing : 1.1f)), out float x, out _);
+            light = x < GraceAtHome.MullionFrom ? "the south light of her window" : "the north light of her window";
+            return c;
+        }
+        light = "none of the lights (by the geometry and her cone)";
+        return AStepBack[0];
+    }
+
+    // What the glass shows an eye at eyePlan of the pavement in front of her house: the bands of X seen at a few distances out
+    // from her wall, for a standing head (for the report).
+    string Bands(Vector3 eyePlan)
+    {
+        var text = new StringBuilder("from there a standing head is seen through the glass at: ");
+        foreach (float y in new[] { 4.78f, 5.3f, 5.6f, 6.2f, 7.0f })
+        {
+            float from = float.NaN, last = float.NaN;
+            var bands = new List<string>();
+            for (float x = -1f; x <= 6.5f; x += .05f)
+            {
+                bool seenHere = GraceAtHome.ThroughTheFrontWall(eyePlan, new Vector3(x, y, (y < 5f ? 0f : GraceAtHome.Pavement) + Standing), out _, out _) == GraceAtHome.Through.Window;
+                if (seenHere && float.IsNaN(from)) from = x;
+                if (seenHere) last = x;
+                if (!seenHere && !float.IsNaN(from)) { bands.Add($"{from:0.00}-{last:0.00}"); from = float.NaN; }
+            }
+            if (!float.IsNaN(from)) bands.Add($"{from:0.00}-{last:0.00}");
+            text.Append($"{y - GraceAtHome.StreetWallOutside:0.0} m out X {(bands.Count > 0 ? string.Join(", ", bands) : "nothing")}; ");
+        }
+        return text.ToString().TrimEnd(' ', ';') + " (her door spans X 0.46-1.76, the window X 2.64-4.89)";
+    }
+
+    // Ace at a point outside while she stands at her window: is he seen, how fast does her mark fill, does "Hm?" come; and at
+    // "Hm?" (or after 2.5 s) the nervous player steps back onto her step against her door, out of her sight, and she loses him.
+    IEnumerator SeenFromHerWindow(Vector2 at, bool crouched, string what, string photoAtHm)
+    {
+        Check(grace.AtTheWindow && grace.Now == GraceAtHome.Mood.Calm, $"she's at her window, calm ({grace.Doing})");
+        // A fresh sighting: after the trial before she may still have him in sight for a beat while Ace stands against her
+        // door (13 Oct: the crouched trial began with her sight still on, so its count never grew and it read as "0.00 s").
+        float clear = Time.realtimeSinceStartup + 4f;
+        while (Time.realtimeSinceStartup < clear && grace.SeesOutside) yield return null;
+        // The counts before Ace is put there: she can see him while he is still going down into the crouch (a sighting
+        // counted before the count was read, 13 Oct).
+        int notices = grace.Notices, catches = grace.Catches, sightings = grace.OutsideSightings;
+        movement.ScriptedSneak = crouched;
+        PutAce(at.x, at.y, GraceAtHome.Pavement);
+        if (crouched) yield return Until(() => movement.CapsuleHeight < 1.05f && capsule.isGrounded, 2f, "Ace crouched there");
+        else yield return Until(() => movement.CapsuleHeight > 1.95f, 2f, "Ace standing there");
+        float from = Time.realtimeSinceStartup, seenAt = -1f, hmAt = -1f, markAtHm = 0f, peak = 0f;
+        bool lit = false;
+        Vector3 sawFrom = Vector3.zero, sawAt = Vector3.zero;
+        // Standing, "Hm?" (a third) comes in under a second; crouched, a head 4.5 cm over her sill fills her mark at about
+        // 0.12 a second, so a third takes about 3 s: the watch allows for it (the loop ends at "Hm?" either way).
+        float watch = crouched ? 6f : 2.5f;
+        while (Time.realtimeSinceStartup - from < watch)
+        {
+            if (seenAt < 0f && grace.SeesOutside)
+            {
+                seenAt = Time.realtimeSinceStartup;
+                sawFrom = house.Plan(grace.SawFromEye);
+                sawAt = house.Plan(grace.SawPoint);
+                lit = grace.LitByHerOutsideLights(grace.SawPoint);
+            }
+            peak = Mathf.Max(peak, grace.Mark);
+            if (grace.Notices > notices) { hmAt = Time.realtimeSinceStartup; markAtHm = grace.Mark; break; }
+            yield return null;
+        }
+        if (hmAt > 0f && photoAtHm != null) yield return Photo(photoAtHm);
+        // The nervous player: back up against her door, out of her sight.
+        PutAce(OnHerStep.x, OnHerStep.y, OnHerStepZ);
+        float rate = hmAt > 0f && hmAt - seenAt > .05f ? markAtHm / (hmAt - seenAt) : seenAt > 0f ? peak / Mathf.Max(.05f, Time.realtimeSinceStartup - seenAt) : 0f;
+        if (crouched) rateCrouched = rate; else rateStanding = rate;
+        Check(seenAt > 0f && grace.OutsideSightings > sightings && grace.SawThrough == GraceAtHome.Through.Window,
+            $"{what}: she sees Ace through the glass {(seenAt > 0f ? seenAt - from : 0f):0.00} s after he's there (her eye at plan ({sawFrom.x:0.00}, {sawFrom.y:0.00}), " +
+            $"{sawFrom.z:0.00} m up; Ace's {(sawAt.z - GraceAtHome.Pavement > .7f ? "head" : "chest")} at ({sawAt.x:0.00}, {sawAt.y:0.00}), {sawAt.z - GraceAtHome.Pavement:0.00} m over the pavement, " +
+            $"{(lit ? "lit by her outside lights" : "in the dark")})");
+        if (!crouched)
+            Check(hmAt > 0f, $"...\"Hm?\" {(hmAt > 0f ? hmAt - seenAt : 0f):0.00} s after she first saw him (her mark {markAtHm:0.00} then: about {rate:0.00} a second, " +
+                             $"so full in about {(rate > 0f ? 1f / rate : 0f):0.0} s)");
+        else
+            // Crouched, a head 4.5 cm over her sill fills her mark slowly (0.05-0.12 a second on 13 Oct: "Hm?" in 3-7 s, caught
+            // in 8-20 s): what is asked is that it rises while he is there, not that "Hm?" comes inside the watch.
+            Check(seenAt > 0f && peak > 0f, $"...crouched, her mark rises while he's there (about {rate:0.00} a second: \"Hm?\" " +
+                                            (hmAt > 0f ? $"{hmAt - seenAt:0.0} s after she saw him" : $"would come in about {(rate > 0f ? GraceNight.Third / rate : 0f):0.0} s") +
+                                            $", full in about {(rate > 0f ? 1f / rate : 0f):0.0} s; a step back lets her lose him)");
+        Check(grace.Catches == catches, "...and not caught: the nervous player stepped back against her door at her \"Hm?\"");
+        yield return Until(() => grace.Now == GraceAtHome.Mood.Calm && grace.Mark < .3f, 20f, $"against her door, out of her sight, she loses him ({grace.Doing})");
+        Check(grace.Catches == catches && grace.AtTheWindow, $"...still at her window, nobody caught ({grace.Doing})");
+        movement.ScriptedSneak = false;
+    }
+
+    // A point outside against the geometry, with her eyes as they are: whether she sees Ace standing there from her window within
+    // 1.5 s, and whether CouldSeeOutside (the glass and its frame, the drapes, her cone, her reach) says she should; Ace steps
+    // back against her door before her mark passes a third.
+    IEnumerator WhereSheCanSee(Vector2 at, string what)
+    {
+        PutAce(at.x, at.y, GraceAtHome.Pavement);
+        yield return null;
+        bool head = grace.CouldSeeOutside(view.AceFeet + Vector3.up * Standing, out _, out _, out string headWhy);
+        bool chest = grace.CouldSeeOutside(view.AceFeet + Vector3.up * 1.1f, out _, out _, out string chestWhy);
+        bool shouldSee = head || chest;
+        bool seen = false;
+        float from = Time.realtimeSinceStartup;
+        while (Time.realtimeSinceStartup - from < 1.5f && grace.Mark < .3f)
+        {
+            if (grace.SeesOutside) seen = true;
+            yield return null;
+        }
+        PutAce(OnHerStep.x, OnHerStep.y, OnHerStepZ);
+        Check(seen == shouldSee, $"{what}: {(seen ? "seen" : "not seen")} from her window; her eyes as they are say {(shouldSee ? $"they should ({(head ? headWhy : chestWhy)})" : $"not (his head: {headWhy}; his chest: {chestWhy})")}");
+        yield return Until(() => grace.Now == GraceAtHome.Mood.Calm && grace.Mark < .3f, 12f, $"she settles ({grace.Doing})");
+    }
+
+    Vector3 Point(Vector2 plan, float z) => new Vector3(plan.x, plan.y, z);
+
+    // Degrees between the way her TV lies from a seat (plan metres) and a point: how far off her screen the point is.
+    static float AngleOffHerTv(Vector3 seatPlan, Vector3 pointPlan)
+    {
+        Vector2 toTv = new Vector2(5.10f - seatPlan.x, 2.83f - seatPlan.y), to = new Vector2(pointPlan.x - seatPlan.x, pointPlan.y - seatPlan.y);
+        return Vector2.Angle(toTv, to);
     }
 
     // ================================================================== her Thursday
@@ -1069,6 +1414,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
     {
         if (movement != null) { movement.ScriptedInput = null; movement.ScriptedSneak = null; }
         if (night != null) night.ClockHeld = false;
+        if (grace != null && windowSecondsBefore >= 0f) grace.windowSeconds = windowSecondsBefore;
         report.AppendLine();
         if (grace != null) report.AppendLine(grace.Describe());
         if (NightCycle.Instance != null) report.AppendLine(NightCycle.Instance.Describe());

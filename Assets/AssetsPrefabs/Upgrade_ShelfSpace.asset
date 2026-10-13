@@ -16,4 +16,4 @@ MonoBehaviour:
   description: One more intake tray at the till.
   type: 5
   valuePerLevel: 1
-  costPerLevel: 58020000dc050000
+  costPerLevel: c8000000f4010000

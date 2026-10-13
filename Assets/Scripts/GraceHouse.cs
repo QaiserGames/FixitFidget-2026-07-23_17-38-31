@@ -140,6 +140,12 @@ public sealed class GraceHouse : MonoBehaviour
     public const int WholeGameLab = 3;
     /// <summary>The part of her house over the door (split off the trim by the build): solid from 2.35 m up, by night.</summary>
     public const string BracketsName = "Bay brackets over the door";
+    /// <summary>
+    /// Her front window's pane, a part of its own since Break-ins 1 (clear glass), and its two curtain panels. By night the
+    /// night walk gives each a collider of its own under "Solid by night", named by its scene path (NightCollision): her eyes
+    /// look through the glass and not through the fabric (GraceAtHome.Clear, 12 Oct 2026).
+    /// </summary>
+    public const string FrontGlassName = "Front window (clear glass)", FrontCurtainsName = "Front window curtains";
 
     public static GraceHouse Instance { get; private set; }
     /// <summary>True while Ace is inside and the camera looks in from the street.</summary>

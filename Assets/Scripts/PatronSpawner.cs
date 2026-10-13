@@ -67,8 +67,26 @@ public class PatronSpawner : MonoBehaviour
     [SerializeField] private float openingGraceMin = 3f;
     [SerializeField] private float openingGraceMax = 8f;
 
+    [Header("The life pass (12 Oct 2026, visual only)")]
+    [Tooltip("Share of patrons who are remote workers: they sit where a laptop lies open on a table (LI_Laptop_Open, " +
+             "placed by the Environment lead, off until used), switch it on and the bag at their feet, and look at the " +
+             "screen. They stay exactly as long as any patron. Without the props they are ordinary patrons.")]
+    [SerializeField, Range(0f, 1f)] private float laptopShare = .25f;
+    [Tooltip("Chance a patron comes in as a pair: a second one walks in just behind, they take two seats of one " +
+             "table, chat, and leave together. Both count against Max Patrons and the seats kept for customers.")]
+    [SerializeField, Range(0f, 1f)] private float pairChance = .3f;
+    [Tooltip("The pair's second sets off for the door when the first is this close to it, metres (so they come " +
+             "through the door together).")]
+    [SerializeField, Range(2f, 20f)] private float pairFollowDistance = 8f;
+
     private float timer;
     private int lastSeenDay = -1;
+    // Pairs: the second of each waits (inactive) until the first is near the door, then walks the last metres in.
+    private readonly System.Collections.Generic.List<(PatronBrain leader, PatronBrain second, float by)> pending = new();
+
+    /// <summary>For the checks: pairs and laptop patrons sent in this session.</summary>
+    public int PairsSent { get; private set; }
+    public int LaptopPatronsSent { get; private set; }
 
     private float NextGap =>
         spawnInterval * Random.Range(1f - spawnJitter, 1f + spawnJitter);
@@ -82,6 +100,7 @@ public class PatronSpawner : MonoBehaviour
     private void Update()
     {
         if (patronPrefab == null || spawnPoint == null) return;
+        FollowPairs();
 
         DayClock clock = DayClock.Instance;
 
@@ -93,6 +112,9 @@ public class PatronSpawner : MonoBehaviour
         if (clock != null && clock.Day != lastSeenDay)
         {
             lastSeenDay = clock.Day;
+            // A pair's second still waiting unseen from yesterday never walks into today (13 Oct 2026, QA).
+            for (int i = pending.Count - 1; i >= 0; i--) { if (pending[i].second != null) Destroy(pending[i].second.gameObject); }
+            pending.Clear();
             timer = Random.Range(openingGraceMin, openingGraceMax);
             return;
         }
@@ -108,14 +130,54 @@ public class PatronSpawner : MonoBehaviour
 
         // The valve. Patrons still walking over (CafeArrivals) take their seat at
         // the door, so count them as seated already.
-        if (WaitingArea.FreeSeats - NpcJourney.OnTheWay(CafeArrivals.Kind.Patron) <= reserveSeatsForCustomers) return;
+        int free = WaitingArea.FreeSeats - NpcJourney.OnTheWay(CafeArrivals.Kind.Patron) - pending.Count;
+        if (free <= reserveSeatsForCustomers) return;
 
-        Spawn();
+        // A pair now and then (12 Oct 2026): room for two, under the cap and the valve.
+        bool pair = pairChance > 0f && Random.value < pairChance && living + 2 <= maxPatrons && free - 1 > reserveSeatsForCustomers;
+        SpawnOne(pair);
+        // Two came in at once: the next one waits a gap longer, so a day sees the same number of patrons (and the same
+        // quiet income and cups from them) with or without pairs. Visual only.
+        if (pair) timer += NextGap;
     }
 
-    private void Spawn()
+    // One name "Spawn" only: the café lab finds it by reflection (CafeLabDirector), and a second overload would make
+    // that lookup ambiguous.
+    private void Spawn() => SpawnOne(false);
+
+    private void SpawnOne(bool pair)
     {
-        GameObject go = Instantiate(patronPrefab, ScatteredSpawn(), spawnPoint.rotation);
+        PatronBrain brain = Make(out GameObject go);
+        if (brain == null) return;
+        // A remote worker, now and then (never the second of a pair: pairs sit together).
+        if (laptopShare > 0f && Random.value < laptopShare) { brain.BeLaptopPatron(); LaptopPatronsSent++; }
+
+        if (pair)
+        {
+            PatronBrain second = Make(out GameObject other);
+            if (second != null)
+            {
+                brain.PairWith(second, true);
+                second.PairWith(brain, false);
+                // The second waits unseen until the first is near the door, then walks the last metres in behind them
+                // (CafeArrivals picks each walker's own route, so this is how two arrive as one).
+                other.SetActive(false);
+                pending.Add((brain, second, Time.time + 75f));
+                PairsSent++;
+            }
+        }
+
+        // They walk over from a car in the lot or a neighbour's door first
+        // (CafeArrivals), and come in - take a seat, pay - at the door. Without
+        // CafeArrivals they start at the door straight away, as before.
+        if (CafeArrivals.TryArrive(go, CafeArrivals.Kind.Patron, () => ComeIn(brain))) return;
+        ComeIn(brain);
+    }
+
+    // One patron body at the door, with its brain, not yet started.
+    private PatronBrain Make(out GameObject go)
+    {
+        go = Instantiate(patronPrefab, ScatteredSpawn(), spawnPoint.rotation);
 
         // A patron prefab made by duplicating the customer prefab would still
         // carry a CustomerBrain, which would claim a counter slot, appear on the
@@ -135,12 +197,61 @@ public class PatronSpawner : MonoBehaviour
 
         PatronBrain brain = go.GetComponent<PatronBrain>();
         if (brain == null) brain = go.AddComponent<PatronBrain>();
+        return brain;
+    }
 
-        // They walk over from a car in the lot or a neighbour's door first
-        // (CafeArrivals), and come in - take a seat, pay - at the door. Without
-        // CafeArrivals they start at the door straight away, as before.
-        if (CafeArrivals.TryArrive(go, CafeArrivals.Kind.Patron, () => ComeIn(brain))) return;
+    // The pairs' seconds: each sets off when their first is near the door (or has come in), the last few metres of a
+    // walking route, so the two come through the door together; straight in at the door when the arrivals system
+    // can't place them, or when the first is gone.
+    private void FollowPairs()
+    {
+        for (int i = pending.Count - 1; i >= 0; i--)
+        {
+            var (leader, second, by) = pending[i];
+            if (second == null) { pending.RemoveAt(i); continue; }
+            // After closing nobody new comes in (13 Oct 2026, QA): a second still waiting unseen is let go, not sent in.
+            if (DayClock.Instance != null && !DayClock.Instance.IsOpen) { Destroy(second.gameObject); pending.RemoveAt(i); continue; }
+            bool go = leader == null || leader.HasComeIn || Time.time >= by;
+            if (!go)
+            {
+                Vector3 d = leader.transform.position - spawnPoint.position;
+                d.y = 0f;
+                go = d.magnitude <= pairFollowDistance;
+            }
+            if (!go) continue;
+            pending.RemoveAt(i);
+            second.gameObject.SetActive(true);
+            PatronBrain s = second;
+            if (CafeArrivals.TryArriveNearTheDoor(second.gameObject, CafeArrivals.Kind.Patron, 4f, () => ComeIn(s))) continue;
+            ComeIn(s);
+        }
+    }
+
+    /// <summary>For the checks: send one pair in now, straight through the door (no street walk).</summary>
+    public PatronBrain SendPairNow()
+    {
+        if (patronPrefab == null || spawnPoint == null) return null;
+        PatronBrain brain = Make(out _);
+        PatronBrain second = Make(out _);
+        if (brain == null || second == null) return brain;
+        brain.PairWith(second, true);
+        second.PairWith(brain, false);
+        PairsSent++;
         ComeIn(brain);
+        ComeIn(second);
+        return brain;
+    }
+
+    /// <summary>For the checks: send one laptop patron in now, straight through the door.</summary>
+    public PatronBrain SendLaptopPatronNow()
+    {
+        if (patronPrefab == null || spawnPoint == null) return null;
+        PatronBrain brain = Make(out _);
+        if (brain == null) return null;
+        brain.BeLaptopPatron();
+        LaptopPatronsSent++;
+        ComeIn(brain);
+        return brain;
     }
 
     /// <summary>

@@ -57,6 +57,25 @@ using Unity.Cinemachine;
 //     work is done ("device to the middle": from the bench's second slot it lay low on the left of the close-up);
 //   * on a pad, A uses, as RT does ("A uses, X takes it"): A had picked the device up and ended the work, the first thing
 //     a pad player presses. X picks it up and steps back now (PlayerInteractor); B is back, as before.
+//
+// THE STICK, SIMPLE (12-13 Oct 2026; his answer to the findings' 1b: "i want the rotating and just the controls overall
+// to be simple ... i just want it to feel easy for anyone to play it"). The stick used to spin the device at 150° a
+// second with a coast, and squared it only within 22° of a quarter: a light push sprang back, a firm one stopped at an
+// odd angle, a diagonal push turned and tilted at once. Now:
+//   * a push of the stick SIDEWAYS turns the device exactly one quarter (90° about the mat's up), eased over a third of a
+//     second, landing with a click (device.snap); held, it keeps turning a quarter at a time at a calm pace (one every
+//     0.45 s, each landing before the next begins). It can never rest at an odd angle: a device the mouse left askew
+//     lands square on the next quarter that way;
+//   * UP or DOWN lifts an edge to peek under only when the push is clearly up or down (|y| > 0.7 and 1.6 times |x|), and
+//     it lies back flat when let go; a light or a diagonal push does nothing (no half-peek, no half-turn);
+//   * the mouse's drag is as it was (its inertia and settle are tuned; faceSnapWithin is the mouse's);
+//   * with GameSettings.SwapBenchSticks the LEFT stick moves the hand and the RIGHT stick turns the device, at the bench
+//     only (PadCursor reads the same setting; the controls card's words follow it: ControlHints.BenchHandStick).
+//
+// Also from that session: the aim help's "next part" (D-pad) offers only parts the camera can see (a screw on the
+// underside of a phone lying face up was a stop, and the cursor glided to it under the glass), in the checklist's order
+// (RepairChecklist: the broken part before the fresh one in the tray, scrap last, the grime the checklist's current tool
+// wants first); and a device finished lying on its face is turned face up for "Fixed!" (ShowFace; Juice asks).
 // ---------------------------------------------------------------------------
 public class ItemInspector : MonoBehaviour
 {
@@ -68,11 +87,17 @@ public class ItemInspector : MonoBehaviour
     [SerializeField] private float benchReach = 6f;
 
     [Header("Controller")]
-    [Tooltip("How fast the left stick turns the item being worked on, degrees per second.")]
-    [SerializeField, Min(10f)] private float padRotateSpeed = 150f;
+    [Tooltip("A push of the turn stick sideways turns the device one quarter, eased over this many seconds (12 Oct: quarter turns).")]
+    [SerializeField, Range(.1f, .6f)] private float quarterTurnSeconds = .28f;
+    [Tooltip("Held sideways, the stick turns another quarter every this many seconds (a calm pace; longer than the turn itself, so each lands first).")]
+    [SerializeField, Range(.3f, 1f)] private float quarterRepeatSeconds = .45f;
     [Tooltip("Scrubbing progress while RT is held on grime without moving the cursor, " +
              "in the same units as mouse travel (pixels per second).")]
     [SerializeField, Min(0f)] private float padScrubRate = 180f;
+
+    // The stick's three readings (the brief's numbers): sideways past this much is a turn, up or down past this much is a
+    // peek, and either only when it is clearly that way (this many times the other axis). Between them, nothing.
+    public const float TurnPush = .5f, PeekPush = .7f, SideRatio = 1.6f;
 
     [Header("The bench, v2")]
     [Tooltip("Within this many degrees of a quarter turn, a device let go spinning settles square to the view.")]
@@ -127,7 +152,15 @@ public class ItemInspector : MonoBehaviour
     private float faceSign = 1f;            // +1: local +thin is up; -1: local -thin is up
     private float yaw, yawVelocity;         // degrees about the world's up, from square-on (the long side up the view)
     private float tilt, tiltVelocity;       // degrees about the view's right, an edge lifted to peek under
-    private bool stickTurning;              // the left stick turned the device this frame: no coasting on top of it
+    private bool stickTurning;              // the stick has the device this frame (a quarter turn under way, or a peek): no coasting on top of it
+    // The quarter turns (12 Oct): the one easing now (from, to, how far along), which way the stick is pushed, the repeat,
+    // and whether the stick has been let go once since the close-up opened (a thumb still walking Ace up to the bench must
+    // not turn or tilt the device as it opens).
+    private bool turning;
+    private float turnFrom, turnTarget, turnT;
+    private int stickSide;
+    private float repeatIn;
+    private bool stickArmed;
     private bool settling, settled;
     private float settleYaw;
     private float boundsAt;
@@ -148,6 +181,17 @@ public class ItemInspector : MonoBehaviour
     public float Tilt => tilt;
     /// <summary>Which of the device's two work faces is up: +1 its local +thin axis, -1 its local -thin.</summary>
     public float FaceUp => faceSign;
+    /// <summary>A quarter turn from the stick is easing to its quarter now (labs).</summary>
+    public bool Turning => turning;
+    /// <summary>How many quarter turns the stick has begun in this close-up (labs: one per push, one per 0.45 s held).</summary>
+    public int QuarterTurns { get; private set; }
+    /// <summary>
+    /// The device lies with its face up: its screen, its dial, its lens. The face is the side it shows as it is handed over,
+    /// its own up (+Y): every bench device is built that way (the phone's glass, the watch's crystal and the camera's lens all
+    /// look up its Y; a device built face-down would want a word here). True too when its face can't be told (a device whose
+    /// thin axis isn't its up), so nothing is ever turned over on a guess.
+    /// </summary>
+    public bool FaceShowing => focusedItem == null || thinAxis != Vector3.up || faceSign > 0f;
     /// <summary>The device's thinnest local axis (its work faces are either side of it).</summary>
     public Vector3 ThinAxisLocal => thinAxis;
     /// <summary>Where the device rests: the mat's top under the inspect point.</summary>
@@ -243,6 +287,12 @@ public class ItemInspector : MonoBehaviour
         tilt = 0f;
         settling = false;
         settled = true;
+        turning = false;
+        stickTurning = false;
+        stickSide = 0;
+        repeatIn = 0f;
+        stickArmed = false;
+        QuarterTurns = 0;
         zoom = 0f;
         zoomShown = -2f;
         camRestPosition = inspectCam.transform.position;
@@ -374,20 +424,11 @@ public class ItemInspector : MonoBehaviour
             return;
         }
 
-        // Controller: LB / RB cycle the bench tools; the left stick spins the item on the mat (sideways) and tilts an
-        // edge up to peek under (up or down). R or Y flips it over.
+        // Controller: LB / RB cycle the bench tools; the turn stick (the left one; the right with the sticks swapped) turns
+        // the device a quarter at a time (sideways) and lifts an edge up to peek under (up or down). R or Y flips it over.
         if (PadInput.Pressed(PadButton.RightShoulder)) CycleTool(1);
         else if (PadInput.Pressed(PadButton.LeftShoulder)) CycleTool(-1);
-        Vector2 spin = PadInput.Curved(PadInput.LeftStick, 1.3f);
-        stickTurning = spin != Vector2.zero && holdTarget == null && grabTarget == null && flipping == null;
-        if (stickTurning)
-        {
-            yaw += -spin.x * padRotateSpeed * dt;
-            yawVelocity = -spin.x * padRotateSpeed;
-            tilt = Mathf.MoveTowards(tilt, spin.y * peekTilt, peekTilt * 4f * dt);
-            tiltVelocity = 0f;
-            settling = false;
-        }
+        StickOnTheMat(dt);
         if (holdTarget == null && grabTarget == null && flipping == null
             && (PadInput.Pressed(PadButton.North) || Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame))
             flipping = StartCoroutine(Flip());
@@ -521,7 +562,7 @@ public class ItemInspector : MonoBehaviour
                 scrubbing.EndStroke();
                 scrubbing = null;
             }
-            else if (currentTool == ToolType.Hand && rotateGesture && !overBoard && flipping == null)
+            else if (currentTool == ToolType.Hand && rotateGesture && !overBoard && flipping == null && !turning)
             {
                 // Sideways spins it on the mat; up or down tilts an edge to peek under (it lies back flat when let go).
                 yaw += -delta.x * rotateSpeed;
@@ -683,7 +724,89 @@ public class ItemInspector : MonoBehaviour
         tilt = 0f;
         settling = false;
         settled = true;
+        turning = false;
         Pose();
+    }
+
+    /// <summary>
+    /// Turns the device face up when it lies on its face and nothing is held: the ending's moment (Juice; §10.5, 12 Oct: after a
+    /// screen swap the phone ends back up, its last screws are in the back, and "Fixed!" landed on its back). True when it
+    /// began turning over; false when it already shows its face, can't be told, or a hold or a grab or a flip is under way.
+    /// </summary>
+    public bool ShowFace()
+    {
+        if (focusedItem == null || FaceShowing || flipping != null || holdTarget != null || grabTarget != null) return false;
+        flipping = StartCoroutine(Flip());
+        return true;
+    }
+
+    // ---------- the stick on the mat (12 Oct): a quarter at a time, a peek only when clearly asked ----------
+
+    // The stick that turns the device: the left one, or the right one with the sticks swapped (the hand takes the other:
+    // PadCursor). Read raw past the pad's deadzone, not curved: the push is read as a direction, not a rate.
+    private static Vector2 TurnStick => GameSettings.SwapBenchSticks ? PadInput.RightStick : PadInput.LeftStick;
+
+    private void StickOnTheMat(float dt)
+    {
+        Vector2 stick = TurnStick;
+        // A thumb still on the stick from the walk up to the bench does nothing until it has let go once.
+        if (!stickArmed) { if (stick.sqrMagnitude < .09f) stickArmed = true; else stick = Vector2.zero; }   // a light stick arms it too (QA, 13 Oct)
+        bool free = holdTarget == null && grabTarget == null && flipping == null;
+        // One of three: sideways (a quarter turn), clearly up or down (a peek), or neither: a light or a diagonal push does
+        // nothing, so the first push of a thumb that is a little off never half-peeks or half-turns.
+        int side = free && Mathf.Abs(stick.x) >= TurnPush && Mathf.Abs(stick.x) > SideRatio * Mathf.Abs(stick.y) ? (stick.x > 0f ? 1 : -1) : 0;
+        bool peek = free && Mathf.Abs(stick.y) > PeekPush && Mathf.Abs(stick.y) > SideRatio * Mathf.Abs(stick.x);
+
+        // A push sideways: one quarter, now. Held, another every repeat (a calm pace, each landing before the next begins).
+        if (side != 0 && side != stickSide) { QuarterTurn(side); repeatIn = quarterRepeatSeconds; }
+        else if (side != 0)
+        {
+            repeatIn -= dt;
+            if (repeatIn <= 0f) { QuarterTurn(side); repeatIn += quarterRepeatSeconds; }
+        }
+        stickSide = side;
+
+        // The peek: an edge lifts while the push is clearly up or down, and lies back flat (Coast's spring) once it isn't.
+        if (peek)
+        {
+            tilt = Mathf.MoveTowards(tilt, Mathf.Sign(stick.y) * peekTilt, peekTilt * 4f * dt);
+            tiltVelocity = 0f;
+            settling = false;
+        }
+
+        // The turn under way eases to its quarter and lands with a click. It waits while the device is turned over (Y), and
+        // carries on after; a flip mid-turn happens at the angle the device had reached.
+        if (turning && flipping == null)
+        {
+            turnT += dt / Mathf.Max(.05f, quarterTurnSeconds);
+            float c = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(turnT));
+            yaw = turnFrom + (turnTarget - turnFrom) * c;
+            if (turnT >= 1f)
+            {
+                turning = false;
+                yaw = Mathf.Repeat(turnTarget + 180f, 360f) - 180f;
+                settled = true;
+                Sfx.Play("device.snap", focusedItem.transform.position, .7f);
+            }
+        }
+        stickTurning = turning || peek;
+    }
+
+    // The next quarter that way from the quarter the device is on, or is turning to: a device the mouse left at an odd angle
+    // lands square. Pushing right turns it the way a drag to the right does (yaw falls).
+    private void QuarterTurn(int side)
+    {
+        float from = turning ? turnTarget : yaw;
+        float q = from / 90f;
+        int k = side > 0 ? Mathf.CeilToInt(q - .01f) - 1 : Mathf.FloorToInt(q + .01f) + 1;
+        turnFrom = yaw;
+        turnTarget = k * 90f;
+        turnT = 0f;
+        turning = true;
+        yawVelocity = 0f;
+        settling = false;
+        rotateGesture = false;
+        QuarterTurns++;
     }
 
     // Let go: the spin coasts and dies, and the device settles square to the view when it stops near a quarter turn; a
@@ -708,13 +831,16 @@ public class ItemInspector : MonoBehaviour
             }
             else yaw += remaining * (1f - Mathf.Exp(-10f * dt));
         }
-        // The peek lies back: a spring, critically damped, so it lands without a bounce.
+        // The peek lies back: a spring, critically damped, so it lands without a bounce. Solved exactly for the frame, not
+        // stepped (a stepped spring runs away once w·dt passes about 1: a 70 ms hitch here; ToolPickup.Spring, 13 Oct).
         if (Mathf.Abs(tilt) > .01f || Mathf.Abs(tiltVelocity) > .01f)
         {
             const float w = 14f;
-            float accel = -w * w * tilt - 2f * w * tiltVelocity;
-            tiltVelocity += accel * dt;
-            tilt += tiltVelocity * dt;
+            float c2 = tiltVelocity + w * tilt;
+            float decay = Mathf.Exp(-w * dt);
+            float drift = tilt + c2 * dt;
+            tilt = drift * decay;
+            tiltVelocity = (c2 - w * drift) * decay;
             if (Mathf.Abs(tilt) < .02f && Mathf.Abs(tiltVelocity) < .5f) { tilt = 0f; tiltVelocity = 0f; }
         }
         yaw = Mathf.Repeat(yaw + 180f, 360f) - 180f;
@@ -935,17 +1061,24 @@ public class ItemInspector : MonoBehaviour
 
     // ---------- aim help on a pad (playtest 3, §2.3) ----------
 
-    // The points the pad's cursor settles on (every part, grime spot and tool on screen), and D-pad left / right: the
-    // cursor glides to the next part in the order the work goes.
+    // The points the pad's cursor settles on (every part, grime spot and tool the camera can see), and D-pad left / right:
+    // the cursor glides to the next part in the order the work goes.
     private readonly List<Vector2> snapPoints = new();
     private ToolPickup[] railTools;   // the bench's tools, found once an item is taken up (they don't come and go)
-    private readonly List<(int order, Vector2 screen)> workPoints = new();
+    private readonly List<(int order, int sub, Vector2 screen)> workPoints = new();
+    private readonly RaycastHit[] sight = new RaycastHit[8];
+    private ToolType wantedTool;      // the checklist's current step's tool, while the work is gathered
 
     private void OfferAimHelp()
     {
         if (!GamePointer.PadCursorActive || !AimAssist.Enabled) return;
         snapPoints.Clear();
         workPoints.Clear();
+        // The checklist's step to do now (BenchCards builds it): among equals, its tool's spot comes first, so "next part"
+        // lands where the checklist points (12 Oct: the gunked phone's smudge lay leftmost and the D-pad went to it while the
+        // checklist said "Brush off the grime").
+        RepairChecklist.Step now = BenchCards.Steps != null ? RepairChecklist.Current(BenchCards.Steps) : null;
+        wantedTool = now != null ? now.tool : ToolType.Hand;
         GatherWork(focusedItem.transform);
         foreach (GameObject part in focusedItem.LooseParts)
             if (part != null) GatherWork(part.transform);
@@ -957,8 +1090,9 @@ public class ItemInspector : MonoBehaviour
 
         int direction = PadInput.Pressed(PadButton.DpadRight) ? 1 : PadInput.Pressed(PadButton.DpadLeft) ? -1 : 0;
         if (direction == 0 || workPoints.Count == 0) return;
-        // In the work's order (screws, covers, grime, parts, tiles), left to right within each kind.
-        workPoints.Sort((a, b) => a.order != b.order ? a.order.CompareTo(b.order) : a.screen.x.CompareTo(b.screen.x));
+        // In the work's order (the checklist's: screws, the cover, the grime, the parts, tiles, closing up), the current
+        // step's tool first among equals, then left to right.
+        workPoints.Sort((a, b) => a.order != b.order ? a.order.CompareTo(b.order) : a.sub != b.sub ? a.sub.CompareTo(b.sub) : a.screen.x.CompareTo(b.screen.x));
         Vector2 at = GamePointer.Position;
         int nearest = 0;
         float best = float.PositiveInfinity;
@@ -976,30 +1110,50 @@ public class ItemInspector : MonoBehaviour
 
     private static float Scale => Mathf.Max(.5f, Screen.height / 1080f);
 
-    // Each part of the item that work can be done on now, with its place in the order the work goes: screws out, the
-    // cover off, the grime, the parts, the circuit, then the cover back on and the screws back in.
+    // Each part of the item that work can be done on now and the camera can see, with its place in the order the work goes:
+    // screws out, the cover off, the grime, the parts, the circuit, then the cover back on and the screws back in.
     private void GatherWork(Transform root)
     {
         foreach (BenchInteractable part in root.GetComponentsInChildren<BenchInteractable>())
         {
             if (!part.isActiveAndEnabled || !part.CanInteract) continue;
-            if (OnScreen(BoundsCentre(part.transform), out Vector2 s)) workPoints.Add((WorkOrder(part), s));
+            Vector3 centre = BoundsCentre(part.transform);
+            if (OnScreen(centre, out Vector2 s) && Seen(part.transform, centre)) workPoints.Add((WorkOrder(part), 0, s));
         }
-        // Grime counts once it can be reached: nothing (the cover) between the camera and it.
+        // Grime counts once it can be reached: nothing (the cover) between the camera and it. The checklist's tool first.
         foreach (GrimeSpot grime in root.GetComponentsInChildren<GrimeSpot>())
-            if (grime.isActiveAndEnabled && OnScreen(BoundsCentre(grime.transform), out Vector2 s) && Uncovered(grime))
-                workPoints.Add((2, s));
+        {
+            if (!grime.isActiveAndEnabled) continue;
+            Vector3 centre = BoundsCentre(grime.transform);
+            if (OnScreen(centre, out Vector2 s) && Seen(grime.transform, centre))
+                workPoints.Add((2, grime.Tool == wantedTool ? 0 : 1, s));
+        }
     }
 
-    private bool Uncovered(GrimeSpot grime)
+    // A thing is in the camera's sight: nothing solid between the camera and its middle but the thing itself, so the cursor
+    // sent there would be over it. The tool in the hand doesn't count (it rides over the part being worked). A screw on the
+    // underside of a phone lying face up is not in sight (12 Oct: the D-pad sent the cursor to it, under the glass).
+    private bool Seen(Transform thing, Vector3 centre)
     {
-        Vector3 to = BoundsCentre(grime.transform) - cam.transform.position;
-        if (!Physics.Raycast(cam.transform.position, to.normalized, out RaycastHit hit, to.magnitude + .05f)) return true;
-        return hit.collider.GetComponentInParent<GrimeSpot>() == grime;
+        Vector3 from = cam.transform.position;
+        Vector3 to = centre - from;
+        float length = to.magnitude;
+        if (length < 1e-4f) return true;
+        int n = Physics.RaycastNonAlloc(from, to / length, sight, length + .02f, ~0, QueryTriggerInteraction.Ignore);
+        float nearest = float.PositiveInfinity;
+        Transform first = null;
+        for (int i = 0; i < n; i++)
+        {
+            RaycastHit h = sight[i];
+            if (h.collider == null || h.collider.GetComponentInParent<ToolPickup>() != null) continue;
+            if (h.distance < nearest) { nearest = h.distance; first = h.collider.transform; }
+        }
+        return first == null || first.IsChildOf(thing);
     }
 
-    /// <summary>A part's place in the order the work goes (0 first): screws out, the cover off, the grime (2), the parts,
-    /// the circuit, the cover back on, the screws back in.</summary>
+    /// <summary>A part's place in the order the work goes (0 first), the checklist's: screws out, the cover off, the grime
+    /// (2), the broken part out and the fresh one in, the circuit, the cover back on, the screws back in; a loose piece that
+    /// is nobody's step (the fresh part while the broken one is still in, scrap in the tray) last.</summary>
     public static int WorkOrder(BenchInteractable part)
     {
         if (part is ScrewTarget)
@@ -1009,7 +1163,8 @@ public class ItemInspector : MonoBehaviour
         }
         if (part is ScrewSocket) return 6;
         if (part is RemovablePart cover) return cover.IsRemoved ? 5 : 1;
-        if (part is ReplaceablePart || part is LoosePart) return 3;
+        if (part is ReplaceablePart broken) return broken.Loose ? 8 : 3;
+        if (part is LoosePart fresh) return fresh.SeatEmpty ? 3 : 8;
         if (part is CircuitTile) return 4;
         return 7;
     }

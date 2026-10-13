@@ -472,6 +472,8 @@ public class ConversationController : MonoBehaviour
     private void Choose(int index)
     {
         ConversationReply reply = replies[index];
+        // The NPC life pass (13 Oct 2026): they take Ace's reply in with a nod (CustomerBrain.OnAceReplied; visual only).
+        if (partner != null) partner.OnAceReplied();
         switch (reply.Kind)
         {
             case ReplyKind.Accept:

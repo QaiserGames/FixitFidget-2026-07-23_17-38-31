@@ -46,6 +46,7 @@ internal static class WholeGamePlaytest
         PlayerPrefs.SetInt(CafeLab.PendingKey, 1);
         PlayerPrefs.SetInt(CafeLab.AutopilotKey, 0);
         PlayerPrefs.SetInt(GraceHouse.LabKey, GraceHouse.WholeGameLab);
+        PlayerPrefs.SetInt(DayIntro.LabKey, 1);   // the day intro plays in this lab session (13 Oct 2026: it is off in every other lab)
         PlayerPrefs.Save();
         Debug.Log(Tag + $"A new game from Day 1 on the test save ({path}); your playtest save is not used. Each day's recap " +
                   "leads into the night, and Grace's door opens for Ace every night of this session. Press Play again to stop.");

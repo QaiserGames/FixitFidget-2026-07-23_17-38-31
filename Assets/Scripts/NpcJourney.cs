@@ -27,7 +27,9 @@ using UnityEngine.AI;
 ///    someone coming out waits inside the house, unseen, until it is their turn;
 ///    someone going in waits on one of the door's waiting spots, then walks from
 ///    there to the stoop when it is theirs;
-///  * the walking animation plays while moving and idles while waiting.
+///  * the walking animation plays while moving and idles while waiting;
+///  * the body faces the way it walks, never a creep: held at the door or waiting at a kerb it keeps its heading
+///    instead of swivelling after every avoidance nudge (12 Oct 2026, measured in the recordings).
 /// Street walkers and cars see these walkers too (StreetLife bodies), and café NPCs'
 /// navigation steers round them (a non-carving NavMeshObstacle while they walk).
 /// </summary>
@@ -788,9 +790,15 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         nextPosition.y = HeightOnSegment(from, to, nextPosition);
         transform.position = nextPosition;
         float moved = Flat(nextPosition - before).magnitude;
-        if (moved > 1e-4f) Face(nextPosition - before, dt);
-        else if (waiting) Face(restFacing, dt);
-        SetWalking(moved / dt > 0.2f, dt);
+        // The facing follows the walk, not every creep (12 Oct 2026, the recordings: a walker held at the café door by
+        // someone inside, or waiting at a kerb, turned up to 420 deg/s after each avoidance nudge with the walk clip
+        // off - a swivel on still legs, 46 times in two recordings). Below HeadingDeadZone the body keeps its heading;
+        // a slow creep eases round at a human pace; waiting, it turns gently to the way it is waiting to go.
+        float pace = moved / dt;
+        if (pace > WalkFacing) Face(nextPosition - before, dt, FaceRate);
+        else if (pace > HeadingDeadZone) Face(nextPosition - before, dt, CreepFaceRate);
+        else if (waiting) Face(restFacing, dt, WaitFaceRate);
+        SetWalking(pace > 0.2f, dt);
 
         if (!waiting && advance) Advance(from, to, goal);
     }
@@ -1161,12 +1169,20 @@ public sealed class NpcJourney : MonoBehaviour, StreetLife.IStreetBody
         return f.sqrMagnitude > 1e-6f ? f.normalized : Vector3.forward;
     }
 
-    private void Face(Vector3 direction, float dt)
+    // The heading rules (12 Oct 2026): a body moving slower than HeadingDeadZone keeps its heading; up to WalkFacing it
+    // eases round at CreepFaceRate; walking, it turns at FaceRate as before. Waiting, it settles at WaitFaceRate.
+    private const float HeadingDeadZone = 0.35f;   // m/s
+    private const float WalkFacing = 0.6f;         // m/s
+    private const float FaceRate = 420f, CreepFaceRate = 120f, WaitFaceRate = 90f;   // degrees per second
+
+    private void Face(Vector3 direction, float dt) => Face(direction, dt, FaceRate);
+
+    private void Face(Vector3 direction, float dt, float degreesPerSecond)
     {
         direction.y = 0f;
         if (direction.sqrMagnitude < 1e-8f) return;
         Quaternion goal = Quaternion.LookRotation(direction.normalized, Vector3.up);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, goal, 420f * Mathf.Max(dt, .001f));
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, goal, degreesPerSecond * Mathf.Max(dt, .001f));
     }
 
     // Different start and stop thresholds with a short hold, so the walk clip

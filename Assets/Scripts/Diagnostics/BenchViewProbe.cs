@@ -31,7 +31,9 @@ using UnityEditor;
 //     room, and goes back when the close-up ends;
 //   * with a controller (only with Unity in front, where a virtual pad's presses arrive): the controls card in the pad's
 //     glyphs, and A uses, as RT does, and never takes the device away. (X taking it away needs a customer's device: the
-//     game only lets Ace pick up a device someone owns. The Stations lab does it with a customer's.)
+//     game only lets Ace pick up a device someone owns. The Stations lab does it with a customer's.) And the stick swap
+//     (GameSettings.SwapBenchSticks, 12 Oct) in the card's words: on, the left stick moves the hand and the right turns the
+//     device; put back, as before. (Bench 3 measures the sticks themselves, swapped and not.)
 //
 // Fixit Fidget > Bench > Bench 5 - The close-up's view (lab, a check). Photos and report.txt go to
 // Logs/BenchViewProbe/check-<time>/. Nothing is saved in the scene; the lab's own save only.
@@ -74,6 +76,7 @@ public sealed class BenchViewProbe : PlayLab
     bool spawnerWas = true;
     StationInteractable bench;
     readonly List<GameObject> made = new List<GameObject>();
+    bool swapTouched, swapWas;   // the stick-swap setting as the player had it (put back in Restore)
     static readonly Color JobColour = new Color(.95f, .55f, .2f, 1f);
 
     protected override IEnumerator Run()
@@ -263,6 +266,21 @@ public sealed class BenchViewProbe : PlayLab
               && controls.Contains(PadInput.Label(PadButton.West) + "]  Pick it up and step back"),
             $"pad: the controls card names the sticks, Y to flip and X to take it away: \"{controls}\"");
         yield return Photo("pad-1-controls-card");
+
+        // The stick swap (GameSettings.SwapBenchSticks, 12 Oct), in the card's words; the sticks themselves are Bench 3's.
+        swapWas = GameSettings.SwapBenchSticks;
+        swapTouched = true;
+        GameSettings.SwapBenchSticks = true;
+        yield return Seconds(.35f);   // the cards refresh every 0.15 s
+        controls = Plain(BenchCards.ControlsText);
+        Check(controls.Contains("[Left stick]  Move your hand") && controls.Contains("[Right stick]  Turn it a quarter"),
+            $"pad: with the sticks swapped the card says the left stick moves the hand and the right turns it: \"{controls}\"");
+        yield return Photo("pad-1b-controls-card-sticks-swapped");
+        GameSettings.SwapBenchSticks = swapWas;
+        yield return Seconds(.35f);
+        controls = Plain(BenchCards.ControlsText);
+        Check(controls.Contains("[" + (swapWas ? "Left" : "Right") + " stick]  Move your hand"),
+            $"pad: the setting put back as it was ({(swapWas ? "swapped" : "not swapped")}), the card follows: \"{controls}\"");
         yield return PadPress(GamepadButton.South);
         yield return Seconds(.3f);
         Check(inspector.IsHoldingItem && inspector.FocusedItem == job && !carry.Contains(job), "pad: A uses and leaves the phone in the close-up");
@@ -364,6 +382,7 @@ public sealed class BenchViewProbe : PlayLab
     protected override void Restore()
     {
         PadRelease();
+        if (swapTouched) GameSettings.SwapBenchSticks = swapWas;   // the player's setting, never the check's
         if (inspector != null && inspector.IsHoldingItem) inspector.CancelInspection();
         foreach (GameObject g in made)
             if (g != null)

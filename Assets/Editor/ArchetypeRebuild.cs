@@ -103,7 +103,7 @@ public static class ArchetypeRebuild
 
         new Spec
         {
-            name = "Rushed", patience = 0.6f, tip = 1.3f,
+            name = "Rushed", patience = 0.75f, tip = 1.3f,   // 0.6 until 13 Oct 2026 (Playtest 4 › Systems › 2: a seated bench repair at a person's pace)
             wait = WaitingSpot.SpotKind.Loiter, drinkWish = 0.15f,
             mood = new Color(0.85f, 0.62f, 0.30f),
             intake    = new[] { "Sorry — {device}, {fault}. I'm late.",
@@ -209,7 +209,7 @@ public static class ArchetypeRebuild
             "Cheerful      1.2x patience  1.2x tip  sits    60% coffee\n" +
             "Impatient     0.7x patience  0.9x tip  STANDS  25% coffee\n" +
             "Chatty        1.3x patience  1.0x tip  sits    80% coffee\n" +
-            "Rushed        0.6x patience  1.3x tip  STANDS  15% coffee\n" +
+            "Rushed        0.75x patience 1.3x tip  STANDS  15% coffee\n" +
             "Sentimental   1.1x patience  1.4x tip  sits    50% coffee\n\n" +
             "PRESS CTRL+S. Nothing is saved until you do.\n\n" +
             "The lines are placeholders — overwrite them in the Inspector as " +

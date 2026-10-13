@@ -36,7 +36,10 @@ using UnityEngine.AI;
 public sealed class NpcSocial : MonoBehaviour
 {
     public enum Situation { None, Walking, Queue, Ordering, StandingWait, Seated, Leaving }
-    public enum Beat { None, Still, Posture, LookAround, LookCounter, LookMenu, LookPlayer, LookNeighbour, LookPasser, Gesture, Exchange, Chat, ArrivalLook, PassingGlance, Body }
+    // The event looks (12 Oct 2026): LeaverLook (the bell as someone goes out), StormLook (a storm-out watched),
+    // FixedLook (a "Fixed!" at the bench), AceLook (Ace passing close), LookLaptop (a laptop patron at their screen).
+    public enum Beat { None, Still, Posture, LookAround, LookCounter, LookMenu, LookPlayer, LookNeighbour, LookPasser, Gesture, Exchange, Chat, ArrivalLook, PassingGlance, Body,
+                       LeaverLook, StormLook, FixedLook, AceLook, LookLaptop }
 
     [Tooltip("Where profiles come from when a spawner does not hand one over.")]
     [SerializeField] private NpcProfileLibrary library;
@@ -82,6 +85,7 @@ public sealed class NpcSocial : MonoBehaviour
     private Transform lastPasser;
     private float lastArrivalLookAt = -99f;
     private float lastPlayerGlanceAt = -99f;
+    private float lastAceGlanceAt = -99f;
 
     private Situation situation;
     private float situationSince;
@@ -97,8 +101,15 @@ public sealed class NpcSocial : MonoBehaviour
     public bool InChat => Chat != null && Chat.Active;
     public float LastExchangeAt { get; internal set; } = -99f;
     public float LastChatEndedAt { get; internal set; } = -99f;
+    /// <summary>When this person last turned their head to an event (the bell, a storm-out, a Fixed!): the director's cooldown.</summary>
+    public float LastEventLookAt { get; internal set; } = -99f;
+    /// <summary>The person they came in with (a pair), or null.</summary>
+    public NpcSocial Companion { get; internal set; }
+    /// <summary>Something of theirs to look at while seated (a laptop patron's screen), or null.</summary>
+    public Transform Prop { get; set; }
     public NpcLookAt LookAt => lookAt;
     public NpcSeating Seating => seating;
+    public NpcBeats Beats => beats;
 
     /// <summary>What this person is doing, as their brain sees it. Set by CustomerBrain / PatronBrain.</summary>
     public Situation Current
@@ -110,11 +121,13 @@ public sealed class NpcSocial : MonoBehaviour
             situation = value;
             situationSince = Time.time;
             // A new situation starts quiet: no beat straight away, no glance carried over.
-            // An idle body beat stops too (a reaction carries on: thanks as they get up to go).
+            // An idle body beat stops too (a reaction carries on: thanks as they get up to go), except a phone or a hold
+            // that can go on on a walking body as they set off (NpcBeats carries it to the upper layer, 12 Oct 2026).
             beat = Beat.None;
             beatUntil = 0f;
             glanceUntil = 0f;
-            if (beats != null) beats.StopIdle();
+            bool setsOff = value == Situation.Walking || value == Situation.Leaving;
+            if (beats != null && !(setsOff && beats.CanCarry)) beats.StopIdle();
             nextBeatAt = Time.time + FirstGap();
             if (talkingSet && value != Situation.Ordering && value != Situation.Seated) SetTalking(false);
             if (posture != null)
@@ -178,12 +191,42 @@ public sealed class NpcSocial : MonoBehaviour
         Profile = profile;
         if (profile == null) return;
         if (locomotion == null) locomotion = GetComponent<NpcLocomotion>();
-        if (locomotion != null) locomotion.ApplyProfile(profile);
+        if (locomotion != null)
+        {
+            locomotion.ApplyProfile(profile);
+            // Who they are over the profile (12 Oct 2026): a Rushed customer hurries from the street in, an Impatient
+            // one is brisk, whatever walk their movement profile rolled. The brains add the mood of each leg.
+            locomotion.SetPersonGait(PersonGait(out float pace), pace);
+        }
         if (space == null) space = GetComponent<PersonalSpace>();
         if (space != null) space.ExtraRadius = profile.personalSpace;
         CheckAnimator();
         if (animator != null && animator.runtimeAnimatorController != null && HasParameter(IdleStyleHash))
             animator.SetFloat(IdleStyleHash, (int)profile.idleStyle);
+    }
+
+    // The walk the person's sort asks for, from the walk-in archetype's name (CustomerArchetype.archetypeName: the
+    // scene's five are Cheerful, Impatient, Chatty, Rushed, Sentimental). Regulars and patrons keep their profile's.
+    private NpcLocomotion.Gait PersonGait(out float pace)
+    {
+        pace = 1f;
+        CustomerIdentity identity = GetComponent<CustomerIdentity>();
+        string sort = identity != null && !identity.IsRegular && identity.Archetype != null ? identity.Archetype.archetypeName : null;
+        if (string.IsNullOrEmpty(sort)) return NpcLocomotion.Gait.Profile;
+        if (sort.IndexOf("Rushed", System.StringComparison.OrdinalIgnoreCase) >= 0) return NpcLocomotion.Gait.Hurry;
+        if (sort.IndexOf("Impatient", System.StringComparison.OrdinalIgnoreCase) >= 0) { pace = 1.05f; return NpcLocomotion.Gait.Brisk; }
+        return NpcLocomotion.Gait.Profile;
+    }
+
+    /// <summary>
+    /// A small sit-up in the chair (the back straightens for a moment) as the head turns to something: seated people
+    /// looking up at the door or the bench. Relaxes with the next posture beat.
+    /// </summary>
+    public void SitUp(float delay = 0f)
+    {
+        if (posture == null || situation != Situation.Seated) return;
+        posture.Shift(-3f, Random.Range(-1.5f, 1.5f), 0f, Mathf.Clamp(.45f + delay, .3f, 1.2f));
+        postureHeld = true;
     }
 
     // ------------------------------------------------------------ brain focus
@@ -449,11 +492,14 @@ public sealed class NpcSocial : MonoBehaviour
         float wGesture = seated ? 9f * gesture : 0f;
         // A whole-body beat (NpcBeats): an idle clip, or frustration when patience is low.
         float wBody = beats != null && beats.Ready ? (seated ? 18f : 22f) * BodyUrge() : 0f;
+        // Their own screen (a laptop patron): most of their looks go there, as a working person's do.
+        float wProp = seated && Prop != null ? 60f : 0f;
         float wStill = 10f;
-        float total = wPosture + wAround + wCounter + wMenu + wPlayer + wNeighbour + wGesture + wBody + wStill;
+        float total = wPosture + wAround + wCounter + wMenu + wPlayer + wNeighbour + wGesture + wBody + wProp + wStill;
         float r = Random.value * total;
         bool done;
-        if ((r -= wBody) <= 0f) done = BodyBeat();
+        if ((r -= wProp) <= 0f) done = LookPointBeat(Prop != null ? Prop.position + Vector3.up * .08f : (Vector3?)null, Beat.LookLaptop, 3f, 7f, .9f);
+        else if ((r -= wBody) <= 0f) done = BodyBeat();
         else if ((r -= wPosture) <= 0f) done = PostureBeat(seated);
         else if ((r -= wAround) <= 0f) done = LookAroundBeat();
         else if ((r -= wCounter) <= 0f) done = LookPointBeat(NpcAttentionDirector.CounterPoint, Beat.LookCounter, 1.4f, 3f, .8f);
@@ -560,13 +606,15 @@ public sealed class NpcSocial : MonoBehaviour
         return true;
     }
 
-    // Someone walking past a person who is sitting or standing: a brief look.
+    // Someone walking past a person who is sitting or standing: a brief look. Ace passing close counts first
+    // (12 Oct 2026: he is the one person everyone in the café has an eye on), with his own cooldown.
     private void NoticePassers()
     {
         if (Time.time < nextPasserScanAt || Time.time < beatUntil) return;
         nextPasserScanAt = Time.time + .7f;
-        if (Time.time - lastPasserGlanceAt < 7f) return;
         float look = Profile != null ? Profile.lookTendency : .5f;
+        if (NoticeAcePassing(look)) return;
+        if (Time.time - lastPasserGlanceAt < 7f) return;
         NpcSocial passer = NpcAttentionDirector.NearestWalker(this, 2.8f, 90f);
         if (passer == null || passer.transform == lastPasser && Time.time - lastPasserGlanceAt < 15f) return;
         if (Random.value > look * .5f) { lastPasserGlanceAt = Time.time - 5f; return; }   // not this one; look again soon
@@ -575,6 +623,22 @@ public sealed class NpcSocial : MonoBehaviour
         float delay = Profile != null ? Profile.reactionDelay : .2f;
         Glance(passer.HeadTransform != null ? passer.HeadTransform : passer.transform, passer.HeadTransform != null ? Vector3.zero : Vector3.up * 1.55f,
             Dur(1f, 1.9f), .7f, delay, Beat.LookPasser);
+    }
+
+    // Ace walking past within arm's reach or two: a look as he goes by, most of the time, every nine seconds at most.
+    private bool NoticeAcePassing(float look)
+    {
+        if (Time.time - lastAceGlanceAt < 9f) return false;
+        Transform ace = NpcAttentionDirector.Player;
+        if (ace == null || NpcAttentionDirector.PlayerSpeed < .5f) return false;
+        Vector3 to = ace.position - transform.position;
+        to.y = 0f;
+        if (to.magnitude > 1.9f || !CanSee(ace.position, 105f)) return false;
+        if (Random.value > .45f + look * .5f) { lastAceGlanceAt = Time.time - 5f; return false; }   // not this time; again soon
+        lastAceGlanceAt = lastPlayerGlanceAt = Time.time;
+        float delay = Profile != null ? Profile.reactionDelay * .6f : .1f;
+        Glance(ace, Vector3.up * aceEyeOffset, Dur(.9f, 1.6f), .8f, delay, Beat.AceLook);
+        return true;
     }
 
     // A walker glancing at someone they pass, or at Ace.
@@ -649,5 +713,15 @@ public sealed class NpcSocial : MonoBehaviour
     {
         if (lookAt != null) head = lookAt.HeadBone;
         CheckAnimator();
+        // A café person's profile from the moment they exist, not from the door (12 Oct 2026): the spawners set the
+        // identity before Start, and the brains only roll a profile at Init, which comes after the walk in from the
+        // street. Rolled here, the street walk already has their walk (a Rushed customer hurries in from the car park).
+        // The brains keep whatever was rolled (they only roll when there is none).
+        if (Profile == null && library != null)
+        {
+            CustomerIdentity identity = GetComponent<CustomerIdentity>();
+            bool known = identity != null && (identity.IsRegular || identity.Archetype != null);   // set up by the spawner already
+            if (known && GetComponent<CustomerBrain>() != null || GetComponent<PatronBrain>() != null) AssignProfile(identity);
+        }
     }
 }

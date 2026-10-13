@@ -21,8 +21,80 @@ public static class NightRuleChecks
     [MenuItem("Fixit Fidget/Checks/Night 1 rules")]
     public static void Run()
     {
-        int count = RunAll() + CheckUnityJson();
+        int count = RunAll() + CheckUnityJson() + HerFrontWindow();
         Debug.Log("[Night 1 rules] PASS: " + count + " assertions. No scene, save or asset changes.");
+    }
+
+    // Her front window (12 Oct 2026, playtest 4's ★1): the geometry her eyes work with, as GraceAtHome has it from the scene
+    // (ThroughTheFrontWall), written as checks: what the glass can and can't show her from her armchair and from the window spot,
+    // and the hours her routine brings her to the glass. Editor only: Tests/NightRules compiles this file without Unity, and
+    // GraceAtHome is a MonoBehaviour. The lab (Break-ins 7 - her front window) proves the rays agree.
+    static int HerFrontWindow()
+    {
+        int n = 0;
+        void Check(bool ok, string why) { n++; if (!ok) throw new InvalidOperationException(why); }
+        Vector3 seat = new Vector3(4.35f, 2.83f, 1.30f), glass = new Vector3(4.62f, 3.60f, 1.60f);
+        float pavement = GraceAtHome.Pavement, standing = 1.8f;
+        // Her TV is 66°-145° from her window: the slice she watches it in (±30°) never reaches the street.
+        Vector2 toTv = new Vector2(5.10f - seat.x, 2.83f - seat.y);
+        float south = Vector2.Angle(toTv, new Vector2(GraceAtHome.WindowSouth - seat.x, GraceAtHome.StreetWallInside - seat.y));
+        float north = Vector2.Angle(toTv, new Vector2(GraceAtHome.WindowNorth - seat.x, GraceAtHome.StreetWallInside - seat.y));
+        Check(Mathf.Min(south, north) > GraceNight.TvCone * .5f + 20f && Mathf.Min(south, north) > GraceNight.Cone * .5f,
+            $"From her armchair the window is {north:0}°-{south:0}° off her TV: outside her TV slice and her whole view.");
+        // From her armchair: her step is behind the pier; the pavement in front of her door behind the south drape.
+        Check(GraceAtHome.ThroughTheFrontWall(seat, new Vector3(1.11f, 4.78f, standing), out _, out _, out string by) == GraceAtHome.Through.Wall && by == "the pier",
+            $"From her armchair her step is behind the pier ({by}).");
+        Check(GraceAtHome.ThroughTheFrontWall(seat, new Vector3(1.73f, 5.55f, pavement + standing), out _, out _, out by) == GraceAtHome.Through.Wall,
+            $"From her armchair the pavement where Barnaby is taken from is out of sight ({by}).");
+        // From the glass: her step is behind the window's jamb (a grazing look along the wall), the pavement under her window
+        // behind the north drape, the pavement a pace back from her door in one of the two middle lights.
+        Check(GraceAtHome.ThroughTheFrontWall(glass, new Vector3(1.11f, 4.78f, standing), out _, out _, out by) == GraceAtHome.Through.Wall,
+            $"From the glass her step at her door is out of sight ({by}).");
+        Check(GraceAtHome.ThroughTheFrontWall(glass, new Vector3(3.76f, 5.70f, pavement + standing), out _, out _, out by) == GraceAtHome.Through.Wall && by == "the north drape",
+            $"From the glass the pavement under her own window is behind the north drape ({by}).");
+        Check(GraceAtHome.ThroughTheFrontWall(glass, new Vector3(1.20f, 5.50f, pavement + standing), out float x, out float z) == GraceAtHome.Through.Window
+              && x > GraceAtHome.WindowSouth && x < GraceAtHome.WindowNorth && z > GraceAtHome.WindowSill && z < GraceAtHome.WindowHead,
+            "From the glass a pace back from her door shows through the window (the line crosses the opening).");
+        Check(GraceAtHome.ThroughTheFrontWall(glass, new Vector3(1.11f, 6.20f, pavement + standing), out _, out _, out by) == GraceAtHome.Through.Wall && by == "the window's mullion",
+            $"From the glass 2 m out in front of her door's middle is behind the window's mullion ({by}).");
+        Check(GraceAtHome.ThroughTheFrontWall(glass, new Vector3(1.11f, 12f, pavement + standing), out _, out _) != GraceAtHome.Through.Door
+              && 12f > GraceAtHome.StreetWallInside + GraceAtHome.OutsideReach, "Across the street is beyond her reach whatever the glass shows.");
+        // A shut door is a wall; the doorway counts only as a doorway (seen through when it stands open).
+        Check(GraceAtHome.ThroughTheFrontWall(new Vector3(1.11f, 3.35f, 1.6f), new Vector3(1.11f, 5.30f, pavement + standing), out _, out _) == GraceAtHome.Through.Door,
+            "From her entry the foot of her steps is through her doorway (her open door, or not at all).");
+        // Where she looks from the window spot, and her cone from there (±55°, standing): the spot is at the window's north end,
+        // behind the north drape, so straight out of it there is only the drape; she looks down toward the road in front of her
+        // door (StreetAhead), and the pavement a pace from her door (1.0-1.6 m out), 2 m out in front of it, and under her
+        // window all lie inside her cone with room to spare, wherever within 20 cm of the spot her eye really is. What hides Ace
+        // out there is the frame and the drapes, never the cone's edge; her step at her door lies in the cone but behind the jamb.
+        Vector2 spot = new Vector2(GraceHouseMap.Spots[GraceHouseMap.FrontWindow].X, GraceHouseMap.Spots[GraceHouseMap.FrontWindow].Y);
+        Check(GraceAtHome.ThroughTheFrontWall(new Vector3(spot.x, spot.y, 1.6f), new Vector3(spot.x, 9f, pavement + standing), out _, out _, out by) == GraceAtHome.Through.Wall
+              && by == "the north drape", $"Straight out from the window spot there is only the north drape ({by}): she looks slantwise, through the middle lights.");
+        Vector2 looks = new Vector2(GraceAtHome.StreetAhead.x, GraceAtHome.StreetAhead.y) - spot;
+        float offStraightOut = Vector2.Angle(looks, Vector2.up);
+        Check(GraceAtHome.StreetAhead.x < GraceAtHome.DoorNorth && GraceAtHome.StreetAhead.x > 0f && offStraightOut > 25f && offStraightOut < 40f,
+            $"From the window spot she looks at the road in front of her door, {offStraightOut:0}° off straight out toward her door's side (25°-40°).");
+        float half = GraceNight.Cone * .5f, worst = 0f, worstUnder = 0f, step = 0f;
+        foreach (Vector2 eye in new[] { spot, spot + new Vector2(0f, .2f), spot + new Vector2(-.1f, .15f), spot + new Vector2(.1f, .15f), spot + new Vector2(0f, -.05f) })
+        {
+            foreach (Vector2 p in new[] { new Vector2(1.20f, 5.50f), new Vector2(1.11f, 5.60f), new Vector2(1.35f, 5.45f), new Vector2(1.00f, 5.70f), new Vector2(1.50f, 5.40f), new Vector2(1.25f, 5.80f), new Vector2(1.11f, 6.20f), new Vector2(1.73f, 5.55f) })
+                worst = Mathf.Max(worst, Vector2.Angle(looks, p - eye));
+            worstUnder = Mathf.Max(worstUnder, Vector2.Angle(looks, new Vector2(3.76f, 5.70f) - eye));
+            step = Mathf.Max(step, Vector2.Angle(looks, new Vector2(1.11f, 4.78f) - eye));
+        }
+        Check(worst < half - 15f, $"From the window spot the pavement in front of her door, a pace to 2 m out, is inside her cone with 15° to spare (at most {worst:0}° off; ±{half:0}°).");
+        Check(worstUnder < half - 15f, $"...and so is the pavement under her window (at most {worstUnder:0}° off), which the north drape hides instead.");
+        Check(step < half, $"...and her step at her door too ({step:0}° off): the jamb hides it, not the cone's edge.");
+        // Her routine's pauses at the glass: after each cup of tea, never on a Thursday; the map has the spot, a step from her chair.
+        float[] pauses = GraceNight.WindowPauses(GraceNight.Usual);
+        Check(pauses.Length == 2 && GraceNight.Clock(pauses[0]) == "11:45 PM" && GraceNight.Clock(pauses[1]) == "12:40 AM",
+            "Her usual night brings her to her front window twice, after each cup of tea (11:45 PM and 12:40 AM).");
+        Check(GraceNight.WindowPauses(GraceNight.Thursday).Length == 0 && GraceNight.WindowPauses(null).Length == 0, "Thursdays she doesn't pass her window with tea.");
+        Check(GraceHouseMap.Find("at her front window") == GraceHouseMap.FrontWindow && GraceHouseMap.Joined(GraceHouseMap.Armchair, GraceHouseMap.FrontWindow)
+              && GraceHouseMap.Length(GraceHouseMap.Armchair, GraceHouseMap.FrontWindow) < .7f, "Her front window has a spot of its own, a step from her armchair.");
+        Check(GraceHouseMap.Spots[GraceHouseMap.FrontWindow].Y < GraceAtHome.StreetWallInside - .5f && GraceHouseMap.Spots[GraceHouseMap.FrontWindow].X > GraceAtHome.WindowSouth
+              && GraceHouseMap.Spots[GraceHouseMap.FrontWindow].X < GraceAtHome.WindowNorth, "The window spot stands inside, within the window's width.");
+        return n;
     }
 
     // Unity's own serializer, which is what the real save uses.

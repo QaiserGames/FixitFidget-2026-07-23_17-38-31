@@ -17,8 +17,10 @@ using UnityEditor;
 // café, a phone with a cracked screen put on the bench by the check's own hand, and then a virtual gamepad does the
 // whole repair the way a player would, checking each beat of the spec as it goes:
 //
-//   the device lies on the mat, face up, square to the view; a nudge of the stick spins it and it settles square again,
-//   a swing leaves it where it stops; a push of the stick tilts an edge up to peek under and it lies back flat; Y flips
+//   the device lies on the mat, face up, square to the view; a push of the stick sideways turns it exactly one quarter,
+//   eased, with a click, and held it steps a quarter at a time (one every 0.45 s); a diagonal push does nothing; a push
+//   of the stick up tilts an edge up to peek under and it lies back flat; with the sticks swapped (the setting) the right
+//   stick turns and the left moves the hand, and the card says so; Y flips
 //   it over on the mat; D-pad up and down zoom; the driver held on a screw backs it out along ITS OWN axis, keeps its place if let go early, and when it
 //   comes free it falls and lands on the mat or in the tray, leaving a marked hole; the pry held at the cover's edge pops
 //   it; a press on the popped cover picks it up, it follows the cursor and drops where it's let go; the tweezers held
@@ -35,13 +37,16 @@ using UnityEditor;
 //
 // PLAYTEST 4 (10 Oct; the two playtester agents' notes on this check's own photos), checked as they go:
 //   * ONE ENDING: the fresh screen's seat wakes the phone (its new screen lights) with no words and no "Fixed!" (the cover is
-//     still on the mat); "Fixed! · Perfect" fires once, with the big sparkle, when the last screw is home, on a dark plate
-//     that reads on any background (its contrast measured); then a finished phone offers nothing to undo: a screw under the
-//     cursor reads "Screw" with no verb, and the driver held on it doesn't turn it. Act two's phone, never opened, gets the
-//     same one ending at its last task, the smudge, a beat after it wakes; no "Back together".
+//     still on the mat); when the last screw is home the phone, lying on its back, TURNS FACE UP by itself (12 Oct, §10.5:
+//     the words had landed on its back) and "Fixed! · Perfect" fires once, with the big sparkle, over its lit screen, on a
+//     dark plate that reads on any background (its contrast measured); then a finished phone offers nothing to undo: a screw
+//     under the cursor reads "Screw" with no verb, and the driver held on it doesn't turn it. Act two's phone, never opened,
+//     gets the same one ending at its last task, the smudge, a beat after it wakes; no "Back together".
 //   * The pry tool waits in the cover's seam, at a pry angle, its handle out across the seam, not stood on the middle of
 //     the back; held, its handle levers down; popped, its blade stays under the lifted edge.
-//   * The cracked screen, under the back cover, says why the back comes off ("Its cable plugs in under the back cover...").
+//   * The cracked screen, under the back cover, says why the back comes off, naming only what the player does ("Held in by
+//     the back cover. Take the cover off first": 12 Oct, no cable that no verb touches), and the checklist says to flip the
+//     phone over while its first step, the screws, lies on the face turned down.
 //   * The cloth in the hand is a pad (about a fifth of the glass covered on screen, where the folded cloth covered two
 //     thirds); the moment the smudge comes clean it lifts off the glass, up and back, so the gleam and the waking screen are
 //     seen; photographed mid-lift.
@@ -89,6 +94,7 @@ public sealed class BenchLab : PlayLab
     Camera cam;
     float frontSign = 1f;     // +1: the device's local up is the face first shown; -1: its local down is
     readonly List<GameObject> made = new List<GameObject>();
+    bool swapTouched, swapWas;   // the stick-swap setting, as it was before the check tried it (put back in Restore)
 
     static readonly GamepadState RT = new GamepadState { rightTrigger = 1f };
     GameObject prefab;
@@ -211,31 +217,55 @@ public sealed class BenchLab : PlayLab
         float dOut = Distance();
         Check(dOut > dIn * 1.1f, $"D-pad down zooms out again ({dOut * 100f:0} cm)");
 
-        // ---------- the spin: a nudge settles square again; a swing is left where it stops; a push tilts an edge up ----------
-        Quaternion face0 = device.transform.rotation;
-        PadHold(new GamepadState { leftStick = new Vector2(.5f, 0f) });
-        yield return Seconds(.3f);
-        float nudged = Quaternion.Angle(face0, device.transform.rotation);
-        yield return LetGo();
-        yield return Seconds(1.6f);
-        float after = Quaternion.Angle(face0, device.transform.rotation);
-        Check(nudged > 3f && nudged < 20f && after < .5f, $"a nudge of the left stick spins it ({nudged:0}°) and, let go, it coasts and settles square again ({after:0.0}° off)");
-        PadHold(new GamepadState { leftStick = new Vector2(1f, 0f) });
-        // Held until it has turned 30° (at most 0.6 s), not for a fixed 0.25 s (10 Oct, Claude): a fixed hold turned it 40° at
-        // 60 fps but 44° with Unity in the background at about 30, and 44° plus the coast's 25° ends 21° from a quarter turn,
-        // inside the 22° (faceSnapWithin) where the device is MEANT to settle square: the check failed on a correct settle.
-        // Let go from 30-36°, the coast ends 30° or more from a quarter turn at any frame rate, which is what this beat tests.
-        float swingUntil = Time.realtimeSinceStartup + .6f;
-        while (Quaternion.Angle(face0, device.transform.rotation) < 30f && Time.realtimeSinceStartup < swingUntil) yield return null;
-        float swung = Quaternion.Angle(face0, device.transform.rotation);
-        yield return LetGo();
-        yield return Seconds(1.6f);
-        float stayed = Quaternion.Angle(face0, device.transform.rotation);
-        float offSquare = Mathf.Abs(Mathf.DeltaAngle(inspector.Yaw, Mathf.Round(inspector.Yaw / 90f) * 90f));
-        Check(swung > 25f && swung < 80f && stayed > swung + 3f && offSquare > 5f && LowestPoint(device.transform) - inspector.TableTop.y < .004f,
-            $"a swing spins it well round ({swung:0}°), it coasts on ({stayed:0}°, {offSquare:0}° off square) and stays where it stops, still flat on the mat");
-        inspector.LayDown();                        // the check's hand puts it square again
+        // ---------- the stick (12 Oct, his 1b): a push turns it one quarter; held, a quarter at a time; a diagonal push does nothing; a push up peeks ----------
+        // The game's own layout first (the left stick turns), whatever the player's setting; it goes back at the end.
+        swapWas = GameSettings.SwapBenchSticks;
+        swapTouched = true;
+        GameSettings.SwapBenchSticks = false;
         yield return Frames(2);
+        Quaternion face0 = device.transform.rotation;
+        float yaw0 = inspector.Yaw;
+        int quarters0 = inspector.QuarterTurns, snapsBefore = Sfx.Requested("device.snap");
+        float pushedAt = Time.realtimeSinceStartup;
+        PadHold(new GamepadState { leftStick = new Vector2(.75f, 0f) });   // a push, let go at once
+        yield return Seconds(.1f);
+        float early = Mathf.Abs(Mathf.DeltaAngle(yaw0, inspector.Yaw));
+        yield return LetGo();
+        yield return Await(() => !inspector.Turning, 1f);
+        float landedIn = Time.realtimeSinceStartup - pushedAt;
+        float turned = Mathf.Abs(Mathf.DeltaAngle(yaw0, inspector.Yaw));
+        float offSquare = Mathf.Abs(Mathf.DeltaAngle(inspector.Yaw, Mathf.Round(inspector.Yaw / 90f) * 90f));
+        Check(inspector.QuarterTurns == quarters0 + 1 && Mathf.Abs(turned - 90f) < 1f && offSquare < 1f && early > 2f && early < 88f
+              && Quaternion.Angle(face0, device.transform.rotation) > 89f && LowestPoint(device.transform) - inspector.TableTop.y < .004f,
+            $"a push of the stick turns it exactly one quarter, eased ({early:0}° round at 0.1 s; {turned:0.0}° when it lands, {offSquare:0.00}° off square, in {landedIn:0.00} s), still flat on the mat");
+        Check(Sfx.Requested("device.snap") > snapsBefore, "...and it lands with a click (device.snap)");
+        yield return Photo("01a-turned-a-quarter");
+
+        // Held, it steps a quarter at a time at a calm pace: one at once, then one every 0.45 s (so 1.15 s held is three).
+        quarters0 = inspector.QuarterTurns;
+        PadHold(new GamepadState { leftStick = new Vector2(-.9f, 0f) });
+        yield return Seconds(1.15f);
+        int stepped = inspector.QuarterTurns - quarters0;
+        yield return LetGo();
+        yield return Await(() => !inspector.Turning, 1f);
+        offSquare = Mathf.Abs(Mathf.DeltaAngle(inspector.Yaw, Mathf.Round(inspector.Yaw / 90f) * 90f));
+        Check(stepped == 3 && offSquare < 1f, $"held for 1.15 s it steps {stepped} quarters (one at once, then one every 0.45 s), and lands square ({offSquare:0.00}° off)");
+
+        // A diagonal push does nothing: no half-turn, no half-peek (the old stick turned and tilted at once).
+        yaw0 = inspector.Yaw;
+        quarters0 = inspector.QuarterTurns;
+        PadHold(new GamepadState { leftStick = new Vector2(.8f, .8f) });
+        yield return Seconds(.5f);
+        float diagonalTurn = Mathf.Abs(Mathf.DeltaAngle(yaw0, inspector.Yaw)), diagonalTilt = Mathf.Abs(inspector.Tilt);
+        yield return LetGo();
+        yield return Seconds(.3f);
+        Check(inspector.QuarterTurns == quarters0 && diagonalTurn < .5f && diagonalTilt < .5f,
+            $"a diagonal push does nothing: {diagonalTurn:0.0}° turned, {diagonalTilt:0.0}° tilted (no half-turn, no half-peek)");
+
+        // A push clearly up lifts an edge to peek under; let go, it lies back flat.
+        inspector.LayDown();                        // the check's hand puts it square-on again
+        yield return Frames(2);
+        face0 = device.transform.rotation;
         PadHold(new GamepadState { leftStick = new Vector2(0f, 1f) });
         yield return Seconds(.5f);
         float peeked = inspector.Tilt;
@@ -243,15 +273,68 @@ public sealed class BenchLab : PlayLab
         yield return LetGo();
         yield return Seconds(1.2f);
         Check(peeked > 15f && Mathf.Abs(gapWhilePeeking) < .004f && Mathf.Abs(inspector.Tilt) < .5f && Quaternion.Angle(face0, device.transform.rotation) < .5f,
-            $"a push of the stick tilts an edge up to peek under ({peeked:0}°, its low edge still on the mat) and, let go, it lies back flat");
+            $"a push of the stick up tilts an edge up to peek under ({peeked:0}°, its low edge still on the mat) and, let go, it lies back flat");
 
-        // ---------- the cracked screen says why the back comes off (playtest 4: "a gate, not a cause") ----------
+        // ---------- the sticks swapped (GameSettings.SwapBenchSticks, 12 Oct): the right stick turns it, the left moves the hand ----------
+        GameSettings.SwapBenchSticks = true;
+        yield return Frames(2);
+        yaw0 = inspector.Yaw;
+        quarters0 = inspector.QuarterTurns;
+        Vector2 cursor0 = PadCursor.Position;
+        PadHold(new GamepadState { rightStick = new Vector2(.8f, 0f) });
+        yield return Seconds(.12f);
+        yield return LetGo();
+        yield return Await(() => !inspector.Turning, 1f);
+        float swappedTurn = Mathf.Abs(Mathf.DeltaAngle(yaw0, inspector.Yaw));
+        float handMoved = (PadCursor.Position - cursor0).magnitude;
+        Check(inspector.QuarterTurns == quarters0 + 1 && Mathf.Abs(swappedTurn - 90f) < 1f && handMoved < 2f,
+            $"sticks swapped: the right stick turns it a quarter ({swappedTurn:0.0}°) and the hand stays where it was ({handMoved:0} px)");
+        yaw0 = inspector.Yaw;
+        quarters0 = inspector.QuarterTurns;
+        cursor0 = PadCursor.Position;
+        PadHold(new GamepadState { leftStick = new Vector2(.8f, 0f) });
+        yield return Seconds(.3f);
+        yield return LetGo();
+        yield return Seconds(.3f);
+        handMoved = (PadCursor.Position - cursor0).magnitude;
+        Check(inspector.QuarterTurns == quarters0 && Mathf.Abs(Mathf.DeltaAngle(yaw0, inspector.Yaw)) < .5f && handMoved > 40f,
+            $"...and the left stick moves the hand ({handMoved:0} px) without turning it");
+        yield return Seconds(.35f);   // the cards refresh every 0.15 s
+        string card = Plain(BenchCards.ControlsText);
+        Check(card.Contains("[Left stick]  Move your hand") && card.Contains("[Right stick]  Turn it"),
+            $"...and the controls card says so: \"{card}\"");
+        // Put back as the player had it (the setting is PlayerPrefs, shared with his own game): the turn stick is whichever the
+        // setting says again, and so is the card.
+        GameSettings.SwapBenchSticks = swapWas;
+        yield return Frames(2);
+        quarters0 = inspector.QuarterTurns;
+        PadHold(swapWas ? new GamepadState { rightStick = new Vector2(-.8f, 0f) } : new GamepadState { leftStick = new Vector2(-.8f, 0f) });
+        yield return Seconds(.12f);
+        yield return LetGo();
+        yield return Await(() => !inspector.Turning, 1f);
+        yield return Seconds(.35f);
+        card = Plain(BenchCards.ControlsText);
+        string handStick = swapWas ? "Left" : "Right", turnStick = swapWas ? "Right" : "Left";
+        Check(inspector.QuarterTurns == quarters0 + 1 && card.Contains($"[{handStick} stick]  Move your hand") && card.Contains($"[{turnStick} stick]  Turn it"),
+            $"the setting put back ({(swapWas ? "swapped, as the player had it" : "not swapped")}): the {turnStick.ToLowerInvariant()} stick turns it again, and the card says so: \"{card}\"");
+        inspector.LayDown();                        // square-on for the rest
+        yield return Frames(2);
+
+        // ---------- the cracked screen says why the back comes off (playtest 4: "a gate, not a cause"; 12 Oct: no cable) ----------
         {
             string why = part.Prompt;   // the part's own words (ReplaceablePart.CoveredHint), read from the source
             yield return Hover(BenchInteractable.BoundsCentre(part.transform), part.DisplayName, why, "the cracked screen, its back cover on");
-            Check(why.Length <= 90 && why.Contains(cover.DisplayName.ToLowerInvariant()) && !why.StartsWith("Remove"),
-                $"it says why the back comes off, not only that it must (\"{why}\", {why.Length} characters)");
-            yield return Photo("01b-the-cable-under-the-back");
+            Check(why.Length <= 90 && why.Contains(cover.DisplayName.ToLowerInvariant()) && !why.StartsWith("Remove") && !why.ToLowerInvariant().Contains("cable"),
+                $"it says why the back comes off in words of what the player does, no cable no verb touches (\"{why}\", {why.Length} characters)");
+            yield return Photo("01b-held-in-by-the-back");
+        }
+
+        // ---------- the checklist says to flip it: its first step, the screws, lies on the face turned down (12-13 Oct) ----------
+        yield return Seconds(.35f);   // the cards refresh every 0.15 s
+        {
+            string list = Plain(BenchCards.ChecklistText);
+            Check(list.Contains("Take out the 2 screws") && list.Contains("flip it over"),
+                $"face up, the checklist's step is the screws, and it says they're on the other side: \"{list}\"");
         }
 
         // ---------- the flip: over onto its back, where the screws are ----------
@@ -260,6 +343,11 @@ public sealed class BenchLab : PlayLab
         yield return Seconds(.9f);
         Check(Vector3.Dot(Face(), Vector3.up) < -.99f && LowestPoint(device.transform) - inspector.TableTop.y < .004f,
             $"Y flips it over on the mat: the back is up, and it lies flat again ({(device.transform.position.y - heightBefore) * 1000f:0.0} mm change of height)");
+        {
+            string list = Plain(BenchCards.ChecklistText);
+            Check(list.Contains("hold on each one") && !list.Contains("flip it over"),
+                $"back up, the step says how instead: \"{list}\"");
+        }
         yield return Photo("02-the-back");
 
         // ---------- the screwdriver, and the screws ----------
@@ -460,6 +548,7 @@ public sealed class BenchLab : PlayLab
 
         // ---------- the screws home ----------
         yield return SelectTool(ToolType.Screwdriver);
+        bool backUpAtTheEnd = Vector3.Dot(Face(), Vector3.up) < -.99f;   // it lies on its face for the screws: the ending's flip is from here
         foreach (ScrewTarget t in screws)
         {
             Screw s = t.GetComponent<Screw>();
@@ -471,11 +560,24 @@ public sealed class BenchLab : PlayLab
             yield return LetGo();
             Check(Vector3.Distance(s.transform.position, s.HomePosition) < .001f && !s.Socket.gameObject.activeSelf, "it sits in its hole, the hole's mark gone");
         }
+        float finishedAt = Time.realtimeSinceStartup;
         Check(job.IsComplete && job.CanHandBack && job.Grade == JobGrade.Perfect && job.IsFinished, $"the repair is finished: {job.Grade}, in one piece");
-        // Playtest 4: the one ending, now, at the true end; on its plate.
-        yield return Await(() => Juice.Finishes > finishesBefore, 1f);
+        // §10.5 (12 Oct; the veteran: "'Fixed!' fires over the phone's back"): finished lying on its back, the phone turns face
+        // up by itself, within a second, and the one ending comes once it lies face up, pinned over its lit screen.
+        yield return Await(() => inspector.Flipping || Juice.Finishes > finishesBefore, .5f);
+        bool turnedByItself = inspector.Flipping && Juice.Finishes == finishesBefore;
+        yield return Await(() => !inspector.Flipping && Juice.Finishes > finishesBefore, 1.5f);
+        float faceUpIn = Time.realtimeSinceStartup - finishedAt;
+        Check(backUpAtTheEnd && turnedByItself && Vector3.Dot(Face(), Vector3.up) > .99f && faceUpIn < 1f && LowestPoint(device.transform) - inspector.TableTop.y < .004f,
+            $"finished lying on its back, the phone turns face up by itself ({(backUpAtTheEnd ? "back up" : "FACE UP")} at the last screw; face up and flat {faceUpIn:0.00} s later)");
         Check(lastWait && Juice.LastWords == "Fixed! · Perfect" && Juice.SparksUp >= 12,
-            $"the one ending: \"Fixed! · Perfect\" and the big sparkle the moment the last screw is home (words: \"{Juice.LastWords}\", {Juice.SparksUp} sparks)");
+            $"the one ending: \"Fixed! · Perfect\" and the big sparkle, once it lies face up (words: \"{Juice.LastWords}\", {Juice.SparksUp} sparks, {faceUpIn:0.00} s after the last screw)");
+        {
+            Vector3 middle = DeviceBounds.TryGet(device, out Bounds box) ? box.center : device.transform.position;
+            float over = Juice.LastWordsPoint.y - middle.y;
+            Check(Vector3.Dot(Face(), Vector3.up) > .99f && over > -.003f,
+                $"the words are pinned over its face, the lit screen, not its back ({over * 1000f:0} mm above its middle)");
+        }
         Check(Juice.LastWordsContrast >= 4.5f,
             $"on its dark plate the words read on any background ({Juice.LastWordsContrast:0.0}:1 over a white screen, the plate's worst case; 4.5:1 is the bar)");
         yield return Seconds(.8f);
@@ -486,7 +588,11 @@ public sealed class BenchLab : PlayLab
         yield return Photo("10-fixed-once");
 
         // Playtest 4 (both playtesters: "Back together · Perfect" sat over "Screw: Hold to unscrew"): a finished phone offers
-        // nothing to undo. Its screw reads "Screw" with no verb, and the driver held on it does nothing.
+        // nothing to undo. Its screw reads "Screw" with no verb, and the driver held on it does nothing. The screws are in the
+        // back: Y turns it over to look at them (the ending's own flip happens once; this one is the player's).
+        yield return PadPress(GamepadButton.North);
+        yield return Seconds(.9f);
+        Check(Vector3.Dot(Face(), Vector3.up) < -.99f, "Y turns the finished phone back over to look at its screws");
         ScrewTarget seated = screws.FirstOrDefault(t => OnPx(t.WorkPoint));
         Check(seated != null, "a screw of the finished phone is in view");
         if (seated != null)
@@ -821,10 +927,18 @@ public sealed class BenchLab : PlayLab
     }
 
     // The cursor glided from one point on the device to another with the button held: a stroke of the tool between them.
+    // A stroke of the tool from one point to another, as a hand would make it: in steps of about a centimetre, a frame or
+    // two each, so the cursor is ON the spot at frame boundaries whatever the frame rate. A glide is 0.03 s (PadCursor), one
+    // frame with Unity behind other windows: the cursor then jumps from a stroke's start to its end in that frame, and a
+    // stroke whose ends lie off the spot's disc (the raster's outermost rows start and end beyond its edge) never has the
+    // cursor over the spot at any frame, so nothing is scrubbed along it (13 Oct: 117 of 125 on 9 Oct and 164 of 172 today,
+    // the same eight, the spot left at 90-96 % along one side; 125/125 and 161/161 with Unity in front). The game is not
+    // the matter: a player's cursor crosses a spot over many frames.
     IEnumerator Sweep(Vector3 from, Vector3 to)
     {
         yield return Glide(from, .3f);
-        yield return Glide(to, .3f);
+        int steps = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(from, to) / .008f), 2, 12);
+        for (int i = 1; i <= steps; i++) yield return Glide(Vector3.Lerp(from, to, i / (float)steps), .1f);
     }
 
     IEnumerator Glide(Vector3 world, float seconds)
@@ -1066,9 +1180,12 @@ public sealed class BenchLab : PlayLab
         yield return Frames(3);
     }
 
+    static string Plain(string rich) => System.Text.RegularExpressions.Regex.Replace(rich ?? "", "<[^>]+>", "").Replace("\n", " / ");
+
     protected override void Restore()
     {
         PadRelease();
+        if (swapTouched) GameSettings.SwapBenchSticks = swapWas;   // the player's setting, never the check's
         if (inspector != null && inspector.IsHoldingItem) inspector.CancelInspection();
         if (interactor != null && interactor.IsAtStation) interactor.ExitStation();
         if (job != null) foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(job);

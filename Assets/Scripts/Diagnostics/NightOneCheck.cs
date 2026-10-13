@@ -217,6 +217,15 @@ public sealed class NightOneCheck : MonoBehaviour
         GraceAtHome atHome = GraceAtHome.Instance;
         Check(atHome != null && atHome.porchLight != null && atHome.porchLight.enabled,
             $"her porch light is on over her step: her house reads from the street ({(atHome != null ? atHome.Outside() : "Grace isn't at home in this scene")})");
+        // Playtest 4's ★1 (12 Oct 2026): her eyes reach the pavement in front of her door through her front window, but only while
+        // she stands at the glass with her tea (about 11:49 and 12:44); at Barnaby's hour she's in her armchair with the TV, which
+        // has her, and the window is off to the side of it. The first errand stays calm by her timetable, not by luck: a player who
+        // dawdles in front of her door until her first cup of tea is another matter.
+        float hourAtHerStep = NightWalk.Instance != null ? NightWalk.Instance.Hour : 0f;
+        int outsideBefore = atHome != null ? atHome.OutsideSightings : 0, noticesBefore = atHome != null ? atHome.Notices : 0;
+        Check(atHome != null && atHome.Home && atHome.WatchingTv && !atHome.SeesOutside && atHome.Mark < .05f,
+            $"at {GraceNight.Clock(hourAtHerStep)} she's in her armchair with the TV, and Ace in front of her door is out of her sight " +
+            $"({(atHome != null ? atHome.Doing : "")}; her mark {(atHome != null ? atHome.Mark : 0f):0.00}); her front window is watched {(atHome != null ? atHome.WindowHours() : "never")}");
         yield return Photo("03-at-grace-step");
 
         movement.SendMessage("OnInteract", SendMessageOptions.DontRequireReceiver);   // E
@@ -242,6 +251,8 @@ public sealed class NightOneCheck : MonoBehaviour
         };
         radii = new List<float> { .6f, .9f, .7f, .3f, .3f };
         yield return Walk(route, radii, "back along the front street and in through the café's door");
+        Check(atHome == null || atHome.Catches == 0 && atHome.OutsideSightings == outsideBefore && atHome.Notices == noticesBefore,
+            $"Barnaby taken at a walk and gone: she never saw Ace outside, never looked up ({(atHome != null ? atHome.Doing : "no Grace at home")})");
         yield return Until(() => interactor.CurrentPrompt == CallItANight, 4f, "inside the café's door the prompt reads \"Call it a night\"");
         yield return Photo("05-call-it-a-night");
         // In first person too: the doorway is a place, offered wherever Ace looks. Once the camera has come

@@ -342,15 +342,20 @@ public sealed class NightCycle : MonoBehaviour
     /// <summary>
     /// Grace has caught Ace (GraceAtHome). Her line shows for a moment, then the screen goes dark on "Caught.", whatever Ace
     /// took tonight goes back, and the night ends there (Ace home, tomorrow opens, as after dawn). False when no night is
-    /// on to end.
+    /// on to end. <paramref name="where"/>: where she saw Ace from when it wasn't in her house ("from her front window",
+    /// "from her front door"; 12 Oct 2026, her sight out of her front window), for the card's words.
     /// </summary>
-    public bool Caught()
+    public bool Caught(string where = null)
     {
         if (Now != Phase.Night || ending) return false;
         ending = true;
+        LastCaughtWhere = string.IsNullOrEmpty(where) ? "in her house" : where;
         StartCoroutine(CaughtTonight());
         return true;
     }
+
+    /// <summary>Where Grace saw Ace from, the last time she caught him ("in her house", "from her front window"; for the checks).</summary>
+    public string LastCaughtWhere { get; private set; } = "";
 
     IEnumerator CaughtTonight()
     {
@@ -362,7 +367,8 @@ public sealed class NightCycle : MonoBehaviour
         yield return new WaitForSecondsRealtime(1.3f);
         Safely("the night's last sound", () => Sfx.Play2D("night.caught"));
         yield return Fade(1f, .8f);
-        Caption("Caught.", "Grace saw Ace in her house. Whatever Ace took tonight goes back.\n" +
+        // PLACEHOLDER COPY (the card's second line names where she saw Ace from).
+        Caption("Caught.", $"Grace saw Ace {LastCaughtWhere}. Whatever Ace took tonight goes back.\n" +
                            "<size=80%>For now that's all. The cells come later.</size>");
         int night = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         Safely("putting back what Ace took", () => PutBack(night));
@@ -404,7 +410,8 @@ public sealed class NightCycle : MonoBehaviour
         // An error opening tomorrow: the recap again, rather than a closed day with no way on.
         if (!opened && clock != null && clock.DayOver && recap != null)
             Safely("showing the recap again", recap.ShowAgain);
-        if (tomorrow) Caption(Weekdays.Label(clock.Day), "Morning");
+        // The day intro (13 Oct 2026) names the day itself: the night's caption keeps only "Morning" when it will play.
+        if (tomorrow) Caption(DayIntro.WouldPlay ? "" : Weekdays.Label(clock.Day), "Morning");
         yield return new WaitForSecondsRealtime(tomorrow ? 1.3f : .2f);
         yield return Fade(0f, .9f);
         Caption("", "");

@@ -12,29 +12,69 @@ using UnityEngine;
 //              mixer asset, so nothing in the project changes.)
 //   Controls   Look sensitivity (the mouse, a multiplier on the view's own), pad look speed (the right stick, the same),
 //              invert Y (mouse and stick alike), aim help (AimAssist, its own saved switch), movement help (the walk's
-//              assist on a pad, PlayerMovement's own saved switch).
+//              assist on a pad, PlayerMovement's own saved switch), and swapping the sticks at the bench (below).
+//   Mornings   The day intro: Full, Short or Off (below).
 //   Picture    The quality preset (QualityPreset: Low, Medium, High).
 //
 // Defaults are the game as it played before there were settings: every multiplier 1, the volumes full but music at
 // four-fifths, nothing inverted, both helps on.
+//
+// 12-13 OCT 2026 (the big session after his controller playtest; claude/playtest-4-findings-and-proposals.md §1b and §6).
+// Two settings the other leads read, by these names (the Producer's contract; the UI lead owns them, nobody else writes
+// them but the phone):
+//   SwapBenchSticks   at the bench, the left stick moves the hand and the right stick turns the device (his 1b: "i want
+//                     the rotating and just the controls overall to be simple"). Default off: the right stick is the aiming
+//                     stick everywhere else in the game. Kept as 0/1 under FixitFidget.Settings.SwapBenchSticks. Read by
+//                     ItemInspector, PadCursor and BenchCards (Systems A).
+//   DayIntro          the morning's few seconds of the café waking up (his 6: every day, skippable, Short/Off in the
+//                     settings): DayIntroMode.Full, .Short (just the title) or .Off. Default Full. Kept as an int (0, 1, 2)
+//                     under FixitFidget.Settings.DayIntro; a number the game doesn't know reads as Full. Read by DayIntro
+//                     (Cinematics), which also stays off in the lab (CafeLab.Active) unless a lab asks for it.
 // ---------------------------------------------------------------------------
+
+/// <summary>
+/// How the day intro plays each morning (Settings › MORNINGS; GameSettings.DayIntro). Declared here, outside GameSettings,
+/// so other code writes it plainly: <c>GameSettings.DayIntro == DayIntroMode.Off</c>. The numbers are what PlayerPrefs
+/// keeps: never reorder them.
+/// </summary>
+public enum DayIntroMode
+{
+    /// <summary>The whole intro, every morning (6-8 s, skippable).</summary>
+    Full = 0,
+    /// <summary>Just the sting and the day's title over the player's own camera (2-3 s).</summary>
+    Short = 1,
+    /// <summary>No intro: the day starts at once.</summary>
+    Off = 2,
+}
+
 public static class GameSettings
 {
     const string Prefix = "FixitFidget.Settings.";
     const string MasterKey = Prefix + "Master", MusicKey = Prefix + "Music", EffectsKey = Prefix + "Effects",
         LookKey = Prefix + "Look", PadLookKey = Prefix + "PadLook", InvertKey = Prefix + "InvertY";
 
+    /// <summary>Where SwapBenchSticks is kept (0 or 1), and where DayIntro is kept (DayIntroMode as an int).</summary>
+    public const string SwapBenchSticksKey = Prefix + "SwapBenchSticks", DayIntroKey = Prefix + "DayIntro";
+
     /// <summary>The ranges the sliders cover.</summary>
     public const float LookMin = .25f, LookMax = 3f, PadLookMin = .5f, PadLookMax = 2f;
 
     static float? master, music, effects, look, padLook;
-    static bool? invert;
+    static bool? invert, swapSticks;
+    static DayIntroMode? dayIntro;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics()
+    static void ResetStatics() => Reload();
+
+    /// <summary>
+    /// Forgets what was read, so each setting is read again from where it's kept (PlayerPrefs) the next time it's asked
+    /// for. A new Play session does this by itself; the checks call it to see a setting read back as it was kept.
+    /// </summary>
+    public static void Reload()
     {
         master = music = effects = look = padLook = null;
-        invert = null;
+        invert = swapSticks = null;
+        dayIntro = null;
     }
 
     // The master volume is the listener's, so it's set as the game starts.
@@ -51,6 +91,18 @@ public static class GameSettings
     {
         cache = Mathf.Clamp(value, min, max);
         PlayerPrefs.SetFloat(key, cache.Value);
+    }
+
+    static bool GetSwitch(ref bool? cache, string key, bool fallback)
+    {
+        cache ??= PlayerPrefs.GetInt(key, fallback ? 1 : 0) == 1;
+        return cache.Value;
+    }
+
+    static void SetSwitch(ref bool? cache, string key, bool value)
+    {
+        cache = value;
+        PlayerPrefs.SetInt(key, value ? 1 : 0);
     }
 
     // ------------------------------------------------------------------ sound
@@ -98,16 +150,8 @@ public static class GameSettings
     /// <summary>Looking up and down turned over, for the mouse and the stick alike.</summary>
     public static bool InvertY
     {
-        get
-        {
-            invert ??= PlayerPrefs.GetInt(InvertKey, 0) == 1;
-            return invert.Value;
-        }
-        set
-        {
-            invert = value;
-            PlayerPrefs.SetInt(InvertKey, value ? 1 : 0);
-        }
+        get => GetSwitch(ref invert, InvertKey, false);
+        set => SetSwitch(ref invert, InvertKey, value);
     }
 
     /// <summary>1, or -1 when Y is inverted: what a look's up-and-down is multiplied by.</summary>
@@ -136,6 +180,37 @@ public static class GameSettings
         }
     }
 
+    /// <summary>
+    /// At the bench only: the left stick moves the hand and the right stick turns the device (the other way round from
+    /// the default). Off unless the player turns it on (Settings › CONTROLS, "Swap the sticks at the bench").
+    /// </summary>
+    public static bool SwapBenchSticks
+    {
+        get => GetSwitch(ref swapSticks, SwapBenchSticksKey, false);
+        set => SetSwitch(ref swapSticks, SwapBenchSticksKey, value);
+    }
+
+    // ------------------------------------------------------------------ mornings
+
+    /// <summary>How the day intro plays each morning: Full (the default), Short (just the title) or Off (Settings › MORNINGS).</summary>
+    public static DayIntroMode DayIntro
+    {
+        get
+        {
+            dayIntro ??= Known(PlayerPrefs.GetInt(DayIntroKey, (int)DayIntroMode.Full));
+            return dayIntro.Value;
+        }
+        set
+        {
+            dayIntro = Known((int)value);
+            PlayerPrefs.SetInt(DayIntroKey, (int)dayIntro.Value);
+        }
+    }
+
+    // A kept number the game knows as a mode, or Full: a stray value never leaves the mornings in a state with no name.
+    static DayIntroMode Known(int kept) =>
+        kept >= (int)DayIntroMode.Full && kept <= (int)DayIntroMode.Off ? (DayIntroMode)kept : DayIntroMode.Full;
+
     // ------------------------------------------------------------------ picture
 
     /// <summary>The quality preset's name (Low, Medium, High).</summary>
@@ -145,11 +220,15 @@ public static class GameSettings
         set => QualityPreset.Set(value, remember: true);
     }
 
-    /// <summary>Writes what changed to disk (the phone does it as it closes).</summary>
+    /// <summary>
+    /// Writes what changed to disk (the phone does it as it closes). Every setting above is put in PlayerPrefs the moment
+    /// it changes (the bench's sticks and the morning too), so this one call covers them all.
+    /// </summary>
     public static void Save() => PlayerPrefs.Save();
 
     /// <summary>Everything as it stands (reports).</summary>
     public static string Describe() =>
         $"Settings: master {Master:0.00}, music {Music:0.00}, effects {Effects:0.00}; look x{LookScale:0.00}, pad look x{PadLookScale:0.00}, " +
-        $"invert Y {(InvertY ? "on" : "off")}, aim help {(AimHelp ? "on" : "off")}, movement help {(MovementHelp ? "on" : "off")}; quality {Quality}.";
+        $"invert Y {(InvertY ? "on" : "off")}, aim help {(AimHelp ? "on" : "off")}, movement help {(MovementHelp ? "on" : "off")}, " +
+        $"swap the sticks at the bench {(SwapBenchSticks ? "on" : "off")}; the morning {DayIntro}; quality {Quality}.";
 }

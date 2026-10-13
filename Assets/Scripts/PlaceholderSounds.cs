@@ -92,6 +92,17 @@ public static class PlaceholderSounds
             case "watch.tick":   return Ticks(2.4f, 12, .5f);
             case "camera.wind":  return Ratchet(.45f, 7, 1700f, .4f);
             case "camera.shutter": return Mix(.1f, Noise(.004f, .9f), Sine(700f, .012f, .6f), Delay(.035f, Mix(.05f, Noise(.003f, .8f), Sine(1100f, .01f, .5f))));
+            // the day intro (12 Oct 2026, Cinematics; Mansoor: "coffee grinding and screws unwinding ... blended together"): named for
+            // the real sounds to come (Audio's cue sheet is in SoundBank.Defaults), so the cuts are right before the sounds are.
+            // The screw's own beats in the intro are the bench's own cues (screw.turn, screw.free, screw.drop); the pour is the
+            // dispenser's own file when it has one, else intro.pour; the phone's screen is phone.boot.
+            case "intro.grind":  return Motor(1.3f, 96f, .30f);                                            // the grinder running: a motor's buzz under a hiss, sagging as it stops
+            case "intro.pour":   return Pour(1.0f, .22f);                                                  // a drink pouring: a soft hiss with a low gurgle
+            case "intro.sign":   return Mix(.16f, Noise(.005f, .8f), Sine(620f, .03f, .6f), Sine(980f, .02f, .35f),
+                                            Delay(.055f, Mix(.07f, Noise(.004f, .6f), Sine(560f, .022f, .5f))));   // the OPEN sign's wooden flap, two knocks
+            case "intro.lamp":   return Mix(.08f, Noise(.0018f, .5f), Sine(1900f, .008f, .5f), Delay(.03f, Sine(2600f, .006f, .3f)));   // the magnifier lamp's switch and LED tick
+            case "intro.sting":  return Mix(1.6f, Sine(220f, .5f, .16f), Sine(440f, .45f, .22f), Delay(.13f, Sine(659.3f, .45f, .2f)),
+                                            Delay(.26f, Sine(880f, .5f, .2f)), Delay(.39f, Sine(1108.7f, .6f, .18f)), Delay(.39f, Sine(1318.5f, .7f, .1f)));   // the morning's sting: A, E, A, C sharp (the signature family's chord)
             default: return null;
         }
     }
@@ -208,6 +219,51 @@ public static class PlaceholderSounds
             parts.Add(Delay(at, Mix(.02f, Noise(.0008f, .3f * amp * fade), Sine(pitch, .0025f, .9f * amp * fade))));
         }
         return Mix(seconds, parts.ToArray());
+    }
+
+    // A small motor running (the day intro's grinder): a buzzy wave at `hz` with its first five harmonics and a slow wobble,
+    // a hiss of filtered noise under it; it starts in 0.08 s, runs, and sags in pitch and level over its last 0.3 s.
+    static float[] Motor(float seconds, float hz, float amp)
+    {
+        int n = Mathf.CeilToInt(seconds * Rate);
+        var s = new float[n];
+        float phase = 0f, last = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)Rate;
+            float stop = Mathf.Clamp01((t - (seconds - .3f)) / .3f);          // the last 0.3 s: winding down
+            float pitch = hz * (1f + .012f * Mathf.Sin(2f * Mathf.PI * 7f * t)) * (1f - .35f * stop);
+            phase += 2f * Mathf.PI * pitch / Rate;
+            float v = 0f;
+            for (int h = 1; h <= 5; h++) v += Mathf.Sin(phase * h) / (h * 1.3f);
+            float white = (float)(rng.NextDouble() * 2.0 - 1.0);
+            last += (white - last) * .12f;                                    // the hiss: low-passed noise
+            float env = Mathf.Min(1f, t / .08f) * (1f - .85f * stop * stop);
+            s[i] = (v * .55f + last * 1.1f) * env * amp;
+        }
+        return s;
+    }
+
+    // A drink pouring (the day intro's fallback when the dispenser has no file): a soft hiss swelling in, with a low gurgle
+    // whose pitch wanders, fading out.
+    static float[] Pour(float seconds, float amp)
+    {
+        int n = Mathf.CeilToInt(seconds * Rate);
+        var s = new float[n];
+        float phase = 0f, last = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)Rate;
+            float u = t / seconds;
+            float white = (float)(rng.NextDouble() * 2.0 - 1.0);
+            last += (white - last) * .2f;
+            float hz = 160f + 40f * Mathf.Sin(2f * Mathf.PI * 1.7f * t) + 25f * Mathf.Sin(2f * Mathf.PI * 4.3f * t + 1f);
+            phase += 2f * Mathf.PI * hz / Rate;
+            float gurgle = Mathf.Sin(phase) * (.4f + .6f * Mathf.Abs(Mathf.Sin(2f * Mathf.PI * 3f * t)));
+            float env = Mathf.Min(1f, t / .12f) * Mathf.Clamp01((1f - u) / .18f);
+            s[i] = (last * .9f + gurgle * .25f) * env * amp;
+        }
+        return s;
     }
 
     static float[] Delay(float seconds, float[] inner)

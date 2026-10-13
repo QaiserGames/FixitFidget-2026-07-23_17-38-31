@@ -50,6 +50,20 @@ using UnityEngine;
 /// (the hand rests on it). "Seated Idle" is not used at all. The two leaning
 /// clips wait for lean spots (Step C) and are never picked yet.
 ///
+/// THE UPPER BODY WHILE WALKING (the NPC life pass, 12 Oct 2026). His diagnosis:
+/// "beats only play when a body stands still". The animator now has a second
+/// beats layer, "UpperBeats" (Fixit Fidget > NPC > Life 1): the same standing
+/// clips behind an avatar mask from the spine up, so the legs stay the base
+/// layer's walk (feet planted, NpcLocomotion) while the torso, arms and head
+/// text, take a call, carry something or gesture. The brains ask for one as a
+/// walk begins (<see cref="TryWalkingBeat"/>, <see cref="TryHoldingWalk"/>), and
+/// a standing phone beat that would have been cut short when the person set off
+/// moves to the upper layer instead and goes on (<see cref="Carried"/>). Only
+/// standing clips that read on a moving body are allowed there (texting, the
+/// call, holding, a nod, a head shake, the angry and dismissing gestures, a
+/// friendly wave); seated clips and whole-body idles never. Without the layer
+/// (Life 1 not run) everything is as before.
+///
 /// Presentation only: nothing here changes queue order, patience, orders, money
 /// or the day.
 /// </summary>
@@ -104,6 +118,19 @@ public sealed class NpcBeats : MonoBehaviour
     [Tooltip("How fast a beat gets out of the way when the body has something else to do (a walk, a step round, " +
              "standing up), seconds.")]
     [SerializeField, Range(.05f, .4f)] private float interruptFade = .15f;
+    [Tooltip("Beats on a walking body through the UpperBeats layer (Fixit Fidget > NPC > Life 1), 12 Oct 2026. Off, or " +
+             "without the layer: a beat stops when the body walks, as before.")]
+    [SerializeField] private bool upperBody = true;
+    [Tooltip("A phone-repair customer walking in with Holding Idle carries the city smartphone as their phone (the only " +
+             "device prop there is; a watch or a camera in the hand waits for its own shell).")]
+    [SerializeField] private bool holdingShowsPhone = true;
+
+    // Standing clips that read on a walking body (the upper layer): a phone, a hold, a nod or a shake of the head, the
+    // storm-out's gestures and a wave. Whole-body idles (a weight shift, bored) and anything seated never go there.
+    private static readonly HashSet<string> Carryable = new(System.StringComparer.Ordinal)
+    {
+        Clip.Texting, Clip.PhoneCall, Clip.HoldingIdle, Clip.NodYes, Clip.HeadShake, Clip.AngryGesture, Clip.Dismissing, Clip.HappyHand,
+    };
 
     // How long each clip plays (seconds; 0 = its own length) and where. Loops play
     // a stretch of themselves from a random point; reactions play from the start.
@@ -159,6 +186,7 @@ public sealed class NpcBeats : MonoBehaviour
 
     // Base-layer states in which a beat may show.
     private static readonly int IdleState = Animator.StringToHash("CharacterArmature|Idle");
+    private static readonly int WalkState = Animator.StringToHash("CharacterArmature|Walk");
     private static readonly int StandingTalkState = Animator.StringToHash("Standing Talk");
     private static readonly int SittingState = Animator.StringToHash("Sitting");
     private static readonly int SittingTalkState = Animator.StringToHash("Sitting Talk");
@@ -172,7 +200,7 @@ public sealed class NpcBeats : MonoBehaviour
     private static readonly Dictionary<RuntimeAnimatorController, HashSet<string>> slotted = new();
     private static readonly Dictionary<TableSeat, bool> tableInFront = new();
     private static readonly Dictionary<string, int> started = new();
-    private static int interruptions, reactions;
+    private static int interruptions, reactions, carried, upperStarts;
     // The last two reactions anyone in the café played: less likely again straight away, so two tables served one after
     // the other don't do the same thing.
     private static readonly string[] roomRecent = new string[2];
@@ -187,7 +215,7 @@ public sealed class NpcBeats : MonoBehaviour
         slotted.Clear();
         tableInFront.Clear();
         started.Clear();
-        interruptions = reactions = 0;
+        interruptions = reactions = carried = upperStarts = 0;
         roomRecent[0] = roomRecent[1] = null;
         roomNext = 0;
     }
@@ -212,6 +240,10 @@ public sealed class NpcBeats : MonoBehaviour
     public static int Interruptions => interruptions;
     /// <summary>For the checks: reactions played in place of the old Interact gesture.</summary>
     public static int Reactions => reactions;
+    /// <summary>For the checks: standing beats that moved to the upper layer as the body set off, instead of stopping.</summary>
+    public static int Carried => carried;
+    /// <summary>For the checks: beats started on the upper layer (on a walking body).</summary>
+    public static int UpperStarts => upperStarts;
 
     // ---------- this person
 
@@ -225,6 +257,15 @@ public sealed class NpcBeats : MonoBehaviour
     private HashSet<string> available;
     private int layer = -1;
     private bool ready;
+    // The upper-body layer (Life 1), -1 without it; whether the beat showing plays there; and the layer a beat moved
+    // off (a carry-over from the whole-body layer), fading out while the new one fades in.
+    private int upperLayer = -1;
+    private bool onUpper;
+    private int leavingLayer = -1;
+    private float leavingWeight, leavingFade = .25f;
+    // Holding Idle with the phone: placed in the hand nearer the chest once the pose has blended in.
+    private bool pendingHoldPhone;
+    private NpcBeatLibrary.Hand holdPhoneHand = NpcBeatLibrary.Hand.None;
 
     private NpcBeatLibrary.Entry current;
     private Kind kind;
@@ -264,7 +305,15 @@ public sealed class NpcBeats : MonoBehaviour
     public float Remaining => current == null ? 0f : Mathf.Max(0f, (stopping ? 0f : endsAt - Time.time)) + (stopping ? weight * stopFade : 0f);
     /// <summary>The phone in their hand right now, if any (for checks and photos).</summary>
     public GameObject Phone => phone != null && phone.activeSelf ? phone : null;
-    public NpcBeatLibrary.Hand PhoneHand => current != null ? current.phoneHand : NpcBeatLibrary.Hand.None;
+    public NpcBeatLibrary.Hand PhoneHand => current == null ? NpcBeatLibrary.Hand.None
+        : current.phoneHand != NpcBeatLibrary.Hand.None ? current.phoneHand : holdPhoneHand;
+    /// <summary>The animator has the upper-body layer (Fixit Fidget > NPC > Life 1) and it is in use here.</summary>
+    public bool HasUpperLayer => Ready && upperBody && upperLayer >= 0;
+    /// <summary>The beat showing plays on the upper-body layer (the legs are the walk's).</summary>
+    public bool OnUpperLayer => current != null && onUpper;
+    /// <summary>The beat showing can go on while the body walks (it is on the upper layer, or will move there as they set off).</summary>
+    public bool CanCarry => current != null && !stopping && HasUpperLayer && !current.seated && Carryable.Contains(current.name);
+    public int UpperLayer => upperLayer;
 
     private void Awake()
     {
@@ -293,11 +342,16 @@ public sealed class NpcBeats : MonoBehaviour
         ready = true;
         rigRoot = animator.transform;
         // Known now if the animator is already running; otherwise on the first Update.
-        if (animator.isInitialized)
-        {
-            layer = animator.GetLayerIndex(NpcBeatLibrary.LayerName);
-            if (layer >= 0) animator.SetLayerWeight(layer, 0f);
-        }
+        if (animator.isInitialized) FindLayers();
+    }
+
+    // The two beats layers: the whole-body one (Mixamo 3) and, when Life 1 has run, the upper-body one.
+    private void FindLayers()
+    {
+        layer = animator.GetLayerIndex(NpcBeatLibrary.LayerName);
+        if (layer >= 0) animator.SetLayerWeight(layer, 0f);
+        upperLayer = animator.GetLayerIndex(NpcBeatLibrary.UpperLayerName);
+        if (upperLayer >= 0) animator.SetLayerWeight(upperLayer, 0f);
     }
 
     private void OnDisable()
@@ -409,6 +463,54 @@ public sealed class NpcBeats : MonoBehaviour
     {
         if (!Ready || current != null || queuedClip != null || SettledInChair) return false;
         return PlayUse(Clip.Thinking, Kind.Idle);
+    }
+
+    /// <summary>
+    /// A walk is beginning (the brains): now and then the person walks it texting, or on a call (a Distracted person
+    /// far more often than others), on the upper-body layer while the legs walk. <paramref name="legSeconds"/> is
+    /// about how long the walk lasts; the beat is cut to fit. False when nothing plays (no layer, no clips, dice).
+    /// </summary>
+    public bool TryWalkingBeat(float legSeconds, float chanceScale = 1f)
+    {
+        if (!HasUpperLayer || current != null || queuedClip != null || SettledInChair) return false;
+        if (legSeconds < 3f) return false;
+        bool distracted = Is("Distracted");
+        float chance = (distracted ? .45f : .09f) * chanceScale;
+        if (Random.value > chance) return false;
+        bool call = CanCall && Random.value < (distracted ? .3f : .2f);
+        string clip = call ? Clip.PhoneCall : Clip.Texting;
+        float seconds = Mathf.Min(legSeconds - .8f, Random.Range(6f, 12f));
+        return PlayUse(clip, Kind.Idle, seconds, 0f, true);
+    }
+
+    /// <summary>
+    /// A repair customer walking in with their device (the brains, at the door): Holding Idle on the upper-body layer
+    /// for the walk, with the city smartphone in the hand when the device is a phone (the one device prop there is;
+    /// nothing in the hand otherwise, so it is only asked for phone customers). False when it can't play.
+    /// </summary>
+    public bool TryHoldingWalk(float legSeconds)
+    {
+        if (!HasUpperLayer || current != null || queuedClip != null || SettledInChair || legSeconds < 2.5f) return false;
+        if (!HoldsPhone()) return false;
+        return PlayUse(Clip.HoldingIdle, Kind.Idle, Mathf.Max(2f, legSeconds + 1.5f), 0f, true);
+    }
+
+    /// <summary>
+    /// One clip by name on the upper-body layer, now (checks and tools): it plays on a walking or a standing body, the
+    /// legs the base layer's. False without the layer or for a clip that may not play there.
+    /// </summary>
+    public bool PlayUpper(string clip, float seconds = 0f) => HasUpperLayer && Carryable.Contains(clip) && PlayUse(clip, Kind.Reaction, seconds, 0f, true);
+
+    // A phone-repair customer (not the counter's Human fault) with the smartphone prop in the library: Holding Idle
+    // carries it as their phone.
+    private bool HoldsPhone()
+    {
+        if (!holdingShowsPhone || customer == null || customer.Record == null || customer.IsCounterRepair) return false;
+        if (customer.Record.kind != JobKind.Repair || Library == null || Library.phone == null) return false;
+        string device = customer.Record.deviceName ?? "";
+        if (device.IndexOf("phone", System.StringComparison.OrdinalIgnoreCase) < 0 && customer.Record.devicePrefab != null)
+            device = customer.Record.devicePrefab.name;
+        return device.IndexOf("phone", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     /// <summary>A reaction to something that just happened (see <see cref="Moment"/>). False: nothing played; the caller keeps its old gesture.</summary>
@@ -672,6 +774,14 @@ public sealed class NpcBeats : MonoBehaviour
     private void SeatedPool(Mood mood)
     {
         bool table = TableInFront(seating.Seat);
+        // At a laptop (a laptop patron, 12 Oct): the quiet idles only, no fingers tapped on the table it stands on.
+        // Typing comes with batch 2.
+        if (social != null && social.Prop != null)
+        {
+            Add(Clip.SitBreathing, 3f);
+            Add(Clip.SitLookAround, .6f + LookTendency);
+            return;
+        }
         switch (mood)
         {
             case Mood.Calm:
@@ -794,8 +904,9 @@ public sealed class NpcBeats : MonoBehaviour
     // ------------------------------------------------------------ playing
 
     // waitFor: how long a reaction may wait for the body to hold still (the end of a
-    // stop, a turn on the spot) before it is dropped.
-    private bool PlayUse(string clip, Kind as_, float seconds = 0f, float waitFor = 1.2f)
+    // stop, a turn on the spot) before it is dropped. upper: on the upper-body layer
+    // (a walking body), where nothing waits.
+    private bool PlayUse(string clip, Kind as_, float seconds = 0f, float waitFor = 1.2f, bool upper = false)
     {
         if (!Uses.TryGetValue(clip, out Use use)) use = new Use(0f, 0f, false);
         NpcBeatLibrary.Entry e = Entry(clip);
@@ -812,6 +923,7 @@ public sealed class NpcBeats : MonoBehaviour
             if (length > duration + 1f) from = Random.Range(0f, 1f - duration / length);
         }
         else duration = use.max > 0f ? Mathf.Min(length, Random.Range(use.min, use.max)) : length;
+        if (upper) return Play(clip, duration, as_, from, true);
         if (Play(clip, duration, as_, from)) return true;
         // Standing, not walking anywhere, just finishing a turn or a stop: the
         // reaction waits a moment for the body instead of being lost.
@@ -839,18 +951,31 @@ public sealed class NpcBeats : MonoBehaviour
     private bool AboutToStandStill => Ready && (seating == null || !seating.Busy)
         && (locomotion == null || locomotion.Speed < .9f) && (locomotion == null || !locomotion.IsMoving);
 
-    private bool Play(string clip, float seconds, Kind as_, float fromFraction)
+    private bool Play(string clip, float seconds, Kind as_, float fromFraction, bool upper = false)
     {
         NpcBeatLibrary.Entry e = Entry(clip);
-        if (e == null || !StillFor(e.seated)) return false;
+        if (e == null) return false;
+        bool useUpper = upper && HasUpperLayer && !e.seated && Carryable.Contains(e.name);
+        if (useUpper ? !UpperAllowed() : !StillFor(e.seated)) return false;
         if (!PlaceAllows(clip)) return false;
         float length = Mathf.Max(.1f, e.clip.length);
         float start = Mathf.Clamp01(fromFraction) * length;
         int hash = Animator.StringToHash(e.name);
-        // Over another beat that is still showing: cross-fade from it, never snap.
-        if (current != null && weight > .02f) animator.CrossFadeInFixedTime(hash, .3f, layer, start);
-        else animator.PlayInFixedTime(hash, layer, start);
+        int target = useUpper ? upperLayer : layer;
+        if (current != null && weight > .02f && onUpper != useUpper)
+        {
+            // Changing layers: the one left fades out while the new one fades in.
+            leavingLayer = onUpper ? upperLayer : layer;
+            leavingWeight = Shown;
+            leavingFade = .25f;
+            animator.PlayInFixedTime(hash, target, start);
+        }
+        // Over another beat that is still showing on the same layer: cross-fade from it, never snap.
+        else if (current != null && weight > .02f) animator.CrossFadeInFixedTime(hash, .3f, target, start);
+        else animator.PlayInFixedTime(hash, target, start);
         queuedClip = null;
+        onUpper = useUpper;
+        if (useUpper) upperStarts++;
 
         current = e;
         kind = as_;
@@ -874,26 +999,76 @@ public sealed class NpcBeats : MonoBehaviour
         return true;
     }
 
+    // A standing beat that reads on a walking body moves to the upper layer at the same moment of the clip as the body
+    // sets off (texting as they walk away from the counter), instead of being cut short. False: nothing to carry.
+    private bool CarryToUpper()
+    {
+        if (current == null || onUpper || !HasUpperLayer || current.seated || !Carryable.Contains(current.name) || !UpperAllowed()) return false;
+        float length = Mathf.Max(.1f, current.clip.length);
+        AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(layer);
+        float at = Mathf.Repeat(info.normalizedTime, 1f) * length;
+        animator.PlayInFixedTime(Animator.StringToHash(current.name), upperLayer, at);
+        // The whole-body layer gives the legs back to the walk as fast as an interruption would have.
+        leavingLayer = layer;
+        leavingWeight = Shown;
+        leavingFade = interruptFade;
+        onUpper = true;
+        carried++;
+        return true;
+    }
+
+    // The upper layer may show: the person is on their feet (not getting into or out of a chair) and the base layer is
+    // standing, walking or the standing talk loop (not the hand-over gesture, not a sit).
+    private bool UpperAllowed()
+    {
+        if (!HasUpperLayer || animator == null || !animator.isActiveAndEnabled) return false;
+        if (seating != null && seating.Busy) return false;
+        AnimatorStateInfo now = animator.GetCurrentAnimatorStateInfo(0);
+        if (!UpperState(now.shortNameHash)) return false;
+        if (animator.IsInTransition(0) && !UpperState(animator.GetNextAnimatorStateInfo(0).shortNameHash)) return false;
+        return true;
+    }
+
+    private static bool UpperState(int hash) => hash == IdleState || hash == WalkState || hash == StandingTalkState;
+
     private void Update()
     {
         if (!ready) return;
         if (layer < 0)
         {
             if (animator == null || !animator.isInitialized) return;
-            layer = animator.GetLayerIndex(NpcBeatLibrary.LayerName);
+            FindLayers();
             if (layer < 0) { ready = false; return; }
         }
         if (current != null && !stopping)
         {
-            if (!StillFor(current.seated)) { interruptions++; Stop(interruptFade); }
+            bool allowed = onUpper ? UpperAllowed() : StillFor(current.seated);
+            if (!allowed)
+            {
+                // Setting off with the phone out: the beat goes on on the upper layer instead of stopping.
+                if (!CarryToUpper()) { interruptions++; Stop(interruptFade); }
+            }
             else if (Time.time >= endsAt - fadeFor) Stop(fadeFor);
         }
         float want = current != null && !stopping ? 1f : 0f;
         float span = want > weight ? fadeFor : stopFade;
         weight = Mathf.MoveTowards(weight, want, Time.deltaTime / Mathf.Max(.05f, span));
         float shown = Shown;
-        if (animator.isActiveAndEnabled) animator.SetLayerWeight(layer, shown);
+        if (animator.isActiveAndEnabled)
+        {
+            int showing = onUpper && upperLayer >= 0 ? upperLayer : layer;
+            animator.SetLayerWeight(showing, shown);
+            if (leavingLayer >= 0 && leavingLayer != showing)
+            {
+                leavingWeight = Mathf.MoveTowards(leavingWeight, 0f, Time.deltaTime / Mathf.Max(.05f, leavingFade));
+                animator.SetLayerWeight(leavingLayer, leavingWeight);
+                if (leavingWeight <= 0f) { animator.Play(RestHash, leavingLayer, 0f); leavingLayer = -1; }
+            }
+            else if (leavingLayer >= 0) leavingLayer = -1;
+        }
         if (posture != null) posture.Hush = shown;
+        // Holding Idle as a phone customer: the phone goes into the hand nearer the chest once the pose has blended in.
+        if (pendingHoldPhone && current != null && shown > .9f) PlaceHoldPhone();
         // On a call a city body holds the phone against its own ear (PolygonNpcVisual).
         if (visual != null && current != null && current.name == Clip.PhoneCall && Phone != null && phoneHand != null
             && visual.VisualInstance != null && Library.TryGetEars(visual.ActiveAppearanceName, out Vector3 earL, out Vector3 earR))
@@ -916,11 +1091,24 @@ public sealed class NpcBeats : MonoBehaviour
         kind = Kind.None;
         stopping = false;
         weight = 0f;
-        if (animator != null && animator.isActiveAndEnabled && layer >= 0)
+        pendingHoldPhone = false;
+        holdPhoneHand = NpcBeatLibrary.Hand.None;
+        if (animator != null && animator.isActiveAndEnabled)
         {
-            animator.SetLayerWeight(layer, 0f);
-            animator.Play(RestHash, layer, 0f);
+            if (layer >= 0)
+            {
+                animator.SetLayerWeight(layer, 0f);
+                animator.Play(RestHash, layer, 0f);
+            }
+            if (upperLayer >= 0)
+            {
+                animator.SetLayerWeight(upperLayer, 0f);
+                animator.Play(RestHash, upperLayer, 0f);
+            }
         }
+        onUpper = false;
+        leavingLayer = -1;
+        leavingWeight = 0f;
         if (posture != null) posture.Hush = 0f;
         HidePhone();
     }
@@ -1000,8 +1188,35 @@ public sealed class NpcBeats : MonoBehaviour
     private void ShowPhone(NpcBeatLibrary.Entry e)
     {
         NpcBeatLibrary lib = Library;
-        if (e.phoneHand == NpcBeatLibrary.Hand.None || lib == null || lib.phone == null) { HidePhone(); return; }
-        string s = e.phoneHand == NpcBeatLibrary.Hand.Left ? "L" : "R";
+        pendingHoldPhone = false;
+        holdPhoneHand = NpcBeatLibrary.Hand.None;
+        if (e.phoneHand == NpcBeatLibrary.Hand.None)
+        {
+            // Holding Idle as a phone customer: the hand nearer the chest is known once the pose has blended in (Update).
+            if (e.name == Clip.HoldingIdle && HoldsPhone() && lib != null && lib.phone != null) { pendingHoldPhone = true; HidePhone(); return; }
+            HidePhone();
+            return;
+        }
+        if (lib == null || lib.phone == null) { HidePhone(); return; }
+        PlacePhone(e.phoneHand == NpcBeatLibrary.Hand.Left ? "L" : "R");
+    }
+
+    // Holding Idle with the phone: into whichever hand the pose holds nearer the chest (the clip was baked with empty
+    // hands; batch 1's library only names a hand for the two phone clips).
+    private void PlaceHoldPhone()
+    {
+        pendingHoldPhone = false;
+        Transform chest = RigBone("Chest"), left = RigBone("Wrist.L"), right = RigBone("Wrist.R");
+        if (chest == null || left == null || right == null) return;
+        bool useLeft = Vector3.Distance(left.position, chest.position) < Vector3.Distance(right.position, chest.position) - .02f;
+        holdPhoneHand = useLeft ? NpcBeatLibrary.Hand.Left : NpcBeatLibrary.Hand.Right;
+        PlacePhone(useLeft ? "L" : "R");
+    }
+
+    private void PlacePhone(string s)
+    {
+        NpcBeatLibrary lib = Library;
+        if (lib == null || lib.phone == null) { HidePhone(); return; }
         Transform wrist = RigBone("Wrist." + s), middle = RigBone("Middle2." + s), index = RigBone("Index2." + s), pinky = RigBone("Pinky2." + s);
         if (wrist == null || middle == null || index == null || pinky == null) return;
         Transform hand = visual != null && visual.VisualInstance != null ? visual.CityHand(s == "L") : null;

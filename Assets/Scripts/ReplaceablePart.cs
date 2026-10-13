@@ -15,8 +15,10 @@ using UnityEngine;
 //
 // A COVERED PART SAYS WHY (playtest 4, 10 Oct; the veteran: "'Cracked screen: Remove the back cover first' ... the back comes
 // off so the screen can lift out of the front, and nothing inside links the two. A ReStory player will read it as a gate,
-// not a cause"). The hover gives the cause in the part's own terms (CoveredHint): a screen's cable plugs in under the
-// back; a spring or a mechanism sits inside. No new step: nothing is unplugged (that would be a new verb).
+// not a cause"). The hover gives the cause in the part's own terms (CoveredHint). The first words named a cable ("Its cable
+// plugs in under the back cover"), and the veteran's second run: "names a cable that no verb touches ... a ReStory player
+// will look for it". His call (12 Oct, the findings' §10.5): the hint names only what the player does. So: the part is
+// HELD IN by the cover, and the cover comes off first. No new step: nothing is unplugged (that would be a new verb).
 // ---------------------------------------------------------------------------
 public class ReplaceablePart : BenchInteractable
 {
@@ -130,19 +132,20 @@ public class ReplaceablePart : BenchInteractable
         : "Hold to pinch it out";
 
     /// <summary>
-    /// Why a part waits on the cover over it, in plain words under 90 characters (playtest 4): a screen comes out of the
-    /// front, but its cable plugs in under the back; a spring, a mechanism, a battery or a board sits inside; anything else
-    /// sits under the cover. The labs and the steps read the words from here.
+    /// Why a part waits on the cover over it, in plain words under 90 characters, naming only what the player does (12 Oct,
+    /// his call on the veteran's note: the old words named a cable no verb touches): a screen is held in by the back; a
+    /// spring, a mechanism, a battery or a board sits inside; anything else sits under the cover. The labs and the steps read
+    /// the words from here. PLACEHOLDER COPY (his sister's to rewrite).
     /// </summary>
     public static string CoveredHint(string part, string cover)
     {
         string p = (part ?? "").ToLowerInvariant();
         string c = string.IsNullOrEmpty(cover) ? "cover" : cover.ToLowerInvariant();
         if (p.Contains("screen") || p.Contains("display"))
-            return $"Its cable plugs in under the {c}. Take the cover off first";
+            return $"Held in by the {c}. Take the cover off first";
         if (p.Contains("spring") || p.Contains("movement") || p.Contains("mechanism") || p.Contains("battery") || p.Contains("board"))
-            return $"It sits inside, under the {c}. Take the cover off first";
-        return $"It sits under the {c}. Take the cover off first";
+            return $"Inside, under the {c}. Take the cover off first";
+        return $"Under the {c}. Take the cover off first";
     }
     public override ToolType RequiredTool => Loose ? ToolType.Hand : ToolType.Tweezers;
     public override bool Holdable => !Loose;
@@ -429,6 +432,8 @@ public class LoosePart : BenchInteractable
     public override string DisplayName => part != null ? "Fresh " + part.DisplayName.ToLowerInvariant() : "Fresh part";
     public override string Prompt => part != null && part.State == ReplaceablePart.PartState.Removed
         ? "Hold to pinch it up, carry it to the seat" : "Hold to pick it up (the broken one comes out first)";
+    /// <summary>The seat is empty (the broken one is out): seating this is the step to do now (the aim help's order, 12 Oct).</summary>
+    public bool SeatEmpty => part != null && part.State == ReplaceablePart.PartState.Removed;
     public override ToolType RequiredTool => ToolType.Tweezers;
     public override bool CanInteract => !seated && !held && part != null && !part.IsReplaced;
     public override bool Holdable => true;
