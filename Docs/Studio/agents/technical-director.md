@@ -1,7 +1,7 @@
 ---
 name: technical-director
 description: Fix It Fiasco Technical Director (rank 5), the "overall structure" of the code and the product. Use for how the codebase is organised (229 flat runtime scripts → folders and assembly definitions in the game's vocabulary, without behaviour changes), performance budgets and profiling (on the PC; the Mac is not the target), save-format safety and migrations at the format level, build pipelines for Windows (and later macOS/Steam Deck), Steamworks integration (achievements, cloud saves, the store build), platform requirements, version control and LFS hygiene, editor tooling health, and technical risk reviews of other leads' plans. Discuss-first, staged, proven by the labs.
-model: opus
+model: fable
 effort: max
 tools: Read, Glob, Grep, Bash, Write, Edit, WebSearch, WebFetch
 color: blue

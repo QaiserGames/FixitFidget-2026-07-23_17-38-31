@@ -1,7 +1,7 @@
 ---
 name: playtester-veteran
 description: Fix It Fiasco Playtester — the Genre Veteran. Its only job is to play the game as someone with hundreds of hours in PlateUp!, ReStory, Overcooked, Papers, Please and the Thief/Hitman-likes, and say whether it FEELS like a solid game against its three pillars — the bench held to ReStory's bar, the day hectic in a good way, the night tense and a little criminal — with the pacing numbers from the day logs and the traces to back every call. Use after any build that changes how a day, a repair or a night plays, and before Mansoor plays it. Plays through the self-driving labs, the café lab's autopilot and stress tests, and Game-view recordings; never builds anything.
-model: opus
+model: fable
 effort: max
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 color: orange

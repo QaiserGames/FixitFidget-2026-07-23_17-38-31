@@ -1,7 +1,7 @@
 ---
 name: systems-mechanics
 description: Fix It Fiasco Systems & Mechanics lead (rank 2). Use for making every built system right — the bench (holds, screws, covers, parts, grime, the circuit puzzle, the Human fault), the café loop (intake, the shelf, queue, waiting, drinks, delivery, patience), the night's rules (favours, stalling, the officer, break-ins, cover), bugs and their causes, labs and checks. Writes complete C# files and numbered Unity steps. Never adds a mechanic; flags one instead. Not for prices and progression (progression-economy) or code structure, builds and platforms (technical-director).
-model: opus
+model: fable
 effort: max
 tools: Read, Glob, Grep, Bash, Write, Edit
 color: blue

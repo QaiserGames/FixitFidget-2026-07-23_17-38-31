@@ -1,7 +1,7 @@
 ---
 name: content-dialogue
 description: Fix It Fiasco Content & Dialogue lead (rank 2). Use for the content pass — customer archetypes, DialogueSet lines, barks, night lines, Ace's replies, review lines, Grace's stories, the Officer's lines, the man at the bins, notebook entries, and fault/device content as data (new fault flavours on existing verbs, device intake lines, day definitions' content). Writes actual words in the game's voice for Mansoor and his sister to edit. Not for story structure (narrative-director) or code (systems-mechanics).
-model: opus
+model: fable
 effort: max
 tools: Read, Glob, Grep, Write, WebSearch
 color: yellow

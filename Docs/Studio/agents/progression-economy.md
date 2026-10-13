@@ -1,7 +1,7 @@
 ---
 name: progression-economy
 description: Fix It Fiasco Progression & Economy lead, the studio's "game leveling" department (rank 2). Use for money and the player's growth — drink prices and repair payouts, tips, reputation's effect on business, the upgrade shop's costs and unlock order, the difficulty ramp across Days 1–5 and beyond, the onboarding economy, the road from one café to the franchise ("a whole building / monopoly"), and pacing the money ramp with the story ramp. Tuning of what exists, with the arithmetic shown. Not for new mechanics (flag them), not for code structure.
-model: opus
+model: fable
 effort: max
 tools: Read, Glob, Grep, Bash, Write, Edit, WebSearch, WebFetch
 color: cyan

@@ -1,6 +1,8 @@
 # The Studio Bible — Fix It Fiasco
 
-*Version 2.2, 12 October 2026. Every lead in the studio reads this file first, before its own role file, before any task. The Producer keeps §7 (current state) true; everything else changes only when Mansoor says so.*
+*Version 2.3, 12 October 2026. Every lead in the studio reads this file first, before its own role file, before any task. The Producer keeps §7 (current state) true; everything else changes only when Mansoor says so.*
+
+*What changed in 2.3 (12 Oct, 21:00): the models (§3.7). With his Fable usage back, his rule is Fable 5.1 for anything big that needs proper thinking and Opus 5.5 for the other agents; the role files' `model:` lines carry each lead's default and the Producer picks per task.*
 
 *What changed in 2.2 (12 Oct): a **Cinematics & Camera** lead joins at rank 4, beside UI/UX and Audio, at his request after playtest 4's first day ("we should have someone in the department that could help with intros and cutscenes and other montages"). It owns the camera language of the whole game (the conversation camera, the bench's framing, the views and their blends), the day intro he asked for, montages, staged scenes and the trailer capture (§9, `cinematics-camera.md`).*
 
@@ -94,10 +96,11 @@ Mansoor handed these to Claude's judgement. They are recorded so every lead work
 
 **3.6 Generated reference imagery is allowed, scoped.** Mood, palette and composition boards only, for discussion and for briefing the 2D artist. Never "copy this" references for the portrait style, and nothing generated ships in the game.
 
-**3.7 Models: every lead on the best model available.** His words (9 Oct, 20:12): "i want each agent to be highly trained meaning the best language model, fable5.1" and "i am out of fable use, so lets overall run opus 5.5 max". So:
-- **Now:** every role file says `model: opus` and `effort: max` (Opus 5.5 at its highest effort). In a claude.ai session, Claude launches each lead with model Opus and effort max.
-- **When he has Fable usage again:** every lead moves to `fable` (Fable 5.1). The quickest way, without editing every file: in the shell that starts Claude Code, `export CLAUDE_CODE_SUBAGENT_MODEL=fable CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`. The permanent way: the Producer changes the `model:` line in every file under `Docs/Studio/agents/` (one command, listed in `producer.md`) and this section, and he re-installs the roster (§10).
-- No lead is ever downgraded to save cost without his say-so. Fan-out (several instances of one lead on parallel tasks) runs on the same model as the lead.
+**3.7 Models: Fable 5.1 for the thinking, Opus 5.5 for the rest.** His words (9 Oct, 20:12): "i want each agent to be highly trained meaning the best language model, fable5.1" and "i am out of fable use, so lets overall run opus 5.5 max"; then (12 Oct, 21:00), with Fable back: "make sure to utilize opus 5.5 only for the other agents, anything big that requires actual proper thinking make sure its fable 5.1". So, from 12 Oct:
+- **The rule is per task, and the Producer applies it when it launches a lead:** anything big that needs proper thinking (a design, a spec, a diagnosis, an architecture, a verdict on direction or feel, a large change to the code) runs on **Fable 5.1**; routine work (a small fix with a known cause, a draft from a given outline, a lookup, file hygiene, a build step that follows a plan) runs on **Opus 5.5**. Both at `effort: max`. The main session that runs the studio is on Fable.
+- **The role files' `model:` line is the default when he runs a lead himself from Claude Code**, set by what that lead mostly does: `fable` for the Producer, the Narrative & Game Design Director, Systems & Mechanics, Progression & Economy, Content & Dialogue, the Technical Director, QA & Critic and the Genre Veteran (its verdict on feel); `opus` for Environment & Scene, Art Direction, NPC & Characters, 3D Art & Blender, UI/UX, Audio, Cinematics & Camera, Marketing & Steam and the First Hour. The per-task rule overrides the default either way (the NPC lead's architecture of the life pass ran on Fable; a Fable lead's chore runs on Opus). The split is the Producer's call of 12 Oct, his to redraw.
+- **To move the whole studio at once** (if he says so): `export CLAUDE_CODE_SUBAGENT_MODEL=fable CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` in the shell that starts Claude Code, for one session; or the Producer changes every `model:` line under `Docs/Studio/agents/` (the command is in `producer.md`) and this section, and he re-installs the roster (§10).
+- No lead is ever downgraded to save cost without his say-so, and no big task runs on Opus because Fable is slower. Fan-out (several instances of one lead on parallel tasks) runs on the task's model.
 
 **3.8 Priority: story and game design first.** His words: "i want these agents to be prioritized based on their role, story game design, honestly every aspect matters so so so much." Every department matters; the ranking says three things only: (a) who works first when a session's list is drawn up, (b) whose call stands when two leads disagree inside a task, until Mansoor rules, (c) whose output the others build on. The ranks are in §9.
 - A higher rank never overrides a lower rank on that lead's own craft: the Director decides what a scene must *do*; Art Direction decides how it *looks* within that; Systems decides what it *costs*; QA can flag anything and decides nothing.
@@ -252,7 +255,7 @@ All `claude/*` paths are Project docs. Repo paths are as in §6.
 
 ## 9. The roster
 
-Fifteen leads and two playtesters, one role file each in `Docs/Studio/agents/` (installed into `.claude/agents/`, §10). One definition per department; when a job parallelises, several instances of one lead run with different tasks. Every lead and playtester: **model `opus`, effort `max`** (§3.7).
+Fifteen leads and two playtesters, one role file each in `Docs/Studio/agents/` (installed into `.claude/agents/`, §10). One definition per department; when a job parallelises, several instances of one lead run with different tasks. Models: **Fable 5.1 for anything big that needs proper thinking, Opus 5.5 for the rest, every one at effort `max`** (§3.7: the role file's `model:` line is the default, the task decides).
 
 | Rank | Role | File | Mission in one line |
 |---|---|---|---|

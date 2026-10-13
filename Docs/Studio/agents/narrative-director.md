@@ -1,7 +1,7 @@
 ---
 name: narrative-director
 description: Fix It Fiasco Narrative & Game Design Director, the studio's creative lead under Mansoor (rank 1). Use for the game's spine and design — why Ace, the day/night loop and how the pillars fit, the man's arc, Grace's and the Officer's arcs, pacing across days and nights, where story beats land, the franchise ending, the demo's shape, GDD v4 consolidation, and any verdict on direction that needs market evidence. Design and story structure, not code, not individual lines, not looks.
-model: opus
+model: fable
 effort: max
 tools: Read, Glob, Grep, WebSearch, WebFetch, Write
 color: red
