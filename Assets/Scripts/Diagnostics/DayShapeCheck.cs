@@ -44,11 +44,24 @@ using UnityEngine;
 // autopilot at human speed (CafeLab.HumanSpeedKey). Photos: the first customer at the till from the game's camera, the
 // middle of each phase, closing time and the day's end. Report and photos: Logs/CafeLife/day-shape-<time>/. Nothing is
 // saved in the scene; the lab's own save is the only file the game writes.
+//
+// DAYS 1-3 (14 Oct 2026; specs/days-1-3.md §10, the feel targets' T19): with a day number (Fixit Fidget > Days > Lab - Day N
+// at the counter) the check judges that day by the spec's own bars instead of Day 5's rushes and lull, at the scene's 420 s:
+//                          Day 1                     Day 2         Day 3
+//   first walk-in at till  >= 2:00 (after the Officer) >= 1:30     -
+//   Grace handed back      <= 2:00                    <= 2:00       her latte <= 1:30
+//   storm-outs             0                          0             <= 1 (median)
+//   the day ends           <= 7:30                    <= 7:30       <= 8:30
+//   walk-in repairs        only "Gunked up"           only "Gunked up"  only the listed three, in order
+// Each run adds a line to Logs/CafeLife/days-1-3-runs.csv; the report gives that day's medians over every run so far (the
+// spec asks for 20 runs a day: one Play session each).
 // ---------------------------------------------------------------------------
 public sealed class DayShapeCheck : PlayLab
 {
     public const string PendingKey = "FixitFidget.DayShape.Check";
     public const string ShipLengthKey = "FixitFidget.DayShape.ShipLength";
+    /// <summary>Days 1-3: the day whose bars to judge (specs/days-1-3.md §10); absent or 0 for Day 5's shape.</summary>
+    public const string DayKey = "FixitFidget.DayShape.Day";
     public const float FirstAtTheTillWithin = 15f;
     public const float ShipDayLength = 420f;
     // After closing, how long the day may run on before the check calls it: a repair accepted just before closing at
@@ -57,10 +70,14 @@ public sealed class DayShapeCheck : PlayLab
     // The day's first arrival sets off half a second in, already near the door (CustomerSpawner): not a walk from the street.
     const float OpenerSeenBefore = 2f;
 
-    /// <summary>0: the day as the scene has it (180 s); otherwise this many seconds (the ship's 420).</summary>
+    /// <summary>0: the day as the scene has it (420 s since 14 Oct; it was 180); otherwise this many seconds (the ship's 420).</summary>
     public float dayLength;
 
+    /// <summary>0: Day 5's shape (the rushes and the lull); 1-3: that day's own bars (specs/days-1-3.md §10).</summary>
+    public int dayNumber;
+
     protected override string Title => "The day's shape at the counter - play check" +
+                                       (dayNumber > 0 ? $", Day {dayNumber} by the Days 1-3 bars" : "") +
                                        (dayLength > 0f ? $", a {dayLength:0} s day" : "") +
                                        (CafeLabDirector.Instance != null && CafeLabDirector.Instance.HumanSpeed ? ", the autopilot at human speed" : "");
     protected override string Tag => "[Day shape check]";
@@ -72,8 +89,10 @@ public sealed class DayShapeCheck : PlayLab
     {
         if (PlayerPrefs.GetInt(PendingKey, 0) == 0) return;
         bool ship = PlayerPrefs.GetInt(ShipLengthKey, 0) == 1;
+        int number = PlayerPrefs.GetInt(DayKey, 0);
         PlayerPrefs.DeleteKey(PendingKey);
         PlayerPrefs.DeleteKey(ShipLengthKey);
+        PlayerPrefs.DeleteKey(DayKey);
         PlayerPrefs.Save();
         if (!CafeLab.Active)
         {
@@ -83,8 +102,9 @@ public sealed class DayShapeCheck : PlayLab
         var go = new GameObject("Day shape check (this Play session only)");
         var check = go.AddComponent<DayShapeCheck>();
         check.dayLength = ship ? ShipDayLength : 0f;
+        check.dayNumber = Mathf.Clamp(number, 0, 3);
         check.folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "CafeLife",
-            $"day-shape-{DateTime.Now:yyyy-MM-dd_HHmmss}"));
+            (check.dayNumber > 0 ? $"days-1-3-day{check.dayNumber}-" : "day-shape-") + $"{DateTime.Now:yyyy-MM-dd_HHmmss}"));
     }
 #endif
 
@@ -98,16 +118,22 @@ public sealed class DayShapeCheck : PlayLab
         public bool regular, accepted, served, insideAtClosing, leavingAtClosing;
         public string state = "";
         public float gone = -1f;
+        // Days 1-3 (14 Oct): who it is, what they came with, and when their repair came back and when they were served.
+        public bool grace;
+        public string job = "";
+        public float returnedAt = -1f, servedAt = -1f;
     }
 
     static readonly FieldInfo WasServedField = typeof(CustomerBrain).GetField("wasServed", BindingFlags.Instance | BindingFlags.NonPublic);
     static readonly FieldInfo StateField = typeof(CustomerBrain).GetField("state", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly FieldInfo RepairReturnedField = typeof(CustomerBrain).GetField("repairReturned", BindingFlags.Instance | BindingFlags.NonPublic);
 
     readonly Dictionary<CustomerBrain, Arrival> people = new Dictionary<CustomerBrain, Arrival>();
     readonly List<Arrival> arrivals = new List<Arrival>();
     int fullCounterSamples, samples;
     float closedAt = -1f, endedAt = -1f;
     bool firstPhoto;
+    int lostAtEnd = -1;   // the day's storm-outs (DayClock.Lost) when it ended
 
     protected override IEnumerator Run()
     {
@@ -203,6 +229,7 @@ public sealed class DayShapeCheck : PlayLab
             yield return Seconds(.1f);
         }
         endedAt = clock.SecondsIntoDay;
+        lostAtEnd = clock.Lost;
         int stillInside = FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude).Count(c => c != null && c.isActiveAndEnabled && !c.IsLeaving);
         Check(clock.DayOver, $"the day ended within {ServiceAfterClosingAtMost:0} s of closing (service ran {endedAt - closedAt:0.0} s past it)");
         Check(stillInside == 0, $"the day ended only once everyone inside had been seen to ({stillInside} still waiting when it ended)");
@@ -226,6 +253,10 @@ public sealed class DayShapeCheck : PlayLab
                 if (WasServedField != null && WasServedField.GetValue(c) is bool served && served) a.served = true;
                 if (StateField != null) a.state = StateField.GetValue(c)?.ToString() ?? "";
                 a.gone = now;
+                if (a.servedAt < 0f && a.served) a.servedAt = now;
+                if (a.returnedAt < 0f && RepairReturnedField != null && RepairReturnedField.GetValue(c) is bool returned && returned) a.returnedAt = now;
+                if (a.job.Length == 0 && c.Record != null)
+                    a.job = c.Record.kind == JobKind.Repair ? $"{c.Record.deviceName}: {c.Record.faultDescription}" : "a drink";
             }
             if (!a.counted && c.ReachedCounterAt >= 0f)
             {
@@ -246,7 +277,11 @@ public sealed class DayShapeCheck : PlayLab
     Arrival Known(CustomerBrain c, float now)
     {
         if (people.TryGetValue(c, out Arrival a)) return a;
-        a = new Arrival { name = c.CustomerName, seen = now, regular = c.Identity != null && c.Identity.IsRegular };
+        a = new Arrival
+        {
+            name = c.CustomerName, seen = now, regular = c.Identity != null && c.Identity.IsRegular,
+            grace = c.Identity != null && c.Identity.Profile != null && c.Identity.Profile.PersistentId == GraceCameraEpisode.ProfileId
+        };
         people[c] = a;
         return a;
     }
@@ -287,6 +322,13 @@ public sealed class DayShapeCheck : PlayLab
 
         // Last orders (12 Oct).
         LastOrders(day, spawner);
+
+        // Days 1-3 (14 Oct): the day's own bars, not Day 5's rushes and lull.
+        if (dayNumber >= 1 && dayNumber <= 3)
+        {
+            DaysBars(today, day, spawner);
+            return;
+        }
 
         // The rushes and the lull: the two phases authored busiest, and the quietest after the first.
         int[] byInterval = Enumerable.Range(0, today.phases.Length).OrderBy(i => today.phases[i].spawnInterval).ToArray();
@@ -352,4 +394,88 @@ public sealed class DayShapeCheck : PlayLab
     }
 
     static string Slug(string name) => string.IsNullOrEmpty(name) ? "phase" : name.ToLowerInvariant().Replace(' ', '-');
+
+    // ---------- Days 1-3 (14 Oct 2026; specs/days-1-3.md §10, T19) ----------
+
+    // The bars, by day (index 1-3): the first walk-in at the till no sooner than, Grace handed back (Day 3: her latte served)
+    // no later than, storm-outs at most, the day ended no later than (seconds from the opening).
+    static readonly float[] FirstWalkInNoSooner = { 0f, 120f, 90f, 0f };
+    static readonly float[] GraceDoneBy = { 0f, 120f, 120f, 90f };
+    static readonly int[] StormOutsAtMost = { 0, 0, 0, 1 };
+    static readonly float[] DayEndsBy = { 0f, 450f, 450f, 510f };
+    const string RunsFile = "days-1-3-runs.csv";
+
+    void DaysBars(DayDefinition today, float day, CustomerSpawner spawner)
+    {
+        int d = dayNumber;
+        report.AppendLine();
+        report.AppendLine($"Days 1-3: Day {d}'s bars (specs/days-1-3.md §10; T19: Days 1-2 lose nobody, Day 3 at most one, the median):");
+        Check(DayClock.Instance != null && DayClock.Instance.Day == d, $"the lab played Day {d} ({(DayClock.Instance != null ? DayClock.Instance.Day : 0)})");
+        Check(Mathf.Abs(day - 420f) < 1f, $"the day is {day:0} s (the scene's 420; Fixit Fidget › Days › A)");
+
+        var walkIns = people.Values.Where(a => !a.regular).OrderBy(a => a.seen).ToList();
+        var atTill = walkIns.Where(a => a.atCounter >= 0f).Select(a => a.atCounter).ToList();
+        float firstWalkIn = atTill.Count > 0 ? atTill.Min() : -1f;
+        if (FirstWalkInNoSooner[d] > 0f)
+            Check(firstWalkIn < 0f || firstWalkIn >= FirstWalkInNoSooner[d],
+                $"the first walk-in reached the till at {Clock(firstWalkIn)} (no sooner than {Clock(FirstWalkInNoSooner[d])}{(d == 1 ? ": after the Officer" : "")})");
+
+        Arrival grace = people.Values.Where(a => a.grace).OrderBy(a => a.seen).FirstOrDefault();
+        // The lab's autopilot ends a repair visit as served and leaving (CafeLabDirector: no device goes back through the hand-
+        // back, so the brain's "repair returned" is never set): its served moment is the hand-back here (15 Oct, the first
+        // Days lab on his Mac read "handed back never" for a Grace who left done at 1:27).
+        float graceDone = grace == null ? -1f : d == 3 ? grace.servedAt : grace.returnedAt >= 0f ? grace.returnedAt : grace.servedAt;
+        string graceWhat = d == 3 ? "Grace's latte served" : "Grace's camera handed back";
+        Check(grace != null && graceDone >= 0f && graceDone <= GraceDoneBy[d],
+            $"{graceWhat} at {Clock(graceDone)} (by {Clock(GraceDoneBy[d])}){(grace == null ? ": she never came" : "")}");
+        // T11: the first repair, from her reaching the till to the hand-back, is at most half of Day 1 (the spec's ≈ 17 %).
+        if (d == 1 && grace != null && grace.atCounter >= 0f && graceDone >= 0f)
+            Check((graceDone - grace.atCounter) <= .5f * day,
+                $"T11: the first repair took {graceDone - grace.atCounter:0} s from the till to the hand-back, {100f * (graceDone - grace.atCounter) / day:0}% of the day (at most 50%)");
+
+        int stormOuts = Mathf.Max(0, lostAtEnd);
+        Check(lostAtEnd >= 0 && stormOuts <= StormOutsAtMost[d], $"{stormOuts} storm-out(s) (at most {StormOutsAtMost[d]}{(d == 3 ? " in the median run" : "")})");
+        Check(endedAt >= 0f && endedAt <= DayEndsBy[d], $"the day ended at {Clock(endedAt)} (by {Clock(DayEndsBy[d])})");
+
+        // The walk-ins' repairs: the day's list, in order (a prefix of it: not every entry need come).
+        var listed = new List<string>();
+        foreach (FeaturedRepairRequest entry in today.WalkInRepairsOn(d))
+            if (entry != null && entry.TryCreateJob(out Job job, out _)) listed.Add($"{job.deviceName}: {job.faultDescription}");
+        var brought = walkIns.Where(a => a.job.Length > 0 && a.job != "a drink").Select(a => a.job).ToList();
+        bool inOrder = brought.Count <= listed.Count && brought.Select((j, i) => j == listed[i]).All(ok => ok);
+        Check(listed.Count > 0 && inOrder,
+            $"the walk-ins brought [{string.Join(", ", brought)}] (only the day's list, in order: [{string.Join(", ", listed)}]); " +
+            $"{walkIns.Count(a => a.job == "a drink")} came for a drink; the spawner handed out {(spawner != null ? spawner.WalkInRepairsUsed : 0)}");
+
+        // This run, then every run of this day so far: the medians the spec's 20 runs a day are judged on.
+        string row = string.Join(",", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), d, day.ToString("0"), Num(firstWalkIn), Num(graceDone),
+            stormOuts, Num(endedAt), "\"" + string.Join(" | ", brought) + "\"", failures == 0 ? "pass" : "fail");
+        string file = Path.Combine(Path.GetDirectoryName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? folder, RunsFile);
+        try
+        {
+            if (!File.Exists(file)) File.WriteAllText(file, "when,day,length,first walk-in at till,grace done,storm-outs,day ended,walk-in repairs,result\n");
+            File.AppendAllText(file, row + "\n");
+            var runs = File.ReadAllLines(file).Skip(1).Select(l => l.Split(',')).Where(c => c.Length >= 7 && c[1] == d.ToString()).ToList();
+            Note($"Day {d}: {runs.Count} run(s) recorded in {file} (the spec asks for 20). Medians: first walk-in at the till {Clock(Median(runs, 3))}, " +
+                 $"{graceWhat} {Clock(Median(runs, 4))}, storm-outs {Median(runs, 5):0.#}, the day ended {Clock(Median(runs, 6))}.");
+            if (d == 3 && runs.Count >= 3)
+                Check(Median(runs, 5) <= 1f, $"Day 3: the median run loses at most one ({Median(runs, 5):0.#} over {runs.Count} runs)");
+        }
+        catch (Exception e) { Note("couldn't keep the runs file: " + e.Message); }
+    }
+
+    static string Num(float seconds) => seconds < 0f ? "" : seconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+
+    static string Clock(float seconds) => seconds < 0f ? "never" : $"{(int)(seconds / 60f)}:{(int)(seconds % 60f):00}";
+
+    static float Median(List<string[]> runs, int column)
+    {
+        var values = new List<float>();
+        foreach (string[] cells in runs)
+            if (float.TryParse(cells[column], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v))
+                values.Add(v);
+        if (values.Count == 0) return -1f;
+        values.Sort();
+        return values[values.Count / 2];
+    }
 }

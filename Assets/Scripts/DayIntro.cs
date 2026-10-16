@@ -15,17 +15,23 @@ using UnityEngine.UI;
 // findings doc §6): every day, 6-8 s, skippable, with Short and Off in the settings.
 //
 // Every morning, where the opening bell used to ring (DayClock.Update: a beat into the day, never inside StartDay), the
-// intro begins instead and rings the bell itself, where its sign beat lands. Four shots from a pool, cut on the beat, each
-// a close-up of something the café really does, in the order of the day's work: the café (the grinder: beans, or the burr
-// collar) -> the bench (a screw backing out of a phone and dropping into the tray, or the magnifier lamp coming on over the
-// tools) -> a third (a latte pouring, a fixed phone's screen lighting up, or, on a morning Grace is coming early, her house
-// across the street) -> the open (the storefront with its name, or the round blade sign with the street waking beyond it).
-// "Blended" is the match cut: round, spinning shapes becoming the next (the hopper's beans turning -> the screw head turning
-// -> the cup's rim with the pour swirling -> the round sign), and the sounds stacked into one beat. Then the pull-out: the
-// brain's own 0.75 s blend to the player's camera (the last shot becomes the game) as the day's title slides in ("Tuesday ·
-// Day 2" and one line about the day, PLACEHOLDER COPY for his sister), the sting under it. Never the same twice: the free
-// beats are drawn from the pool and the order is never last morning's; Day 1 plays the canonical order (its line is the
-// hook: what the café is); a morning Grace is coming early shows her house.
+// intro begins instead and rings the bell itself, where its sign beat lands.
+//
+// INTRO V2: NEIGHBOURHOOD B-ROLL (14 Oct 2026; the cinematics spec §4.1). His girlfriend: "WOWWWW i love the intro", but "why
+// is the angle of the intro of the coffee maker or whatever so bad, and the screw and the placing on the tray, like it doesn't
+// look like an intro level yet, but she loved the span on aces cafe sign"; "the views of the intro should change every day ...
+// some intros should be different where it has a different b roll"; "why are we zooming on ONLY ON GRACES house ... this game
+// isn't ace vs grace". The two close-ups she disliked filmed models never built to be seen that close (the grinder's beans are
+// one spun solid; the tray was near empty on a plain slab); the one shot she loved was the only one at street distance. So a
+// morning is four slots of B-roll, wide and mid shots unless a model was built for a close-up: the street waking (1.8 s) ->
+// the café opening up (1.4) -> someone, or the day's own (1.4) -> the open, the sign and the bell (1.4). Day 1 is fixed (the
+// street, the bench, the drinks, the café's name); other mornings draw one shot a slot, never yesterday's in slots 0-2, never
+// any of the last six mornings' orders. Grace is in a morning only when she is really coming in early, at most one morning in
+// six, never on Day 1 (Days spec §8: no window, no man by day, no police car, nothing named about the night). Each shot's
+// first sound may lead its picture by 0.15 s (the J-cut). The bench close-ups (the screw, the phone waking) are parked until
+// the new mat and one scale land. Then the pull-out: the brain's own 0.75 s blend to the player's camera (the last shot
+// becomes the game) as the day's title slides in ("Tuesday · Day 2" and one line about the day, PLACEHOLDER COPY for his
+// sister), the sting under it.
 //
 // What it holds, and gives back exactly: the DayClock is disabled for its length (OnDisable records the stop, OnEnable adds
 // the stopped time back, as the night walk does), the two spawners are held, Ace is held (PlayerMovement.Hold: no walking,
@@ -34,10 +40,11 @@ using UnityEngine.UI;
 // out (a CanvasGroup on each root canvas, anything made meanwhile caught each frame) and faded back in on the pull-out. Its
 // own camera is one CinemachineCamera made at run time at priority 50 (never saved in the scene) and moved by hand on
 // unscaled time: a cut is a teleport, the only Cinemachine blend is the last one, to the player's camera, which therefore
-// comes back exactly where it was. Props (the phone, the screw, the cup, the pour) are photocopies of the game's own meshes,
-// made for the shot and removed after; nothing in the scene or in gameplay is touched. If a shot's subject is missing the
-// shot is dropped; if the pool is empty the morning plays the Short form; if anything throws, the intro ends at once and the
-// day starts.
+// comes back exactly where it was. The intro does only two things to the scene: it holds a light's intensity and gives it
+// back (the bench lamp, the café's own lights), and it adds its own props (the cup and the pour) under its Props root,
+// removed after. The settled guests are seated as it begins (PatronSpawner.SeatOpeningGuestsNow, the NPC lead's). If a
+// shot's subject is missing the shot is dropped and its slot redraws; fewer than two shots plays the Short form; if anything
+// throws, the intro ends at once and the day starts.
 //
 // Never a hostage: any key, mouse button or pad button from the first frame skips to a shortened pull-out (0.5 s); the
 // title still shows for its 1.2 s minimum (it carries the day's one line), over a game that is already yours. Short: the
@@ -53,8 +60,13 @@ public sealed class DayIntro : MonoBehaviour
 
     /// <summary>A lab session that wants the intro on (the whole-game playtest sets it before Play; read once, then forgotten).</summary>
     public const string LabKey = "FixitFidget.DayIntro.Lab";
-    /// <summary>Last morning's order of shots ("grinder.beans|bench.screw|drinks.pour|street.front"): the next morning is never the same.</summary>
+    /// <summary>Before 14 Oct: last morning's order of shots. Read once into the history (as yesterday's), then deleted.</summary>
     public const string LastOrderKey = "FixitFidget.DayIntro.LastOrder";
+    /// <summary>
+    /// The last mornings, newest last: "day,grace,order;..." (cosmetic, per machine, never the save). A morning's day keys
+    /// it: entries for today or later (another game, a reload) are dropped as the morning begins.
+    /// </summary>
+    public const string HistoryKey = "FixitFidget.DayIntro.History";
     public const int CameraPriority = 50;
     /// <summary>Its screen draws over everything but the pad's cursor (5000): the phone by day is 95.</summary>
     public const int SortingOrder = 200;
@@ -102,8 +114,33 @@ public sealed class DayIntro : MonoBehaviour
     public string ShotId => shot != null ? shot.Id : "";
     public int ShotIndex => shotIndex;
     public float ShotTime => shotTime;
-    public float ShotLength => shot != null ? shot.Length : 0f;
+    /// <summary>The shot's length as played this morning (stretched when a slot came up empty).</summary>
+    public float ShotLength => shot != null ? shot.Duration : 0f;
     public IReadOnlyList<float> ShotMoments => shot != null ? shot.Moments : Array.Empty<float>();
+    /// <summary>The shot playing now, as the lab judges it: what it films (the point and the thing), how close the camera may come, whether it's a Grace shot.</summary>
+    public Shot Current => shot;
+    /// <summary>The intro's own camera this frame (where the next picture is taken from), and its lens (vertical degrees).</summary>
+    public Vector3 CameraPosition => cam != null ? cam.transform.position : Vector3.zero;
+    public Quaternion CameraRotation => cam != null ? cam.transform.rotation : Quaternion.identity;
+    public float CameraFov => cam != null ? cam.Lens.FieldOfView : 40f;
+    /// <summary>This morning's shots in order, and why the picker chose them (its notes: ties, Grace, drops).</summary>
+    public IReadOnlyList<Shot> Planned => shots;
+    public IReadOnlyList<string> PlanNotes => planNotes;
+
+    /// <summary>
+    /// While a Full morning's shots play: whether the intro's camera stands inside the café (the room's own rectangle), so the
+    /// soundscape can play the street outside and the room inside (Audio's hook); null otherwise (the player's own view).
+    /// </summary>
+    public static bool? FilmingInsideCafe
+    {
+        get
+        {
+            DayIntro intro = Instance;
+            if (intro == null || !intro.playing || intro.mode != Mode.Full || intro.cam == null || intro.phase == Phase.PullOut) return null;
+            Vector3 p = intro.cam.transform.position;
+            return CafeDaylight.CafeInside.Contains(new Vector2(p.x, p.z));
+        }
+    }
     /// <summary>This morning's order ("a|b|c|d"), its mode, the seconds since it began, whether a skip was asked for, whether the title is up.</summary>
     public string Order => order;
     public Mode PlayingMode => mode;
@@ -142,6 +179,8 @@ public sealed class DayIntro : MonoBehaviour
     }
 
     static bool labWanted;
+    /// <summary>This lab session plays as the real game (the whole-game playtest from Day 1): the morning's guests come too.</summary>
+    public static bool LabWanted => labWanted;
 
     // ------------------------------------------------------------------ the setting
 
@@ -227,10 +266,17 @@ public sealed class DayIntro : MonoBehaviour
 
     // the shots
     readonly List<Shot> shots = new List<Shot>();
+    readonly List<Shot> available = new List<Shot>();   // every shot that could be framed this morning (a dropped one's slot redraws from here)
+    readonly List<string> planNotes = new List<string>();
+    bool redraws;                                        // false for a lab's explicit order: it asked for exactly those shots
     Shot shot;
     int shotIndex = -1;
     float shotTime;
     Transform propsRoot;
+    /// <summary>The J-cut: a shot's first sound starts this long before its picture (spec §4.1.2).</summary>
+    public const float LeadSeconds = .15f;
+    /// <summary>A morning's shots last at least this long together, and no one shot more than ShotLongest (spec §4.1.7 rule 6).</summary>
+    public const float ShotsLeast = 5.3f, ShotLongest = 2.4f;
 
     // the camera
     Camera main;
@@ -286,7 +332,7 @@ public sealed class DayIntro : MonoBehaviour
             propsRoot = new GameObject("Props").transform;
             propsRoot.SetParent(transform, false);
             PickShots(explicitOrder);
-            if (shots.Count == 0) mode = Mode.Short;   // no café to film (another scene): the title alone
+            if (shots.Count < 2) mode = Mode.Short;   // no café to film (another scene), or one shot alone: the title alone
         }
         HoldTheWorld();
         MakeScreen();
@@ -295,7 +341,7 @@ public sealed class DayIntro : MonoBehaviour
             MakeCamera();
             BeginShot(0);
             // A morning that opens under the night's curtain (NightCycle's fade from black): the first shot waits, framed, until
-            // the curtain is up, so the night's own fade reveals the beans rather than half of the second shot (and this
+            // the curtain is up, so the night's own fade reveals the first shot rather than half of the second (and this
             // intro's own fade from black isn't wanted on top).
             underTheCurtain = NightCycle.Instance != null && NightCycle.Instance.Running;
             phase = underTheCurtain ? Phase.Curtain : Phase.Shots;
@@ -375,15 +421,25 @@ public sealed class DayIntro : MonoBehaviour
     void TickShots(float dt)
     {
         if (shot == null) { BeginPullOut(false); return; }
+        if (!shot.LeadPlayed) PlayLead(shot);   // the first shot's own (or an alternate's, which no shot before it could lead)
         shotTime += dt;
         shot.Frame(this, shotTime, dt);
         shot.PlayCues(this, shotTime);
-        if (shotTime >= shot.Length)
+        // The J-cut: the next shot's first sound starts LeadSeconds before its picture, on this shot's clock.
+        if (shotIndex + 1 < shots.Count && shotTime >= shot.Duration - LeadSeconds) PlayLead(shots[shotIndex + 1]);
+        if (shotTime >= shot.Duration)
         {
             EndShot();
             if (shotIndex + 1 < shots.Count) BeginShot(shotIndex + 1);
             else BeginPullOut(false);
         }
+    }
+
+    static void PlayLead(Shot s)
+    {
+        if (s == null || s.LeadPlayed) return;
+        s.LeadPlayed = true;
+        if (!string.IsNullOrEmpty(s.LeadCue)) Sfx.Play2D(s.LeadCue);
     }
 
     void TickShort()
@@ -403,21 +459,65 @@ public sealed class DayIntro : MonoBehaviour
         shotIndex = index;
         shot = shots[index];
         shotTime = 0f;
-        try
+        var tried = new List<Shot>();
+        while (true)
         {
-            shot.Begin(this);
-            shot.Frame(this, 0f, 0f);
+            try
+            {
+                shot.Begin(this);
+                shot.Frame(this, 0f, 0f);
+                break;
+            }
+            catch (Exception e)
+            {
+                // One shot's trouble costs that shot, not the morning: a subject gone (nobody on the pavement, no car near)
+                // redraws its slot from the shots that could be framed this morning.
+                Debug.Log($"[Day intro] The shot {shot.Id} couldn't be set up ({e.Message}).");
+                try { shot.End(this); } catch (Exception) { }
+                tried.Add(shot);
+                Shot alternate = redraws ? Alternate(shot, tried) : null;
+                if (alternate != null)
+                {
+                    planNotes.Add($"{shot.Id} dropped at its cut ({e.Message}): {alternate.Id} instead");
+                    alternate.Duration = shot.Duration > 0f ? shot.Duration : alternate.Length;   // the slot keeps its time
+                    alternate.LeadPlayed = false;
+                    shots[index] = shot = alternate;
+                    continue;
+                }
+                planNotes.Add($"{shot.Id} dropped at its cut ({e.Message}): nothing else in its slot");
+                shots.RemoveAt(index);
+                shot = null;
+                Restretch(index);
+                if (index < shots.Count) { BeginShot(index); return; }
+                return;
+            }
         }
-        catch (Exception e)
-        {
-            // One shot's trouble costs that shot, not the morning.
-            Debug.LogWarning($"[Day intro] The shot {shot.Id} couldn't be set up ({e.Message}); on to the next.");
-            try { shot.End(this); } catch (Exception) { }
-            shot = null;
-            if (index + 1 < shots.Count) BeginShot(index + 1);
-            return;
-        }
+        LastOrder = order = OrderOf(shots);
         ShotBegan?.Invoke(shot.Id);
+    }
+
+    // Another shot for a dropped one's slot: untied, framable this morning, not already in it, the most weight first.
+    Shot Alternate(Shot dropped, List<Shot> tried)
+    {
+        Shot best = null;
+        foreach (Shot s in available)
+        {
+            if (s.Slot != dropped.Slot || s.Tie != Tie.None || s.IsGrace || shots.Contains(s) || tried.Contains(s)) continue;
+            if (best == null || s.Weight > best.Weight) best = s;
+        }
+        return best;
+    }
+
+    // A slot came up empty at its cut: the shots still to come stretch so the morning's shots still last ShotsLeast together
+    // (none over ShotLongest).
+    void Restretch(int from)
+    {
+        float played = 0f, toCome = 0f;
+        for (int i = 0; i < shots.Count; i++) { if (i < from) played += shots[i].Duration; else toCome += shots[i].Duration; }
+        float wanted = ShotsLeast - played;
+        if (toCome <= 0f || wanted <= toCome) return;
+        float k = wanted / toCome;
+        for (int i = from; i < shots.Count; i++) shots[i].Duration = Mathf.Min(ShotLongest, shots[i].Duration * k);
     }
 
     void EndShot()
@@ -433,6 +533,7 @@ public sealed class DayIntro : MonoBehaviour
     void BeginPullOut(bool skipped)
     {
         EndShot();
+        if (mode == Mode.Full && shots.Count > 0) RememberMorning(day, OrderOf(shots), shots.Exists(s => s.IsGrace));   // as played (a drop may have changed it)
         phase = Phase.PullOut;
         pullOutSeconds = skipped ? SkipPullOutSeconds : PullOutSeconds;
         pullOutStarted = elapsed;
@@ -521,6 +622,10 @@ public sealed class DayIntro : MonoBehaviour
         customerSpawner = FindAnyObjectByType<CustomerSpawner>();
         if (customerSpawner != null && customerSpawner.enabled) { customerSpawner.enabled = false; customerSpawnerHeld = true; }
         patronSpawner = FindAnyObjectByType<PatronSpawner>();
+        // The settled guests (NPC spec §2.1, contract §7): already in their seats under the first shot, so the interior shots
+        // aren't empty and nobody pops into view as the controls come back. Idempotent; a no-op on a day with none.
+        try { PatronSpawner.SeatOpeningGuestsNow(); }
+        catch (Exception e) { Debug.LogError("[Day intro] Seating the morning's settled guests failed; the intro goes on: " + e.Message); }
         if (patronSpawner != null && patronSpawner.enabled) { patronSpawner.enabled = false; patronSpawnerHeld = true; }
         PlayerMovement.Hold(this);
         aceHeld = true;
@@ -863,82 +968,242 @@ public sealed class DayIntro : MonoBehaviour
         }
     }
 
-    // ------------------------------------------------------------------ the pool and the pick
+    // ------------------------------------------------------------------ the pool and the pick (intro v2, 14 Oct)
 
-    /// <summary>Every shot the pool knows, in beat order (checks and the lab's explicit orders).</summary>
+    /// <summary>How a shot frames its subject: Wide 4 m or more, Mid 1.2 m or more; Close only on a model built for it (the hero devices, the bench tools).</summary>
+    public enum Framing { Wide, Mid, Close }
+
+    /// <summary>
+    /// What ties a shot to one morning (spec §4.1.7 rule 4), in priority order caught > today's regular > rush > rain. Caught
+    /// and Rain are parked (the Producer's call 12: no police car until the night has that consequence; no weather until the
+    /// scope freeze lifts): TodaysTie never returns them; their stubs stay for the day they're built.
+    /// </summary>
+    public enum Tie { None, Caught, Regular, Rush, Rain }
+
+    /// <summary>Day 1's fixed order (spec §4.1.7 rule 1): what the place is. The street, the bench, the drinks, the café's name.</summary>
+    public static readonly string[] Day1Order = { "street.row", "bench.ready", "drinks.pour", "street.front" };
+
+    /// <summary>Every shot that can be built from the scene today (the storyboard), by slot; house.grace is tied (her mornings only).</summary>
     public static readonly string[] PoolIds =
     {
-        "grinder.beans", "grinder.burr", "bench.screw", "bench.lamp", "drinks.pour", "bench.wake", "house.grace", "street.front", "street.sign",
+        "street.row", "street.storefront",
+        "bench.ready", "counter.ready", "cafe.lights", "drinks.pour",
+        "neighbour.front", "neighbours.row", "patio.flower", "house.grace",
+        "street.front", "street.sign",
     };
 
-    List<Shot> AllShots()
+    /// <summary>The day's own shots (slot 2, tied): Grace's house exists; the rest wait on other leads and never frame yet.</summary>
+    public static readonly string[] TiedIds = { "house.grace", "regular.walkup", "queue.door", "police.car", "rain.window" };
+
+    /// <summary>
+    /// Parked (spec §4.1.6): the bench close-ups, out of the pool until the new mat and the one scale exist and Art Direction
+    /// passes their lab photos. Their code is kept below, compiled out (DAYINTRO_BENCH_CLOSEUPS): it was written for the old
+    /// tray and slab mat, which the bench builder is replacing, and must be re-aimed at the new stage before it returns.
+    /// Parked 15 Oct too, from the check's photos on his Mac (their classes kept below, out of the catalogue): car.pass, whose
+    /// camera follows the car along the pavement and can stop right behind the café's A-frame sign (half the frame a dark board);
+    /// street.across, whose subject (the Front 2 shop house) is switched off in the scene, so it never framed.
+    /// </summary>
+    public static readonly string[] ParkedIds = { "bench.screw", "bench.wake", "car.pass", "street.across" };
+
+    /// <summary>One of every shot in the pool and the tied ones, fresh and unprepared (the picker needs only their ids, slots, ties and weights).</summary>
+    public static List<Shot> Catalogue() => new List<Shot>
     {
-        return new List<Shot>
+        new StreetRow(), new StreetStorefront(),
+        new BenchReady(), new CounterReady(), new CafeLights(), new DrinksPour(),
+        new NeighbourFront(), new NeighboursRow(), new PatioFlower(),
+        new GraceHouseShot(), new RegularWalkUp(), new QueueAtDoor(), new PoliceCar(), new RainOnGlass(),
+        new StreetFront(), new StreetSign(),
+    };
+
+    /// <summary>The catalogue, each prepared against the scene as it is now: the shots that could be framed this morning.</summary>
+    public static List<Shot> PreparedNow(List<string> notes = null)
+    {
+        var things = SceneThings.Find();
+        var ready = new List<Shot>();
+        foreach (Shot s in Catalogue())
         {
-            new GrinderBeans(), new GrinderBurr(), new BenchScrew(), new BenchLamp(), new DrinksPour(), new BenchWake(), new GraceHouseShot(),
-            new StreetFront(), new StreetSign(),
-        };
+            bool ok;
+            try { ok = s.Prepare(things); }
+            catch (Exception e) { notes?.Add($"{s.Id} can't be framed: {e.Message}"); ok = false; }
+            if (ok) ready.Add(s);
+        }
+        return ready;
     }
 
     void PickShots(string[] explicitOrder)
     {
-        var sceneThings = SceneThings.Find();
-        List<Shot> all = AllShots();
-        var available = new List<Shot>();
-        foreach (Shot s in all)
-        {
-            bool ok;
-            try { ok = s.Prepare(sceneThings); }
-            catch (Exception e) { Debug.LogWarning($"[Day intro] {s.Id} can't be framed this morning: {e.Message}"); ok = false; }
-            if (ok) available.Add(s);
-        }
+        planNotes.Clear();
+        available.Clear();
+        available.AddRange(PreparedNow(planNotes));
         shots.Clear();
         if (explicitOrder != null)
         {
+            // A lab's explicit order: exactly those shots (a missing one is skipped, as before), no redraws.
+            redraws = false;
             foreach (string id in explicitOrder)
-                foreach (Shot s in available)
-                    if (s.Id == id && !shots.Contains(s)) { shots.Add(s); break; }
+            {
+                Shot s = Find(available, id);
+                if (s != null && !shots.Contains(s)) shots.Add(s);
+                else planNotes.Add($"{id} can't be framed this morning (asked for by name)");
+            }
+            Stretch(shots);
         }
         else
         {
-            string last = PlayerPrefs.GetString(LastOrderKey, "");
+            redraws = true;
             var rng = new System.Random(unchecked(Environment.TickCount * 7919 + day * 131));   // its own dice: never the café's
-            string tied = TiedShotFor(day);
-            string picked = "";
-            for (int attempt = 0; attempt < 8; attempt++)
-            {
-                shots.Clear();
-                for (int beat = 0; beat < 4; beat++)
-                {
-                    var candidates = new List<Shot>();
-                    foreach (Shot s in available) if (s.Beat == beat) candidates.Add(s);
-                    if (candidates.Count == 0) continue;
-                    Shot choice = null;
-                    // Day 1 plays the canonical order (its title is the hook); a morning Grace is coming early shows her house.
-                    if (day == 1) choice = candidates.Find(s => s.Canonical);
-                    if (beat == 2 && tied != null) choice = candidates.Find(s => s.Id == tied) ?? choice;
-                    if (choice == null) choice = candidates[rng.Next(candidates.Count)];
-                    shots.Add(choice);
-                }
-                picked = OrderOf(shots);
-                if (picked != last || shots.Count < 2 || day == 1) break;
-            }
-            if (picked == last && shots.Count >= 2 && day != 1)
-            {
-                // Eight draws the same as last morning (two options a beat makes that rare): flip the first beat with a choice.
-                for (int i = 0; i < shots.Count; i++)
-                {
-                    Shot other = available.Find(s => s.Beat == shots[i].Beat && s != shots[i]);
-                    if (other != null) { shots[i] = other; break; }
-                }
-            }
+            shots.AddRange(Plan(day, TodaysTie(day), available, ReadHistory(day), rng, planNotes));
         }
         order = OrderOf(shots);
         if (shots.Count > 0)
         {
-            PlayerPrefs.SetString(LastOrderKey, order);
-            Debug.Log($"[Day intro] Day {day}, {mode}: {order}");
+            RememberMorning(day, order, shots.Exists(s => s.IsGrace));
+            Debug.Log($"[Day intro] Day {day}, {mode}: {order}" + (planNotes.Count > 0 ? "  (" + string.Join("; ", planNotes) + ")" : ""));
         }
+    }
+
+    /// <summary>
+    /// The picker, pure (spec §4.1.7), so the lab can run thirty mornings without a camera: the shots for <paramref name="day"/>,
+    /// from those that can be framed, today's tie and the history. Day 1 is fixed. Other mornings draw one untied shot a slot,
+    /// weighted: in slots 0-2 a shot used yesterday can't come and one used two mornings ago comes half as often; slot 3 draws
+    /// the storefront 2:1 over the blade sign. The tie takes slot 2. Never the same order as any of the last six mornings
+    /// (eight draws, then slot 0 swapped). Grace only when she is tied and in none of the last five mornings, never on Day 1.
+    /// Each shot's Duration is set (stretched so the shots last ShotsLeast together, none over ShotLongest).
+    /// </summary>
+    public static List<Shot> Plan(int day, TieToday tie, IReadOnlyList<Shot> framable, IReadOnlyList<Morning> history, System.Random rng, List<string> notes)
+    {
+        var plan = new List<Shot>();
+        if (day <= 1)
+        {
+            for (int i = 0; i < Day1Order.Length; i++)
+            {
+                Shot s = Find(framable, Day1Order[i]);
+                if (s == null)
+                {
+                    s = Draw(framable, i, null, null, rng, plan);
+                    notes?.Add($"Day 1's {Day1Order[i]} can't be framed: {(s != null ? s.Id : "nothing")} in its place");
+                }
+                if (s != null) plan.Add(s);
+            }
+            Stretch(plan);
+            return plan;
+        }
+        Shot tied = TiedShot(day, tie, framable, history, notes);
+        Morning yesterday = MorningOf(history, day - 1), twoAgo = MorningOf(history, day - 2);
+        var recent = new List<string>();
+        if (history != null)
+            foreach (Morning m in history)
+                if (m != null && m.day >= day - 6 && m.day < day) recent.Add(m.order);
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            plan.Clear();
+            for (int slot = 0; slot < 4; slot++)
+            {
+                Shot s = slot == 2 && tied != null ? tied : Draw(framable, slot, yesterday, twoAgo, rng, plan);
+                if (s != null) plan.Add(s);
+            }
+            if (!recent.Contains(OrderOf(plan))) break;
+        }
+        if (plan.Count > 0 && recent.Contains(OrderOf(plan)))
+        {
+            // Eight draws all repeated a recent morning (it takes a thin pool): slot 0 swapped for another choice.
+            Shot first = plan[0];
+            foreach (Shot s in framable)
+                if (s.Slot == first.Slot && s != first && s.Tie == Tie.None && !s.IsGrace && !plan.Contains(s)) { plan[0] = s; break; }
+            notes?.Add("eight draws repeated a recent morning: slot 0 swapped");
+        }
+        Stretch(plan);
+        return plan;
+    }
+
+    // One untied shot for a slot, weighted (the yesterday rule in slots 0-2), never one already taken this morning.
+    static Shot Draw(IReadOnlyList<Shot> framable, int slot, Morning yesterday, Morning twoAgo, System.Random rng, List<Shot> taken)
+    {
+        var candidates = new List<Shot>();
+        var weights = new List<float>();
+        float sum = 0f;
+        foreach (Shot s in framable)
+        {
+            if (s == null || s.Slot != slot || s.Tie != Tie.None || s.IsGrace || taken.Contains(s)) continue;
+            float w = Mathf.Max(0f, s.Weight);
+            if (slot < 3)
+            {
+                if (yesterday != null && yesterday.Used(s.Id)) w = 0f;
+                else if (twoAgo != null && twoAgo.Used(s.Id)) w *= .5f;
+            }
+            candidates.Add(s);
+            weights.Add(w);
+            sum += w;
+        }
+        if (candidates.Count == 0) return null;
+        if (sum <= 0f)
+        {
+            // Every candidate was yesterday's (a thin pool: dynamic shots dropped): the yesterday rule gives way.
+            sum = 0f;
+            for (int i = 0; i < candidates.Count; i++) { weights[i] = Mathf.Max(.0001f, candidates[i].Weight); sum += weights[i]; }
+        }
+        double roll = rng.NextDouble() * sum;
+        Shot last = null;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if (weights[i] <= 0f) continue;
+            last = candidates[i];
+            roll -= weights[i];
+            if (roll < 0d) return candidates[i];
+        }
+        return last;
+    }
+
+    // The tied shot for slot 2, or null (no tie; Grace too recent; nothing built for this tie yet).
+    static Shot TiedShot(int day, TieToday tie, IReadOnlyList<Shot> framable, IReadOnlyList<Morning> history, List<string> notes)
+    {
+        if (tie.kind == Tie.None || day <= 1) return null;
+        string why = string.IsNullOrEmpty(tie.how) ? "" : $" ({tie.how})";
+        if (tie.grace && history != null)
+            foreach (Morning m in history)
+                if (m != null && m.grace && m.day >= day - 5 && m.day < day)
+                {
+                    notes?.Add($"Grace is today's regular{why}, but she was in Day {m.day}'s intro: at most one morning in six, so B-roll");
+                    return null;
+                }
+        string[] wanted = tie.kind == Tie.Regular ? (tie.grace ? new[] { "house.grace", "regular.walkup" } : new[] { "regular.walkup" })
+                        : tie.kind == Tie.Caught ? new[] { "police.car" }
+                        : tie.kind == Tie.Rush ? new[] { "queue.door" }
+                        : new[] { "rain.window" };
+        foreach (string id in wanted)
+        {
+            Shot s = Find(framable, id);
+            if (s == null) continue;
+            if (s is RegularWalkUp walkUp) walkUp.Who = tie.who;
+            notes?.Add($"today's own: {id} ({tie.kind}{why})");
+            return s;
+        }
+        notes?.Add($"today's tie, {tie.kind}{(tie.who != null ? " (" + tie.who.PersistentId + ")" : "")}{why}, has no shot built yet ({string.Join(", ", wanted)}): the normal draw");
+        return null;
+    }
+
+    static void Stretch(List<Shot> plan)
+    {
+        float total = 0f;
+        foreach (Shot s in plan) { s.Duration = s.Length; s.LeadPlayed = false; total += s.Length; }
+        if (plan.Count < 2 || total <= 0f || total >= ShotsLeast) return;
+        float k = ShotsLeast / total;
+        foreach (Shot s in plan) s.Duration = Mathf.Min(ShotLongest, s.Length * k);
+    }
+
+    static Shot Find(IReadOnlyList<Shot> list, string id)
+    {
+        if (list == null) return null;
+        foreach (Shot s in list) if (s != null && s.Id == id) return s;
+        return null;
+    }
+
+    static Morning MorningOf(IReadOnlyList<Morning> history, int day)
+    {
+        if (history == null) return null;
+        Morning found = null;
+        foreach (Morning m in history) if (m != null && m.day == day) found = m;
+        return found;
     }
 
     static string OrderOf(List<Shot> list)
@@ -948,29 +1213,124 @@ public sealed class DayIntro : MonoBehaviour
         return string.Join("|", ids);
     }
 
-    /// <summary>
-    /// The shot tied to this day, or null: Grace's house on a morning she comes in early (her featured visit in the first
-    /// quarter of the day, Day 2's; or she is this morning's visitor with news of last night).
-    /// </summary>
-    public static string TiedShotFor(int day)
+    // ------------------------------------------------------------------ today's tie
+
+    /// <summary>What ties this morning: the kind, the regular (Regular), whether it is Grace, and how it was found (the log).</summary>
+    public struct TieToday
     {
-        if (day <= 1) return null;
+        public Tie kind;
+        public CustomerProfile who;
+        public bool grace;
+        public string how;
+        public static TieToday None => new TieToday { kind = Tie.None, how = "" };
+    }
+
+    const string GraceId = "grace";
+
+    /// <summary>
+    /// This morning's tie (spec §4.1.7 rule 4; Days spec §8): today's regular, the first of: the featured regular arriving at
+    /// 0.25 of the day or sooner; a story visit as early; this morning's visitor with news of last night; the officer's word.
+    /// Else a rush morning (a phase named "...rush..." starting by 0.2 of the day). Never Day 1 (its order is fixed).
+    /// </summary>
+    public static TieToday TodaysTie(int day)
+    {
+        if (day <= 1) return TieToday.None;
+        CustomerProfile who = TodaysRegular(day, out string how);
+        if (who != null) return new TieToday { kind = Tie.Regular, who = who, grace = who.PersistentId == GraceId, how = how };
+        DayDefinition definition = DefinitionFor(day);
+        if (definition != null && definition.phases != null)
+            foreach (DayPhase p in definition.phases)
+                if (p != null && !string.IsNullOrEmpty(p.phaseName) && p.phaseName.IndexOf("rush", StringComparison.OrdinalIgnoreCase) >= 0 && p.startsAt <= .2f)
+                    return new TieToday { kind = Tie.Rush, how = $"\"{p.phaseName}\" from {p.startsAt:0.00} of the day" };
+        return TieToday.None;
+    }
+
+    static CustomerProfile TodaysRegular(int day, out string how)
+    {
+        how = "";
+        DayDefinition definition = DefinitionFor(day);
+        if (definition != null && definition.featuredRegular != null && definition.featuredRegularArrivesAt <= .25f)
+        {
+            how = $"featured, at {definition.featuredRegularArrivesAt:0.00} of the day";
+            return definition.featuredRegular;
+        }
+        if (definition != null)
+            foreach (StoryVisit visit in definition.StoryVisitsOn(day))
+                if (visit != null && visit.who != null && visit.arrivesAt <= .25f)
+                {
+                    how = $"a story visit at {visit.arrivesAt:0.00} of the day";
+                    return visit.who;
+                }
         CustomerSpawner spawner = FindAnyObjectByType<CustomerSpawner>();
-        if (spawner != null && spawner.Today != null && spawner.Today.dayNumber == day && GraceEarly(spawner.Today)) return "house.grace";
-        if (spawner != null && spawner.MorningVisitor != null && spawner.MorningVisitor.PersistentId == "grace") return "house.grace";
-        // Another day's definition (a lab asking about tomorrow): the schedule's assets are loaded with the spawner.
+        bool today = spawner != null && DayClock.Instance != null && DayClock.Instance.Day == day;
+        if (today && spawner.MorningVisitor != null) { how = "this morning's visitor, with news of last night"; return spawner.MorningVisitor; }
+        if (today && spawner.WordVisitor != null) { how = "the officer, for the man's word"; return spawner.WordVisitor; }
+        return null;
+    }
+
+    // The day's definition: the spawner's today when it is this day; else the day in the spawner's own schedule (a lab asking
+    // about another day; read by name, so a renamed field only loses the lab's look-ahead); else any loaded day asset with the number.
+    static DayDefinition DefinitionFor(int day)
+    {
+        CustomerSpawner spawner = FindAnyObjectByType<CustomerSpawner>();
+        if (spawner != null && spawner.Today != null && spawner.Today.dayNumber == day) return spawner.Today;
         try
         {
-            foreach (DayDefinition definition in Resources.FindObjectsOfTypeAll<DayDefinition>())
-                if (definition != null && definition.dayNumber == day && GraceEarly(definition)) return "house.grace";
+            if (spawner != null)
+            {
+                var field = typeof(CustomerSpawner).GetField("schedule", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+                if (field != null && field.GetValue(spawner) is DayDefinition[] schedule)
+                    foreach (DayDefinition d in schedule)
+                        if (d != null && d.dayNumber == day) return d;
+            }
+            foreach (DayDefinition d in Resources.FindObjectsOfTypeAll<DayDefinition>())
+                if (d != null && d.dayNumber == day) return d;
         }
         catch (Exception) { }
         return null;
     }
 
-    static bool GraceEarly(DayDefinition definition) =>
-        definition != null && definition.featuredRegular != null && definition.featuredRegular.PersistentId == "grace"
-        && definition.featuredRegularArrivesAt <= .25f;
+    // ------------------------------------------------------------------ the history (PlayerPrefs: cosmetic, never the save)
+
+    /// <summary>One played morning, as the history keeps it.</summary>
+    public sealed class Morning
+    {
+        public int day;
+        public string order = "";
+        public bool grace;
+        public bool Used(string id) => Array.IndexOf(order.Split('|'), id) >= 0;
+        public override string ToString() => $"Day {day}: {order}{(grace ? " (Grace)" : "")}";
+    }
+
+    const int HistoryKept = 8;
+
+    /// <summary>The mornings kept, oldest first; for <paramref name="day"/> (0: any), the pre-14 Oct last order read in as yesterday's.</summary>
+    public static List<Morning> ReadHistory(int day = 0)
+    {
+        var list = new List<Morning>();
+        string raw = PlayerPrefs.GetString(HistoryKey, "");
+        if (!string.IsNullOrEmpty(raw))
+            foreach (string entry in raw.Split(';'))
+            {
+                string[] parts = entry.Split(new[] { ',' }, 3);
+                if (parts.Length == 3 && int.TryParse(parts[0], out int d)) list.Add(new Morning { day = d, grace = parts[1] == "1", order = parts[2] });
+            }
+        string old = PlayerPrefs.GetString(LastOrderKey, "");
+        if (list.Count == 0 && old.Length > 0 && day > 1) list.Add(new Morning { day = day - 1, order = old, grace = old.Contains("house.grace") });
+        return list;
+    }
+
+    static void RememberMorning(int day, string order, bool grace)
+    {
+        List<Morning> list = ReadHistory(day);
+        if (PlayerPrefs.HasKey(LastOrderKey)) PlayerPrefs.DeleteKey(LastOrderKey);   // read in once, then let go
+        list.RemoveAll(m => m.day >= day);   // today replaced; a later day is another game (a fresh Day 1, a reload)
+        list.Add(new Morning { day = day, order = order, grace = grace });
+        while (list.Count > HistoryKept) list.RemoveAt(0);
+        var parts = new List<string>(list.Count);
+        foreach (Morning m in list) parts.Add($"{m.day},{(m.grace ? 1 : 0)},{m.order}");
+        PlayerPrefs.SetString(HistoryKey, string.Join(";", parts));
+    }
 
     /// <summary>The title block if the canvas were <paramref name="canvasSize"/> reference pixels across and up (its scaler keeps the area of 1920 x 1080).</summary>
     public static Rect TitleBoxIfTheScreenWere(Vector2 canvasSize)
@@ -981,17 +1341,24 @@ public sealed class DayIntro : MonoBehaviour
 
     // ------------------------------------------------------------------ what there is to frame
 
-    /// <summary>The scene's things the shots frame, found once a morning by name (the kit's pieces) or by their components.</summary>
+    /// <summary>The scene's things the shots frame, found once a morning by name (the kit's pieces, the street's people) or by their components.</summary>
     public sealed class SceneThings
     {
-        public Transform grinder, lamp, fascia, blade;
+        public Transform fascia, blade, lamp, repairBench, partsWall, frontCounter, gildingWest, sidewalkBench;
+        public Transform bistroTable, houseRow, shopHouse, promenadeNeighbour;
+        public readonly List<Transform> rowNeighbours = new List<Transform>();
         public Light lampLight;
+        public BeverageSlot pourSlot;
+        public StationInteractable drinks;
+        public HomeDoor graceDoor;
+        public StreetLife street;
+        public CafeDaylight daylight;
+#if DAYINTRO_BENCH_CLOSEUPS
         public BenchStage stage;
         public CinemachineCamera inspectCam;
-        public BeverageSlot pourSlot;
-        public HomeDoor graceDoor;
         public GameObject deviceWithScrews;   // a device prefab asset (the phone) the bench's shots photocopy
         public Transform toolScrewdriver;
+#endif
 
         public static SceneThings Find()
         {
@@ -1000,12 +1367,37 @@ public sealed class DayIntro : MonoBehaviour
             {
                 if (tr == null) continue;
                 string n = tr.name;
-                if (t.grinder == null && n.StartsWith("CK_Grinder", StringComparison.Ordinal)) t.grinder = tr;
-                else if (t.lamp == null && n.StartsWith("CK_BenchLamp", StringComparison.Ordinal)) t.lamp = tr;
-                else if (t.fascia == null && n.StartsWith("CK_Fascia", StringComparison.Ordinal)) t.fascia = tr;
-                else if (t.blade == null && n.StartsWith("CK_BladeSign", StringComparison.Ordinal)) t.blade = tr;
+                if (n.StartsWith("CK_", StringComparison.Ordinal))
+                {
+                    if (t.fascia == null && n.StartsWith("CK_Fascia", StringComparison.Ordinal)) t.fascia = tr;
+                    else if (t.blade == null && n.StartsWith("CK_BladeSign", StringComparison.Ordinal)) t.blade = tr;
+                    else if (t.lamp == null && n.StartsWith("CK_BenchLamp", StringComparison.Ordinal)) t.lamp = tr;
+                    else if (t.repairBench == null && n.StartsWith("CK_RepairBench", StringComparison.Ordinal)) t.repairBench = tr;
+                    else if (t.partsWall == null && n.StartsWith("CK_PartsWall", StringComparison.Ordinal)) t.partsWall = tr;
+                    else if (t.frontCounter == null && n.StartsWith("CK_FrontCounter", StringComparison.Ordinal)) t.frontCounter = tr;
+                    else if (t.gildingWest == null && n.StartsWith("CK_WindowGilding_L", StringComparison.Ordinal)) t.gildingWest = tr;
+                    else if (t.sidewalkBench == null && n.StartsWith("CK_SidewalkBench", StringComparison.Ordinal)) t.sidewalkBench = tr;
+                }
+                else if (t.bistroTable == null && n == "Outdoor bistro table") t.bistroTable = tr;
+                else if (t.houseRow == null && n == "2 - Dusty rose bay-window house") t.houseRow = tr;
+                else if (t.shopHouse == null && n == "Front - 2 - neighborhood shop house") t.shopHouse = tr;
+                else if (t.promenadeNeighbour == null && n == "Front promenade neighbor") t.promenadeNeighbour = tr;
+                else if (n.StartsWith("Walking neighbor ", StringComparison.Ordinal) && !n.EndsWith("route", StringComparison.Ordinal)) t.rowNeighbours.Add(tr);
             }
             if (t.lamp != null) t.lampLight = t.lamp.GetComponentInChildren<Light>(true);
+            foreach (BeverageSlot slot in UnityEngine.Object.FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
+            {
+                if (slot == null || slot.cupPoint == null || slot.stream == null) continue;
+                bool latte = slot.drink != null && !string.IsNullOrEmpty(slot.drink.drinkName) && slot.drink.drinkName.ToLowerInvariant().Contains("latte");
+                if (t.pourSlot == null || latte) t.pourSlot = slot;
+                if (latte) break;
+            }
+            foreach (StationInteractable s in StationInteractable.All)
+                if (s != null && s.IsDrinks && s.StandPoint != null) { t.drinks = s; break; }
+            t.graceDoor = HomeDoor.Find("home.grace");
+            t.street = StreetLife.Main != null ? StreetLife.Main : UnityEngine.Object.FindAnyObjectByType<StreetLife>();
+            t.daylight = UnityEngine.Object.FindAnyObjectByType<CafeDaylight>();
+#if DAYINTRO_BENCH_CLOSEUPS
             t.stage = BenchStage.Instance;
             if (t.stage != null)
             {
@@ -1017,18 +1409,34 @@ public sealed class DayIntro : MonoBehaviour
                     if (pickup != null && pickup.tool == ToolType.Screwdriver) t.toolScrewdriver = pickup.transform;
                 }
             }
-            foreach (BeverageSlot slot in UnityEngine.Object.FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
-            {
-                if (slot == null || slot.cupPoint == null || slot.stream == null) continue;
-                bool latte = slot.drink != null && !string.IsNullOrEmpty(slot.drink.drinkName) && slot.drink.drinkName.ToLowerInvariant().Contains("latte");
-                if (t.pourSlot == null || latte) t.pourSlot = slot;
-                if (latte) break;
-            }
-            t.graceDoor = HomeDoor.Find("home.grace");
             t.deviceWithScrews = FindDeviceWithScrews();
+#endif
             return t;
         }
 
+        /// <summary>The café's own lights (CafeDaylight's warm lights inside the room), switched on.</summary>
+        public List<Light> CafeLights()
+        {
+            var lights = new List<Light>();
+            if (daylight == null || daylight.warmLights == null) return lights;
+            foreach (Light l in daylight.warmLights)
+            {
+                if (l == null || !l.enabled || !l.gameObject.activeInHierarchy) continue;
+                Vector3 p = l.transform.position;
+                if (CafeDaylight.CafeInside.Contains(new Vector2(p.x, p.z))) lights.Add(l);
+            }
+            return lights;
+        }
+
+        /// <summary>The street's moving people and cars (StreetLife), each with what it is.</summary>
+        public IEnumerable<StreetLife.Actor> Actors()
+        {
+            if (street == null || street.actors == null) yield break;
+            foreach (StreetLife.Actor a in street.actors)
+                if (a != null && a.actor != null && a.actor.gameObject.activeInHierarchy) yield return a;
+        }
+
+#if DAYINTRO_BENCH_CLOSEUPS
         // A device prefab with screws (the phone first), as an asset: never a live job's device. The spawner's references keep
         // the prefabs loaded, so they are found among the loaded objects.
         static GameObject FindDeviceWithScrews()
@@ -1061,6 +1469,7 @@ public sealed class DayIntro : MonoBehaviour
                 return toward.sqrMagnitude > 1e-6f ? toward.normalized : Vector3.back;
             }
         }
+#endif
     }
 
     // ------------------------------------------------------------------ props: photocopies of the game's own meshes
@@ -1069,6 +1478,8 @@ public sealed class DayIntro : MonoBehaviour
     /// A still copy of what's drawn of <paramref name="source"/> (a prefab asset or a scene object): its solid parts only (a
     /// mesh each; not its job tag, not sprites or text), as children of a new object under the intro, keeping each part's name
     /// and pose. <paramref name="include"/> decides a part by its transform and whether it is on by default (null: on by default).
+    /// Kept for the parked bench shots and, later, the regular's cameo or the day's own props; no live B-roll shot copies or
+    /// moves a gameplay object.
     /// </summary>
     public GameObject Photocopy(GameObject source, string name, Func<Transform, bool, bool> include = null)
     {
@@ -1129,17 +1540,36 @@ public sealed class DayIntro : MonoBehaviour
     // ------------------------------------------------------------------ the shots
 
     /// <summary>
-    /// One shot: what it needs (Prepare finds it, false drops the shot), its props (Begin / End), its camera and motion each
-    /// frame (Frame, on the shot's own clock), its sounds at their offsets (Cue). Beat 0 the café, 1 the bench, 2 the third,
-    /// 3 the open. Moments are where a photo shows it best (0-1 of its length).
+    /// One shot: what it needs (Prepare finds it, false drops the shot), its props or held lights (Begin / End; Begin may throw
+    /// when a moving subject isn't in reach at its cut: its slot redraws), its camera and motion each frame (Frame, on the shot's
+    /// own clock), its sounds at their offsets (Cue) and its J-cut lead (LeadCue). Slots: 0 the street waking, 1 the café opening
+    /// up, 2 someone or the day's own, 3 the open. Moments are where a photo shows it best (0-1 of its duration). The lab judges
+    /// every frame against Subject, MinSubjectDistance and IsGrace.
     /// </summary>
     public abstract class Shot
     {
         public abstract string Id { get; }
-        public abstract int Beat { get; }
+        public abstract int Slot { get; }
+        /// <summary>Its authored length, seconds.</summary>
         public abstract float Length { get; }
-        public virtual bool Canonical => false;
+        /// <summary>As played this morning: its length, stretched when a slot came up empty (the picker sets it).</summary>
+        public float Duration { get; internal set; }
+        public virtual Framing Framing => Framing.Mid;
+        /// <summary>How close the camera may come to the subject, metres (Wide 4.0, Mid 1.2; the dispenser 0.6).</summary>
+        public virtual float MinSubjectDistance => Framing == Framing.Wide ? 4f : Framing == Framing.Mid ? 1.2f : .3f;
+        public virtual Tie Tie => Tie.None;
+        public virtual bool IsGrace => false;
+        /// <summary>Its weight in the draw (1; the storefront 2 against the blade sign's 1).</summary>
+        public virtual float Weight => 1f;
+        /// <summary>The cue that starts LeadSeconds before its picture (the J-cut), or null.</summary>
+        public virtual string LeadCue => null;
+        /// <summary>The subject is the frame's aim (a street, a room), not one thing: the lab doesn't test it for being hidden.</summary>
+        public virtual bool SubjectIsComposition => false;
+        /// <summary>The point the lab measures to, as of the last frame, and the thing it belongs to (null for a composition).</summary>
+        public Vector3 Subject { get; protected set; }
+        public Transform SubjectRoot { get; protected set; }
         public virtual IReadOnlyList<float> Moments => new[] { .5f };
+        internal bool LeadPlayed;
 
         readonly List<(float at, string cue, bool fired)> cues = new List<(float, string, bool)>();
 
@@ -1162,6 +1592,13 @@ public sealed class DayIntro : MonoBehaviour
             }
         }
 
+        /// <summary>The camera at <paramref name="at"/> looking at <paramref name="look"/>; <paramref name="subject"/> is what the lab measures to.</summary>
+        protected void Film(DayIntro intro, Vector3 at, Vector3 look, float fov, Vector3 subject, float near = .05f)
+        {
+            Subject = subject;
+            intro.Place(at, look, fov, 0f, near);
+        }
+
         /// <summary>A point on a circle round <paramref name="axisPoint"/>'s vertical axis: <paramref name="from"/> turned by <paramref name="degrees"/>.</summary>
         protected static Vector3 Orbit(Vector3 axisPoint, Vector3 from, float degrees)
         {
@@ -1171,13 +1608,708 @@ public sealed class DayIntro : MonoBehaviour
             return axisPoint + Quaternion.Euler(0f, degrees, 0f) * flat + Vector3.up * y;
         }
 
+        /// <summary>
+        /// Where to look from <paramref name="at"/> along <paramref name="direction"/>, panned by <paramref name="yawDegrees"/>
+        /// (positive to the right) and tilted up by <paramref name="upDegrees"/>.
+        /// </summary>
+        protected static Vector3 Aim(Vector3 at, Vector3 direction, float yawDegrees, float upDegrees)
+        {
+            Vector3 d = Quaternion.AngleAxis(yawDegrees, Vector3.up) * direction;
+            Vector3 right = Vector3.Cross(Vector3.up, d);
+            if (right.sqrMagnitude > 1e-6f) d = Quaternion.AngleAxis(-upDegrees, right.normalized) * d;
+            return at + d;
+        }
+
+        /// <summary><paramref name="from"/> pushed <paramref name="metres"/> along the level way toward <paramref name="toward"/>.</summary>
+        protected static Vector3 Push(Vector3 from, Vector3 toward, float metres)
+        {
+            Vector3 flat = toward - from;
+            flat.y = 0f;
+            return flat.sqrMagnitude > 1e-6f ? from + flat.normalized * metres : from;
+        }
+
         protected static float Ease(float t) => Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t));
 
+        /// <summary>A first-order follow toward <paramref name="target"/> with a time constant of <paramref name="seconds"/>: the same at any frame rate.</summary>
+        protected static Vector3 Follow(Vector3 current, Vector3 target, float seconds, float dt) =>
+            dt <= 0f ? current : Vector3.Lerp(current, target, 1f - Mathf.Exp(-dt / Mathf.Max(.01f, seconds)));
+    }
+
+    // ---------- slot 0: the street waking ----------
+
+    /// <summary>
+    /// The painted row across the west street from the café's south-west corner: house 2 (Dusty rose, 12 m), 3 (Sea green,
+    /// 18 m) and 4 (Lavender, 24 m) on the left, the café's west wall and blade sign on the right, the lanes and the neighbours'
+    /// pavement between, the hills beyond. A dolly of 0.8 m north, tilting up 2°. Grace's door is 52° off axis. Day 1's opener.
+    /// </summary>
+    sealed class StreetRow : Shot
+    {
+        public override string Id => "street.row";
+        public override int Slot => 0;
+        public override float Length => 1.8f;
+        public override Framing Framing => Framing.Wide;
+        public override bool SubjectIsComposition => true;
+        public override IReadOnlyList<float> Moments => new[] { .55f };
+        static readonly Vector3 From = new Vector3(-9.0f, 1.7f, -6.5f), Look = new Vector3(-13.0f, 3.5f, 14.0f);
+
+        public override bool Prepare(SceneThings things) => things.houseRow != null;
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            Vector3 at = From + Vector3.forward * (.8f * k);
+            Vector3 look = Aim(at, Look - From, 0f, 2f * k);
+            Film(intro, at, look, 38f, look);
+        }
+    }
+
+    /// <summary>
+    /// Down the café's own pavement from its east end: the A-frame and the east olive tree near, the door and the fascia, the
+    /// patio table and the blade sign, the painted row past the junction; the promenade neighbour; a pan left of 6°. Grace's
+    /// house only as background at 25.7 m.
+    /// </summary>
+    sealed class StreetStorefront : Shot
+    {
+        public override string Id => "street.storefront";
+        public override int Slot => 0;
+        public override float Length => 1.8f;
+        public override Framing Framing => Framing.Wide;
+        public override bool SubjectIsComposition => true;
+        static readonly Vector3 From = new Vector3(9.0f, 1.8f, -5.5f), Look = new Vector3(-4.0f, 1.6f, -1.5f);
+
+        public override bool Prepare(SceneThings things) => things.fascia != null;
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            Vector3 look = Aim(From, Look - From, -6f * k, 0f);
+            Film(intro, From, look, 40f, look);
+        }
+    }
+
+    /// <summary>Across the street from the patio west of the door: both lanes, the far pavement, the café's customer parking and its board, the three shop houses (13.8 m); a push of 0.5 m.</summary>
+    sealed class StreetAcross : Shot
+    {
+        public override string Id => "street.across";
+        public override int Slot => 0;
+        public override float Length => 1.8f;
+        public override Framing Framing => Framing.Wide;
+        public override bool SubjectIsComposition => true;
+        static readonly Vector3 From = new Vector3(-2.0f, 1.6f, -3.0f), Look = new Vector3(2.0f, 2.5f, -16.6f);
+
+        public override bool Prepare(SceneThings things) => things.shopHouse != null;
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            Vector3 at = Push(From, Look, .5f * k);
+            Film(intro, at, Look, 40f, Look);
+        }
+    }
+
+    // ---------- slot 1: the café opening up ----------
+
+    /// <summary>
+    /// Ace's side of the repair bar, a step to the left of his place (1.9 m): the bench top's two mats (the blue repair mat with
+    /// its tool tray, the dark work mat with its tape and tickets), the magnifier lamp blinking on over them (an LED ring: a
+    /// flicker, then steady; the light held and given back), the room beyond the counter's guard; a push of 0.3 m. Until 15 Oct
+    /// it looked from a seated customer's eye through that guard, and on Day 1's very first morning the bench was a blur behind
+    /// frosted glass (the check's photo on his Mac; Checks › Probe - the intro's bench shot rendered five framings: this is D).
+    /// </summary>
+    sealed class BenchReady : Shot
+    {
+        public override string Id => "bench.ready";
+        public override int Slot => 1;
+        public override float Length => 1.4f;
+        public override bool SubjectIsComposition => true;
+        public override IReadOnlyList<float> Moments => new[] { .6f };
+        static readonly Vector3 From = new Vector3(-3.64f, 1.52f, 15.06f), Look = new Vector3(-5.09f, 1.04f, 13.91f);
+        Light lampLight;
+        float intensityBefore;
+        bool lightHeld;
+
+        public override bool Prepare(SceneThings things)
+        {
+            lampLight = things.lampLight;
+            if (things.lamp == null || lampLight == null || things.repairBench == null) return false;
+            Cue(.35f, "intro.lamp");
+            return true;
+        }
+
+        public override void Begin(DayIntro intro)
+        {
+            intensityBefore = lampLight.intensity;
+            lampLight.intensity = 0f;
+            lightHeld = true;
+        }
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            if (lightHeld)
+            {
+                // Off; a first flicker at 0.35; off again; steady from 0.48 (an LED ring's blink, not a bulb's warm-up).
+                float level = t < .35f ? 0f : t < .41f ? .55f : t < .46f ? .05f : Mathf.Lerp(.6f, 1f, Mathf.Clamp01((t - .46f) / .12f));
+                lampLight.intensity = intensityBefore * level;
+            }
+            float k = Ease(t / Duration);
+            Vector3 at = Push(From, Look, .3f * k);
+            Film(intro, at, Look + (at - From), 40f, Look);
+        }
+
+        public override void End(DayIntro intro)
+        {
+            if (lightHeld && lampLight != null) lampLight.intensity = intensityBefore;
+            lightHeld = false;
+        }
+    }
+
+    /// <summary>The room's length from just inside the door: the communal table, the pastry case, the till, the bench and its REPAIRS sign, the dispenser, the menu board; a cup set down; a dolly of 0.6 m in.</summary>
+    sealed class CounterReady : Shot
+    {
+        public override string Id => "counter.ready";
+        public override int Slot => 1;
+        public override float Length => 1.4f;
+        public override Framing Framing => Framing.Wide;
+        public override bool SubjectIsComposition => true;
+        static readonly Vector3 From = new Vector3(.6f, 1.6f, 1.4f), Look = new Vector3(0f, 1.45f, 14.5f);
+
+        public override bool Prepare(SceneThings things)
+        {
+            if (things.frontCounter == null) return false;
+            Cue(.4f, "intro.cup");
+            return true;
+        }
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            Vector3 dolly = (Look - From).normalized * (.6f * k);
+            Film(intro, From + dolly, Look + dolly, 42f, Look);
+        }
+    }
+
+    /// <summary>
+    /// Through the west gilded window from the pavement: the olive tree near, the communal table, the counter and back bar
+    /// beyond, the café's own lights coming up (held at 15%, raised to full over 0.5 s from 0.3 s, given back at the cut); a
+    /// breaker's clunk. Static.
+    /// </summary>
+    sealed class CafeLights : Shot
+    {
+        public override string Id => "cafe.lights";
+        public override int Slot => 1;
+        public override float Length => 1.4f;
+        public override bool SubjectIsComposition => true;
+        public override IReadOnlyList<float> Moments => new[] { .7f };
+        static readonly Vector3 From = new Vector3(-3.2f, 1.55f, -3.2f), Look = new Vector3(-1.6f, 1.4f, 4.0f);
+        const float Low = .15f, UpAt = .3f, UpSeconds = .5f;
+        List<Light> lights;
+        readonly List<float> before = new List<float>();
+        bool held;
+
+        public override bool Prepare(SceneThings things)
+        {
+            if (things.gildingWest == null) return false;
+            lights = things.CafeLights();
+            if (lights.Count == 0) return false;
+            Cue(UpAt, "intro.lights");
+            return true;
+        }
+
+        public override void Begin(DayIntro intro)
+        {
+            before.Clear();
+            foreach (Light l in lights) before.Add(l != null ? l.intensity : 0f);
+            held = true;
+            SetLevel(Low);
+        }
+
+        void SetLevel(float level)
+        {
+            for (int i = 0; i < lights.Count; i++)
+                if (lights[i] != null) lights[i].intensity = before[i] * level;
+        }
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            if (held) SetLevel(Mathf.Lerp(Low, 1f, Ease((t - UpAt) / UpSeconds)));
+            Film(intro, From, Look, 36f, Look);
+        }
+
+        public override void End(DayIntro intro)
+        {
+            if (held) SetLevel(1f);   // exactly as they were (record, hold, restore: BenchReady's pattern)
+            held = false;
+        }
+    }
+
+    /// <summary>
+    /// A latte pouring, seen straight on from the dispenser's axis 0.5 m behind Ace's stand point (the drinks close-up's own
+    /// language since 14 Oct): the whole face square, Latte's cup filling on the right. The cup and the pour are the game's own
+    /// procedural ones (nothing is poured for real: no cup, no stock); the dispenser's own pour sound. Static. On Day 1 it
+    /// plays in slot 2.
+    /// </summary>
+    sealed class DrinksPour : Shot
+    {
+        public override string Id => "drinks.pour";
+        public override int Slot => 1;
+        public override float Length => 1.4f;
+        public override float MinSubjectDistance => .6f;   // the dispenser was built for its own 1 m close-up (spec §4.1.5)
+        public override IReadOnlyList<float> Moments => new[] { .6f };
+        BeverageSlot pourSlot;
+        StationInteractable drinks;
+        GameObject cup;
+        Transform liquid;
+        LineRenderer stream;
+        Material shellMaterial, liquidMaterial;
+        AudioSource pour;
+        float pourVolume;
+        bool ownSound;
+
+        public override bool Prepare(SceneThings things)
+        {
+            pourSlot = things.pourSlot;
+            drinks = things.drinks;
+            return pourSlot != null && pourSlot.cupPoint != null && pourSlot.stream != null && drinks != null && drinks.StandPoint != null;
+        }
+
+        public override void Begin(DayIntro intro)
+        {
+            BeverageSlot slot = pourSlot;
+            SubjectRoot = drinks.transform;
+            Color colour = DrinkLiquidVisual.LiquidColor(slot.drink);
+            // The cup, as DrinkLiquidVisual draws the game's: the open paper shell and the rising disc of drink.
+            cup = new GameObject("The cup");
+            cup.transform.SetParent(intro.Props, false);
+            cup.transform.SetPositionAndRotation(slot.cupPoint.position, Quaternion.identity);
+            shellMaterial = DrinkLiquidVisual.MakeMaterial("Day intro cup (while playing)", DrinkLiquidVisual.PaperColour, .08f);
+            liquidMaterial = DrinkLiquidVisual.MakeMaterial("Day intro drink (while playing)", colour, .68f);
+            MeshObject("Shell", cup.transform, DrinkLiquidVisual.BuildShell(), shellMaterial);
+            liquid = MeshObject("Drink", cup.transform, DrinkLiquidVisual.BuildDisc(), liquidMaterial).transform;
+            SetFill(0f);
+            // The pour: a copy of the slot's own stream, drawn the way BeverageSlot draws it.
+            stream = UnityEngine.Object.Instantiate(slot.stream.gameObject, slot.stream.transform.parent).GetComponent<LineRenderer>();
+            stream.name = "The pour (day intro)";
+            stream.transform.SetPositionAndRotation(slot.stream.transform.position, slot.stream.transform.rotation);
+            stream.enabled = true;
+            stream.positionCount = 5;
+            stream.startColor = stream.endColor = Color.Lerp(colour, Color.white, .3f);
+            // Its sound: the bank's drink.pour (the real SoftPour.wav), else the dispenser's own file, faded in and out.
+            BeveragePourAudio audio = slot.GetComponent<BeveragePourAudio>();
+            pour = cup.AddComponent<AudioSource>();
+            pour.playOnAwake = false;
+            pour.spatialBlend = 0f;
+            pour.loop = true;
+            pour.volume = 0f;
+            pourVolume = audio != null ? audio.pourVolume : .18f;
+            AudioClip clip = Sfx.Choose("drink.pour", pour, audio != null ? audio.pourClip : null, ref pourVolume);
+            if (clip != null)
+            {
+                pour.clip = clip;
+                pour.spatialBlend = 0f;
+                pour.Play();
+                ownSound = true;
+            }
+            else Sfx.Play2D("intro.pour");
+        }
+
+        static GameObject MeshObject(string name, Transform parent, Mesh mesh, Material material)
+        {
+            var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(parent, false);
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            go.GetComponent<MeshRenderer>().sharedMaterial = material;
+            return go;
+        }
+
+        // As DrinkLiquidVisual.SetFill lays the surface: 1.2 cm up empty, 9.8 cm full, a touch wider as it rises.
+        void SetFill(float amount)
+        {
+            if (liquid == null) return;
+            float height = Mathf.Lerp(.012f, .098f, amount);
+            float radius = Mathf.Lerp(.028f, .036f, amount);
+            liquid.localPosition = new Vector3(0f, height, 0f);
+            liquid.localScale = new Vector3(radius, 1f, radius);
+            liquid.gameObject.SetActive(amount > .002f);
+        }
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = t / Duration;
+            float fill = Mathf.Lerp(.22f, .86f, Mathf.Clamp01(k));
+            SetFill(fill);
+            Vector3 cupBase = cup != null ? cup.transform.position : pourSlot.cupPoint.position;
+            Vector3 surface = cupBase + Vector3.up * Mathf.Lerp(.012f, .098f, fill);
+            if (stream != null)
+            {
+                Vector3 start = stream.transform.position;
+                for (int i = 0; i < 5; i++)
+                {
+                    float s = i / 4f;
+                    Vector3 point = Vector3.Lerp(start, surface, s);
+                    if (i > 0 && i < 4) point += stream.transform.right * (Mathf.Sin(Time.unscaledTime * 23f + i * 1.8f) * .0018f);
+                    stream.SetPosition(i, stream.useWorldSpace ? point : stream.transform.InverseTransformPoint(point));
+                }
+                stream.startWidth = .0065f;
+                stream.endWidth = .009f + Mathf.Sin(Time.unscaledTime * 29f) * .001f;
+            }
+            if (pour != null && ownSound)
+                pour.volume = pourVolume * Mathf.Min(Mathf.Clamp01(t / .12f), Mathf.Clamp01((Duration - t) / .18f)) * GameSettings.BusVolume(SoundBus.World);
+            // Straight on from the dispenser's axis, 0.5 m behind the stand point at 1.6 m, onto the working face's middle
+            // (0.26 m up, 0.14 m out from the dispenser's origin, as the installer measures it).
+            Transform d = drinks.transform;
+            Vector3 ahead = Vector3.ProjectOnPlane(d.forward, Vector3.up);
+            if (ahead.sqrMagnitude < 1e-6f) ahead = Vector3.forward;
+            ahead.Normalize();
+            Vector3 stand = drinks.StandPoint.position;
+            Vector3 at = new Vector3(stand.x, stand.y + 1.6f, stand.z) - ahead * .5f;
+            Vector3 face = d.TransformPoint(new Vector3(0f, .257f, -.14f));
+            Film(intro, at, face, 40f, face, .03f);
+        }
+
+        public override void End(DayIntro intro)
+        {
+            if (pour != null) pour.Stop();
+            if (stream != null) UnityEngine.Object.Destroy(stream.gameObject);
+            if (cup != null) UnityEngine.Object.Destroy(cup);
+            if (shellMaterial != null) UnityEngine.Object.Destroy(shellMaterial);
+            if (liquidMaterial != null) UnityEngine.Object.Destroy(liquidMaterial);
+            cup = null; stream = null; liquid = null; pour = null; shellMaterial = liquidMaterial = null;
+        }
+    }
+
+    // ---------- slot 2: someone, or the day's own ----------
+
+    /// <summary>
+    /// The neighbour who loops the café's own pavement, from the far pavement: the camera where he is (within x ±5), panning
+    /// with him, the look trailing 0.2 s; at 8 m he fills about 44% of the frame, the café's windows and fascia behind him;
+    /// a car may cross the foreground. Pavement footsteps lead the picture.
+    /// </summary>
+    sealed class NeighbourFront : Shot
+    {
+        public override string Id => "neighbour.front";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override Framing Framing => Framing.Wide;
+        public override string LeadCue => "intro.steps";
+        Transform walker;
+        Vector3 at, look;
+
+        public override bool Prepare(SceneThings things)
+        {
+            walker = things.promenadeNeighbour;
+            return walker != null && walker.gameObject.activeInHierarchy;
+        }
+
+        public override void Begin(DayIntro intro)
+        {
+            if (walker == null || !walker.gameObject.activeInHierarchy) throw new InvalidOperationException("the promenade neighbour isn't out");
+            SubjectRoot = walker;
+            at = new Vector3(Mathf.Clamp(walker.position.x, -5f, 5f), 1.5f, -11.8f);
+            look = walker.position + Vector3.up * 1.3f;
+        }
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            Vector3 chest = walker.position + Vector3.up * 1.3f;
+            look = Follow(look, chest, .2f, dt);
+            Film(intro, at, look, 28f, chest);
+        }
+    }
+
+    /// <summary>
+    /// A neighbour on their own street: one of the three walking the west street's far pavement, only while one is in front of
+    /// houses 2-4 (z 4-17, which keeps Grace's door at least 34° off axis), the painted fronts behind; panning with them. No one
+    /// there at the cut: the shot drops and its slot redraws.
+    /// </summary>
+    sealed class NeighboursRow : Shot
+    {
+        public override string Id => "neighbours.row";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override Framing Framing => Framing.Wide;
+        public override string LeadCue => "intro.steps";
+        // The window, a little inside z 4-17 so a walker at either end still is inside it when the shot ends.
+        const float WindowSouth = 4.6f, WindowNorth = 16.4f;
+        List<Transform> walkers;
+        Transform walker;
+        Vector3 at, look;
+
+        public override bool Prepare(SceneThings things)
+        {
+            walkers = things.rowNeighbours;
+            return walkers != null && walkers.Count > 0;
+        }
+
+        public override void Begin(DayIntro intro)
+        {
+            walker = null;
+            foreach (Transform w in walkers)
+            {
+                if (w == null || !w.gameObject.activeInHierarchy) continue;
+                float z = w.position.z;
+                if (z < WindowSouth || z > WindowNorth) continue;
+                if (walker == null || Mathf.Abs(z - 10.5f) < Mathf.Abs(walker.position.z - 10.5f)) walker = w;
+            }
+            if (walker == null) throw new InvalidOperationException("nobody on the west street's far pavement in front of houses 2-4");
+            SubjectRoot = walker;
+            at = new Vector3(-8.4f, 1.5f, walker.position.z - 1.5f);
+            look = walker.position + Vector3.up * 1.3f;
+        }
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            Vector3 chest = walker.position + Vector3.up * 1.3f;
+            look = Follow(look, chest, .2f, dt);
+            Film(intro, at, look, 30f, chest);
+        }
+    }
+
+    /// <summary>
+    /// A car passing along the front street, from the café's pavement: the nearest moving car (over 2 m/s) on the westbound
+    /// lane (z -6.6) or the eastbound (z -9.4) that will be in front of the café 0.7 s after the cut; the camera waits where it
+    /// will cross (4.6 or 7.4 m away), the far pavement, the parking and the shop houses behind. Static. No car in reach: the
+    /// shot drops and its slot redraws. Its pass-by leads the picture.
+    /// </summary>
+    sealed class CarPass : Shot
+    {
+        public override string Id => "car.pass";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override string LeadCue => "intro.car";
+        const float Westbound = -6.6f, Eastbound = -9.4f, LaneHalf = 1.4f, Reach = 10f, Peak = .7f;
+        SceneThings things;
+        Transform car;
+        Vector3 at, look;
+
+        public override bool Prepare(SceneThings t)
+        {
+            things = t;
+            if (t.street == null) return false;
+            foreach (StreetLife.Actor a in t.Actors()) if (IsCar(a)) return true;
+            return false;
+        }
+
+        // StreetLife's own split: not a walker and no wings (the birds aren't walkers either).
+        static bool IsCar(StreetLife.Actor a) => !a.isWalker && (a.wings == null || a.wings.Length == 0);
+
+        public override void Begin(DayIntro intro)
+        {
+            car = null;
+            float best = float.PositiveInfinity, passX = 0f;
+            foreach (StreetLife.Actor a in things.Actors())
+            {
+                if (!IsCar(a) || a.CurrentSpeed < 2f) continue;
+                Vector3 p = a.actor.position;
+                bool west = Mathf.Abs(p.z - Westbound) <= LaneHalf, east = Mathf.Abs(p.z - Eastbound) <= LaneHalf;
+                if (!west && !east) continue;
+                // Which way it drives is the lane's (spec §4.1.3: lane 5 westbound, lane 4 eastbound), not the model's facing.
+                float x = p.x + (west ? -1f : 1f) * a.CurrentSpeed * Peak;
+                if (Mathf.Abs(x) > Reach || Mathf.Abs(x) >= best) continue;
+                best = Mathf.Abs(x);
+                passX = x;
+                car = a.actor;
+            }
+            if (car == null) throw new InvalidOperationException("no car on the front street will pass the café at the right moment");
+            SubjectRoot = car;
+            at = new Vector3(passX, 1.2f, -2.0f);
+            look = new Vector3(passX, .9f, -7.5f);
+        }
+
+        public override void Frame(DayIntro intro, float t, float dt) =>
+            Film(intro, at, look, 40f, car != null ? car.position + Vector3.up * .7f : look);
+    }
+
+    /// <summary>The outdoor bistro table's single flower in its bud vase (2.1 m), the painted row soft behind (15-24 m); a push of 0.3 m. A settled guest there becomes the shot.</summary>
+    sealed class PatioFlower : Shot
+    {
+        public override string Id => "patio.flower";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        static readonly Vector3 From = new Vector3(-2.6f, .95f, -3.4f);
+        Transform table;
+
+        public override bool Prepare(SceneThings things)
+        {
+            table = things.bistroTable;
+            return table != null;
+        }
+
+        public override void Begin(DayIntro intro) => SubjectRoot = table;
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            Vector3 top = table.position + Vector3.up * .8f;
+            Vector3 at = Push(From, top, .3f * k);
+            Film(intro, at, top, 38f, top);
+        }
+    }
+
+    /// <summary>
+    /// Grace's front from across the west street at the café's corner: her door (8.6 m), the bay (8.2 m) and her step, Barnaby
+    /// on it unless Ace took him (the game hides a taken thing: the morning after Night 1 tells itself without words); a push of
+    /// 0.4 m. It never looks into her window. Tied: a morning she is really coming in early, at most one in six, never Day 1.
+    /// </summary>
+    sealed class GraceHouseShot : Shot
+    {
+        public override string Id => "house.grace";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override Framing Framing => Framing.Wide;
+        public override Tie Tie => Tie.Regular;
+        public override bool IsGrace => true;
+        static readonly Vector3 From = new Vector3(-8.6f, 1.6f, -2.5f), Look = new Vector3(-17.4f, 2.3f, -2.2f);
+        Transform door;
+
+        public override bool Prepare(SceneThings things)
+        {
+            door = things.graceDoor != null ? things.graceDoor.transform : null;
+            return door != null;
+        }
+
+        public override void Begin(DayIntro intro) => SubjectRoot = door;
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            Vector3 at = Push(From, Look, .4f * k);
+            Film(intro, at, Look + (at - From), 32f, door.position + Vector3.up * 1f);
+        }
+    }
+
+    /// <summary>
+    /// Waiting on the NPC lead: today's regular walking up the front pavement from the sidewalk bench toward the door, a cameo
+    /// (their look, their walk by mood, no brain, removed at the cut). Never frames until it's built.
+    /// </summary>
+    sealed class RegularWalkUp : Shot
+    {
+        public override string Id => "regular.walkup";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override Framing Framing => Framing.Wide;
+        public override Tie Tie => Tie.Regular;
+        public override bool IsGrace => Who != null && Who.PersistentId == GraceId;
+        public override string LeadCue => "intro.steps";
+        public CustomerProfile Who;
+        public override bool Prepare(SceneThings things) => false;
+        public override void Frame(DayIntro intro, float t, float dt) { }
+    }
+
+    /// <summary>Waiting on the NPC lead, Systems and the Director: three or four of a rush morning's first customers at the door. Never frames until it's built.</summary>
+    sealed class QueueAtDoor : Shot
+    {
+        public override string Id => "queue.door";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override Framing Framing => Framing.Wide;
+        public override Tie Tie => Tie.Rush;
+        public override bool Prepare(SceneThings things) => false;
+        public override void Frame(DayIntro intro, float t, float dt) { }
+    }
+
+    /// <summary>Parked (the Producer's call 12): a fictional police car in the customer parking the morning after a caught night. Never frames until the night has that consequence.</summary>
+    sealed class PoliceCar : Shot
+    {
+        public override string Id => "police.car";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override Framing Framing => Framing.Wide;
+        public override Tie Tie => Tie.Caught;
+        public override bool Prepare(SceneThings things) => false;
+        public override void Frame(DayIntro intro, float t, float dt) { }
+    }
+
+    /// <summary>Parked (the scope freeze): rain on the gilded window, the street blurred behind. There is no weather yet.</summary>
+    sealed class RainOnGlass : Shot
+    {
+        public override string Id => "rain.window";
+        public override int Slot => 2;
+        public override float Length => 1.4f;
+        public override Tie Tie => Tie.Rain;
+        public override bool Prepare(SceneThings things) => false;
+        public override void Frame(DayIntro intro, float t, float dt) { }
+    }
+
+    // ---------- slot 3: the open ----------
+
+    /// <summary>The storefront from its own pavement: the fascia with the café's name over the open door, the gilded windows, the A-frame in the foreground; the bell. The shot she loved ("the span on aces cafe sign"): unchanged but for its length.</summary>
+    sealed class StreetFront : Shot
+    {
+        public override string Id => "street.front";
+        public override int Slot => 3;
+        public override float Length => 1.4f;
+        public override float Weight => 2f;
+        public override IReadOnlyList<float> Moments => new[] { .45f };
+        Transform fascia;
+
+        public override bool Prepare(SceneThings things)
+        {
+            fascia = things.fascia;
+            if (fascia == null) return false;
+            Cue(0f, "intro.sign");
+            Cue(DayOpenAfterSign, "day.open");
+            return true;
+        }
+
+        public override void Begin(DayIntro intro) => SubjectRoot = fascia;
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            Vector3 outward = fascia.forward;    // placed turned to the street: its front is outward
+            outward.y = 0f;
+            if (outward.sqrMagnitude < 1e-6f) outward = Vector3.back;
+            outward.Normalize();
+            Vector3 along = Vector3.Cross(outward, Vector3.up);   // along the facade, to the right of someone on the street facing it
+            // From the pavement to the right of the door, 5 m out, eye height, walking a little toward the door; the A-frame in
+            // the near corner of the picture, the gilded windows and the open door under the name.
+            Vector3 look = fascia.position + Vector3.up * .1f - outward * .1f - along * .2f;
+            Vector3 at = fascia.position + outward * Mathf.Lerp(4.8f, 4.2f, k) + along * Mathf.Lerp(3.1f, 2.5f, k);
+            at.y = 1.55f - .05f * k;
+            Film(intro, at, look, 30f, look);
+        }
+    }
+
+    /// <summary>The round blade sign at the corner, close, with the front street waking beyond it; the bell.</summary>
+    sealed class StreetSign : Shot
+    {
+        public override string Id => "street.sign";
+        public override int Slot => 3;
+        public override float Length => 1.4f;
+        Transform blade;
+
+        public override bool Prepare(SceneThings things)
+        {
+            blade = things.blade;
+            if (blade == null) return false;
+            Cue(0f, "intro.sign");
+            Cue(DayOpenAfterSign, "day.open");
+            return true;
+        }
+
+        public override void Begin(DayIntro intro) => SubjectRoot = blade;
+
+        public override void Frame(DayIntro intro, float t, float dt)
+        {
+            float k = Ease(t / Duration);
+            // The disc stands 0.58 m out from the wall along the sign's -X and 0.40 up from its origin (cafe_signs.json); its faces
+            // look along the street (its Z), so the view stands off along +Z, a little out from the wall and below.
+            Vector3 disc = blade.TransformPoint(new Vector3(-.58f, .40f, 0f));
+            Vector3 alongStreet = blade.forward;
+            Vector3 outFromWall = -blade.right;
+            Vector3 at = disc + alongStreet * Mathf.Lerp(2.9f, 2.6f, k) + outFromWall * 1.05f + Vector3.up * Mathf.Lerp(-.95f, -.85f, k);
+            Film(intro, at, disc, 30f, disc);
+        }
+    }
+
+    // ---------- parked: the bench close-ups (spec §4.1.6; compiled out until the new mat and one scale land) ----------
+
+#if DAYINTRO_BENCH_CLOSEUPS
         /// <summary>
         /// Lays a prop (already turned the right way up) flat in the middle of the mat: its long side across the view (along the
         /// mat's own long side), its lowest point on the mat's top. <paramref name="toward"/> is the way from the mat to the viewer.
         /// </summary>
-        protected static void LayOnTheMat(GameObject prop, Vector3 matCentre, float matTop, Vector3 toward)
+        static void LayOnTheMat(GameObject prop, Vector3 matCentre, float matTop, Vector3 toward)
         {
             prop.transform.position = new Vector3(matCentre.x, matTop + .05f, matCentre.z);
             if (BoundsOf(prop, out Bounds b))
@@ -1190,70 +2322,6 @@ public sealed class DayIntro : MonoBehaviour
             if (BoundsOf(prop, out b))
                 prop.transform.position += new Vector3(matCentre.x - b.center.x, matTop - b.min.y, matCentre.z - b.center.z);
         }
-    }
-
-    // ---------- beat 0: the café ----------
-
-    /// <summary>Beans in the grinder's hopper, through the glass: an extreme close-up turning round it (the burrs' spin) and pushing in, the whirr.</summary>
-    sealed class GrinderBeans : Shot
-    {
-        public override string Id => "grinder.beans";
-        public override int Beat => 0;
-        public override float Length => 1.5f;
-        public override bool Canonical => true;
-        public override IReadOnlyList<float> Moments => new[] { .55f };
-        Transform grinder;
-
-        public override bool Prepare(SceneThings things)
-        {
-            grinder = things.grinder;
-            if (grinder == null) return false;
-            Cue(.05f, "intro.grind");
-            return true;
-        }
-
-        public override void Frame(DayIntro intro, float t, float dt)
-        {
-            float k = Ease(t / Length);
-            // The hopper sits 6 cm behind the base's middle; the beans' mound is about 50 cm up (cafe_props.py: hz0 + 0.110).
-            Vector3 beans = grinder.TransformPoint(new Vector3(0f, .505f, -.06f));
-            Vector3 from = grinder.TransformPoint(new Vector3(.10f, .70f, .12f));
-            Vector3 at = Orbit(beans, from, Mathf.Lerp(-14f, 14f, k));
-            at = beans + (at - beans) * Mathf.Lerp(1f, .86f, k);
-            intro.Place(at, beans, 32f, 0f, .01f);
-        }
-    }
-
-    /// <summary>The burr housing's knurled collar and the chute under it, close, turning round it: the grinder as a machine.</summary>
-    sealed class GrinderBurr : Shot
-    {
-        public override string Id => "grinder.burr";
-        public override int Beat => 0;
-        public override float Length => 1.5f;
-        public override IReadOnlyList<float> Moments => new[] { .5f };
-        Transform grinder;
-
-        public override bool Prepare(SceneThings things)
-        {
-            grinder = things.grinder;
-            if (grinder == null) return false;
-            Cue(.05f, "intro.grind");
-            return true;
-        }
-
-        public override void Frame(DayIntro intro, float t, float dt)
-        {
-            float k = Ease(t / Length);
-            // The collar is 35-38 cm up on the body's axis (6 cm back); the chute's mouth leans out in front and below it.
-            Vector3 collar = grinder.TransformPoint(new Vector3(0f, .345f, -.03f));
-            Vector3 from = grinder.TransformPoint(new Vector3(-.17f, .43f, .23f));
-            Vector3 at = Orbit(collar, from, Mathf.Lerp(-12f, 12f, k));
-            at = collar + (at - collar) * Mathf.Lerp(1f, .88f, k);
-            intro.Place(at, collar, 30f, 0f, .01f);
-        }
-    }
-
-    // ---------- beat 1: the bench ----------
 
     /// <summary>
     /// A phone lies back-up in the middle of the mat; the hero screwdriver backs a screw out of it, three ticks and a turn a
@@ -1263,9 +2331,8 @@ public sealed class DayIntro : MonoBehaviour
     sealed class BenchScrew : Shot
     {
         public override string Id => "bench.screw";
-        public override int Beat => 1;
+        public override int Slot => 1;
         public override float Length => 2f;
-        public override bool Canonical => true;
         public override IReadOnlyList<float> Moments => new[] { .4f, .82f };
 
         const float TurnSeconds = 1.05f, Turns = 3f, Thread = .006f, HopSeconds = .45f;
@@ -1378,7 +2445,7 @@ public sealed class DayIntro : MonoBehaviour
             Vector3 trayAt = trayLanding;
             Vector3 trayFrom = trayAt + Vector3.up * .15f + toward * .13f;
             float whip = Ease((t - TurnSeconds) / .35f);
-            float settle = Mathf.Clamp01((t - TurnSeconds - .35f) / (Length - TurnSeconds - .35f));
+            float settle = Mathf.Clamp01((t - TurnSeconds - .35f) / (Duration - TurnSeconds - .35f));
             Vector3 at = Vector3.Lerp(close, trayFrom - toward * (.015f * settle), whip);
             Vector3 look = Vector3.Lerp(headAt, trayAt, whip);
             intro.Place(at, look, Mathf.Lerp(28f, 32f, whip), 0f, .005f);
@@ -1393,199 +2460,11 @@ public sealed class DayIntro : MonoBehaviour
         }
     }
 
-    /// <summary>The magnifier lamp over the bench comes on (a blink, then steady) above the caddy of tools: the work's light.</summary>
-    sealed class BenchLamp : Shot
-    {
-        public override string Id => "bench.lamp";
-        public override int Beat => 1;
-        public override float Length => 1.4f;
-        public override IReadOnlyList<float> Moments => new[] { .6f };
-        SceneThings things;
-        float intensityBefore;
-        bool lightHeld;
-
-        public override bool Prepare(SceneThings t)
-        {
-            things = t;
-            if (t.lamp == null || t.lampLight == null || t.stage == null || t.stage.Mat == null) return false;
-            Cue(.35f, "intro.lamp");
-            return true;
-        }
-
-        public override void Begin(DayIntro intro)
-        {
-            intensityBefore = things.lampLight.intensity;
-            things.lampLight.intensity = 0f;
-            lightHeld = true;
-        }
-
-        public override void Frame(DayIntro intro, float t, float dt)
-        {
-            if (lightHeld)
-            {
-                // Off; a first flicker at 0.35; off again; steady from 0.48 (an LED ring's blink, not a bulb's warm-up).
-                float level = t < .35f ? 0f : t < .41f ? .55f : t < .46f ? .05f : Mathf.Lerp(.6f, 1f, Mathf.Clamp01((t - .46f) / .12f));
-                things.lampLight.intensity = intensityBefore * level;
-            }
-            Transform mat = things.stage.Mat;
-            Vector3 toward = things.BenchToward;
-            Vector3 side = Vector3.Cross(toward, Vector3.up);
-            Vector3 head = things.lampLight.transform.position;   // the lens head holds the light, over the mat's middle
-            Vector3 caddy = things.stage.Caddy != null ? things.stage.Caddy.position : mat.position - side * .25f;
-            float k = Ease(t / Length);
-            // Low over the bench on the viewer's side, between the tools and the lens head, rising a little as the light comes.
-            Vector3 at = mat.position + toward * .30f - side * .34f + Vector3.up * Mathf.Lerp(.11f, .14f, k);
-            Vector3 look = Vector3.Lerp(caddy + Vector3.up * .12f, head - Vector3.up * .03f, .45f);
-            intro.Place(at, look, 40f, 0f, .02f);
-        }
-
-        public override void End(DayIntro intro)
-        {
-            if (lightHeld && things.lampLight != null) things.lampLight.intensity = intensityBefore;
-            lightHeld = false;
-        }
-    }
-
-    // ---------- beat 2: the third ----------
-
-    /// <summary>
-    /// A latte pouring: a paper cup (the game's own cup mesh) under the dispenser's spout, the pour stream (a copy of the
-    /// slot's) and the liquid rising, seen close from above the rim, turning round it (the swirl), with the dispenser's own
-    /// pour sound. Nothing is poured for real: no cup, no stock.
-    /// </summary>
-    sealed class DrinksPour : Shot
-    {
-        public override string Id => "drinks.pour";
-        public override int Beat => 2;
-        public override float Length => 1.4f;
-        public override bool Canonical => true;
-        public override IReadOnlyList<float> Moments => new[] { .6f };
-        SceneThings things;
-        GameObject cup;
-        Transform liquid;
-        LineRenderer stream;
-        Material shellMaterial, liquidMaterial;
-        AudioSource pour;
-        float pourVolume;
-        bool ownSound;
-
-        public override bool Prepare(SceneThings t)
-        {
-            things = t;
-            if (t.pourSlot == null || t.pourSlot.cupPoint == null || t.pourSlot.stream == null) return false;
-            return true;
-        }
-
-        public override void Begin(DayIntro intro)
-        {
-            BeverageSlot slot = things.pourSlot;
-            Color colour = DrinkLiquidVisual.LiquidColor(slot.drink);
-            // The cup, as DrinkLiquidVisual draws the game's: the open paper shell and the rising disc of drink.
-            cup = new GameObject("The cup");
-            cup.transform.SetParent(intro.Props, false);
-            cup.transform.SetPositionAndRotation(slot.cupPoint.position, Quaternion.identity);
-            shellMaterial = DrinkLiquidVisual.MakeMaterial("Day intro cup (while playing)", DrinkLiquidVisual.PaperColour, .08f);
-            liquidMaterial = DrinkLiquidVisual.MakeMaterial("Day intro drink (while playing)", colour, .68f);
-            MeshObject("Shell", cup.transform, DrinkLiquidVisual.BuildShell(), shellMaterial);
-            liquid = MeshObject("Drink", cup.transform, DrinkLiquidVisual.BuildDisc(), liquidMaterial).transform;
-            SetFill(0f);
-            // The pour: a copy of the slot's own stream, drawn the way BeverageSlot draws it.
-            stream = UnityEngine.Object.Instantiate(slot.stream.gameObject, slot.stream.transform.parent).GetComponent<LineRenderer>();
-            stream.name = "The pour (day intro)";
-            stream.transform.SetPositionAndRotation(slot.stream.transform.position, slot.stream.transform.rotation);
-            stream.enabled = true;
-            stream.positionCount = 5;
-            stream.startColor = stream.endColor = Color.Lerp(colour, Color.white, .3f);
-            // Its sound: the dispenser's own pour file (the bank's drink.pour when Audio fills it), faded in and out; else the placeholder.
-            BeveragePourAudio audio = slot.GetComponent<BeveragePourAudio>();
-            pour = cup.AddComponent<AudioSource>();
-            pour.playOnAwake = false;
-            pour.spatialBlend = 0f;
-            pour.loop = true;
-            pour.volume = 0f;
-            pourVolume = audio != null ? audio.pourVolume : .18f;
-            AudioClip clip = Sfx.Choose("drink.pour", pour, audio != null ? audio.pourClip : null, ref pourVolume);
-            if (clip != null)
-            {
-                pour.clip = clip;
-                pour.spatialBlend = 0f;
-                pour.Play();
-                ownSound = true;
-            }
-            else Sfx.Play2D("intro.pour");
-        }
-
-        static GameObject MeshObject(string name, Transform parent, Mesh mesh, Material material)
-        {
-            var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
-            go.transform.SetParent(parent, false);
-            go.GetComponent<MeshFilter>().sharedMesh = mesh;
-            go.GetComponent<MeshRenderer>().sharedMaterial = material;
-            return go;
-        }
-
-        // As DrinkLiquidVisual.SetFill lays the surface: 1.2 cm up empty, 9.8 cm full, a touch wider as it rises.
-        void SetFill(float amount)
-        {
-            if (liquid == null) return;
-            float height = Mathf.Lerp(.012f, .098f, amount);
-            float radius = Mathf.Lerp(.028f, .036f, amount);
-            liquid.localPosition = new Vector3(0f, height, 0f);
-            liquid.localScale = new Vector3(radius, 1f, radius);
-            liquid.gameObject.SetActive(amount > .002f);
-        }
-
-        public override void Frame(DayIntro intro, float t, float dt)
-        {
-            float k = t / Length;
-            float fill = Mathf.Lerp(.22f, .86f, Mathf.Clamp01(k));
-            SetFill(fill);
-            Vector3 cupBase = cup != null ? cup.transform.position : things.pourSlot.cupPoint.position;
-            Vector3 surface = cupBase + Vector3.up * Mathf.Lerp(.012f, .098f, fill);
-            if (stream != null)
-            {
-                Vector3 start = stream.transform.position;
-                for (int i = 0; i < 5; i++)
-                {
-                    float s = i / 4f;
-                    Vector3 point = Vector3.Lerp(start, surface, s);
-                    if (i > 0 && i < 4) point += stream.transform.right * (Mathf.Sin(Time.unscaledTime * 23f + i * 1.8f) * .0018f);
-                    stream.SetPosition(i, stream.useWorldSpace ? point : stream.transform.InverseTransformPoint(point));
-                }
-                stream.startWidth = .0065f;
-                stream.endWidth = .009f + Mathf.Sin(Time.unscaledTime * 29f) * .001f;
-            }
-            if (pour != null && ownSound)
-                pour.volume = pourVolume * Mathf.Min(Mathf.Clamp01(t / .12f), Mathf.Clamp01((Length - t) / .18f)) * GameSettings.BusVolume(SoundBus.World);
-            // Close over the rim from the room's side, turning round the cup as it fills (the swirl), pushing in a little.
-            Vector3 toward = -things.pourSlot.transform.forward;   // the dispenser faces the room; its slots face with it
-            toward.y = 0f;
-            if (toward.sqrMagnitude < 1e-6f) toward = Vector3.back;
-            toward.Normalize();
-            Vector3 side = Vector3.Cross(toward, Vector3.up);
-            Vector3 rim = cupBase + Vector3.up * .105f;
-            Vector3 from = rim + toward * .16f + side * .09f + Vector3.up * .15f;
-            Vector3 at = Orbit(rim, from, Mathf.Lerp(-10f, 10f, Ease(k)));
-            at = rim + (at - rim) * Mathf.Lerp(1f, .9f, Ease(k));
-            intro.Place(at, rim - Vector3.up * .01f, 34f, 0f, .01f);
-        }
-
-        public override void End(DayIntro intro)
-        {
-            if (pour != null) pour.Stop();
-            if (stream != null) UnityEngine.Object.Destroy(stream.gameObject);
-            if (cup != null) UnityEngine.Object.Destroy(cup);
-            if (shellMaterial != null) UnityEngine.Object.Destroy(shellMaterial);
-            if (liquidMaterial != null) UnityEngine.Object.Destroy(liquidMaterial);
-            cup = null; stream = null; liquid = null; pour = null; shellMaterial = liquidMaterial = null;
-        }
-    }
-
     /// <summary>A fixed phone face up on the mat: its screen lights (as DeviceWake lights it), the boot chime. Yesterday's work, done.</summary>
     sealed class BenchWake : Shot
     {
         public override string Id => "bench.wake";
-        public override int Beat => 2;
+        public override int Slot => 2;
         public override float Length => 1.3f;
         public override IReadOnlyList<float> Moments => new[] { .75f };
         static readonly Color ScreenGlow = new Color(.55f, .68f, .95f);   // DeviceWake's
@@ -1661,7 +2540,7 @@ public sealed class DayIntro : MonoBehaviour
             Vector3 toward = things.BenchToward;
             Vector3 side = Vector3.Cross(toward, Vector3.up);
             Vector3 screen = phone != null && BoundsOf(phone, out Bounds b) ? new Vector3(b.center.x, b.max.y, b.center.z) : mat.position;
-            float e = Ease(t / Length);
+            float e = Ease(t / Duration);
             Vector3 from = screen + toward * .20f + side * .06f + Vector3.up * .21f;
             Vector3 at = Orbit(screen, from, Mathf.Lerp(-5f, 5f, e));
             at = screen + (at - screen) * Mathf.Lerp(1f, .9f, e);
@@ -1676,99 +2555,5 @@ public sealed class DayIntro : MonoBehaviour
             lit = null;
         }
     }
-
-    /// <summary>Grace's house across the street, from her pavement, in the morning light: she's coming in today.</summary>
-    sealed class GraceHouseShot : Shot
-    {
-        public override string Id => "house.grace";
-        public override int Beat => 2;
-        public override float Length => 1.4f;
-        public override IReadOnlyList<float> Moments => new[] { .5f };
-        Transform door;
-
-        public override bool Prepare(SceneThings things)
-        {
-            door = things.graceDoor != null ? things.graceDoor.transform : null;
-            return door != null;
-        }
-
-        public override void Frame(DayIntro intro, float t, float dt)
-        {
-            float k = Ease(t / Length);
-            Vector3 outward = door.forward;      // her door faces the street
-            Vector3 along = -door.right;         // along her front, toward the bay window
-            Vector3 look = door.position + Vector3.up * 1.5f + along * 1.6f - outward * .2f;
-            Vector3 at = door.position + outward * 2.4f + along * Mathf.Lerp(4.6f, 4f, k) + Vector3.up * 1.35f;
-            intro.Place(at, look, 36f, 0f, .05f);
-        }
-    }
-
-    // ---------- beat 3: the open ----------
-
-    /// <summary>The storefront from its own pavement: the fascia with the café's name over the open door, the gilded windows, the A-frame in the foreground; the bell.</summary>
-    sealed class StreetFront : Shot
-    {
-        public override string Id => "street.front";
-        public override int Beat => 3;
-        public override float Length => 1.3f;
-        public override bool Canonical => true;
-        public override IReadOnlyList<float> Moments => new[] { .45f };
-        Transform fascia;
-
-        public override bool Prepare(SceneThings things)
-        {
-            fascia = things.fascia;
-            if (fascia == null) return false;
-            Cue(0f, "intro.sign");
-            Cue(DayOpenAfterSign, "day.open");
-            return true;
-        }
-
-        public override void Frame(DayIntro intro, float t, float dt)
-        {
-            float k = Ease(t / Length);
-            Vector3 outward = fascia.forward;    // placed turned to the street: its front is outward
-            outward.y = 0f;
-            if (outward.sqrMagnitude < 1e-6f) outward = Vector3.back;
-            outward.Normalize();
-            Vector3 along = Vector3.Cross(outward, Vector3.up);   // along the facade, to the right of someone on the street facing it
-            // From the pavement to the right of the door, 5 m out, eye height, walking a little toward the door; the A-frame in
-            // the near corner of the picture, the gilded windows and the open door under the name.
-            Vector3 look = fascia.position + Vector3.up * .1f - outward * .1f - along * .2f;
-            Vector3 at = fascia.position + outward * Mathf.Lerp(4.8f, 4.2f, k) + along * Mathf.Lerp(3.1f, 2.5f, k);
-            at.y = 1.55f - .05f * k;
-            intro.Place(at, look, 30f, 0f, .05f);
-        }
-    }
-
-    /// <summary>The round blade sign at the corner, close, with the front street waking beyond it: the circle the cup's rim became; the bell.</summary>
-    sealed class StreetSign : Shot
-    {
-        public override string Id => "street.sign";
-        public override int Beat => 3;
-        public override float Length => 1.3f;
-        public override IReadOnlyList<float> Moments => new[] { .5f };
-        Transform blade;
-
-        public override bool Prepare(SceneThings things)
-        {
-            blade = things.blade;
-            if (blade == null) return false;
-            Cue(0f, "intro.sign");
-            Cue(DayOpenAfterSign, "day.open");
-            return true;
-        }
-
-        public override void Frame(DayIntro intro, float t, float dt)
-        {
-            float k = Ease(t / Length);
-            // The disc stands 0.58 m out from the wall along the sign's -X and 0.40 up from its origin (cafe_signs.json); its faces
-            // look along the street (its Z), so the view stands off along +Z, a little out from the wall and below.
-            Vector3 disc = blade.TransformPoint(new Vector3(-.58f, .40f, 0f));
-            Vector3 alongStreet = blade.forward;
-            Vector3 outFromWall = -blade.right;
-            Vector3 at = disc + alongStreet * Mathf.Lerp(2.9f, 2.6f, k) + outFromWall * 1.05f + Vector3.up * Mathf.Lerp(-.95f, -.85f, k);
-            intro.Place(at, disc, 30f, 0f, .05f);
-        }
-    }
+#endif
 }

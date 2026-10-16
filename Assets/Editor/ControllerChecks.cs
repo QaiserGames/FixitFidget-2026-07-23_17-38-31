@@ -143,10 +143,28 @@ public static class ControllerChecks
         yield return Frames(3);
         Check(Get<float>(view, "isoDistance") > distance1 + 2f, "LT zooms back out");
 
-        yield return Press(GamepadButton.RightStick);
-        Check(Mathf.Abs(Mathf.DeltaAngle(Get<float>(view, "isoYaw"), Get<float>(view, "homeIsoYaw"))) < .01f
-              && Mathf.Abs(Get<float>(view, "isoDistance") - Get<float>(view, "homeIsoDistance")) < .01f,
-            "R3 returns the overhead view to its authored angle");
+        // R3 eases home (14 Oct, the night zoom's rule 6: the angle in 0.5 s, the distance never faster than 35 m/s), so
+        // the check waits for it (1.5 s at most: generous for his 15 fps) and watches every frame's speed on the way.
+        float r3Pressed = Time.realtimeSinceStartup, r3Fastest = 0f, r3Last = Get<float>(view, "isoDistance");
+        Hold(new GamepadState().WithButton(GamepadButton.RightStick));
+        bool r3Home = false;
+        float r3Took = -1f;
+        for (int frame = 0; Time.realtimeSinceStartup < r3Pressed + 1.5f; frame++)
+        {
+            if (frame == 5) Release();
+            yield return null;
+            float d = Get<float>(view, "isoDistance");
+            r3Fastest = Mathf.Max(r3Fastest, Mathf.Abs(d - r3Last) / Mathf.Max(1e-4f, Time.unscaledDeltaTime));
+            r3Last = d;
+            r3Home = Mathf.Abs(Mathf.DeltaAngle(Get<float>(view, "isoYaw"), Get<float>(view, "homeIsoYaw"))) < .01f
+                     && Mathf.Abs(d - Get<float>(view, "homeIsoDistance")) < .01f;
+            if (r3Home && frame >= 5) { r3Took = Time.realtimeSinceStartup - r3Pressed; break; }
+        }
+        Release();
+        yield return Frames(3);
+        Check(r3Home, $"R3 eases the overhead view back to its authored angle ({(r3Took >= 0f ? r3Took.ToString("0.00") + " s" : "not within 1.5 s")} from the press)");
+        Check(r3Fastest <= CafeViewMode.LimitSpeed * 1.02f,
+            $"...never faster than {CafeViewMode.LimitSpeed:0} m/s on the way ({r3Fastest:0.0} m/s at the most; the spec's bar was 40)");
 
         // ---------- walking in the overhead view ----------
         Vector3 before = view.transform.position;

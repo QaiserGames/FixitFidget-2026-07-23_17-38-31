@@ -1,5 +1,7 @@
 """
-The hero phone, v3.2 (9 Oct 2026, 02:00): PhoneRepair.prefab's pieces (a cube body, cube screens, a cube back cover,
+The hero phone, v3.7 (14 Oct 2026: AUTHORED_SCALE 1, exported through hero_lib.scale_build like the camera and the watch;
+the screws real: 3.8 mm black-oxide pan heads, TD one-scale §4 with the Producer's 3.8, feel-targets call 3) on v3.2 (9 Oct
+2026, 02:00): PhoneRepair.prefab's pieces (a cube body, cube screens, a cube back cover,
 cylinder screws) as real meshes, built from the iPhone 15's measurements (claude/hero-reference-sheet.md) in the house
 style (hero_lib.py). Devices 2 puts each mesh into the prefab's existing object, gives it a collider that is its solid
 (HeroDeviceSteps: head / faceY / boxes), and moves the three positions the thickness fixes (moves); everything else the
@@ -47,9 +49,12 @@ island proud of anything (about 2 mm). So, in Unity millimetres through the phon
   BackCover  the back glass, 67.6 x 137.6 x 1.2 (a 0.2 mm reveal inside the rail), outer face at -3.9, with the camera
              island (30 x 33, 1.0 mm plateau, two diagonal lens rings 0.9 mm more, the flash, the mic) and the black
              inner lip up to the chassis; the BackCover object moves from -5.5 to -3.3.
-  Screw      a button-head Phillips screw, 8 mm head (a cartoon size kept so it can be hit from 50 cm; a real one is
-             1.2 mm), 1.6 mm tall, its dome facing out (-Z), the shank going +Z; the screws move from -8 to -4.7 so
-             the heads sit on the back glass. Used twice.
+  Screw      v3.7: a pan-head Phillips screw at real proportion (Art A8): head Ø 3.8 x 1.33 (0.35 x Ø), one chamfer, 12
+             sides, the cross recess 0.55 x 0.12 of the head, black oxide; the shank Ø 2.09 (0.55 x Ø) with three thread
+             grooves, 4.5 mm long (it stays inside the 7.8 mm phone; the watch's are 2 x the head). Its top faces out
+             (-Z), z = 0 is the head's middle (Devices 2's head box round the origin is exactly the head). The screws
+             sit at Unity y -4.565 so the heads rest on the back glass (-3.9); was -4.7 under the 8 mm cartoon heads.
+             Used twice.
 """
 import math
 import os
@@ -61,6 +66,10 @@ import fixit_blender as fb  # noqa: E402
 import hero_lib as hl  # noqa: E402
 from hero_lib import Faceted, chamfered_slab, disc, moved, revolve, ring_wall, rrect_wall, to_blender  # noqa: E402
 
+AUTHORED_SCALE = 1.0      # real already (TD §6.1): build() still goes through scale_build, so the three scripts export alike
+SCREW_HEAD = .0038        # the head's diameter, real (feel-targets call 3: 3.8 mm, an M2 pan head)
+SCREW_SHANK_LEN = .0045   # the phone's: inside the 7.8 mm body (2 x the head would poke 1 mm out of the chassis's front)
+
 # (sRGB hex, Unity smoothness, Unity metallic): metallic 0 throughout
 HD_MATERIALS = {
     'HD_PhoneRail':   ('#8FA08C', 0.35, 0.0),   # anodised aluminium rail and buttons, the back's darker sage
@@ -71,8 +80,8 @@ HD_MATERIALS = {
     'HD_PhoneCopper': ('#B07A4A', 0.40, 0.0),   # the charging coil
     'HD_Lens':        ('#141414', 0.80, 0.0),   # camera glass
     'HD_Flash':       ('#E8E2CF', 0.50, 0.0),   # the flash window
-    'HD_Screw':       ('#93908A', 0.45, 0.0),   # the two case screws
-    'HD_ScrewSlot':   ('#2A2D31', 0.30, 0.0),   # the cross recess
+    'HD_ScrewBlack':  ('#2B2724', 0.45, 0.0),   # v3.7: the case screws, black oxide (Art A8: steel would vanish on the sage back)
+    'HD_ScrewRecess': ('#121110', 0.20, 0.0),   # v3.7: the cross recess, darker than the head so the cross can read
     'HD_Glass':       ('#20355A', 0.70, 0.0),   # the screen in the FBX only: the prefab keeps M_BrokenGlass / M_FreshGlass
     'HD_Crack':       ('#E9ECEF', 0.35, 0.0),   # the cracks: scattered light, white-grey on the dark glass
     'HD_FilmTab':     ('#E07A3F', 0.20, 0.0),   # the peel tab on the fresh screen's protective film
@@ -88,7 +97,7 @@ PREFAB_OFFSETS = {        # Unity's frame; v3.2: where Devices 2 MOVES the prefa
     'Screen':    (-0.090, 0.0, 0.0),           # the fresh part: beside the phone in the FBX assembly (the prefab's Fresh sits in the seat, off)
     'ScreenPlain': (0.090, 0.0, 0.0),         # the working screen (4b): on the other side of the assembly; the prefab's Screen/Glass sits in the seat
     'BackCover': (0.0, -0.0033, 0.0),
-    'Screw':     (0.022, -0.0047, -0.058),
+    'Screw':     (0.022, -0.0039 - SCREW_HEAD * 0.35 / 2, -0.058),   # v3.7: -4.565, the head's underside on the back glass (-3.9)
 }
 
 W, L, T = .070, .140, .0078   # the real 7.8 mm (v3.2); 70 x 140 in plan is the prefab's (the real 71.6 x 147.6)
@@ -445,24 +454,31 @@ def back_cover():
     return p
 
 
-def screw():
-    p = Faceted('Screw')
-    steel, slot_m = M('HD_Screw'), M('HD_ScrewSlot')
-    # a button head, 8 mm across and 1.6 mm tall (v3.2: was 2.0 on the 13 mm phone), its dome facing -Z (out of the
-    # device); z = 0 is its middle, so Devices 2's head box (8 x 1.6 x 8) round the origin is exactly the head
-    head = revolve([(-.0008, .0030), (-.0005, .0038), (.0000, .0040), (.0008, .0040)], sides=16, bottom_tip=(0, 0, -.0009))
-    p.add('head', head, steel)
+def screw_mesh(name, head_mat, head=SCREW_HEAD, shank_len=SCREW_SHANK_LEN, sides=12):
+    """A pan-head Phillips screw at real proportion (Art A8; TD §4 with the 3.8 mm head): head Ø `head`, 0.35 x Ø tall, one
+    chamfer, 12 sides, its top facing out (-Z) and z = 0 its middle; the cross recess 0.55 x 0.12 of the head; the shank Ø
+    0.55 x the head with three thread grooves, going +Z for shank_len. Shared with hero_watch.py (blued) and the icons."""
+    p = Faceted(name)
+    r, h = head / 2, 0.35 * head
+    # the head: the top face at -h/2 (a flat disc 0.8 r across), one chamfer to the full radius, the side down to +h/2
+    p.add('head', revolve([(-h / 2, r * .80), (-h / 2 + .38 * h, r), (h / 2, r)], sides=sides, bottom_tip=(0, 0, -h / 2)), head_mat)
     for rot in (0.0, 90.0):
-        slot = fb.zbox(-.0024, .0024, -.00045, .00045, -.0011, -.0005)
+        slot = fb.zbox(-.275 * head, .275 * head, -.06 * head, .06 * head, -h / 2 - .00003, -h / 2 + .40 * h)
         fb.turn(slot, rot, 'Z')
-        p.add('slot', slot, slot_m)
-    prof = [(.0008, .0012)]
+        p.add('recess', slot, M('HD_ScrewRecess'))
+    rs = .275 * head
+    prof = [(h / 2 - .0001, rs)]
+    pitch = (shank_len - .0006) / 3.5
     for i in range(3):
-        z = .0014 + i * .0012
-        prof += [(z, .0010), (z + .0006, .0013)]
-    prof += [(.0052, .0010), (.0056, .0006)]
-    p.add('shank', revolve(prof, sides=10, tip=(0, 0, .0060)), steel)
+        z = h / 2 + pitch * (i + .6)
+        prof += [(z - .12 * pitch, rs), (z, rs * .84), (z + .12 * pitch, rs)]
+    prof += [(h / 2 + shank_len - .0003, rs), (h / 2 + shank_len, rs * .6)]
+    p.add('shank', revolve(prof, sides=8, tip=(0, 0, h / 2 + shank_len + .0001)), head_mat)
     return p
+
+
+def screw():
+    return screw_mesh('Screw', M('HD_ScrewBlack'))
 
 
 PIECES = [
@@ -491,4 +507,13 @@ def build():
             ob.parent = root
             ob.location = to_blender(PREFAB_OFFSETS[ob.name])
             children.append(ob)
+    hl.scale_build(made, children, 1.0 / AUTHORED_SCALE)
     return root, children, made
+
+
+# The prefab's places v3.7 moves (real metres, Unity; the phone is k = 1, so the bake changes nothing): the screws drop
+# their heads onto the back glass at the new head height.
+MOVES = [
+    ('Screw0', (0.022, -0.0047, -0.058), (0.022, -0.004565, -0.058), "the 3.8 x 1.33 head's underside on the back glass (-3.9)"),
+    ('Screw1', (-0.022, -0.0047, -0.058), (-0.022, -0.004565, -0.058), "the 3.8 x 1.33 head's underside on the back glass (-3.9)"),
+]

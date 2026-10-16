@@ -12,13 +12,33 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_CamBlackSatin
+    second: {fileID: 2100000, guid: d5e3487906a6943cca48ac4f7f49afbf, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_CamBrass
     second: {fileID: 2100000, guid: b62aeee7f63064f498d3e7ed2bd9c78a, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_CamBrassNew
+    second: {fileID: 2100000, guid: dbedd796807764b46bdec707c4df7ac1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_CamBrassOld
+    second: {fileID: 2100000, guid: cffdbafdbbc5a4fa682856a90252e743, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_CamChrome
     second: {fileID: 2100000, guid: bbaaeb415bdd14a958c5f1fec8bd0f2e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_CamChromeBright
+    second: {fileID: 2100000, guid: bb80c0f321cec4000b1936f337362a87, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -52,6 +72,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_CamSteelBright
+    second: {fileID: 2100000, guid: 73c4b5173129e4d5f9b2010caeca4809, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_CamSteelOld
+    second: {fileID: 2100000, guid: f33d6dd9f9459402e99dd07c4360a5a7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_CamStitch
     second: {fileID: 2100000, guid: 67db7bf339c82499cbd18ae00b35e8b7, type: 2}
   - first:
@@ -59,6 +89,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: HD_CamStrap
     second: {fileID: 2100000, guid: 0714d60fb31da4e4e98f879498c66aab, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_CamStrapEdge
+    second: {fileID: 2100000, guid: 56b22712b33e048caa9d02f2dba4ef7d, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

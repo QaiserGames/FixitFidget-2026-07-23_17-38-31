@@ -21,10 +21,11 @@ using UnityEngine.SceneManagement;
 //   Fixit Fidget > Bench > Bench 2 - Undo: back to the tool column
 //   Fixit Fidget > Bench > Bench 3 - The bench - play check (lab, drives itself)
 //       A lab session on a fresh Day 1: the check puts a phone on the bench and works it with a virtual pad: the face-on
-//       presentation, the spin's settle and the flip, the zoom, every screw held out and watched fall, the cover pried,
-//       dragged off and dropped, the broken part pinched out and dropped in the tray, the fresh one seated, the cover
-//       dragged home, every hole held until its screw is back; the clock, the catch, the placeholder sounds (the grime
-//       and the glass are 4b). Report and photos: Logs/Bench/bench-check-<time>/.
+//       presentation, the turns and the flip, the zoom, every screw held out and watched fly to its cup, the cover pried
+//       and flown to its well, the broken part pinched out and flown to the old-parts tray, the fresh one sent over by a
+//       click and pressed in by a hold, the cover home by a press, every hole held until its screw is back; the clock, no
+//       guard trips, the sounds (the forgiving bench, 14 Oct; Bench 7 lays the mat first). Report and photos:
+//       Logs/Bench/bench-check-<time>/.
 // ---------------------------------------------------------------------------
 static class Playtest3Session4Steps
 {
@@ -319,17 +320,21 @@ static class Playtest3Session4Steps
 
     static Bounds LocalBounds(Transform root)
     {
-        var renderers = root.GetComponentsInChildren<MeshFilter>(true);
+        // MeshFilters and SkinnedMeshRenderers alike: since 14 Oct the brush has its Bend key, so Unity draws it skinned, with no
+        // MeshFilter, and a re-run would give it only the 14 mm minimum box (the imports builder's note 5.2; done here without
+        // their BlenderKitSteps.MeshesOf so the two merges can land in either order).
+        var meshes = new List<(Transform node, Mesh mesh)>();
+        foreach (MeshFilter f in root.GetComponentsInChildren<MeshFilter>(true)) if (f.sharedMesh != null) meshes.Add((f.transform, f.sharedMesh));
+        foreach (SkinnedMeshRenderer s in root.GetComponentsInChildren<SkinnedMeshRenderer>(true)) if (s.sharedMesh != null) meshes.Add((s.transform, s.sharedMesh));
         bool first = true;
         var b = new Bounds();
-        foreach (MeshFilter f in renderers)
+        foreach (var (node, mesh) in meshes)
         {
-            if (f.sharedMesh == null) continue;
-            Bounds mb = f.sharedMesh.bounds;
+            Bounds mb = mesh.bounds;
             for (int i = 0; i < 8; i++)
             {
                 var corner = new Vector3((i & 1) == 0 ? mb.min.x : mb.max.x, (i & 2) == 0 ? mb.min.y : mb.max.y, (i & 4) == 0 ? mb.min.z : mb.max.z);
-                Vector3 local = root.InverseTransformPoint(f.transform.TransformPoint(corner));
+                Vector3 local = root.InverseTransformPoint(node.TransformPoint(corner));
                 if (first) { b = new Bounds(local, Vector3.zero); first = false; } else b.Encapsulate(local);
             }
         }
@@ -353,9 +358,16 @@ static class Playtest3Session4Steps
     static void BenchLabStart()
     {
         if (!CafeSceneOpen()) return;
-        if (UnityEngine.Object.FindAnyObjectByType<BenchStage>(FindObjectsInactive.Include) == null)
+        BenchStage benchStage = UnityEngine.Object.FindAnyObjectByType<BenchStage>(FindObjectsInactive.Include);
+        if (benchStage == null)
         {
-            Debug.LogError(Tag + "No bench stage in the scene: run Bench 2 - Build the bench stage first.");
+            Debug.LogError(Tag + "No bench stage in the scene: run Bench 2 - Build the bench stage, then Bench 7 - The forgiving stage, first.");
+            return;
+        }
+        // The forgiving bench (14 Oct): the check works the mat's cups, pad and well and the old-parts tray (Bench 7 lays them).
+        if (benchStage.matFrame == null || benchStage.scrapTray == null || benchStage.toolRest == null)
+        {
+            Debug.LogError(Tag + "The bench has no repair mat, old-parts tray or tool rest yet: run Fixit Fidget > Bench > Bench 7 - The forgiving stage (scene) first.");
             return;
         }
         string path = Path.Combine(Application.persistentDataPath, CafeLab.SaveFileName);

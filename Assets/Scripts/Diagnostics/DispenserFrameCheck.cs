@@ -16,9 +16,13 @@ using UnityEngine.InputSystem.LowLevel;
 // own shape) against the dispenser's working face, the boxes of its colliders as the crosshair meets them: the six
 // paddles, the six cup places under the nozzles, the cup stack and the discard basin.
 //
-//   The close-up from above (E beside the dispenser): it opens with the crosshair on the cup stack, where a drink starts,
-//   and the whole face in frame with a margin of 4% of the frame (Bench 1 framed it so); turned onto the far cup place
-//   (Latte's), as a player does to pour Grace's drink, the cup stack and every paddle are still in frame.
+//   The close-up from above (E beside the dispenser; 14 Oct, his note: "the overall look and feel is up and diagonal"): it
+//   opens straight on, at Ace's eye (±5 cm), the dispenser's own heading (1°), no roll; the paddle row level on the screen
+//   (0.5° at most; it was 13.9°); the smallest paddle 96 px or more at 1080p (it was 70); the whole face in frame with a margin
+//   of 4% of the frame; turned onto the cup stack, the stack, Coffee and Tea stay in frame and the crosshair lands on it (the
+//   far end leaving the frame is the trade-off, noted). Photos (Cinematics spec §4.2.5): 1 the close-up as it opens (1b turned
+//   onto the cup stack), 2 the blend at about 25/50/75% from the home view and from a 45° orbit, 3 the overhead with Ace at the
+//   stand point before E (the control); 5 and 6 first person. Fixit Fidget > Cinematics > Drinks close-up - straight on (scene) made the pose, with its before photo.
 //   First person at the stand point: looking at the face's middle, all six paddles and the cup stack are in view. Then
 //   aimed at the cup stack, as the Stations lab photographs it, the paddles still in view are counted and noted: in first
 //   person the look, not the stand point, is what put Americano and Latte off the screen.
@@ -85,55 +89,88 @@ public sealed class DispenserFrameCheck : PlayLab
         if (!face.Complete) yield break;
         Note("left to right: " + string.Join(", ", face.paddles.Select(p => p.name)));
 
-        // ---------- the close-up from above ----------
+        // ---------- the close-up from above (14 Oct: straight on, at Ace's eye; his note: "up and diagonal") ----------
         PlugInPad("Dispenser frame pad");
         yield return PadPress(GamepadButton.LeftShoulder);     // a touch of the pad, away from the dispenser: the game takes it as the one in hand
         yield return Frames(2);
         if (view.FirstPersonSelected) { view.SetFirstPerson(false); yield return AfterBlend(); }
         Transform stand = drinks.StandPoint;
-        PutAce(stand.position - stand.forward * .6f, stand.eulerAngles.y);    // beside the dispenser, inside its 1.5 m
-        yield return Frames(4);
-        interactor.EnterStation(drinks);
-        yield return AfterBlend();
+        Vector3 home = view.OverheadHome;
+
+        // The control (spec §4.2.5, photo 3): the overhead with Ace at the stand point, before E. It should look the same
+        // before and after the close-up's change.
+        view.OrbitTo(home.x, home.y, home.z);
+        PutAce(stand.position, stand.eulerAngles.y);
+        yield return Frames(6);
+        yield return Photo("3-overhead-at-the-stand-point-before-E");
+
+        // E from the home view, the blend photographed at about 25, 50 and 75% of its 0.75 s (timed from the press; the brain's
+        // default blend), then the close-up as it opens.
+        yield return EnterWatchingTheBlend(drinks, stand, home.x, "home");
         Check(interactor.IsAtStation && interactor.CurrentStation == drinks, "E beside the dispenser opens its close-up (the check's hand)");
         if (!interactor.IsAtStation) yield break;
-        yield return Until(() => interactor.Focused == face.stack, 2f,
-            "it opens with the crosshair on the cup stack: a drink starts there, so the first press takes a cup");
         Camera cam = Camera.main;
-        float least = Least(cam.transform.position, cam.transform.rotation, cam.fieldOfView, face.All, out string worst);
+        Vector3 eye = cam.transform.position;
+        Quaternion turn = cam.transform.rotation;
+        float fov = cam.fieldOfView;
+        float least = Least(eye, turn, fov, face.All, out string worst);
         Check(least >= Margin - .002f, $"the whole dispenser is in the close-up's 16:9 frame as it opens: every paddle, cup place, the cup stack and the basin, " +
                                        $"{least:P1} in from the edge at the least ({worst}; {Margin:P0} is the bar)");
-        float smallest = SmallestPaddle(cam.transform.position, cam.transform.rotation, cam.fieldOfView, face, out string which);
-        Check(smallest >= 48f, $"and the paddles read: the smallest ({which}) is {smallest:0} px tall at 1080p");
-        Note($"the close-up's camera at {cam.transform.position}, {cam.fieldOfView:0}° tall; the Game view is {UnityEngine.Screen.width} x {UnityEngine.Screen.height} " +
+        // At Ace's eye, the dispenser's own heading, no roll.
+        float eyeHeight = view.eyeHeight;
+        float height = eye.y - stand.position.y;
+        Vector3 ahead = Vector3.ProjectOnPlane(drinks.transform.forward, Vector3.up).normalized;
+        float heading = Vector3.SignedAngle(ahead, Vector3.ProjectOnPlane(turn * Vector3.forward, Vector3.up), Vector3.up);
+        float roll = Mathf.Abs(Vector3.SignedAngle(Vector3.ProjectOnPlane(turn * Vector3.right, Vector3.up), turn * Vector3.right, turn * Vector3.forward));
+        Check(Mathf.Abs(height - eyeHeight) <= .05f && Mathf.Abs(heading) <= 1f && roll < .05f,
+            $"the close-up opens at Ace's eye: {height:0.000} m above the floor ({eyeHeight:0.00} ±0.05), heading {heading:+0.00;-0.00}° from the dispenser's " +
+            $"(1° at most), roll {roll:0.000}° (under 0.05)");
+        float slant = RowSlant(eye, turn, fov, face);
+        Check(Mathf.Abs(slant) <= .5f, $"the paddle row is level on the screen ({slant:+0.00;-0.00}°; 0.5° at most; it was 13.9° at the 10 Oct pose)");
+        float smallest = SmallestPaddle(eye, turn, fov, face, out string which);
+        Check(smallest >= 96f, $"and the paddles read: the smallest ({which}) is {smallest:0} px tall at 1080p (96 is the bar; it was 70)");
+        Note($"the close-up's camera at {eye}, {fov:0}° tall; the Game view is {UnityEngine.Screen.width} x {UnityEngine.Screen.height} " +
              $"({cam.aspect:0.00}:1; judged at {Aspect:0.00}:1)");
-        Note("from the edge, opening: " + Each(cam.transform.position, cam.transform.rotation, cam.fieldOfView, face.All));
-        yield return Photo("1-close-up-start");
+        Note("from the edge, opening: " + Each(eye, turn, fov, face.All));
+        yield return Photo("1-close-up-as-it-opens");
+        Note($"photo 1: the row slants {slant:+0.0;-0.0}°, the smallest paddle {smallest:0} px");
 
-        // Turned onto the far cup place (Latte's), the way a player pours Grace's drink: the cup stack and the paddles stay.
+        // Turned onto the cup stack, where a drink starts ("Aim at the cup stack to take a cup"): the stack and the paddles
+        // beside it stay in the frame and the crosshair lands on it. The far end leaves the frame: the trade-off, as turning
+        // your head does (spec §4.2.3), noted, not failed.
         BeverageLook look = drinks.GetComponentInChildren<BeverageLook>();
-        Interactable far = face.FarPlace;
-        Vector3 farPoint = Point(far);
-        Quaternion onFar = Quaternion.LookRotation(farPoint - cam.transform.position, Vector3.up);
-        var stays = face.paddles.Append((name: "the cup stack", thing: (Interactable)face.stack)).ToList();
-        float keptOnFar = Least(cam.transform.position, onFar, cam.fieldOfView, stays, out string worstOnFar);
-        Check(keptOnFar >= Margin - .002f, $"turned onto the far cup place ({face.FarName}), the cup stack and every paddle are still in the frame, " +
-                                           $"{keptOnFar:P1} in at the least ({worstOnFar})");
+        Vector3 stackPoint = Point(face.stack);
+        var near = NearStack(face);
+        var keep = new List<(string name, Interactable thing)> { ("the cup stack", face.stack) };
+        keep.AddRange(near);
+        Quaternion onStack = Quaternion.LookRotation(stackPoint - eye, Vector3.up);
+        float kept = Least(eye, onStack, fov, keep, out string worstKept);
+        Check(kept >= 0f, $"turned onto the cup stack, the stack, {string.Join(" and ", near.Select(n => n.name))} are in the frame ({kept:P1} in at the least: {worstKept})");
+        var gone = face.All.Where(t => Inside(eye, onStack, fov, Box(t.thing)) < 0f).Select(t => t.name).ToList();
+        Note($"turned onto the cup stack, out of the frame (expected): {(gone.Count > 0 ? string.Join(", ", gone) : "nothing")}");
         if (AimAssist.Active && look != null)
         {
-            look.StepAimTo(farPoint);
+            look.StepAimTo(stackPoint);
             yield return Frames(2);
             yield return Await(() => !look.Aim.Gliding, 1.5f);
             yield return Frames(3);
-            yield return Until(() => interactor.Focused == far, 1.5f, $"the look reaches it: the crosshair on the {face.FarName} cup place (within the look's own limits)");
-            float seen = Least(cam.transform.position, cam.transform.rotation, cam.fieldOfView, stays, out string worstSeen);
-            Note($"as the view shows it there: the cup stack and the paddles {seen:P1} in at the least ({worstSeen})");
-            yield return Photo("2-close-up-on-the-far-cup-place");
+            yield return Until(() => interactor.Focused == face.stack, 1.5f, "the look reaches it: the crosshair on the cup stack (within the look's own limits)");
+            yield return Photo("1b-close-up-on-the-cup-stack");
         }
         else Note("the aim help is off (or no pad in hand), so the view wasn't turned for a photo: the numbers above are the turn's own");
         interactor.ExitStation();
         yield return AfterBlend();
         Check(!interactor.IsAtStation, "stepping back leaves the close-up");
+
+        // The blend again from a 45° orbit (the moving part of "up and diagonal": it should no longer swing round).
+        view.OrbitTo(home.x + 45f, home.y, home.z);
+        PutAce(stand.position, stand.eulerAngles.y);
+        yield return Frames(6);
+        yield return EnterWatchingTheBlend(drinks, stand, home.x + 45f, "orbit-45");
+        interactor.ExitStation();
+        yield return AfterBlend();
+        view.OrbitTo(home.x, home.y, home.z);
+        yield return Frames(3);
 
         // ---------- first person at the stand point ----------
         Check(view.SetFirstPerson(true), "first person");
@@ -150,7 +187,7 @@ public sealed class DispenserFrameCheck : PlayLab
                                     $"{fp:P1} in at the least ({worstFp}); {cam.fieldOfView:0}° tall, the eye {cam.transform.position.y - stand.position.y:0.00} m up, " +
                                     $"{Vector3.ProjectOnPlane(middle - cam.transform.position, Vector3.up).magnitude:0.00} m from the face's middle");
         Note("from the edge, looking at the middle: " + Each(cam.transform.position, cam.transform.rotation, cam.fieldOfView, face.All));
-        yield return Photo("3-first-person-at-the-stand-point");
+        yield return Photo("5-first-person-at-the-stand-point");
         yield return LookAt(Point(face.stack));
         yield return Frames(6);
         cam = Camera.main;
@@ -158,7 +195,7 @@ public sealed class DispenserFrameCheck : PlayLab
         var cut = face.paddles.Where(p => !inView.Contains(p.name)).Select(p => p.name).ToList();
         Note($"aimed at the cup stack instead (as the Stations lab's photo is), {inView.Count} of 6 paddles are wholly in view" +
              (cut.Count > 0 ? $"; cut or off the screen: {string.Join(", ", cut)} (the look, not the stand point)" : ""));
-        yield return Photo("4-first-person-on-the-cup-stack");
+        yield return Photo("6-first-person-on-the-cup-stack");
         yield return LookAt(middle);
         yield return Frames(3);
     }
@@ -309,6 +346,48 @@ public sealed class DispenserFrameCheck : PlayLab
         return float.IsPositiveInfinity(smallest) ? 0f : smallest;
     }
 
+    /// <summary>
+    /// The paddle row's slant on a 16:9 screen, degrees (positive: down to the right): the line from the leftmost paddle's middle
+    /// to the rightmost's, in screen pixels. 13.9° at the 10 Oct pose ("up and diagonal"); level is 0.
+    /// </summary>
+    public static float RowSlant(Vector3 eye, Quaternion turn, float fov, Face face)
+    {
+        if (face == null || face.paddles.Count < 2) return 0f;
+        Vector2 a = ScreenPoint(eye, turn, fov, Box(face.paddles[0].thing).center);
+        Vector2 b = ScreenPoint(eye, turn, fov, Box(face.paddles[face.paddles.Count - 1].thing).center);
+        Vector2 d = b - a;
+        if (d.sqrMagnitude < 1e-6f) return 0f;
+        if (d.x < 0f) d = -d;
+        return -Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+    }
+
+    /// <summary>A point on a 1920 x 1080 (16:9) screen, pixels from the bottom left (a point behind the camera comes out far away).</summary>
+    public static Vector2 ScreenPoint(Vector3 eye, Quaternion turn, float fov, Vector3 point)
+    {
+        float t = Mathf.Tan(fov * .5f * Mathf.Deg2Rad);
+        Vector3 v = Quaternion.Inverse(turn) * (point - eye);
+        if (v.z <= .01f) return new Vector2(1e5f, 1e5f);
+        return new Vector2((.5f + .5f * v.x / (v.z * t * Aspect)) * 1920f, (.5f + .5f * v.y / (v.z * t)) * 1080f);
+    }
+
+    /// <summary>
+    /// The paddles beside the cup stack that a player turned onto it must still see (spec §4.2.4: Coffee and Tea): by name, else
+    /// the two nearest the stack.
+    /// </summary>
+    public static List<(string name, Interactable thing)> NearStack(Face face)
+    {
+        var near = new List<(string name, Interactable thing)>();
+        if (face == null || face.stack == null) return near;
+        foreach (string wanted in new[] { "Coffee", "Tea" })
+            foreach (var p in face.paddles)
+                if (string.Equals(p.name, wanted, StringComparison.OrdinalIgnoreCase)) { near.Add((p.name + " paddle", p.thing)); break; }
+        if (near.Count == 2) return near;
+        near.Clear();
+        Vector3 stack = Box(face.stack).center;
+        foreach (var p in face.paddles.OrderBy(p => Vector3.Distance(Box(p.thing).center, stack)).Take(2)) near.Add((p.name + " paddle", p.thing));
+        return near;
+    }
+
     static string Each(Vector3 eye, Quaternion turn, float fov, IEnumerable<(string name, Interactable thing)> targets) =>
         string.Join(", ", targets.Select(t => $"{t.name} {Inside(eye, turn, fov, Box(t.thing)):P0}"));
 
@@ -333,6 +412,23 @@ public sealed class DispenserFrameCheck : PlayLab
         Vector2 a = AimAssist.Angles(eye, point);
         view.LookTo(a.x, a.y);
         yield return Frames(3);
+    }
+
+    // E from the overhead (the check's hand), and the brain's blend photographed at about 25, 50 and 75% of its 0.75 s, timed
+    // from the press (at 15 fps a frame is 67 ms, so each lands within a frame of its mark; the report says where).
+    IEnumerator EnterWatchingTheBlend(StationInteractable drinks, Transform stand, float yaw, string label)
+    {
+        float pressed = Time.realtimeSinceStartup;
+        interactor.EnterStation(drinks);
+        foreach (float share in new[] { .25f, .5f, .75f })
+        {
+            float when = pressed + share * .75f;
+            while (Time.realtimeSinceStartup < when) yield return null;
+            float elapsed = Time.realtimeSinceStartup - pressed;
+            yield return Photo($"2-blend-from-{label}-{share * 100f:0}");
+            Note($"the blend from the {label} view (yaw {yaw:0}°): photo at {elapsed:0.00} s of 0.75 ({elapsed / .75f:P0})");
+        }
+        yield return AfterBlend();
     }
 
     IEnumerator AfterBlend()

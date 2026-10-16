@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // Where the café's day feeds Ace's notebook (claude/night-notebook-spec.md).
 // Things Ace has just been told at the counter:
-//   * a regular's intake: Grace's camera request, or any other regular's repair;
-//   * Grace's thanks when Ace takes the camera (the rest of her story, since the dialogue pass);
+//   * a regular's intake: Grace's camera request (Day 1's clean visit only, since 14 Oct), or any other regular's repair;
+//   * Grace's thanks when Ace takes the camera (the rest of her story, since the dialogue pass; Day 1's only);
 //   * Grace's return, once her job is accepted and she leaves the print;
 //   * something Ace asked about (a topic in the reply list), or heard while they waited.
 // And, since night step 3, one thing Ace has seen: a regular coming out of or
@@ -23,9 +23,12 @@ public static class NotebookHooks
         int learned = 0;
         if (identity.IsGraceCameraRequest)
         {
-            // Her request: the strap and whose it was. The rest comes with her thanks (HeardThanks).
-            foreach (NotebookFactData fact in NotebookEntries.GraceIntakeSaid(identity.DisplayName))
-                if (notebook.Learn(fact, Today)) learned++;
+            // Her request: the strap and whose it was. The rest comes with her thanks (HeardThanks). Days 1-3 (14 Oct, R2):
+            // only on the clean visit (Day 1), where she says it; Day 2's shutter visit adds nothing (a player who never
+            // heard Day 1 would otherwise learn "Family reunion tomorrow" on the reunion day).
+            if (identity.GraceVisit == GraceCameraVisit.Clean)
+                foreach (NotebookFactData fact in NotebookEntries.GraceIntakeSaid(identity.DisplayName))
+                    if (notebook.Learn(fact, Today)) learned++;
         }
         else if (job != null && job.kind == JobKind.Repair)
         {
@@ -45,6 +48,9 @@ public static class NotebookHooks
     {
         Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
         if (notebook == null || identity == null || !identity.IsRegular || !identity.IsGraceCameraRequest) return 0;
+        // Days 1-3 (R2): her thanks on Day 1's clean visit tells the reunion; Day 2's ("my nephew takes the pictures
+        // tonight") adds nothing the notebook keeps.
+        if (identity.GraceVisit != GraceCameraVisit.Clean) return 0;
         int learned = 0;
         foreach (NotebookFactData fact in NotebookEntries.GraceThanksSaid(identity.DisplayName))
             if (notebook.Learn(fact, Today)) learned++;

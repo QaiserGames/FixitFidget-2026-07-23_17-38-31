@@ -200,24 +200,50 @@ public class PlayerInteractor : MonoBehaviour
         return false;
     }
 
+    // Behind the bench: on its side (not past its front toward the room), and near its stand point or (15 Oct) with the bench
+    // itself in Ace's reach. Wherever E sets a device down on the bench or works on it, E reaches across it. Day 1 played by
+    // hand: Ace walked from the till until the bench offered "Set down" and worked Grace's camera from there, at the till's
+    // end of the bench; with her camera fixed in his hands E still said "Set down", never "Hand it back", and she left
+    // "Never again" while he held it. The probe (Fixit Fidget > Checks > Probe - the bench's hand-over reach) mapped it:
+    // from 119 of the 220 places the bench is in reach, E could not hand over to the bench's own stool.
     private bool BehindTheBench(Vector3 at, out Vector3 toward)
     {
         toward = Vector3.zero;
         if (benchStation == null || benchStation.StandPoint == null) return false;
         Transform stand = benchStation.StandPoint;
-        Vector3 d = Flat(at - stand.position);
-        if (d.magnitude > benchRange) return false;
         Vector3 facing = Flat(stand.forward);
         if (facing.sqrMagnitude < 1e-6f) return false;
+        Vector3 d = Flat(at - stand.position);
+        if (Vector3.Dot(d, facing.normalized) > .5f) return false;   // past the bench, out in the room
+        if (d.magnitude > benchRange && !BenchInReach(at)) return false;
         toward = facing.normalized;
-        return Vector3.Dot(d, toward) <= .5f;
+        return true;
     }
+
+    // The bench within E's reach from above (the overhead pick's own sphere): what offers "Set down" or "Work on it" there.
+    private bool BenchInReach(Vector3 at)
+    {
+        int count = Physics.OverlapSphereNonAlloc(at, reach, BenchReachBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        for (int i = 0; i < count; i++)
+            if (BenchReachBuffer[i] != null && BenchReachBuffer[i].GetComponentInParent<Interactable>() == benchStation) return true;
+        return false;
+    }
+
+    // How much further the crosshair reaches over the bench than over the till: the reach over the bench is measured from its
+    // stand point, wherever along it Ace stands (15 Oct). 0 behind the till, or anywhere else.
+    private float BenchSlack(bool behindBench) =>
+        behindBench && benchStation != null && benchStation.StandPoint != null
+            ? Flat(transform.position - benchStation.StandPoint.position).magnitude : 0f;
 
     /// <summary>Whether someone standing at <paramref name="at"/> is across the counter from Ace, within his reach over it.</summary>
     public bool AcrossTheCounter(Vector3 at)
     {
-        if (!StaffSide(transform.position, out Vector3 from, out Vector3 toward)) return false;
-        return Vector3.Dot(Flat(at - from), toward) > .5f && Flat(at - transform.position).magnitude <= acrossCounterReach;
+        // Over the till's counter, measured from Ace; over the bench, from its stand point (15 Oct; BehindTheBench).
+        if (IsBehindCounter(transform.position) && Vector3.Dot(Flat(at - counterStation.StandPoint.position), TowardCustomers()) > .5f
+            && Flat(at - transform.position).magnitude <= acrossCounterReach) return true;
+        if (!BehindTheBench(transform.position, out Vector3 toward)) return false;
+        Vector3 stand = benchStation.StandPoint.position;
+        return Vector3.Dot(Flat(at - stand), toward) > .5f && Flat(at - stand).magnitude <= acrossCounterReach;
     }
 
     // Someone waiting in front of the counter, within reach over it, nearest first. handOver: only someone waiting for
@@ -227,12 +253,24 @@ public class PlayerInteractor : MonoBehaviour
         AcrossTheCounterTarget(handOver ? (System.Func<CustomerInteractable, bool>)(who => who.HandOverReady)
                                         : who => who.HelpAcrossTheCounter);
 
+    // Over the till's counter the reach is measured from Ace; over the bench, from its stand point (15 Oct): the bench is one
+    // work place, and wherever along it Ace reaches it, its stools are across it from him. At the till's end of the bench he
+    // is behind both, and both count.
     private CustomerInteractable AcrossTheCounterTarget(System.Func<CustomerInteractable, bool> wanted)
     {
-        if (!StaffSide(transform.position, out Vector3 from, out Vector3 toward)) return null;
-        int count = Physics.OverlapSphereNonAlloc(transform.position, acrossCounterReach, AcrossBuffer);
         CustomerInteractable best = null;
         float nearest = float.PositiveInfinity;
+        if (IsBehindCounter(transform.position))
+            AcrossFrom(counterStation.StandPoint.position, TowardCustomers(), transform.position, wanted, ref best, ref nearest);
+        if (BehindTheBench(transform.position, out Vector3 toward))
+            AcrossFrom(benchStation.StandPoint.position, toward, benchStation.StandPoint.position, wanted, ref best, ref nearest);
+        return best;
+    }
+
+    private void AcrossFrom(Vector3 from, Vector3 toward, Vector3 reachFrom, System.Func<CustomerInteractable, bool> wanted,
+                            ref CustomerInteractable best, ref float nearest)
+    {
+        int count = Physics.OverlapSphereNonAlloc(reachFrom, acrossCounterReach, AcrossBuffer);
         for (int i = 0; i < count; i++)
         {
             Collider c = AcrossBuffer[i];
@@ -241,13 +279,12 @@ public class PlayerInteractor : MonoBehaviour
             if (who == null || who == best || !who.IsAvailable) continue;
             if (!wanted(who)) continue;
             Vector3 at = who.transform.position;
-            float flat = Flat(at - transform.position).magnitude;
+            float flat = Flat(at - reachFrom).magnitude;
             if (flat > acrossCounterReach || flat >= nearest) continue;
             if (Vector3.Dot(Flat(at - from), toward) <= .5f) continue;   // not in front of the counter
             nearest = flat;
             best = who;
         }
-        return best;
     }
 
     /// <summary>Nothing in either of Ace's hands.</summary>
@@ -269,6 +306,55 @@ public class PlayerInteractor : MonoBehaviour
     {
         if (!HandsEmpty || IsBehindCounter(transform.position) || !BehindTheBench(transform.position, out _)) return null;
         return AcrossTheCounterTarget(who => who.HelpAcrossTheCounter && who.Brain != null && DayOneGuideUI.Frustrated(who.Brain));
+    }
+
+    /// <summary>
+    /// For the checks (15 Oct, Life 4: "frustrated on the stool, E reaches them first" failed with no reason given): why
+    /// <see cref="FrustratedAcrossTheBench"/> doesn't give <paramref name="who"/>, the first of its rules that says no, or ""
+    /// when it would. The same rules, in the same order; nothing changes.
+    /// </summary>
+    public string WhyNotFrustratedAcrossTheBench(CustomerBrain who)
+    {
+        if (!HandsEmpty) return "Ace's hands aren't empty";
+        if (IsBehindCounter(transform.position)) return "Ace counts as behind the till (its queue comes first there)";
+        if (!BehindTheBench(transform.position, out Vector3 toward))
+            return benchStation == null || benchStation.StandPoint == null ? "the bench has no stand point"
+                : $"Ace isn't behind the bench ({Flat(transform.position - benchStation.StandPoint.position).magnitude:0.00} m from its stand point, " +
+                  $"{benchRange:0.0} allowed, and the bench is out of his reach, or he is past its front)";
+        if (who == null) return "no customer";
+        CustomerInteractable it = who.GetComponent<CustomerInteractable>();
+        if (it == null) return $"{who.name} has no CustomerInteractable";
+        if (who.JobNeedsAttention) return "their job needs Ace first (the call on hold is ringing or waits to be dialled), so E doesn't reassure them";
+        if (!it.IsAvailable) return "E has nothing for them (IsAvailable is false)";
+        if (!it.HelpAcrossTheCounter) return "nothing for them across the counter (HelpAcrossTheCounter is false)";
+        if (!DayOneGuideUI.Frustrated(who))
+            return $"not frustrated by the guide's rule (patience {who.PatienceFraction:P0}, showing {who.ShowsPatience}, accepted {who.WasAccepted}, " +
+                   $"leaving {who.IsLeaving}, counter repair {who.IsCounterRepair}, call ringing {who.JobNeedsAttention}, can reassure {who.CanReassure})";
+        // Measured from the bench's stand point, as AcrossTheCounterTarget measures over the bench (15 Oct).
+        Vector3 from = benchStation.StandPoint.position, at = who.transform.position;
+        float flat = Flat(at - from).magnitude;
+        if (flat > acrossCounterReach) return $"out of reach over the bench ({flat:0.00} m flat from its stand point; {acrossCounterReach:0.0} allowed)";
+        float ahead = Vector3.Dot(Flat(at - from), toward);
+        if (ahead <= .5f) return $"not in front of the counter ({ahead:0.00} m ahead of the bench's stand point; more than 0.5 needed)";
+        int count = Physics.OverlapSphereNonAlloc(from, acrossCounterReach, AcrossBuffer);
+        bool seen = false;
+        for (int i = 0; i < count && !seen; i++) seen = AcrossBuffer[i] != null && AcrossBuffer[i].GetComponentInParent<CustomerInteractable>() == it;
+        if (!seen)
+        {
+            // What the reach did find, and what they have (15 Oct: "none of their colliders is among the 2 the reach finds").
+            var found = new System.Text.StringBuilder();
+            for (int i = 0; i < count && i < 6; i++)
+                if (AcrossBuffer[i] != null) found.Append($"{AcrossBuffer[i].name} ({LayerMask.LayerToName(AcrossBuffer[i].gameObject.layer)}); ");
+            var theirs = new System.Text.StringBuilder();
+            foreach (Collider c in who.GetComponentsInChildren<Collider>(true))
+                theirs.Append($"{c.name} {c.GetType().Name} on {c.enabled && c.gameObject.activeInHierarchy}, trigger {c.isTrigger}, layer {LayerMask.LayerToName(c.gameObject.layer)}, " +
+                              $"{Vector3.Distance(c.ClosestPoint(transform.position), transform.position):0.00} m from Ace; ");
+            return $"none of their colliders is among the {count} the reach finds{(count >= AcrossBuffer.Length ? " (the buffer is full)" : "")}: " +
+                   $"found {found}theirs: {(theirs.Length > 0 ? theirs.ToString() : "none")}; Ace at {transform.position:0.00}";
+        }
+        CustomerInteractable picked = FrustratedAcrossTheBench();
+        if (picked != it) return picked != null ? $"{picked.name} is nearer and frustrated too" : "the overlap finds them, yet nobody is picked (a rule this list doesn't know)";
+        return "";
     }
 
     private static Vector3 Flat(Vector3 v)
@@ -554,6 +640,7 @@ public class PlayerInteractor : MonoBehaviour
     // Across the counter reaches 3.5 m, four times the room of Ace's 2.2: the intake shelf's devices and the bench's parts
     // and tools each bring their colliders, so a roomier buffer, or a customer could fall off the end of a full one.
     static readonly Collider[] AcrossBuffer = new Collider[256];
+    static readonly Collider[] BenchReachBuffer = new Collider[256];
     static readonly System.Collections.Generic.IComparer<RaycastHit> ByDistance = new HitDistanceComparer();
     sealed class HitDistanceComparer : System.Collections.Generic.IComparer<RaycastHit>
     {
@@ -569,8 +656,10 @@ public class PlayerInteractor : MonoBehaviour
         if (cam == null) return null;
         Ray ray = cam.ViewportPointToRay(new Vector3(.5f, .5f));
         bool counter = BehindCounter;
-        bool staff = counter || BehindTheBench(transform.position, out _);
-        float far = staff ? Mathf.Max(reach, counterReach) : reach;
+        bool bench = BehindTheBench(transform.position, out _);
+        bool staff = counter || bench;
+        float slack = BenchSlack(bench);
+        float far = staff ? Mathf.Max(reach, counterReach) + slack : reach;
         int count = Physics.RaycastNonAlloc(ray, HitBuffer, far, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
         System.Array.Sort(HitBuffer, 0, count, ByDistance);
         for (int i = 0; i < count; i++)
@@ -578,7 +667,7 @@ public class PlayerInteractor : MonoBehaviour
             RaycastHit hit = HitBuffer[i];
             if (hit.collider.transform.IsChildOf(transform)) continue;
             Interactable item = hit.collider.GetComponentInParent<Interactable>();
-            if (item != null && item.IsAvailable && Reachable(item, hit.distance, counter, staff))
+            if (item != null && item.IsAvailable && Reachable(item, hit.distance, counter, staff, slack))
                 return item;
             // Triggers can provide prompts, but solid furniture and walls stop
             // the view ray from selecting an item hidden on their other side.
@@ -588,8 +677,9 @@ public class PlayerInteractor : MonoBehaviour
     }
 
     // First person: whether the crosshair may pick this at this distance. staff: Ace is on the staff side of the counter
-    // (at the till or behind the repair bar's bench), where a customer in front of it is reached over it.
-    private bool Reachable(Interactable item, float distance, bool counter, bool staff)
+    // (at the till or behind the repair bar's bench), where a customer in front of it is reached over it. slack: behind the
+    // bench, how far Ace stands from its stand point (the reach over the bench is measured from there, 15 Oct).
+    private bool Reachable(Interactable item, float distance, bool counter, bool staff, float slack = 0f)
     {
         if (item is StationCloseUp) return false;     // first person has no close-up
         if (item is CustomerInteractable customer)
@@ -598,7 +688,7 @@ public class PlayerInteractor : MonoBehaviour
             if (!customer.FloorAvailable) return false;
             if (distance <= reach) return true;
             // Across the counter (playtest 4): the crosshair says who, so whatever E does for them from the floor.
-            return staff && distance <= counterReach && AcrossTheCounter(customer.transform.position);
+            return staff && distance <= counterReach + slack && AcrossTheCounter(customer.transform.position);
         }
         return distance <= reach;
     }
@@ -965,8 +1055,10 @@ public class PlayerInteractor : MonoBehaviour
         }
         if (viewMode == null || !viewMode.WalkingFirstPerson) return 0;
         bool counter = BehindCounter;
-        bool staff = counter || BehindTheBench(transform.position, out _);
-        float far = staff ? Mathf.Max(reach, counterReach) : reach;
+        bool bench = BehindTheBench(transform.position, out _);
+        bool staff = counter || bench;
+        float slack = BenchSlack(bench);
+        float far = staff ? Mathf.Max(reach, counterReach) + slack : reach;
         int count = Physics.OverlapSphereNonAlloc(eye, far, ColliderBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
         SeenThings.Clear();
         for (int i = 0; i < count; i++)
@@ -977,7 +1069,7 @@ public class PlayerInteractor : MonoBehaviour
             if (it == null || SeenThings.Contains(it) || !it.IsAvailable) continue;
             AimAssist.Target t = TargetOf(it, c);
             float distance = Vector3.Distance(eye, c.bounds.ClosestPoint(eye));
-            if (!Reachable(it, distance, counter, staff)) continue;
+            if (!Reachable(it, distance, counter, staff, slack)) continue;
             if (!InSight(eye, t.point, it)) continue;
             SeenThings.Add(it);
             into.Add(t);

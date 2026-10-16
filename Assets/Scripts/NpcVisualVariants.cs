@@ -25,6 +25,8 @@ public sealed class NpcVisualVariants : MonoBehaviour
     public int ActiveAppearance { get; private set; } = -1;
     public string ActiveAppearanceName => ActiveAppearance >= 0
         ? appearances[ActiveAppearance].label : "Original";
+    /// <summary>Outfit <paramref name="index"/>'s label, or "" (PolygonNpcVisual deals these least-worn first, 14 Oct 2026).</summary>
+    public string LabelOf(int index) => index >= 0 && index < appearances.Length && appearances[index] != null ? appearances[index].label ?? "" : "";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetSequence() => anonymousSequence = 0;

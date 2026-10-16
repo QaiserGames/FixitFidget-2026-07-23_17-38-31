@@ -30,7 +30,7 @@ static class DayIntroMenu
         PlayerPrefs.SetInt(DayIntroCheck.PendingKey, 1);
         PlayerPrefs.Save();
         Debug.Log(Tag + " A lab session on a fresh Day 1 that checks the morning's intro by itself. Keep the Game view in front and leave " +
-                  "the mouse, keyboard and pad alone until it reports (about a minute); Play mode ends by itself. Your playtest save is not used.");
+                  "the mouse, keyboard and pad alone until it reports (about three minutes); Play mode ends by itself. Your playtest save is not used.");
         EditorApplication.EnterPlaymode();
     }
 

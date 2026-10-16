@@ -15,7 +15,8 @@ using UnityEngine.UI;
 //   - A step's card stays until the step is done (DayOneHintTimer): in full for the day's Opening Hint Duration (6 s), then
 //     a compact line; still stuck 10 s later, it comes back in full once, with one pulse, and stays. It used to be a 6 s
 //     toast that could never return: Grace waited unheard at the counter with no card on screen until she walked out.
-//   - At the bench (the close-up) the card sits over the bottom prompt, near the work, where the eye is.
+//   - At the bench (the close-up) the card sat over the bottom prompt, near the work. Since checklist v2 (14 Oct) there is
+//     no guide card at the bench: the bench's own card and the glow guide there (see "drawing the card").
 //   - In the overhead view a pin names the step's target over it (UiPins): Grace, the intake tray, the repair bench, the
 //     drinks machine, whoever to hand back to; and "You" over Ace for his first seconds.
 //   - The first card says who you are. The Officer's coffee (the game's first drink) gets its cards too.
@@ -49,7 +50,7 @@ public class DayOneGuideUI : MonoBehaviour
     private Image edge;
     private TMP_Text hint;
     private float nextRefresh, panelY = float.NaN;
-    private int hintDay = -1;
+    private int hintDay = -1, heldCount = -1;
     private readonly DayOneHintTimer toast = new();
 
     // ---- what the card says now, and where its pin points (set as the step's words are worked out) ----
@@ -89,12 +90,20 @@ public class DayOneGuideUI : MonoBehaviour
     public static bool MovementHintWanted { get; private set; }
     /// <summary>Ace has reassured someone this session: the impatience card has done its job.</summary>
     public static bool ReassuredOnce { get; private set; }
+    /// <summary>
+    /// The device the card is telling Ace to carry to the repair bench ("Carry the reunion film camera to the repair bench"),
+    /// or null. While it is, the intake tray doesn't offer to take it back (DropInteractable, StationInteractable): the card
+    /// and E agree (checklist v2 §5.7, the First Hour's #4: right after the pickup at the till, E offered to put it straight
+    /// back).
+    /// </summary>
+    public static JobBase CarryingToBench { get; private set; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
         MovementHintWanted = false;
         ReassuredOnce = false;
+        CarryingToBench = null;
     }
 
     /// <summary>The sweat drop's line (NpcBeats: Mood.Frustrated under this much patience).</summary>
@@ -188,9 +197,18 @@ public class DayOneGuideUI : MonoBehaviour
             else toast.Dismiss();
             Show(false);
             GuidePin(false);
+            CarryingToBench = null;
             return;
         }
 
+        // A pickup or a put-down reads the step again at once: the carry step's CarryingToBench must hold from the frame the
+        // device is in hand, or a quick second E at the till would put it straight back (checklist v2 §5.7).
+        int held = carry != null ? carry.Count : 0;
+        if (held != heldCount)
+        {
+            heldCount = held;
+            nextRefresh = 0f;
+        }
         // Hints need no per-frame scene searches or string/layout rebuilding.
         if (now >= nextRefresh)
         {
@@ -221,6 +239,7 @@ public class DayOneGuideUI : MonoBehaviour
     // The guide's card for this moment: false for none. Sets the card's words, its kind and the pin.
     private bool GuideStep(DayClock clock, float now)
     {
+        CarryingToBench = null;   // set again below while the card says to carry a device to the bench
         if (spawner == null) spawner = FindAnyObjectByType<CustomerSpawner>();
         CustomerProfile featured = spawner != null ? spawner.FeaturedHintProfile : null;
         if (spawner == null || (!spawner.IsGuidedOpening && featured == null)
@@ -401,9 +420,13 @@ public class DayOneGuideUI : MonoBehaviour
                 return Over(customer, $"Walk to {name}; {E} serves the {drink}.");
             // From above the machine's controls work in its close-up (E at it); in first person, looking at it.
             bool inView = FirstPerson ? AtDrinks : interactor != null && interactor.IsAtBeverageStation;
+            // "You're at it" only when E is the close-up (15 Oct, Day 1 by hand: half a metre short of the machine the card
+            // said "E brings it into view" while E said "Take empty cup", and took one; NearDrinks keeps half a metre more
+            // than the offer, for the card's steadiness).
             if (!inView)
                 return OverPoint(top, FocusNameUI.DrinksName, FirstPerson ? "Walk to the drinks machine on the back bar and look at it."
-                    : interactor != null && interactor.NearDrinks ? $"You're at the drinks machine. {E} brings it into view."
+                    : interactor != null && interactor.Focused is StationCloseUp ? $"You're at the drinks machine. {E} brings it into view."
+                    : interactor != null && interactor.NearDrinks ? $"One more step to the drinks machine: {E} brings it into view."
                     : $"Walk to the drinks machine on the back bar. {E} brings it into view.");
             OverPoint(top, FocusNameUI.DrinksName, null);
             foreach (var section in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
@@ -498,11 +521,16 @@ public class DayOneGuideUI : MonoBehaviour
             return Over(customer, Pad ? $"At the counter, press {E} to flip the orange mute switch and turn sound on. {ControlHints.Cancel} steps away."
                 : "At the counter, click the orange mute switch to turn sound on. Right-click steps away.");
         if (carrying)
+        {
+            // While the card says this, the intake tray doesn't offer to take it back (CarryingToBench).
+            CarryingToBench = job;
             return OverPoint(BenchPoint(), FocusNameUI.BenchName, $"Carry the {device} to the repair bench. {E} sets it down.");
+        }
         if (carry != null && carry.IsCarrying)
             return "Hands full. Set the item down or return your cup.";
+        // At the bench the guide is the bench's own card, its icons and the glow (checklist v2 §5.6): no card here.
         if (inspecting)
-            return RepairBenchAction(job);
+            return "";
 
         if (!OnBench(job))
             return OverJob(job, PlaceName(job), PickUpFromTray(name, device));
@@ -512,115 +540,13 @@ public class DayOneGuideUI : MonoBehaviour
             : $"Placed. Look at the {device} on the bench and click to work on it.");
     }
 
-    private string RepairBenchAction(JobBase job)
-    {
-        ToolType tool = inspector.CurrentTool;
-
-        CircuitPuzzle circuit = job.GetComponentInChildren<CircuitPuzzle>();
-        if (circuit != null)
-            return circuit.Finished
-                ? "Signal restored. Refit any removed parts, then return the phone."
-                : Pad ? $"Aim at the signal tiles and press {ControlHints.Use} to join their white ports before the charge arrives."
-                : "Click the signal tiles to join their white ports before the charge arrives.";
-
-        HumanFault human = job.GetComponentInChildren<HumanFault>();
-        if (job.Quality >= 0.999f || human != null)
-        {
-            if (job.HasDetachedComponent<RemovablePart>())
-            {
-                foreach (GameObject loose in job.DetachedParts)
-                {
-                    RemovablePart cover = loose != null ? loose.GetComponent<RemovablePart>() : null;
-                    if (cover != null && cover.Outward.y < -.5f) return $"Fault fixed. The cover's seat is on the face that's down: press {ControlHints.Flip} to turn it over, then drag the cover home.";
-                }
-                return $"Fault fixed. Drag the cover from the mat back onto its seat (any tool, or bare hands); it snaps home.";
-            }
-
-            if (job.HasDetachedComponent<Screw>())
-            {
-                foreach (GameObject loose in job.DetachedParts)
-                {
-                    Screw screw = loose != null ? loose.GetComponent<Screw>() : null;
-                    if (screw != null && screw.Axis.y < -.5f) return $"The screw holes are underneath. Press {ControlHints.Flip} to turn it over.";
-                }
-                return tool == ToolType.Screwdriver
-                    ? $"Screwdriver in hand. {Hold("each empty screw hole")}: the driver fetches the screw and turns it home."
-                    : $"Cover fitted. {Select("screwdriver")} for the screw holes.";
-            }
-
-            // A detached part unregisters as its return animation begins. Keep
-            // the message accurate during that short transition.
-            foreach (Screw screw in job.GetComponentsInChildren<Screw>())
-                if (screw.IsOut || screw.IsBusy)
-                    return "Finishing the screws...";
-        }
-
-        if (human != null)
-            return "No parts need replacing. Leave inspection and talk through the problem with the customer.";
-
-        foreach (Screw screw in job.GetComponentsInChildren<Screw>())
-            if (!screw.IsOut)
-            {
-                // The screws are on the face that's down on the mat: turn it over first (the tabletop, 8 Oct).
-                if (screw.Axis.y < -.5f) return $"The screws are underneath. Press {ControlHints.Flip} to turn it over on the mat.";
-                return tool == ToolType.Screwdriver
-                    ? $"Screwdriver in hand. {Hold("each case screw")} until it comes free and drops."
-                    : $"{Select("screwdriver")} to back out the case screws.";
-            }
-
-        foreach (RemovablePart cover in job.GetComponentsInChildren<RemovablePart>())
-            if (!cover.IsRemoved)
-                return cover.IsPopped
-                    ? "The cover is up. Drag it off and drop it on the mat."
-                    : tool == ToolType.Pry
-                        ? $"Pry tool in hand. {Hold("an edge of the loosened cover")} until it pops."
-                        : $"{Select("pry tool")} to pop the loosened cover.";
-
-        // The first spot still dirty, in the device's own order: the bench's checklist cleans in the same order (RepairChecklist,
-        // 12 Oct), so the two never point at different tools.
-        GrimeSpot spot = job.GetComponentInChildren<GrimeSpot>();
-        if (spot != null)
-        {
-            // Dirt wants the brush, a smudge on glass the cloth (4b); either comes off where the tool is moved over it.
-            bool smudge = spot.Tool == ToolType.Cloth;
-            string toolName = smudge ? "cloth" : "brush", what = smudge ? "smudge" : "exposed grime";
-            return tool == spot.Tool
-                ? Pad ? $"{(smudge ? "Cloth" : "Brush")} in hand. Hold {ControlHints.Use} and move the cursor over the {what}."
-                    : $"{(smudge ? "Cloth" : "Brush")} in hand. Hold left-click and move over the {what}."
-                : $"{Select(toolName)} to clean the {what}.";
-        }
-
-        foreach (ReplaceablePart part in job.GetComponentsInChildren<ReplaceablePart>())
-            if (!part.IsReplaced)
-            {
-                if (part.Outward.y < -.5f) return $"The broken part is on the face that's down. Press {ControlHints.Flip} to turn it over.";
-                return tool == ToolType.Tweezers
-                    ? $"Tweezers in hand. {Hold("the broken part")} to pinch it out, and drop it in the tray."
-                    : $"{Select("tweezers")} to pinch out the broken part.";
-            }
-        // The broken part is out (it left the device when it was pinched): the fresh one waits in the tray.
-        foreach (GameObject loose in job.DetachedParts)
-        {
-            ReplaceablePart part = loose != null ? loose.GetComponent<ReplaceablePart>() : null;
-            if (part != null && !part.IsReplaced)
-                return tool == ToolType.Tweezers
-                    ? $"{Hold("the fresh part in the tray")}, carry it over the empty seat and let go."
-                    : $"{Select("tweezers")} for the fresh part in the tray.";
-        }
-
-        return Pad ? $"Follow the part label: pick the tool it names with {ControlHints.Tools}, then press {ControlHints.Use} on the part."
-            : "Follow the part label: click the tool it names, then click the part.";
-    }
-
     // Button names follow the device in use (see ControlHints). With the
     // keyboard these read exactly as the original hints did.
     private static bool Pad => PadInput.UsingPad;
     private static string E => ControlHints.Interact;
     private static string Q => ControlHints.Refuse;
-    private static string Aim(string target) => Pad ? $"Press {ControlHints.Use} on {target}" : $"Click {target}";
-    private static string Hold(string target) => Pad ? $"Hold {ControlHints.Use} on {target}" : $"Hold left-click on {target}";
-    // With a mouse a tool is taken by clicking it (ItemInspector.HandleBenchPress); the bottom line says so too (ShopUI).
-    private static string Select(string tool) => Pad ? $"Select the {tool} with {ControlHints.Tools}" : $"Take the {tool} (click it)";
+    // (Checklist v2, 14 Oct 2026: the bench's step words went with RepairBenchAction; the bench's card, its icons and the glow
+    // say them now. Their helpers Aim, Hold and Select went with them.)
 
     // ------------------------------------------------------------------ the words (public: the checks read them here)
 
@@ -651,6 +577,14 @@ public class DayOneGuideUI : MonoBehaviour
     // 13 Oct 2026 (Systems): from behind the bench, E reaches a frustrated customer at a repair-bar stool over the counter, so the
     // card no longer says "walk over". PLACEHOLDER COPY.
     public static string ReassureWords(string name) => $"{name} is getting impatient. Get in reach and press {E} to reassure.";
+
+    /// <summary>
+    /// The impatience card at the bench (checklist v2 §5.6): at the bench E takes the device away and A uses the tool, so it
+    /// says to step back first, in the bench's keys: "Grace is getting impatient. [Right-click] Step back, then [E]." ([B] and
+    /// [A] on a pad). 9 words, the alert's budget is 12 (WordBudget.BenchAlert). PLACEHOLDER COPY.
+    /// </summary>
+    public static string BenchReassureWords(string name) =>
+        $"{name} is getting impatient. [{ControlHints.Cancel}] Step back, then [{ControlHints.Interact}].";
 
     /// <summary>A customer as a sentence says them: "Grace", "the Officer" (his name is his job).</summary>
     public static string Called(CustomerBrain customer)
@@ -916,13 +850,17 @@ public class DayOneGuideUI : MonoBehaviour
     // ------------------------------------------------------------------ drawing the card
 
     // THE UI SKIN (playtest 3, session 3): a card of the phone's paper with dark ink, its title in the brand's green, under
-    // the tabs in the top left corner, clear of them as they come and go. Playtest 4: at the bench it sits over the bottom
-    // prompt instead, near the work (the prompt drops to the bottom edge there: ShopUI); compact, it is one smaller line.
+    // the tabs in the top left corner, clear of them as they come and go; compact, it is one smaller line.
+    // CHECKLIST V2 (14 Oct 2026, §5.6): no guide card at the bench. The bench's own card (BenchCards: her words, the tool's
+    // icon big with its verb) and the glow on the next thing to touch are the guide there; the Day 1 card said the step a
+    // fourth time ("Take the cloth (click it) to clean the smudge."). Only the impatience card shows at the bench, in the
+    // bench's own keys (at the bench E takes the device away and A uses the tool) and with no title (its words say it), at
+    // the bottom middle 26 px up (the stage's zone U6: the prompt line it used to sit over is gone).
     private static readonly string TitleColour = UiSkin.HexOf(UiSkin.Brand);
     private static readonly string AlsoColour = UiSkin.HexOf(UiSkin.InkSoft);
     private const float Below = 16f;
     private const float CardWidth = 460f, BenchCardWidth = 580f, CompactWidth = 640f;
-    private const float BenchCardBottom = 164f;   // the prompt's top is about 142 px up at the bench (ShopUI drops it 78 px)
+    private const float BenchCardBottom = 26f;   // the stage's zone U6 (966-1054 px down at 1080p)
     private const float FullSize = 21f, CompactSize = 18f;
     private const float PadLeft = 24f, PadRight = 16f, PadFull = 11f, PadCompact = 7f;
 
@@ -930,16 +868,17 @@ public class DayOneGuideUI : MonoBehaviour
 
     private void Present(float now)
     {
+        bool bench = inspector != null && inspector.IsHoldingItem;
         DayOneHintTimer.Look look;
         string title, step, also;
         if (impatient != null)
         {
             look = DayOneHintTimer.Look.Full;
-            title = ImpatientTitle;
-            step = impatientText;
+            title = bench ? "" : ImpatientTitle;
+            step = bench ? BenchReassureWords(impatient.CustomerName) : impatientText;
             also = "";
         }
-        else if (guiding)
+        else if (guiding && !bench)
         {
             look = toast.LookAt(now);
             title = cardTitle;
@@ -959,12 +898,11 @@ public class DayOneGuideUI : MonoBehaviour
         }
         if (panel == null && !CreatePanel()) return;
 
-        bool bench = inspector != null && inspector.IsHoldingItem;
         // Built only when a word, the look or the place changes (nothing is allocated on the frames between).
         if (shownText == null || look != shownLook || bench != shownAtBench || step != shownStep || title != shownTitle || also != shownAlso)
         {
             string text = look == DayOneHintTimer.Look.Compact ? step
-                : $"<color={TitleColour}><b>{title}</b></color>\n{step}"
+                : (title.Length > 0 ? $"<color={TitleColour}><b>{title}</b></color>\n" : "") + step
                   + (also.Length > 0 ? $"\n<size=86%><color={AlsoColour}>{also}</color></size>" : "");
             Layout(text, look, bench);
             shownText = text;
@@ -1094,6 +1032,7 @@ public class DayOneGuideUI : MonoBehaviour
         Show(false);
         GuidePin(false);
         SelfPin(false);
+        CarryingToBench = null;
     }
 
     private void OnDestroy()

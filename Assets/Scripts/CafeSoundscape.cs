@@ -18,6 +18,13 @@ using UnityEngine;
 //
 // Everything here is silent until the bank has files for it. Made while playing by SoundRig; never
 // saved in the scene.
+//
+// 14 Oct 2026: the café's neighbours get their first real files (Audio's table, specs/audio-bench-sounds.md §3): the door
+// bell (two small brass bells with a faint chime in the café's A major, one ring for a group) and the room tone (a 30 s
+// bed of air and a fridge's hum) play here; the till, the morning's bell and the intro's cues play where they happen.
+// And while the morning's intro plays its shots (DayIntro.FilmingInsideCafe), the beds follow the intro camera's place, not
+// Ace's: its street shots hear the street open, not muffled through the glass because Ace stands inside (Cinematics' spec
+// §4.1.10).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class CafeSoundscape : MonoBehaviour
@@ -96,7 +103,9 @@ public sealed class CafeSoundscape : MonoBehaviour
         if (view == null) view = FindAnyObjectByType<CafeViewMode>();
         NightWalk night = NightWalk.Instance != null && NightWalk.Instance.Active ? NightWalk.Instance : null;
         Night = night != null;
-        bool inside = view != null && view.AceInsideCafe;
+        // The day intro's B-roll (Cinematics, 14 Oct): while its shots play, inside/outside follows the intro's camera.
+        // One hook, the intro's own (it knows its shot and its pull-out); null outside a Full morning's shots.
+        bool inside = DayIntro.FilmingInsideCafe ?? (view != null && view.AceInsideCafe);
 
         if (Time.unscaledTime >= nextCount)
         {

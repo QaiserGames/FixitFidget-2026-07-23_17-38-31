@@ -55,12 +55,14 @@ public static class GameSettings
 
     /// <summary>Where SwapBenchSticks is kept (0 or 1), and where DayIntro is kept (DayIntroMode as an int).</summary>
     public const string SwapBenchSticksKey = Prefix + "SwapBenchSticks", DayIntroKey = Prefix + "DayIntro";
+    /// <summary>Where Vibration is kept (0 or 1).</summary>
+    public const string VibrationKey = Prefix + "Vibration";
 
     /// <summary>The ranges the sliders cover.</summary>
     public const float LookMin = .25f, LookMax = 3f, PadLookMin = .5f, PadLookMax = 2f;
 
     static float? master, music, effects, look, padLook;
-    static bool? invert, swapSticks;
+    static bool? invert, swapSticks, vibration;
     static DayIntroMode? dayIntro;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -73,7 +75,7 @@ public static class GameSettings
     public static void Reload()
     {
         master = music = effects = look = padLook = null;
-        invert = swapSticks = null;
+        invert = swapSticks = vibration = null;
         dayIntro = null;
     }
 
@@ -190,6 +192,21 @@ public static class GameSettings
         set => SetSwitch(ref swapSticks, SwapBenchSticksKey, value);
     }
 
+    /// <summary>
+    /// The pad's rumble at the bench (the forgiving bench, 14 Oct 2026: "feel the impact", his decision 4: the rub under the
+    /// cloth and brush, a pulse when a screw comes free, a cover pops, a part snaps in, a spot comes clean). On unless the
+    /// player turns it off (Settings › CONTROLS, "Vibration"; UI/UX places the row). Read by BenchFeel.
+    /// </summary>
+    public static bool Vibration
+    {
+        get => GetSwitch(ref vibration, VibrationKey, true);
+        set
+        {
+            SetSwitch(ref vibration, VibrationKey, value);
+            if (!value) PadInput.StopRumble();
+        }
+    }
+
     // ------------------------------------------------------------------ mornings
 
     /// <summary>How the day intro plays each morning: Full (the default), Short (just the title) or Off (Settings › MORNINGS).</summary>
@@ -230,5 +247,5 @@ public static class GameSettings
     public static string Describe() =>
         $"Settings: master {Master:0.00}, music {Music:0.00}, effects {Effects:0.00}; look x{LookScale:0.00}, pad look x{PadLookScale:0.00}, " +
         $"invert Y {(InvertY ? "on" : "off")}, aim help {(AimHelp ? "on" : "off")}, movement help {(MovementHelp ? "on" : "off")}, " +
-        $"swap the sticks at the bench {(SwapBenchSticks ? "on" : "off")}; the morning {DayIntro}; quality {Quality}.";
+        $"swap the sticks at the bench {(SwapBenchSticks ? "on" : "off")}, vibration {(Vibration ? "on" : "off")}; the morning {DayIntro}; quality {Quality}.";
 }

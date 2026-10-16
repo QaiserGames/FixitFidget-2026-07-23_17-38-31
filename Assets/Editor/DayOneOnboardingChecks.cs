@@ -220,6 +220,12 @@ public static class DayOneOnboardingChecks
             $"The device waits on the intake tray (\"{tray}\").");
         string calm = DayOneGuideUI.ReassureWords("Walter");
         Require(calm.Contains("Walter") && calm.Contains("press E") && calm.Length <= 90, $"The impatience card says how to reassure (\"{calm}\").");
+        string atBench = DayOneGuideUI.BenchReassureWords("Walter");
+        Require(atBench.Contains("Walter") && atBench.Contains("[Right-click]") && atBench.Contains("[E]") && WordBudget.Words(atBench) <= WordBudget.BenchAlert,
+            $"At the bench the impatience card says to step back first, in the bench's keys (\"{atBench}\").");
+        Require(DropInteractable.TrayWords(DropSpot.SpotKind.Counter, true, true) == DropInteractable.PutBackWords
+                && DropInteractable.TrayWords(DropSpot.SpotKind.Counter, true, false) == DropInteractable.IntakeTrayWords,
+            "At the intake tray a device lifted from it reads \"Put it back\", any other \"Put it on the intake tray\".");
         Require(DayOneGuideUI.TalkWords("the Officer", false, true).Contains("E takes the order")
                 && DayOneGuideUI.TalkWords("Grace", false, false).Contains("E takes the job")
                 && DayOneGuideUI.TalkWords("Grace", true, false).StartsWith("Look at Grace."),

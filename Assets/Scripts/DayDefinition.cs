@@ -21,6 +21,9 @@ using UnityEngine;
 // 180s while testing and 420s at ship (GDD Part 8). A schedule written in
 // seconds would have to be rewritten for every day when that changes. Written
 // in fractions, "the rush is the middle quarter" stays true at any length.
+// (14 Oct 2026: the scene's day is 420 s now, every day: specs/days-1-3.md §7.
+// The gaps are seconds, so a gap authored for 180 s brings 2.3x the arrivals
+// in a 420 s day: Days 1-3 were re-authored, Days 4-5 scaled by 420/180.)
 // ---------------------------------------------------------------------------
 
 [System.Serializable]
@@ -176,6 +179,21 @@ public class DayDefinition : ScriptableObject
     /// <summary>The story visits on <paramref name="day"/>: only on this asset's own day, never when it repeats.</summary>
     public StoryVisit[] StoryVisitsOn(int day) =>
         day == dayNumber && storyVisits != null ? storyVisits : System.Array.Empty<StoryVisit>();
+
+    // DAYS 1-3 AS AN INTRO LEVEL (14 Oct 2026; specs/days-1-3.md §6, the Producer's call 8: yes). His words: "the playtest
+    // couldn't even get passed day 1 for me". In playtest 5 a random roll gave Day 2 Walter's seized watch, a job the game had
+    // never taught; here each early day names its walk-ins' repairs, in order, so a walk-in only ever brings a job the game
+    // has already taught: Day 1 cleaning, Day 2 the swap, Day 3 the screwdriver. Authoring data like `devices`, not a mechanic,
+    // and no save field: the count used resets every morning (CustomerSpawner).
+    [Header("Walk-in repairs, in order (Days 1-3)")]
+    [Tooltip("When this list isn't empty, each walk-in who brings a device brings the next entry (a device and a fault " +
+             "index; leave the episode ID empty), and once they are used up walk-ins come for drinks. Empty = the old roll " +
+             "from Devices. Only on this asset's own day, never when it repeats (a repeated day rolls from Devices).")]
+    public FeaturedRepairRequest[] walkInRepairs = new FeaturedRepairRequest[0];
+
+    /// <summary>Today's walk-in repairs in order: only on this asset's own day (never when it repeats); empty = the old roll.</summary>
+    public FeaturedRepairRequest[] WalkInRepairsOn(int day) =>
+        day == dayNumber && walkInRepairs != null ? walkInRepairs : System.Array.Empty<FeaturedRepairRequest>();
 
     // ---------- lookups ----------
 

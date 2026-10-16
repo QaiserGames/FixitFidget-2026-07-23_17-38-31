@@ -44,6 +44,9 @@ public static class Playtest4ProducerSteps
                 run.Require(prefab != null, "No prefab at " + WatchPath + ".");
                 JobBase job = prefab.GetComponent<JobBase>();
                 run.Require(job != null, WatchPath + " has no JobBase on its root.");
+                // One scale (14 Oct, td-one-scale.md §6.4): 0.025 is the 3x watch's; Devices 2 set the real one.
+                DeviceDefinition baked = prefab.GetComponent<DeviceDefinition>();
+                run.Require(baked == null || !baked.realSize, WatchPath + " is at real size (Devices 2 set its rest height): 0.025 is the 3x watch's. Nothing changed.");
                 was = job.restHeight;
                 run.Info($"{WatchPath}: restHeight {was:0.###} m (will be {WatchRest:0.###})");
             },

@@ -13,28 +13,28 @@ MonoBehaviour:
   m_Name: Day_01_GraceCamera
   m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
   dayNumber: 1
-  intent: 'Grace showcase: reunion camera and latte, with one other service customer.
-    Preserve partial outcomes and the scratched strap.'
+  intent: 'Intro: Grace''s clean (cloth, brush), the Officer''s first coffee; walk-ins
+    after her.'
   phases:
   - phaseName: Calm
     startsAt: 0
-    spawnInterval: 26
+    spawnInterval: 75
   - phaseName: Build
-    startsAt: 0.3
-    spawnInterval: 20
+    startsAt: 0.25
+    spawnInterval: 30
   - phaseName: Rush
     startsAt: 0.55
-    spawnInterval: 16
+    spawnInterval: 24
   - phaseName: Recover
     startsAt: 0.8
-    spawnInterval: 24
+    spawnInterval: 30
   patienceMultiplier: 2
   maxCustomers: 2
-  drinkOnlyChance: 0.55
+  drinkOnlyChance: 0.7
   guidedOpening: 0
   openingDrink: {fileID: 11400000, guid: f8f4c1a2bc2829d4ba3142360184b7a1, type: 2}
   openingHintDuration: 6
-  suppressRepairDrinkWishes: 0
+  suppressRepairDrinkWishes: 1
   devices:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
   allowedArchetypes:
@@ -51,4 +51,8 @@ MonoBehaviour:
     storyEpisodeId: grace_reunion_camera_v1
   storyVisits:
   - who: {fileID: 11400000, guid: 11b2eb1e8c94a444c8ba4851ad187011, type: 2}
-    arrivesAt: 0.35
+    arrivesAt: 0.25
+  walkInRepairs:
+  - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+    faultIndex: 1
+    storyEpisodeId: 

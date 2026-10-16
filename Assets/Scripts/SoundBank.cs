@@ -17,6 +17,13 @@ using UnityEngine.Audio;
 //
 // The direction (Mansoor, 28 Sept): "cozy and nice and unique". Soft starts, warm, small and near,
 // calm levels, no alarms; every repeating cue has several files and a small wobble.
+//
+// 14 Oct 2026 (playtest 5: "god the sounds are just terrible"): the first real files, CC0, made by Audio from real
+// recordings (Kenney, Sonic Pi's Freesound originals, the Versilian Community Sample Library) for the 45 cues of
+// Audio's table (specs/audio-bench-sounds.md §3): Assets/Audio/CC0/, committed (CC0 allows it), put into the bank by
+// Fixit Fidget > Sound > Sound bank 1. Every cue in that table has an entry below, named exactly as written there: the
+// bench, the checklist and the intro call them by these names (contracts.md §8). A cue with a file never plays its
+// synthesized placeholder (SoundPlayer.UsesFile).
 // ---------------------------------------------------------------------------
 public enum SoundBus { World, Ace, UI, Ambience, Outside, Music }
 
@@ -90,9 +97,9 @@ public sealed class SoundBank : ScriptableObject
     void OnValidate() => byName = null;
 
     static Cue C(string name, SoundBus bus, bool threeD, float volume, string when,
-                 float near = 1.5f, float far = 12f, float minGap = .05f, int maxAtOnce = 4, float pitchWobble = .04f)
+                 float near = 1.5f, float far = 12f, float minGap = .05f, int maxAtOnce = 4, float pitchWobble = .04f, float volumeWobble = .08f)
         => new Cue { name = name, bus = bus, threeD = threeD, volume = volume, when = when, near = near, far = far,
-                     minGap = minGap, maxAtOnce = maxAtOnce, pitchWobble = pitchWobble };
+                     minGap = minGap, maxAtOnce = maxAtOnce, pitchWobble = pitchWobble, volumeWobble = volumeWobble };
 
     /// <summary>
     /// Every cue the game names, with a note on what it's for and a starting loudness and reach
@@ -129,24 +136,24 @@ public sealed class SoundBank : ScriptableObject
         // The bench.
         C("tool.pick", SoundBus.World, true, .35f, "Ace switches tool at the bench: hand, brush, screwdriver, pry, tweezers.", 1f, 8f, .1f),
         C("screw.turn", SoundBus.World, true, .4f, "A screw turning out or in (half a second to a second).", .8f, 6f, .1f, 3),
-        C("screw.drop", SoundBus.World, true, .4f, "A screw landing in the bin: a small tink.", .8f, 6f, .05f, 4, .1f),
+        C("screw.drop", SoundBus.World, true, .4f, "The screw lands in its moulded cup on the mat at the end of its flight (the flight's last frame, never a physics contact): metal into metal, the cup's steel disc.", .8f, 6f, .05f, 4, .1f),
         C("screw.seat", SoundBus.World, true, .35f, "A screw tightened home: a small final click.", .8f, 6f),
         // the bench, v2 (7 Oct 2026; claude/bench-spec-v2.md §2.6): every beat of the work. Placeholders made in code
         // (PlaceholderSounds) play until these have files.
         C("screw.free", SoundBus.World, true, .4f, "A screw coming free of its hole after the last turn: a click.", .8f, 6f),
-        C("screw.bounce", SoundBus.World, true, .3f, "A loose screw hitting the mat or the device (not the tray).", .8f, 6f, .06f, 4, .1f),
+        C("screw.bounce", SoundBus.World, true, .3f, "Retired (14 Oct, rule 7: no physics in the core loop; the screw flies to its cup). Kept so an old call stays named.", .8f, 6f, .06f, 4, .1f),
         C("screw.fetch", SoundBus.World, true, .3f, "The driver fetching a loose screw to its hole: a small rise.", .8f, 6f),
         C("cover.creak", SoundBus.World, true, .4f, "The pry tool going in at a cover's edge: a short creak.", .8f, 6f, .2f),
         C("cover.pop", SoundBus.World, true, .45f, "The cover popping up at the pried edge.", 1f, 8f),
         C("cover.lift", SoundBus.World, true, .3f, "A popped cover picked up to be moved.", .8f, 6f),
-        C("cover.clack", SoundBus.World, true, .4f, "A cover dropped onto the mat or the tray.", 1f, 8f, .1f, 3, .08f),
+        C("cover.clack", SoundBus.World, true, .4f, "The cover lands in the mat's parts well at the end of its flight (the flight's last frame, never a physics contact).", 1f, 8f, .1f, 3, .08f),
         C("part.pinch", SoundBus.World, true, .35f, "The tweezers closing on a part.", .8f, 6f),
         C("part.lift", SoundBus.World, true, .3f, "A part lifted out in the tweezers.", .8f, 6f),
-        C("part.drop", SoundBus.World, true, .35f, "A part dropped from the tweezers onto the mat or the tray.", .8f, 6f, .08f),
+        C("part.drop", SoundBus.World, true, .35f, "The broken part lands in the old-parts tray at the mat's edge at the end of its flight: a small tin's clink and rattle.", .8f, 6f, .08f),
         C("tool.down", SoundBus.World, true, .3f, "A tool put back in the caddy.", 1f, 8f, .1f),
         C("device.snap", SoundBus.World, true, .3f, "The device settling onto a face after being turned.", .8f, 6f, .1f),
         C("device.flip", SoundBus.World, true, .3f, "The device flipped over.", .8f, 6f, .1f),
-        C("cloth.squeak", SoundBus.World, true, .3f, "The cloth wiping glass (asked for every frame, heard every so often).", .8f, 6f, .18f, 2),
+        C("cloth.squeak", SoundBus.World, true, .3f, "A short glass squeak when the cloth changes direction on glass while grease is coming off (was: every 0.42 s).", .8f, 6f, .18f, 2),
         C("cloth.gleam", SoundBus.World, true, .4f, "Glass wiped clean: a small bright rise.", 1f, 8f),
         C("part.off", SoundBus.World, true, .4f, "A cover or panel lifted off with the pry tool.", 1f, 8f),
         C("part.on", SoundBus.World, true, .4f, "A cover put back on: a snap.", 1f, 8f),
@@ -214,7 +221,7 @@ public sealed class SoundBank : ScriptableObject
         C("juice.emote", SoundBus.World, true, .2f, "A badge pops up over someone's head (a heart, a star, a cup...): a soft pop.", 1f, 10f, .1f, 3),
         C("juice.sparkle", SoundBus.World, true, .25f, "A spot of grime gone, a part fitted: a tiny twinkle.", .8f, 6f, .08f, 2),
         C("juice.sparkle.big", SoundBus.World, true, .35f, "A whole repair finished: a brighter twinkle.", 1f, 8f, .3f, 1),
-        C("repair.fixed", SoundBus.UI, false, .35f, "A repair finished on the bench (\"Fixed!\"): a small happy chime (the signature family).", 1.5f, 12f, .5f, 1),
+        C("repair.fixed", SoundBus.UI, false, .35f, "\"Fixed!\" (Juice.FixedMoment): three rising hand chimes, A-E-A, with a faint brass bell under them (the Producer's call 11, 14 Oct: the café's own bell keeps meaning \"someone's here\").", 1.5f, 12f, .5f, 1),
         C("recap.count", SoundBus.UI, false, .15f, "Today's takings counting up on Ace's phone: soft ticks.", 1.5f, 12f, .05f, 1),
         C("recap.counted", SoundBus.UI, false, .25f, "Today's takings counted: a settled coin.", 1.5f, 12f, .5f, 1),
 
@@ -251,5 +258,32 @@ public sealed class SoundBank : ScriptableObject
         C("intro.sign", SoundBus.UI, false, .35f, "The OPEN sign's wooden flap, two knocks, on the cut to the storefront; the bell (day.open) follows 0.15 s later.", 1.5f, 12f, .5f, 1),
         C("intro.lamp", SoundBus.UI, false, .3f, "The bench's magnifier lamp switched on over the tools: a click and an LED ring's tick.", 1.5f, 12f, .5f, 1),
         C("intro.sting", SoundBus.UI, false, .35f, "The morning's musical sting under the day's title, about 1.6 s, rising (the signature family, A major): the same every day, so it becomes the café's.", 1.5f, 12f, 1f, 1),
+        // Intro v2's new beats (14 Oct, Cinematics §4.1.10; not in Audio's first pass). The Producer's integration call 4: the
+        // café's lights coming up borrow the lamp's switch (Sound bank 1 gives intro.lights intro.lamp's file); the other three
+        // stay silent, with no file and no placeholder, until Audio adds theirs (Sound bank 2 lists them as "no file yet").
+        // A cue with no file is silent and logs nothing (SoundPlayer.Play).
+        C("intro.lights", SoundBus.UI, false, .3f, "The café's lights coming up in the intro: a switch's click (for now intro.lamp's file; Sound bank 1 copies it in).", 1.5f, 12f, .5f, 1),
+        C("intro.cup", SoundBus.UI, false, .3f, "A cup set down on the counter in the intro's café shot (no file yet: silent).", 1.5f, 12f, .5f, 1),
+        C("intro.steps", SoundBus.UI, false, .3f, "Footsteps on the pavement, the J-cut lead into a passer-by's shot (no file yet: silent; his recording's shot 14 is the plan).", 1.5f, 12f, .5f, 1),
+        C("intro.car", SoundBus.UI, false, .3f, "A car passing on the street, the J-cut lead into the car's shot (no file yet: silent; his recording's shot 15 is the plan).", 1.5f, 12f, .5f, 1),
+
+        // The forgiving bench (14 Oct 2026; Audio's table, specs/audio-bench-sounds.md §3 and §7.6): the cues it adds, and the
+        // ones the code already played with no entry. Their settings are Audio's suggested starting points (its manifest),
+        // 3 dB under target, to be set by ear; Sound bank 1 puts the files and these numbers into the bank.
+        C("screw.fly", SoundBus.World, true, .04f, "Launch of the scripted flight from the hole to its cup (optional: silence it with volume 0 if three in a row clutter).", .8f, 6f, .04f, 3, .06f),
+        C("part.fresh", SoundBus.World, true, .135f, "Click on the fresh part in its marked spot: it lifts and flies to hover over the seat.", .8f, 6f, .1f, 1, .04f),
+        C("brush.rub", SoundBus.World, true, .134f, "LOOP while the brush is pressed on a surface; volume and pitch follow stroke speed (Audio §7.1).", .8f, 6f, 0f, 1, 0f, 0f),
+        C("cloth.rub", SoundBus.World, true, .103f, "LOOP while the cloth is pressed on glass; volume and pitch follow stroke speed. Replaces cloth.wipe's one-shots.", .8f, 6f, 0f, 1, 0f, 0f),
+        C("checklist.tick", SoundBus.UI, false, .105f, "A job step's icon ticks off on the paper card (checklist v2), 0.12 s after the action's own sound: a pencil \"tsk\".", .8f, 6f, .15f, 1, .05f),
+        C("bench.showleft", SoundBus.UI, false, .103f, "The \"what's left\" button (show dirt): what's left flashes for about 1.5 s, with a soft rising shimmer.", .8f, 6f, .5f, 1, 0f),
+        C("cloth.lift", SoundBus.World, true, .047f, "The cloth lifts off the glass as a smudge comes clean (ToolPickup.LiftOff), if Systems keeps the lift (retired with it: the cloth goes home with tool.down).", .8f, 6f, .2f, 1, .04f),
+        C("cloth.wipe", SoundBus.World, true, .28f, "Retired at the bench (14 Oct): the cloth.rub loop replaces these one-shots. Only the labs' whole-spot hand may still ask for it.", .8f, 6f, .1f, 2, .06f),
+        C("repair.ready", SoundBus.UI, false, .124f, "\"Back together, Good\" (Juice.BackTogether): closed up with faults left. One soft E chime, no sparkle.", .8f, 6f, .5f, 1, 0f),
+        C("phone.boot", SoundBus.World, true, .102f, "The Pome phone's screen lights as it wakes (DeviceWake): two soft vibraphone notes, A then E.", .8f, 6f, .5f, 1, 0f),
+        C("watch.wind", SoundBus.World, true, .148f, "The watch's crown is wound in three pulls (DeviceWake.WindAndTick: a pull, a pause, a pull, 0.9 s).", .8f, 6f, .5f, 1, .04f),
+        C("watch.tick", SoundBus.World, true, .327f, "The watch starts ticking after it is wound (DeviceWake.WindAndTick), 2.4 s fading.", .8f, 6f, .5f, 1, 0f),
+        C("camera.wind", SoundBus.World, true, .2f, "Grace's camera's film advance is wound before the shutter fires (DeviceWake.WindAndFire).", .8f, 6f, .3f, 1, .04f),
+        C("cup.bin", SoundBus.World, true, .35f, "A leaving guest drops a cup into the bin station by the door (NpcCup). Until it has a file, NpcCup plays cup.set instead.", 1f, 10f, .1f, 3),
+        C("mess.clear", SoundBus.World, true, .35f, "A table's mess cleared away (DirtyCup).", 1f, 10f, .1f, 3),
     };
 }

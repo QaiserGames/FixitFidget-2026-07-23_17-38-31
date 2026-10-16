@@ -61,6 +61,9 @@ static class Playtest3Session3Steps
         GameObject root = PrefabUtility.LoadPrefabContents(WatchPath);
         try
         {
+            // One scale (14 Oct, td-one-scale.md §6.4): the old builder steps don't run on a baked prefab.
+            DeviceDefinition baked = root.GetComponent<DeviceDefinition>();
+            if (baked != null && baked.realSize) { Debug.LogError(Tag + "The pocket watch is at real size (Devices 2): this old step is refused. Nothing changed."); return; }
             int made = 0;
             foreach (ReplaceablePart part in root.GetComponentsInChildren<ReplaceablePart>(true))
             {

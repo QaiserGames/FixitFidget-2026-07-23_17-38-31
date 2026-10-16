@@ -100,11 +100,13 @@ MonoBehaviour:
   - name: door.bell
     when: "Someone comes in or goes out of the caf\xE9's door: the caf\xE9's own
       little bell (signature). A group rings once."
-    clips: []
-    volume: 0.5
+    clips:
+    - {fileID: 8300000, guid: c954f7271a56e4c3fb10813ba01d5a74, type: 3}
+    - {fileID: 8300000, guid: 6c39e0f28c02c4030af2faa5a1e548ea, type: 3}
+    volume: 0.219
     volumeWobble: 0.08
     pitch: 1
-    pitchWobble: 0.04
+    pitchWobble: 0.02
     threeD: 1
     near: 2.5
     far: 24
@@ -113,16 +115,17 @@ MonoBehaviour:
     bus: 0
   - name: cafe.room
     when: "The caf\xE9's own quiet: fridge, machine idle, air (a flat loop, 1-3 minutes)."
-    clips: []
-    volume: 0.3
-    volumeWobble: 0.08
+    clips:
+    - {fileID: 8300000, guid: f2fc8e6ad3bd14628949bd12ae1d022e, type: 3}
+    volume: 0.013
+    volumeWobble: 0
     pitch: 1
-    pitchWobble: 0.04
+    pitchWobble: 0
     threeD: 0
-    near: 1.5
-    far: 12
-    minGap: 0.05
-    maxAtOnce: 4
+    near: 0.8
+    far: 6
+    minGap: 0
+    maxAtOnce: 1
     bus: 3
   - name: cafe.murmur
     when: "People chatting with no words you can follow (a flat loop); louder as
@@ -258,37 +261,52 @@ MonoBehaviour:
     bus: 0
   - name: tool.pick
     when: 'Ace switches tool at the bench: hand, brush, screwdriver, pry, tweezers.'
-    clips: []
-    volume: 0.35
+    clips:
+    - {fileID: 8300000, guid: cd8e4d72598e94cd5a3661d7be9deb70, type: 3}
+    - {fileID: 8300000, guid: d0e3ddbb447384049b329641e0e1e42e, type: 3}
+    - {fileID: 8300000, guid: f978d056f620b48469c816ac8813ca95, type: 3}
+    volume: 0.124
     volumeWobble: 0.08
     pitch: 1
-    pitchWobble: 0.04
-    threeD: 1
-    near: 1
-    far: 8
-    minGap: 0.1
-    maxAtOnce: 4
-    bus: 0
-  - name: screw.turn
-    when: A screw turning out or in (half a second to a second).
-    clips: []
-    volume: 0.4
-    volumeWobble: 0.08
-    pitch: 1
-    pitchWobble: 0.04
+    pitchWobble: 0.05
     threeD: 1
     near: 0.8
     far: 6
-    minGap: 0.1
+    minGap: 0.06
+    maxAtOnce: 2
+    bus: 0
+  - name: screw.turn
+    when: A screw turning out or in (half a second to a second).
+    clips:
+    - {fileID: 8300000, guid: f324743f1696b40119d7bc0bfc70d3a3, type: 3}
+    - {fileID: 8300000, guid: 06d7f35b3485e4eb7a8a18c2b3ace694, type: 3}
+    - {fileID: 8300000, guid: 8237206e1bcbd4c0fa0ac26c42a263bf, type: 3}
+    - {fileID: 8300000, guid: 826635583d1984a35b488db8bbeb34e2, type: 3}
+    - {fileID: 8300000, guid: b33e9b5caf0c14294b3d37ef25ff3e10, type: 3}
+    volume: 0.165
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.03
     maxAtOnce: 3
     bus: 0
   - name: screw.drop
-    when: 'A screw landing in the bin: a small tink.'
-    clips: []
-    volume: 0.4
+    when: 'The screw lands in its moulded cup on the mat at the end of its flight
+      (the flight''s last frame, never a physics contact): metal into metal, the
+      cup''s steel disc.'
+    clips:
+    - {fileID: 8300000, guid: 25ca3b8bc65524596a17b54f48d52cf3, type: 3}
+    - {fileID: 8300000, guid: 5f6035fef46cb407d9d8c01e6a72967e, type: 3}
+    - {fileID: 8300000, guid: 0bac20fb8b58c4e07a3e21c0c2dbca71, type: 3}
+    - {fileID: 8300000, guid: dd9df49698f8a4339933736329182baf, type: 3}
+    - {fileID: 8300000, guid: 26350a0ee3e314f13827d3e71f64ed27, type: 3}
+    volume: 0.538
     volumeWobble: 0.08
     pitch: 1
-    pitchWobble: 0.1
+    pitchWobble: 0.05
     threeD: 1
     near: 0.8
     far: 6
@@ -297,8 +315,11 @@ MonoBehaviour:
     bus: 0
   - name: screw.seat
     when: 'A screw tightened home: a small final click.'
-    clips: []
-    volume: 0.35
+    clips:
+    - {fileID: 8300000, guid: 6fb6f7ddf58d74ce69bb671813a6f574, type: 3}
+    - {fileID: 8300000, guid: 3c198f1b67f69483d9dd0a03b316f196, type: 3}
+    - {fileID: 8300000, guid: 9c2d49596187443cba334b4f4dae16fc, type: 3}
+    volume: 0.292
     volumeWobble: 0.08
     pitch: 1
     pitchWobble: 0.04
@@ -306,7 +327,7 @@ MonoBehaviour:
     near: 0.8
     far: 6
     minGap: 0.05
-    maxAtOnce: 4
+    maxAtOnce: 2
     bus: 0
   - name: part.off
     when: A cover or panel lifted off with the pry tool.
@@ -323,69 +344,82 @@ MonoBehaviour:
     bus: 0
   - name: part.on
     when: 'A cover put back on: a snap.'
-    clips: []
-    volume: 0.4
-    volumeWobble: 0.08
-    pitch: 1
-    pitchWobble: 0.04
-    threeD: 1
-    near: 1
-    far: 8
-    minGap: 0.05
-    maxAtOnce: 4
-    bus: 0
-  - name: part.replace
-    when: 'A new part fitted with the tweezers: "pull-out click, then magnetic snap".'
-    clips: []
-    volume: 0.45
-    volumeWobble: 0.08
-    pitch: 1
-    pitchWobble: 0.04
-    threeD: 1
-    near: 1
-    far: 8
-    minGap: 0.05
-    maxAtOnce: 4
-    bus: 0
-  - name: camera.shutter
-    when: 'Grace''s camera fires once its new shutter is in: an old film camera''s
-      shutter, not a phone''s.'
-    clips: []
-    volume: 0.55
-    volumeWobble: 0.08
-    pitch: 1
-    pitchWobble: 0.04
-    threeD: 1
-    near: 1
-    far: 10
-    minGap: 0.05
-    maxAtOnce: 4
-    bus: 0
-  - name: grime.scrub
-    when: Scrubbing grime with the brush (asked for every frame, heard every so often).
-    clips: []
-    volume: 0.3
+    clips:
+    - {fileID: 8300000, guid: c9b77a4d2234c4739a6ba2fd79f88c7a, type: 3}
+    - {fileID: 8300000, guid: 8ac40bc84e60541f7b12b323e3879e5a, type: 3}
+    - {fileID: 8300000, guid: ca6c8a8e532f54d7a942ba7fc67610ae, type: 3}
+    volume: 0.258
     volumeWobble: 0.08
     pitch: 1
     pitchWobble: 0.04
     threeD: 1
     near: 0.8
     far: 6
-    minGap: 0.22
+    minGap: 0.1
     maxAtOnce: 2
     bus: 0
-  - name: grime.clean
-    when: 'The last of the grime gone: a small bright chime.'
-    clips: []
-    volume: 0.4
+  - name: part.replace
+    when: 'A new part fitted with the tweezers: "pull-out click, then magnetic snap".'
+    clips:
+    - {fileID: 8300000, guid: 9b8b6a39824814c14bb6e796a0fd17d2, type: 3}
+    - {fileID: 8300000, guid: 5eb529047eedd446c96d2e3db0a64751, type: 3}
+    - {fileID: 8300000, guid: a0b3ba6f5a4014436a392be4e9656d57, type: 3}
+    volume: 0.322
     volumeWobble: 0.08
     pitch: 1
     pitchWobble: 0.04
     threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 1
+    bus: 0
+  - name: camera.shutter
+    when: 'Grace''s camera fires once its new shutter is in: an old film camera''s
+      shutter, not a phone''s.'
+    clips:
+    - {fileID: 8300000, guid: b29304df5f9454ef99ed5dd1cddb0d62, type: 3}
+    - {fileID: 8300000, guid: 49875bee3b3684bf28f3ea3449ca4472, type: 3}
+    volume: 0.494
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.02
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.2
+    maxAtOnce: 1
+    bus: 0
+  - name: grime.scrub
+    when: Scrubbing grime with the brush (asked for every frame, heard every so often).
+    clips:
+    - {fileID: 8300000, guid: 2db55d6b9d71244ce8e0288e6a629690, type: 3}
+    - {fileID: 8300000, guid: a5b96c12c8d724c979bbc80786ea5781, type: 3}
+    - {fileID: 8300000, guid: 8da574d92e24f4fb9818b1d1b5b236ff, type: 3}
+    volume: 0.1
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.08
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.12
+    maxAtOnce: 2
+    bus: 0
+  - name: grime.clean
+    when: 'The last of the grime gone: a small bright chime.'
+    clips:
+    - {fileID: 8300000, guid: c5de8d407acf54e4d994741aac00c4af, type: 3}
+    - {fileID: 8300000, guid: 955be5e4777d54c3584454f7417d61c9, type: 3}
+    volume: 0.121
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.02
+    threeD: 1
     near: 1
     far: 8
-    minGap: 0.05
-    maxAtOnce: 4
+    minGap: 0.2
+    maxAtOnce: 2
     bus: 0
   - name: circuit.turn
     when: 'A circuit tile turned: a small click.'
@@ -480,8 +514,9 @@ MonoBehaviour:
     bus: 2
   - name: money.paid
     when: 'Paid: coins into the till drawer, soft (no "cha-ching").'
-    clips: []
-    volume: 0.35
+    clips:
+    - {fileID: 8300000, guid: 54bf29d185059484f88d3a4a6a6e769c, type: 3}
+    volume: 0.194
     volumeWobble: 0.08
     pitch: 1
     pitchWobble: 0.04
@@ -545,14 +580,15 @@ MonoBehaviour:
     bus: 0
   - name: day.open
     when: "The caf\xE9 opens for the day (signature: the caf\xE9's bell)."
-    clips: []
-    volume: 0.4
+    clips:
+    - {fileID: 8300000, guid: 1ba637d08d60e4682832a73ca0c3d4c5, type: 3}
+    volume: 0.146
     volumeWobble: 0.08
     pitch: 1
-    pitchWobble: 0.04
+    pitchWobble: 0
     threeD: 0
-    near: 1.5
-    far: 12
+    near: 0.8
+    far: 6
     minGap: 2
     maxAtOnce: 1
     bus: 2
@@ -974,8 +1010,10 @@ MonoBehaviour:
     bus: 0
   - name: juice.sparkle
     when: 'A spot of grime gone, a part fitted: a tiny twinkle.'
-    clips: []
-    volume: 0.25
+    clips:
+    - {fileID: 8300000, guid: a0909ebc8d4bb40479e2e678c5614bc6, type: 3}
+    - {fileID: 8300000, guid: f77de87adaf284a88bda480084c105b5, type: 3}
+    volume: 0.035
     volumeWobble: 0.08
     pitch: 1
     pitchWobble: 0.04
@@ -987,28 +1025,31 @@ MonoBehaviour:
     bus: 0
   - name: juice.sparkle.big
     when: 'A whole repair finished: a brighter twinkle.'
-    clips: []
-    volume: 0.35
+    clips:
+    - {fileID: 8300000, guid: 1e801b906c7fc416ea653c45077ba15f, type: 3}
+    volume: 0.08
     volumeWobble: 0.08
     pitch: 1
-    pitchWobble: 0.04
+    pitchWobble: 0.02
     threeD: 1
-    near: 1
-    far: 8
+    near: 0.8
+    far: 6
     minGap: 0.3
     maxAtOnce: 1
     bus: 0
   - name: repair.fixed
-    when: 'A repair finished on the bench ("Fixed!"): a small happy chime (the signature
-      family).'
-    clips: []
-    volume: 0.35
-    volumeWobble: 0.08
+    when: "\"Fixed!\" (Juice.FixedMoment): three rising hand chimes, A-E-A, with
+      a faint brass bell under them (the Producer's call 11, 14 Oct: the caf\xE9's
+      own bell keeps meaning \"someone's here\")."
+    clips:
+    - {fileID: 8300000, guid: 32f96a2b2119846e3b1074a9518a53ac, type: 3}
+    volume: 0.266
+    volumeWobble: 0
     pitch: 1
-    pitchWobble: 0.04
+    pitchWobble: 0
     threeD: 0
-    near: 1.5
-    far: 12
+    near: 0.8
+    far: 6
     minGap: 0.5
     maxAtOnce: 1
     bus: 2
@@ -1292,3 +1333,595 @@ MonoBehaviour:
     minGap: 0.3
     maxAtOnce: 1
     bus: 1
+  - name: screw.free
+    when: 'A screw coming free of its hole after the last turn: a click.'
+    clips:
+    - {fileID: 8300000, guid: 98d5541f6bab04bf3b63ca9357bea25b, type: 3}
+    - {fileID: 8300000, guid: 5213428256fed4ffeb84d00ce15f42f6, type: 3}
+    - {fileID: 8300000, guid: 711373e221304458db64924a566e7a95, type: 3}
+    volume: 0.263
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 3
+    bus: 0
+  - name: screw.bounce
+    when: 'Retired (14 Oct, rule 7: no physics in the core loop; the screw flies
+      to its cup). Kept so an old call stays named.'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.1
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.06
+    maxAtOnce: 4
+    bus: 0
+  - name: screw.fetch
+    when: 'The driver fetching a loose screw to its hole: a small rise.'
+    clips:
+    - {fileID: 8300000, guid: 50e4a6cae12e247369379cd81535e799, type: 3}
+    - {fileID: 8300000, guid: 2be3805f478e94a54982874a597be37e, type: 3}
+    volume: 0.13
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 2
+    bus: 0
+  - name: cover.creak
+    when: 'The pry tool going in at a cover''s edge: a short creak.'
+    clips:
+    - {fileID: 8300000, guid: aeba45e3d1a424e858f828d2fe5c836c, type: 3}
+    - {fileID: 8300000, guid: 3581d0715beb8427baf6c35d28a377f4, type: 3}
+    - {fileID: 8300000, guid: 99588c0e89a084e99a9adf09d37859e4, type: 3}
+    volume: 0.131
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.05
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.2
+    maxAtOnce: 1
+    bus: 0
+  - name: cover.pop
+    when: The cover popping up at the pried edge.
+    clips:
+    - {fileID: 8300000, guid: ae728ba74d6b74f51810832d8f7ce6aa, type: 3}
+    - {fileID: 8300000, guid: bf6a6748c74f143eab18e6df6a894a9f, type: 3}
+    - {fileID: 8300000, guid: 0a7aa87e57096416a923d17f99b6c149, type: 3}
+    volume: 0.37
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 2
+    bus: 0
+  - name: cover.lift
+    when: A popped cover picked up to be moved.
+    clips:
+    - {fileID: 8300000, guid: 1c45bb7154b0b46dea7905a1e5932422, type: 3}
+    - {fileID: 8300000, guid: 889dbf2447d5649a1a8b51d483d84d3d, type: 3}
+    volume: 0.105
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 2
+    bus: 0
+  - name: cover.clack
+    when: The cover lands in the mat's parts well at the end of its flight (the flight's
+      last frame, never a physics contact).
+    clips:
+    - {fileID: 8300000, guid: b1846f5ac08bf46b5a674629a83cbf69, type: 3}
+    - {fileID: 8300000, guid: a260ead1b8b9443d5aa2eef6f02f6c51, type: 3}
+    - {fileID: 8300000, guid: f70d12313a3be473eae7240bd9cd7759, type: 3}
+    volume: 0.164
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 3
+    bus: 0
+  - name: part.pinch
+    when: The tweezers closing on a part.
+    clips:
+    - {fileID: 8300000, guid: 03d09b8c8e32b4cb985d15d2949962e5, type: 3}
+    - {fileID: 8300000, guid: 4c431b3f451ed414cb25f589b21a60ca, type: 3}
+    - {fileID: 8300000, guid: 8da1a39df05ae47e3958ab4c2b452c47, type: 3}
+    volume: 0.195
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.05
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.05
+    maxAtOnce: 2
+    bus: 0
+  - name: part.lift
+    when: A part lifted out in the tweezers.
+    clips:
+    - {fileID: 8300000, guid: 6fc345a72036e4bada9dec385136f1d5, type: 3}
+    - {fileID: 8300000, guid: 18698465c48db4a8fae69971ffe3066b, type: 3}
+    volume: 0.079
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.08
+    maxAtOnce: 2
+    bus: 0
+  - name: part.drop
+    when: 'The broken part lands in the old-parts tray at the mat''s edge at the
+      end of its flight: a small tin''s clink and rattle.'
+    clips:
+    - {fileID: 8300000, guid: be5c1aeadb3a644bd9f0c09c16c7ff95, type: 3}
+    - {fileID: 8300000, guid: 46402e6ef552648428e178c62d57d62a, type: 3}
+    - {fileID: 8300000, guid: b07f137a1b42647cb8886a81c60df2ec, type: 3}
+    volume: 0.19
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.08
+    maxAtOnce: 2
+    bus: 0
+  - name: tool.down
+    when: A tool put back in the caddy.
+    clips:
+    - {fileID: 8300000, guid: a2d6c92f0aa80453e988e7296a0c03aa, type: 3}
+    - {fileID: 8300000, guid: c11a2dcdb421e43609704fd532a9b6a2, type: 3}
+    - {fileID: 8300000, guid: b0d062d4dc01645d3aca3612edcf6967, type: 3}
+    volume: 0.11
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.05
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.06
+    maxAtOnce: 2
+    bus: 0
+  - name: device.snap
+    when: The device settling onto a face after being turned.
+    clips:
+    - {fileID: 8300000, guid: 782af3f178233454dbd3e25d0ccec7ce, type: 3}
+    - {fileID: 8300000, guid: 8f86a64c18f3446febd0ca2a955409ad, type: 3}
+    - {fileID: 8300000, guid: c040ddc834479468fa1e275f244a2d1d, type: 3}
+    volume: 0.103
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 2
+    bus: 0
+  - name: device.flip
+    when: The device flipped over.
+    clips:
+    - {fileID: 8300000, guid: cf9379cb956b44d14a4d9a103c7f1846, type: 3}
+    - {fileID: 8300000, guid: 7cc7acb77fc9f4baa9400d33ecc187b9, type: 3}
+    volume: 0.121
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: cloth.squeak
+    when: 'A short glass squeak when the cloth changes direction on glass while grease
+      is coming off (was: every 0.42 s).'
+    clips:
+    - {fileID: 8300000, guid: 7904da7c3e1be493d9e8f7a3cd1c629f, type: 3}
+    - {fileID: 8300000, guid: dad5b7e811a374fc7a7520f3aecc337b, type: 3}
+    - {fileID: 8300000, guid: c98e4e8d44f64432fa4b29fdfb3dcdb2, type: 3}
+    - {fileID: 8300000, guid: 05066f01797414b2dbf5ddbf909042af, type: 3}
+    volume: 0.055
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.05
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.18
+    maxAtOnce: 1
+    bus: 0
+  - name: cloth.gleam
+    when: 'Glass wiped clean: a small bright rise.'
+    clips:
+    - {fileID: 8300000, guid: 000b2a0b3ef38405ea57d222445c55b3, type: 3}
+    - {fileID: 8300000, guid: 5f016485d31d14674b60245140901112, type: 3}
+    volume: 0.138
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.03
+    threeD: 1
+    near: 1
+    far: 8
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: intro.grind
+    when: 'The espresso grinder running, about 1.3 s: the whirr the intro opens on,
+      beans in the hopper; the match cut lands on its spin.'
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.pour
+    when: A latte pouring into a paper cup, about 1 s (only when the dispenser's
+      own pour file isn't there).
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.sign
+    when: The OPEN sign's wooden flap, two knocks, on the cut to the storefront;
+      the bell (day.open) follows 0.15 s later.
+    clips:
+    - {fileID: 8300000, guid: 2737f323ddfcd42199d12de1157e1f79, type: 3}
+    volume: 0.184
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.02
+    threeD: 0
+    near: 0.8
+    far: 6
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.lamp
+    when: 'The bench''s magnifier lamp switched on over the tools: a click and an
+      LED ring''s tick.'
+    clips:
+    - {fileID: 8300000, guid: 6ea3b6b5371ac48d2b1750b9bf28a4e8, type: 3}
+    volume: 0.325
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.02
+    threeD: 0
+    near: 0.8
+    far: 6
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.sting
+    when: "The morning's musical sting under the day's title, about 1.6 s, rising
+      (the signature family, A major): the same every day, so it becomes the caf\xE9's."
+    clips:
+    - {fileID: 8300000, guid: 70e49224b5f4d4ab6bc66a5a6ad8a4f0, type: 3}
+    volume: 0.115
+    volumeWobble: 0
+    pitch: 1
+    pitchWobble: 0
+    threeD: 0
+    near: 0.8
+    far: 6
+    minGap: 1
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.lights
+    when: "The caf\xE9's lights coming up in the intro: a switch's click (for now
+      intro.lamp's file; Sound bank 1 copies it in)."
+    clips:
+    - {fileID: 8300000, guid: 6ea3b6b5371ac48d2b1750b9bf28a4e8, type: 3}
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.cup
+    when: "A cup set down on the counter in the intro's caf\xE9 shot (no file yet:
+      silent)."
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.steps
+    when: 'Footsteps on the pavement, the J-cut lead into a passer-by''s shot (no
+      file yet: silent; his recording''s shot 14 is the plan).'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: intro.car
+    when: 'A car passing on the street, the J-cut lead into the car''s shot (no file
+      yet: silent; his recording''s shot 15 is the plan).'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: screw.fly
+    when: 'Launch of the scripted flight from the hole to its cup (optional: silence
+      it with volume 0 if three in a row clutter).'
+    clips:
+    - {fileID: 8300000, guid: 2e7303ddb5283483e8ded5aa11eada5d, type: 3}
+    - {fileID: 8300000, guid: 5f583db16cd434dce94bb607bcf08f33, type: 3}
+    volume: 0.04
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.04
+    maxAtOnce: 3
+    bus: 0
+  - name: part.fresh
+    when: 'Click on the fresh part in its marked spot: it lifts and flies to hover
+      over the seat.'
+    clips:
+    - {fileID: 8300000, guid: de34f185822994c4e98ee74d7ef93c57, type: 3}
+    - {fileID: 8300000, guid: 6e00fe096297a4468b46764f0b7ade4c, type: 3}
+    volume: 0.135
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 1
+    bus: 0
+  - name: brush.rub
+    when: "LOOP while the brush is pressed on a surface; volume and pitch follow
+      stroke speed (Audio \xA77.1)."
+    clips:
+    - {fileID: 8300000, guid: 1d31ead1d082f42a9a6aaac5ed73a751, type: 3}
+    volume: 0.134
+    volumeWobble: 0
+    pitch: 1
+    pitchWobble: 0
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0
+    maxAtOnce: 1
+    bus: 0
+  - name: cloth.rub
+    when: LOOP while the cloth is pressed on glass; volume and pitch follow stroke
+      speed. Replaces cloth.wipe's one-shots.
+    clips:
+    - {fileID: 8300000, guid: b5f85adfe17c34cc98f1ed771583e54b, type: 3}
+    volume: 0.103
+    volumeWobble: 0
+    pitch: 1
+    pitchWobble: 0
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0
+    maxAtOnce: 1
+    bus: 0
+  - name: checklist.tick
+    when: 'A job step''s icon ticks off on the paper card (checklist v2), 0.12 s
+      after the action''s own sound: a pencil "tsk".'
+    clips:
+    - {fileID: 8300000, guid: 398ed9504db6a4b5788f0cbdbc00662c, type: 3}
+    - {fileID: 8300000, guid: 93105352ca57d43a89427a9ff691a78f, type: 3}
+    volume: 0.105
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.05
+    threeD: 0
+    near: 0.8
+    far: 6
+    minGap: 0.15
+    maxAtOnce: 1
+    bus: 2
+  - name: bench.showleft
+    when: 'The "what''s left" button (show dirt): what''s left flashes for about
+      1.5 s, with a soft rising shimmer.'
+    clips:
+    - {fileID: 8300000, guid: 4cf9c5b975a89499bb42a94562abfa52, type: 3}
+    volume: 0.103
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0
+    threeD: 0
+    near: 0.8
+    far: 6
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: cloth.lift
+    when: 'The cloth lifts off the glass as a smudge comes clean (ToolPickup.LiftOff),
+      if Systems keeps the lift (retired with it: the cloth goes home with tool.down).'
+    clips:
+    - {fileID: 8300000, guid: 16d1c724ff95042f98ebbecd4350d100, type: 3}
+    - {fileID: 8300000, guid: afbf4c89c5e324e50bf21aebe91a0511, type: 3}
+    volume: 0.047
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.2
+    maxAtOnce: 1
+    bus: 0
+  - name: cloth.wipe
+    when: 'Retired at the bench (14 Oct): the cloth.rub loop replaces these one-shots.
+      Only the labs'' whole-spot hand may still ask for it.'
+    clips: []
+    volume: 0.28
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.06
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.1
+    maxAtOnce: 2
+    bus: 0
+  - name: repair.ready
+    when: '"Back together, Good" (Juice.BackTogether): closed up with faults left.
+      One soft E chime, no sparkle.'
+    clips:
+    - {fileID: 8300000, guid: c05421418cffe42f3b0b36096690c234, type: 3}
+    volume: 0.124
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0
+    threeD: 0
+    near: 0.8
+    far: 6
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 2
+  - name: phone.boot
+    when: 'The Pome phone''s screen lights as it wakes (DeviceWake): two soft vibraphone
+      notes, A then E.'
+    clips:
+    - {fileID: 8300000, guid: 51d7f3e4d81de4b8996d9ac10371227c, type: 3}
+    volume: 0.102
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: watch.wind
+    when: 'The watch''s crown is wound in three pulls (DeviceWake.WindAndTick: a
+      pull, a pause, a pull, 0.9 s).'
+    clips:
+    - {fileID: 8300000, guid: 7dc4279de579243ca8bec968f3cceefa, type: 3}
+    volume: 0.148
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: watch.tick
+    when: The watch starts ticking after it is wound (DeviceWake.WindAndTick), 2.4
+      s fading.
+    clips:
+    - {fileID: 8300000, guid: f50a7049202c64a39a4834b38bdd556c, type: 3}
+    volume: 0.327
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.5
+    maxAtOnce: 1
+    bus: 0
+  - name: camera.wind
+    when: Grace's camera's film advance is wound before the shutter fires (DeviceWake.WindAndFire).
+    clips:
+    - {fileID: 8300000, guid: 488bc69e06b5b4591992b4ce061eecc6, type: 3}
+    - {fileID: 8300000, guid: eefe4c69e9b4b49af93af9eb511d6154, type: 3}
+    volume: 0.2
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 0.8
+    far: 6
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 0
+  - name: cup.bin
+    when: A leaving guest drops a cup into the bin station by the door (NpcCup).
+      Until it has a file, NpcCup plays cup.set instead.
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 3
+    bus: 0
+  - name: mess.clear
+    when: A table's mess cleared away (DirtyCup).
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 1
+    near: 1
+    far: 10
+    minGap: 0.1
+    maxAtOnce: 3
+    bus: 0

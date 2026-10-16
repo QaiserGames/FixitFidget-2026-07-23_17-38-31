@@ -29,11 +29,11 @@ using UnityEditor;
 //   on; the driver held on each empty hole fetches its screw and screws it home: finished. The clock ran throughout;
 //   the catch sets a piece that leaves the bench back over the tray; every bench cue has a placeholder sound.
 //
-//   Act two (4b, 9 Oct): a second phone, the "gunked up" one, wearing its working screen: the brush held and moved over a
-//   spot of grime takes the dirt off only where it passed (a puff of dust, the hover's percentage), the other spot
-//   untouched; a raster of strokes brushes it clean (a sparkle, gone at 97%); the smudge wants the cloth ("Needs the
-//   cloth" under the brush; the cloth rests folded flat on the mat, clear of the caddy, and in the hand it is on the
-//   phone, lying flat on the glass: 9 Oct night), and wiped in circles it squeaks and goes with a gleam.
+//   Act two (the forgiving bench, 14 Oct): a second phone, the "gunked up" one, wearing its working screen: the brush taken
+//   by a press on it at rest and dragged over, let go over the phone and still in the hand; a stroke takes the dirt off only
+//   where it passed; four strokes at most clean a spot; s follows the hand and the rub loop with it; the phone budges along the
+//   stroke and comes back; its last spot clean, the brush flies home by itself; "what's left" lights the smudge gold; the
+//   cloth by RB smears the grease, then wipes it clean, and flies home by itself as the phone wakes and ends once.
 //
 // PLAYTEST 4 (10 Oct; the two playtester agents' notes on this check's own photos), checked as they go:
 //   * ONE ENDING: the fresh screen's seat wakes the phone (its new screen lights) with no words and no "Fixed!" (the cover is
@@ -47,12 +47,9 @@ using UnityEditor;
 //   * The cracked screen, under the back cover, says why the back comes off, naming only what the player does ("Held in by
 //     the back cover. Take the cover off first": 12 Oct, no cable that no verb touches), and the checklist says to flip the
 //     phone over while its first step, the screws, lies on the face turned down.
-//   * The cloth in the hand is a pad (about a fifth of the glass covered on screen, where the folded cloth covered two
-//     thirds); the moment the smudge comes clean it lifts off the glass, up and back, so the gleam and the waking screen are
-//     seen; photographed mid-lift.
-//   * Act three: Grace's camera, by the check's hand (it is about the moments, not the verbs): its lens and film path clean,
-//     no ending while the shutter is jammed; the new shutter in, the camera wakes and "Fixed! · Perfect" fires once; the
-//     strap is still there.
+//   * (The cloth's lift-off after each smudge is gone with the forgiving bench: it goes home by itself after its last spot.)
+//   * Act three (14 Oct): Grace's camera by its verbs: Day 1's clean (the cloth and the brush in the hand) and Day 2's swap
+//     (the tweezers' pinch, the clean shutter's one hold), one "Fixed! · Perfect" each; the strap is still there.
 //
 // Photos and report.txt go to Logs/Bench/bench-check-<time>/. Nothing is saved in the scene. The Game view must have
 // focus (the pad's cursor needs it), as for every lab check.
@@ -117,7 +114,9 @@ public sealed class BenchLab : PlayLab
         foreach (CustomerBrain c in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude)) Destroy(c.gameObject);
 
         BenchStage stage = BenchStage.Instance;
-        Check(stage != null && stage.Mat != null && stage.Tray != null, "the bench stage is in the scene (Fixit Fidget > Bench > Bench 2 builds it)");
+        Check(stage != null && stage.Mat != null && stage.Tray != null, "the bench stage is in the scene (Fixit Fidget > Bench > Bench 2, then Bench 7, build it)");
+        Check(stage != null && stage.matFrame != null && stage.cups != null && stage.cups.Length == 6 && stage.padLarge != null && stage.wellLarge != null && stage.scrapTray != null && stage.toolRest != null,
+            "the forgiving stage is wired: the mat with its six cups, its pad and its well, the old-parts tray, the tool rest (Bench 7)");
         if (stage == null || stage.Mat == null || stage.Tray == null) yield break;
         bench = StationInteractable.All.FirstOrDefault(s => s != null && s.IsWorkSurface && s.StandPoint != null);
         Check(bench != null, "the repair bench has a stand point");
@@ -175,6 +174,7 @@ public sealed class BenchLab : PlayLab
         yield return AfterBlend();
         yield return Photo("00-the-bench-in-first-person");
         float clockBefore = DayClock.Instance.SecondsIntoDay;
+        int guardTripsBefore = BenchStage.GuardTrips;
         Quaternion benchPose = device.transform.rotation;
         // The bench's top, for the floating check: a ray down through the inspect point, past the stage's own pieces.
         float benchTopGuess = BenchTopUnder(stage);
@@ -186,11 +186,11 @@ public sealed class BenchLab : PlayLab
         Check(PadCursor.IsActive, "the pad's cursor is on screen (the Game view must have focus)");
         if (!PadCursor.IsActive) yield break;
 
-        // The fresh part was put in the tray when the close-up opened: where is it a moment later?
+        // The fresh part was laid on the new-part pad when the close-up opened: where is it a moment later?
         LoosePart freshAtStart = part.Fresh;
         yield return Seconds(.8f);
-        Check(freshAtStart != null && stage.InTray(freshAtStart.transform.position),
-            $"the fresh part is in the tray from the start ({(freshAtStart != null ? Where(freshAtStart.transform.position) + $", {freshAtStart.transform.position - stage.Tray.position}, body {(freshAtStart.GetComponent<Rigidbody>() != null ? (freshAtStart.GetComponent<Rigidbody>().isKinematic ? "kinematic" : "free, " + freshAtStart.GetComponent<Rigidbody>().linearVelocity.magnitude.ToString("0.00") + " m/s") : "none")}, collider {(freshAtStart.GetComponent<Collider>() != null ? freshAtStart.GetComponent<Collider>().bounds.size.ToString("0.000") : "none")}" : "no fresh part")})");
+        Check(freshAtStart != null && (stage.PlaceOf(freshAtStart) == stage.padSmall || stage.PlaceOf(freshAtStart) == stage.padLarge) && !HasBody(freshAtStart.gameObject),
+            $"the fresh part waits on the new-part pad from the start ({(freshAtStart != null && stage.PlaceOf(freshAtStart) != null ? stage.PlaceOf(freshAtStart).name : "not on a pad")}), never a rigidbody");
 
         // On the mat: lying flat, a work face up, square to the view, its bottom on the mat's top.
         frontSign = Vector3.Dot(device.transform.up, Vector3.up) >= 0f ? 1f : -1f;
@@ -198,24 +198,34 @@ public sealed class BenchLab : PlayLab
         float gap = LowestPoint(device.transform) - inspector.TableTop.y;
         Check(faceOff < 1f && Mathf.Abs(gap) < .004f && Mathf.Abs(Mathf.DeltaAngle(inspector.Yaw, Mathf.Round(inspector.Yaw / 90f) * 90f)) < .5f,
             $"it lies flat on the mat, face up and square ({faceOff:0.0}° off flat, {gap * 1000f:0.0} mm off the mat, yaw {inspector.Yaw:0})");
-        Check(Mathf.Abs(inspector.TableTop.y - (stage.Mat.GetComponent<Renderer>().bounds.max.y)) < .001f && stage.Mat.GetComponent<Renderer>().bounds.min.y < benchTopGuess + .02f,
-            $"the stage sits on the bench top (the mat's bottom {(stage.Mat.GetComponent<Renderer>().bounds.min.y - benchTopGuess) * 100f:0.0} cm above it)");
+        {
+            // The mat's own drawn pieces only: the fresh part waiting on its pad is under the mat too, and its 3 mm read as the
+            // mat's top (15 Oct). And the mat's bottom within 2 mm of the bench top either way: sunk into the wood is as wrong as
+            // floating (the first Bench 7 put it 6 mm in, and the wood flickered through the mat in play).
+            Bounds matBounds = MatOwnBounds(stage.Mat);
+            Check(Mathf.Abs(inspector.TableTop.y - matBounds.max.y) < .0015f && Mathf.Abs(matBounds.min.y - benchTopGuess) < .002f,
+                $"the stage sits on the bench top (the mat's bottom {(matBounds.min.y - benchTopGuess) * 1000f:0.0} mm above it; the device rests on its top, {(inspector.TableTop.y - matBounds.max.y) * 1000f:0.0} mm off)");
+        }
         yield return Photo("01-on-the-mat");
 
-        // ---------- the zoom ----------
-        float d0 = Distance();
+        // ---------- the zoom (the TD's §5.3: a lens zoom; the camera keeps its distance, the FOV narrows) ----------
+        float fov0 = cam.fieldOfView, d0 = Distance();
         PadHold(new GamepadState().WithButton(GamepadButton.DpadUp));
         yield return Seconds(.5f);
         yield return LetGo();
         yield return Seconds(.5f);
-        float dIn = Distance();
-        Check(inspector.Zoom > .3f && dIn < d0 * .85f, $"D-pad up zooms in ({d0 * 100f:0} cm to {dIn * 100f:0} cm)");
+        float fovIn = cam.fieldOfView, dIn = Distance();
+        Check(inspector.Zoom > .3f && fovIn < fov0 * .85f && Mathf.Abs(dIn - d0) < .04f,
+            $"D-pad up zooms the lens in (FOV {fov0:0.0}° to {fovIn:0.0}°; the camera {Mathf.Abs(dIn - d0) * 100f:0.0} cm nearer the device: it keeps its distance)");
+        // Held until it is all the way out, as a player holds it (the zoom stops at the layout view): at 15 fps an equal 0.5 s
+        // in and out can differ by a frame, 0.05 of the zoom (15 Oct: FOV 38.6).
         PadHold(new GamepadState().WithButton(GamepadButton.DpadDown));
-        yield return Seconds(.5f);
+        yield return Seconds(.9f);
         yield return LetGo();
         yield return Seconds(.5f);
-        float dOut = Distance();
-        Check(dOut > dIn * 1.1f, $"D-pad down zooms out again ({dOut * 100f:0} cm)");
+        float fovOut = cam.fieldOfView;
+        Check(inspector.Zoom < .05f && fovOut > fovIn * 1.1f && Mathf.Abs(fovOut - ItemInspector.LayoutFov) < 1f,
+            $"D-pad down zooms out again, back to the layout view (FOV {fovOut:0.0}°)");
 
         // ---------- the stick (12 Oct, his 1b): a push turns it one quarter; held, a quarter at a time; a diagonal push does nothing; a push up peeks ----------
         // The game's own layout first (the left stick turns), whatever the player's setting; it goes back at the end.
@@ -300,7 +310,7 @@ public sealed class BenchLab : PlayLab
         Check(inspector.QuarterTurns == quarters0 && Mathf.Abs(Mathf.DeltaAngle(yaw0, inspector.Yaw)) < .5f && handMoved > 40f,
             $"...and the left stick moves the hand ({handMoved:0} px) without turning it");
         yield return Seconds(.35f);   // the cards refresh every 0.15 s
-        string card = Plain(BenchCards.ControlsText);
+        string card = Plain(BenchCards.HeldControlsText);
         Check(card.Contains("[Left stick]  Move your hand") && card.Contains("[Right stick]  Turn it"),
             $"...and the controls card says so: \"{card}\"");
         // Put back as the player had it (the setting is PlayerPrefs, shared with his own game): the turn stick is whichever the
@@ -313,7 +323,7 @@ public sealed class BenchLab : PlayLab
         yield return LetGo();
         yield return Await(() => !inspector.Turning, 1f);
         yield return Seconds(.35f);
-        card = Plain(BenchCards.ControlsText);
+        card = Plain(BenchCards.HeldControlsText);
         string handStick = swapWas ? "Left" : "Right", turnStick = swapWas ? "Right" : "Left";
         Check(inspector.QuarterTurns == quarters0 + 1 && card.Contains($"[{handStick} stick]  Move your hand") && card.Contains($"[{turnStick} stick]  Turn it"),
             $"the setting put back ({(swapWas ? "swapped, as the player had it" : "not swapped")}): the {turnStick.ToLowerInvariant()} stick turns it again, and the card says so: \"{card}\"");
@@ -332,9 +342,8 @@ public sealed class BenchLab : PlayLab
         // ---------- the checklist says to flip it: its first step, the screws, lies on the face turned down (12-13 Oct) ----------
         yield return Seconds(.35f);   // the cards refresh every 0.15 s
         {
-            string list = Plain(BenchCards.ChecklistText);
-            Check(list.Contains("Take out the 2 screws") && list.Contains("flip it over"),
-                $"face up, the checklist's step is the screws, and it says they're on the other side: \"{list}\"");
+            Check(BenchCards.CurrentIcon == "screwdriver" && BenchCards.CurrentVerb.Contains("Flip it over"),
+                $"face up, the card's step is the screwdriver, and it says to flip it over: \"{BenchCards.CurrentIcon}\" / \"{BenchCards.CurrentVerb}\"");
         }
 
         // ---------- the flip: over onto its back, where the screws are ----------
@@ -344,185 +353,138 @@ public sealed class BenchLab : PlayLab
         Check(Vector3.Dot(Face(), Vector3.up) < -.99f && LowestPoint(device.transform) - inspector.TableTop.y < .004f,
             $"Y flips it over on the mat: the back is up, and it lies flat again ({(device.transform.position.y - heightBefore) * 1000f:0.0} mm change of height)");
         {
-            string list = Plain(BenchCards.ChecklistText);
-            Check(list.Contains("hold on each one") && !list.Contains("flip it over"),
-                $"back up, the step says how instead: \"{list}\"");
+            Check(BenchCards.CurrentVerb == "Unscrew", $"back up, the card's verb is \"{BenchCards.CurrentVerb}\" (the screws are in reach)");
         }
         yield return Photo("02-the-back");
 
-        // ---------- the screwdriver, and the screws ----------
+        // ---------- the screwdriver, and the screws (the forgiving bench, 14 Oct: each screw pops and flies to its own cup) ----------
         yield return SelectTool(ToolType.Screwdriver);
         ToolPickup driver = ToolInHand(ToolType.Screwdriver);
         PadCursor.GlideTo(Px(device.transform.position));
         yield return Seconds(.5f);
         Check(driver != null && driver.InHand && Vector3.Distance(driver.transform.position, device.transform.position) < .12f
               && Vector3.Distance(driver.transform.position, stage.ToolSlot(ToolType.Screwdriver).position) > .05f,
-            "the driver leaves the caddy and rides with the cursor over the device");
+            "the driver leaves the rest and rides with the cursor over the device");
 
         ScrewTarget first = screws.FirstOrDefault(s => s.CanInteract && OnPx(s.WorkPoint));
         Check(first != null, "a screw is in view on the back");
         if (first == null) yield break;
         Screw s0 = first.GetComponent<Screw>();
-        yield return Hover(first.WorkPoint, "Screw", "Hold to unscrew", "the first screw");
+        yield return Hover(first.WorkPoint, "Screw", null, "the first screw");
         PadHold(RT);
         yield return Seconds(.3f);
         yield return LetGo();
         float backedOut = Vector3.Dot(s0.transform.position - s0.HomePosition, s0.Axis);
         float away = Vector3.ProjectOnPlane(s0.transform.position - s0.HomePosition, s0.Axis).magnitude;
-        Check(!s0.IsOut && s0.Progress > .1f && s0.Progress < .9f && backedOut > .0008f && away < .0005f,
+        Check(!s0.IsOut && s0.Progress > .1f && s0.Progress < .9f && backedOut > .0002f && away < .0005f,
             $"a short hold backs it part way out along its own axis ({s0.Progress:P0}, {backedOut * 1000f:0.0} mm out, {away * 1000f:0.00} mm sideways) and it keeps its place when let go");
-        yield return Await(() => inspector.HoverAction == "Hold to unscrew (part way out)", .6f);
-        Check(lastWait, "the prompt says it's part way out");
         yield return Photo("03-part-way-out");
+        int dropsBefore = Sfx.Requested("screw.drop"), flysBefore = Sfx.Requested("screw.fly"), bouncesBefore = Sfx.Requested("screw.bounce");
         PadHold(RT);
         yield return Until(() => s0.IsOut, 3f, "held on, it comes free");
         yield return LetGo();
-        yield return Seconds(.5f);
-        Rigidbody rb0 = s0.GetComponent<Rigidbody>();
-        yield return Until(() => rb0 != null && s0.IsLoose && (rb0.IsSleeping() || rb0.linearVelocity.magnitude < .02f)
-                                 && Vector3.Distance(s0.transform.position, s0.HomePosition) > .012f, 8f, "free, it hops clear of its hole, falls and comes to rest");
-        Check(OverMat(s0.transform.position) || stage.InTray(s0.transform.position),
-            $"it lies on the mat, on the device or in the tray ({Where(s0.transform.position)}, {Vector3.Distance(s0.transform.position, s0.HomePosition) * 100f:0.0} cm from its hole)");
+        yield return ScrewLands(s0, "the first screw");
         Check(s0.Socket != null && s0.Socket.gameObject.activeSelf && s0.Socket.CanInteract, "its empty hole is marked and can be held");
         Check(job.HasDetachedComponent<Screw>() && !job.CanHandBack, "with a screw out the device can't be handed back");
 
         foreach (ScrewTarget other in screws.Where(s => s != first))
         {
             Screw so = other.GetComponent<Screw>();
-            yield return Hover(other.WorkPoint, "Screw", "Hold to unscrew", "the next screw");
+            yield return Hover(other.WorkPoint, "Screw", null, "the next screw");
             PadHold(RT);
             yield return Until(() => so.IsOut, 3f, "held on, it comes free too");
             yield return LetGo();
-            yield return Seconds(.5f);
-            Rigidbody rbo = so.GetComponent<Rigidbody>();
-            yield return Await(() => rbo != null && so.IsLoose && (rbo.IsSleeping() || rbo.linearVelocity.magnitude < .02f), 8f);
-            Check(lastWait && (OverMat(so.transform.position) || stage.InTray(so.transform.position)), $"it lands too ({Where(so.transform.position)})");
+            yield return ScrewLands(so, "the next screw");
         }
-        yield return Photo("04-screws-out");
+        Check(Sfx.Requested("screw.fly") > flysBefore && Sfx.Requested("screw.drop") >= dropsBefore + screws.Length && Sfx.Requested("screw.bounce") == bouncesBefore,
+            $"each flight whooshes (screw.fly) and lands with a tink (screw.drop), never a physics bounce (screw.bounce: {Sfx.Requested("screw.bounce") - bouncesBefore})");
+        {
+            // The slot rule (§4.0.1): the phone turned a quarter covers the left cup column, so its screws take cups 4-6.
+            var used = screws.Select(t => stage.PlaceOf(t.GetComponent<Screw>())).Where(p => p != null).Select(p => p.name).ToArray();
+            Check(used.Length == screws.Length && used.All(n => n == "Cup_4" || n == "Cup_5" || n == "Cup_6"),
+                $"one cup each, clear of the phone's every quarter turn: {string.Join(", ", used)} (the left column, cups 1-3, lies under a turned phone)");
+        }
+        yield return Photo("04-screws-in-their-cups");
 
-        // ---------- the pry, and the cover ----------
+        // ---------- the pry, and the cover (it pops where it was pried, then flies to the well by itself) ----------
         yield return SelectTool(ToolType.Pry);
         Vector3 edge = BenchInteractable.BoundsCentre(cover.transform) + cover.transform.forward * .05f;   // the end away from the screws
-        yield return Hover(edge, cover.DisplayName, "Hold to pry it up", "the cover's far edge");
+        yield return Hover(edge, cover.DisplayName, null, "the cover's far edge");
         // Playtest 4 (the veteran: "the pry tool stands upright on the middle of the back like the screwdriver"): over a
         // cover it can pry, the pry waits in the seam nearest the cursor, low, its handle out across the seam.
         ToolPickup pry = ToolInHand(ToolType.Pry);
-        yield return Seconds(.4f);   // the tool settles on its spring
+        yield return Seconds(.4f);
         {
             cover.SeamAt(edge, out Vector3 seam, out Vector3 across);
             Vector3 n = cover.Outward;
             float rise = Rise(pry, n);
             float off = pry != null ? Vector3.Distance(pry.transform.position, seam) : 1f;
             float outward = pry != null ? Vector3.Dot(Vector3.ProjectOnPlane(pry.transform.up, n).normalized, across) : -1f;
-            float fromMiddle = pry != null ? Vector3.ProjectOnPlane(pry.transform.position - BenchInteractable.BoundsCentre(cover.transform), n).magnitude : 0f;
             Check(pry != null && off < .008f && rise > 20f && rise < 50f && outward > .8f,
-                $"the pry waits in the seam at a pry angle, its handle out across it ({off * 1000f:0.0} mm from the seam, {rise:0}° up from the cover, " +
-                $"{fromMiddle * 100f:0.0} cm from its middle), not stood upright on the middle of the back");
+                $"the pry waits in the seam at a pry angle, its handle out across it ({off * 1000f:0.0} mm from the seam, {rise:0}° up from the cover)");
             yield return Photo("04b-the-pry-at-the-seam");
         }
-        Quaternion coverRot0 = cover.transform.rotation;
-        float riseBefore = Rise(pry, cover.Outward), lowest = riseBefore;
+        int clacksBefore = Sfx.Requested("cover.clack"), liftsBefore = Sfx.Requested("cover.lift");
         PadHold(RT);
-        {
-            // (Until, but watching the handle as the lever goes in)
-            float until = Time.realtimeSinceStartup + 2.5f;
-            while (!cover.IsPopped && Time.realtimeSinceStartup < until)
-            {
-                lowest = Mathf.Min(lowest, Rise(pry, cover.Outward));
-                yield return null;
-            }
-            lastWait = cover.IsPopped;
-            Check(lastWait, "held at the edge, the cover creaks and pops" + (lastWait ? "" : " (gave up after 2.5 s)"));
-        }
-        Check(riseBefore - lowest > 6f, $"held, the pry levers: its handle went down {riseBefore - lowest:0}° as the edge came up (from {riseBefore:0}°)");
+        yield return Until(() => cover.IsPopped || cover.IsRemoved, 2.5f, "held at the edge, the cover creaks and pops");
         yield return LetGo();
-        yield return Seconds(.25f);
-        float popped = Quaternion.Angle(coverRot0, cover.transform.rotation);
-        Check(popped > 4f && popped < 20f, $"it sits up {popped:0.0}° at the pried edge");
-        {
-            bool under = cover.PryPose(edge, out Vector3 tipUnder, out _, out _, out _);
-            float off = pry != null && under ? Vector3.Distance(pry.transform.position, tipUnder) : 1f;
-            Check(under && off < .008f, $"popped, the pry's blade stays under the lifted edge ({off * 1000f:0.0} mm from it)");
-        }
-        yield return Photo("05-popped");
+        yield return Until(() => cover.InWell && stage.InPlace(cover), 2f, "after the pop it lifts off and flies to the cover well by itself (no drag, no drop)");
+        Transform well = stage.PlaceOf(cover);
+        Check(well == stage.wellLarge || well == stage.wellSmall, $"it lies in the well ({(well != null ? well.name : "no place")}), outer face up: {Vector3.Dot(cover.transform.TransformDirection(cover.OuterFaceLocal), Vector3.up) > .9f}");
+        Check(Sfx.Requested("cover.lift") > liftsBefore && Sfx.Requested("cover.clack") > clacksBefore, "its lift (cover.lift) and its landing (cover.clack) sounded");
+        Check(cover.IsRemoved && job.HasDetachedComponent<RemovablePart>() && InView(cover.transform), "the device is open, and the cover is in view");
+        Check(!HasBody(cover.gameObject), "the cover was never a rigidbody");
+        yield return Photo("06-cover-in-the-well");
 
-        yield return Hover(BenchInteractable.BoundsCentre(cover.transform), cover.DisplayName, "Lift it off (drag)", "the popped cover");
-        PadHold(RT);
-        yield return Frames(4);
-        Check(inspector.GrabTarget == cover && cover.State == RemovablePart.CoverState.Held, "a press on the popped cover picks it up");
-        Vector3 overTheMat = stage.Mat.position + Vector3.up * .10f - cam.transform.right * .14f;
-        PadCursor.GlideTo(Px(overTheMat));
-        yield return Seconds(.8f);
-        Check(Vector3.Distance(cover.transform.position, device.transform.position) > .08f,
-            $"it follows the cursor away from the device ({Vector3.Distance(cover.transform.position, device.transform.position) * 100f:0} cm)");
-        yield return LetGo();
-        yield return Until(() => cover.State == RemovablePart.CoverState.Loose, 1f, "let go, it drops");
-        yield return Seconds(.6f);
-        Rigidbody crb = cover.GetComponent<Rigidbody>();
-        yield return Until(() => crb != null && !crb.isKinematic && crb.linearVelocity.magnitude < .01f, 5f, "it falls and settles");
-        Check(OverMat(cover.transform.position) || stage.InTray(cover.transform.position), $"it lies on the mat ({Where(cover.transform.position)})");
-        Check(cover.IsRemoved && job.HasDetachedComponent<RemovablePart>(), "the device is open");
-        yield return Photo("06-cover-on-the-mat");
-
-        // ---------- the front, the tweezers, the broken part ----------
+        // ---------- the front, the tweezers, the broken screen (to the old-parts tray by itself) ----------
         yield return PadPress(GamepadButton.North);
         yield return Seconds(.8f);
         Check(Vector3.Dot(Face(), Vector3.up) > .99f, "Y flips it back onto its front");
         yield return SelectTool(ToolType.Tweezers);
         LoosePart fresh0 = part.Fresh;
-        yield return Hover(BenchInteractable.BoundsCentre(part.transform), part.DisplayName, "Hold to pinch it out", "the broken part");
+        Check(fresh0 != null && (stage.PlaceOf(fresh0) == stage.padSmall || stage.PlaceOf(fresh0) == stage.padLarge) && InView(fresh0.transform),
+            $"the fresh screen has been waiting on the new-part pad since the close-up opened ({(fresh0 != null && stage.PlaceOf(fresh0) != null ? stage.PlaceOf(fresh0).name : "no place")}), in view");
+        yield return Hover(BenchInteractable.BoundsCentre(part.transform), part.DisplayName, null, "the broken screen");
+        int partDropsBefore = Sfx.Requested("part.drop");
         PadHold(RT);
-        yield return Until(() => part.State == ReplaceablePart.PartState.HeldBroken, 1.5f, "held, the tweezers pinch and it lifts out");
-        yield return Seconds(.3f);
-        {
-            // It rides at the depth it was pinched at, 2 cm toward the camera: clear of its seat, never deeper than it (8 Oct:
-            // measured from the ray's near-plane origin it rode 5 cm too deep, and was carried in under the tray's floor).
-            float rise = Depth(part.SeatPosition) - Depth(part.transform.position);
-            Check(rise > .025f && rise < .06f, $"lifted, it rides toward the camera, held up clear of its seat ({rise * 1000f:0} mm nearer than the seat)");
-        }
-        // Over the tray's device side (the fresh part lies across its far side since 13 Oct: in plain view past a long device's
-        // overhang), at the depth the held part rides at, so that, let go, it falls in beside it.
-        Vector3 overTheTray = Above(stage.Tray.position - stage.TrayLongAxis * .04f, part.transform.position);
-        PadCursor.GlideTo(Px(overTheTray));
-        yield return Seconds(.8f);
-        {
-            float clear = LowestPoint(part.transform) - (stage.Tray.position.y + .003f);
-            Check(clear > .021f, $"carried over the tray it rides above the tray's walls ({clear * 1000f:0} mm above the floor's top; the walls stand 21 mm), {TrayPlace(part.transform)}");
-        }
+        yield return Until(() => part.State != ReplaceablePart.PartState.InPlace, 1.5f, "held, the tweezers pinch and it lifts out");
+        yield return Seconds(.1f);
         yield return LetGo();
-        yield return Until(() => part.State == ReplaceablePart.PartState.Removed, 1f, "let go over the tray, it drops");
-        Rigidbody prb = part.GetComponent<Rigidbody>();
-        yield return Until(() => prb != null && stage.SettledInTray().Contains(prb), 5f, "the tray's magnet draws it down and settles it (a tink)");
+        yield return Until(() => part.State == ReplaceablePart.PartState.Removed && stage.InPlace(part), 2f, "it flies into the old-parts tray by itself, button down or not");
+        Check(stage.PlaceOf(part) != null && stage.PlaceOf(part).IsChildOf(stage.Tray), $"it lies in the old-parts tray ({(stage.PlaceOf(part) != null ? stage.PlaceOf(part).name : "nowhere")})");
+        Check(Sfx.Requested("part.drop") > partDropsBefore, "it landed with part.drop");
         Check(job.Quality < .01f && !job.CanHandBack, "the grade doesn't move for taking the broken part out, and with a hole in it the device can't be handed back");
-        Check(InView(part.transform) && stage.InTray(part.transform.position), $"the broken part lies in the tray, in view ({TrayPlace(part.transform)})");
-        Check(fresh0 != null && Vector3.Distance(fresh0.transform.position, part.transform.position) > .04f && LowestPoint(fresh0.transform) < LowestPoint(part.transform) + .004f,
-            $"beside the fresh part, not on it ({(fresh0 != null ? Vector3.Distance(fresh0.transform.position, part.transform.position) * 100f : 0f):0.0} cm apart)");
-        Check(part.CanInteract && part.Grabbable && part.RequiredTool == ToolType.Hand && part.Prompt == "Hold to move it",
-            "out of the device it is a loose piece: any tool picks it up and moves it (it can never bury the fresh part)");
-        yield return Photo("07-broken-part-in-the-tray");
+        Check(InView(part.transform) && !part.CanInteract && !part.Grabbable, "the broken screen is in view in the tray, and finished with: it can't be picked up (§3: scrap can't be moved)");
+        Check(!HasBody(part.gameObject), "it was never a rigidbody");
+        yield return Photo("07-broken-screen-in-the-tray");
 
-        // ---------- the fresh part, from the tray to the seat ----------
+        // ---------- the fresh screen: a click sends it over to hover above its seat; a hold presses it in ----------
         LoosePart fresh = part.Fresh;
-        Check(fresh != null && job.LooseParts.Contains(fresh.gameObject) && stage.InTray(fresh.transform.position),
-            $"the fresh part has been waiting in the tray since the close-up opened ({(fresh != null ? Where(fresh.transform.position) : "no fresh part")})");
-        if (fresh == null) yield break;
-        yield return Hover(BenchInteractable.BoundsCentre(fresh.transform), fresh.DisplayName, "Hold to pinch it up, carry it to the seat", "the fresh part");
+        if (fresh == null) { Check(false, "the fresh screen is there"); yield break; }
+        yield return Hover(BenchInteractable.BoundsCentre(fresh.transform), fresh.DisplayName, null, "the fresh screen on its pad");
+        int freshBefore = Sfx.Requested("part.fresh"), replacesBefore = Sfx.Requested("part.replace");
         PadHold(RT);
-        yield return Seconds(.4f);
-        Check(inspector.HoldTarget == fresh && fresh.HoldProgress >= 1f, "the tweezers pinch it up");
-        PadCursor.GlideTo(Px(part.SeatPosition));
-        yield return Seconds(.9f);
-        float overSeat = Vector3.Distance(ReplaceablePart.AtDepthOf(fresh.transform.position, part.SeatPosition, cam), part.SeatPosition);
+        yield return Frames(3);
+        yield return LetGo();
+        Check(Sfx.Requested("part.fresh") > freshBefore, "a click on it (3 frames) sends it over at once (part.fresh)");
+        yield return Until(() => fresh.Hovering, 1.5f, "let go before it arrives, it completes its flight and hovers over its seat");
+        yield return Seconds(.6f);
+        Check(fresh.Hovering && !part.IsReplaced, "and waits there, hovering, until it is held (no drop anywhere)");
+        yield return Photo("07b-the-fresh-screen-hovering");
         int finishesBefore = Juice.Finishes, wakesBefore = Juice.Wakes;
         float wordsBefore = Juice.LastWordsAt;
+        yield return Hover(BenchInteractable.BoundsCentre(fresh.transform), fresh.DisplayName, null, "the hovering screen");
+        float holdAt = Time.realtimeSinceStartup;
+        PadHold(RT);
+        yield return Until(() => part.IsReplaced, 1.5f, "held on, it presses down and snaps in");
+        float pressedIn = Time.realtimeSinceStartup - holdAt;
         yield return LetGo();
-        yield return Until(() => part.IsReplaced, 1f, $"let go over the empty seat ({overSeat * 1000f:0} mm off it as seen), it seats");
+        Check(pressedIn < .9f && Sfx.Requested("part.replace") > replacesBefore, $"the press-in took {pressedIn:0.00} s (0.35 s by its clock) and snapped (part.replace)");
         Check(job.Quality >= .999f && job.Grade == JobGrade.Perfect, $"the screen is replaced: {job.Grade}");
-        Check(!job.IsComplete && !job.CanHandBack, "but it isn't finished: the cover is on the mat and the screws are out");
-        Check(InView(part.transform) && stage.InTray(part.transform.position) && job.LooseParts.Contains(part.gameObject),
-            $"the broken one stays in the tray as scrap, in view ({TrayPlace(part.transform)})");
+        Check(!job.IsComplete && !job.CanHandBack, "but it isn't finished: the cover is in its well and the screws are out");
+        Check(job.LooseParts.Contains(part.gameObject) && InView(part.transform), "the broken one stays in the tray as scrap, in view");
         // Playtest 4, one ending: the last task is done, so the phone WAKES now (its new screen lights), quietly; "Fixed!"
-        // waits for the cover and the screws (the veteran: "'Fixed!' fires ... with the cover still on the mat").
+        // waits for the cover and the screws.
         DeviceWake wake = device.GetComponent<DeviceWake>();
         yield return Await(() => wake != null && wake.Woken, 1f);
         yield return Seconds(1.1f);
@@ -530,36 +492,37 @@ public sealed class BenchLab : PlayLab
               && wake.LitScreen.sharedMaterial.IsKeywordEnabled("_EMISSION"),
             $"the last task done (the seat), the phone wakes: the fresh screen lights up ({(wake == null ? "no DeviceWake on the phone: run Bench 4" : wake.LitScreen == null ? "no screen lit" : wake.LitScreen.name + " glows")})");
         Check(Juice.Finishes == finishesBefore && Juice.LastWordsAt == wordsBefore,
-            $"quietly: no \"Fixed!\" and no words while its cover is on the mat and its screws are out (endings so far: {Juice.Finishes - finishesBefore})");
+            $"quietly: no \"Fixed!\" and no words while its cover is off and its screws are out (endings so far: {Juice.Finishes - finishesBefore})");
         yield return Photo("08-the-phone-wakes");
 
-        // ---------- the cover home ----------
+        // ---------- the cover home: one press on it in its well ----------
         yield return PadPress(GamepadButton.North);
         yield return Seconds(.8f);
-        yield return Hover(BenchInteractable.BoundsCentre(cover.transform), cover.DisplayName, null, "the cover on the mat");
+        int onsBefore = Sfx.Requested("part.on");
+        yield return Hover(BenchInteractable.BoundsCentre(cover.transform), cover.DisplayName, null, "the cover in its well");
         PadHold(RT);
-        yield return Frames(4);
-        Check(inspector.GrabTarget == cover && cover.State == RemovablePart.CoverState.Held, "a press on the loose cover picks it up (any tool)");
-        PadCursor.GlideTo(Px(cover.HomePosition));
-        yield return Seconds(.9f);
+        yield return Frames(3);
         yield return LetGo();
-        yield return Until(() => cover.State == RemovablePart.CoverState.Seated, 1.5f, "let go over its seat, it snaps home");
-        Check(!job.HasDetachedComponent<RemovablePart>(), "the cover is counted as back on");
+        yield return Until(() => cover.State == RemovablePart.CoverState.Seated, 1.5f, "one press on it (nothing of this job left under it) sends it home: it flies to its seat and clips on");
+        Check(!job.HasDetachedComponent<RemovablePart>() && Sfx.Requested("part.on") > onsBefore, "the cover is counted as back on, with its clip (part.on)");
         yield return Photo("09-cover-home");
 
-        // ---------- the screws home ----------
+        // ---------- the screws home: each hole held fetches its screw from its cup ----------
         yield return SelectTool(ToolType.Screwdriver);
         bool backUpAtTheEnd = Vector3.Dot(Face(), Vector3.up) < -.99f;   // it lies on its face for the screws: the ending's flip is from here
         foreach (ScrewTarget t in screws)
         {
             Screw s = t.GetComponent<Screw>();
             if (!s.IsOut || s.Socket == null) continue;
+            Transform cup = stage.PlaceOf(s);
+            int fetchesBefore = Sfx.Requested("screw.fetch");
             yield return Hover(s.Socket.WorkPoint, "Screw hole", null, "an empty hole");
             PadHold(RT);
-            yield return Until(() => s.Fetched || !s.IsOut, 2f, "held, the driver fetches the screw to its hole");
-            yield return Until(() => !s.IsOut, 3f, "and screws it home");
+            yield return Until(() => s.Fetched || !s.IsOut, 2f, $"held, the driver fetches the screw from its cup ({(cup != null ? cup.name : "no cup")}) to hover at its hole");
+            yield return Until(() => !s.IsOut, 3f, "and the same hold screws it home");
             yield return LetGo();
-            Check(Vector3.Distance(s.transform.position, s.HomePosition) < .001f && !s.Socket.gameObject.activeSelf, "it sits in its hole, the hole's mark gone");
+            Check(Vector3.Distance(s.transform.position, s.HomePosition) < .001f && !s.Socket.gameObject.activeSelf && Sfx.Requested("screw.fetch") > fetchesBefore,
+                "it sits in its hole, the hole's mark gone (screw.fetch on the way)");
         }
         float finishedAt = Time.realtimeSinceStartup;
         Check(job.IsComplete && job.CanHandBack && job.Grade == JobGrade.Perfect && job.IsFinished, $"the repair is finished: {job.Grade}, in one piece");
@@ -584,13 +547,12 @@ public sealed class BenchLab : PlayLab
         yield return Seconds(.8f);
         Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect",
             $"it ends once: one \"Fixed!\", and no \"Back together\" after it (endings: {Juice.Finishes - finishesBefore}; the last words \"{Juice.LastWords}\")");
-        Check(InView(part.transform) && stage.InTray(part.transform.position) && part.DisplayName.StartsWith("Old ") && part.Grabbable,
-            $"the old screen is still there in the tray, scrap that can be moved ({TrayPlace(part.transform)})");
+        Check(InView(part.transform) && part.DisplayName.StartsWith("Old ") && !part.Grabbable,
+            "the old screen is still there in the tray, scrap, finished with");
         yield return Photo("10-fixed-once");
 
         // Playtest 4 (both playtesters: "Back together · Perfect" sat over "Screw: Hold to unscrew"): a finished phone offers
-        // nothing to undo. Its screw reads "Screw" with no verb, and the driver held on it does nothing. The screws are in the
-        // back: Y turns it over to look at them (the ending's own flip happens once; this one is the player's).
+        // nothing to undo. Its screw can't be worked, and the driver held on it does nothing.
         yield return PadPress(GamepadButton.North);
         yield return Seconds(.9f);
         Check(Vector3.Dot(Face(), Vector3.up) < -.99f, "Y turns the finished phone back over to look at its screws");
@@ -599,7 +561,7 @@ public sealed class BenchLab : PlayLab
         if (seated != null)
         {
             Screw ss = seated.GetComponent<Screw>();
-            yield return Hover(seated.WorkPoint, "Screw", "", "a screw of the finished phone (no verb)");
+            yield return Hover(seated.WorkPoint, "Screw", null, "a screw of the finished phone (no verb)");
             Check(seated.Done && !seated.CanInteract, "a finished phone offers nothing to undo: its screw can't be worked");
             PadHold(RT);
             yield return Seconds(.5f);
@@ -609,26 +571,20 @@ public sealed class BenchLab : PlayLab
             yield return Photo("10b-nothing-to-undo");
         }
 
-        // ---------- the clock, the catch, the sounds ----------
+        // ---------- the clock, the guard, the sounds ----------
         Check(DayClock.Instance.SecondsIntoDay > clockBefore + 5f, $"the clock ran the whole time ({DayClock.Instance.SecondsIntoDay - clockBefore:0} s of the day)");
-        var stray = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        stray.name = "Bench check stray";
-        stray.transform.localScale = Vector3.one * .006f;
-        made.Add(stray);
-        Rigidbody strayBody = stray.AddComponent<Rigidbody>();
-        strayBody.mass = .003f;
-        stage.Watch(strayBody, "screw.drop");
-        strayBody.position = stage.Mat.position - Vector3.up * 1f;
-        stray.transform.position = strayBody.position;
-        yield return Until(() => strayBody.position.y > stage.Mat.position.y - .05f, 1f, "a piece that gets away under the bench is caught and set back over the tray");
-        yield return Until(() => stage.SettledInTray().Contains(strayBody), 5f, "where the magnet settles it");
-        string[] cues = { "screw.turn", "screw.free", "screw.drop", "screw.bounce", "screw.fetch", "screw.seat", "cover.creak", "cover.pop", "cover.lift",
-                          "cover.clack", "part.on", "part.pinch", "part.lift", "part.drop", "part.replace", "tool.pick", "tool.down", "device.snap", "device.flip",
-                          "grime.scrub", "grime.clean", "cloth.wipe", "cloth.squeak", "cloth.gleam", "cloth.lift", "repair.fixed", "repair.ready", "phone.boot", "watch.wind",
+        Check(BenchStage.GuardTrips == guardTripsBefore, $"nothing ever had to be set back in its place: {BenchStage.GuardTrips - guardTripsBefore} guard trips (the v2 catch is a guard now: under this design it can't trip)");
+        Check(!job.GetComponentsInChildren<Rigidbody>(true).Any() && !screws.Any(t => HasBody(t.gameObject)), "no bench piece held a rigidbody at any point");
+        string[] cues = { "screw.turn", "screw.free", "screw.fly", "screw.drop", "screw.fetch", "screw.seat", "cover.creak", "cover.pop", "cover.lift",
+                          "cover.clack", "part.on", "part.pinch", "part.lift", "part.drop", "part.fresh", "part.replace", "tool.pick", "tool.down", "device.snap", "device.flip",
+                          "grime.scrub", "grime.clean", "cloth.squeak", "cloth.gleam", "repair.fixed", "repair.ready", "phone.boot", "watch.wind",
                           "watch.tick", "camera.wind", "camera.shutter", "juice.sparkle", "juice.sparkle.big" };
         string[] silent = cues.Where(c => !PlaceholderSounds.Has(c)).ToArray();
-        Check(silent.Length == 0, "every bench cue has a placeholder sound" + (silent.Length > 0 ? " (missing: " + string.Join(", ", silent) + ")" : ""));
-        Check(Sfx.Play("screw.drop", stage.Tray.position), "a bench cue plays (the placeholder, until the bank has a file for it)");
+        Note(silent.Length == 0 ? "every bench cue has at least a placeholder sound" : "cues with no placeholder yet (the bank's files bring them, Audio §6): " + string.Join(", ", silent));
+        Check(Sfx.Play("screw.drop", stage.Tray.position), "a bench cue plays");
+
+        // ---------- close it anyway: on a fresh phone with its work still inside, a press does nothing; a 0.4 s hold closes it ----------
+        yield return CloseAnyway();
 
         // ---------- out ----------
         inspector.CancelInspection();
@@ -639,11 +595,15 @@ public sealed class BenchLab : PlayLab
         yield return ActThree();
     }
 
-    // ---------- act two (4b): the dirty phone: dirt as a layer the brush takes off where it touches, the smudge the cloth wipes, the device wakes ----------
+    // ---------- act two (the forgiving bench, 14 Oct): the dirty phone, by direct grab ----------
     //
-    // Playtest 4: the smudge is left for last (the other spot of grime goes by the check's hand), so the last wipe is the
-    // phone's last task, as a player's would be: the cloth lifts off the glass, the gleam sweeps it, the phone wakes and the
-    // one ending comes, and each is seen.
+    // The brush taken by a press on it at rest and dragged onto a spot, let go over the phone: still in the hand. A stroke
+    // takes the dirt off only where it passed; four strokes at most clean a spot (the pass-based erase and the 90 % finisher;
+    // a slow stroke takes as much as a quick one); the rub's speed s rises with the cursor's and the loop follows it; the
+    // phone budges along the stroke (6 px at most) and is back within 0.3 s. Its last spot clean, the brush flies home by
+    // itself. "What's left" lights the smudge gold, then lets it go. The cloth by RB (the pad's way): the smudge smears first,
+    // then comes clean; it is the phone's last task, so the gleam, the wake and the one ending come, and the cloth flies home
+    // by itself, the press spent until the trigger is let go.
 
     IEnumerator ActTwo()
     {
@@ -673,8 +633,6 @@ public sealed class BenchLab : PlayLab
         GrimeSpot smudge = spots.FirstOrDefault(g => g.What == GrimeSpot.Kind.Smudge);
         Transform glass = device.transform.Find("Screen/Glass");
         Check(grimes.Length == 2 && smudge != null, $"the \"{dirty.description}\" phone has two spots of grime and a smudge ({spots.Length} spots: run Bench 4 if not)");
-        Check(glass != null && glass.gameObject.activeInHierarchy && glass.GetComponent<MeshFilter>() != null && glass.GetComponent<MeshFilter>().sharedMesh != null,
-            "it wears its working screen (Screen/Glass, on; the stand-in had no glass at all on this fault)");
         Check(device.GetComponentInChildren<ReplaceablePart>() == null, "and no broken screen");
         if (grimes.Length < 2 || smudge == null) yield break;
         Check(carry.TryPickUp(job), "Ace takes it");
@@ -697,162 +655,169 @@ public sealed class BenchLab : PlayLab
         }
         yield return Photo("11-the-dirty-phone");
 
-        // the brush: one stroke across a spot takes the dirt off where it passed, and nowhere else
-        yield return SelectTool(ToolType.Brush);
-        GrimeSpot first = grimes[0], other = grimes[1];
-        Vector3 c0 = BenchInteractable.BoundsCentre(first.transform);
-        float half = first.transform.lossyScale.x * .5f;
-        Vector3 right = cam.transform.right, fwd = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized;
-        yield return Hover(c0, "Grime", "Hold to scrub", "a spot of grime");
+        // ---- the brush by direct grab: a press on it at rest, dragged onto a spot, let go over the phone ----
+        ToolPickup brush = FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude).FirstOrDefault(t => t.tool == ToolType.Brush && !t.IsStandIn);
+        Check(brush != null, "the modelled brush lies on the tool rest");
+        if (brush == null) yield break;
+        Vector3 brushAt = brush.transform.position + brush.transform.rotation * brush.RestBox.center;
+        int picksBefore = Sfx.Requested("tool.pick");
+        yield return Hover(brushAt, brush.displayName, "", "the brush at rest (its name, nothing more)");
+        // The spot nearest the brush is brushed first, so the drag to it crosses no other.
+        GrimeSpot first = (Px(grimes[0].Centre) - Px(brushAt)).sqrMagnitude <= (Px(grimes[1].Centre) - Px(brushAt)).sqrMagnitude ? grimes[0] : grimes[1];
+        GrimeSpot other = first == grimes[0] ? grimes[1] : grimes[0];
+        Vector3 c0 = first.Centre;
+        float half = Mathf.Abs(first.transform.lossyScale.x) * .5f;
+        Vector3 right = Vector3.ProjectOnPlane(cam.transform.right, first.Normal).normalized;
+        Vector3 fwd = Vector3.Cross(first.Normal, right).normalized;
+        PadHold(RT);
+        yield return Frames(2);
+        Check(inspector.CurrentTool == ToolType.Brush && brush.InHand && Sfx.Requested("tool.pick") > picksBefore,
+            "a press on the brush puts it in the hand on that press (tool.pick)");
+        Vector3 towardBrush = Vector3.ProjectOnPlane(brushAt - c0, first.Normal).normalized;
+        yield return Glide(c0 + towardBrush * half * 1.6f, .6f);          // dragged over to just short of the spot, the trigger still held
+        yield return LetGo();
+        yield return Frames(3);
+        Check(inspector.CurrentTool == ToolType.Brush && brush.InHand && !brush.Returning,
+            "let go over the phone, the brush stays in the hand (the grab rule)");
+        yield return Hover(c0, first.PartName, "", "a spot of grime under the brush (its part's name, no \"Hold to\", no percentage)");
+
+        // One stroke across it, slowly: some dirt off where the bristles passed, none off the others; s low.
         int puffsBefore = Juice.DustPuffs;
+        float slowS = 0f, slowLoud = 0f, fastS = 0f, fastLoud = 0f, budgeMax = 0f;
+        int slowFrames = 0, fastFrames = 0;
+        bool loopWhilePressed = false;
         PadHold(RT);
-        yield return Sweep(c0 - right * half * .7f, c0 + right * half * .7f);
-        yield return LetGo();
+        yield return Sweep(c0 - right * half * 1.1f - fwd * half * .35f, c0 + right * half * 1.1f - fwd * half * .35f, .002f,
+            () => { if (inspector.Rubbing) { slowS += BenchFeel.StrokeSpeed; slowLoud += BenchFeel.RubLoudness; slowFrames++; loopWhilePressed |= BenchFeel.RubPlaying; } budgeMax = Mathf.Max(budgeMax, BudgePx()); });
         float partial = first.Progress;
-        Check(partial > .05f && partial < .8f && first.Strokes > 0, $"a stroke across it takes some of the dirt off, where the bristles passed ({partial:P0} clean)");
-        Check(other.Progress <= 0f && smudge.Progress <= 0f, "and none off the spot it didn't touch");
+        Check(partial > .05f && partial < .9f && first.Passes >= 1, $"one stroke across it takes some of the dirt off, where the bristles passed ({partial:P0} clean)");
+        Check(other.Progress <= 0f && smudge.Progress <= 0f, "and none off the spots it didn't touch");
         Check(Juice.DustPuffs > puffsBefore, $"dust puffs up where the brush lifted some ({Juice.DustPuffs - puffsBefore} puffs)");
-        yield return Hover(c0, "Grime", null, "the half-brushed spot");
-        Check(inspector.HoverAction.StartsWith("Hold to scrub (") && inspector.HoverAction.EndsWith("%)"), $"the hover says how much has come off (\"{inspector.HoverAction}\")");
         yield return Photo("12-one-stroke");
-        // a raster of strokes brushes it clean: at 97% it sparkles and goes
-        PadHold(RT);
-        for (int pass = 0; pass < 18 && first != null; pass++)
+
+        // The strokes after it, quickly, back and forth over the rest: four in all clean it (the 90 % finisher sees it done).
+        float[] across = { .35f, 0f, -.15f };
+        for (int k = 0; k < across.Length && !Gone(first); k++)
         {
-            float k = -1f + 2f * ((pass % 9) / 8f);
-            Vector3 a = c0 + fwd * half * k - right * half * 1.05f, b = c0 + fwd * half * k + right * half * 1.05f;
-            yield return Sweep(pass % 2 == 0 ? a : b, pass % 2 == 0 ? b : a);
+            Vector3 a = c0 - right * half * 1.1f + fwd * half * across[k], b = c0 + right * half * 1.1f + fwd * half * across[k];
+            yield return Sweep(k % 2 == 0 ? b : a, k % 2 == 0 ? a : b, .008f,
+                () => { if (inspector.Rubbing) { fastS += BenchFeel.StrokeSpeed; fastLoud += BenchFeel.RubLoudness; fastFrames++; loopWhilePressed |= BenchFeel.RubPlaying; } budgeMax = Mathf.Max(budgeMax, BudgePx()); });
         }
-        yield return LetGo();
-        if (first != null) Note($"after the strokes: {first.Progress:P0} clean, {first.Strokes} strokes that lifted dust; left: {first.Remaining()}; the cursor reads \"{inspector.HoverName}: {inspector.HoverAction}\"");
-        yield return Until(() => first == null, 1.5f, "brushed over in strokes, the spot comes clean and goes (97%: the last fleck never holds the grade)");
-        Check(Mathf.Abs(job.Quality - 1f / 3f) < .01f, $"one of three cleaning tasks done: {job.Quality:P0}");
+        int firstPasses = first != null ? first.Passes : -1;
+        yield return Await(() => Gone(first), .6f);
+        Check(Gone(first), $"four strokes at most clean it: the press pass and the 90 % finisher ({(first != null ? $"{first.Progress:P0} after {first.Passes} passes; left: {first.Remaining()}" : "gone")})");
         Check(Sfx.Requested("grime.scrub") > 0 && Sfx.Requested("grime.clean") > 0, "the brush hissed where dust came off, and the spot chimed clean");
-
-        // the other spot by the check's hand: two of three tasks done, and nothing ends yet (no wake, no words)
-        int finishesBefore = Juice.Finishes, wakesBefore = Juice.Wakes;
-        float wordsBefore = Juice.LastWordsAt;
-        DeviceWake wake = device.GetComponent<DeviceWake>();
-        other.Scrub(100000f);
-        yield return Until(() => other == null && Mathf.Abs(job.Quality - 2f / 3f) < .01f, 1f, "the other spot cleaned (the check's hand): two of three tasks done");
-        Check(wake != null && !wake.Woken && Juice.Wakes == wakesBefore && Juice.Finishes == finishesBefore && Juice.LastWordsAt == wordsBefore,
-            $"with the smudge left nothing ends yet: no wake, no words ({job.Quality:P0}, {job.Grade}{(wake == null ? "; no DeviceWake on the phone: run Bench 4" : "")})");
-
-        // the smudge: the cloth's. At rest the cloth lies folded flat on the mat, clear of the caddy (9 Oct night, his note:
-        // "the cloth stuck inside the tray, it needs to sit and look correctly and be used correctly": Bench 2 had stood
-        // it 12 mm into the caddy's block like the pointed tools, and it was buried in the wood).
-        Vector3 cs = BenchInteractable.BoundsCentre(smudge.transform);
-        ToolPickup restingCloth = FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude).FirstOrDefault(t => t.tool == ToolType.Cloth);
-        BenchStage stage = BenchStage.Instance;
-        if (restingCloth != null && stage != null && stage.Caddy != null && stage.Mat != null)
-        {
-            Bounds cloth = RendererBounds(restingCloth.transform), caddy = RendererBounds(stage.Caddy), mat = RendererBounds(stage.Mat);
-            float tilt = Vector3.Angle(restingCloth.transform.up, Vector3.up), over = (cloth.min.y - mat.max.y) * 1000f;
-            bool onMat = cloth.min.x >= mat.min.x && cloth.max.x <= mat.max.x && cloth.min.z >= mat.min.z && cloth.max.z <= mat.max.z;
-            Check(!restingCloth.InHand && tilt < 3f && over > -1f && over < 3f && onMat && !cloth.Intersects(caddy),
-                $"the cloth rests folded on the mat: level ({tilt:0.0}°), {over:0.0} mm over it, {(onMat ? "inside its edges" : "OFF its edges")}, " +
-                (cloth.Intersects(caddy) ? "INSIDE the caddy" : "clear of the caddy"));
-            Check(!restingCloth.IsStandIn, "it is the modelled cloth in its own yellow, not taken for a tinted stand-in (which never leaves its stand)");
-        }
-        else Check(false, "the cloth, the caddy and the mat are on the bench (run Bench 2b if the cloth is missing)");
-        yield return Hover(cs, "Smudge", "Needs the cloth", "the smudge, under the brush");
-        yield return SelectTool(ToolType.Cloth);
-        yield return Hover(cs, "Smudge", "Hold to wipe", "the smudge, under the cloth");
-        float halfS = smudge.transform.lossyScale.x * .5f;
-        // The smudge's patch, kept for after it has gone: a disc on the glass, to measure what the cloth hides of it.
-        Vector3 patchA = right * (halfS * .8f), patchB = fwd * (halfS * .8f);
-        Renderer glassRenderer = glass != null ? glass.GetComponent<Renderer>() : null;
-        float glassTop = glassRenderer != null ? glassRenderer.bounds.max.y : cs.y;
-        int gleamsBefore = Juice.Gleams, liftsBefore = Sfx.Requested("cloth.lift");
-        float seenWiping = -1f;
-        PadHold(RT);
-        for (int lap = 0; lap < 5 && !Gone(smudge); lap++)
-            for (int i = 0; i < 8 && !Gone(smudge); i++)
-            {
-                float a = (i + .5f) / 8f * Mathf.PI * 2f;
-                float rr = lap == 0 ? .25f : lap == 1 ? .6f : .85f;
-                yield return GlideUntil(cs + (right * Mathf.Cos(a) + fwd * Mathf.Sin(a)) * halfS * rr, .14f, () => Gone(smudge));
-                if (lap == 0 && i == 5 && !Gone(smudge))
-                {
-                    // in the hand it is ON the phone, pressed flat on the glass (no lean, no swing), leading with its far fold
-                    ToolPickup held = ToolInHand(ToolType.Cloth);
-                    float off = held != null ? Vector3.Angle(held.transform.up, Vector3.up) : 180f;
-                    Vector3 rel = held != null ? held.transform.position - cs : Vector3.one;
-                    float across = Vector3.ProjectOnPlane(rel, Vector3.up).magnitude, above = rel.y;
-                    Check(held != null && across < .07f && above > -.004f && above < .01f && off < 8f,
-                        $"the cloth is in the hand, on the phone, wiping lying flat on the glass: its middle {across * 100f:0.0} cm from the smudge " +
-                        $"(its fold leads), {above * 1000f:0.0} mm over the glass, {off:0}° off level");
-                    // Playtest 4 (the veteran: "the cloth covers about two-thirds of the screen while you wipe"): in the hand it is
-                    // gathered into a pad, so the glass it has just wiped shows behind its leading fold.
-                    Vector3 size = PadSize(held);
-                    Check(held != null && held.PadShown < .5f && size.x < .045f && size.z < .05f,
-                        $"in the hand it is gathered into a pad: {size.x * 1000f:0} x {size.z * 1000f:0} mm across the glass ({(held != null ? held.PadShown : 1f):P0} of its folded 75 x 90)");
-                    float hidden = glass != null && FlatFace(glass, out Vector3 gm, out Vector3 ga, out Vector3 gb) ? 1f - SeenPast(held, gm, ga, gb, false, 13) : 1f;
-                    Check(hidden <= .3f, $"wiping, it hides {hidden:P0} of the glass on screen (the folded cloth hid about two thirds)");
-                    seenWiping = SeenPast(held, cs, patchA, patchB, true);
-                    Note($"wiping: {seenWiping:P0} of the smudge's patch in view past the cloth; the hover reads \"{inspector.HoverName}: {inspector.HoverAction}\"");
-                    yield return Photo("13a-the-cloth-wiping");
-                }
-            }
-        bool cleaned = Gone(smudge);
-        float cleanAt = Time.realtimeSinceStartup;
+        slowS /= Mathf.Max(1, slowFrames); slowLoud /= Mathf.Max(1, slowFrames);
+        fastS /= Mathf.Max(1, fastFrames); fastLoud /= Mathf.Max(1, fastFrames);
+        Check(slowFrames > 0 && fastFrames > 0 && fastS > slowS * 1.5f && fastLoud >= slowLoud,
+            $"s follows the hand: {slowS:0} px/s on the slow stroke, {fastS:0} on the quick ones; the rub loop's volume with it ({slowLoud:0.00} → {fastLoud:0.00})");
+        if (PlaceholderSounds.Has("brush.rub") || loopWhilePressed) Check(loopWhilePressed, "the brush's rub loop played while it was pressed on the dirt");
+        else Note("brush.rub has no sound yet (the bank's files bring it): the loop is asked for and silent");
+        Check(budgeMax <= 6.5f, $"the phone budged along the stroke, {budgeMax:0.0} px at most (6 px: BenchFeel)");
         yield return LetGo();
-        Check(cleaned, "wiped in circles, the smudge thins and comes clean" + (cleaned ? "" : $" (only {(smudge != null ? smudge.Progress : 0f):P0} after five laps)"));
-        Check(Sfx.Requested("cloth.squeak") > 0, "the cloth squeaked while grease came off");
-        ToolPickup lifted = ToolInHand(ToolType.Cloth);
-        Check(lifted != null && lifted.Lifting && Sfx.Requested("cloth.lift") > liftsBefore,
-            "the moment it comes clean, the cloth lifts off the glass, with its swish (playtest 4: \"the gleam happens under it\")");
+        yield return Seconds(.18f);
+        Check(!BenchFeel.RubPlaying, "let go, the rub loop is gone within 0.15 s");
+        yield return Seconds(.15f);
+        Check(BudgePx() < .5f, $"and the budge is back to nothing within 0.3 s ({BudgePx():0.00} px)");
+        Note($"the first spot took {firstPasses} passes (a pass: each contact and each turn of the stroke)");
 
-        // Watched for 2.2 s from the moment it came clean (the time the frames take, not a count of them): mid-lift (0.3 s)
-        // the gleam sweeps the glass the cloth has just left; by 1.15 s the phone has woken (the smudge was its last task),
-        // its screen is lit and the one ending is up, and the cloth is still clear; by 2.2 s it is back on the glass.
-        float highest = float.NegativeInfinity;
-        bool shotLift = false, shotLit = false;
-        while (cleaned && Time.realtimeSinceStartup < cleanAt + 1.3f)
+        // The other spot, by the brush too: its last dirt spot clean, the brush flies home by itself.
+        Vector3 c1 = other.Centre;
+        float half1 = Mathf.Abs(other.transform.lossyScale.x) * .5f;
+        int downsBefore = Sfx.Requested("tool.down");
+        PadHold(RT);
+        for (int k = 0; k < 6 && !Gone(other); k++)
         {
-            if (lifted != null) highest = Mathf.Max(highest, lifted.transform.position.y - glassTop);
-            float t = Time.realtimeSinceStartup - cleanAt;
-            if (!shotLift && t >= .3f)
-            {
-                shotLift = true;
-                float seen = SeenPast(lifted, cs, patchA, patchB, true);
-                Check(lifted != null && lifted.Lifted > .5f && seen >= .8f,
-                    $"lifting, the cloth is off where the smudge was: {seen:P0} of it in view past the cloth ({t:0.00} s after; " +
-                    (seenWiping >= 0f ? $"{seenWiping:P0} while wiping)" : "not measured while wiping)"));
-                yield return Photo("13b-the-cloth-lifts");
-            }
-            if (!shotLit && t >= 1.15f)
-            {
-                shotLit = true;
-                Check(wake != null && wake.Woken && Juice.Wakes == wakesBefore + 1 && wake.LitScreen != null && wake.LitScreen.transform == glass
-                      && wake.LitScreen.sharedMaterial.IsKeywordEnabled("_EMISSION"),
-                    $"the smudge was its last task: the phone wakes, its working screen lights up ({(wake == null ? "no DeviceWake" : wake.LitScreen == null ? "nothing lit" : wake.LitScreen.name + " glows")})");
-                Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect" && job.IsFinished && job.Grade == JobGrade.Perfect,
-                    $"never opened, it is finished at that last wipe: \"Fixed! · Perfect\", once, a beat after the wake (words: \"{Juice.LastWords}\", endings: {Juice.Finishes - finishesBefore})");
-                Check(lifted != null && lifted.Lifted > .9f, $"and the cloth is still up, clear of the glass, while the screen lights ({(lifted != null ? lifted.Lifted : 0f):P0} lifted, {t:0.00} s after)");
-                Check(Juice.Gleams > gleamsBefore && Sfx.Requested("cloth.gleam") > 0, "a gleam swept the glass it had cleared");
-                yield return Photo("14-clean-and-lit");
-            }
-            yield return null;
+            float off = (k % 3 - 1) * .35f;
+            Vector3 a = c1 - right * half1 * 1.1f + fwd * half1 * off, b = c1 + right * half1 * 1.1f + fwd * half1 * off;
+            yield return Sweep(k % 2 == 0 ? a : b, k % 2 == 0 ? b : a, .008f, null);
         }
-        Check(cleaned && highest >= .02f, $"lifted, the cloth rose {(float.IsInfinity(highest) ? 0f : highest * 1000f):0} mm off the glass, up and back toward the hand");
-        yield return Seconds(Mathf.Max(0f, cleanAt + 2.2f - Time.realtimeSinceStartup));
-        float down = lifted != null ? lifted.transform.position.y - glassTop : 1f;
-        Check(lifted != null && !lifted.Lifting && down < .012f,
-            $"then it comes back down to the cursor on the glass ({down * 1000f:0} mm over it, {Time.realtimeSinceStartup - cleanAt:0.0} s after it came clean)");
-        Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect", "it ended once: no \"Back together\" for a phone that was never opened");
+        yield return Await(() => Gone(other), .6f);
+        Check(Gone(other), "the other spot comes clean the same way");
+        yield return Await(() => !brush.InHand && !brush.Returning, 1f);
+        Pose home = brush.HomePose;
+        Check(!brush.InHand && inspector.CurrentTool == ToolType.Hand && (brush.transform.position - home.position).magnitude < .001f && Sfx.Requested("tool.down") > downsBefore,
+            $"its last dirt spot clean, the brush lifted and flew home by itself, landing with tool.down ({(brush.transform.position - home.position).magnitude * 1000f:0.0} mm from its seat)");
+        yield return LetGo();
+
+        // ---- "what's left" (§4.5): the smudge lights gold, then lets go ----
+        int flashesBefore = BenchWork.Flashes, shimmersBefore = Sfx.Requested("bench.showleft");
+        BenchWork.Flash(job);
+        yield return Seconds(.25f);
+        Check(smudge.Flashed > 1f && BenchWork.Flashes == flashesBefore + 1 && Sfx.Requested("bench.showleft") > shimmersBefore,
+            $"\"what's left\" lights the smudge gold ({smudge.Flashed:0.00} of 1.5) with its shimmer");
+        yield return Photo("12b-whats-left");
+        yield return Seconds(1.4f);
+        Check(smudge.Flashed <= 0f, "and lets it go after 1.5 s");
+
+        // ---- the cloth, the pad's way (RB): smear first, then clean; the last task ----
+        int finishesBefore = Juice.Finishes, wakesBefore = Juice.Wakes;
+        DeviceWake wake = device.GetComponent<DeviceWake>();
+        Vector3 cs = smudge.Centre;
+        yield return Hover(cs, smudge.PartName, "", "the smudge with bare hands (its part's name only)");
+        yield return SelectTool(ToolType.Cloth);
+        ToolPickup cloth = ToolInHand(ToolType.Cloth);
+        Check(cloth != null && !cloth.IsStandIn, "the cloth is in the hand (RB)");
+        if (cloth == null) yield break;
+        float halfS = Mathf.Abs(smudge.transform.lossyScale.x) * .5f;
+        Vector3 rs = Vector3.ProjectOnPlane(cam.transform.right, smudge.Normal).normalized, fs = Vector3.Cross(smudge.Normal, rs).normalized;
+        int gleamsBefore = Juice.Gleams, downsCloth = Sfx.Requested("tool.down");
+        // One true pass: the cursor to the stroke's start with the trigger up, then held across (15 Oct: pressed at the smudge's
+        // middle and gliding out to the start, the hand made a pass and a half, and 71 % came off).
+        Vector3 passFrom = cs - rs * halfS * 1.1f, passTo = cs + rs * halfS * 1.1f;
+        yield return Glide(passFrom, .3f);
+        PadHold(RT);
+        yield return Sweep(passFrom, passTo, .006f, null);
+        float smeared = smudge.Progress;
+        float flat = Vector3.Angle(cloth.transform.up, smudge.Normal), over = Vector3.Dot(cloth.transform.position - cs, smudge.Normal);
+        Check(cloth.InHand && flat < 8f && over > -.002f && over < .004f && (cloth.PressShown > .8f || cloth.transform.Find("BT_ClothHeld") == null),
+            $"wiping, the cloth lies flat on the glass, pressed ({flat:0.0}° off, {over * 1000f:0.0} mm over it; Press {cloth.PressShown:0.00})");
+        // BenchRules' smear first: one full pass takes 0.8 x (0.15 x 0.5 + 0.5) = 46 % at the footprint's core, where a pass
+        // without the smear would take 80 %; so under half means the grease smeared first (the old 30 % bar was under even
+        // the rules' own first pass).
+        Check(smeared > 0f && smeared < .5f, $"the first pass smears the grease more than it lifts it ({smeared:P0} off; a pass without the smear takes 80 %)");
+        yield return Photo("13a-the-cloth-wiping");
+        for (int k = 0; k < 8 && !Gone(smudge); k++)
+        {
+            float off = ((k % 4) - 1.5f) * .3f;
+            Vector3 a = cs - rs * halfS * 1.1f + fs * halfS * off, b = cs + rs * halfS * 1.1f + fs * halfS * off;
+            yield return Sweep(k % 2 == 0 ? b : a, k % 2 == 0 ? a : b, .008f, null);
+        }
+        bool cleaned = Gone(smudge);
+        Check(cleaned, "wiped back and forth, the smudge thins to haze and comes clean" + (cleaned ? "" : $" (only {(smudge != null ? smudge.Progress : 0f):P0})"));
+        if (Sfx.Requested("cloth.squeak") > 0) Note("the cloth squeaked at a turn while grease came off");
+        else Note("no squeak heard (it needs a turn at 250 px/s or more while grease comes off: the glides may be too slow)");
+        yield return Await(() => !cloth.InHand && !cloth.Returning, 1f);
+        Check(!cloth.InHand && inspector.CurrentTool == ToolType.Hand && Sfx.Requested("tool.down") > downsCloth,
+            "the smudge clean, the cloth lifts off and flies home by itself (no lift to come back from: §4.4.6)");
+        Check(inspector.ToolInHand == null && !inspector.Rubbing, "and the trigger still held does nothing until it's let go (the press is spent)");
+        yield return LetGo();
+        yield return Await(() => Juice.Finishes > finishesBefore, 2f);
+        Check(Juice.Gleams > gleamsBefore && Sfx.Requested("cloth.gleam") > 0, "a gleam swept the glass it had cleared, on the frame it came clean");
+        Check(wake != null && wake.Woken && Juice.Wakes == wakesBefore + 1 && Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect" && job.IsFinished,
+            $"the smudge was its last task: the phone wakes and it ends once, \"Fixed! · Perfect\" (words: \"{Juice.LastWords}\")");
+        yield return Photo("14-clean-and-lit");
 
         inspector.CancelInspection();
         yield return AfterBlend();
         Check(!inspector.IsHoldingItem, "stepping back puts it down");
     }
 
-    // ---------- act three (playtest 4): Grace's camera, the story's own device, ends the same way ----------
+    // The device's budge now, in 1080p pixels on screen (BenchFeel adds it in ItemInspector.Pose).
+    float BudgePx()
+    {
+        if (device == null || cam == null) return 0f;
+        Vector3 at = device.transform.position;
+        Vector2 a = cam.WorldToScreenPoint(at), b = cam.WorldToScreenPoint(at - BenchFeel.BudgeOffset);
+        return (a - b).magnitude * 1080f / Mathf.Max(1, UnityEngine.Screen.height);
+    }
+
+    // ---------- act three: Grace's camera, by its verbs (the forgiving bench, §6) ----------
     //
-    // By the check's hand (this act is about the moments, not the hands: Checks > Grace camera tweezers interaction proves
-    // the verbs on it): its lens and film path cleaned, and nothing ends while its shutter is jammed (a clean camera that
-    // can't take a picture isn't fixed: Quality 0); the new shutter in, the camera wakes (wound, its shutter fires once) and
-    // "Fixed! · Perfect" comes once. Its scratched strap is still on it.
+    // Day 1's camera (fault 0): its lens wiped with the cloth and its film path and guide brushed, by the pad's own hand, each
+    // tool home by itself after its last spot; Day 2's (fault 1): the jammed shutter pinched out to the old-parts tray, the clean
+    // one held from its pad: it flies over and presses in. One "Fixed! · Perfect" each, the scratched strap kept. (Before the
+    // days builder's split the camera has one fault: the clean and the swap are then one job, and one ending.)
 
     IEnumerator ActThree()
     {
@@ -867,26 +832,42 @@ public sealed class BenchLab : PlayLab
 #endif
         Check(cameraPrefab != null, "Grace's camera prefab loads");
         if (cameraPrefab == null) yield break;
+        DeviceDefinition definitionOnPrefab = cameraPrefab.GetComponent<DeviceDefinition>();
+        int faults = definitionOnPrefab != null && definitionOnPrefab.faults != null ? definitionOnPrefab.faults.Length : 0;
+        yield return GraceCamera(cameraPrefab, 0, faults >= 2 ? "Day 1's clean" : "the clean and the swap (one fault: the days builder's split isn't in yet)");
+        if (faults >= 2) yield return GraceCamera(cameraPrefab, 1, "Day 2's swap");
+    }
+
+    IEnumerator GraceCamera(GameObject cameraPrefab, int faultIndex, string what)
+    {
+        if (inspector.IsHoldingItem) { inspector.CancelInspection(); yield return AfterBlend(); }
+        if (device != null)
+        {
+            foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(job);
+            made.Remove(device);
+            Destroy(device);
+            yield return Frames(2);
+        }
         device = Instantiate(cameraPrefab, bench.StandPoint.position + Vector3.up * 1.2f, Quaternion.identity);
-        device.name = "Bench check Grace camera";
+        device.name = $"Bench check Grace camera ({what})";
         made.Add(device);
         var definition = device.GetComponent<DeviceDefinition>();
         job = device.GetComponent<JobBase>();
         var grace = job as GraceCameraRepairJob;
-        DeviceFault fault = definition != null ? definition.GetFault(0) : null;
-        Check(definition != null && grace != null && fault != null && grace.Shutter != null, "it has a definition, Grace's camera job, its fault and a shutter");
-        if (definition == null || grace == null || fault == null || grace.Shutter == null) yield break;
-        definition.ApplyFault(0);
+        DeviceFault fault = definition != null ? definition.GetFault(faultIndex) : null;
+        Check(definition != null && grace != null && fault != null, $"{what}: Grace's camera has its definition, its job and the fault");
+        if (definition == null || grace == null || fault == null) yield break;
+        definition.ApplyFault(faultIndex);
         job.Configure(new Job
         {
-            kind = JobKind.Repair, devicePrefab = cameraPrefab, deviceName = definition.displayName, faultIndex = 0,
-            faultType = fault.type, faultDescription = fault.description, payout = fault.payout, number = 97, color = Color.white
+            kind = JobKind.Repair, devicePrefab = cameraPrefab, deviceName = definition.displayName, faultIndex = faultIndex,
+            faultType = fault.type, faultDescription = fault.description, payout = fault.payout, number = 97 - faultIndex, color = Color.white
         });
         yield return Frames(2);
         GrimeSpot[] spots = job.GetComponentsInChildren<GrimeSpot>();
-        DeviceWake wake = device.GetComponent<DeviceWake>();
-        Check(spots.Length == 3 && wake != null && wake.What == DeviceWake.Kind.ShutterFires,
-            $"its lens and film path are dirty ({spots.Length} spots) and it wakes by firing its shutter ({(wake != null ? wake.What.ToString() : "no DeviceWake: run Bench 4")})");
+        ReplaceablePart shutter = grace.Shutter != null && grace.Shutter.gameObject.activeInHierarchy ? grace.Shutter : null;
+        Note($"{what}: {spots.Length} spots, {(shutter != null ? "the jammed shutter on" : "no shutter to swap")} (\"{fault.description}\")");
+        Check(spots.Length > 0 || shutter != null, $"{what}: there is work on it");
         Check(carry.TryPickUp(job), "Ace takes it");
         PutAce(bench.StandPoint.position, bench.StandPoint.eulerAngles.y);
         yield return Seconds(.4f);
@@ -897,34 +878,73 @@ public sealed class BenchLab : PlayLab
         if (!inspector.IsHoldingItem) yield break;
         yield return AfterBlend();
         yield return Frames(6);
-        yield return Photo("15-grace-camera-on-the-mat");
+        yield return Photo($"15-grace-camera-{faultIndex}-on-the-mat");
+        int finishesBefore = Juice.Finishes;
 
-        int finishesBefore = Juice.Finishes, wakesBefore = Juice.Wakes;
-        float wordsBefore = Juice.LastWordsAt;
-        foreach (GrimeSpot g in spots) if (g != null) g.Scrub(100000f);
-        yield return Until(() => job.GetComponentsInChildren<GrimeSpot>().Length == 0, 1f, "its lens and film path cleaned (the check's hand)");
-        yield return Seconds(.5f);
-        Check(job.Quality <= 0f && wake != null && !wake.Woken && Juice.Wakes == wakesBefore && Juice.Finishes == finishesBefore && Juice.LastWordsAt == wordsBefore,
-            $"clean, with its shutter jammed, it can't take a picture: no wake, no words, no grade yet ({job.Quality:P0}; \"{grace.TaskSummary}\")");
-        int windsBefore = Sfx.Requested("camera.wind"), shuttersBefore = Sfx.Requested("camera.shutter");
-        grace.Shutter.Activate();
-        yield return Until(() => grace.Shutter.IsReplaced, 3f, "the new shutter goes in (the check's hand: the jammed one out to the tray, the working one seated)");
-        yield return Await(() => Juice.Finishes > finishesBefore, 1.5f);
-        yield return Seconds(.6f);
-        Check(wake != null && wake.Woken && Juice.Wakes == wakesBefore + 1, "its last task done, the camera wakes: its advance wound, the new shutter fires");
+        // The spots, in the card's order, by the pad's own hand.
+        for (int guard = 0; guard < 8; guard++)
+        {
+            RepairChecklist.Step now = inspector.CurrentStep;
+            GrimeSpot next = now != null && now.targets != null ? now.targets.OfType<GrimeSpot>().FirstOrDefault(g => !Gone(g)) : null;
+            if (next == null) next = spots.FirstOrDefault(g => !Gone(g));
+            if (next == null) break;
+            yield return CleanByHand(next);
+        }
+        Check(spots.All(Gone), $"{what}: every spot is clean, by the cloth and the brush in the hand");
+
+        // The swap: the jammed shutter out to the tray, the clean one in with one hold.
+        if (shutter != null)
+        {
+            BenchStage stage = BenchStage.Instance;
+            yield return SelectTool(ToolType.Tweezers);
+            yield return Hover(BenchInteractable.BoundsCentre(shutter.transform), shutter.DisplayName, null, "the jammed shutter");
+            PadHold(RT);
+            yield return Until(() => shutter.State != ReplaceablePart.PartState.InPlace, 1.5f, "held, the tweezers pinch the jammed shutter out");
+            yield return LetGo();
+            yield return Until(() => shutter.State == ReplaceablePart.PartState.Removed && stage != null && stage.InPlace(shutter), 2f, "it flies into the old-parts tray by itself");
+            LoosePart fresh = shutter.Fresh;
+            Check(fresh != null && stage != null && stage.PlaceOf(fresh) != null, "the clean shutter waits on the new-part pad");
+            if (fresh != null)
+            {
+                yield return Hover(BenchInteractable.BoundsCentre(fresh.transform), fresh.DisplayName, null, "the clean shutter on its pad");
+                PadHold(RT);
+                yield return Until(() => shutter.IsReplaced, 2.5f, "one hold: it flies over its seat, hovers and presses in");
+                yield return LetGo();
+            }
+        }
+
+        yield return Await(() => Juice.Finishes > finishesBefore, 3f);
+        yield return Seconds(.8f);
         Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect" && job.IsFinished && job.Grade == JobGrade.Perfect,
-            $"in one piece with every fault fixed, it ends once: \"Fixed! · Perfect\" (words: \"{Juice.LastWords}\", endings: {Juice.Finishes - finishesBefore})");
-        yield return Photo("16-grace-camera-fixed");
-        yield return Seconds(.5f);
-        Check(Sfx.Requested("camera.wind") > windsBefore && Sfx.Requested("camera.shutter") == shuttersBefore + 1,
-            $"one shutter is the beat, not two: the advance wound, then a single shutter ({Sfx.Requested("camera.shutter") - shuttersBefore} heard)");
-        Check(Juice.Finishes == finishesBefore + 1 && Juice.LastWords == "Fixed! · Perfect", "still one ending, and nothing after it");
+            $"{what}: it ends once, \"Fixed! · Perfect\" (words: \"{Juice.LastWords}\", endings: {Juice.Finishes - finishesBefore})");
         Transform strap = device.transform.Find("KEEP - scratched sentimental strap");
-        Check(strap != null && strap.gameObject.activeInHierarchy, "its scratched strap is still on it: kept, never a part to replace");
-
+        Check(strap != null && strap.gameObject.activeInHierarchy, $"{what}: its scratched strap is still on it, kept");
+        yield return Photo($"16-grace-camera-{faultIndex}-fixed");
         inspector.CancelInspection();
         yield return AfterBlend();
         Check(!inspector.IsHoldingItem, "stepping back puts it down");
+    }
+
+    // A spot cleaned the way a pad player does it: its tool by RB, the cursor onto it, the trigger held, strokes across it.
+    IEnumerator CleanByHand(GrimeSpot spot)
+    {
+        if (Gone(spot)) yield break;
+        yield return SelectTool(spot.Tool);
+        if (Gone(spot)) yield break;
+        string name = spot.PartName;
+        Vector3 c = spot.Centre;
+        float half = Mathf.Abs(spot.transform.lossyScale.x) * .5f;
+        Vector3 r = Vector3.ProjectOnPlane(cam.transform.right, spot.Normal).normalized, f = Vector3.Cross(spot.Normal, r).normalized;
+        PadHold(RT);
+        for (int k = 0; k < 8 && !Gone(spot); k++)
+        {
+            float off = ((k % 4) - 1.5f) * .3f;
+            Vector3 a = c - r * half * 1.1f + f * half * off, b = c + r * half * 1.1f + f * half * off;
+            yield return Sweep(k % 2 == 0 ? a : b, k % 2 == 0 ? b : a, .008f, null);
+        }
+        yield return LetGo();
+        yield return Await(() => Gone(spot), .6f);
+        Check(Gone(spot), $"{name}: cleaned by the {Name(spot.Tool)} in strokes");
     }
 
     // The cursor glided from one point on the device to another with the button held: a stroke of the tool between them.
@@ -935,11 +955,19 @@ public sealed class BenchLab : PlayLab
     // cursor over the spot at any frame, so nothing is scrubbed along it (13 Oct: 117 of 125 on 9 Oct and 164 of 172 today,
     // the same eight, the spot left at 90-96 % along one side; 125/125 and 161/161 with Unity in front). The game is not
     // the matter: a player's cursor crosses a spot over many frames.
-    IEnumerator Sweep(Vector3 from, Vector3 to)
+    IEnumerator Sweep(Vector3 from, Vector3 to) => Sweep(from, to, .008f, null);
+
+    // ...in steps of `step` metres (smaller: a slower hand), with `watch` called every frame of it.
+    IEnumerator Sweep(Vector3 from, Vector3 to, float step, Action watch)
     {
         yield return Glide(from, .3f);
-        int steps = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(from, to) / .008f), 2, 12);
-        for (int i = 1; i <= steps; i++) yield return Glide(Vector3.Lerp(from, to, i / (float)steps), .1f);
+        int steps = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(from, to) / Mathf.Max(.001f, step)), 2, 40);
+        for (int i = 1; i <= steps; i++)
+        {
+            PadCursor.GlideTo(Px(Vector3.Lerp(from, to, i / (float)steps)));
+            float until = Time.realtimeSinceStartup + .1f;
+            for (int f = 0; f < 2 || PadCursor.Gliding && Time.realtimeSinceStartup < until; f++) { watch?.Invoke(); yield return null; }
+        }
     }
 
     IEnumerator Glide(Vector3 world, float seconds)
@@ -949,79 +977,79 @@ public sealed class BenchLab : PlayLab
         yield return Await(() => !PadCursor.Gliding, seconds);
     }
 
-    // The same glide, watched every frame: it stops the moment `stop` comes true (the smudge comes clean), so what follows
-    // is timed from that frame, not from the end of a glide.
-    IEnumerator GlideUntil(Vector3 world, float seconds, Func<bool> stop)
+    static bool Gone(GrimeSpot spot) => spot == null || spot.IsClean;
+
+    // A freed screw: it pops and flies to its own cup, lands with its tink on the flight's last frame, in view, never a rigidbody.
+    IEnumerator ScrewLands(Screw s, string what)
     {
-        PadCursor.GlideTo(Px(world));
-        for (int f = 0; f < 2 && !Safe(stop); f++) yield return null;
-        float until = Time.realtimeSinceStartup + seconds;
-        while (PadCursor.Gliding && !Safe(stop) && Time.realtimeSinceStartup < until) yield return null;
+        BenchStage stage = BenchStage.Instance;
+        bool flew = false;
+        float until = Time.realtimeSinceStartup + 2f;
+        while (Time.realtimeSinceStartup < until && !(s.InCup && stage.InPlace(s)))
+        {
+            flew |= s.Flying;
+            if (HasBody(s.gameObject)) { Check(false, what + " became a rigidbody"); yield break; }
+            yield return null;
+        }
+        Transform cup = stage.PlaceOf(s);
+        Check(s.InCup && cup != null && cup.name.StartsWith("Cup_"), $"{what}: free, it pops and flies to its own cup ({(cup != null ? cup.name : "no cup")}){(flew ? "" : " (the flight wasn't seen)")}");
+        Check(InView(s.transform), $"...where it lies in view ({Vector3.Distance(s.transform.position, cup != null ? cup.position : s.transform.position) * 1000f:0.0} mm from the cup's middle)");
     }
 
-    static bool Gone(GrimeSpot spot) => spot == null || spot.IsClean;
+    // A fresh phone, opened by the check's hand: with its screen still to replace, a press on its cover in the well does nothing,
+    // and a 0.4 s hold closes it anyway (§4.2: a stray click can't close the device over unfinished work).
+    IEnumerator CloseAnyway()
+    {
+        if (inspector.IsHoldingItem) { inspector.CancelInspection(); yield return AfterBlend(); }
+        foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(job);
+        made.Remove(device);
+        Destroy(device);
+        yield return Frames(2);
+        device = Instantiate(prefab, bench.StandPoint.position + Vector3.up * 1.2f, Quaternion.identity);
+        device.name = "Bench check phone (close anyway)";
+        made.Add(device);
+        var definition = device.GetComponent<DeviceDefinition>();
+        job = device.GetComponent<JobBase>();
+        definition.ApplyFault(0);
+        DeviceFault fault = definition.GetFault(0);
+        job.Configure(new Job
+        {
+            kind = JobKind.Repair, devicePrefab = prefab, deviceName = definition.displayName, faultIndex = 0,
+            faultType = fault.type, faultDescription = fault.description, payout = fault.payout, number = 96, color = Color.white
+        });
+        yield return Frames(2);
+        Check(carry.TryPickUp(job), "a fresh phone: Ace takes it");
+        bench.Interact(interactor);
+        yield return Seconds(.4f);
+        Check(inspector.BeginInspection(job), "the close-up opens on it");
+        if (!inspector.IsHoldingItem) yield break;
+        yield return AfterBlend();
+        RemovablePart cover = job.GetComponentInChildren<RemovablePart>();
+        foreach (Screw s in cover.HeldBy) s.Unscrew(null);                 // the check's hand: screws out, cover off
+        yield return Await(() => cover.HeldBy.All(s => s.InCup), 4f);
+        cover.Activate();
+        yield return Until(() => cover.InWell, 3f, "(the check's hand: screws out, cover off, in its well)");
+        if (Vector3.Dot(Face(), Vector3.up) > 0f) { yield return PadPress(GamepadButton.North); yield return Seconds(.9f); }
+        Check(cover.WorkBeneathToDo, "its screen is still to replace: work is left under the cover");
+        yield return Hover(BenchInteractable.BoundsCentre(cover.transform), cover.DisplayName, null, "the cover in its well, work left inside");
+        PadHold(RT);
+        yield return Frames(3);
+        yield return LetGo();
+        yield return Seconds(.6f);
+        Check(cover.InWell, "a press (3 frames) does nothing: a stray click can't close it over unfinished work");
+        PadHold(RT);
+        yield return Until(() => cover.State == RemovablePart.CoverState.Seated, 1.6f, "a 0.4 s hold closes it anyway (and it flies home)");
+        yield return LetGo();
+        yield return Photo("09b-closed-anyway");
+    }
+
+    static bool HasBody(GameObject g) => g != null && g.GetComponentInChildren<Rigidbody>(true) != null;
 
     // ---------- measuring the tools (playtest 4) ----------
 
     // The tool's handle (its +Y) up from a surface with normal n, degrees: 0 lying on it, 90 stood on its tip.
     static float Rise(ToolPickup tool, Vector3 n) =>
         tool == null ? 0f : Mathf.Asin(Mathf.Clamp(Vector3.Dot(tool.transform.up, n.normalized), -1f, 1f)) * Mathf.Rad2Deg;
-
-    // The cloth's size in the world now (its mesh's bounds at its scale): across the glass (x, z) and its height (y).
-    static Vector3 PadSize(ToolPickup cloth)
-    {
-        MeshFilter mf = cloth != null ? cloth.GetComponent<MeshFilter>() : null;
-        if (mf == null || mf.sharedMesh == null) return Vector3.one;
-        Vector3 s = cloth.transform.lossyScale;
-        return Vector3.Scale(mf.sharedMesh.bounds.size, new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z)));
-    }
-
-    // A flat thing's face toward the camera (its mesh's bounds): its middle and its two half-axes, in the world.
-    bool FlatFace(Transform t, out Vector3 middle, out Vector3 halfA, out Vector3 halfB)
-    {
-        middle = t.position;
-        halfA = halfB = Vector3.zero;
-        MeshFilter mf = t.GetComponent<MeshFilter>();
-        if (mf == null || mf.sharedMesh == null) return false;
-        Bounds b = mf.sharedMesh.bounds;
-        Vector3 e = b.extents;
-        int thin = e.x <= e.y && e.x <= e.z ? 0 : e.y <= e.z ? 1 : 2;
-        int i = thin == 0 ? 1 : 0, k = thin == 2 ? 1 : 2;
-        Vector3 up = Vector3.zero, da = Vector3.zero, db = Vector3.zero;
-        up[thin] = e[thin];
-        da[i] = e[i];
-        db[k] = e[k];
-        Vector3 top = t.TransformPoint(b.center + up), bottom = t.TransformPoint(b.center - up);
-        Vector3 eye = cam.transform.position;
-        middle = (top - eye).sqrMagnitude <= (bottom - eye).sqrMagnitude ? top : bottom;
-        halfA = t.TransformVector(da);
-        halfB = t.TransformVector(db);
-        return true;
-    }
-
-    // The share of a patch on the device (a grid of points over a disc or a rectangle, given by its middle and two half-axes)
-    // that the camera sees past the cloth in the hand: 1, none of it hidden. The cloth is its mesh's box, wherever it is now.
-    float SeenPast(ToolPickup cloth, Vector3 middle, Vector3 halfA, Vector3 halfB, bool round, int rows = 9)
-    {
-        MeshFilter mf = cloth != null ? cloth.GetComponent<MeshFilter>() : null;
-        if (mf == null || mf.sharedMesh == null || cam == null || rows < 2) return 1f;
-        Bounds box = mf.sharedMesh.bounds;
-        Vector3 eye = cloth.transform.InverseTransformPoint(cam.transform.position);
-        int seen = 0, all = 0;
-        for (int i = 0; i < rows; i++)
-            for (int k = 0; k < rows; k++)
-            {
-                float u = i / (rows - 1f) * 2f - 1f, v = k / (rows - 1f) * 2f - 1f;
-                if (round && u * u + v * v > 1f) continue;
-                all++;
-                Vector3 p = cloth.transform.InverseTransformPoint(middle + halfA * u + halfB * v);
-                Vector3 d = p - eye;
-                float length = d.magnitude;
-                if (length > 1e-6f && box.IntersectRay(new Ray(eye, d / length), out float hit) && hit < length) continue;
-                seen++;
-            }
-        return all > 0 ? seen / (float)all : 1f;
-    }
 
     // ---------- the hands ----------
 
@@ -1072,25 +1100,13 @@ public sealed class BenchLab : PlayLab
 
     Vector3 Face() => device.transform.up * frontSign;
 
-    // Where a thing lies in the tray, for the report: along and across the tray from its middle, how far off its floor, and
-    // whether the close-up camera draws it at all.
-    string TrayPlace(Transform t)
-    {
-        BenchStage stage = BenchStage.Instance;
-        Vector3 d = t.position - stage.Tray.position;
-        Renderer r = FirstRenderer(t);
-        string drawn = r == null ? "no renderer" : !r.enabled ? "renderer off" : !t.gameObject.activeInHierarchy ? "inactive"
-            : (cam.cullingMask & (1 << r.gameObject.layer)) == 0 ? $"layer {LayerMask.LayerToName(r.gameObject.layer)} not drawn" : "drawn";
-        return $"{Vector3.Dot(d, stage.TrayLongAxis) * 100f:0.0} cm along, {Vector3.Dot(d, Vector3.Cross(Vector3.up, stage.TrayLongAxis)) * 100f:0.0} cm across, "
-             + $"{(LowestPoint(t) - stage.Tray.position.y) * 1000f:0} mm off the floor, {drawn}";
-    }
-
     // In view: drawn by the close-up camera, and not sunk into the tray's floor.
     bool InView(Transform t)
     {
         Renderer r = FirstRenderer(t);
-        return r != null && r.enabled && t.gameObject.activeInHierarchy && (cam.cullingMask & (1 << r.gameObject.layer)) != 0
-               && LowestPoint(t) > BenchStage.Instance.Tray.position.y - .004f;
+        if (r == null || !r.enabled || !t.gameObject.activeInHierarchy || (cam.cullingMask & (1 << r.gameObject.layer)) == 0) return false;
+        Vector3 v = cam.WorldToViewportPoint(BenchInteractable.BoundsCentre(t));
+        return v.z > 0f && v.x > 0f && v.x < 1f && v.y > 0f && v.y < 1f;
     }
 
     static Renderer FirstRenderer(Transform t)
@@ -1137,6 +1153,19 @@ public sealed class BenchLab : PlayLab
     float Distance() => Vector3.Distance(cam.transform.position, device.transform.position);
     float Depth(Vector3 world) => Vector3.Dot(world - cam.transform.position, cam.transform.forward);
 
+    // The mat as drawn, without what lies on it (a part on its pad, a screw in a cup, a tool, an outline hull).
+    static Bounds MatOwnBounds(Transform mat)
+    {
+        Renderer[] own = mat.GetComponentsInChildren<Renderer>()
+            .Where(r => r.GetComponentInParent<LoosePart>() == null && r.GetComponentInParent<JobBase>() == null && r.GetComponentInParent<Screw>() == null &&
+                        r.GetComponentInParent<ToolPickup>() == null && r.GetComponent<BenchOutlineHull>() == null)
+            .ToArray();
+        if (own.Length == 0) return RendererBounds(mat);
+        Bounds b = own[0].bounds;
+        foreach (Renderer r in own) b.Encapsulate(r.bounds);
+        return b;
+    }
+
     static Bounds RendererBounds(Transform root)
     {
         Renderer[] renderers = root.GetComponentsInChildren<Renderer>();
@@ -1148,18 +1177,17 @@ public sealed class BenchLab : PlayLab
 
     bool OverMat(Vector3 p)
     {
-        Transform mat = BenchStage.Instance.Mat;
-        var box = mat.GetComponent<BoxCollider>();
-        Bounds b = box != null ? box.bounds : new Bounds(mat.position, new Vector3(.6f, .01f, .36f));
-        float top = b.max.y;
-        return p.x > b.min.x && p.x < b.max.x && p.z > b.min.z && p.z < b.max.z && p.y > top - .005f && p.y < top + .04f;
+        BenchStage stage = BenchStage.Instance;
+        Vector2 mm = stage.WorldToMat(p);
+        float up = p.y - stage.MatToWorld(Vector2.zero, BenchStage.MatTop).y;
+        return Mathf.Abs(mm.x) < 300f && Mathf.Abs(mm.y) < 180f && up > -.005f && up < .04f;
     }
 
     string Where(Vector3 p)
     {
-        if (BenchStage.Instance.InTray(p)) return "in the tray";
-        if (OverMat(p)) return $"on the mat, {(p - BenchStage.Instance.Mat.position).x * 100f:0} cm across, {(p - BenchStage.Instance.Mat.position).z * 100f:0} cm back";
-        return $"elsewhere: {p - BenchStage.Instance.Mat.position}";
+        BenchStage stage = BenchStage.Instance;
+        Vector2 mm = stage.WorldToMat(p);
+        return OverMat(p) ? $"on the mat at ({mm.x:0}, {mm.y:0}) mm" : $"off the mat: ({mm.x:0}, {mm.y:0}) mm, {(p.y - stage.MatToWorld(Vector2.zero, BenchStage.MatTop).y) * 1000f:0} mm up";
     }
 
     void PutAce(Vector3 at, float yaw)

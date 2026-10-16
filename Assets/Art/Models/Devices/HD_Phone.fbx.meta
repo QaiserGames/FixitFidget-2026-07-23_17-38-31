@@ -77,6 +77,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_ScrewBlack
+    second: {fileID: 2100000, guid: 4b23843dbc3fd4f97b54bb9335724112, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_ScrewRecess
+    second: {fileID: 2100000, guid: 9bd55322abe6a4b0fbf1f9e61bc2d846, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_ScrewSlot
     second: {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   materials:

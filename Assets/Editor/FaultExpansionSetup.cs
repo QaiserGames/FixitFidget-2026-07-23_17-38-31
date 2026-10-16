@@ -133,6 +133,8 @@ public static class FaultExpansionSetup
         {
             DeviceDefinition def = root.GetComponent<DeviceDefinition>();
             if (def == null) { log.Add("PocketWatch: no DeviceDefinition — skipped"); return; }
+            // One scale (14 Oct, td-one-scale.md §6.4): the offsets below are the 3x watch's.
+            if (def.realSize) { log.Add("PocketWatch: at real size (Devices 2), and this step's offsets are the 3x watch's — refused, nothing changed."); return; }
 
             if (AlreadyExpanded(root)) { log.Add("PocketWatch: already expanded, skipped."); return; }
 
@@ -233,6 +235,8 @@ public static class FaultExpansionSetup
         {
             DeviceDefinition def = root.GetComponent<DeviceDefinition>();
             if (def == null) { log.Add("PhoneRepair: no DeviceDefinition — skipped"); return; }
+            // One scale (14 Oct, td-one-scale.md §6.4): the old builder steps don't run on a baked prefab.
+            if (def.realSize) { log.Add("PhoneRepair: at real size (Devices 2) — refused, nothing changed."); return; }
 
             if (AlreadyExpanded(root)) { log.Add("PhoneRepair: already expanded, skipped."); return; }
 

@@ -102,6 +102,39 @@ public class WaitingArea : MonoBehaviour
         return chosen;
     }
 
+    // THE REPAIR BAR FIRST (14 Oct 2026, NPC wave 2). His girlfriend, playtest 5: "people wouldn't sit down on the bar
+    // stools that are infront of the repair station". The nearest-seat rule below measures from the counter place the
+    // customer stands at, and from the place everyone alone uses (x +1.6) the bistro's chair was as near as the east stool
+    // and the middle and west stools never won: two of the three were never used. The repair bar exists for the person
+    // whose thing is on the mat (since playtest 4 Ace reassures and hands back over the counter without a step), so a
+    // customer whose repair goes to the bench takes the free stool whose seat is nearest the bench, the middle one first;
+    // two within 0.1 m of each other go to the one nearer the customer (east, from the counter). Null when all three are
+    // taken: the caller then uses Claim, the nearest seat, as before. Drinks, the Human fault and patrons never ask.
+    public const float RepairBarTie = .1f;
+
+    public WaitingSpot ClaimRepairBar(Component occupant, Vector3 benchPoint)
+    {
+        scratch.Clear();
+        float nearest = float.PositiveInfinity;
+        for (int i = 0; i < registry.Count; i++)
+        {
+            if (!(registry[i] is TableSeat stool) || !stool.RepairBar || !stool.IsAvailable || !HasClaimClearance(stool, occupant)) continue;
+            scratch.Add(stool);
+            nearest = Mathf.Min(nearest, Flat(stool.SeatPose.position - benchPoint).magnitude);
+        }
+        if (scratch.Count == 0) return null;
+        Vector3 from = occupant != null ? occupant.transform.position : transform.position;
+        WaitingSpot pick = null;
+        float pickToOccupant = float.PositiveInfinity;
+        foreach (WaitingSpot s in scratch)
+        {
+            if (Flat(((TableSeat)s).SeatPose.position - benchPoint).magnitude > nearest + RepairBarTie) continue;
+            float toOccupant = Flat(s.StandPoint.position - from).magnitude;
+            if (toOccupant < pickToOccupant) { pickToOccupant = toOccupant; pick = s; }
+        }
+        return pick != null && pick.Claim(occupant) ? pick : null;
+    }
+
     // THE NEAREST FREE SPOT (pass 2b, 27 Sept 2026). This used to be a random
     // free spot anywhere in the room ("so the room doesn't fill left to right"),
     // which had people walking past empty chairs to one across the café - it

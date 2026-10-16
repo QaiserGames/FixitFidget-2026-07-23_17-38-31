@@ -98,6 +98,16 @@ public sealed class HudCorners : MonoBehaviour
     CounterRepairView counterPhone;
     bool wasShown;
 
+    // QUIET AT THE BENCH (checklist v2, 14 Oct 2026; his playtest 5: "the checklist is terrible", the First Hour's count of
+    // about 120 words on the first repair's screen). While the close-up is up, "TODAY", the sign's under-line ("COME IN",
+    // "CLOSING AT 7 PM", "FINISHING UP") and the day line ("Monday · Day 1") fade out over 0.2 s, and back after. The sign's
+    // word, the day's bar and the time stay: the clock runs at the bench (the lock), and the takings stay in the corner.
+    const float QuietSeconds = .2f;
+    CanvasGroup[] quiet;
+    float quietAlpha = 1f;
+    /// <summary>The corners' quiet words as they show now: 1 in the café, 0 at the bench (labs).</summary>
+    public float QuietAlpha => quietAlpha;
+
     // ------------------------------------------------------------------ what checks read
 
     /// <summary>True while the corners are on screen (by day, nothing else owning the screen).</summary>
@@ -164,6 +174,16 @@ public sealed class HudCorners : MonoBehaviour
         BuildCash((RectTransform)top.transform);
         BuildSign((RectTransform)bottom.transform);
         BuildChips((RectTransform)bottom.transform);
+        quiet = new[] { Quiet(figureLabel), Quiet(frontSub), Quiet(backSub), Quiet(dayLine) };
+    }
+
+    static CanvasGroup Quiet(TMP_Text text)
+    {
+        if (text == null) return null;
+        CanvasGroup g = text.gameObject.AddComponent<CanvasGroup>();
+        g.blocksRaycasts = false;
+        g.interactable = false;
+        return g;
     }
 
     // The cash stack: the figure on the right, the stack to its left; the glow and the pop behind and over the stack.
@@ -343,6 +363,11 @@ public sealed class HudCorners : MonoBehaviour
         bool busy = BottomBusy();
         bottom.alpha = wasShown ? Mathf.MoveTowards(bottom.alpha, busy ? 0f : 1f, dt * FadeRate) : busy ? 0f : 1f;
         wasShown = true;
+        // At the bench the corners go quiet (see QuietSeconds).
+        quietAlpha = Mathf.MoveTowards(quietAlpha, ItemInspector.Working ? 0f : 1f, dt / QuietSeconds);
+        if (quiet != null)
+            foreach (CanvasGroup g in quiet)
+                if (g != null && !Mathf.Approximately(g.alpha, quietAlpha)) g.alpha = quietAlpha;
 
         UpdateCash(clock);
         UpdateSign(clock);

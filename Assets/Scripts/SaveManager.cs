@@ -243,12 +243,17 @@ public class SaveManager : MonoBehaviour
         Job storyJob = null)
     {
         if (profile == null) return;
-        regularMemory.RecordVisit(profile.PersistentId,
-            DayClock.Instance != null ? DayClock.Instance.Day : 0,
+        int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
+        // Her memory BEFORE this visit is written (specs/days-1-3.md §5.3, R3): the photo's grade reads her clean visit
+        // from it, and RecordVisit below overwrites lastVisitServed and lastGrade with this visit's.
+        RegularMemoryData before = regularMemory.Read(profile.PersistentId);
+        regularMemory.RecordVisit(profile.PersistentId, day,
             happy, accepted, served, lossReason, grade, focusRequested);
+        // Grace's camera comes in twice (Days 1-3): only the shutter visit records the photo's attempt (R3). No save field
+        // changes: the same graceCamera* fields, written on Day 2 instead of Day 1.
         if (storyJob != null && storyJob.kind == JobKind.Repair)
-            regularMemory.RecordGraceCamera(profile.PersistentId, storyJob.storyEpisodeId,
-                DayClock.Instance != null ? DayClock.Instance.Day : 0, grade);
+            regularMemory.RecordGraceCameraVisit(profile.PersistentId, storyJob.storyEpisodeId,
+                GraceCameraEpisode.VisitFor(storyJob.faultType == FaultType.Cleaning), day, grade, before);
     }
 
     public RegularMemoryData MemoryForId(string profileId) => regularMemory.Read(profileId);

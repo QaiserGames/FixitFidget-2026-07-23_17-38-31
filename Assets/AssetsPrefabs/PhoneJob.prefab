@@ -187,11 +187,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: afaaff07acba16c44aa7c775f6e55482, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DeviceDefinition
   displayName: Phone
+  storyEpisodeId: 
   faults:
   - type: 4
     description: Service disconnected - call support to restore it
     enableObjects: []
     payout: 60
+  realSize: 0
+  benchLayout:
+    rest: {x: -30, y: -14}
+    toolRestCentreX: -135
+    toolRestCentreY: 0
+    scrapTray: {x: 6, y: 133}
+    cameraAim: {x: 0, y: 0}
+    cameraDistance: 0
+    closeAim: {x: 0, y: 0}
+    fovClose: 0

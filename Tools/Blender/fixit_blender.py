@@ -571,11 +571,13 @@ def export_fbx(ob, path):
     return path
 
 
-def export_fbx_tree(root, path):
+def export_fbx_tree(root, path, object_types=frozenset({'MESH'})):
     """
     A jointed prop (the bench's tweezers, 7 Oct 2026): the root and its children go out together, the root at the
     origin and each child keeping its place under it, so Unity gets one model with the children as its own
-    transforms. Like export_fbx, it goes out from temporary copies sharing the meshes.
+    transforms. Like export_fbx, it goes out from temporary copies sharing the meshes. object_types {'MESH', 'EMPTY'}
+    also sends the empties (14 Oct 2026: the repair mat's cups and pad, the tool rest's seats): Unity imports each as a
+    child transform with no mesh, by name.
     """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     originals = [root] + [c for c in root.children_recursive]
@@ -602,7 +604,7 @@ def export_fbx_tree(root, path):
                 pass
         bpy.context.view_layer.objects.active = copies[root]
         bpy.ops.export_scene.fbx(
-            filepath=path, use_selection=True, object_types={'MESH'},
+            filepath=path, use_selection=True, object_types=set(object_types),
             apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL', global_scale=1.0,
             axis_forward='-Z', axis_up='Y', bake_space_transform=True,
             use_mesh_modifiers=True, mesh_smooth_type='FACE', use_tspace=False,

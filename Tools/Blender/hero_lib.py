@@ -32,6 +32,39 @@ from mathutils import Matrix, Vector  # noqa: E402
 
 SMOOTH_ANGLE = 42.0     # degrees: on a SMOOTH part, an edge whose faces meet at more than this stays hard
 
+# Which faces of each finished piece belong to which named part ({object name: {part name: [face indices]}}), so an
+# export audit can measure one part of a piece (export_hero_devices.py's REAL table measures the camera body's
+# leatherette, not its lugs and knobs). Filled by Faceted.finish; face order survives scale_build.
+PART_FACES = {}
+
+
+def scale_build(made, children, k):
+    """
+    The real-size export (TD one-scale §6.1, 14 Oct 2026): scale every mesh's data and every child's location by k,
+    so the FBX is real size (1 unit = 1 m) whatever scale a script was authored at. made is build()'s [(object,
+    targets)], children its child objects. A mesh shared by two objects is scaled once. Rotations are untouched.
+    """
+    seen = set()
+    for ob, _targets in made:
+        me = ob.data
+        if me is None or me.name in seen:
+            continue
+        seen.add(me.name)
+        me.transform(Matrix.Scale(k, 4))
+        if any(poly.area < 1e-10 for poly in me.polygons):
+            # a glyph's sliver that had area at 3x has none at real size (the watch's engravings): collapse edges under
+            # 4 microns (the finest real feature here is 20 microns), so the audit's "degenerate" still means broken
+            bm = bmesh.new()
+            bm.from_mesh(me)
+            bmesh.ops.dissolve_degenerate(bm, dist=4e-6, edges=bm.edges[:])
+            bm.to_mesh(me)
+            bm.free()
+            PART_FACES.pop(ob.name, None)          # its face indices moved: this piece is measured whole
+        me.update()
+    for c in children:
+        c.location = c.location * k
+    return k
+
 
 def material(table, name):
     hexstr, smooth, metal = table[name]
@@ -65,7 +98,13 @@ class Faceted(fb.Prop):
                 e.smooth = e.calc_face_angle(0.0) <= limit
             else:
                 e.smooth = False
-        return super().finish(collection)
+        self.bm.faces.index_update()
+        record = {}
+        for part_name, faces in self.parts:
+            record.setdefault(part_name, []).extend(f.index for f in faces if f.is_valid)
+        ob = super().finish(collection)
+        PART_FACES[ob.name] = record
+        return ob
 
 
 # ----------------------------------------------------------------------------- maths

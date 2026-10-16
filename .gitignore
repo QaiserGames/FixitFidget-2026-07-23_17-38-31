@@ -130,6 +130,12 @@ InitTestScene*.unity*
 /Assets/Audio/Licensed/
 /Assets/Audio/Licensed.meta
 
+# His phone recordings for the sound pass (14 Oct 2026; Audio's shot list, specs/audio-bench-sounds.md §5): the raw
+# takes he AirDrops into ~/Documents/FixitFidget/Recordings/, inside this repository, never get committed; the Producer
+# cuts the keepers into Assets/Audio/. (The template's /[Rr]ecordings/ above matches it too; this keeps it if that goes.)
+# Audio's CC0 files in Assets/Audio/CC0/ are committed: CC0 allows it.
+/Recordings/
+
 # Synty Sidekick (the Starter Pack, and the Character Creator it fetches from Synty's GitHub releases): Synty's EULA
 # keeps these out of this public repository. The pack itself lives in /Assets/Synty/ (above); its tool downloader
 # caches the tool's packages here.

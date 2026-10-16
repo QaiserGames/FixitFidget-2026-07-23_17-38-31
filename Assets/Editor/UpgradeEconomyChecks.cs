@@ -328,6 +328,10 @@ public static class UpgradeEconomyChecks
         public float drinkingSeconds = 20f, drinkingDrain = .5f, satisfiedDrain = .8f, conversationDrain = .1f, seatDrain = .6f;
         public int patronPay = 5, maxPatrons = 14;
         public float patronInterval = 12f, patronJitter = .35f, patronGraceMin = 3f, patronGraceMax = 8f;
+        // A patron's stay (PatronBrain: seated minStay-maxStay, at most maxLifetime in all) and the walk to a seat and out.
+        // 14 Oct (specs/days-1-3.md §7): maxPatrons is how many are in the café AT ONCE; counting it as a day's total
+        // was true at 180 s (about 14 came) and reported $70 where a 420 s day makes about $175.
+        public float patronStayMin = 40f, patronStayMax = 90f, patronLifetime = 240f, patronWalk = 20f;
         public readonly List<Arch> archetypes = new();
         public readonly List<Device> spawnerDevices = new();
         public readonly List<int> drinkPrices = new();
@@ -340,7 +344,8 @@ public static class UpgradeEconomyChecks
         public string Describe() =>
             $"Day {dayLength:0} s; the walk in {lead:0} s (the opener at the till about {openerWalk:0} s in); {counterSlots} counter places; " +
             $"patience: queue {queuePatience:0} s, service {servicePatience:0} s, seated x{seatDrain:0.##}, a drink x{drinkingDrain:0.##} for {drinkingSeconds:0} s then x{satisfiedDrain:0.##}; " +
-            $"tips up to {maxTipFraction * 100f:0}% x patience left x mood; patrons ${patronPay} every {patronInterval:0} s, {maxPatrons} at most.\n" +
+            $"tips up to {maxTipFraction * 100f:0}% x patience left x mood; patrons ${patronPay} every {patronInterval:0} s, {maxPatrons} at most at once " +
+            $"(each stays {patronStayMin:0}-{patronStayMax:0} s seated, at most {patronLifetime:0} s).\n" +
             $"Schedule: {string.Join(", ", schedule.ConvertAll(d => d.name))}. Drinks: {string.Join(", ", drinkPrices.ConvertAll(p => "$" + p))}. " +
             $"Archetypes: {string.Join(", ", archetypes.ConvertAll(a => $"{a.name} (patience x{a.patience:0.##}, tip x{a.tip:0.##}, wish {a.wish * 100f:0}%)"))}.\n" +
             DescribeDevices() + notes;
@@ -417,6 +422,8 @@ public static class UpgradeEconomyChecks
         {
             if (day.devices != null) foreach (GameObject prefab in day.devices) if (prefab != null) DeviceFor(w, prefab);
             if (day.useFeaturedRepair && day.featuredRepair != null && day.featuredRepair.devicePrefab != null) DeviceFor(w, day.featuredRepair.devicePrefab);
+            foreach (FeaturedRepairRequest entry in day.WalkInRepairsOn(day.dayNumber))
+                if (entry != null && entry.devicePrefab != null) DeviceFor(w, entry.devicePrefab);
             if (day.featuredRegular != null && day.featuredRegular.preferredDrink != null && !w.priceOf.ContainsKey(day.featuredRegular.preferredDrink))
                 w.priceOf[day.featuredRegular.preferredDrink] = day.featuredRegular.preferredDrink.price;
             foreach (StoryVisit visit in day.storyVisits ?? Array.Empty<StoryVisit>())
@@ -439,6 +446,15 @@ public static class UpgradeEconomyChecks
             w.patronJitter = Prop(ps, "spawnJitter", w.patronJitter);
             w.patronGraceMin = Prop(ps, "openingGraceMin", w.patronGraceMin);
             w.patronGraceMax = Prop(ps, "openingGraceMax", w.patronGraceMax);
+            GameObject patronBody = ps.FindProperty("patronPrefab")?.objectReferenceValue as GameObject;
+            PatronBrain patronBrain = patronBody != null ? patronBody.GetComponent<PatronBrain>() : null;
+            if (patronBrain != null)
+            {
+                var pb = new SerializedObject(patronBrain);
+                w.patronStayMin = Prop(pb, "minStay", w.patronStayMin);
+                w.patronStayMax = Prop(pb, "maxStay", w.patronStayMax);
+                w.patronLifetime = Prop(pb, "maxLifetime", w.patronLifetime);
+            }
         }
         else w.notes += "\n(No PatronSpawner in the scene: patrons counted at the code's defaults.)";
 
@@ -621,8 +637,10 @@ public static class UpgradeEconomyChecks
             Person current = null;
             string currentKind = null;
             float patronTimer = Range(rng, w.patronGraceMin, w.patronGraceMax);
-            int patronsIn = 0, patronMoney = 0;
+            int patronMoney = 0;
+            List<float> patronsLeaveAt = new();       // the patrons in the café now, by when each leaves (14 Oct: alive, not a day's total)
             float suppressWish = day.SuppressesRepairDrinksOn(dayNumber) ? 1f : 0f;
+            int walkInRepairsUsed = 0;                // Days 1-3: today's authored walk-in repairs handed out (CustomerSpawner)
 
             for (float t = 0f; t < StopAt; t += Dt)
             {
@@ -644,7 +662,12 @@ public static class UpgradeEconomyChecks
                     if (patronTimer <= 0f)
                     {
                         patronTimer = w.patronInterval * Range(rng, 1f - w.patronJitter, 1f + w.patronJitter);
-                        if (patronsIn < w.maxPatrons) { patronsIn++; patronMoney += w.patronPay; }
+                        patronsLeaveAt.RemoveAll(leave => leave <= t);
+                        if (patronsLeaveAt.Count < w.maxPatrons)
+                        {
+                            patronsLeaveAt.Add(t + Mathf.Min(w.patronLifetime, w.patronWalk + Range(rng, w.patronStayMin, w.patronStayMax)));
+                            patronMoney += w.patronPay;
+                        }
                     }
                 }
 
@@ -685,11 +708,11 @@ public static class UpgradeEconomyChecks
                             }
                             else if (openingActive)
                             {
-                                p = WalkIn(w, day, rng, suppressWish, openingVisits == 0 ? 1 : 2);
+                                p = WalkIn(w, day, dayNumber, rng, suppressWish, openingVisits == 0 ? 1 : 2, ref walkInRepairsUsed);
                                 p.drinkPrice = openingVisits == 0 ? OpeningDrinkPrice(w, day) : p.drinkPrice;
                                 openingVisitor = p;
                             }
-                            else p = WalkIn(w, day, rng, suppressWish, 0);
+                            else p = WalkIn(w, day, dayNumber, rng, suppressWish, 0, ref walkInRepairsUsed);
                             p.spawned = t;
                             p.walk = opener ? w.openerWalk : w.lead;
                             people.Add(p);
@@ -827,7 +850,10 @@ public static class UpgradeEconomyChecks
 
         // A walk-in: the day's archetypes, its drink-only share, its device pool (else the spawner's), a wish while waiting.
         // forced: 0 the day's mix, 1 a drink visit, 2 a repair visit (the Day 1 lesson).
-        private static Person WalkIn(World w, DayDefinition day, System.Random rng, float suppressWish, int forced)
+        // Days 1-3 (14 Oct, specs/days-1-3.md §6): on a day with authored walk-in repairs, one who brings a device brings the next
+        // entry in order; once they are used up, walk-ins come for drinks (CustomerSpawner.RollJob, the same rule).
+        private static Person WalkIn(World w, DayDefinition day, int dayNumber, System.Random rng, float suppressWish, int forced,
+                                     ref int listUsed)
         {
             List<Arch> allowed = new();
             foreach (Arch a in w.archetypes) if (day.AllowsArchetype(a.name)) allowed.Add(a);
@@ -835,6 +861,23 @@ public static class UpgradeEconomyChecks
             Arch arch = allowed.Count > 0 ? allowed[rng.Next(allowed.Count)] : new Arch { name = "walk-in" };
             Person p = new() { name = arch.name, patienceMult = arch.patience, tipMult = arch.tip };
             bool drinkOnly = forced == 1 || (forced == 0 && rng.NextDouble() < day.drinkOnlyChance);
+            FeaturedRepairRequest[] list = day.WalkInRepairsOn(dayNumber);
+            if (!drinkOnly && list.Length > 0)
+            {
+                while (listUsed < list.Length)
+                {
+                    FeaturedRepairRequest entry = list[listUsed++];
+                    if (entry == null || entry.devicePrefab == null || !w.deviceOf.TryGetValue(entry.devicePrefab, out Device listed)
+                        || entry.faultIndex < 0 || entry.faultIndex >= listed.faults.Count) continue;
+                    Fault fault = listed.faults[entry.faultIndex];
+                    p.hasRepair = true; p.payout = fault.payout; p.faultType = fault.type;
+                    p.hold = Range(rng, fault.holdMin, fault.holdMax);
+                    if (suppressWish < 1f && rng.NextDouble() < arch.wish && w.drinkPrices.Count > 0)
+                        p.drinkPrice = w.drinkPrices[rng.Next(w.drinkPrices.Count)];
+                    return p;
+                }
+                if (forced != 2 && w.drinkPrices.Count > 0) drinkOnly = true;   // the list is used up: a drink
+            }
             if (drinkOnly)
             {
                 p.drinkPrice = w.drinkPrices.Count > 0 ? w.drinkPrices[rng.Next(w.drinkPrices.Count)] : 4;

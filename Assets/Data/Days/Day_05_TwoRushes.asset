@@ -18,25 +18,39 @@ MonoBehaviour:
   phases:
   - phaseName: Opening
     startsAt: 0
-    spawnInterval: 16
+    spawnInterval: 37.3
   - phaseName: Morning rush
     startsAt: 0.15
-    spawnInterval: 7
+    spawnInterval: 16.3
   - phaseName: Lull
     startsAt: 0.38
-    spawnInterval: 26
+    spawnInterval: 60.7
   - phaseName: Lunch rush
     startsAt: 0.58
-    spawnInterval: 6
+    spawnInterval: 14
   - phaseName: Last orders
     startsAt: 0.82
-    spawnInterval: 15
-  patienceMultiplier: 0.9
+    spawnInterval: 35
+  patienceMultiplier: 1
   maxCustomers: 6
   drinkOnlyChance: 0.25
+  guidedOpening: 0
+  openingDrink: {fileID: 0}
+  openingHintDuration: 6
+  suppressRepairDrinkWishes: 0
   devices:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
   - {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
   - {fileID: 1740192461705439849, guid: 60b9162c3bde0f546876c3dbe1c1c83c, type: 3}
   allowedArchetypes: []
   regularChance: 0.4
+  featuredRegular: {fileID: 0}
+  showFeaturedVisitHints: 0
+  featuredRegularArrivesAt: 0.15
+  useFeaturedRepair: 0
+  featuredRepair:
+    devicePrefab: {fileID: 0}
+    faultIndex: 0
+    storyEpisodeId: 
+  storyVisits: []
+  walkInRepairs: []

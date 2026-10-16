@@ -30,11 +30,13 @@ using Object = UnityEngine.Object;
 //
 // Report: <project>/Logs/NpcSit/live-check-<time>.txt (and the Console).
 //
-// THE BAR STOOLS (10 Oct 2026, after Seats 1): the six bar-stool seats (the repair bar's three, the window
-// counter's three) have Snap To Seat off by design - the sit clips are fitted to 0.45 m chairs and can't reach a
-// 0.745 m stool, so a customer waits standing beside the stool facing the counter (CafeSeatsSteps.cs, 'THE BAR
-// STOOLS DON'T SIT'). A customer who waits at one of those is not expected to sit: the report names them in a NOTE
-// and the sitting check counts only the seats people sit on.
+// THE BAR STOOLS (10 Oct 2026, after Seats 1; 14 Oct, NPC wave 2): the repair bar's three stools SIT now (Snap To
+// Seat on, the body raised 0.30 m inside the sit clips, turned 45 degrees by their Face Towards point: CafeSeatsSteps.cs,
+// 'THE REPAIR BAR'S STOOLS SIT'), so they count as seats people sit on, hips within the same 5 cm; on a raised seat the
+// feet rest on the stool's foot ring, so they are measured from where the body stands (its root), not the floor, and
+// every seat's facing is judged against the way it is meant to face (its Face Towards point, else its cup). The window
+// counter's three still have Snap To Seat off: a customer waits standing beside one, is not expected to sit, and the
+// report names them in a NOTE.
 //
 // PLAYTEST 4 (10 Oct 2026): the Impatient and Rushed walk-ins stood by choice (a standing spot drains x1.15, a seat
 // x0.6) and 17 of 18 standing waiters were lost; every archetype now waits in a seat (Playtest 4 > Systems > 1). Two
@@ -339,6 +341,9 @@ public static class NpcSitLiveCheck
             if (Physics.Raycast(w.seat.StandPoint.position + Vector3.up * .5f, Vector3.down, out RaycastHit hit, 2f, mask, QueryTriggerInteraction.Ignore))
                 floor = hit.point.y;
         }
+        // A raised seat (its own Max Lift: the repair-bar stools) puts the feet on the stool's foot ring, where the body
+        // stands while seated (its root), not on the floor (14 Oct 2026, NPC wave 2).
+        if (w.seat.MaxLift > 0f) floor = w.body.position.y;
         w.feetGap = Mathf.Min(w.footL.position.y, w.footR.position.y) - floor;
         Vector3 facing = w.body.forward;
         facing.y = 0f;
@@ -481,8 +486,10 @@ public static class NpcSitLiveCheck
             var toSeats = watches.Where(w => w.customer && w.waitKind == WaitingSpot.SpotKind.Seat && !w.standsAtSeat).ToList();
             int atStools = watches.Count(w => w.customer && w.standsAtSeat);
             if (atStools > 0)
-                report.AppendLine($"NOTE  {atStools} customer(s) waited standing beside a bar stool (Snap To Seat off on the six bar stools by " +
-                                  "design, Seats 1: the sit clips can't reach a 0.745 m stool), so they aren't expected to sit.");
+                report.AppendLine($"NOTE  {atStools} customer(s) waited standing beside a window-counter stool (Snap To Seat off on its three by " +
+                                  "design; the repair bar's three sit since NPC wave 2), so they aren't expected to sit.");
+            int atBar = watches.Count(w => w.customer && w.seat != null && w.seat.RepairBar && w.seatedAt >= 0f);
+            if (atBar > 0) report.AppendLine($"NOTE  {atBar} customer(s) sat on a repair-bar stool (raised inside the clips, turned 45 degrees).");
             if (toSeats.Count > 0)
                 Check(toSeats.All(w => w.seatedAt >= 0f),
                     $"Waiting customers who took a seat sat down on it ({toSeats.Count(w => w.seatedAt >= 0f)} of {toSeats.Count}; " +
@@ -515,7 +522,7 @@ public static class NpcSitLiveCheck
             Check(lowHeight >= .04f && highHeight <= .15f,
                 $"Hips rest a thigh's thickness above the seat, not in it or floating ({lowHeight * 100f:0.0} to {highHeight * 100f:0.0} cm)");
             Check(lowFeet >= -.03f && highFeet <= .1f,
-                $"Feet stay on the floor while seated (lowest ankle {lowFeet * 100f:0.0} to {highFeet * 100f:0.0} cm above it)");
+                $"Feet stay on the floor (or a stool's foot ring) while seated (lowest ankle {lowFeet * 100f:0.0} to {highFeet * 100f:0.0} cm above it)");
             Check(worstFacing <= 10f, $"Seated NPCs face their table (worst {worstFacing:0.0} degrees off)");
             var bodies = measured.Where(w => !float.IsNaN(w.bodyHipHeight)).ToList();
             if (bodies.Count > 0)
@@ -610,10 +617,12 @@ public static class NpcSitLiveCheck
         }
     }
 
+    // The way the seat is meant to face: its Face Towards point when it has one (the repair-bar stools are turned 45
+    // degrees off their cup on purpose), else its cup spot, as NpcSeating places the sitter (TableSeat.FacingPoint).
     private static Vector3 TableForward(TableSeat seat, Transform fallback)
     {
         if (seat == null) return fallback.forward;
-        Vector3 forward = seat.CupSpot.position - seat.SeatPose.position;
+        Vector3 forward = seat.FacingPoint - seat.SeatPose.position;
         forward.y = 0f;
         if (forward.sqrMagnitude < 1e-4f) { forward = seat.SeatPose.position - seat.StandPoint.position; forward.y = 0f; }
         if (forward.sqrMagnitude < 1e-4f) forward = fallback.forward;

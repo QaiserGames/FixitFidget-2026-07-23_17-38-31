@@ -1,44 +1,44 @@
-using System.Collections;
 using UnityEngine;
 
 public enum ToolType { Hand, Brush, Screwdriver, Pry, Tweezers, Cloth }
 
 // ---------------------------------------------------------------------------
-// A TOOL IN THE CADDY, AND IN THE HAND (the bench, v2; claude/bench-spec-v2.md §2.5)
+// A TOOL ON THE REST, AND IN THE HAND (the forgiving bench, 14 Oct 2026; specs/systems-forgiving-bench.md §4.4.1-4.4.2;
+// td-one-scale.md §6.7)
 //
-// Picked (clicked, or LB/RB on a pad) it leaves its stand in the caddy and follows the cursor over the device as the
-// model itself: its working tip (the model's origin) at the cursor's point on the device, its handle up the surface
-// normal and leaning toward the camera so it reads. Put down, it returns to its stand. While a hold is on, it does
-// its motion at the part: the driver turns, the tweezers close, the pry tilts, the brush strokes, the cloth circles.
-// The old tinted-cylinder rail used the same component; a lone primitive still gets its tint, a model does not.
+// His playtest 5 (14 Oct, 00:30): "i would prefer the cloth to actually open up and be used like a cloth when using the
+// cloth, and i only mean like for example, when i point my crosshair at the point of the cloth, it should just grab and i just
+// drag it across an object and for it to feel the impact ... it was so hard to use the cloth and or brush". The cloth used to
+// trail the cursor on a spring, gathered into a pad by a scale trick, lifting off after each smudge. Now (his decision 4):
+//   * pressed on at rest, a tool is IN THE HAND on that frame (tool.pick), its working tip (the model's origin) EXACTLY under
+//     the cursor every frame: on the surface point, or over a dirt spot the cursor's ray on the spot's plane. No spring for
+//     position: the tip never lags; only its turn and its shape ease (closed form, 14 a second), so a 15 fps frame jump is a
+//     clean jump, never a run-away (13 Oct's stepped spring sent the cloth 7,000 km);
+//   * held over its own dirt it presses down and rubs (ItemInspector, GrimeSpot's press pass); held elsewhere it hovers a
+//     tenth of its contact's width off the surface;
+//   * the cloth swaps to Art's held model (BT_ClothHeld, the pick-up motion hides the swap), lies flat on the surface with its
+//     +x along the stroke's axis; Press = 1 on the device, 0.4 in the air; Bunch follows the stroke speed; at a reversal (the
+//     speed near nothing, so no bunch to see) its x flips, and the bunch rises on the new leading edge: one key, both ways;
+//   * the brush's bristles bend with the speed (Bend), its +x along the stroke, mirrored the same way, its handle tilting ±12°
+//     against the motion;
+//   * home is a short flight back to its seat on the rest (0.2 s, tool.down as it lands), never a teleport.
+// ItemInspector decides when (the grab rule: a tap or a release over the device keeps it; elsewhere it goes home; it goes
+// home by itself when its last spot on the device is clean).
 //
-// The cloth is the exception (9 Oct night, his note: "the cloth stuck inside the tray, it needs to sit and look
-// correctly and be used correctly"). It has no handle: it is pressed flat under the fingers, so it never leans and
-// never swings; its face stays on the glass. And it leads with its far fold: the cursor's point is just inside the
-// edge away from the camera and the rest of the cloth lies toward Ace, so the patch it is wiping shows at its edge.
-// It rests folded on the mat, not in the caddy (Playtest3Session4Steps, BenchClothSteps).
+// THE CLOTH SHOWS WHAT IT CLEANS (the Producer's call 23, 14 Oct 11:30; QA M3). With the wad's middle on the cursor, the
+// 50 x 52 mm pressed pad covered the 19 mm lens spot on every frame of the wipe, so the smear thinning to haze and the clean
+// trail (decision 4) were never seen: playtest 4's veteran said the same ("the smudge thinning and the gleam both happen
+// under it"). Now the held wad sits with its far edge (up the screen, away from Ace) at the cursor (4 mm under it since
+// 15 Oct: FarEdgeUnderTip): playtest 4's fold lead,
+// in closed form, no lag. Only the held model moves (LeadWithFarEdge): the tool's tip, the footprint GrimeSpot cleans (centred
+// on the cursor, ItemInspector.Rub) and every lab that reads the tip stay exactly where they were. The shift is worked out
+// each frame from that frame's pose, its keys and its mirror, so a reversed stroke keeps it.
 //
-// And it was never in the hand at all: the cloth is one mesh with one material and no children, which is exactly how
-// this component used to recognise the old tinted cylinders, so it was taken for one. It was tinted pale blue, grew a
-// quarter when picked, and never followed the cursor (a stand-in stays on its rail), so the smudge came off under an
-// empty cursor while the cloth sat in the caddy. A stand-in is now recognised by its mesh: one of Unity's own
-// primitives.
+// THE LEAN (the TD's §6.7). Leaning 18° toward the camera, the driver's handle pointed within about 14° of the view ray and hid
+// the screw it turned. Now a pointed tool's handle leans toward the screen's upper right (Ace's right hand) and stays at least
+// 30° off the view ray, so a tip never hides its own target.
 //
-// THE CLOTH AS A PAD, AND ITS LIFT (playtest 4, 10 Oct; the veteran: "the cloth covers about two-thirds of the screen
-// while you wipe and when 'Fixed!' fires; the smudge thinning and the gleam both happen under it"). Folded in quarters it
-// is 75 x 90 mm, and the phone's glass is 64 mm across: wherever it went it covered the glass. Picked up, it is gathered
-// into a pad under the fingers (Pad Size of its folded size across the glass, 34 x 40 mm; Pad Thickness of its height,
-// a little taller, as a bunched cloth is), still leading with its far fold at the cursor, and it trails the cursor on its
-// spring, so the glass it has just wiped shows behind it. When a smudge comes clean (ItemInspector says so: LiftOff) the
-// pad lifts off the glass, up and back toward Ace's hand, a little to his right, tipping as a hand lifts it (0.45 s), and
-// stays clear for 1.1 s, so the gleam (0.15 s in) sweeps clear glass and the screen that wakes (0.3 s in, fully lit by
-// 1.1 s) is seen with the one ending over it; then it comes back to the cursor (0.3 s). Wiping another smudge brings it
-// down at once (Land). It spreads back out to its folded size on its way home to the mat.
-//
-// THE PRY AT A PRY ANGLE (playtest 4; the veteran: "the pry tool stands upright on the middle of the back like the
-// screwdriver"). A spudger is held low, not stood on its tip: in the hand the pry tool's handle leans down to the right
-// (Ace's hand) at a pry angle, and at a cover it sits in the seam with its handle out across it (RemovablePart.PryPose,
-// FollowPose), and the lever turns its handle down toward the device.
+// THE PRY AT A PRY ANGLE (playtest 4; RemovablePart.PryPose, FollowPose): a spudger is held low, not stood on its tip.
 // ---------------------------------------------------------------------------
 public class ToolPickup : MonoBehaviour
 {
@@ -50,34 +50,32 @@ public class ToolPickup : MonoBehaviour
     [Tooltip("Tint so tools are distinguishable at a glance (only applied to a lone primitive, never to a model).")]
     public Color tint = Color.white;
 
-    [Tooltip("Degrees the handle leans toward the camera while the tool is held over the device.")]
-    [SerializeField, Range(0f, 60f)] private float lean = 18f;
-
-    [Header("The cloth in the hand (playtest 4)")]
-    [Tooltip("In the hand the cloth is gathered into a pad under the fingers: its size across the glass, as a share of its folded size (75 x 90 mm).")]
-    [SerializeField, Range(.3f, 1f)] private float padSize = .45f;
-    [Tooltip("...and its height, as a share of its folded height (a gathered cloth stands a little taller).")]
-    [SerializeField, Range(1f, 2f)] private float padThickness = 1.4f;
+    [Tooltip("Degrees a pointed tool's handle stays off the view ray at least (the TD: 30, so the tip never hides its target).")]
+    [SerializeField, Range(30f, 60f)] private float leanOffView = 34f;
 
     public enum Motion { None, Turn, Pinch, Lever, Stroke, Circle }
 
     public bool InHand { get; private set; }
-
-    /// <summary>The cloth: pressed flat on the surface, no lean, no swing (see the header).</summary>
+    /// <summary>The cloth: pressed flat on the surface, no lean.</summary>
     public bool PressedFlat => tool == ToolType.Cloth;
+    /// <summary>On its way home to its seat.</summary>
+    public bool Returning { get; private set; }
+    /// <summary>The cloth's and the brush's shape keys now, 0..1 (labs): Press, Bunch, Bend; and which way its x points (±1).</summary>
+    public float PressShown => pressKey;
+    public float BunchShown => bunchKey;
+    public float BendShown => bendKey;
+    public float Mirror => mirror;
 
-    // The cloth's far fold leads by this much past the cursor's point: of the 9.5 mm the cloth cleans
-    // (GrimeSpot.ClothRadius) about a third shows beyond the fold, the rest is under it.
-    private const float FoldLead = .003f;
+    /// <summary>A tool's contact width (metres): the brush's chisel, the held cloth's pad (Art A4-A5); a pointed tool's tip.</summary>
+    public float ContactWidth => tool == ToolType.Brush ? BenchRules.BrushContact : tool == ToolType.Cloth ? BenchRules.ClothContact : .003f;
+    /// <summary>The height the tip hovers off a surface when not pressed: a tenth of its contact width (§4.4.2).</summary>
+    public float HoverHeight => Mathf.Max(.0015f, .1f * ContactWidth);
 
-    // The cloth's lift (playtest 4): up off the glass and back toward the hand, over Rise seconds, held for Hold, back in
-    // Fall. Metres and degrees.
-    private const float LiftRise = .45f, LiftHold = 1.1f, LiftFall = .3f;
-    private const float LiftUp = .035f, LiftBack = .06f, LiftTip = 12f;
-
-    // The pry held low, as a spudger is: its handle this far up from the surface it is over, degrees (the seam's own
-    // angle is RemovablePart.PryAngle).
+    // The pry held low, as a spudger is: its handle this far up from the surface it is over, degrees (the seam's own angle is
+    // RemovablePart.PryAngle).
     private const float PryHeld = 38f;
+    // Rotation and shape keys ease at this rate (closed form): turns can lag, the tip never does.
+    private const float TurnRate = 14f;
 
     private Vector3 baseScale;
     private Renderer rend;
@@ -88,31 +86,23 @@ public class ToolPickup : MonoBehaviour
     private Transform leafL, leafR;
     private Quaternion leafLRest, leafRRest;
     private float spin, pinch, lever;
-    private Coroutine returning;
     private Collider[] colliders;
-    // The follow (8 Oct, "more fluid"): the tip rides a spring to a target that is itself eased, so a jump of the cursor
-    // from the device to the mat is a glide, not a pop, and the handle swings a little against the way it is moving.
-    private Vector3 velocity;
-    private Vector3 easedPoint, easedNormal;
-    private bool easing;
-    // The cloth as a pad: how gathered it is (1: folded as it rests; padSize: in the hand), its scale in the world when it
-    // left the mat (it has no parent in the hand), and how deep it is from its middle to its far fold (its own mesh).
-    private float pad = 1f;
     private Vector3 heldScale = Vector3.one;
-    private float clothFarFold = .045f;
-    private float liftAt = -1f;
-
-    /// <summary>True for the old tinted stand-ins (one of Unity's primitives); false for every modelled tool.</summary>
-    public bool IsStandIn => legacyTint;
-
-    /// <summary>The cloth is lifted off the glass (a smudge just came clean), or on its way up or back down.</summary>
-    public bool Lifting => liftAt >= 0f && Time.time - liftAt < LiftRise + LiftHold + LiftFall;
-
-    /// <summary>How far through its lift the cloth is now: 0 on the glass, 1 fully up (for the labs).</summary>
-    public float Lifted => LiftAmount(Time.time);
-
-    /// <summary>The cloth gathered into a pad: its size across the glass now, as a share of its folded size (1 at rest).</summary>
-    public float PadShown => pad;
+    private bool placedOnce;
+    // The cloth's held model and its keys; the brush's bend.
+    private GameObject heldCloth;
+    private Vector3 heldLocalPos;          // where the held model sits under the tool (Bench 7), put back each frame before the lead
+    private Quaternion heldLocalRot = Quaternion.identity;
+    private Vector3[] clothVerts, clothPress, clothBunch;   // the held mesh's vertices and its keys' full deltas (its own space)
+    private float clothPressPer = 1f, clothBunchPer = 1f;   // a key's 0..1 as a share of its last frame's delta
+    private bool clothMeasured;
+    private Renderer[] restRenderers;
+    private SkinnedMeshRenderer keyed;
+    private int pressIndex = -1, bunchIndex = -1, bendIndex = -1;
+    private float pressKey, bunchKey, bendKey, mirror = 1f;
+    private Vector3 strokeAxis;            // the stroke's axis on the surface (direction modulo 180°), eased
+    private float brushTilt;
+    private Bounds restBox = new Bounds(Vector3.zero, Vector3.one * .01f);
 
     private void Awake()
     {
@@ -131,152 +121,346 @@ public class ToolPickup : MonoBehaviour
         if (leafL != null) leafLRest = leafL.localRotation;
         if (leafR != null) leafRRest = leafR.localRotation;
         colliders = GetComponentsInChildren<Collider>(true);
-        // The cloth's far fold is its -Z edge (its mesh, in its own units): from its middle to there.
-        if (filter != null && filter.sharedMesh != null)
+        restBox = BenchStage.Measure(transform);
+        // The cloth's held model (Bench 7 puts BT_ClothHeld under it, hidden): its keys Press and Bunch. The folded cloth's own
+        // renderers are what hide while it is held.
+        Transform held = transform.Find("BT_ClothHeld");
+        if (held != null)
         {
-            Bounds b = filter.sharedMesh.bounds;
-            clothFarFold = Mathf.Max(.005f, b.extents.z - b.center.z);
+            heldCloth = held.gameObject;
+            heldLocalPos = held.localPosition;
+            heldLocalRot = held.localRotation;
+            var rest = new System.Collections.Generic.List<Renderer>();
+            foreach (Renderer r in GetComponentsInChildren<Renderer>(true)) if (!r.transform.IsChildOf(held)) rest.Add(r);
+            restRenderers = rest.ToArray();
+            keyed = held.GetComponentInChildren<SkinnedMeshRenderer>(true);
+        }
+        else keyed = GetComponentInChildren<SkinnedMeshRenderer>(true);   // the brush's own (Bend)
+        if (keyed != null && keyed.sharedMesh != null)
+        {
+            pressIndex = keyed.sharedMesh.GetBlendShapeIndex("Press");
+            bunchIndex = keyed.sharedMesh.GetBlendShapeIndex("Bunch");
+            bendIndex = keyed.sharedMesh.GetBlendShapeIndex("Bend");
         }
     }
 
-    public void SetSelected(bool on)
+    /// <summary>The old tinted stand-ins (one of Unity's primitives) stay on their rail; every modelled tool is held.</summary>
+    public bool IsStandIn => legacyTint;
+
+    /// <summary>Its box as it lies at rest, in its own frame (metres, scale kept in; measured as it woke on the rest): the
+    /// picker's outline of it at rest, and "its own place" for the grab rule.</summary>
+    public Bounds RestBox => restBox;
+    /// <summary>Where it lies at home on the rest, in the world.</summary>
+    public Pose HomePose => homeParent != null
+        ? new Pose(homeParent.TransformPoint(homeLocalPos), homeParent.rotation * homeLocalRot)
+        : new Pose(transform.position, transform.rotation);
+
+    /// <summary>
+    /// Into the hand (tool.pick on this frame; a flight home under way stops) or out of it (home by its flight, tool.down as it
+    /// lands; after the last spot of the device is clean it lifts first, <paramref name="liftFirst"/>).
+    /// </summary>
+    public void SetSelected(bool on, bool liftFirst = false)
     {
         if (on && !InHand) Sfx.Play("tool.pick", transform.position);
-        if (!on && InHand) Sfx.Play("tool.down", transform.position);
+        bool was = InHand;
         InHand = on;
         if (legacyTint)
         {
             transform.localScale = on ? baseScale * 1.25f : baseScale;
             if (rend != null) rend.material.color = on ? Color.Lerp(tint, Color.white, 0.5f) : tint;
         }
-        // In the hand its colliders are off: the cursor's ray must reach the part under the tip, not the tool over it,
-        // and a held tool shouldn't knock the loose screws about. Back in the caddy they're on, so it can be picked again.
+        // In the hand its colliders are off: the cursor's ray must reach the part under the tip, not the tool over it. On the
+        // rest they're on, so it can be picked again.
         if (colliders != null) foreach (Collider c in colliders) if (c != null) c.enabled = !on;
-        liftAt = -1f;
         if (on)
         {
-            if (returning != null) { StopCoroutine(returning); returning = null; }
+            BenchStage.CancelFlight(this);
+            Returning = false;
             // Its size in the world as it lies at home (in the hand it has no parent to carry that).
             Vector3 parentScale = homeParent != null ? homeParent.lossyScale : Vector3.one;
             heldScale = Vector3.Scale(baseScale, parentScale);
+            placedOnce = false;
+            ShowHeldModel(true);
+            BenchFeel.Pulse(.10f, .20f, .04f);
         }
-        else
-        {
-            Rest();
-            if (gameObject.activeInHierarchy) returning = StartCoroutine(ReturnHome());
-        }
+        else if (was) GoHome(liftFirst);
     }
 
-    /// <summary>
-    /// Where the tool goes this frame while in the hand: its tip at <paramref name="point"/>, handle up <paramref name="normal"/>,
-    /// leaning toward <paramref name="camera"/>. <paramref name="working"/>: a hold is on, so the tip sits exactly on the point.
-    /// </summary>
-    public void Follow(Vector3 point, Vector3 normal, Camera camera, bool working, float deltaTime)
+    // The cloth's held wad in the hand, its folded self at rest (Art A4; the swap is hidden by the motion).
+    private void ShowHeldModel(bool held)
     {
-        if (!InHand || legacyTint) return;
+        if (heldCloth == null) return;
+        heldCloth.SetActive(held);
+        if (!held) { heldCloth.transform.localPosition = heldLocalPos; heldCloth.transform.localRotation = heldLocalRot; }   // the lead undone
+        if (restRenderers != null) foreach (Renderer r in restRenderers) if (r != null) r.enabled = !held;
+    }
+
+    // Home: a short flight to its seat (tool.down as it lands), a lift first after the last spot.
+    private void GoHome(bool liftFirst)
+    {
+        if (legacyTint) return;
+        Returning = true;
+        pressKey = bunchKey = bendKey = 0f;
+        ApplyKeys();
+        Vector3 up = BenchStage.Instance != null ? BenchStage.Instance.MatUp : Vector3.up;
+        ShowHeldModel(false);
+        transform.localScale = heldScale;       // the mirror undone before it flies
+        if (homeParent == null) { Returning = false; return; }
+        BenchStage.SendTo(this, null, homeParent, homeLocalPos, homeLocalRot, BenchStage.FlightKind.Tool, BenchRules.ToolHomeSeconds,
+            null, "tool.down", homeParent, Home, liftFirst ? .15f : 0f, liftFirst ? up * .03f : Vector3.zero);
+    }
+
+    private void Home()
+    {
+        Returning = false;
+        transform.localPosition = homeLocalPos;
+        transform.localRotation = homeLocalRot;
+        if (!legacyTint) transform.localScale = baseScale;
+        spin = 0f;
+        mirror = 1f;
+    }
+
+    // ---------- in the hand ----------
+
+    /// <summary>
+    /// One frame of the tool in the hand: its tip at <paramref name="tip"/> (a surface point; exactly, every frame), lifted by
+    /// its hover height unless <paramref name="pressing"/>; its handle up <paramref name="normal"/>, leaned off the view ray (a
+    /// pointed tool) or lying flat (the cloth); the cloth's and the brush's keys from the stroke (BenchFeel), pressing on its
+    /// own dirt when <paramref name="rubbing"/>.
+    /// </summary>
+    public void HoldAt(Vector3 tip, Vector3 normal, Camera camera, bool pressing, bool rubbing, float deltaTime)
+    {
+        if (!InHand || legacyTint || Returning) return;
         if (transform.parent != null) transform.SetParent(null, true);
-        float dt = Mathf.Min(deltaTime, .05f);
-        Vector3 wantNormal = normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up;
-        // The target itself eases (the cursor's point and the surface's normal jump between surfaces).
-        if (!easing) { easedPoint = point; easedNormal = wantNormal; velocity = Vector3.zero; easing = true; }
-        float e = 1f - Mathf.Exp(-(working ? 40f : 16f) * dt);
-        easedPoint = Vector3.Lerp(easedPoint, point, e);
-        easedNormal = Vector3.Slerp(easedNormal, wantNormal, e).normalized;
-        Vector3 n = easedNormal;
-        Vector3 toCamera = camera != null ? (camera.transform.position - easedPoint).normalized : Vector3.back;
-        Quaternion leaned;
-        if (tool == ToolType.Pry)
+        float dt = Mathf.Max(0f, deltaTime);
+        Vector3 n = normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up;
+        Quaternion target;
+        Vector3 velocity = StrokeOnSurface(camera, n);
+        if (PressedFlat || tool == ToolType.Brush)
+        {
+            // The stroke's axis on the surface (direction modulo 180°, eased), and which way along it the hand is going.
+            if (velocity.sqrMagnitude > 1e-6f)
+            {
+                Vector3 dir = velocity.normalized;
+                if (strokeAxis == Vector3.zero) strokeAxis = dir;
+                Vector3 want = Vector3.Dot(dir, strokeAxis) >= 0f ? dir : -dir;
+                strokeAxis = Vector3.Slerp(strokeAxis, want, Ease(dt)).normalized;
+                // At a reversal the mesh mirrors, so the bunch (or the bend) rises on the new leading edge: one key for both
+                // ways. A hand's reversal passes the speed through nothing, so the key is already about 0 here; a 15 fps frame
+                // can skip that moment, so the key restarts from 0 on the flip rather than showing the old edge's folds.
+                float sign = Vector3.Dot(dir, strokeAxis) >= 0f ? 1f : -1f;
+                if (sign != mirror) { mirror = sign; bunchKey = 0f; bendKey = 0f; }
+            }
+            Vector3 x = Vector3.ProjectOnPlane(strokeAxis == Vector3.zero ? (camera != null ? camera.transform.right : Vector3.right) : strokeAxis, n);
+            if (x.sqrMagnitude < 1e-6f) x = Vector3.ProjectOnPlane(Vector3.right, n);
+            x.Normalize();
+            if (PressedFlat) target = Quaternion.LookRotation(Vector3.Cross(x, n), n);
+            else
+            {
+                // The brush: its handle up, leaned off the view ray like the pointed tools, tilting up to 12° against the motion
+                // (its top trailing, as the cloth's tail leans in Art's A4). A turn about +z takes the handle toward -x.
+                Vector3 handle = Handle(n, camera);
+                float tilt = pressing || rubbing ? 12f * BenchRules.Bend(BenchFeel.StrokeSpeed) * mirror : 0f;
+                brushTilt = Mathf.Lerp(brushTilt, tilt, Ease(dt));
+                Vector3 bx = Vector3.ProjectOnPlane(x, handle).normalized;
+                Vector3 bz = Vector3.Cross(bx, handle);
+                target = Quaternion.AngleAxis(brushTilt, bz) * Quaternion.LookRotation(bz, handle);
+            }
+        }
+        else if (tool == ToolType.Pry)
         {
             // Held low, as a spudger is: the handle down to the right (the hand), the blade flat toward the surface.
             Vector3 side = Vector3.ProjectOnPlane(camera != null ? camera.transform.right : Vector3.right, n);
-            if (side.sqrMagnitude < 1e-6f) side = Vector3.ProjectOnPlane(toCamera, n);
-            leaned = side.sqrMagnitude > 1e-6f ? PryRotation(n, side.normalized, PryHeld) : Quaternion.FromToRotation(Vector3.up, n);
+            if (side.sqrMagnitude < 1e-6f) side = Vector3.ProjectOnPlane(Vector3.forward, n);
+            target = PryRotation(n, side.normalized, PryHeld);
         }
         else
         {
-            // The handle up the normal, then leaned toward the camera (about the axis across both). The cloth doesn't lean.
-            Vector3 leanAxis = Vector3.Cross(n, toCamera);
-            Quaternion upright = Quaternion.FromToRotation(Vector3.up, n);
-            leaned = !PressedFlat && leanAxis.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(-lean, leanAxis.normalized) * upright : upright;
-            // The flat tools show their flat side to the camera: turn about the handle so +Z faces the camera.
-            Vector3 handleUp = leaned * Vector3.up;
-            Vector3 face = Vector3.ProjectOnPlane(toCamera, handleUp);
-            if (face.sqrMagnitude > 1e-6f) leaned = Quaternion.LookRotation(face.normalized, handleUp);
-            // A swing against the way it moves: the handle trails the tip a little, like a thing with weight. Not the cloth:
-            // the fingers hold it flat.
-            Vector3 swingAxis = Vector3.Cross(n, velocity);
-            float swing = Mathf.Min(12f, velocity.magnitude * 25f);
-            if (!PressedFlat && swingAxis.sqrMagnitude > 1e-6f && swing > .1f) leaned = Quaternion.AngleAxis(swing, swingAxis.normalized) * leaned;
+            // A pointed tool: its handle leaned off the view ray toward the screen's upper right; its flat side to the camera.
+            Vector3 handle = Handle(n, camera);
+            Vector3 toCamera = camera != null ? (camera.transform.position - tip).normalized : Vector3.back;
+            Vector3 face = Vector3.ProjectOnPlane(toCamera, handle);
+            target = face.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(face.normalized, handle) : Quaternion.FromToRotation(Vector3.up, handle);
         }
-        Quaternion target = leaned * MotionRotation();
-        Vector3 targetPos = easedPoint + n * (working ? 0f : .004f) + MotionOffset(n, camera);
-        bool lifting = false;
-        if (PressedFlat)
-        {
-            // Gathered into a pad under the fingers (playtest 4), in about a sixth of a second.
-            pad = Mathf.MoveTowards(pad, padSize, dt / .15f * Mathf.Max(.05f, 1f - padSize));
-            ApplyPad();
-            // The cloth leads with its far fold: its middle sits toward the camera, along the surface, by the pad's own depth
-            // to the fold less the lead. When the camera looks straight down the normal (the cloth held up in the air, over
-            // nothing) there is no "toward", and the shift fades out rather than jumping sideways.
-            Vector3 along = Vector3.ProjectOnPlane(toCamera, n);
-            float reach = Mathf.Max(0f, clothFarFold * heldScale.z * pad - FoldLead);
-            targetPos += along.normalized * (reach * Mathf.Clamp01(along.magnitude / .3f));
-            // The lift: up off the glass and back toward the hand, a little to its right, tipping as a hand lifts it.
-            float lift = LiftAmount(Time.time);
-            if (lift > 0f)
-            {
-                lifting = true;
-                Vector3 side = Vector3.ProjectOnPlane(camera != null ? camera.transform.right : Vector3.right, n);
-                Vector3 back = along.sqrMagnitude > 1e-6f ? along.normalized : side.sqrMagnitude > 1e-6f ? -side.normalized : Vector3.forward;
-                Vector3 away = (back + (side.sqrMagnitude > 1e-6f ? side.normalized * .5f : Vector3.zero)).normalized;
-                targetPos += n * (LiftUp * lift) + away * (LiftBack * lift);
-                Vector3 tipAxis = Vector3.Cross(away, n);
-                if (tipAxis.sqrMagnitude > 1e-6f) target = Quaternion.AngleAxis(LiftTip * lift, tipAxis.normalized) * target;
-            }
-        }
-        Spring(targetPos, target, working || lifting, dt);
+        target *= MotionRotation();
+        bool down = pressing || rubbing;
+        Vector3 position = tip + n * (down ? 0f : HoverHeight);
+        if (!placedOnce) { transform.rotation = target; placedOnce = true; }
+        transform.SetPositionAndRotation(position, Quaternion.Slerp(transform.rotation, target, Ease(dt)));
+        transform.localScale = new Vector3(heldScale.x * ((PressedFlat || tool == ToolType.Brush) ? mirror : 1f), heldScale.y, heldScale.z);
+
+        // The keys (Art A4-A5): the cloth's Press (pressed on the device 1, in the air 0.4) and Bunch (the stroke's speed); the
+        // brush's Bend (the speed, while pressed). In the air nothing drags, so nothing bunches or bends.
+        float wantPress = down ? 1f : .4f;
+        float wantBunch = down ? BenchRules.Bunch(BenchFeel.StrokeSpeed) : 0f;
+        float wantBend = down ? BenchRules.Bend(BenchFeel.StrokeSpeed) : 0f;
+        float k = Ease(dt);
+        pressKey = Mathf.Lerp(pressKey, wantPress, k);
+        bunchKey = Mathf.Lerp(bunchKey, wantBunch, k);
+        bendKey = Mathf.Lerp(bendKey, wantBend, k);
+        ApplyKeys();
+        if (PressedFlat) LeadWithFarEdge(tip, n, camera);
     }
+
+    // ---------- the cloth shows what it cleans (call 23; the header) ----------
+
+    /// <summary>
+    /// The held wad moved toward Ace along the surface, so its far edge on screen (its highest point up the screen, the tail
+    /// and the folds included, at this frame's keys and mirror) sits at <paramref name="tip"/>, the cursor's point. Closed form:
+    /// worked out from where it sits this frame, never eased, so it can't lag or overshoot at 15 fps.
+    /// </summary>
+    private void LeadWithFarEdge(Vector3 tip, Vector3 n, Camera camera)
+    {
+        if (heldCloth == null || !heldCloth.activeSelf) return;
+        Transform held = heldCloth.transform;
+        held.localPosition = heldLocalPos;   // measured from where it sits on the tip
+        held.localRotation = heldLocalRot;
+        if (camera == null) return;
+        Vector3 ray = tip - camera.transform.position;
+        if (ray.sqrMagnitude < 1e-8f) return;
+        ray.Normalize();
+        // Up the screen at the tip (square to the line of sight), and that way along the surface (away from Ace).
+        Vector3 up = camera.transform.up - Vector3.Dot(camera.transform.up, ray) * ray;
+        if (up.sqrMagnitude < 1e-8f) return;
+        up.Normalize();
+        Vector3 along = Vector3.ProjectOnPlane(up, n);
+        if (along.sqrMagnitude < 1e-6f) return;
+        along.Normalize();
+        float rise = Vector3.Dot(along, up);   // how far up the screen a step along the surface goes
+        if (rise < .2f) return;                // looking almost straight down the normal: there is no "far" side to lead with
+        float far = FarEdge(tip, up) + FarEdgeUnderTip;
+        if (far > 0f) held.position -= along * (far / rise);
+    }
+
+    // The far edge sits this far under the cursor (screen-up metres at the tip; 15 Oct). At the cursor itself, the bunch
+    // rising on the leading edge and a mouse's strokes a little above the lens's middle left 26-30 % of Grace's lens in sight
+    // over the wipe (Bench 8 on his Mac; the call's bar is 40 %; a pad's strokes, through the middle, 50 %). 4 mm is under half
+    // the lens spot's radius: the cloth's top edge still runs through the stroke the footprint takes.
+    private const float FarEdgeUnderTip = .004f;
+
+    // How far up the screen (along `up`, metres) the held wad reaches past `from` as it sits now: its vertices at this frame's
+    // Press and Bunch, through its own transform (the mirror included). A mesh that can't be read falls back to its bounds.
+    private float FarEdge(Vector3 from, Vector3 up)
+    {
+        if (!clothMeasured) MeasureCloth();
+        if (keyed == null || clothVerts == null)
+        {
+            // No readable keyed mesh: the held model's drawn boxes (a little more than its outline; never less).
+            float most = 0f;
+            foreach (Renderer r in heldCloth.GetComponentsInChildren<Renderer>())
+            {
+                if (r.GetComponent<BenchOutlineHull>() != null) continue;
+                Bounds b = r.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    most = Mathf.Max(most, Vector3.Dot(corner - from, up));
+                }
+            }
+            return most;
+        }
+        // up taken into the mesh's own space through the transpose of its matrix (scale and mirror kept): one dot a vertex.
+        Matrix4x4 m = keyed.transform.localToWorldMatrix;
+        var local = new Vector3(m.m00 * up.x + m.m10 * up.y + m.m20 * up.z,
+                                m.m01 * up.x + m.m11 * up.y + m.m21 * up.z,
+                                m.m02 * up.x + m.m12 * up.y + m.m22 * up.z);
+        float press = pressKey * clothPressPer, bunch = bunchKey * clothBunchPer;
+        float best = float.NegativeInfinity;
+        for (int i = 0; i < clothVerts.Length; i++)
+        {
+            float d = Vector3.Dot(clothVerts[i], local);
+            if (clothPress != null) d += press * Vector3.Dot(clothPress[i], local);
+            if (clothBunch != null) d += bunch * Vector3.Dot(clothBunch[i], local);
+            if (d > best) best = d;
+        }
+        return best + Vector3.Dot(keyed.transform.position - from, up);
+    }
+
+    // Once: the held mesh's vertices and its two keys' deltas (Bench tools 1 makes the keyed meshes readable).
+    private void MeasureCloth()
+    {
+        clothMeasured = true;
+        Mesh mesh = keyed != null ? keyed.sharedMesh : null;
+        if (mesh == null || !mesh.isReadable) return;
+        clothVerts = mesh.vertices;
+        clothPress = KeyDeltas(mesh, pressIndex, clothVerts.Length, out clothPressPer);
+        clothBunch = KeyDeltas(mesh, bunchIndex, clothVerts.Length, out clothBunchPer);
+    }
+
+    // A key's deltas at its last frame, and what share of them a key at 1 (a weight of 100) gives.
+    private static Vector3[] KeyDeltas(Mesh mesh, int shape, int count, out float perUnit)
+    {
+        perUnit = 1f;
+        if (shape < 0 || shape >= mesh.blendShapeCount) return null;
+        int frames = mesh.GetBlendShapeFrameCount(shape);
+        if (frames < 1) return null;
+        var deltas = new Vector3[count];
+        mesh.GetBlendShapeFrameVertices(shape, frames - 1, deltas, new Vector3[count], new Vector3[count]);
+        float weight = mesh.GetBlendShapeFrameWeight(shape, frames - 1);
+        perUnit = weight > 1e-3f ? 100f / weight : 1f;
+        return deltas;
+    }
+
+    /// <summary>The old follow (the labs' and older callers'): the tip on a point, pressing when working.</summary>
+    public void Follow(Vector3 point, Vector3 normal, Camera camera, bool working, float deltaTime)
+        => HoldAt(point, normal, camera, working, false, deltaTime);
 
     /// <summary>
     /// Where the tool goes this frame when the work decides its angle (the pry tool at a cover's seam, playtest 4): its tip
-    /// at <paramref name="tip"/>, its handle along <paramref name="handle"/>, its flat side's normal (+Z) toward
-    /// <paramref name="flat"/>; hovering 3 mm off <paramref name="surfaceNormal"/> unless a hold is on. The same spring as
-    /// Follow, with the tool's motion (the lever) on top.
+    /// at <paramref name="tip"/> exactly, its handle along <paramref name="handle"/>, its flat side's normal (+Z) toward
+    /// <paramref name="flat"/>; hovering off <paramref name="surfaceNormal"/> unless a hold is on; the lever on top.
     /// </summary>
     public void FollowPose(Vector3 tip, Vector3 handle, Vector3 flat, Vector3 surfaceNormal, Camera camera, bool working, float deltaTime)
     {
-        if (!InHand || legacyTint) return;
+        if (!InHand || legacyTint || Returning) return;
         if (transform.parent != null) transform.SetParent(null, true);
-        float dt = Mathf.Min(deltaTime, .05f);
         Vector3 h = handle.sqrMagnitude > 1e-6f ? handle.normalized : Vector3.up;
         Vector3 f = Vector3.ProjectOnPlane(flat, h);
         if (f.sqrMagnitude < 1e-6f) f = Vector3.ProjectOnPlane(camera != null ? camera.transform.position - tip : Vector3.back, h);
         if (f.sqrMagnitude < 1e-6f) f = Vector3.ProjectOnPlane(Vector3.forward, h);
         Vector3 n = surfaceNormal.sqrMagnitude > 1e-6f ? surfaceNormal.normalized : Vector3.up;
-        if (!easing) { easedPoint = tip; easedNormal = n; velocity = Vector3.zero; easing = true; }
-        float e = 1f - Mathf.Exp(-(working ? 40f : 16f) * dt);
-        easedPoint = Vector3.Lerp(easedPoint, tip, e);
-        easedNormal = Vector3.Slerp(easedNormal, n, e).normalized;   // kept in step, so a Follow after this carries on smoothly
         Quaternion target = Quaternion.LookRotation(f.normalized, h) * MotionRotation();
-        Spring(easedPoint + (working ? Vector3.zero : n * .003f), target, working, dt);
+        if (!placedOnce) { transform.rotation = target; placedOnce = true; }
+        transform.SetPositionAndRotation(tip + (working ? Vector3.zero : n * HoverHeight), Quaternion.Slerp(transform.rotation, target, Ease(deltaTime)));
+        transform.localScale = heldScale;
     }
 
-    // The tip on a spring, critically damped: it arrives without a bounce and never jumps; the turn eased toward the target.
-    // Solved exactly for the frame, not stepped: the stepped form (v += (-w²x - 2wv)·dt; x += v·dt) runs away once w·dt
-    // passes about 1, which at w 26 is a 40 ms frame. With Unity behind other windows the Mac ran the bench lab at 15-20
-    // fps and the cloth in hand went 58 m from the smudge, then 7,000 km (13 Oct, Bench 3); a player's hitch would do the
-    // same for a frame or two. x(t) = (x0 + (v0 + w·x0)·t)·e^(-wt) at any frame length.
-    private void Spring(Vector3 targetPos, Quaternion target, bool working, float dt)
+    // A pointed tool's handle: up the surface's normal, leaned toward the screen's upper right (Ace's right hand), and never
+    // within leanOffView of the line to the camera (the TD's §6.7: the handle hid the screw it turned).
+    private Vector3 Handle(Vector3 n, Camera camera)
     {
-        float w = working ? 26f : 16f;
-        Vector3 x = transform.position - targetPos;
-        Vector3 c2 = velocity + w * x;
-        float decay = Mathf.Exp(-w * dt);
-        Vector3 drift = x + c2 * dt;
-        transform.position = targetPos + drift * decay;
-        velocity = (c2 - w * drift) * decay;
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, 1f - Mathf.Exp(-(working ? 22f : 14f) * dt));
+        if (camera == null) return n;
+        Vector3 upperRight = Vector3.ProjectOnPlane(camera.transform.right + camera.transform.up, n);
+        Vector3 handle = upperRight.sqrMagnitude > 1e-6f ? (n * Mathf.Cos(30f * Mathf.Deg2Rad) + upperRight.normalized * Mathf.Sin(30f * Mathf.Deg2Rad)).normalized : n;
+        Vector3 toCamera = -camera.transform.forward;
+        float angle = Vector3.Angle(handle, toCamera);
+        if (angle < leanOffView)
+        {
+            Vector3 axis = Vector3.Cross(toCamera, handle);
+            if (axis.sqrMagnitude < 1e-8f) axis = camera.transform.right;
+            handle = Quaternion.AngleAxis(leanOffView - angle, axis.normalized) * handle;
+        }
+        return handle.normalized;
+    }
+
+    // The stroke's velocity on the surface (world), from the pointer's smoothed velocity on screen (BenchFeel).
+    private static Vector3 StrokeOnSurface(Camera camera, Vector3 n)
+    {
+        Vector2 v = BenchFeel.StrokeVelocity;
+        if (camera == null || v.sqrMagnitude < 400f) return Vector3.zero;        // under 20 px/s: no direction to follow
+        Vector3 right = Vector3.ProjectOnPlane(camera.transform.right, n).normalized;
+        Vector3 up = Vector3.ProjectOnPlane(camera.transform.up, n).normalized;
+        return right * v.x + up * v.y;
+    }
+
+    private static float Ease(float dt) => 1f - Mathf.Exp(-TurnRate * Mathf.Max(0f, dt));
+
+    private void ApplyKeys()
+    {
+        if (keyed == null) return;
+        if (pressIndex >= 0) keyed.SetBlendShapeWeight(pressIndex, pressKey * 100f);
+        if (bunchIndex >= 0) keyed.SetBlendShapeWeight(bunchIndex, bunchKey * 100f);
+        if (bendIndex >= 0) keyed.SetBlendShapeWeight(bendIndex, bendKey * 100f);
     }
 
     // The pry's rotation for a handle that rises `degrees` from a surface (normal n) toward `across` (in the surface): its
@@ -290,44 +474,6 @@ public class ToolPickup : MonoBehaviour
         return Quaternion.LookRotation(flat.normalized, handle.normalized);
     }
 
-    /// <summary>The cloth lifts off the glass (a smudge has just come clean), with its swish. Nothing for the other tools.</summary>
-    public void LiftOff()
-    {
-        if (!InHand || !PressedFlat) return;
-        liftAt = Time.time;
-        Sfx.Play("cloth.lift", transform.position);
-    }
-
-    /// <summary>The cloth comes back down now (another smudge is being wiped): the lift's hold ends, its fall begins.</summary>
-    public void Land()
-    {
-        if (!Lifting) return;
-        float t = Time.time - liftAt;
-        // Already coming down: nothing to do. Still rising or held: the fall starts now, from where it is (a rising pad
-        // part-way up comes down from part-way, not from the top).
-        if (t < LiftRise + LiftHold) liftAt = Time.time - (LiftRise + LiftHold) - LiftFall * (1f - LiftAmount(Time.time));
-    }
-
-    // The lift's height, 0..1: up quickly (easing out), held, then down (easing in and out).
-    private float LiftAmount(float now)
-    {
-        if (liftAt < 0f) return 0f;
-        float t = now - liftAt;
-        if (t < 0f) return 0f;
-        if (t < LiftRise) { float u = 1f - t / LiftRise; return 1f - u * u * u; }
-        if (t < LiftRise + LiftHold) return 1f;
-        if (t < LiftRise + LiftHold + LiftFall) return 1f - Mathf.SmoothStep(0f, 1f, (t - LiftRise - LiftHold) / LiftFall);
-        return 0f;
-    }
-
-    // The cloth's scale for how gathered it is: across the glass (X, Z) by the pad, its height (Y) by the thickness. Its
-    // origin is its underside, so it stays on the glass as it changes.
-    private void ApplyPad()
-    {
-        float k = padSize < .999f ? Mathf.Clamp01((1f - pad) / (1f - padSize)) : 0f;
-        transform.localScale = new Vector3(heldScale.x * pad, heldScale.y * Mathf.Lerp(1f, padThickness, k), heldScale.z * pad);
-    }
-
     /// <summary>The tool's motion while a hold is on. direction: +1 outward / forward, -1 inward / back.</summary>
     public void Animate(Motion motion, float progress, float direction, float deltaTime)
     {
@@ -336,8 +482,6 @@ public class ToolPickup : MonoBehaviour
             case Motion.Turn:   spin += -direction * 420f * deltaTime; break;              // counter-clockwise backs a screw out
             case Motion.Pinch:  pinch = Mathf.MoveTowards(pinch, 1f, deltaTime / .12f); break;
             case Motion.Lever:  lever = Mathf.Lerp(0f, 16f, progress); break;
-            case Motion.Stroke: strokePhase += deltaTime * 6f * Mathf.PI * 2f; break;
-            case Motion.Circle: strokePhase += deltaTime * 2f * Mathf.PI * 2f; break;
         }
         ApplyLeaves();
     }
@@ -350,8 +494,6 @@ public class ToolPickup : MonoBehaviour
         ApplyLeaves();
     }
 
-    private float strokePhase;
-
     private Quaternion MotionRotation()
     {
         Quaternion r = Quaternion.identity;
@@ -360,60 +502,10 @@ public class ToolPickup : MonoBehaviour
         return r;
     }
 
-    private Vector3 MotionOffset(Vector3 n, Camera camera)
-    {
-        if (tool == ToolType.Brush && strokePhase > 0f)
-        {
-            Vector3 across = Vector3.Cross(n, camera != null ? camera.transform.right : Vector3.right).normalized;
-            return across * (Mathf.Sin(strokePhase) * .004f);
-        }
-        if (tool == ToolType.Cloth && strokePhase > 0f)
-        {
-            Vector3 a = Vector3.Cross(n, Vector3.up).sqrMagnitude > 1e-4f ? Vector3.Cross(n, Vector3.up).normalized : Vector3.right;
-            Vector3 b = Vector3.Cross(n, a).normalized;
-            return (a * Mathf.Cos(strokePhase) + b * Mathf.Sin(strokePhase)) * .006f;
-        }
-        return Vector3.zero;
-    }
-
     private void ApplyLeaves()
     {
         // The tweezers' leaves close about the heel (their origin), each toward the other, until the points meet.
         if (leafL != null) leafL.localRotation = leafLRest * Quaternion.AngleAxis(1.1f * pinch, Vector3.forward);
         if (leafR != null) leafR.localRotation = leafRRest * Quaternion.AngleAxis(-1.1f * pinch, Vector3.forward);
-    }
-
-    private void LateUpdate()
-    {
-        if (!InHand) strokePhase = 0f;
-    }
-
-    private IEnumerator ReturnHome()
-    {
-        easing = false;
-        velocity = Vector3.zero;
-        if (homeParent == null) yield break;
-        Vector3 fromPos = transform.position;
-        Quaternion fromRot = transform.rotation;
-        transform.SetParent(homeParent, true);
-        // The cloth spreads back out to its folded size on the way (it was gathered into a pad in the hand).
-        Vector3 fromScale = transform.localScale;
-        bool rescale = !legacyTint && (fromScale - baseScale).sqrMagnitude > 1e-10f;
-        float t = 0f;
-        while (t < 1f)
-        {
-            t += Time.deltaTime / .2f;
-            float c = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t));
-            transform.position = Vector3.Lerp(fromPos, homeParent.TransformPoint(homeLocalPos), c);
-            transform.rotation = Quaternion.Slerp(fromRot, homeParent.rotation * homeLocalRot, c);
-            if (rescale) transform.localScale = Vector3.Lerp(fromScale, baseScale, c);
-            yield return null;
-        }
-        transform.localPosition = homeLocalPos;
-        transform.localRotation = homeLocalRot;
-        if (!legacyTint) transform.localScale = baseScale;
-        pad = 1f;
-        spin = 0f;
-        returning = null;
     }
 }

@@ -114,6 +114,9 @@ static class BenchFeelSteps
         GameObject root = PrefabUtility.LoadPrefabContents(path);
         try
         {
+            // One scale (14 Oct, td-one-scale.md §6.4): the numbers below are the 3x watch's; Devices 2 baked it to real size.
+            DeviceDefinition baked = root.GetComponent<DeviceDefinition>();
+            if (baked != null && baked.realSize) { report.AppendLine("REFUSED  the watch is at real size (Devices 2): this step writes the 3x watch's numbers. Nothing changed."); return 1; }
             // a thumbprint on the crystal, for the "debris inside" fault: at the crystal's plane, the bezel's top (+10 mm),
             // over the dial recessed 3.5 mm under it. The crystal itself isn't modelled, and the case's collider is one
             // solid up to the bezel top (nothing was to be done on the dial side until now), so the print lies a hair over
@@ -164,6 +167,9 @@ static class BenchFeelSteps
         GameObject root = PrefabUtility.LoadPrefabContents(path);
         try
         {
+            // One scale (14 Oct, td-one-scale.md §6.4): the dome below is the 2x camera's; Devices 2 baked it to real size.
+            DeviceDefinition baked = root.GetComponent<DeviceDefinition>();
+            if (baked != null && baked.realSize) { report.AppendLine("REFUSED  the camera is at real size (Devices 2): this step writes the 2x camera's lens dome. Nothing changed."); return 1; }
             Transform lens = Find(root.transform, "Lens grime");
             GrimeSpot spot = lens != null ? lens.GetComponent<GrimeSpot>() : null;
             if (spot == null) { failures++; report.AppendLine("FAIL  no 'Lens grime'"); }

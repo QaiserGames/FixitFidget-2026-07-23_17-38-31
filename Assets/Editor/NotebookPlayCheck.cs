@@ -80,8 +80,8 @@ public static class NotebookPlayCheck
         graceIdentity.SetupRegular(grace);
         var camera = new Job
         {
-            kind = JobKind.Repair, deviceName = "reunion film camera", faultDescription = "sticky shutter",
-            storyEpisodeId = GraceCameraEpisode.EpisodeId
+            kind = JobKind.Repair, deviceName = "reunion film camera", faultDescription = "Dirty Lens and Film Path",
+            faultType = FaultType.Cleaning, storyEpisodeId = GraceCameraEpisode.EpisodeId   // her story is told on Day 1's clean
         };
         graceIdentity.SetDevice(camera.Subject);
         graceIdentity.SetFault(camera.faultDescription);

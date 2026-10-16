@@ -1,5 +1,7 @@
 """
-The hero pocket watch, v3 (9 Oct 2026): PocketWatch.prefab's pieces (a 15 cm cylinder for the case, a cylinder back
+The hero pocket watch, v3.6 (14 Oct 2026): AUTHORED AT 3x, EXPORTED REAL (TD one-scale §6.1: build() scales every mesh and
+child place by 1 / AUTHORED_SCALE through hero_lib.scale_build, so the FBX is a 50 mm watch); the four case screws real:
+3.8 mm blued pan heads (11.4 at this file's 3x; feel-targets call 3), their heads on the back plate's dome. On v3 (9 Oct 2026): PocketWatch.prefab's pieces (a 15 cm cylinder for the case, a cylinder back
 plate, a cylinder crown, cylinder screws, a cube for the mainspring) as real meshes, built from measured pocket watches
 (claude/hero-reference-sheet.md: 48-50 mm open-face cases, a pendant-crown-bow a third of the diameter tall, an enamel
 dial with a railroad track and sub-seconds at 6, a 3/4-plate movement) at the prefab's 3x size, in the house style
@@ -24,7 +26,10 @@ mainspring's seat at (30, -7, 20) (in the barrel, on the pillar plate at -5.7). 
   BackPlate                        a 130 mm back: a flat rim, a shallow dome, one fine engraved ring.
   Crown                            built along +Z (its outward axis; the prefab turns the object so that is Unity +Z):
                                    the pendant tube with a collar and a fluted crown.
-  Screw                            a 12 mm slotted-cross case screw, dome facing out (-Z), shank going +Z. Used four times.
+  Screw                            v3.6: hero_phone.screw_mesh at 3x: a pan-head Phillips screw, head Ø 11.4 (3.8 real)
+                                   x 0.35, blued; the shank 2 x the head (7.6 real). Top facing out (-Z), z = 0 the
+                                   head's middle. Used four times; at Unity y -0.020635 (3x) the head's middle sits on the
+                                   dome at r 45 (was -0.020 under the 12 mm heads).
   Mainspring                       a blued-steel ribbon coiled five turns round a brass arbor, 2.5 mm tall; lies in XY,
                                    centred on its origin. The FRESH part.
   MainspringBroken                 the BROKEN part (v3.3): the same spring snapped three-quarters of a turn from its
@@ -43,6 +48,9 @@ import hero_lib as hl  # noqa: E402
 from hero_lib import Faceted, disc, dome, gear, moved, revolve, ring_wall, spoked_wheel, sweep, to_blender, tube  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
+AUTHORED_SCALE = 3.0      # this file's numbers are at 3x; the FBX is real (build() scales by 1 / AUTHORED_SCALE)
+SCREW_HEAD = .0038        # real (feel-targets call 3)
+
 HD_MATERIALS = {
     'HD_WatchGold':     ('#C19A52', 0.55, 0.0),   # the case, bezel, crown, bow, back plate
     'HD_WatchGoldDark': ('#8E6E2E', 0.50, 0.0),   # the engraved ring, the seams
@@ -54,13 +62,15 @@ HD_MATERIALS = {
     'HD_WatchBrass':    ('#B08A3E', 0.50, 0.0),   # wheels, chatons, the arbor
     'HD_WatchRuby':     ('#8B1A2B', 0.70, 0.0),   # jewels
     'HD_WatchSteel':    ('#93908A', 0.45, 0.0),   # screws, the balance
-    'HD_ScrewSlot':     ('#2A2D31', 0.30, 0.0),
+    'HD_ScrewSlot':     ('#2A2D31', 0.30, 0.0),   # the movement's plate screws' slots
+    'HD_ScrewBlued':    ('#2A3F6B', 0.55, 0.0),   # v3.6: the four case screws, blued steel (Art A8: it reads on the gold)
+    'HD_ScrewRecess':   ('#121110', 0.20, 0.0),   # v3.6: their cross recess
 }
 
 PREFAB_OFFSETS = {        # Unity's frame
     'BackPlate':  (0.0, -0.016, 0.0),
     'Crown':      (0.0, 0.0, 0.085),
-    'Screw':      (0.032, -0.020, 0.032),
+    'Screw':      (0.032, -0.020635, 0.032),       # v3.6: the 11.4 x 3.99 head's middle on the dome at r 45 (3x); was -0.020
     'MainspringBroken': (0.030, -0.007, 0.020),   # the broken part, in the barrel
     'Mainspring': (0.110, 0.0, 0.0),              # the fresh part: beside the watch in the FBX assembly (the prefab's Fresh sits in the seat, off)
 }
@@ -331,21 +341,8 @@ def crown():
 
 
 def screw():
-    p = Faceted('Screw')
-    steel, slot_m = M('HD_WatchSteel'), M('HD_ScrewSlot')
-    head = revolve([(-.0013, .0046), (-.0008, .0056), (.0000, .0060), (.0013, .0060)], sides=16, bottom_tip=(0, 0, -.0015))
-    p.add('head', head, steel)
-    for rot in (0.0, 90.0):
-        slot = fb.zbox(-.0036, .0036, -.0005, .0005, -.0017, -.0010)
-        fb.turn(slot, rot, 'Z')
-        p.add('slot', slot, slot_m)
-    prof = [(.0013, .0020)]
-    for i in range(3):
-        z = .0020 + i * .0016
-        prof += [(z, .0017), (z + .0008, .0022)]
-    prof += [(.0070, .0017), (.0076, .0010)]
-    p.add('shank', revolve(prof, sides=10, tip=(0, 0, .0080)), steel)
-    return p
+    import hero_phone
+    return hero_phone.screw_mesh('Screw', M('HD_ScrewBlued'), head=SCREW_HEAD * AUTHORED_SCALE, shank_len=2 * SCREW_HEAD * AUTHORED_SCALE)
 
 
 def mainspring():
@@ -458,4 +455,15 @@ def build():
             if ob.name == 'Crown':
                 ob.rotation_euler = (math.radians(90.0), 0.0, 0.0)      # its +Z (outward) to Blender -Y = Unity +Z, as the prefab turns it
             children.append(ob)
+    hl.scale_build(made, children, 1.0 / AUTHORED_SCALE)
     return root, children, made
+
+
+# The prefab's places v3.6 moves (real metres, Unity): Devices 2 bakes today's x 1/3, then sets these. Only the screws move
+# (the shorter 3.8 mm heads); the grime move HeroDeviceSteps already makes (Grime_Extra_Watch_1) is x 1/3 by the bake.
+MOVES = [
+    ('Screw0', (0.032, -0.020, 0.032), (0.010667, -0.006878, 0.010667), "the 3.8 x 1.33 head's middle on the back plate's dome"),
+    ('Screw1', (-0.032, -0.020, 0.032), (-0.010667, -0.006878, 0.010667), "the same"),
+    ('Screw2', (0.032, -0.020, -0.032), (0.010667, -0.006878, -0.010667), "the same"),
+    ('Screw3', (-0.032, -0.020, -0.032), (-0.010667, -0.006878, -0.010667), "the same"),
+]

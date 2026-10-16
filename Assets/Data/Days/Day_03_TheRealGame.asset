@@ -13,41 +13,38 @@ MonoBehaviour:
   m_Name: Day_03_TheRealGame
   m_EditorClassIdentifier: Assembly-CSharp::DayDefinition
   dayNumber: 3
-  intent: The epiphany. Full cast bar Rushed, a real midday rush, and the first customers
-    who stand in your way.
+  intent: The screwdriver; the Officer's question; Grace's photo.
   phases:
   - phaseName: Calm
     startsAt: 0
-    spawnInterval: 20
+    spawnInterval: 35
   - phaseName: Build
-    startsAt: 0.22
-    spawnInterval: 13
+    startsAt: 0.2
+    spawnInterval: 22
   - phaseName: Rush
     startsAt: 0.45
-    spawnInterval: 8
+    spawnInterval: 18
   - phaseName: Recover
     startsAt: 0.72
-    spawnInterval: 18
-  patienceMultiplier: 1
-  maxCustomers: 5
-  drinkOnlyChance: 0.3
+    spawnInterval: 26
+  patienceMultiplier: 1.6
+  maxCustomers: 2
+  drinkOnlyChance: 0.45
   guidedOpening: 0
   openingDrink: {fileID: 0}
   openingHintDuration: 6
   suppressRepairDrinkWishes: 0
   devices:
   - {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
-  - {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
-  - {fileID: 1740192461705439849, guid: 60b9162c3bde0f546876c3dbe1c1c83c, type: 3}
   allowedArchetypes:
   - Cheerful
   - Chatty
   - Sentimental
   - Impatient
   regularChance: 0.3
-  featuredRegular: {fileID: 0}
+  featuredRegular: {fileID: 11400000, guid: dfd14ad338d46de49bd81a423294b439, type: 2}
   showFeaturedVisitHints: 0
-  featuredRegularArrivesAt: 0.15
+  featuredRegularArrivesAt: 0
   useFeaturedRepair: 0
   featuredRepair:
     devicePrefab: {fileID: 0}
@@ -56,3 +53,13 @@ MonoBehaviour:
   storyVisits:
   - who: {fileID: 11400000, guid: 11b2eb1e8c94a444c8ba4851ad187011, type: 2}
     arrivesAt: 0.25
+  walkInRepairs:
+  - devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+    faultIndex: 0
+    storyEpisodeId: 
+  - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+    faultIndex: 0
+    storyEpisodeId: 
+  - devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+    faultIndex: 1
+    storyEpisodeId: 

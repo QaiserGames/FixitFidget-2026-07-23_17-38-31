@@ -100,8 +100,11 @@ public static class BeverageStationSetup
             stand.localPosition = new Vector3(0, -position.y, -.95f);
             var cameraObject = new GameObject("Drink station camera");
             cameraObject.transform.SetParent(root.transform, false);
-            cameraObject.transform.localPosition = new Vector3(0, .77f, -1.28f);
-            cameraObject.transform.LookAt(root.transform.TransformPoint(new Vector3(0, .30f, -.10f)));
+            // Straight on, at Ace's eye (14 Oct, the Cinematics rule; his note: "up and diagonal"): on the dispenser's axis, 10 cm
+            // behind the stand point, 1.65 m above its floor, the dispenser's heading, tilted onto the working face's middle.
+            // Fixit Fidget > Cinematics > Drinks close-up - straight on (scene) re-derives it exactly from the face.
+            cameraObject.transform.localPosition = new Vector3(0, 1.65f - position.y, -.95f - .10f);
+            cameraObject.transform.LookAt(root.transform.TransformPoint(new Vector3(0, .257f, -.14f)));
             var camera = cameraObject.AddComponent<CinemachineCamera>();
             camera.Priority = 0;
             camera.Lens.FieldOfView = 58;

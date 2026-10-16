@@ -21,6 +21,15 @@ floating more than 2 mm from the rest.
 | `export_grace_cover.py` | Grace's cover for session 5 (`grace_cover.py`): a bar-height kitchen island (1.12 m) and a stack of three boxes (1.14 m) | `Assets/Art/Models/GraceHouse/GH_KitchenIsland.fbx`, `GH_BoxStack.fbx` (+ `grace_cover.json`), `BlenderSource/GraceCover_v1.blend` |
 | `review_bench_tools.py` | Review renders of both: the tools as the inspection camera sees them, each tool alone, the cover pieces with a crouched Ace behind them from Grace's eye | `Tools/Blender/out/` (not kept in git) |
 | `unity_mesh.py` | Reads meshes (positions, triangles) out of a Unity text asset, for measuring things like the house shell | (a helper) |
+| `bench_stage.py`, `bench_stage_textures.py`, `export_bench_stage.py` | The silicone repair mat (14 Oct 2026, Art's A1): grid, rulers, six screw cups with steel discs, the new-part pad, the cover well, and its empties `Cup_1..6`, `Pad_Small/Large`, `Well_Small/Large`; built in the bench rig's own frame (no turn under the stage) | `Assets/Art/Models/BenchStage/BM_RepairMat.fbx` (+ `bench_stage.json`), `Assets/Art/Textures/Bench/BM_Grid_color.png`, `BM_Rulers.png`, `BlenderSource/BenchStage_v1.blend` |
+| `export_bench_tools.py` (v4) | Adds to the tools: `BT_ClothHeld` (keys `Press`, `Bunch`), the `Bend` key on `BT_Brush`, the thinner `BT_Cloth`, `BT_ToolRest` with its `Seat_*` empties, `BT_ScrapTray` | `Assets/Art/Models/BenchTools/` (+ `bench_tools.json` v3), `BlenderSource/BenchTools_v4.blend` |
+| `review_bench_stage.py` | The close-up review: each device on the mat from the close-up camera (58 degrees, 0.58 m, 40 degree lens) with UI/UX's zones drawn over, the mat alone, the cloth's states and the brush's bend, a 2x zoom on the cups; the mat's rendered colour | `Tools/Blender/out/bench-stage/` |
+| `render_bench_icons.py` | The checklist card's icons (256 px, transparent, an 8 px outline): the eight generic ones and (14 Oct, wave 2) the five per device, `part_phone`, `part_watch`, `part_camera`, `cover_phone`, `cover_watch` (`ICONS=` for a subset); a contact sheet at 36 and 56 px on the card's cream | `Assets/Data/Resources/UI/BenchIcons/*.png`, `Tools/Blender/out/bench-icons-contact-sheet.png` |
+| `hero_phone.py`, `hero_watch.py`, `hero_camera.py`, `hero_lib.py`, `export_hero_devices.py` | The hero devices (wave 2, 14 Oct 2026): AUTHORED at 1x / 3x / 2x, EXPORTED REAL through `hero_lib.scale_build` (the TD's one scale); screws 3.8 mm pan heads (phone black oxide, watch blued); Grace's camera v3.6 (a real neck strap: lugs, split rings, protectors, keepers, a gathered loop; the body 32 mm deep with rounded ends; the clean and jammed shutter mechanisms). `devices.json` v3: `units: real`, `authoredScale`, the prefab `moves`, the screws, the REAL audit (+-7 %) | `Assets/Art/Models/Devices/HD_*.fbx` (+ `devices.json`), `BlenderSource/Hero*_v3.blend` |
+| `bench_screw_hole.py` | `BT_ScrewHole.png` (Art A8): the hole a screw leaves, a decal on a quad 1.15 x the head: a dark bore 0.48 x the head with two thread rings, a lit lip, a soft dip, a witness ring; 256 px RGBA (Pillow, no Blender) | `Assets/Data/Resources/Bench/BT_ScrewHole.png` |
+| `review_devices_wave2.py` | The devices at real size on the mat from the TD's framings (layout view and zoom limit, 16:9 and 16:10, UI/UX's U1-U6 drawn), screws out in their cups with the hole decal, numbers (fill, screw px, zone checks), and a turntable of Grace's camera | `Tools/Blender/out/devices-wave2/` |
+| `cafe_repairside.py`, `cafe_cafeside.py`, `cafe_wave1_textures.py`, `export_cafe_wave1.py` | The café full from above (Art's B3): the pickup row, Ace's desk corner and its glass notes, the donor parts, the whiteboard, the parts delivery, the syrup rack, the cup station, the bar mat, the mortgage letter and the final notice | `Assets/Art/Models/CafeKit/LI_*.fbx` (+ `cafe_dressing.json`), `Assets/Art/Textures/Cafe/LI_Tags.png`, `LI_Whiteboard.png`, `LI_Mortgage.png`, `LI_FinalNotice.png`, `BlenderSource/CafeDressing_v1.blend` |
+| `review_cafe_wave1.py` | The overhead review from the real CmShopCam (43 degrees, 34 m, 44 degree lens) before and after, a 10-pixel check, a turntable | `Tools/Blender/out/cafe-wave1/` |
 
 `fixit_blender.py` holds the shared helpers (materials, boxes, lofts, struts, the audit, FBX export),
 `barnaby.py` and `grace_house.py` the pieces.
@@ -60,6 +69,8 @@ were first run (29 Sept 2026, overnight). The `.blend` files are Blender 5.2 fil
   right way round (`orient_shells`). Barnaby's flopped hat had come out inside out, so in Unity you saw into his head
   (6 Oct 2026); the report says how many were turned.
 - Doors have their origin on the hinge line at the floor, so Unity can swing them about Y.
+- The bench stage's mat, rest and tray (14 Oct 2026) are the exception to "front faces -Y": they are built in the
+  InspectRig's own frame (the player at Blender +Y) so they go under the rig's stage with no turn.
 - Colours are sRGB hex, converted to linear for Blender. The materials are named after the Unity
   materials they become: the café's own (`CC_Wood_Counter`, `DC_Steel`, `T2_Brass`, ...) or new
   ones (`GH_*` for Grace's house; `Night 1 - *` for Barnaby, the placeholder's own).
@@ -69,7 +80,10 @@ were first run (29 Sept 2026, overnight). The `.blend` files are Blender 5.2 fil
 
 ## In Unity afterwards
 
-- The bench's tools: `Fixit Fidget > Bench > Bench tools 1 - Import and check the tools (the models only)`.
+- The bench's tools: `Fixit Fidget > Bench > Bench tools 1 - Import and check the tools (the models only)`. Since 14 Oct
+  its manifest also carries the rest, the tray and the held cloth; BT_ClothHeld and BT_Brush need `importBlendShapes = true`
+  (the step sets it false today), and the rest's `Seat_*` are empties (children with no mesh).
+- The repair mat (14 Oct): a step to come (Bench stage 1): the FBX, its BM_ materials with their two pictures and tiling.
 - Grace's cover: `Fixit Fidget > Night > Grace's cover 1 - Import and check the pieces (the models only)`.
 - Barnaby: `Fixit Fidget > Night > Night 1 - Barnaby: use the Blender model (the prefab only)`.
 - Grace's furniture: `Fixit Fidget > Night > Break-ins - Grace's furniture: import and check (the models only)`.

@@ -571,6 +571,12 @@ public sealed class Juice : MonoBehaviour
 
     // ================================================================== the canvas
 
+    // The bench's watcher (the wake and the one ending) runs from the start of play, not from the first effect. Made on demand,
+    // it first saw the lab's phone after the seat's sparkle (its first effect and its last task) and took it as done already:
+    // the phone never woke (15 Oct, Bench 3). A first repair whose first effect is its last would have lost its wake too.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void WatchFromTheStart() => Ensure();
+
     static Juice Ensure()
     {
         if (instance != null) return instance;
@@ -779,6 +785,9 @@ public sealed class Juice : MonoBehaviour
             watchedDone = item != null && item.Quality >= .999f;
             watchedTogether = item != null && item.CanHandBack;
             watchedFinished = watchedDone && watchedTogether;
+            if (item != null && !(item is DrinkJob))
+                Debug.Log($"[Juice] in the close-up: {item.name}, quality {item.Quality:0.00}, {(watchedTogether ? "in one piece" : "in pieces")}" +
+                          (watchedDone ? " (its tasks done already: it won't wake again)" : ""));
             return;
         }
         if (item == null || item is DrinkJob) return;
@@ -790,6 +799,7 @@ public sealed class Juice : MonoBehaviour
             watchedDone = true;
             wokeNow = true;
             Wakes++;
+            Debug.Log($"[Juice] {item.name}: its last task done (quality {item.Quality:0.00}): it wakes.");
             DeviceWake.Fire(item);
         }
         if (done && together && !watchedFinished)

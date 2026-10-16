@@ -79,6 +79,48 @@ public class PatronSpawner : MonoBehaviour
              "through the door together).")]
     [SerializeField, Range(2f, 20f)] private float pairFollowDistance = 8f;
 
+    // SETTLED GUESTS (14 Oct 2026, NPC wave 2). His girlfriend, playtest 5: "the cafe felt empty". When the intro ends
+    // (or the bell rings with it Off) a few people are already in: a reader in the reading corner, a pair talking at a
+    // banquette 2-top, someone at the laptop on the communal table. They never need Ace: they came in before he opened
+    // (no payment, no arrival), sit already seated (NpcSeating.SitAtOnce: no walk in through the door with Grace, who
+    // arrives at 0 s), and leave over the morning at a share of the day's real length (PatronBrain.StayUntil), so seats
+    // free up before lunch. Their seats are in the room's south half: none is a stool, and none is among the eight a
+    // customer weighs from the counter. Days 1-3 only (the Producer's call 13); placed by Fixit Fidget > NPC > Wave 2.
+    [System.Serializable]
+    public class OpeningGuest
+    {
+        [Tooltip("Who they are, for the reports: a reader, a pair, a laptop worker.")]
+        public string label = "";
+        [Tooltip("Their seats: one for someone alone, two for a pair (the first leads, the second leaves with them).")]
+        public TableSeat[] seats = System.Array.Empty<TableSeat>();
+        [Tooltip("Another set of seats, taken on about half the mornings, and whenever the first set isn't free. Empty: none.")]
+        public TableSeat[] alternative = System.Array.Empty<TableSeat>();
+        [Tooltip("A remote worker: the laptop lying at their seat opens as they sit, their eyes on the screen.")]
+        public bool laptop;
+        [Tooltip("They leave when the day is this far through (DayClock.NormalizedDay): a share of the day's real length, " +
+                 "so a longer day keeps them in proportion. At 420 s: 0.30 = 2:06, 0.40 = 2:48, 0.55 = 3:51.")]
+        [Range(0f, 1f)] public float leaveAt = .3f;
+        [Tooltip("The first and the last day they're there (DayClock.Day).")]
+        public int firstDay = 1, lastDay = 3;
+    }
+
+    [Header("Settled guests (NPC wave 2)")]
+    [Tooltip("People already seated when the café opens, who never need Ace. Filled by Fixit Fidget > NPC > Wave 2.")]
+    [SerializeField] private OpeningGuest[] openingGuests = System.Array.Empty<OpeningGuest>();
+
+    /// <summary>A lab's hand: settled guests in this lab session too (they are skipped in labs, as the intro is).</summary>
+    public static bool ForceOpeningGuests { get; set; }
+    /// <summary>For the checks: the settled guests seated this morning (with who they are), and the day they were seated on.</summary>
+    public System.Collections.Generic.List<(PatronBrain guest, string label, TableSeat seat, float leaveAt)> OpeningGuestsSeated { get; } = new();
+    public int OpeningGuestsDay => openingGuestsDay;
+    /// <summary>The settled guests as authored (for the checks and the step's report).</summary>
+    public OpeningGuest[] OpeningGuests => openingGuests;
+
+    private int openingGuestsDay = -1;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => ForceOpeningGuests = false;
+
     private float timer;
     private int lastSeenDay = -1;
     // Pairs: the second of each waits (inactive) until the first is near the door, then walks the last metres in.
@@ -116,6 +158,10 @@ public class PatronSpawner : MonoBehaviour
             for (int i = pending.Count - 1; i >= 0; i--) { if (pending[i].second != null) Destroy(pending[i].second.gameObject); }
             pending.Clear();
             timer = Random.Range(openingGraceMin, openingGraceMax);
+            // The settled guests at the open (contract §7): here when the intro is Off (the bell rings and this is the
+            // spawner's first frame of the day); with the intro on, DayIntro.HoldTheWorld has already seated them under its
+            // first shot and this is a no-op (once a morning).
+            SeatOpeningGuests();
             return;
         }
 
@@ -175,9 +221,12 @@ public class PatronSpawner : MonoBehaviour
     }
 
     // One patron body at the door, with its brain, not yet started.
-    private PatronBrain Make(out GameObject go)
+    private PatronBrain Make(out GameObject go) => MakeAt(ScatteredSpawn(), spawnPoint.rotation, out go);
+
+    // One patron body at a place (the door, or a settled guest's seat), with its brain, not yet started.
+    private PatronBrain MakeAt(Vector3 at, Quaternion facing, out GameObject go)
     {
-        go = Instantiate(patronPrefab, ScatteredSpawn(), spawnPoint.rotation);
+        go = Instantiate(patronPrefab, at, facing);
 
         // A patron prefab made by duplicating the customer prefab would still
         // carry a CustomerBrain, which would claim a counter slot, appear on the
@@ -252,6 +301,118 @@ public class PatronSpawner : MonoBehaviour
         LaptopPatronsSent++;
         ComeIn(brain);
         return brain;
+    }
+
+    // ------------------------------------------------------------ the settled guests (contract §7, 14 Oct 2026)
+
+    /// <summary>
+    /// The settled guests, seated now (contract §7): finds the scene's spawner and seats today's opening guests at once.
+    /// Once a morning (a second call that day does nothing); nothing on a day with none, with the café closed, or in a lab
+    /// session that didn't ask (ForceOpeningGuests). DayIntro.HoldTheWorld calls it one line before it holds the spawner,
+    /// so they are in their seats under the intro's first shot; the spawner calls it at the open when the intro is Off.
+    /// </summary>
+    public static void SeatOpeningGuestsNow()
+    {
+        PatronSpawner spawner = FindAnyObjectByType<PatronSpawner>();
+        if (spawner != null) spawner.SeatOpeningGuests();
+    }
+
+    /// <summary>Seats today's settled guests (see <see cref="SeatOpeningGuestsNow"/>). How many sat down at once.</summary>
+    public int SeatOpeningGuests()
+    {
+        DayClock clock = DayClock.Instance;
+        if (clock == null || !clock.IsOpen || clock.DayOver) return 0;
+        // Off in a lab session unless the lab asks, as the intro is (not marked done, so a lab that asks later still gets them):
+        // the whole-game playtest is the real game (DayIntro.LabWanted; review-npc-cine M1, 14 Oct).
+        if (CafeLab.Active && !ForceOpeningGuests && !DayIntro.LabWanted) return 0;
+        int day = clock.Day;
+        if (openingGuestsDay == day) return 0;
+        openingGuestsDay = day;
+        OpeningGuestsSeated.Clear();
+        if (patronPrefab == null || exitPoint == null || openingGuests == null || openingGuests.Length == 0) return 0;
+        ReleaseStaleSeats(day);
+        var today = new System.Collections.Generic.List<(OpeningGuest guest, TableSeat[] seats)>();
+        int people = 0;
+        foreach (OpeningGuest guest in openingGuests)
+        {
+            if (guest == null || day < guest.firstDay || day > guest.lastDay) continue;
+            TableSeat[] seats = SeatsFor(guest);
+            if (seats == null)
+            {
+                Debug.LogWarning($"[Settled guests] {guest.label}: none of their seats is free this morning, so they aren't in today.", this);
+                continue;
+            }
+            today.Add((guest, seats));
+            people += seats.Length;
+        }
+        // Their sitting idles spread round the cycle (four: a quarter apart, give or take an eighth), so no two of them,
+        // placed in the same frame, ever breathe in step.
+        float first = Random.value;
+        int k = 0, sat = 0;
+        foreach (var (guest, seats) in today)
+            sat += SeatGuest(guest, seats, _ => Mathf.Repeat(first + (k++ + Random.Range(-.25f, .25f)) / Mathf.Max(1, people), 1f));
+        return sat;
+    }
+
+    // Their seats this morning: the first set or the alternative, at random, and the other whenever one isn't free.
+    private static TableSeat[] SeatsFor(OpeningGuest guest)
+    {
+        bool hasAlternative = guest.alternative != null && guest.alternative.Length > 0;
+        bool alternativeFirst = hasAlternative && Random.value < .5f;
+        TableSeat[] first = alternativeFirst ? guest.alternative : guest.seats;
+        TableSeat[] second = alternativeFirst ? guest.seats : guest.alternative;
+        if (AllFree(first)) return first;
+        if (hasAlternative && AllFree(second)) return second;
+        return null;
+    }
+
+    private static bool AllFree(TableSeat[] seats)
+    {
+        if (seats == null || seats.Length == 0) return false;
+        foreach (TableSeat seat in seats)
+            if (seat == null || !seat.isActiveAndEnabled || !seat.IsAvailable || !WaitingArea.HasClaimClearance(seat, null)) return false;
+        return true;
+    }
+
+    // A seat still held by a patron from another day belongs to one this morning is clearing away (DayClock.StartDay
+    // destroys yesterday's patrons at the end of its frame, and the open can come in that same frame): let it go now, so
+    // today's guests can have it. Should that patron stay at all, it sees its seat gone and leaves.
+    private static void ReleaseStaleSeats(int day)
+    {
+        foreach (TableSeat seat in FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude))
+            if (seat != null && seat.Occupant is PatronBrain patron && patron != null && patron.Day != day) seat.Release(patron);
+    }
+
+    // One guest, or a pair: made inside at their seats' stand points (never at the door: Grace walks in at 0 s on Day 1)
+    // and sat down at once. They pay nothing (that is ComeIn's) and announce no arrival. How many sat at once.
+    private int SeatGuest(OpeningGuest guest, TableSeat[] seats, System.Func<int, float> sittingPhase)
+    {
+        var made = new System.Collections.Generic.List<(PatronBrain brain, TableSeat seat)>();
+        foreach (TableSeat seat in seats)
+        {
+            PatronBrain brain = MakeAt(seat.StandPoint.position, seat.StandPoint.rotation, out GameObject go);
+            if (brain == null) continue;
+            go.name = "Settled guest - " + guest.label + (seats.Length > 1 ? " " + (made.Count + 1) : "");
+            made.Add((brain, seat));
+        }
+        if (made.Count == 0) return 0;
+        PatronBrain leader = made[0].brain;
+        if (made.Count > 1)
+        {
+            // A pair: they chat sooner and more often (NpcAttentionDirector.Companions), and the second leaves with the first.
+            leader.PairWith(made[1].brain, true);
+            made[1].brain.PairWith(leader, false);
+        }
+        if (guest.laptop) leader.BeLaptopPatron();
+        leader.StayUntil(guest.leaveAt);
+        int sat = 0;
+        for (int i = 0; i < made.Count; i++)
+        {
+            var (brain, seat) = made[i];
+            if (brain.InitSeated(exitPoint, seat, sittingPhase(i))) sat++;
+            OpeningGuestsSeated.Add((brain, guest.label, seat, guest.leaveAt));
+        }
+        return sat;
     }
 
     /// <summary>

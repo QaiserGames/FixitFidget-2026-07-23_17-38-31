@@ -75,6 +75,19 @@ public sealed class CustomerMemoryService
         return true;
     }
 
+    /// <summary>
+    /// One visit of Grace's camera episode, as SaveManager records it (specs/days-1-3.md §5.3, R3): only the shutter visit
+    /// (Day 2) records the reunion photo's attempt, with the grade GraceCameraEpisode.PhotoGrade gives from
+    /// <paramref name="before"/> (her memory read before this visit was written). The clean visit (Day 1) records nothing
+    /// here: no photo can come of a camera whose shutter is still jammed. False when nothing was recorded.
+    /// </summary>
+    public bool RecordGraceCameraVisit(string profileId, string episodeId, GraceCameraVisit visit, int day,
+                                       string grade, RegularMemoryData before)
+    {
+        if (visit != GraceCameraVisit.Shutter) return false;
+        return RecordGraceCamera(profileId, episodeId, day, GraceCameraEpisode.PhotoGrade(grade, before));
+    }
+
     public bool AcknowledgeGraceReturn(string profileId, int day, out GracePhotoOutcome outcome)
     {
         outcome = GracePhotoOutcome.None;

@@ -137,6 +137,11 @@ public static class DialogueRuleChecks
     {
         lint.Speech("Grace's camera request", GraceCameraEpisode.Intake);
         lint.Speech("Grace's thanks for taking the camera", GraceCameraEpisode.AcceptedLine);
+        lint.Speech("Grace's shutter request, after a good clean", GraceCameraEpisode.ShutterIntake(true));
+        lint.Speech("Grace's shutter request, otherwise", GraceCameraEpisode.ShutterIntake(false));
+        lint.Speech("Grace's thanks for taking the camera again", GraceCameraEpisode.ShutterAcceptedLine);
+        foreach (JobGrade shutterGrade in Enum.GetValues(typeof(JobGrade)))
+            lint.Bubble($"Grace's shutter hand-back ({shutterGrade})", GraceCameraEpisode.ShutterCompletionLine(shutterGrade));
         foreach (GracePhotoOutcome outcome in new[] { GracePhotoOutcome.Clear, GracePhotoOutcome.Imperfect, GracePhotoOutcome.Missed })
         {
             lint.Speech($"Grace's photo news ({outcome})", GraceCameraEpisode.ReturnNews(outcome));
@@ -534,8 +539,8 @@ public static class DialogueRuleChecks
             var identity = root.AddComponent<CustomerIdentity>();
             var camera = new Job
             {
-                kind = JobKind.Repair, deviceName = "reunion film camera", faultDescription = "jammed shutter",
-                storyEpisodeId = GraceCameraEpisode.EpisodeId
+                kind = JobKind.Repair, deviceName = "reunion film camera", faultDescription = "Dirty Lens and Film Path",
+                faultType = FaultType.Cleaning, storyEpisodeId = GraceCameraEpisode.EpisodeId   // Day 1 is the clean (14 Oct)
             };
             identity.SetupRegular(grace);
             identity.SetDevice(camera.Subject);

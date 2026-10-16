@@ -23,8 +23,29 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private static readonly Color UrgentInk = UiSkin.Red;
     private Image tape, patienceTrack;
     private bool skinned;
+    // At the bench (checklist v2, 14 Oct 2026): a chip of 160 x 44 with the face, the tape and the bar, no words (TicketRailUI
+    // says why). A ringing support call keeps its icon and its seconds.
+    private bool compact;
 
     public CustomerBrain Target { get; private set; }
+
+    /// <summary>The tab is a chip (at the bench): the face, the tape and the bar; no name, mood, fault or drink.</summary>
+    public bool Compact => compact;
+
+    /// <summary>
+    /// The chip's pulse at the bench under a quarter of patience left: 1.0 to 1.06 and back once a second (the rail multiplies
+    /// the tab's scale by it); 1 otherwise.
+    /// </summary>
+    public float PulseScale => compact && Target != null && Target.PatienceFraction <= .25f
+        ? 1f + .03f * (1f - Mathf.Cos(UiClock.Now * Mathf.PI * 2f)) : 1f;
+
+    public void SetCompact(bool on)
+    {
+        if (compact == on) return;
+        compact = on;
+        ConfigureLayout();
+        Refresh();
+    }
 
     public void Bind(CustomerBrain brain)
     {
@@ -61,9 +82,21 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (call != null)
         {
             wasSupport = true;
-            if (callLine == null) BuildCallLine();
-            callLine.gameObject.SetActive(true);
-            if (jobText != null)
+            var phase = call.CurrentPhase;
+            bool ringing = phase == HoldCallRun.State.Ringing;
+            if (callLine == null)
+            {
+                BuildCallLine();
+                if (compact) ConfigureLayout();
+            }
+            // A chip at the bench shows the call only while it rings (its icon and its seconds).
+            if (compact && ringing != compactRinging)
+            {
+                compactRinging = ringing;
+                ConfigureLayout();
+            }
+            callLine.gameObject.SetActive(!compact || ringing);
+            if (jobText != null && !compact)
             {
                 Place(jobText.rectTransform, new Vector2(8, -38), new Vector2(cardWidth - 16, 18));
                 jobText.textWrappingMode = TextWrappingModes.NoWrap;
@@ -71,7 +104,6 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             }
             SetDrinkLine(Target.HasDrinkOrder && Target.WantedDrink != null
                 ? "+ " + Target.WantedDrink.drinkName : "", 56);
-            var phase = call.CurrentPhase;
             callIcon.Show(phase, Time.time);
             callState.text = phase switch
             {
@@ -90,11 +122,16 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         else
         {
             if (callLine != null) callLine.gameObject.SetActive(false);
+            if (compactRinging)
+            {
+                compactRinging = false;
+                ConfigureLayout();
+            }
             // A long fault must never push a voiced secondary drink off the card.
             bool secondaryDrink = Target.Record != null && Target.Record.kind == JobKind.Repair
                 && Target.HasDrinkOrder && Target.WantedDrink != null;
             SetDrinkLine(secondaryDrink ? "+ " + Target.WantedDrink.drinkName : "", cardHeight - 28);
-            if (jobText != null)
+            if (jobText != null && !compact)
             {
                 Place(jobText.rectTransform, new Vector2(8, -40),
                     new Vector2(cardWidth - 16, cardHeight - (secondaryDrink ? 70 : 54)));
@@ -111,8 +148,9 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             patienceFill.color = patience < .5f ? Color.Lerp(UiSkin.Red, UiSkin.Gold, patience * 2f)
                 : Color.Lerp(UiSkin.Gold, UiSkin.Brand, (patience - .5f) * 2f);
         }
-        // Details use the pointer only when existing game controls have released it.
-        bool showDetails = pointerOver && Cursor.lockState != CursorLockMode.Locked;
+        // Details use the pointer only when existing game controls have released it; never from a chip at the bench (the
+        // bench's cursor passes over the tabs, and the details are words).
+        bool showDetails = !compact && pointerOver && Cursor.lockState != CursorLockMode.Locked;
         if (showDetails) RefreshDetails(call);
         else if (detailPanel != null) detailPanel.gameObject.SetActive(false);
     }
@@ -199,12 +237,47 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private void SetDrinkLine(string value, float offset)
     {
         drinkText.text = value;
-        drinkText.gameObject.SetActive(!string.IsNullOrEmpty(value));
+        drinkText.gameObject.SetActive(!compact && !string.IsNullOrEmpty(value));
         Place(drinkText.rectTransform, new Vector2(8, -offset), new Vector2(cardWidth - 16, 16));
+    }
+
+    // The chip at the bench: the face on the left (where it always is), the tape on the top right, the bar beside the face (lower
+    // while a ringing call shows its icon and seconds over it); no words.
+    private bool compactRinging;
+
+    private void ConfigureCompact()
+    {
+        foreach (TMP_Text t in new[] { slotText, jobText, moodText, drinkText })
+            if (t != null && t.gameObject.activeSelf) t.gameObject.SetActive(false);
+        if (patienceFill != null)
+        {
+            patienceFill.raycastTarget = false;
+            RectTransform track = patienceFill.transform.parent as RectTransform;
+            RectTransform bar = track != null && track != transform ? track : patienceFill.rectTransform;
+            Place(bar, new Vector2(46, compactRinging ? -30 : -18), new Vector2(cardWidth - 56, 8));
+            if (patienceTrack != null) Place(patienceTrack.rectTransform, bar.anchoredPosition + new Vector2(-1, 1), bar.sizeDelta + new Vector2(2, 2));
+        }
+        if (tape != null) Place(tape.rectTransform, new Vector2(cardWidth - 52, 9), new Vector2(40, 13));
+        if (callLine != null)
+        {
+            Place(callLine, new Vector2(44, -3), new Vector2(cardWidth - 50, 24));
+            if (callIcon != null) { callIcon.rectTransform.anchoredPosition = new Vector2(12, -12); callIcon.rectTransform.sizeDelta = new Vector2(20, 20); }
+            if (callState != null) callState.gameObject.SetActive(false);
+            if (callSeconds != null) Place(callSeconds.rectTransform, new Vector2(26, -4), new Vector2(cardWidth - 80, 16));
+        }
     }
 
     private void ConfigureLayout()
     {
+        if (compact)
+        {
+            ConfigureCompact();
+            return;
+        }
+        foreach (TMP_Text t in new[] { slotText, jobText, moodText })
+            if (t != null && !t.gameObject.activeSelf) t.gameObject.SetActive(true);
+        if (callState != null && !callState.gameObject.activeSelf) callState.gameObject.SetActive(true);
+        if (callIcon != null) { callIcon.rectTransform.anchoredPosition = new Vector2(15, -16); callIcon.rectTransform.sizeDelta = new Vector2(28, 28); }
         if (slotText != null)
         {
             Place(slotText.rectTransform, new Vector2(46, -3), new Vector2(cardWidth - 54, 22));
@@ -247,7 +320,8 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     public void SetCardSize(float width, float height)
     {
-        float nextWidth = Mathf.Max(140, width), nextHeight = Mathf.Max(118, height);
+        // A tab is at least 140 x 118; a chip at the bench is its own size (TicketRailUI.CompactWidth x CompactHeight).
+        float nextWidth = compact ? width : Mathf.Max(140, width), nextHeight = compact ? height : Mathf.Max(118, height);
         if (Mathf.Approximately(cardWidth, nextWidth) && Mathf.Approximately(cardHeight, nextHeight)) return;
         cardWidth = nextWidth; cardHeight = nextHeight;
         ConfigureLayout();

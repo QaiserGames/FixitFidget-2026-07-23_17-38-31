@@ -22,6 +22,11 @@ using UnityEngine.InputSystem.LowLevel;
 //   3. at the bench, their device in the close-up: the pad's cursor let go 30 to 50 px from a screw settles on it, and
 //      D-pad right steps through the parts in the order the work goes (screws first).
 //
+// THE FORGIVING BENCH (14 Oct 2026; systems-forgiving-bench.md §4.6, §6): the points the cursor settles on are the bench's own
+// (the picker's eligible targets and the tools: ItemInspector.AimPoints), not this check's guess at them; over a target of the
+// step to do now the cursor moves at no more than 0.6 of its open speed (friction); and D-pad right reaches a target of the
+// step even when something hides it from the camera (a block the check puts in the way).
+//
 // The mouse is never helped, and with aim help switched off nothing settles (checked last). Photos and report.txt go
 // to Logs/AimHelp/aim-help-<time>/. Nothing is saved in the scene.
 //
@@ -195,11 +200,16 @@ public sealed class AimHelpCheck : PlayLab
         {
             Vector2 at = cam.WorldToScreenPoint(Centre(screw.transform));
             float scale = Mathf.Max(.5f, Screen.height / 1080f);
-            List<Vector2> others = SnapPoints(job, cam).Where(p => (p - at).sqrMagnitude > 4f).ToList();
+            // The bench's own points (the picker's), the screw's own aside.
+            yield return Frames(2);
+            List<Vector2> others = inspector.AimPoints.Where(p => (p - at).sqrMagnitude > 16f * Mathf.Max(.25f, scale * scale)).ToList();
+            if (others.Count == 0) others = SnapPoints(job, cam).Where(p => (p - at).sqrMagnitude > 4f).ToList();
             yield return CursorSettles(at, others, 30f * scale, "30 px");
             yield return CursorSettles(at, others, 45f * scale, "45 px");
             yield return CursorSettles(at, others, 50f * scale, "50 px");
             yield return Photo("04-cursor-on-a-screw");
+            yield return FrictionOver(screw, cam, scale);
+            yield return HiddenStepTarget(job, screw, cam, scale);
         }
 
         // D-pad right through the parts, in the order the work goes: from nowhere in particular, the first of the work
@@ -350,6 +360,74 @@ public sealed class AimHelpCheck : PlayLab
         yield return Frames(2);
         float open = Mathf.Abs(Mathf.DeltaAngle(yaw0, Get<float>(view, "yaw")));
         Check(open > .01f && over < open * .75f, $"over a target the same push turns the view less ({over:0.00}° against {open:0.00}° in the open)");
+    }
+
+    // ---------- the bench: friction over the step's targets, and the D-pad through what hides one ----------
+
+    // A light push held 0.1 s with the cursor on a screw of the step to do now, then the same push in the open: over the screw
+    // the cursor moves at no more than 0.6 of its open speed (§4.6; 0.55 asked).
+    IEnumerator FrictionOver(ScrewTarget screw, Camera cam, float scale)
+    {
+        if (!OfTheStep(screw)) { Note("friction: the screws aren't the step to do now on this device: left out"); yield break; }
+        Vector2 on = cam.WorldToScreenPoint(screw.GetComponent<Screw>().HeadPoint);
+        PadCursor.GlideTo(on);
+        yield return Seconds(.35f);
+        Check(inspector.HoveredIsStepTarget, $"the cursor on a screw of the step to do now (hovered: {(inspector.Hovered != null ? inspector.Hovered.name : "nothing")})");
+        Vector2 before = PadCursor.Position;
+        PadHold(new GamepadState { rightStick = new Vector2(.3f, 0f) });
+        yield return Seconds(.1f);
+        PadRelease();
+        yield return Frames(2);
+        float over = (PadCursor.Position - before).magnitude;
+        // The open: a corner of the screen with nothing to settle on near it.
+        Vector2 open = new Vector2(Screen.width * .5f, Screen.height * .06f);
+        PadCursor.GlideTo(open);
+        yield return Seconds(.35f);
+        before = PadCursor.Position;
+        PadHold(new GamepadState { rightStick = new Vector2(.3f, 0f) });
+        yield return Seconds(.1f);
+        PadRelease();
+        yield return Frames(2);
+        float openMove = (PadCursor.Position - before).magnitude;
+        Check(openMove > 1f && over <= openMove * .6f,
+            $"over a target of the step the cursor moves slower: {over / scale:0.0} px against {openMove / scale:0.0} px in the open ({(openMove > 0f ? over / openMove : 0f):0.00}x; 0.6 at most)");
+    }
+
+    // A block in the camera's line to one of the step's screws: the screw is out of sight, and D-pad right still gets there.
+    IEnumerator HiddenStepTarget(JobBase job, ScrewTarget screw, Camera cam, float scale)
+    {
+        if (!OfTheStep(screw)) { Note("the hidden step target: the screws aren't the step to do now on this device: left out"); yield break; }
+        Screw s = screw.GetComponent<Screw>();
+        Vector3 head = s.HeadPoint;
+        var block = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        block.name = "Aim help check: something in the way";
+        block.transform.position = Vector3.Lerp(cam.transform.position, head, .7f);
+        block.transform.localScale = Vector3.one * .012f;
+        Physics.SyncTransforms();
+        yield return Frames(3);
+        bool hidden = !inspector.IsSeen(screw.transform);
+        Check(hidden, "a block between the camera and a screw of the step: it is out of sight");
+        Vector2 at = cam.WorldToScreenPoint(head);
+        PadCursor.GlideTo(new Vector2(Screen.width * .08f, Screen.height * .9f));
+        yield return Seconds(.4f);
+        bool reached = false;
+        for (int i = 0; i < 8 && !reached; i++)
+        {
+            yield return PadPress(GamepadButton.DpadRight);
+            yield return Seconds(.3f);
+            reached = (PadCursor.Position - at).magnitude <= 12f * scale;
+        }
+        Check(reached, $"D-pad right reaches the hidden screw all the same (the step's targets first, hidden or not)");
+        yield return Photo("04b-dpad-to-a-hidden-screw");
+        Destroy(block);
+        yield return Frames(2);
+    }
+
+    bool OfTheStep(ScrewTarget screw)
+    {
+        RepairChecklist.Step step = inspector.CurrentStep;
+        Screw s = screw != null ? screw.GetComponent<Screw>() : null;
+        return step != null && step.targets != null && s != null && step.targets.Contains(s);
     }
 
     // ---------- the bench: the cursor let go near a screw ----------

@@ -27,8 +27,16 @@ using UnityEditor;
 //     screws' fall share): its box agrees with this check's own count of them, apart from the tag, within a centimetre;
 //   * the bench's two cards (the checklist, the controls) are up and cover none of it; the checklist names the device, the
 //     controls card names turning, flipping and taking it away;
-//   * the second slot: a phone set down beside a watch already in the middle comes to the middle itself, the watch makes
-//     room, and goes back when the close-up ends;
+//   * the forgiving bench (14 Oct; systems-forgiving-bench.md §6): at every quarter turn and on both faces, every place its
+//     pieces may use (the cups the slot rule gives its screws, the wells, its new-part pad, the old-parts tray's slots) and
+//     the five tools on the rest are in the frame, outside UI/UX's zones U1-U5, and not covered by the device (the camera's
+//     line to each lands on it, not on the device); the device's outline on screen is reported against them;
+//   * the feel targets T9 and T8 (restated 14 Oct 11:30 with the Producer's call 21): its layout is call 21's (every tool
+//     rest at y 0; the phone's tray at (6, 133), the watch's at (26, 107)); at zoom 0 it fills at least 34 % (phone), 35 %
+//     (camera) or 17 % (watch) of the frame's height, at the zoom limit at least 55 %; a screw head is at least 12 px across
+//     at 1080p at zoom 0 (phone, watch);
+//   * the second slot: the bench's spare slots lie off the mat now (in front of it, out of every close-up's frame: the TD's
+//     §6.9), so a watch waiting there is out of the close-up's view and nothing has to make room for the phone;
 //   * with a controller (only with Unity in front, where a virtual pad's presses arrive): the controls card in the pad's
 //     glyphs, and A uses, as RT does, and never takes the device away. (X taking it away needs a customer's device: the
 //     game only lets Ace pick up a device someone owns. The Stations lab does it with a customer's.) And the stick swap
@@ -113,7 +121,7 @@ public sealed class BenchViewProbe : PlayLab
             yield return Seconds(.6f);
             bench.Interact(interactor);
             yield return Seconds(.4f);
-            Check(StationInteractable.BenchHolds(firstJob), "second slot: a watch set down first, in the middle");
+            Check(StationInteractable.BenchHolds(firstJob), "second slot: a watch set down first, on the bench");
             yield return Try(Phone, "phone-second-slot", firstJob);
             foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(firstJob);
             Destroy(first);
@@ -181,10 +189,13 @@ public sealed class BenchViewProbe : PlayLab
         yield return Seconds(1.1f);   // past the close-up's half-second re-measure
         Measure(name, "a second later", job);
         yield return Photo(name + "-1-close-up");
+        if (inTheMiddle == null) yield return Framing(name, path == Watch ? "watch" : path == Camera_ ? "camera" : "phone", job);
         if (inTheMiddle != null)
         {
-            Check(inspector.MadeRoomFor == inTheMiddle.transform && (inTheMiddle.transform.position - middleBefore).magnitude > .05f,
-                $"{name}: the watch in the middle made room for it ({(inTheMiddle.transform.position - middleBefore).magnitude * 100f:0} cm)");
+            // The spare slots lie off the mat (Bench 7, the TD's §6.9): the waiting watch is out of the frame, and stays put.
+            bool outOfView = !AnyOfItOnScreen(inTheMiddle);
+            Check(inspector.MadeRoomFor == null && (inTheMiddle.transform.position - middleBefore).magnitude < .005f && outOfView,
+                $"{name}: the watch waiting on the bench lies off the mat, out of the close-up's frame ({(outOfView ? "none of it on screen" : "SOME OF IT ON SCREEN")}), and nothing had to make room");
         }
 
         // The game's own measure: the device's solid parts, the tag left out.
@@ -200,22 +211,23 @@ public sealed class BenchViewProbe : PlayLab
         // The bench's cards: up, and over none of it.
         yield return Frames(12);   // the cards refresh every 0.15 s
         Rect device2D = OnScreen(job);
-        Check(BenchCards.Showing, $"{name}: the checklist and the controls card are up");
-        Check(!BenchCards.StripOnScreen.Overlaps(device2D) && !BenchCards.CardOnScreen.Overlaps(device2D),
-            $"{name}: the cards cover none of it (it {Px(device2D)}; the checklist {Px(BenchCards.StripOnScreen)}; the controls {Px(BenchCards.CardOnScreen)})");
-        string list = Plain(BenchCards.ChecklistText), controls = Plain(BenchCards.ControlsText);
-        string device_ = job.Record != null ? job.Record.deviceName.ToLowerInvariant() : "";
-        Check(list.ToLowerInvariant().Contains(device_) && BenchCards.Steps != null && BenchCards.Steps.Any(step => step.current),
-            $"{name}: the checklist names it and gives the step to do now: \"{list}\"");
-        Check(controls.Contains("Turn it") && controls.Contains("Flip it over") && controls.Contains("Pick it up and step back"),
-            $"{name}: the controls card says how to turn it, flip it and take it away: \"{controls}\"");
+        Check(BenchCards.Showing, $"{name}: the job card is up");
+        Check(!BenchCards.CardOnScreen.Overlaps(device2D) && !BenchCards.ControlsOnScreen.Overlaps(device2D) && !BenchCards.HintOnScreen.Overlaps(device2D),
+            $"{name}: the cards cover none of it (it {Px(device2D)}; the job card {Px(BenchCards.CardOnScreen)}; the controls {Px(BenchCards.ControlsOnScreen)}; the hint {Px(BenchCards.HintOnScreen)})");
+        string list = Plain(BenchCards.ChecklistText), controls = Plain(BenchCards.HeldControlsText);
+        Check(BenchCards.CurrentVerb.Length > 0 && BenchCards.Steps != null && BenchCards.Steps.Any(step => step.current),
+            $"{name}: the job card gives the step to do now: \"{list}\"");
+        Check(controls.Contains("Turn it") && controls.Contains("Flip it over") && controls.Contains("Pick it up"),
+            $"{name}: the full controls card says how to turn it, flip it and take it away: \"{controls}\"");
 
-        // Every quarter turn, and turned over.
+        // Every quarter turn, and turned over; at each, the mat's places and the tools in view and clear of the device.
+        Places(name, "as it opens", job);
         foreach (float turn in new[] { 90f, 180f, -90f })
         {
             inspector.LayDown(turn);
             yield return Frames(3);
             Measure(name, $"turned to {turn:0}°", job);
+            Places(name, $"turned to {turn:0}°", job);
             if (turn == 90f) yield return Photo(name + "-2-turned-a-quarter");
         }
         inspector.LayDown(0f);
@@ -226,15 +238,107 @@ public sealed class BenchViewProbe : PlayLab
         yield return Frames(3);
         Check(inspector.FaceUp == -faceBefore, $"{name}: it lies on its other face");
         Measure(name, "turned over", job);
+        foreach (float turn in new[] { 0f, 90f, 180f, -90f })
+        {
+            inspector.LayDown(turn);
+            yield return Frames(3);
+            Places(name, $"turned over, at {turn:0}°", job);
+        }
+        inspector.LayDown(0f);
+        yield return Frames(2);
         yield return Photo(name + "-3-turned-over");
 
         inspector.CancelInspection();
         yield return AfterBlend();
         if (inTheMiddle != null)
             Check((inTheMiddle.transform.position - middleBefore).magnitude < .01f,
-                $"{name}: the watch went back to the middle when the close-up ended ({(inTheMiddle.transform.position - middleBefore).magnitude * 100f:0.0} cm from where it lay)");
+                $"{name}: the waiting watch is where it lay when the close-up ended ({(inTheMiddle.transform.position - middleBefore).magnitude * 100f:0.0} cm from it)");
         Cleanup(device, job);
         yield return Frames(3);
+    }
+
+    // ---------- T9 and T8 (the feel targets, restated 14 Oct 11:30 with the Producer's call 21) ----------
+    // The device's layout is call 21's (every tool rest at y 0; the phone's old-parts tray at (6, 133), the watch's at (26, 107),
+    // the camera's at (-5, 115)), which Bench 7 writes and Bench 9 frames. Then, as he would see it: the device's share of the
+    // frame's height at the layout view (zoom 0) and at the zoom limit (zoom 1), measured as Bench 9 measures it (the corners
+    // of each renderer the bench counts, on screen), and a screw head's width on screen at 1080p at zoom 0 (T8).
+    static readonly Dictionary<string, float> FillAtZoom0 = new Dictionary<string, float> { ["phone"] = .34f, ["camera"] = .35f, ["watch"] = .17f };
+    const float FillAtZoom1 = .55f, HeadPxAtZoom0 = 12f;
+
+    IEnumerator Framing(string name, string kind, JobBase job)
+    {
+        BenchLayout want = BenchLayout.ForKind(kind), has = DeviceDefinition.LayoutOf(job);
+        bool same = has.SamePlaceAs(want);
+        Check(same, $"{name}: its bench layout is the Producer's call 21 (tool rest at ({want.toolRestCentreX:0}, {want.toolRestCentreY:0}), old-parts tray at ({want.scrapTray.x:0}, {want.scrapTray.y:0})): it has {has}{(same ? "" : "; run Bench 7, which writes it")}");
+        if (!has.HasFraming) Note($"{name}: no Bench 9 framing on its prefab yet, so T9 is measured on the scene's framing (Devices 2, then Bench 9, frame it)");
+
+        float fill0 = FillOf(job);
+        Check(fill0 >= FillAtZoom0[kind], $"{name}: T9 at zoom 0, {fill0 * 100f:0.0} % of the frame's height (≥ {FillAtZoom0[kind] * 100f:0} %)");
+        if (kind != "camera")
+        {
+            float head = SmallestHeadPx(job, out int heads);
+            Check(heads > 0 && head >= HeadPxAtZoom0, $"{name}: T8 at zoom 0, its smallest screw head is {head:0.0} px across at 1080p ({heads} screws; ≥ {HeadPxAtZoom0:0})");
+        }
+
+        // The zoom limit: the lens zoom set to 1 as the wheel or the D-pad would (the private field the zoom eases toward; Unity
+        // needn't be in front for it), then back to the layout view.
+        var zoomField = typeof(ItemInspector).GetField("zoom", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (zoomField == null || zoomField.FieldType != typeof(float)) { Note($"{name}: T9 at zoom 1 left out (ItemInspector has no float 'zoom' to set)"); yield break; }
+        zoomField.SetValue(inspector, 1f);
+        yield return Seconds(1f);   // the zoom eases at 12 a second: settled well within a second at any frame rate
+        yield return Frames(2);
+        float fill1 = FillOf(job);
+        Check(inspector.Zoom > .99f && fill1 >= FillAtZoom1, $"{name}: T9 at zoom 1 (the limit), {fill1 * 100f:0.0} % of the frame's height (≥ {FillAtZoom1 * 100f:0} %)");
+        yield return Photo(name + "-1b-zoom-limit");
+        zoomField.SetValue(inspector, 0f);
+        yield return Seconds(1f);
+        yield return Frames(2);
+        float back = FillOf(job);
+        Check(inspector.Zoom < .01f && Mathf.Abs(back - fill0) < .01f, $"{name}: and back to the layout view ({back * 100f:0.0} %)");
+    }
+
+    // The device's share of the frame's height, as Bench 9 measures it: the corners of every renderer the bench counts
+    // (DeviceBounds.Counts), each its own mesh's box turned with it, on screen.
+    static float FillOf(JobBase job)
+    {
+        Camera cam = Camera.main;
+        if (cam == null || job == null) return 0f;
+        float y0 = float.MaxValue, y1 = float.MinValue;
+        foreach (Renderer r in job.GetComponentsInChildren<Renderer>())
+        {
+            if (!DeviceBounds.Counts(r)) continue;
+            MeshFilter filter = r.GetComponent<MeshFilter>();
+            Mesh mesh = r is SkinnedMeshRenderer skinned ? skinned.sharedMesh : filter != null ? filter.sharedMesh : null;
+            Bounds b = mesh != null ? mesh.bounds : r.bounds;
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                if (mesh != null) corner = r.transform.TransformPoint(corner);
+                Vector3 p = cam.WorldToScreenPoint(corner);
+                if (p.z <= 0f) continue;
+                y0 = Mathf.Min(y0, p.y);
+                y1 = Mathf.Max(y1, p.y);
+            }
+        }
+        return y1 > y0 ? (y1 - y0) / Mathf.Max(1, UnityEngine.Screen.height) : 0f;
+    }
+
+    // The smallest screw head's width on screen at 1080p (T8): its diameter across the view, at its head.
+    static float SmallestHeadPx(JobBase job, out int count)
+    {
+        count = 0;
+        Camera cam = Camera.main;
+        if (cam == null || job == null) return 0f;
+        float least = float.MaxValue;
+        foreach (Screw screw in job.GetComponentsInChildren<Screw>())
+        {
+            Vector3 half = cam.transform.right * (screw.HeadDiameter * .5f);
+            Vector3 a = cam.WorldToScreenPoint(screw.HeadPoint - half), b = cam.WorldToScreenPoint(screw.HeadPoint + half);
+            if (a.z <= 0f || b.z <= 0f) continue;
+            least = Mathf.Min(least, new Vector2(b.x - a.x, b.y - a.y).magnitude * 1080f / Mathf.Max(1, UnityEngine.Screen.height));
+            count++;
+        }
+        return count > 0 ? least : 0f;
     }
 
     // The controller at the bench (agreed 12 Oct): A uses, as RT does, and never takes the device away; X picks it up and
@@ -261,9 +365,9 @@ public sealed class BenchViewProbe : PlayLab
         yield return Seconds(.3f);
         Check(PadInput.UsingPad, "pad: the game sees the controller in hand");
         yield return Frames(12);
-        string controls = Plain(BenchCards.ControlsText);
+        string controls = Plain(BenchCards.HeldControlsText);
         Check(controls.Contains("Right stick") && controls.Contains("Left stick") && controls.Contains(PadInput.Label(PadButton.North) + "]  Flip it over")
-              && controls.Contains(PadInput.Label(PadButton.West) + "]  Pick it up and step back"),
+              && controls.Contains(PadInput.Label(PadButton.West) + "]  Pick it up"),
             $"pad: the controls card names the sticks, Y to flip and X to take it away: \"{controls}\"");
         yield return Photo("pad-1-controls-card");
 
@@ -272,13 +376,13 @@ public sealed class BenchViewProbe : PlayLab
         swapTouched = true;
         GameSettings.SwapBenchSticks = true;
         yield return Seconds(.35f);   // the cards refresh every 0.15 s
-        controls = Plain(BenchCards.ControlsText);
+        controls = Plain(BenchCards.HeldControlsText);
         Check(controls.Contains("[Left stick]  Move your hand") && controls.Contains("[Right stick]  Turn it a quarter"),
             $"pad: with the sticks swapped the card says the left stick moves the hand and the right turns it: \"{controls}\"");
         yield return Photo("pad-1b-controls-card-sticks-swapped");
         GameSettings.SwapBenchSticks = swapWas;
         yield return Seconds(.35f);
-        controls = Plain(BenchCards.ControlsText);
+        controls = Plain(BenchCards.HeldControlsText);
         Check(controls.Contains("[" + (swapWas ? "Left" : "Right") + " stick]  Move your hand"),
             $"pad: the setting put back as it was ({(swapWas ? "swapped" : "not swapped")}), the card follows: \"{controls}\"");
         yield return PadPress(GamepadButton.South);
@@ -296,6 +400,91 @@ public sealed class BenchViewProbe : PlayLab
         if (job != null) foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(job);
         Destroy(device);   // a carried one leaves Ace's hands with it (PlayerCarry forgets what's gone)
         made.Remove(device);
+    }
+
+    // The mat's places this device's pieces may use and the tools on the rest (§6): in the frame, outside U1-U5, and not under
+    // the device (the camera's line to each one's middle meets the device nowhere before it). The cups are the ones the slot
+    // rule gives its screws (clear of all four of its resting quarter turns by 6 mm, in order); the pad its fresh part lies on
+    // (or both while none is out); the wells when it has a cover; the old-parts tray's slots when it has a part to replace.
+    void Places(string name, string when, JobBase job)
+    {
+        Camera cam = Camera.main;
+        BenchStage stage = BenchStage.Instance;
+        if (cam == null || stage == null) return;
+        var places = new List<(string what, Vector3 at)>();
+        int screws = job.GetComponentsInChildren<Screw>().Length;
+        foreach (GameObject loose in job.LooseParts) if (loose != null) screws += loose.GetComponentsInChildren<Screw>().Length;
+        if (screws > 0 && stage.FootprintOf(job, out BenchRules.MatBox device) && stage.cups != null)
+        {
+            int taken = 0;
+            foreach (Transform cup in stage.cups)
+            {
+                if (cup == null || taken >= screws) continue;
+                Vector2 mm = stage.WorldToMat(cup.position);
+                if (!BenchRules.ClearOfDevice(new BenchRules.MatBox(mm.x, mm.y, 9f, 9f), device)) continue;
+                places.Add((cup.name, cup.position));
+                taken++;
+            }
+            Check(taken >= Mathf.Min(screws, 6), $"{name}, {when}: the slot rule finds a cup for each of its {screws} screws ({taken})");
+        }
+        bool cover = job.GetComponentsInChildren<RemovablePart>(true).Length > 0;
+        if (cover)
+        {
+            if (stage.wellSmall != null) places.Add((stage.wellSmall.name, stage.wellSmall.position));
+            if (stage.wellLarge != null) places.Add((stage.wellLarge.name, stage.wellLarge.position));
+        }
+        ReplaceablePart part = job.GetComponentInChildren<ReplaceablePart>();
+        if (part != null)
+        {
+            Transform pad = part.Fresh != null ? stage.PlaceOf(part.Fresh) : null;
+            if (pad != null) places.Add((pad.name, pad.position));
+            else
+            {
+                if (stage.padSmall != null) places.Add((stage.padSmall.name, stage.padSmall.position));
+                if (stage.padLarge != null) places.Add((stage.padLarge.name, stage.padLarge.position));
+            }
+            if (stage.scrapSlots != null) foreach (Transform slot in stage.scrapSlots) if (slot != null) places.Add((slot.name, slot.position));
+        }
+        foreach (ToolPickup tool in FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude))
+            if (!tool.InHand && !tool.IsStandIn) places.Add((tool.displayName, tool.transform.position + tool.transform.rotation * tool.RestBox.center));
+
+        var bad = new List<string>();
+        int w = UnityEngine.Screen.width, h = UnityEngine.Screen.height;
+        foreach (var (what, at) in places)
+        {
+            Vector3 s = cam.WorldToScreenPoint(at);
+            if (s.z <= 0f || s.x < 0f || s.y < 0f || s.x > w || s.y > h) { bad.Add(what + " off the frame"); continue; }
+            BenchStageContract.Zone? zone = BenchStageContract.ZoneAt(s, w, h);
+            if (zone.HasValue && zone.Value != BenchStageContract.Zone.U6) { bad.Add($"{what} under {zone.Value}"); continue; }
+            if (UnderTheDevice(cam, at, job)) bad.Add(what + " under the device");
+        }
+        Rect outline = OnScreen(job);
+        Check(bad.Count == 0, $"{name}, {when}: its {places.Count} places and the tools in view, clear of the HUD's zones and of the device " +
+                              $"(the device {Px(outline)}){(bad.Count > 0 ? ": " + string.Join(", ", bad) : "")}");
+    }
+
+    // The camera's line to a place meets the device before it does.
+    static bool UnderTheDevice(Camera cam, Vector3 at, JobBase job)
+    {
+        Vector3 from = cam.transform.position, to = at - from;
+        float length = to.magnitude;
+        foreach (RaycastHit hit in Physics.RaycastAll(from, to / length, length - .002f, ~0, QueryTriggerInteraction.Ignore))
+            if (hit.collider != null && hit.collider.transform.IsChildOf(job.transform)) return true;
+        return false;
+    }
+
+    // Anything of a device drawn on screen (its solid parts' corners).
+    static bool AnyOfItOnScreen(JobBase job)
+    {
+        Camera cam = Camera.main;
+        if (cam == null || !Solids(job, out Bounds b)) return false;
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 corner = new Vector3(i % 2 == 0 ? b.min.x : b.max.x, (i / 2) % 2 == 0 ? b.min.y : b.max.y, i / 4 == 0 ? b.min.z : b.max.z);
+            Vector3 v = cam.WorldToViewportPoint(corner);
+            if (v.z > 0f && v.x >= 0f && v.x <= 1f && v.y >= 0f && v.y <= 1f) return true;
+        }
+        return false;
     }
 
     // Where the device's own solid parts are in the close-up: their middle against the table point (within 5 cm), and all of

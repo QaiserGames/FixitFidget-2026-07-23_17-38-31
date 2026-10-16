@@ -1,0 +1,2565 @@
+{
+ "project": "Fix It Fiasco",
+ "made": "2026-10-14",
+ "by": "Audio lead (cloud session)",
+ "format": "WAV, mono, 44.1 kHz, 16-bit, peak -1 dBFS; volume = suggested SoundBank cue volume (0-1) from the file's short-term loudness against the cue's target",
+ "rule": "Every file is CC0 or made here. Licence text for each source is in licences/ and beside the source in src/.",
+ "sources": {
+  "kenney-interface-sounds": {
+   "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+   "repo": "https://github.com/Calinou/kenney-interface-sounds",
+   "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+   "licence": "CC0-1.0",
+   "licence_file": "kenney-interface-sounds/LICENSE.txt",
+   "licence_quote": "License: (Creative Commons Zero, CC0) ... free to use in personal, educational and commercial projects."
+  },
+  "kenney-ui-audio": {
+   "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+   "repo": "https://github.com/Calinou/kenney-ui-audio",
+   "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+   "licence": "CC0-1.0",
+   "licence_file": "kenney-ui-audio/LICENSE.txt",
+   "licence_quote": "License (Creative Commons Zero, CC0) ... You may use these assets in personal and commercial projects."
+  },
+  "kenney-city-builder-kit": {
+   "title": "Kenney - Starter Kit City Builder (sound effects)",
+   "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+   "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+   "licence": "CC0-1.0 (assets); MIT (code, not used)",
+   "licence_file": "kenney-city-builder-kit/README.md",
+   "licence_quote": "Assets included in this package (2D sprites, 3D models and sound effects) are CC0 licensed (README.md, line 70)"
+  },
+  "sonic-pi-samples": {
+   "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+   "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+   "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+   "licence": "CC0-1.0",
+   "licence_file": "sonic-pi-samples/etc/samples/README.md",
+   "licence_quote": "All other samples in this directory are from http://freesound.org and have also been placed in the public domain via the Creative Commons 0 License"
+  },
+  "vcsl": {
+   "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+   "repo": "https://github.com/sgossner/VCSL",
+   "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+   "licence": "CC0-1.0",
+   "licence_file": "vcsl/LICENSE",
+   "licence_quote": "This collection is under a Creative Commons 0 license ... you can do whatever you want with these sounds (even make commercial software), no royalties, no credit (README.md)"
+  },
+  "procedural": {
+   "title": "Made here in Python from noise (Plan C): no source recording",
+   "repo": "(none)",
+   "commit": "(none)",
+   "licence": "original work for Fix It Fiasco",
+   "licence_file": "",
+   "licence_quote": "Rendered offline by the Audio lead; no third-party material."
+  }
+ },
+ "cues": [
+  {
+   "cue": "screw.turn",
+   "files": [
+    {
+     "file": "files/screw.turn_01.wav",
+     "seconds": 0.045,
+     "loudness_db": -23.9
+    },
+    {
+     "file": "files/screw.turn_02.wav",
+     "seconds": 0.021,
+     "loudness_db": -17.3
+    },
+    {
+     "file": "files/screw.turn_03.wav",
+     "seconds": 0.042,
+     "loudness_db": -15.0
+    },
+    {
+     "file": "files/screw.turn_04.wav",
+     "seconds": 0.032,
+     "loudness_db": -18.7
+    },
+    {
+     "file": "files/screw.turn_05.wav",
+     "seconds": 0.029,
+     "loudness_db": -16.8
+    }
+   ],
+   "plan": "recorded",
+   "when": "Each quarter turn of the driver while the hold backs a screw out or drives it home (Screw.Turn).",
+   "says": "the driver is biting and the screw is moving",
+   "processing": "Kenney interface ticks and UI clicks, trimmed at onset, high-passed 600 Hz, small pitch offsets for five voices.",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    },
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_001.wav",
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_002.wav",
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_004.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/click4.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/click5.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.165,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.03,
+    "maxAtOnce": 3,
+    "pitchWobble": 0.06,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "screw.free",
+   "files": [
+    {
+     "file": "files/screw.free_01.wav",
+     "seconds": 0.199,
+     "loudness_db": -15.7
+    },
+    {
+     "file": "files/screw.free_02.wav",
+     "seconds": 0.214,
+     "loudness_db": -16.7
+    },
+    {
+     "file": "files/screw.free_03.wav",
+     "seconds": 0.182,
+     "loudness_db": -16.9
+    }
+   ],
+   "plan": "recorded",
+   "when": "The last thread lets go: the screw is free of its hole (Screw.Free), just before it flies to its cup.",
+   "says": "it's out",
+   "processing": "Kenney UI mechanical switch clicks pitched up 2-4 semitones, with a muted-triangle ring 16 dB under for the steel.",
+   "sources": [
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-ui-audio/addons/kenney_ui_audio/switch16.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch23.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch30.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle3_HitM_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle6_HitM_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle6_HitM_v1_rr2_Mid.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.263,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.05,
+    "maxAtOnce": 3,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -25,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "screw.fly",
+   "files": [
+    {
+     "file": "files/screw.fly_01.wav",
+     "seconds": 0.11,
+     "loudness_db": -12.9
+    },
+    {
+     "file": "files/screw.fly_02.wav",
+     "seconds": 0.1,
+     "loudness_db": -13.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "Launch of the scripted flight from the hole to its cup (optional: silence it with volume 0 if three in a row clutter).",
+   "says": "follow it with your eyes",
+   "processing": "Sonic Pi perc_swoosh (Freesound, hullum) pitched up 9-11 semitones, band-passed 0.9-5.5 kHz, cut to 0.10-0.11 s.",
+   "sources": [
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    }
+   ],
+   "source_files": [
+    "sonic-pi-samples/etc/samples/perc_swoosh.flac"
+   ],
+   "freesound_originals": [
+    "https://freesound.org/people/hullum/sounds/415580/"
+   ],
+   "bank": {
+    "volume": 0.04,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.04,
+    "maxAtOnce": 3,
+    "pitchWobble": 0.06,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -38,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "screw.drop",
+   "files": [
+    {
+     "file": "files/screw.drop_01.wav",
+     "seconds": 0.22,
+     "loudness_db": -19.7
+    },
+    {
+     "file": "files/screw.drop_02.wav",
+     "seconds": 0.22,
+     "loudness_db": -19.0
+    },
+    {
+     "file": "files/screw.drop_03.wav",
+     "seconds": 0.22,
+     "loudness_db": -20.0
+    },
+    {
+     "file": "files/screw.drop_04.wav",
+     "seconds": 0.22,
+     "loudness_db": -19.1
+    },
+    {
+     "file": "files/screw.drop_05.wav",
+     "seconds": 0.22,
+     "loudness_db": -20.4
+    }
+   ],
+   "plan": "recorded",
+   "when": "The screw lands in its moulded cup at the end of its flight (moved from Screw.OnCollisionEnter to the flight's last frame). Metal into metal: the cup's floor is a steel disc (decision his to overrule).",
+   "says": "that screw is safe, and in its place",
+   "processing": "VCSL muted triangle hits (five triangles/strikes) pitched -6..+1, ring shortened to ~0.2 s, a Kenney click 14 dB under for the contact, and a second tiny bounce 55 ms later 10-13 dB down (a screw always bounces once in a cup).",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/click_004.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Legacy/1/triangle1_hit_mp_muted1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Legacy/1/triangle1_hit_pp_muted.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle3_HitM_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle6_HitM_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle6_HitM_v1_rr2_Mid.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.538,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.05,
+    "maxAtOnce": 4,
+    "pitchWobble": 0.05,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -22,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "screw.seat",
+   "files": [
+    {
+     "file": "files/screw.seat_01.wav",
+     "seconds": 0.149,
+     "loudness_db": -19.7
+    },
+    {
+     "file": "files/screw.seat_02.wav",
+     "seconds": 0.298,
+     "loudness_db": -17.9
+    },
+    {
+     "file": "files/screw.seat_03.wav",
+     "seconds": 0.324,
+     "loudness_db": -14.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The screw is driven home and seats (Screw.Seat).",
+   "says": "tight: done",
+   "processing": "Kenney UI switch clicks with body, a Kenney City Builder 'placement' thud low-passed at 900 Hz 6 dB under.",
+   "sources": [
+    {
+     "source": "kenney-city-builder-kit",
+     "title": "Kenney - Starter Kit City Builder (sound effects)",
+     "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+     "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+     "licence": "CC0-1.0 (assets); MIT (code, not used)",
+     "licence_file": "kenney-city-builder-kit/README.md"
+    },
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    }
+   ],
+   "source_files": [
+    "kenney-city-builder-kit/sounds/placement-b.ogg",
+    "kenney-city-builder-kit/sounds/placement-d.ogg",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch18.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch28.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch31.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.292,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.05,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -25,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "screw.fetch",
+   "files": [
+    {
+     "file": "files/screw.fetch_01.wav",
+     "seconds": 0.17,
+     "loudness_db": -15.8
+    },
+    {
+     "file": "files/screw.fetch_02.wav",
+     "seconds": 0.16,
+     "loudness_db": -16.8
+    }
+   ],
+   "plan": "recorded",
+   "when": "Hold on an empty hole: the screw lifts out of its cup and flies back to hover over the hole (ScrewSocket.HoldTick -> fetch).",
+   "says": "it's coming back",
+   "processing": "A Kenney tick (out of the cup) and the swoosh pitched up 7-8 semitones, 0.15 s.",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    },
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_001.wav",
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_004.wav",
+    "sonic-pi-samples/etc/samples/perc_swoosh.flac"
+   ],
+   "freesound_originals": [
+    "https://freesound.org/people/hullum/sounds/415580/"
+   ],
+   "bank": {
+    "volume": 0.13,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.05,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cover.creak",
+   "files": [
+    {
+     "file": "files/cover.creak_01.wav",
+     "seconds": 0.256,
+     "loudness_db": -13.6
+    },
+    {
+     "file": "files/cover.creak_02.wav",
+     "seconds": 0.3,
+     "loudness_db": -15.1
+    },
+    {
+     "file": "files/cover.creak_03.wav",
+     "seconds": 0.24,
+     "loudness_db": -14.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The pry goes into the seam (RemovablePart.HoldBegin) and strains the clip while the hold runs.",
+   "says": "something is giving",
+   "processing": "VCSL guiro short scrapes pitched up 4-6 semitones, band-passed 0.7-5 kHz: a plastic clip straining.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Guiro/Legacy/guiro_short.wav",
+    "vcsl/Idiophones/Struck Idiophones/Guiro/Legacy/guiro_short2.wav",
+    "vcsl/Idiophones/Struck Idiophones/Guiro/Legacy/guiro_short3.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.131,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.2,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.05,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -29,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cover.pop",
+   "files": [
+    {
+     "file": "files/cover.pop_01.wav",
+     "seconds": 0.252,
+     "loudness_db": -19.5
+    },
+    {
+     "file": "files/cover.pop_02.wav",
+     "seconds": 0.287,
+     "loudness_db": -15.1
+    },
+    {
+     "file": "files/cover.pop_03.wav",
+     "seconds": 0.194,
+     "loudness_db": -17.5
+    }
+   ],
+   "plan": "recorded",
+   "when": "The cover's clip lets go at the pried edge (RemovablePart.Pop end).",
+   "says": "it popped",
+   "processing": "VCSL slapstick (quiet strikes) pitched up 1-3 semitones and cut to 0.1 s, a Kenney switch click 6 dB under for the clip.",
+   "sources": [
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-ui-audio/addons/kenney_ui_audio/switch17.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch23.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch30.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr2.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.37,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.1,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -23,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cover.lift",
+   "files": [
+    {
+     "file": "files/cover.lift_01.wav",
+     "seconds": 0.22,
+     "loudness_db": -14.3
+    },
+    {
+     "file": "files/cover.lift_02.wav",
+     "seconds": 0.2,
+     "loudness_db": -14.5
+    }
+   ],
+   "plan": "recorded",
+   "when": "The popped cover leaves the device for the parts well. If the cover flies straight after the pop, drop this cue (the pop carries it).",
+   "says": "it's on its way to the well",
+   "processing": "The swoosh pitched up 4-5 semitones, band-passed 0.5-4 kHz, with a soft Kenney click 8 dB under.",
+   "sources": [
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    },
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    }
+   ],
+   "source_files": [
+    "kenney-ui-audio/addons/kenney_ui_audio/click4.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/click5.wav",
+    "sonic-pi-samples/etc/samples/perc_swoosh.flac"
+   ],
+   "freesound_originals": [
+    "https://freesound.org/people/hullum/sounds/415580/"
+   ],
+   "bank": {
+    "volume": 0.105,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.1,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cover.clack",
+   "files": [
+    {
+     "file": "files/cover.clack_01.wav",
+     "seconds": 0.097,
+     "loudness_db": -15.3
+    },
+    {
+     "file": "files/cover.clack_02.wav",
+     "seconds": 0.097,
+     "loudness_db": -15.6
+    },
+    {
+     "file": "files/cover.clack_03.wav",
+     "seconds": 0.12,
+     "loudness_db": -12.0
+    }
+   ],
+   "plan": "recorded",
+   "when": "The cover lands in the mat's parts well at the end of its flight (moved from RemovablePart.OnCollisionEnter to the flight's last frame).",
+   "says": "it's put away, safe",
+   "processing": "Kenney City Builder 'placement' taps low-passed at 2.4 kHz (the silicone dulls them), with a VCSL woodblock pitched down 13-15 semitones and low-passed at 1.3 kHz 4 dB under: the hollow 'tup' of a plastic shell.",
+   "sources": [
+    {
+     "source": "kenney-city-builder-kit",
+     "title": "Kenney - Starter Kit City Builder (sound effects)",
+     "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+     "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+     "licence": "CC0-1.0 (assets); MIT (code, not used)",
+     "licence_file": "kenney-city-builder-kit/README.md"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-city-builder-kit/sounds/placement-a.ogg",
+    "kenney-city-builder-kit/sounds/placement-c.ogg",
+    "kenney-city-builder-kit/sounds/placement-d.ogg",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr2.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr3.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.164,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.1,
+    "maxAtOnce": 3,
+    "pitchWobble": 0.06,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -27,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "part.on",
+   "files": [
+    {
+     "file": "files/part.on_01.wav",
+     "seconds": 0.288,
+     "loudness_db": -14.9
+    },
+    {
+     "file": "files/part.on_02.wav",
+     "seconds": 0.237,
+     "loudness_db": -13.5
+    },
+    {
+     "file": "files/part.on_03.wav",
+     "seconds": 0.265,
+     "loudness_db": -17.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The cover flies home from the well and snaps onto the device (RemovablePart.SnapHome end).",
+   "says": "closed, clipped in",
+   "processing": "Kenney UI switch clicks with a lowered slapstick strike 6 dB under: a clip snapping shut.",
+   "sources": [
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-ui-audio/addons/kenney_ui_audio/switch16.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch18.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch31.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr2.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.258,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.1,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -24,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "part.pinch",
+   "files": [
+    {
+     "file": "files/part.pinch_01.wav",
+     "seconds": 0.05,
+     "loudness_db": -21.7
+    },
+    {
+     "file": "files/part.pinch_02.wav",
+     "seconds": 0.05,
+     "loudness_db": -21.3
+    },
+    {
+     "file": "files/part.pinch_03.wav",
+     "seconds": 0.028,
+     "loudness_db": -13.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The tweezers close on the broken part as the hold begins (ReplaceablePart.HoldBegin).",
+   "says": "got it",
+   "processing": "Kenney UI mouse click/release pitched up 3-4 semitones (a tight steel click), and a high Kenney tick.",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    },
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_004.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/mouseclick1.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/mouserelease1.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.195,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.05,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.05,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -30,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "part.lift",
+   "files": [
+    {
+     "file": "files/part.lift_01.wav",
+     "seconds": 0.14,
+     "loudness_db": -14.5
+    },
+    {
+     "file": "files/part.lift_02.wav",
+     "seconds": 0.13,
+     "loudness_db": -13.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The pinched part comes out of its seat with a wobble (ReplaceablePart.Lift), on its way to the old-parts bin.",
+   "says": "the broken bit is out",
+   "processing": "The swoosh pitched up 8-9 semitones, 0.13-0.14 s, a tiny tick 9 dB under.",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    },
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_001.wav",
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_002.wav",
+    "sonic-pi-samples/etc/samples/perc_swoosh.flac"
+   ],
+   "freesound_originals": [
+    "https://freesound.org/people/hullum/sounds/415580/"
+   ],
+   "bank": {
+    "volume": 0.079,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.08,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -33,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "part.drop",
+   "files": [
+    {
+     "file": "files/part.drop_01.wav",
+     "seconds": 0.166,
+     "loudness_db": -13.7
+    },
+    {
+     "file": "files/part.drop_02.wav",
+     "seconds": 0.166,
+     "loudness_db": -13.4
+    },
+    {
+     "file": "files/part.drop_03.wav",
+     "seconds": 0.166,
+     "loudness_db": -13.7
+    }
+   ],
+   "plan": "recorded",
+   "when": "The broken part lands in the old-parts bin at the mat's edge (a small tin: decision his to overrule) at the end of its flight.",
+   "says": "out of the way, with the other scrap",
+   "processing": "A VCSL muted-triangle clink pitched down 7-9 semitones (metal on metal), a small-shaker rattle (2-7 kHz) 7 dB under, the tin's hollow body (a woodblock pitched down 11 semitones) 6 dB under and a placement thud 9 dB under.",
+   "sources": [
+    {
+     "source": "kenney-city-builder-kit",
+     "title": "Kenney - Starter Kit City Builder (sound effects)",
+     "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+     "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+     "licence": "CC0-1.0 (assets); MIT (code, not used)",
+     "licence_file": "kenney-city-builder-kit/README.md"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-city-builder-kit/sounds/placement-b.ogg",
+    "vcsl/Idiophones/Struck Idiophones/Shaker, Small/Mid_Shaker_Slap_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Shaker, Small/Mid_Shaker_Slap_rr2.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Legacy/1/triangle1_hit_mp_muted1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle3_HitM_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Triangles/Triangle6_HitM_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr2.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr3.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.19,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.08,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -25,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "part.fresh",
+   "files": [
+    {
+     "file": "files/part.fresh_01.wav",
+     "seconds": 0.218,
+     "loudness_db": -15.7
+    },
+    {
+     "file": "files/part.fresh_02.wav",
+     "seconds": 0.207,
+     "loudness_db": -15.5
+    }
+   ],
+   "plan": "recorded",
+   "when": "Click on the fresh part in its marked spot: it lifts and flies to hover over the seat (new cue).",
+   "says": "the new part is ready to go in",
+   "processing": "The swoosh pitched up 6-7 semitones, 0.2 s, ending in a small settle tick as it hovers.",
+   "sources": [
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    },
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    }
+   ],
+   "source_files": [
+    "kenney-ui-audio/addons/kenney_ui_audio/click4.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/click5.wav",
+    "sonic-pi-samples/etc/samples/perc_swoosh.flac"
+   ],
+   "freesound_originals": [
+    "https://freesound.org/people/hullum/sounds/415580/"
+   ],
+   "bank": {
+    "volume": 0.135,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.1,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -30,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "part.replace",
+   "files": [
+    {
+     "file": "files/part.replace_01.wav",
+     "seconds": 0.237,
+     "loudness_db": -15.7
+    },
+    {
+     "file": "files/part.replace_02.wav",
+     "seconds": 0.149,
+     "loudness_db": -15.6
+    },
+    {
+     "file": "files/part.replace_03.wav",
+     "seconds": 0.217,
+     "loudness_db": -14.2
+    }
+   ],
+   "plan": "recorded",
+   "when": "The press-in hold completes: the fresh part snaps into its seat (ReplaceablePart.SeatFresh).",
+   "says": "it went in, properly",
+   "processing": "Kenney UI switch click, then 12 ms later a lowered slapstick strike and a placement thud low-passed at 700 Hz: click-snap-thock.",
+   "sources": [
+    {
+     "source": "kenney-city-builder-kit",
+     "title": "Kenney - Starter Kit City Builder (sound effects)",
+     "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+     "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+     "licence": "CC0-1.0 (assets); MIT (code, not used)",
+     "licence_file": "kenney-city-builder-kit/README.md"
+    },
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-city-builder-kit/sounds/placement-b.ogg",
+    "kenney-city-builder-kit/sounds/placement-d.ogg",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch16.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch28.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch30.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr2.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.322,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.1,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -22,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "camera.shutter",
+   "files": [
+    {
+     "file": "files/camera.shutter_01.wav",
+     "seconds": 0.357,
+     "loudness_db": -18.5
+    },
+    {
+     "file": "files/camera.shutter_02.wav",
+     "seconds": 0.265,
+     "loudness_db": -19.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "Grace's camera fires: after the shutter is seated, and as the camera wakes (DeviceWake.WindAndFire).",
+   "says": "an old film camera works again",
+   "processing": "Two transients 36-38 ms apart (a leaf shutter's open and close): a bright Kenney UI switch, then a lowered slapstick strike and a tick.",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    },
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_001.wav",
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_002.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch3.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch5.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Slapstick/slapstick_quiet_rr2.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.494,
+    "bus": "World",
+    "threeD": true,
+    "near": 1.0,
+    "far": 10.0,
+    "minGap": 0.2,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.02,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -22,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "camera.wind",
+   "files": [
+    {
+     "file": "files/camera.wind_01.wav",
+     "seconds": 0.32,
+     "loudness_db": -15.6
+    },
+    {
+     "file": "files/camera.wind_02.wav",
+     "seconds": 0.3,
+     "loudness_db": -14.4
+    }
+   ],
+   "plan": "recorded",
+   "when": "The camera's film advance is wound before the shutter fires (DeviceWake.WindAndFire).",
+   "says": "it's being readied",
+   "processing": "VCSL percussion ratchet cranks pitched up 3-4 semitones, low-passed 9 kHz, 0.3 s.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Ratchet/Ratchet1_Crank_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Ratchet/Ratchet2_Crank_v1_rr1_Mid.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.2,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.3,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -26,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "watch.wind",
+   "files": [
+    {
+     "file": "files/watch.wind_01.wav",
+     "seconds": 0.79,
+     "loudness_db": -14.4
+    }
+   ],
+   "plan": "recorded",
+   "when": "The watch's crown is wound in three pulls (DeviceWake.WindAndTick: 'a pull, a pause, a pull', 0.9 s).",
+   "says": "the watch is being wound",
+   "processing": "Three VCSL ratchet cranks an octave up (0.17 s each) at 0, 0.31 and 0.62 s.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Ratchet/Ratchet2_Crank_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Ratchet/Ratchet2_Crank_v1_rr2_Mid.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.148,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -28,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "watch.tick",
+   "files": [
+    {
+     "file": "files/watch.tick_01.wav",
+     "seconds": 2.45,
+     "loudness_db": -23.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The watch starts ticking after it is wound (DeviceWake.WindAndTick), 2.4 s fading.",
+   "says": "it's alive",
+   "processing": "Two Kenney ticks (tick and tock, pitched +5 and +2) alternating five times a second, each 1.1 dB quieter.",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_001.wav",
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_002.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.327,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -30,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "phone.boot",
+   "files": [
+    {
+     "file": "files/phone.boot_01.wav",
+     "seconds": 0.95,
+     "loudness_db": -8.2
+    }
+   ],
+   "plan": "recorded",
+   "when": "The Pome phone's screen lights as it wakes (DeviceWake.ScreenLightsUp).",
+   "says": "the phone is alive again",
+   "processing": "VCSL soft-mallet vibraphone A (880 Hz) then E (1318 Hz) 0.16 s later, tails shortened: the café's A-major family.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_A4_v1_rr1_Main.wav",
+    "vcsl/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_E5_v1_rr1_Main.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.102,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -25,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "tool.pick",
+   "files": [
+    {
+     "file": "files/tool.pick_01.wav",
+     "seconds": 0.04,
+     "loudness_db": -19.1
+    },
+    {
+     "file": "files/tool.pick_02.wav",
+     "seconds": 0.039,
+     "loudness_db": -17.0
+    },
+    {
+     "file": "files/tool.pick_03.wav",
+     "seconds": 0.04,
+     "loudness_db": -14.7
+    }
+   ],
+   "plan": "recorded",
+   "when": "A tool leaves its stand into the hand: the cloth or brush on press (direct grab), or a tool chosen with LB/RB.",
+   "says": "it's in your hand (instantly: short and punchy)",
+   "processing": "Kenney UI clicks pitched down 0-3 semitones, 40 ms.",
+   "sources": [
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    }
+   ],
+   "source_files": [
+    "kenney-ui-audio/addons/kenney_ui_audio/click2.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/click4.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/click5.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.124,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.06,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.05,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -32,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "tool.down",
+   "files": [
+    {
+     "file": "files/tool.down_01.wav",
+     "seconds": 0.097,
+     "loudness_db": -15.3
+    },
+    {
+     "file": "files/tool.down_02.wav",
+     "seconds": 0.097,
+     "loudness_db": -15.8
+    },
+    {
+     "file": "files/tool.down_03.wav",
+     "seconds": 0.097,
+     "loudness_db": -13.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "A tool lands back in its stand (on release, after its short flight home).",
+   "says": "put back where it lives",
+   "processing": "Kenney City Builder 'placement' taps, 0.1 s.",
+   "sources": [
+    {
+     "source": "kenney-city-builder-kit",
+     "title": "Kenney - Starter Kit City Builder (sound effects)",
+     "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+     "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+     "licence": "CC0-1.0 (assets); MIT (code, not used)",
+     "licence_file": "kenney-city-builder-kit/README.md"
+    }
+   ],
+   "source_files": [
+    "kenney-city-builder-kit/sounds/placement-a.ogg",
+    "kenney-city-builder-kit/sounds/placement-b.ogg",
+    "kenney-city-builder-kit/sounds/placement-c.ogg"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.11,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.06,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.05,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "brush.rub",
+   "files": [
+    {
+     "file": "files/brush.rub_01.wav",
+     "seconds": 2.0,
+     "loudness_db": -12.6
+    }
+   ],
+   "plan": "derived",
+   "when": "LOOP while the brush is pressed on a surface; volume and pitch follow stroke speed (the hook in the spec).",
+   "says": "the bristles are working the surface",
+   "processing": "Granular texture (180 grains/s, 35-90 ms) from VCSL cabasa rubs and a small shaker, pitched down 1-5 semitones, laid round a circle with a faint 1.5-9 kHz noise bed: seamless 2.0 s loop.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Cabasa/Cabasa1_Rub_v1_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Cabasa/Cabasa1_Rub_v1_rr2_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Cabasa/Cabasa1_Rub_v2_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Cabasa/Cabasa1_Rub_v2_rr2_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerHighFaster_Down_rr1.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.134,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.0,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.0,
+    "loop": true,
+    "in_bank_defaults": false
+   },
+   "target_db": -27,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "grime.scrub",
+   "files": [
+    {
+     "file": "files/grime.scrub_01.wav",
+     "seconds": 0.08,
+     "loudness_db": -16.4
+    },
+    {
+     "file": "files/grime.scrub_02.wav",
+     "seconds": 0.07,
+     "loudness_db": -16.7
+    },
+    {
+     "file": "files/grime.scrub_03.wav",
+     "seconds": 0.07,
+     "loudness_db": -17.8
+    }
+   ],
+   "plan": "recorded",
+   "when": "Dust coming off under the brush (GrimeSpot.Scrub when dirt actually came off): small gritty grains on top of brush.rub.",
+   "says": "dirt is coming off here",
+   "processing": "VCSL small shaker and cabasa hits pitched down 2-4 semitones, 1.5-8 kHz, 70-80 ms.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Cabasa/Cabasa1_Hit_rr1_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Cabasa/Cabasa1_Hit_rr2_Mid.wav",
+    "vcsl/Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerHighFaster_Down_rr1.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.1,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.12,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.08,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -34,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cloth.rub",
+   "files": [
+    {
+     "file": "files/cloth.rub_01.wav",
+     "seconds": 2.0,
+     "loudness_db": -12.2
+    }
+   ],
+   "plan": "procedural",
+   "when": "LOOP while the cloth is pressed on glass; volume and pitch follow stroke speed. Replaces cloth.wipe's one-shots.",
+   "says": "the cloth is wiping",
+   "processing": "PLAN C (procedural, with a real-glass sprinkle): pink-ish noise made in the frequency domain (periodic, so seamless), band-passed 450 Hz-4.2 kHz, a fast 'fibre' flutter (noise below 38 Hz, 30 %), and six tiny 12-28 ms grains a second of the VCSL wine glass's friction tone 21 dB under (fibres catching on glass). Honest: a microfibre rub IS mostly noise, so this passes far better than a tonal placeholder, but it is not a recorded cloth; his recording (shot 6) should replace it.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Friction Idiophones/Wine Glasses/Sustains/Fast/glass3_A#4_Fast_1_Main.wav",
+    "vcsl/Idiophones/Friction Idiophones/Wine Glasses/Sustains/Fast/glass4_D5_Fast_1_Main.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.103,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.0,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.0,
+    "loop": true,
+    "in_bank_defaults": false
+   },
+   "target_db": -29,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cloth.squeak",
+   "files": [
+    {
+     "file": "files/cloth.squeak_01.wav",
+     "seconds": 0.11,
+     "loudness_db": -8.6
+    },
+    {
+     "file": "files/cloth.squeak_02.wav",
+     "seconds": 0.12,
+     "loudness_db": -8.8
+    },
+    {
+     "file": "files/cloth.squeak_03.wav",
+     "seconds": 0.09,
+     "loudness_db": -8.9
+    },
+    {
+     "file": "files/cloth.squeak_04.wav",
+     "seconds": 0.1,
+     "loudness_db": -9.1
+    }
+   ],
+   "plan": "derived",
+   "when": "A short glass squeak when the cloth changes direction on glass while grease is coming off (was: every 0.42 s).",
+   "says": "the glass is getting clean",
+   "processing": "VCSL wine glass rubbed (real friction on glass): its steady tone read at a sliding speed so the pitch glides (up 12->14.5, down 14->12, up 13->16, down 15->13 semitones), a 27 Hz stick-slip judder, a little friction hiss 16 dB under, band-passed 0.9-7 kHz, 90-120 ms.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Friction Idiophones/Wine Glasses/Sustains/Fast/glass3_A#4_Fast_1_Main.wav",
+    "vcsl/Idiophones/Friction Idiophones/Wine Glasses/Sustains/Fast/glass4_D5_Fast_1_Main.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.055,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.18,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.05,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cloth.lift",
+   "files": [
+    {
+     "file": "files/cloth.lift_01.wav",
+     "seconds": 0.17,
+     "loudness_db": -11.7
+    },
+    {
+     "file": "files/cloth.lift_02.wav",
+     "seconds": 0.15,
+     "loudness_db": -11.2
+    }
+   ],
+   "plan": "procedural",
+   "when": "The cloth lifts off the glass as a smudge comes clean (ToolPickup.LiftOff), if Systems keeps the lift.",
+   "says": "lifted clear",
+   "processing": "PLAN C: a soft filtered-noise swish, 0.15-0.17 s.",
+   "sources": [
+    {
+     "source": "procedural",
+     "title": "Made here in Python from noise (Plan C): no source recording",
+     "repo": "(none)",
+     "commit": "(none)",
+     "licence": "original work for Fix It Fiasco",
+     "licence_file": ""
+    }
+   ],
+   "source_files": [],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.047,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.2,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -35,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cloth.gleam",
+   "files": [
+    {
+     "file": "files/cloth.gleam_01.wav",
+     "seconds": 0.49,
+     "loudness_db": -11.9
+    },
+    {
+     "file": "files/cloth.gleam_02.wav",
+     "seconds": 0.47,
+     "loudness_db": -11.7
+    }
+   ],
+   "plan": "recorded",
+   "when": "The gleam sweeps the clean glass (GrimeSpot.Clean for a smudge, GleamAfter 0.15 s).",
+   "says": "spotless",
+   "processing": "VCSL mark-tree (bar chimes) fast up-run, 0.42-0.46 s, low-passed 9 kHz, a soft glockenspiel note 8-9 dB under.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Glockenspiel/glock_soft_C7_03.wav",
+    "vcsl/Idiophones/Struck Idiophones/Glockenspiel/glock_soft_G6_01.wav",
+    "vcsl/Idiophones/Struck Idiophones/Mark Trees/Legacy/windchimes_fastAsc1.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.138,
+    "bus": "World",
+    "threeD": true,
+    "near": 1.0,
+    "far": 8.0,
+    "minGap": 0.3,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.03,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -26,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "grime.clean",
+   "files": [
+    {
+     "file": "files/grime.clean_01.wav",
+     "seconds": 0.7,
+     "loudness_db": -10.9
+    },
+    {
+     "file": "files/grime.clean_02.wav",
+     "seconds": 0.65,
+     "loudness_db": -8.4
+    }
+   ],
+   "plan": "recorded",
+   "when": "A dirt spot is clean (GrimeSpot.Clean for dirt).",
+   "says": "that spot is done",
+   "processing": "VCSL glockenspiel, soft mallet, one note, tail shortened to 0.65-0.7 s.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Glockenspiel/glock_soft_C6_01.wav",
+    "vcsl/Idiophones/Struck Idiophones/Glockenspiel/glock_soft_G5_01.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.121,
+    "bus": "World",
+    "threeD": true,
+    "near": 1.0,
+    "far": 8.0,
+    "minGap": 0.2,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.02,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -25,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "juice.sparkle",
+   "files": [
+    {
+     "file": "files/juice.sparkle_01.wav",
+     "seconds": 0.3,
+     "loudness_db": -8.3
+    },
+    {
+     "file": "files/juice.sparkle_02.wav",
+     "seconds": 0.24,
+     "loudness_db": -11.6
+    }
+   ],
+   "plan": "recorded",
+   "when": "The little burst of sparks (Juice.Sparkle): it always fires WITH grime.clean or part.replace, so it stays far under them.",
+   "says": "(sweetener only)",
+   "processing": "A high soft glockenspiel note or a 0.24 s mark-tree slice, very quiet.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Glockenspiel/glock_soft_C7_03.wav",
+    "vcsl/Idiophones/Struck Idiophones/Mark Trees/Legacy/windchimes_fastAsc1.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.035,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.08,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -36,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "juice.sparkle.big",
+   "files": [
+    {
+     "file": "files/juice.sparkle.big_01.wav",
+     "seconds": 0.8,
+     "loudness_db": -12.1
+    }
+   ],
+   "plan": "recorded",
+   "when": "The big sparkle with 'Fixed!' (Juice.FixedMoment): a shimmer under repair.fixed.",
+   "says": "(sweetener only)",
+   "processing": "VCSL mark-tree run (0.56-1.36 s of the fast up-run, clear of the source's edit dips), 0.8 s, low-passed 9 kHz.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Mark Trees/Legacy/windchimes_fastAsc1.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.08,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.3,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.02,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "bench.showleft",
+   "files": [
+    {
+     "file": "files/bench.showleft_01.wav",
+     "seconds": 0.38,
+     "loudness_db": -14.2
+    }
+   ],
+   "plan": "recorded",
+   "when": "The 'what's left' button (UI/UX names it bench.showleft): what's left flashes for about 1.5 s (common brief §6.4).",
+   "says": "look: here's what's left",
+   "processing": "A soft rising mark-tree shimmer with a low swoosh 6 dB under, 0.38 s (UI/UX asks for 0.4 s or less).",
+   "sources": [
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "sonic-pi-samples/etc/samples/perc_swoosh.flac",
+    "vcsl/Idiophones/Struck Idiophones/Mark Trees/Legacy/windchimes_fastAsc1.wav"
+   ],
+   "freesound_originals": [
+    "https://freesound.org/people/hullum/sounds/415580/"
+   ],
+   "bank": {
+    "volume": 0.103,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "checklist.tick",
+   "files": [
+    {
+     "file": "files/checklist.tick_01.wav",
+     "seconds": 0.067,
+     "loudness_db": -14.6
+    },
+    {
+     "file": "files/checklist.tick_02.wav",
+     "seconds": 0.063,
+     "loudness_db": -14.2
+    }
+   ],
+   "plan": "recorded",
+   "when": "A job step's icon ticks off on the paper card (checklist v2), 0.12 s after the action's own sound.",
+   "says": "one more thing done",
+   "processing": "A 0.1 s slice of a VCSL guiro scrape (ridges under a stick: a pencil's grain on paper) pitched up 7-8 semitones, band-passed 1.8-8 kHz: a quick 'tsk' of a tick mark, 60 ms.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Guiro/Legacy/guiro_short.wav",
+    "vcsl/Idiophones/Struck Idiophones/Guiro/Legacy/guiro_short2.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.105,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.15,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.05,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "repair.fixed",
+   "files": [
+    {
+     "file": "files/repair.fixed_01.wav",
+     "seconds": 1.35,
+     "loudness_db": -11.5
+    }
+   ],
+   "plan": "recorded",
+   "when": "'Fixed!' (Juice.FixedMoment): the repair's one ending, a beat after the device wakes.",
+   "says": "you fixed it: the café's own little 'done'",
+   "processing": "VCSL hand chimes A (880) - E (1321) - A (1760, the A chime an octave up) at 0 / 0.11 / 0.22 s, with a brass bell's strike (Sonic Pi perc_bell, Freesound AlaskaRobotics) 16 dB under: the signature A-major family, 1.35 s.",
+   "sources": [
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "sonic-pi-samples/etc/samples/perc_bell.flac",
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_A4_r01_main.wav",
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_E5_r01_main.wav"
+   ],
+   "freesound_originals": [
+    "http://freesound.org/people/AlaskaRobotics/sounds/221515/"
+   ],
+   "bank": {
+    "volume": 0.266,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.0,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -20,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "repair.ready",
+   "files": [
+    {
+     "file": "files/repair.ready_01.wav",
+     "seconds": 0.7,
+     "loudness_db": -10.9
+    }
+   ],
+   "plan": "recorded",
+   "when": "'Back together · Good' (Juice.BackTogether): closed up with faults left. One soft chime, no sparkle.",
+   "says": "back together (but not perfect)",
+   "processing": "One VCSL hand chime, E (1321 Hz), 0.7 s.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_E5_r01_main.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.124,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": false
+   },
+   "target_db": -26,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "door.bell",
+   "files": [
+    {
+     "file": "files/door.bell_01.wav",
+     "seconds": 1.25,
+     "loudness_db": -11.9
+    },
+    {
+     "file": "files/door.bell_02.wav",
+     "seconds": 1.2,
+     "loudness_db": -13.7
+    }
+   ],
+   "plan": "recorded",
+   "when": "Someone crosses the café's doorway (CafeSoundscape.Cross): the café's own little bell. A group rings once.",
+   "says": "someone came in (or left)",
+   "processing": "Two VCSL Nepalese brass hand bells struck 0.12-0.13 s apart (the clapper's swing and return), each with a soft hand chime (E or A) 13-17 dB under: a real shop bell tuned toward the café's A-major family.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Hand Bells, Nepalese/HB_1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Hand Bells, Nepalese/HB_2.wav",
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_A4_r01_main.wav",
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_E5_r01_main.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.219,
+    "bus": "World",
+    "threeD": true,
+    "near": 2.5,
+    "far": 24.0,
+    "minGap": 1.5,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.02,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -23,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "day.open",
+   "files": [
+    {
+     "file": "files/day.open_01.wav",
+     "seconds": 1.9,
+     "loudness_db": -8.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The café opens for the day: the intro rings it where the sign flips (DayIntro.RingTheBell), else DayClock.",
+   "says": "we're open",
+   "processing": "Sonic Pi perc_bell (a bright brass bell, Freesound AlaskaRobotics) with a Nepalese hand bell and the A/E hand chimes under it, 1.9 s.",
+   "sources": [
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "sonic-pi-samples/etc/samples/perc_bell.flac",
+    "vcsl/Idiophones/Struck Idiophones/Hand Bells, Nepalese/HB_1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_A4_r01_main.wav",
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_E5_r01_main.wav"
+   ],
+   "freesound_originals": [
+    "http://freesound.org/people/AlaskaRobotics/sounds/221515/"
+   ],
+   "bank": {
+    "volume": 0.146,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 2.0,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -22,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "money.paid",
+   "files": [
+    {
+     "file": "files/money.paid_01.wav",
+     "seconds": 1.0,
+     "loudness_db": -16.8
+    }
+   ],
+   "plan": "recorded",
+   "when": "Paid at the till (CustomerBrain hand-overs, 0.25-0.3 s after the hand-over).",
+   "says": "money in (softly: no cha-ching)",
+   "processing": "Sonic Pi perc_till (Freesound Zott820, a cash register) low-passed hard at 2.2 kHz: the register's bell (about 6 kHz) is removed and the drawer's mechanism (260-320 Hz) kept. Coins: his recording (shot 9).",
+   "sources": [
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    }
+   ],
+   "source_files": [
+    "sonic-pi-samples/etc/samples/perc_till.flac"
+   ],
+   "freesound_originals": [
+    "http://freesound.org/people/Zott820/sounds/209578/"
+   ],
+   "bank": {
+    "volume": 0.194,
+    "bus": "World",
+    "threeD": true,
+    "near": 1.5,
+    "far": 12.0,
+    "minGap": 0.15,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -28,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "cafe.room",
+   "files": [
+    {
+     "file": "files/cafe.room_01.wav",
+     "seconds": 30.0,
+     "loudness_db": -9.6
+    }
+   ],
+   "plan": "procedural",
+   "when": "The café's own quiet under everything by day (CafeSoundscape bed).",
+   "says": "you are in a small, warm room",
+   "processing": "PLAN C: 30 s seamless loop: low-passed pink air (70 Hz-2.2 kHz), a fridge's 60 Hz hum with harmonics breathing slowly, a faint 250-900 Hz ventilation band. Honest: a believable floor, but no real room's small life; his kitchen at night (shot 10) replaces it.",
+   "sources": [
+    {
+     "source": "procedural",
+     "title": "Made here in Python from noise (Plan C): no source recording",
+     "repo": "(none)",
+     "commit": "(none)",
+     "licence": "original work for Fix It Fiasco",
+     "licence_file": ""
+    }
+   ],
+   "source_files": [],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.013,
+    "bus": "Ambience",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.0,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.0,
+    "loop": true,
+    "in_bank_defaults": true
+   },
+   "target_db": -44,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "intro.sting",
+   "files": [
+    {
+     "file": "files/intro.sting_01.wav",
+     "seconds": 1.6,
+     "loudness_db": -5.2
+    }
+   ],
+   "plan": "recorded",
+   "when": "The morning's sting under the day's title (DayIntro), the same every day.",
+   "says": "a new day at Ace's: warm, a little hopeful",
+   "processing": "VCSL upright piano (Knight), soft: A 440, A 880, C# 1114, E 1321 rolled 0.11 s apart, a vibraphone A and a high hand chime A on top: the A-major signature (A, E, A, C#, as the placeholder), 1.6 s.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Chordophones/Zithers/Upright Piano, Knight/Sustains/Player_vl1_rr1_A3.wav",
+    "vcsl/Chordophones/Zithers/Upright Piano, Knight/Sustains/Player_vl1_rr1_A4.wav",
+    "vcsl/Chordophones/Zithers/Upright Piano, Knight/Sustains/Player_vl1_rr1_C#5.wav",
+    "vcsl/Chordophones/Zithers/Upright Piano, Knight/Sustains/Player_vl1_rr1_D#5.wav",
+    "vcsl/Idiophones/Struck Idiophones/Hand Chimes/sus_A4_r01_main.wav",
+    "vcsl/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_A4_v1_rr1_Main.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.115,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 1.0,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.0,
+    "volumeWobble": 0.0,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -21,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "intro.sign",
+   "files": [
+    {
+     "file": "files/intro.sign_01.wav",
+     "seconds": 0.175,
+     "loudness_db": -13.3
+    }
+   ],
+   "plan": "recorded",
+   "when": "The OPEN sign's wooden flap, two knocks, on the cut to the storefront (DayIntro); day.open follows 0.15 s later.",
+   "says": "the sign turns",
+   "processing": "VCSL woodblock (pp) two knocks 55 ms apart, pitched down 5-6 semitones: a bigger, duller board.",
+   "sources": [
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr2.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.184,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.02,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -25,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "intro.lamp",
+   "files": [
+    {
+     "file": "files/intro.lamp_01.wav",
+     "seconds": 0.073,
+     "loudness_db": -20.2
+    }
+   ],
+   "plan": "recorded",
+   "when": "The bench's magnifier lamp switched on (DayIntro).",
+   "says": "the bench is ready",
+   "processing": "Kenney UI switch click and an LED tick 30 ms later.",
+   "sources": [
+    {
+     "source": "kenney-interface-sounds",
+     "title": "Kenney - Interface Sounds (1.0), via Calinou/kenney-interface-sounds",
+     "repo": "https://github.com/Calinou/kenney-interface-sounds",
+     "commit": "4596a49eaf5a533948d49a47467f606bcdea70ff",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-interface-sounds/LICENSE.txt"
+    },
+    {
+     "source": "kenney-ui-audio",
+     "title": "Kenney - UI SFX Set, via Calinou/kenney-ui-audio",
+     "repo": "https://github.com/Calinou/kenney-ui-audio",
+     "commit": "8c3d81b9159d058c444f89d12d518276b0b09345",
+     "licence": "CC0-1.0",
+     "licence_file": "kenney-ui-audio/LICENSE.txt"
+    }
+   ],
+   "source_files": [
+    "kenney-interface-sounds/addons/kenney_interface_sounds/tick_001.wav",
+    "kenney-ui-audio/addons/kenney_ui_audio/switch12.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.325,
+    "bus": "UI",
+    "threeD": false,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.5,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.02,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -27,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "device.snap",
+   "files": [
+    {
+     "file": "files/device.snap_01.wav",
+     "seconds": 0.097,
+     "loudness_db": -15.3
+    },
+    {
+     "file": "files/device.snap_02.wav",
+     "seconds": 0.097,
+     "loudness_db": -15.6
+    },
+    {
+     "file": "files/device.snap_03.wav",
+     "seconds": 0.12,
+     "loudness_db": -12.0
+    }
+   ],
+   "plan": "recorded",
+   "when": "The device settles square on the mat after a quarter turn or a peek (ItemInspector.cs:789, :830, :890): every turn.",
+   "says": "it's sitting flat again (quietly: it happens all the time)",
+   "processing": "Kenney City Builder placement taps low-passed at 1.5 kHz with a woodblock pitched down 16 semitones 3 dB under: a soft rubbery 'tup' on silicone.",
+   "sources": [
+    {
+     "source": "kenney-city-builder-kit",
+     "title": "Kenney - Starter Kit City Builder (sound effects)",
+     "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+     "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+     "licence": "CC0-1.0 (assets); MIT (code, not used)",
+     "licence_file": "kenney-city-builder-kit/README.md"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-city-builder-kit/sounds/placement-a.ogg",
+    "kenney-city-builder-kit/sounds/placement-c.ogg",
+    "kenney-city-builder-kit/sounds/placement-d.ogg",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr2.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr3.wav"
+   ],
+   "freesound_originals": [],
+   "bank": {
+    "volume": 0.103,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.1,
+    "maxAtOnce": 2,
+    "pitchWobble": 0.06,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -31,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  },
+  {
+   "cue": "device.flip",
+   "files": [
+    {
+     "file": "files/device.flip_01.wav",
+     "seconds": 0.297,
+     "loudness_db": -15.2
+    },
+    {
+     "file": "files/device.flip_02.wav",
+     "seconds": 0.32,
+     "loudness_db": -12.1
+    }
+   ],
+   "plan": "recorded",
+   "when": "The device is flipped over (ItemInspector.cs:873).",
+   "says": "turned over",
+   "processing": "The swoosh pitched up 1-2 semitones and low-passed at 3 kHz (0.24 s), landing in a soft silicone 'tup' at 0.2 s.",
+   "sources": [
+    {
+     "source": "kenney-city-builder-kit",
+     "title": "Kenney - Starter Kit City Builder (sound effects)",
+     "repo": "https://github.com/KenneyNL/Starter-Kit-City-Builder",
+     "commit": "4535092b740b378b700efd9df9e27a631815b84a",
+     "licence": "CC0-1.0 (assets); MIT (code, not used)",
+     "licence_file": "kenney-city-builder-kit/README.md"
+    },
+    {
+     "source": "sonic-pi-samples",
+     "title": "Sonic Pi samples (originals on freesound.org, each linked in the README)",
+     "repo": "https://github.com/sonic-pi-net/sonic-pi (etc/samples)",
+     "commit": "f4c680462539dfc80053caba65dff8200b93e7f9",
+     "licence": "CC0-1.0",
+     "licence_file": "sonic-pi-samples/etc/samples/README.md"
+    },
+    {
+     "source": "vcsl",
+     "title": "Versilian Community Sample Library (VCSL), Versilian Studios LLC",
+     "repo": "https://github.com/sgossner/VCSL",
+     "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+     "licence": "CC0-1.0",
+     "licence_file": "vcsl/LICENSE"
+    }
+   ],
+   "source_files": [
+    "kenney-city-builder-kit/sounds/placement-a.ogg",
+    "kenney-city-builder-kit/sounds/placement-d.ogg",
+    "sonic-pi-samples/etc/samples/perc_swoosh.flac",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr1.wav",
+    "vcsl/Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr3.wav"
+   ],
+   "freesound_originals": [
+    "https://freesound.org/people/hullum/sounds/415580/"
+   ],
+   "bank": {
+    "volume": 0.121,
+    "bus": "World",
+    "threeD": true,
+    "near": 0.8,
+    "far": 6.0,
+    "minGap": 0.3,
+    "maxAtOnce": 1,
+    "pitchWobble": 0.04,
+    "volumeWobble": 0.08,
+    "loop": false,
+    "in_bank_defaults": true
+   },
+   "target_db": -29,
+   "status": "first pass: measured, not yet heard; Mansoor auditions the preview before import"
+  }
+ ]
+}

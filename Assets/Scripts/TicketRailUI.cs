@@ -28,14 +28,32 @@ public class TicketRailUI : MonoBehaviour
     /// <summary>Kept clear on the right for today's takings (the cash stack, HudCorners), reference pixels.</summary>
     public const float RightReserve = 380f;
 
+    // AT THE BENCH, CHIPS (checklist v2, 14 Oct 2026; his playtest 5: "the checklist is terrible"; Grace's tab alone was 16
+    // words on the first repair's screen). While the close-up is up every tab is a 160 x 44 chip: the face (or the initial),
+    // the job's tape and the patience bar, no words (a ringing support call keeps its icon and seconds); under a quarter of
+    // patience left it pulses. The rail keeps 512 px clear on the right at the bench, so up to eight chips stay in the
+    // stage's zone U1 (24-1408 px across, 20-64 px down) and clear of the job card under the takings.
+    public const float CompactWidth = 160f, CompactHeight = 44f, BenchRightReserve = 512f;
+
     /// <summary>
     /// How far down from the top of the screen the tabs reach (reference pixels: the rail's top inset and its rows), or 0
     /// with no tabs up. The Day 1 guide sits under it.
     /// </summary>
     public static float BottomEdge { get; private set; }
 
+    /// <summary>
+    /// The customers with a tab now (their job taken, still in service), in the order their tabs came: whose devices can lie
+    /// on the intake tray (DropInteractable watches it with this list; no scene search).
+    /// </summary>
+    public static IReadOnlyList<CustomerBrain> InService => inService;
+    private static readonly List<CustomerBrain> inService = new();
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetStatics() => BottomEdge = 0f;
+    private static void ResetStatics()
+    {
+        BottomEdge = 0f;
+        inService.Clear();
+    }
 
     private void Start()
     {
@@ -84,6 +102,7 @@ public class TicketRailUI : MonoBehaviour
             tickets.Add(b, t);
             ordered.Add(t);
             born[t] = UiClock.Now;
+            if (!inService.Contains(b)) inService.Add(b);
         }
 
         PruneStale();
@@ -105,7 +124,9 @@ public class TicketRailUI : MonoBehaviour
             shown.Remove(tickets[b]);
             if (tickets[b] != null) Destroy(tickets[b].gameObject);
             tickets.Remove(b);
+            inService.Remove(b);
         }
+        inService.RemoveAll(c => c == null);
     }
 
     private void LateUpdate()
@@ -116,9 +137,11 @@ public class TicketRailUI : MonoBehaviour
         var canvasRect = canvas.transform as RectTransform;
         float width = canvasRect != null ? canvasRect.rect.width : 1920;
         float left = UiSkin.Margin;
-        float available = Mathf.Max(Mathf.Max(140, minimumTicketWidth), width - left - RightReserve);
-        float cardWidth = Mathf.Max(Mathf.Max(140, minimumTicketWidth), Mathf.Min(CardWidth, available));
-        float cardHeight = Mathf.Max(118, ticketHeight);
+        bool compact = ItemInspector.Working;
+        float available = compact ? Mathf.Max(CompactWidth, width - left - BenchRightReserve)
+            : Mathf.Max(Mathf.Max(140, minimumTicketWidth), width - left - RightReserve);
+        float cardWidth = compact ? CompactWidth : Mathf.Max(Mathf.Max(140, minimumTicketWidth), Mathf.Min(CardWidth, available));
+        float cardHeight = compact ? CompactHeight : Mathf.Max(118, ticketHeight);
         int count = ordered.Count;
         int columns = Mathf.Max(1, Mathf.FloorToInt((available + Gap) / (cardWidth + Gap)));
         int rows = Mathf.CeilToInt(count / (float)columns);
@@ -137,6 +160,7 @@ public class TicketRailUI : MonoBehaviour
             rect.anchorMin = rect.anchorMax = new Vector2(0, 1); rect.pivot = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(cardWidth, cardHeight);
             Vector2 slot = new Vector2(column * (cardWidth + Gap), -row * (cardHeight + Gap));
+            ordered[i].SetCompact(compact);
             rect.anchoredPosition = Arrive(ordered[i], rect, slot, dt);
             ordered[i].SetCardSize(cardWidth, cardHeight);
         }
@@ -179,6 +203,7 @@ public class TicketRailUI : MonoBehaviour
             s = Mathf.LerpUnclamped(.86f, 1f, spring);
             if (t >= 1f) born.Remove(ticket);
         }
+        s *= ticket.PulseScale;   // a chip at the bench with a quarter of patience left pulses (checklist v2)
         rect.localScale = new Vector3(s, s, 1f);
         return at + drop;
     }

@@ -274,6 +274,10 @@ public sealed class Day1GuideCheck : PlayLab
         string prompt = interactor.CurrentPrompt ?? "";
         Check(!grace.JobReady && !prompt.Contains("Hand it back") && !prompt.Contains("unfixed"),
             $"...and E won't give it straight back to her unfixed (the bottom line: \"{(prompt.Length > 0 ? prompt : "nothing")}\")");
+        // Checklist v2 §5.7: on the carry step the intake tray doesn't offer it back either; the line shows only "In hand".
+        Check(!prompt.Contains(DropInteractable.IntakeTrayWords) && !prompt.Contains(DropInteractable.PutBackWords)
+              && Plain(shop.PromptLine).Contains("In hand"),
+            $"...nor does the intake tray (the line: \"{Plain(shop.PromptLine)}\")");
         yield return Until(() => guide.CardText.Contains("to the repair bench"), 4f, "the card: carry it to the repair bench");
         Check(guide.PinLabel == FocusNameUI.BenchName, "Day 1's pin: \"Repair bench\"");
         yield return Seconds(.6f);
@@ -286,28 +290,31 @@ public sealed class Day1GuideCheck : PlayLab
         bench.Interact(interactor);
         yield return Until(() => !carry.Contains(camera) && StationInteractable.BenchHolds(camera), 3f, "...and sets it down on the bench (as E there does)");
         yield return Until(() => guide.CardText.Contains("At the repair bench, press E"), 4f, "the card: E at the bench works on it");
-        yield return Frames(4);
+        // Within a second (15 Oct: four frames at 15 fps caught the green pin giving way to the name as it faded in).
+        for (float until = Time.realtimeSinceStartup + 1f; !(pins.FocusShowing || pins.GuideShowing) && Time.realtimeSinceStartup < until;) yield return null;
         Check(pins.FocusShowing || pins.GuideShowing, $"a pin over it says what it is (\"{(pins.FocusShowing ? pins.FocusText : pins.GuideText)}\")");
+        Check(!(pins.FocusShowing && pins.GuideShowing && pins.FocusOnScreen.Overlaps(pins.GuideOnScreen)),
+            $"...one pin, not two on each other (the name \"{pins.FocusText}\"{(pins.GuideShowing ? ", the green pin \"" + pins.GuideText + "\"" : "")})");
         yield return Photo1080("07-on-the-bench");
 
         // ---------- 8. at the bench ----------
         Check(interactor.WorkOn(camera.GetComponentInChildren<ItemInteractable>()), "E on it at the bench brings it into the close-up");
         yield return Until(() => inspector.IsHoldingItem, 3f, "...the close-up is up");
         yield return Seconds(1.6f);
-        Rect card = guide.CardOnScreen;
-        float hud = HudScale();
-        Check(guide.CardShowing && guide.CardAtBench, "at the bench the card sits near the work, over the bottom prompt (not in the top left)");
-        Check(Mathf.Abs(card.center.x - Screen.width * .5f) < 2f && card.yMin >= 150f * hud && card.yMax <= Screen.height * .45f,
-            $"...centred, from {card.yMin / hud:0} to {card.yMax / hud:0} px up at 1080p (the prompt's top is about 142)");
+        // Checklist v2 §5.6: no guide card at the bench; the bench's own card names her and the step's tool glows.
+        Check(!guide.CardShowing, "at the bench there is no guide card: the bench's card and the glow are the guide");
+        Check(BenchCards.Showing && BenchCards.JobLine.StartsWith("Grace:"), $"...the bench's card names her: \"{BenchCards.JobLine}\" / \"{BenchCards.CurrentVerb}\"");
+        Check(BenchGlow.GlowingTool != null && BenchCards.CurrentStep != null && BenchGlow.GlowingTool.tool == BenchCards.CurrentStep.tool,
+            $"...and the step's tool glows in its stand ({(BenchGlow.GlowingTool != null ? BenchGlow.GlowingTool.displayName : "nothing glows")})");
         Check(pins.AllHidden, "no pins over the close-up");
         JobMarker[] markers = FindObjectsByType<JobMarker>(FindObjectsInactive.Exclude);
         Check(markers.All(m => m.LabelText.Length == 0), $"no job number anywhere ({markers.Length} job tags up in the café)");
         Check(!markers.Any(m => m.TagShowing && m.GetComponentInParent<JobBase>(true) == inspector.FocusedItem), "no tag over the device on the mat");
         // The close-up's controls are on their own card since 12 Oct (BenchCards), not the bottom prompt's tools line.
-        yield return Await(() => BenchCards.ControlsText.Contains("[Click a tool]"), 2f);
+        yield return Await(() => BenchCards.ControlsText.Contains("[Drag a tool]"), 2f);
         string controls = BenchCards.ControlsText;
-        Check(controls.Contains("[Click a tool]") && controls.Contains("[Drag]") && controls.Contains("[Right-click]") && BenchCards.ControlsInFull,
-            $"the mouse's controls card, in full, with its real bindings: \"{Plain(controls)}\"");
+        Check(controls.Contains("[Drag a tool]") && controls.Contains("[Right-click]") && controls.Contains("[Tab]") && BenchCards.ControlsShowing,
+            $"the first repair's controls card, in the mouse's words: \"{Plain(controls)}\"");
         yield return Photo1080("08-at-the-bench");
         inspector.StepBack();
         yield return Until(() => !inspector.IsHoldingItem, 3f, "...and right-click with bare hands puts it down and steps back");
@@ -361,19 +368,21 @@ public sealed class Day1GuideCheck : PlayLab
         if (grace != null) left.SetValue(grace, was);   // as she was, so the rest isn't about her leaving
     }
 
-    // The Officer comes in at about a third of Day 1 for a coffee (the game's first drink). The lab moves the clock to his
-    // time if it isn't there yet and makes room (walk-ins sent home), then waits a while for him.
+    // The Officer comes in on Day 1 for a coffee (the game's first drink), at his authored time: a quarter of the day since
+    // 14 Oct (specs/days-1-3.md §4.1: ≈ 1:52 of a 420 s day; it was .35 of 180 s). The lab moves the clock just past his time
+    // (read from today's story visits) if it isn't there yet and makes room (walk-ins sent home), then waits a while for him.
     IEnumerator TheOfficer(CustomerBrain grace, Transform till)
     {
         DayClock clock = DayClock.Instance;
-        if (clock != null && clock.NormalizedDay < .36f)
+        float due = Mathf.Clamp01(OfficerArrivesAt() + .01f);
+        if (clock != null && clock.NormalizedDay < due)
         {
             PropertyInfo remaining = typeof(DayClock).GetProperty("TimeRemaining", BindingFlags.Instance | BindingFlags.Public);
             float length = (float)(typeof(DayClock).GetField("dayLengthSeconds", Any)?.GetValue(clock) ?? 0f);
             if (remaining != null && length > 0f)
             {
-                remaining.GetSetMethod(true)?.Invoke(clock, new object[] { length * .64f });
-                Note($"the clock moved on to the Officer's time ({ShopUI.FormatHour(clock.CurrentHour)})");
+                remaining.GetSetMethod(true)?.Invoke(clock, new object[] { length * (1f - due) });
+                Note($"the clock moved on to the Officer's time, {due:0.00} of the day ({ShopUI.FormatHour(clock.CurrentHour)})");
             }
         }
         foreach (CustomerBrain c in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude))
@@ -486,6 +495,17 @@ public sealed class Day1GuideCheck : PlayLab
     }
 
     // ---------- helpers ----------
+
+    // The Officer's authored time today (DayDefinition.storyVisits, read at the counter), or .35 (the old Day 1) if none.
+    static float OfficerArrivesAt()
+    {
+        CustomerSpawner spawner = FindAnyObjectByType<CustomerSpawner>();
+        DayDefinition today = spawner != null ? spawner.Today : null;
+        if (today != null && DayClock.Instance != null)
+            foreach (StoryVisit visit in today.StoryVisitsOn(DayClock.Instance.Day))
+                if (visit != null && visit.who != null && visit.who.PersistentId == OfficerStory.ProfileId) return visit.arrivesAt;
+        return .35f;
+    }
 
     static CustomerBrain FindRegular(string id)
     {

@@ -75,6 +75,24 @@ using UnityEngine.AI;
 /// approached along its front from whichever side is free, so the last steps
 /// run along the cushions and the turn to sit is a quarter turn, not an about-turn.
 ///
+/// THE REPAIR-BAR STOOLS SIT (14 Oct 2026, NPC wave 2). His girlfriend, playtest
+/// 5: "people wouldn't sit down on the bar stools that are infront of the repair
+/// station". The clips are fitted to the 0.45 m chairs and a body was lifted at
+/// most 0.12 m to meet a seat, so the 0.745 m stools were left standing. At the
+/// bar a stool and its counter are a chair and its table raised 0.30 m together,
+/// so the same clips fit once the body is raised with them: a seat with its own
+/// <see cref="TableSeat.MaxLift"/> is met inside the clips. The walk in ends on
+/// the floor (a 0.30 m climb along the walk would be the hover he complained
+/// about on 26 Sept); the body rises from 25 % to 85 % of Sit Down and comes down
+/// from 15 % to 75 % of Stand Up, in closed form from the clip's time. The
+/// head settles about 8 cm and never rises. <see cref="TableSeat.ApproachSide"/>
+/// narrows the way in and out between stools 1.0 m apart. Chairs are unchanged.
+///
+/// ALREADY SEATED (14 Oct 2026, NPC wave 2: the settled guests). <see cref="SitAtOnce"/>
+/// enters the seated state the walk and Sit Down end in, at once, with the
+/// sitting idle at a random phase so guests placed together never breathe in
+/// step. Standing up from it is the ordinary Stand Up and walk out.
+///
 /// Needs the "Seated" and "Talking" animator parameters and the sit states that
 /// Fixit Fidget > NPC > Sit 2 - Wire sitting adds, plus a TableSeat with Snap
 /// To Seat on. Without them TrySit returns false and the NPC stands beside the
@@ -155,6 +173,7 @@ public sealed class NpcSeating : MonoBehaviour
     private static readonly int TalkingHash = Animator.StringToHash("Talking");
     private static readonly int IsWalkingHash = Animator.StringToHash("IsWalking");
     private static readonly int StandUpState = Animator.StringToHash("Stand Up");
+    private static readonly int SittingState = Animator.StringToHash("Sitting");
     private static readonly List<NpcSeating> active = new();
 
     private NavMeshAgent agent;
@@ -166,6 +185,9 @@ public sealed class NpcSeating : MonoBehaviour
     // Where the walk was handed over (0), where the feet stay while seated (2).
     private readonly Vector3[] path = new Vector3[3];
     private Quaternion seatRotation;
+    // How far the body rises inside the clips to meet this seat (a seat with its own Max Lift: the repair-bar stools), and
+    // how much of it was reached when Stand Up began (a sit can be cut short). 0 for the café's chairs.
+    private float seatLift, liftAtStand = 1f;
     // The way being walked right now: a smooth curve, sampled, with lengths.
     private readonly List<Vector3> waypoints = new(6);
     private readonly List<Vector3> route = new(48);
@@ -269,6 +291,12 @@ public sealed class NpcSeating : MonoBehaviour
         seat = target;
         float floor = transform.position.y;
         Placement(seat, floor, out Vector3 feet, out seatRotation);
+        // A seat with its own lift (the repair-bar stools) is met inside the clips: the walk ends on the floor under the
+        // seated feet, and Sit Down raises the body the rest of the way (Update). The café's chairs: 0, as before.
+        seatLift = seat.MaxLift > 0f ? feet.y - floor : 0f;
+        liftAtStand = 1f;
+        Vector3 floorFeet = feet;
+        floorFeet.y -= seatLift;
         Vector3 forward = seatRotation * Vector3.forward;
         Vector3 side = Vector3.Cross(Vector3.up, forward);
         Vector3 seatCentre = seat.SeatPose.position;
@@ -279,9 +307,10 @@ public sealed class NpcSeating : MonoBehaviour
         path[2] = feet;
         handBackPoint = path[0];
         // Stepping in from the side they are already on (walking along the table), or
-        // round the freer side.
+        // round the freer side; a turned stool always from the side away from its counter.
         sideIn = entrySide != 0f ? entrySide : ChooseSide(seatCentre, side, transform.position);
-        float step = bench ? benchSideStep : sideClearance;
+        if (AwayFromTable(seat) != 0f) sideIn = AwayFromTable(seat);
+        float step = bench ? benchSideStep : SideStep(seat);
 
         waypoints.Clear();
         waypoints.Add(transform.position);
@@ -297,7 +326,7 @@ public sealed class NpcSeating : MonoBehaviour
         Vector3 beside = feet + side * (sideIn * step) - forward * .05f;
         beside.y = floor;
         waypoints.Add(beside);
-        waypoints.Add(feet);
+        waypoints.Add(floorFeet);
         BuildRoute(Flat(transform.forward), Flat(feet - beside));
         routeIn = true;
         routeEndRotation = seatRotation;
@@ -321,6 +350,80 @@ public sealed class NpcSeating : MonoBehaviour
         if (visual != null) visual.Seated = true;
         Begin(Phase.Approaching, 0f);
         return true;
+    }
+
+    /// <summary>
+    /// Already in the chair (14 Oct 2026, NPC wave 2: the settled guests, PatronSpawner.SeatOpeningGuests). The state the
+    /// walk round the chair and Sit Down end in, entered at once: the agent warped to the seat's stand point (the way out
+    /// starts and ends there) and switched off, the body on the seat, solid to Ace, the sitting idle at a random phase so
+    /// guests placed in the same frame never breathe in step. Standing up from here is the ordinary Stand Up and walk out.
+    /// GraceAtHome.SeatNow is the precedent. False (nothing changed) when this seat can't be sat on or the animator has no
+    /// sit states yet: the caller walks them to it instead. <paramref name="sittingPhase"/>: where in the sitting idle they
+    /// are (0-1; PatronSpawner spreads the morning's guests apart); negative: at random.
+    /// </summary>
+    public bool SitAtOnce(TableSeat target, float sittingPhase = -1f)
+    {
+        if (phase != Phase.Standing || target == null || !target.SnapToSeat || data == null || animator == null) return false;
+        if (agent == null || !agent.isActiveAndEnabled || !agent.isOnNavMesh) return false;
+        if (!SitParametersReady()) return false;
+        Vector3 stand = target.StandPoint.position;
+        if (NavMesh.SamplePosition(stand, out NavMeshHit onFloor, .5f, NavMesh.AllAreas)) stand = onFloor.position;
+        if (!agent.Warp(stand)) return false;
+
+        seat = target;
+        float floor = stand.y;
+        Placement(seat, floor, out Vector3 feet, out seatRotation);
+        seatLift = seat.MaxLift > 0f ? feet.y - floor : 0f;
+        liftAtStand = 1f;
+        Vector3 forward = seatRotation * Vector3.forward;
+        Vector3 seatCentre = seat.SeatPose.position;
+        seatCentre.y = floor;
+        path[0] = path[1] = stand;
+        path[2] = feet;
+        handBackPoint = stand;
+        sideIn = AwayFromTable(seat) != 0f ? AwayFromTable(seat) : ChooseSide(seatCentre, Vector3.Cross(Vector3.up, forward), stand);
+        overheadDrop = Mathf.Max(0f, data.standingHipHeight - data.seatedHip.y);
+        walkSpeed = 0f;
+        yawVelocity = 0f;
+        waypoints.Clear();
+        route.Clear();
+        routeAt.Clear();
+        routeLength = .01f;
+        walked = 0f;
+        ResetStepStats();
+
+        // As TrySit: the navigation body leaves the floor, and the seated body is solid to Ace.
+        agent.ResetPath();
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+        agent.enabled = false;
+        if (!active.Contains(this)) active.Add(this);
+        standingLayer = gameObject.layer;
+        gameObject.layer = 0;
+        if (visual != null) visual.Seated = true;
+        transform.SetPositionAndRotation(path[2], seatRotation);
+
+        animator.SetBool(SeatedHash, true);
+        animator.SetBool(TalkingHash, false);
+        float idlePhase = sittingPhase >= 0f ? sittingPhase - Mathf.Floor(sittingPhase) : Random.value;
+        if (!animator.isInitialized || animator.HasState(0, SittingState)) animator.Play(SittingState, 0, idlePhase);
+        // The pose this frame, not the next: the body is in the chair from the first frame anyone could see it.
+        if (animator.isInitialized) animator.Update(0f);
+        Begin(Phase.Seated, 0f);
+        nextChat = Time.time + Random.Range(1.5f, 4f);
+        PlaceOverheads();
+        return true;
+    }
+
+    // The animator has the sit parameters (as CanSit, which waits for an initialised animator to cache the answer). A body
+    // made this frame may not be initialised yet: then the parameters are read without caching, and a no means "not yet".
+    private bool SitParametersReady()
+    {
+        if (animator.runtimeAnimatorController == null) return false;
+        if (hasSitParameters == null && animator.isInitialized)
+            hasSitParameters = HasParameter(SeatedHash) && HasParameter(TalkingHash);
+        if (hasSitParameters != null) return hasSitParameters.Value;
+        return HasParameter(SeatedHash) && HasParameter(TalkingHash);
     }
 
     /// <summary>
@@ -359,9 +462,29 @@ public sealed class NpcSeating : MonoBehaviour
         float relF = Vector3.Dot(rel, forward), relS = Vector3.Dot(rel, side);
         if (relF < -.45f || relF > 1.2f) return 0f;
         float s = relS >= 0f ? 1f : -1f;
+        float away = AwayFromTable(target);
+        if (away != 0f && s != away) return 0f;   // never step in from the counter's side of a turned stool
         Placement(target, position.y, out Vector3 feet, out _);
-        Vector3 entry = feet + side * (s * sideClearance) - forward * .05f;
+        Vector3 entry = feet + side * (s * SideStep(target)) - forward * .05f;
         return Flat(position - entry).magnitude < sideEntryReach + slack ? s : 0f;
+    }
+
+    // How far beside a seat's centre line the way in and out passes: the seat's own (the repair-bar stools, 1.0 m apart:
+    // 0.50, between them), else Side Clearance. 14 Oct 2026, NPC wave 2.
+    private float SideStep(TableSeat target) => target != null && target.ApproachSide > 0f ? target.ApproachSide : sideClearance;
+
+    // A seat turned off its table with its own way in (the repair-bar stools: 45 degrees, because the counter has no knee
+    // space; 14 Oct 2026, NPC wave 2): the way in and out goes on the side away from the counter. The fewer-neighbours rule
+    // (ChooseSide) could pick the side between the stool and the counter, and that step lands inside the counter's front
+    // edge. +1 / -1: that side (as `side` in TrySit); 0: either side, as before (every other seat).
+    private static float AwayFromTable(TableSeat target)
+    {
+        if (target == null || target.ApproachSide <= 0f) return 0f;
+        Vector3 facing = Flat(target.FacingPoint - target.SeatPose.position);
+        Vector3 toCup = Flat(target.CupSpot.position - target.SeatPose.position);
+        if (facing.sqrMagnitude < 1e-4f || toCup.sqrMagnitude < 1e-4f || Vector3.Angle(facing, toCup) < 20f) return 0f;
+        Vector3 side = Vector3.Cross(Vector3.up, facing.normalized);
+        return Vector3.Dot(toCup, side) > 0f ? -1f : 1f;
     }
 
     private static Vector3 SeatForward(TableSeat target)
@@ -378,13 +501,14 @@ public sealed class NpcSeating : MonoBehaviour
     /// Also used by the editor photo check.
     /// </summary>
     public void Placement(TableSeat target, float floor, out Vector3 feet, out Quaternion facing) =>
-        Placement(target.SeatPose.position, target.FacingPoint, target.StandPoint.position, floor, out feet, out facing);
+        Placement(target.SeatPose.position, target.FacingPoint, target.StandPoint.position, floor, out feet, out facing, target.MaxLift);
 
     /// <summary>
     /// As above, for a seat that isn't a café table's (Grace's armchair at home, GraceAtHome): the middle of its seat, what
-    /// the sitter faces, and where they'd stand before sitting.
+    /// the sitter faces, and where they'd stand before sitting. <paramref name="maxLift"/>: how far the body may rise or drop
+    /// to meet the seat (a seat's own, TableSeat.MaxLift); 0 = Max Height Correction (0.12 m, the café's chairs).
     /// </summary>
-    public void Placement(Vector3 seatCentre, Vector3 facingPoint, Vector3 standPoint, float floor, out Vector3 feet, out Quaternion facing)
+    public void Placement(Vector3 seatCentre, Vector3 facingPoint, Vector3 standPoint, float floor, out Vector3 feet, out Quaternion facing, float maxLift = 0f)
     {
         Vector3 toTable = facingPoint - seatCentre;
         toTable.y = 0f;
@@ -397,7 +521,8 @@ public sealed class NpcSeating : MonoBehaviour
         Vector3 hipTarget = seatCentre - forward * hipBehindSeatCentre;
         hipTarget.y = seatCentre.y + hipAboveSeat * scale.y;
         feet = hipTarget - hipOffset;
-        feet.y = floor + Mathf.Clamp(feet.y - floor, -maxHeightCorrection, maxHeightCorrection);
+        float limit = maxLift > 0f ? maxLift : maxHeightCorrection;
+        feet.y = floor + Mathf.Clamp(feet.y - floor, -limit, limit);
     }
 
     /// <summary>
@@ -433,6 +558,8 @@ public sealed class NpcSeating : MonoBehaviour
                 break;
             case Phase.SittingDown:
             case Phase.Seated:
+                // How far the rise had got (a sit cut short, a storm-out mid-sit): Stand Up lowers from there, never pops up.
+                liftAtStand = phase == Phase.Seated ? 1f : LiftWhileSitting(PhaseProgress);
                 animator.SetBool(SeatedHash, false);
                 animator.SetBool(TalkingHash, false);
                 PlanWayOut(true);
@@ -452,7 +579,7 @@ public sealed class NpcSeating : MonoBehaviour
         if (agent == null || animator == null) { HandBack(); return; }
         KeepSeatReserved();
 
-        float t = phaseLength <= 1e-4f ? 1f : Mathf.Clamp01((Time.time - phaseStarted) / phaseLength);
+        float t = PhaseProgress;
         switch (phase)
         {
             case Phase.Approaching:
@@ -468,7 +595,8 @@ public sealed class NpcSeating : MonoBehaviour
                 // part of lowering, the way people swivel as they sit.
                 float k = finishTurnSeconds > 1e-3f ? Mathf.Clamp01((Time.time - phaseStarted) / finishTurnSeconds) : 1f;
                 k = 1f - (1f - k) * (1f - k);
-                transform.SetPositionAndRotation(path[2], Quaternion.Slerp(arrivalRotation, seatRotation, k));
+                // On a raised seat (a repair-bar stool) the body rises with the clip; on a chair SeatedAt(…) is path[2].
+                transform.SetPositionAndRotation(SeatedAt(LiftWhileSitting(t)), Quaternion.Slerp(arrivalRotation, seatRotation, k));
                 if (t >= 1f)
                 {
                     Begin(Phase.Seated, 0f);
@@ -482,7 +610,7 @@ public sealed class NpcSeating : MonoBehaviour
             case Phase.StandingUp:
                 // Upright enough over the last third of the clip to start turning away.
                 float r = Mathf.InverseLerp(.62f, 1f, t);
-                transform.SetPositionAndRotation(path[2], Quaternion.Slerp(seatRotation, risingTurn, r * r * (3f - 2f * r)));
+                transform.SetPositionAndRotation(SeatedAt(liftAtStand * LiftWhileStanding(t)), Quaternion.Slerp(seatRotation, risingTurn, r * r * (3f - 2f * r)));
                 if (t >= 1f) BeginReturning();
                 break;
             case Phase.Returning:
@@ -527,7 +655,8 @@ public sealed class NpcSeating : MonoBehaviour
     {
         waypoints.Clear();
         exitOnward = null;
-        Vector3 from = fromSeat ? path[2] : transform.position;
+        // Out of a raised seat the walk starts on the floor: Stand Up has brought the body down by then.
+        Vector3 from = fromSeat ? SeatedAt(0f) : transform.position;
         waypoints.Add(from);
         Vector3 end = fromSeat && seat != null ? seat.StandPoint.position : path[0];
         end.y = path[0].y;   // the floor the walk was handed over on (the feet may sit a little higher at the chair)
@@ -547,13 +676,13 @@ public sealed class NpcSeating : MonoBehaviour
             }
             else
             {
-                float sideOut = ChooseSide(seatCentre, side, seatCentre + side * sideIn);
-                Vector3 beside = path[2] + side * (sideOut * sideClearance) - forward * .05f;
+                float sideOut = AwayFromTable(seat) != 0f ? AwayFromTable(seat) : ChooseSide(seatCentre, side, seatCentre + side * sideIn);
+                Vector3 beside = from + side * (sideOut * SideStep(seat)) - forward * .05f;
                 beside.y = from.y;
                 waypoints.Add(beside);
                 if (Vector3.Dot(Flat(end - seatCentre), forward) < -.3f)
                 {
-                    Vector3 besideBack = seatCentre + side * (sideOut * sideClearance) - forward * .35f;
+                    Vector3 besideBack = seatCentre + side * (sideOut * SideStep(seat)) - forward * .35f;
                     besideBack.y = from.y;
                     waypoints.Add(besideBack);
                 }
@@ -599,22 +728,25 @@ public sealed class NpcSeating : MonoBehaviour
     {
         exitPath ??= new NavMeshPath();
         float floorY = path[0].y;
+        float step = SideStep(seat);   // the seat's own way out beside it (the repair-bar stools: 0.50), else Side Clearance
+        float away = AwayFromTable(seat);   // a turned stool: only out on the side away from the counter
         CollectSeatsNearby(seatCentre);
         float best = float.PositiveInfinity;
         Vector3 bestBeside = default, bestBack = default, bestEnd = default, bestOnward = default;
         bool bestViaBack = false, found = false;
         for (int s = -1; s <= 1; s += 2)
         {
-            Vector3 beside = from + side * (s * sideClearance) - forward * .05f;
+            if (away != 0f && s != away) continue;
+            Vector3 beside = from + side * (s * step) - forward * .05f;
             beside.y = from.y;
-            Vector3 besideBack = seatCentre + side * (s * sideClearance) - forward * .35f;
+            Vector3 besideBack = seatCentre + side * (s * step) - forward * .35f;
             besideBack.y = from.y;
             for (int c = 0; c < 3; c++)
             {
                 Vector3 probe = c switch
                 {
-                    0 => seatCentre + side * (s * (sideClearance + .3f)) - forward * .1f,
-                    1 => seatCentre + side * (s * (sideClearance + .1f)) - forward * .75f,
+                    0 => seatCentre + side * (s * (step + .3f)) - forward * .1f,
+                    1 => seatCentre + side * (s * (step + .1f)) - forward * .75f,
                     _ => seat.StandPoint.position,
                 };
                 probe.y = floorY;
@@ -701,6 +833,26 @@ public sealed class NpcSeating : MonoBehaviour
     }
 
     private void Hold() => transform.SetPositionAndRotation(path[2], seatRotation);
+
+    // ---------- the rise inside the clips (14 Oct 2026, the repair-bar stools) ----------
+
+    // How far through the current clip, 0-1 (1 for a phase with no length).
+    private float PhaseProgress => phaseLength <= 1e-4f ? 1f : Mathf.Clamp01((Time.time - phaseStarted) / phaseLength);
+
+    // The share of the seat's lift reached, from the clip's own time (closed form: the same at his 15 fps as at 60).
+    // Sit Down rises from 23 % to 67 % of the clip, slightly ahead of the hips: Npc Sit Down's hips go down between 18 % and
+    // 72 % (half way at 47 %), and its head bottoms out at 69 % (the lean forward) 1.7 cm under where it ends. The window was
+    // 25-85 % until 15 Oct, which lagged the hips: the body sank 5 cm into the stool and rose back, the head 10 cm under its
+    // seated height (Life 4 measured 8.5-9.2 cm). With 23-67 % the hips never go below the seat and never rise, and the head
+    // dips only by the clip's own lean, 1.9 cm at an NPC's 1.1 (the floor for any lift; worked from the clip's curves).
+    // Stand Up comes down from 15 % to 75 %, so the feet are on the floor before the first step (the hips never sink: the
+    // lift stays ahead of their rise).
+    private static float LiftWhileSitting(float t) => Smooth01(Mathf.InverseLerp(.23f, .67f, t));
+    private static float LiftWhileStanding(float t) => 1f - Smooth01(Mathf.InverseLerp(.15f, .75f, t));
+
+    // Where the feet are with this share of the seat's lift: 1 is seated (path[2]); 0 is the floor under the seated feet,
+    // where the walk in ends and the walk out starts. A chair has no lift, so it is path[2] either way.
+    private Vector3 SeatedAt(float share) => path[2] - Vector3.up * (seatLift * (1f - Mathf.Clamp01(share)));
 
     // ---------- the route ----------
 
@@ -992,6 +1144,8 @@ public sealed class NpcSeating : MonoBehaviour
         ReleaseReservation();
         active.Remove(this);
         seat = null;
+        seatLift = 0f;
+        liftAtStand = 1f;
         standHeading = null;
         exitOnward = null;
         if (visual != null) visual.Seated = false;

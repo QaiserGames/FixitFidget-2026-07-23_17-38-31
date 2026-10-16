@@ -1748,6 +1748,10 @@ public sealed class RecapPhone : MonoBehaviour
         cy = Rule(controls, cy);
         cy = SwitchRow(controls, cy, "Swap the sticks at the bench", "Left stick moves your hand, right stick turns the device.",
             GameSettings.SwapBenchSticks, () => Flip(() => GameSettings.SwapBenchSticks = !GameSettings.SwapBenchSticks), "swapsticks");
+        // Pad rumble at the bench (14 Oct, Systems' decision 13: "feel the impact"); on by default. PLACEHOLDER COPY.
+        cy = Rule(controls, cy);
+        cy = SwitchRow(controls, cy, "Vibration", "On a pad: the bench's tools rumble as they work.", GameSettings.Vibration,
+            () => Flip(() => GameSettings.Vibration = !GameSettings.Vibration), "vibration");
         y = FinishCard(controls, cy + 2f, y);
 
         // The morning's few seconds of the café waking up (12 Oct, his 6: every day, skippable, with Short and Off here). A

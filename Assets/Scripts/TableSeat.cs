@@ -57,6 +57,27 @@ public class TableSeat : WaitingSpot
              "use a smaller footprint - the body leaves the stand point as soon as it sits.")]
     [SerializeField, Min(0f)] private float clearanceRadius = 0f;
 
+    // THE REPAIR BAR (14 Oct 2026, NPC wave 2). His girlfriend, playtest 5: "people wouldn't sit down on the bar stools
+    // that are infront of the repair station". Nobody could sit on them (Snap To Seat off: the sit clips are fitted to
+    // the 0.45 m chairs, and NpcSeating lifted a body at most 0.12 m), and the nearest-seat rule almost never reached the
+    // middle or west stool. Now a customer whose repair goes to the bench takes the free stool nearest the bench first
+    // (WaitingArea.ClaimRepairBar), and sits on it: the stool and its counter are a café chair and table raised 0.30 m
+    // together, so the chair clips fit once the body is lifted with them. All three default to "as before".
+    [Header("The repair bar (NPC wave 2)")]
+
+    [Tooltip("A repair-bar stool: a customer whose repair goes to the bench takes the free one nearest the bench first " +
+             "(WaitingArea.ClaimRepairBar). Off: an ordinary seat, chosen by the nearest-seat rule.")]
+    [SerializeField] private bool repairBar;
+
+    [Tooltip("How far the body may rise (or drop) to meet this seat, metres. 0 = NpcSeating's own limit (0.12 m, the " +
+             "café's chairs). A seat with its own limit is met inside the sit clips: the walk ends on the floor, the body " +
+             "rises during Sit Down and comes down during Stand Up. The repair-bar stools: 0.32.")]
+    [SerializeField, Min(0f)] private float maxLift;
+
+    [Tooltip("How far beside the seat's centre line the way in and out passes, metres. 0 = NpcSeating's own (0.62). " +
+             "The repair-bar stools stand 1.0 m apart: 0.50 passes between them without brushing the next stool.")]
+    [SerializeField, Min(0f)] private float approachSide;
+
     // What's sitting on the table for this seat. A GameObject rather than a
     // DrinkJob on purpose: step 7 hasn't decided what a dirty cup IS yet, and
     // this shouldn't need rewriting when it does.
@@ -70,6 +91,12 @@ public class TableSeat : WaitingSpot
     public Vector3 FacingPoint => faceTowards != null ? faceTowards.position : CupSpot.position;
     /// <summary>Footprint kept clear round the stand point for other claims; 0 = default (see WaitingArea).</summary>
     public override float ClearanceRadius => clearanceRadius;
+    /// <summary>A repair-bar stool: bench-job customers take these first (WaitingArea.ClaimRepairBar).</summary>
+    public bool RepairBar => repairBar;
+    /// <summary>The body's own lift limit for this seat, metres; 0 = NpcSeating's default. Above 0 the lift happens inside the sit clips.</summary>
+    public float MaxLift => maxLift;
+    /// <summary>How far beside the seat the way in and out passes, metres; 0 = NpcSeating's default.</summary>
+    public float ApproachSide => approachSide;
 
     public bool IsDirty => dirtyCup != null;
 

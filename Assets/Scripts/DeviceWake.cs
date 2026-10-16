@@ -6,7 +6,8 @@ using UnityEngine;
 //
 // The moment a repair's last task completes, the thing itself says so, with its own kept parts, before any word on
 // the screen does: the phone's screen lights up (its glass glows, a soft boot chime); the pocket watch is wound (the
-// crown turns) and starts to tick; the camera's advance is wound and the new shutter fires. One component per device
+// crown turns) and starts to tick; the camera's advance is wound and the new shutter fires (Day 2; on Day 1's clean the
+// camera only winds: its shutter is still jammed, R4 of specs/days-1-3.md). One component per device
 // prefab, wired by Fixit Fidget > Bench > Bench 4; Fire() is what Juice calls.
 //
 // The wake is quiet (playtest 4, 10 Oct: one ending): its own sounds and no words. "Fixed! · Perfect" (Juice) comes once,
@@ -40,8 +41,13 @@ public class DeviceWake : MonoBehaviour
 
     public void Play()
     {
-        if (Woken || !Application.isPlaying || kind == Kind.None) return;
+        if (Woken || !Application.isPlaying || kind == Kind.None)
+        {
+            if (Application.isPlaying) Debug.Log($"[Device wake] {name}: asked again ({(Woken ? "already awake" : "nothing to wake")}).");
+            return;
+        }
         Woken = true;
+        Debug.Log($"[Device wake] {name}: wakes ({kind}) at {Time.time:0.00} s.");
         switch (kind)
         {
             case Kind.ScreenLights: StartCoroutine(ScreenLightsUp()); break;
@@ -54,15 +60,25 @@ public class DeviceWake : MonoBehaviour
 
     IEnumerator ScreenLightsUp()
     {
-        Renderer screen = null;
-        if (parts != null) foreach (Transform t in parts)
-        {
-            if (t == null || !t.gameObject.activeInHierarchy) continue;
-            screen = t.GetComponent<Renderer>();
-            if (screen != null) break;
-        }
         Sfx.Play("phone.boot", transform.position);
-        if (screen == null) yield break;
+        // The screen to light: the first of its parts drawn now. The seat that finishes a swap can wake the phone before its
+        // new screen counts as shown (15 Oct, Bench 3: "the phone wakes ... no screen lit" with the fresh screen in place), so
+        // it waits up to a second for one, and says what it saw if none comes.
+        Renderer screen = DrawnPart();
+        for (float waited = 0f; screen == null && waited < 1f; waited += Time.deltaTime)
+        {
+            yield return null;
+            screen = DrawnPart();
+        }
+        if (screen == null)
+        {
+            var seen = new System.Text.StringBuilder();
+            if (parts != null) foreach (Transform t in parts)
+                if (t != null) seen.Append($"{t.name} ({(t.gameObject.activeInHierarchy ? "on" : "off")}{(t.GetComponent<Renderer>() == null ? ", no renderer" : "")}) ");
+            Debug.LogWarning($"[Device wake] {name}: nothing to light after a second; its parts: {(seen.Length > 0 ? seen.ToString() : "none")}");
+            yield break;
+        }
+        Debug.Log($"[Device wake] {name}: lights {screen.name} at {Time.time:0.00} s.");
         // Its own material (the asset is shared), with emission on.
         Material m = screen.material;
         lit = m;
@@ -79,6 +95,19 @@ public class DeviceWake : MonoBehaviour
             yield return null;
         }
         m.SetColor("_EmissionColor", ScreenGlow * 1.35f);
+    }
+
+    // The first of the screen's parts that is on and drawn.
+    Renderer DrawnPart()
+    {
+        if (parts == null) return null;
+        foreach (Transform t in parts)
+        {
+            if (t == null || !t.gameObject.activeInHierarchy) continue;
+            Renderer r = t.GetComponent<Renderer>();
+            if (r != null && r.enabled) return r;
+        }
+        return null;
     }
 
     // ---------- the watch: the crown turns (wound), then it ticks ----------
@@ -108,14 +137,34 @@ public class DeviceWake : MonoBehaviour
     }
 
     // ---------- the camera: the advance is wound, and the new shutter fires ----------
+    //
+    // DAYS 1-3, R4 (14 Oct 2026; specs/days-1-3.md §5.3, the Producer's call 5): Day 1's job is the clean alone and the
+    // shutter is still jammed, so the camera only winds ("camera.wind"); the shutter's "ka-chick" ("camera.shutter") is Day 2's
+    // payoff, once the working blade is in it. Read from the camera itself: no working blade in the camera (it waits under
+    // the switched-off jammed part on Day 1), no fire.
+
+    /// <summary>The camera's shutter can fire: its fresh part is in it (Day 2's swap done; since wave 2 the clean shutter
+    /// mechanism, wired by Devices 2). Day 1's clean: false (R4).</summary>
+    public bool ShutterReady
+    {
+        get
+        {
+            Transform blade = parts != null && parts.Length > 0 ? parts[0] : null;
+            return blade != null && blade.gameObject.activeInHierarchy;
+        }
+    }
 
     IEnumerator WindAndFire()
     {
         Transform blade = parts != null && parts.Length > 0 ? parts[0] : null;
         Sfx.Play("camera.wind", transform.position);
+        if (!ShutterReady) yield break;   // R4: Day 1 winds, no fire
         yield return new WaitForSeconds(.5f);
         Sfx.Play("camera.shutter", blade != null ? blade.position : transform.position);
         if (blade == null || !blade.gameObject.activeInHierarchy) yield break;
+        // Since the Blender lead's wave 2 the part that fires is the whole clean shutter mechanism (one mesh, Devices 2 wires
+        // it): it is heard, not spun. Only a blade blinks (the integration, 14 Oct).
+        if (blade.name.IndexOf("blade", System.StringComparison.OrdinalIgnoreCase) < 0) yield break;
         // The blade snaps across and back: a leaf shutter's blink, about its own axis (the blade's up).
         Quaternion rest = blade.localRotation;
         for (float t = 0f; t < 1f; t += Time.deltaTime / .05f) { blade.localRotation = rest * Quaternion.AngleAxis(Mathf.Lerp(0f, 55f, t), Vector3.up); yield return null; }

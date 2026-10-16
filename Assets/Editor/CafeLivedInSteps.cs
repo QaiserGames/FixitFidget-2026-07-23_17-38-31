@@ -91,6 +91,11 @@ using Shared = CafeRedesignShared;
 // After it: save the scene, then Fixit Fidget > Night > Night walk 2 - Rebuild the list of what is solid by night (Edit
 // Mode) (the street bin is new outside), and save again.
 // Reports and photos: Logs/CafeRedesign/lived-in-*; the room's 14 photos: Logs/CafeFurnishing/lived-in-2-before|after-*.
+//
+// 14 Oct 2026: the repair mat's step (BenchStageImportSteps, "Bench stage 1") and the café's second dressing
+// (CafeDressingSteps, "Café dressing 1") make their materials, textures and models the way this kit does, and measure
+// the scene the same way, so these are shared (internal, unchanged): Define, ConfigureTexture, ConfigureModel,
+// ProjectMaterials, KitOneMaterials, Json and its readers, Scenery, Shrunk, WorldBox, Anchors.
 // ---------------------------------------------------------------------------
 internal static class CafeLivedInSteps
 {
@@ -593,7 +598,7 @@ internal static class CafeLivedInSteps
     }
 
     // Kit 1's materials (and the intake tray's CF_Felt): the names their manifests define.
-    static HashSet<string> KitOneMaterials(out string note)
+    internal static HashSet<string> KitOneMaterials(out string note)
     {
         var names = new HashSet<string>();
         int read = 0;
@@ -615,7 +620,7 @@ internal static class CafeLivedInSteps
 
     // The project's materials by name: Assets/Art/Materials (the folder itself, Kit 1's rule), the kit's (CF_), the
     // furnishing pass's ("Mat - rubber"), and the café's palette (its grain).
-    static Dictionary<string, Material> ProjectMaterials()
+    internal static Dictionary<string, Material> ProjectMaterials()
     {
         var result = new Dictionary<string, Material>();
         void AddFolder(string folder)
@@ -639,7 +644,7 @@ internal static class CafeLivedInSteps
 
     // Kit 1's texture settings (CafeKitSteps.ConfigureTexture) for the lived-in kit's own: tiling colour and normal maps
     // repeat; a texture drawn for one face set (the rug, the mats, the labels, the drawing) clamps, sharp.
-    static bool ConfigureTexture(string path, bool transparent)
+    internal static bool ConfigureTexture(string path, bool transparent)
     {
         var importer = AssetImporter.GetAtPath(path) as TextureImporter;
         if (importer == null) return false;
@@ -662,7 +667,7 @@ internal static class CafeLivedInSteps
 
     // Kit 1's material definition (CafeKitSteps.Define) without the window gilding's special case: URP Lit, metallic 0; a
     // textured one has a white base (the texture carries the colour) and its tiling; a transparent one blends; emission.
-    static void Define(Material m, Dictionary<string, object> def, Shader lit, Dictionary<string, Material> project)
+    internal static void Define(Material m, Dictionary<string, object> def, Shader lit, Dictionary<string, Material> project)
     {
         if (m.shader != lit) m.shader = lit;
         m.enableInstancing = true;
@@ -734,7 +739,7 @@ internal static class CafeLivedInSteps
 
     // Kit 1's model settings (CafeKitSteps.Configure): scale 1, no animation, cameras or lights, readable (the step reads
     // the meshes), no colliders, normals imported; every material remapped by its Blender name (wood to the café's grain).
-    static void ConfigureModel(string path, string piece, List<string> sources, Dictionary<string, Material> materials, SortedSet<string> unmapped)
+    internal static void ConfigureModel(string path, string piece, List<string> sources, Dictionary<string, Material> materials, SortedSet<string> unmapped)
     {
         var importer = (ModelImporter)AssetImporter.GetAtPath(path);
         importer.globalScale = 1f;
@@ -2771,7 +2776,7 @@ internal static class CafeLivedInSteps
     // The drawn scene round the café, read once (each mesh's vertices and triangles cached): the highest surface under a
     // point (CafeFurnishing.TopAt's way) and what passes through a box (the triangles against the box, separating axes).
     // Active, enabled mesh renderers only; Ace, the street's moving actors and shadow-only meshes left out.
-    sealed class Scenery
+    internal sealed class Scenery
     {
         sealed class Entry { public MeshFilter f; public Bounds b; public Matrix4x4 m; }
         static readonly Bounds Roi = new Bounds(new Vector3(0f, 1.5f, 7.5f), new Vector3(22f, 7f, 30f));
@@ -2841,6 +2846,40 @@ internal static class CafeLivedInSteps
             return best;
         }
 
+        // The first drawn surface along a ray from `from` in the unit direction `dir`, within `max` metres (either face of a
+        // triangle), or null; `aside`: leave those out. (14 Oct, CafeDressingSteps: what a whiteboard or a notice hangs on.)
+        public float? Along(Vector3 from, Vector3 dir, float max, Func<Transform, bool> aside)
+        {
+            float? best = null;
+            var ray = new Ray(from, dir);
+            foreach (Entry e in entries)
+            {
+                if (!e.b.IntersectRay(ray, out float enter) || enter > max) continue;
+                if (aside != null && aside(e.f.transform)) continue;
+                Vector3[] v = V(e.f.sharedMesh);
+                int[] t = T(e.f.sharedMesh);
+                for (int i = 0; i + 2 < t.Length; i += 3)
+                {
+                    Vector3 a = e.m.MultiplyPoint3x4(v[t[i]]), b = e.m.MultiplyPoint3x4(v[t[i + 1]]), c = e.m.MultiplyPoint3x4(v[t[i + 2]]);
+                    // Moller-Trumbore
+                    Vector3 ab = b - a, ac = c - a, p = Vector3.Cross(dir, ac);
+                    float det = Vector3.Dot(ab, p);
+                    if (Mathf.Abs(det) < 1e-12f) continue;
+                    float inv = 1f / det;
+                    Vector3 s = from - a;
+                    float u = Vector3.Dot(s, p) * inv;
+                    if (u < 0f || u > 1f) continue;
+                    Vector3 q = Vector3.Cross(s, ab);
+                    float w = Vector3.Dot(dir, q) * inv;
+                    if (w < 0f || u + w > 1f) continue;
+                    float d = Vector3.Dot(ac, q) * inv;
+                    if (d < 0f || d > max) continue;
+                    if (best == null || d < best.Value) best = d;
+                }
+            }
+            return best;
+        }
+
         // The things whose triangles pass through `box` (in `pose`'s frame); `aside`: leave those out.
         public List<string> Through(Bounds box, Matrix4x4 pose, Func<Transform, bool> aside)
         {
@@ -2866,7 +2905,7 @@ internal static class CafeLivedInSteps
     }
 
     // A piece's box shrunk by `shrink` all round and its bottom raised by `lift` (what it stands on only touches it).
-    static Bounds Shrunk(Bounds local, float shrink, float lift)
+    internal static Bounds Shrunk(Bounds local, float shrink, float lift)
     {
         var b = new Bounds(local.center, local.size - Vector3.one * 2f * shrink);
         b.SetMinMax(new Vector3(b.min.x, b.min.y + lift, b.min.z), b.max);
@@ -2952,7 +2991,7 @@ internal static class CafeLivedInSteps
 
     // What must not move: the stations and their stand points, every waiting spot and seat and its stand point, the queue,
     // the intake shelf, the dispenser, the cup supply, the spawners, the doors (CafeSeatsSteps.Anchors).
-    static Dictionary<Transform, Vector3> Anchors(Shared.Run run)
+    internal static Dictionary<Transform, Vector3> Anchors(Shared.Run run)
     {
         var a = new Dictionary<Transform, Vector3>();
         void Add(Transform t) { if (t != null && !a.ContainsKey(t)) a[t] = t.position; }
@@ -2969,7 +3008,7 @@ internal static class CafeLivedInSteps
     }
 
     // The world box of a thing's enabled renderers (while it is switched off, from its meshes at its pose).
-    static Bounds WorldBox(GameObject go)
+    internal static Bounds WorldBox(GameObject go)
     {
         Renderer[] rs = go.GetComponentsInChildren<Renderer>(true).Where(r => r.enabled && !(r is ParticleSystemRenderer)).ToArray();
         if (rs.Length == 0) return new Bounds(go.transform.position, Vector3.zero);
@@ -3057,12 +3096,12 @@ internal static class CafeLivedInSteps
     static float ParseF(string s) => float.Parse(s, NumberStyles.Float, CultureInfo.InvariantCulture);
     static string When() => DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
     static Color Hex(string hex) => ColorUtility.TryParseHtmlString("#" + hex.TrimStart('#'), out Color c) ? c : Color.magenta;
-    static string Str(Dictionary<string, object> d, string key) => d != null && d.TryGetValue(key, out object v) && v is string s && s.Length > 0 ? s : null;
-    static float Num(Dictionary<string, object> d, string key, float fallback) =>
+    internal static string Str(Dictionary<string, object> d, string key) => d != null && d.TryGetValue(key, out object v) && v is string s && s.Length > 0 ? s : null;
+    internal static float Num(Dictionary<string, object> d, string key, float fallback) =>
         d != null && d.TryGetValue(key, out object v) && v is double n ? (float)n : fallback;
     static bool Bool(Dictionary<string, object> d, string key) => d != null && d.TryGetValue(key, out object v) && (v is bool b ? b : v is double n && n != 0);
 
-    static bool TryVec(Dictionary<string, object> d, string key, out Vector3 v)
+    internal static bool TryVec(Dictionary<string, object> d, string key, out Vector3 v)
     {
         v = Vector3.zero;
         if (d == null || !d.TryGetValue(key, out object o) || !(o is List<object> l) || l.Count != 3 || !l.All(x => x is double)) return false;
@@ -3090,7 +3129,7 @@ internal static class CafeLivedInSteps
     }
 
     // A small JSON reader (objects, arrays, strings, numbers, true/false/null): CafeKitSteps.Json, which is private there.
-    static class Json
+    internal static class Json
     {
         public static object Parse(string text)
         {

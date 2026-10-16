@@ -38,8 +38,10 @@ public sealed class NpcSocial : MonoBehaviour
     public enum Situation { None, Walking, Queue, Ordering, StandingWait, Seated, Leaving }
     // The event looks (12 Oct 2026): LeaverLook (the bell as someone goes out), StormLook (a storm-out watched),
     // FixedLook (a "Fixed!" at the bench), AceLook (Ace passing close), LookLaptop (a laptop patron at their screen).
+    // LookRepair (14 Oct 2026, NPC wave 2): an owner watching their own device on the bench. Appended, so the others keep
+    // their numbers.
     public enum Beat { None, Still, Posture, LookAround, LookCounter, LookMenu, LookPlayer, LookNeighbour, LookPasser, Gesture, Exchange, Chat, ArrivalLook, PassingGlance, Body,
-                       LeaverLook, StormLook, FixedLook, AceLook, LookLaptop }
+                       LeaverLook, StormLook, FixedLook, AceLook, LookLaptop, LookRepair }
 
     [Tooltip("Where profiles come from when a spawner does not hand one over.")]
     [SerializeField] private NpcProfileLibrary library;
@@ -107,6 +109,11 @@ public sealed class NpcSocial : MonoBehaviour
     public NpcSocial Companion { get; internal set; }
     /// <summary>Something of theirs to look at while seated (a laptop patron's screen), or null.</summary>
     public Transform Prop { get; set; }
+    /// <summary>
+    /// Their own device while Ace works on it (on the bench, or in his hands there), or null: CustomerBrain sets it while they
+    /// wait (14 Oct 2026, NPC wave 2). Many of their idle looks go to it (LookRepair), seated or standing.
+    /// </summary>
+    public Transform Watching { get; set; }
     public NpcLookAt LookAt => lookAt;
     public NpcSeating Seating => seating;
     public NpcBeats Beats => beats;
@@ -494,11 +501,16 @@ public sealed class NpcSocial : MonoBehaviour
         float wBody = beats != null && beats.Ready ? (seated ? 18f : 22f) * BodyUrge() : 0f;
         // Their own screen (a laptop patron): most of their looks go there, as a working person's do.
         float wProp = seated && Prop != null ? 60f : 0f;
+        // Their own repair on the bench (14 Oct 2026, NPC wave 2; "it seems robotic"): 45 seated, 30 standing, against a
+        // pool of about 100-150, so roughly a third of their looks, 3-7 s each, as the laptop's are. Only where they can
+        // see it (LookPointBeat): someone with their back to the bench doesn't crane round.
+        float wRepair = Watching != null && (seated || situation == Situation.StandingWait) ? (seated ? 45f : 30f) : 0f;
         float wStill = 10f;
-        float total = wPosture + wAround + wCounter + wMenu + wPlayer + wNeighbour + wGesture + wBody + wProp + wStill;
+        float total = wPosture + wAround + wCounter + wMenu + wPlayer + wNeighbour + wGesture + wBody + wProp + wRepair + wStill;
         float r = Random.value * total;
         bool done;
-        if ((r -= wProp) <= 0f) done = LookPointBeat(Prop != null ? Prop.position + Vector3.up * .08f : (Vector3?)null, Beat.LookLaptop, 3f, 7f, .9f);
+        if ((r -= wRepair) <= 0f) done = LookPointBeat(Watching != null ? Watching.position + Vector3.up * .05f : (Vector3?)null, Beat.LookRepair, 3f, 7f, .9f);
+        else if ((r -= wProp) <= 0f) done = LookPointBeat(Prop != null ? Prop.position + Vector3.up * .08f : (Vector3?)null, Beat.LookLaptop, 3f, 7f, .9f);
         else if ((r -= wBody) <= 0f) done = BodyBeat();
         else if ((r -= wPosture) <= 0f) done = PostureBeat(seated);
         else if ((r -= wAround) <= 0f) done = LookAroundBeat();

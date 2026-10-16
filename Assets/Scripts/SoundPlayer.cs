@@ -20,6 +20,8 @@ using UnityEngine.Audio;
 //     ones wait; the beds carry on quietly (40%); the UI plays on.
 //   - Without a file a cue is silent, but it is still counted (Requested), so a check can see that
 //     the hooks fire before any sound is chosen.
+//   - A cue with a file always plays its file, never its synthesized placeholder (UsesFile: the rule Play follows and
+//     the "Sound bank" check reads, T18 of 14 Oct 2026: "every cue Audio supplied a file for plays the file").
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(900)]
@@ -69,6 +71,22 @@ public sealed class SoundPlayer : MonoBehaviour
     public IReadOnlyDictionary<string, int> Heard => heard;
     public int LoopsPlaying => loops.Count;
     public int GroupsFound => groups.Count;
+    /// <summary>One-shot voices sounding now, of the 24 (Audio's load check, §8: the labs log it with the café busy).</summary>
+    public int VoicesPlaying
+    {
+        get
+        {
+            int n = 0;
+            foreach (Voice v in voices) if (v.source != null && v.source.isPlaying) n++;
+            return n;
+        }
+    }
+
+    /// <summary>
+    /// The one rule for a one-shot: a cue the bank has a file for plays that file; only a cue without one falls back to its
+    /// placeholder (PlaceholderSounds), and a cue without either is silent. Play follows it; the "Sound bank" check reads it.
+    /// </summary>
+    public static bool UsesFile(SoundBank.Cue cue) => cue != null && cue.HasClips;
 
     /// <summary>The player, made on first use while playing; null in Edit Mode.</summary>
     public static SoundPlayer Ensure()
@@ -129,7 +147,7 @@ public sealed class SoundPlayer : MonoBehaviour
         Count(requested, cueName);
         // A cue without a file plays its placeholder, if it has one (PlaceholderSounds: the bench's beats, made in code,
         // until the Sonniss pass); otherwise it is silent, as before.
-        AudioClip clip = cue != null && cue.HasClips ? Pick(cue) : PlaceholderSounds.For(cueName);
+        AudioClip clip = UsesFile(cue) ? Pick(cue) : PlaceholderSounds.For(cueName);
         if (clip == null) return false;
         if (cue == null) cue = PlaceholderSounds.CueFor(cueName);
         if (gamePaused && cue.bus != SoundBus.UI) return false;   // the world holds still while paused
@@ -334,7 +352,7 @@ public sealed class SoundPlayer : MonoBehaviour
         var text = new StringBuilder();
         text.AppendLine($"Sound player: bank {(Bank != null ? "'" + Bank.name + "'" : "not found (Assets/Data/Resources/Sound bank.asset)")}, " +
                         $"mixer {(Bank != null && Bank.mixer != null ? "'" + Bank.mixer.name + "'" : "none")}, {groups.Count} of 6 groups found, " +
-                        $"{loops.Count} loops playing, game {(gamePaused ? "paused" : "running")}.");
+                        $"{loops.Count} loops playing, {VoicesPlaying} of {VoiceCount} voices sounding, game {(gamePaused ? "paused" : "running")}.");
         var names = new List<string>(requested.Keys);
         names.Sort(System.StringComparer.Ordinal);
         foreach (string name in names)

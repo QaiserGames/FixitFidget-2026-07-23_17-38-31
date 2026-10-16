@@ -1,0 +1,351 @@
+{
+ "version": 1,
+ "kit": "bench_stage",
+ "note": "Built by Tools/Blender/bench_stage.py (Art's brief A1, specs/art-bench-and-cafe.md). THE FRAME: built in the InspectRig's own frame, not the house's front-faces--Y frame. Imported with no turn, its local +x is the player's right and +z is away from the player (Art's mat x, y), so it goes under the rig's stage with local rotation 0. Origin: the bottom centre (the mat's centre on the bench top). Unity (x, y, z) = Blender (-x, z, -y). The top is at y 0.005; the old slab's was 0.006: the InspectPoint goes 1 mm lower. Textured materials have a white base (the picture carries the colour); BM_Silicone's UVs are metres from the rulers' zero, so its tiling is 20 (a 50 mm tile). The empties are the auto-tray's places: Cup_1..6 on each cup's steel disc (1.8 mm up), Pad_* on the pad (5.3 mm), Well_* on the well's floor (2.0 mm); their names are a contract.",
+ "pieces": [
+  {
+   "name": "BM_RepairMat",
+   "what": "silicone repair mat 600 x 360 x 5 mm: grid, two rulers, six screw cups with steel discs, a new-part pad, a cover well",
+   "tris": 2142,
+   "meshes": 1,
+   "children": [
+    {
+     "name": "Cup_1",
+     "at": [
+      0.036,
+      0.0018,
+      -0.024
+     ],
+     "mat_mm": [
+      36.0,
+      -24.0,
+      1.8
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Cup_2",
+     "at": [
+      0.036,
+      0.0018,
+      0.0
+     ],
+     "mat_mm": [
+      36.0,
+      0.0,
+      1.8
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Cup_3",
+     "at": [
+      0.036,
+      0.0018,
+      0.024
+     ],
+     "mat_mm": [
+      36.0,
+      24.0,
+      1.8
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Cup_4",
+     "at": [
+      0.06,
+      0.0018,
+      -0.024
+     ],
+     "mat_mm": [
+      60.0,
+      -24.0,
+      1.8
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Cup_5",
+     "at": [
+      0.06,
+      0.0018,
+      0.0
+     ],
+     "mat_mm": [
+      60.0,
+      0.0,
+      1.8
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Cup_6",
+     "at": [
+      0.06,
+      0.0018,
+      0.024
+     ],
+     "mat_mm": [
+      60.0,
+      24.0,
+      1.8
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Pad_Small",
+     "at": [
+      0.116,
+      0.0053,
+      -0.058
+     ],
+     "mat_mm": [
+      116.0,
+      -58.0,
+      5.3
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Pad_Large",
+     "at": [
+      0.13,
+      0.0053,
+      0.0
+     ],
+     "mat_mm": [
+      130.0,
+      0.0,
+      5.3
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Well_Large",
+     "at": [
+      0.222,
+      0.002,
+      0.0
+     ],
+     "mat_mm": [
+      222.0,
+      0.0,
+      2.0
+     ],
+     "turned": false,
+     "empty": true
+    },
+    {
+     "name": "Well_Small",
+     "at": [
+      0.206,
+      0.002,
+      -0.058
+     ],
+     "mat_mm": [
+      206.0,
+      -58.0,
+      2.0
+     ],
+     "turned": false,
+     "empty": true
+    }
+   ],
+   "size": [
+    0.6,
+    0.006,
+    0.36
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "BM_Silicone",
+    "BM_Recess",
+    "BM_Pad",
+    "BM_Print",
+    "BM_Ink",
+    "BM_Steel"
+   ],
+   "islands": 18,
+   "collider": {
+    "centre": [
+     0.0,
+     0.0025,
+     0.0
+    ],
+    "size": [
+     0.6,
+     0.005,
+     0.36
+    ],
+    "note": "the slab; the cups and the well are recesses in it, so nothing may rely on physics to rest in them (the auto-tray places pieces by script)"
+   },
+   "place": "a child of the InspectRig's 'Stage (v2)' at local (0, the bench top, -0.02) (today's mat: Playtest3Session4Steps.cs:103, matZ -0.02), local rotation 0, scale 1; it replaces the 'Mat' slab (switch the slab's renderer off, keep its collider while anything still falls)"
+  }
+ ],
+ "per_device": {
+  "phone": {
+   "rest_centre_mm": [
+    -30.0,
+    -14.0
+   ],
+   "footprint_mm": [
+    72.0,
+    148.0
+   ],
+   "tool_rest_x_mm": [
+    -190.0,
+    -80.0
+   ],
+   "tool_rest_y_mm": 0.0,
+   "scrap_tray_centre_mm": [
+    6.0,
+    133.0
+   ],
+   "note": "long axis along y",
+   "unity_local": {
+    "rest_centre": [
+     -0.03,
+     0.005,
+     -0.014
+    ],
+    "tool_rest_centre": [
+     -0.135,
+     0.005,
+     0.0
+    ],
+    "scrap_tray_centre": [
+     0.006,
+     0.005,
+     0.133
+    ]
+   }
+  },
+  "camera": {
+   "rest_centre_mm": [
+    -82.0,
+    0.0
+   ],
+   "footprint_mm": [
+    120.0,
+    80.0
+   ],
+   "tool_rest_x_mm": [
+    -294.0,
+    -184.0
+   ],
+   "tool_rest_y_mm": 0.0,
+   "scrap_tray_centre_mm": [
+    -5.0,
+    115.0
+   ],
+   "note": "lens to the left; v3.6 strap: lugs at both ends, the runs 28-38 mm out, the loop 88 x 58 behind the lens half (device x -96..-8, y +66..+124)",
+   "unity_local": {
+    "rest_centre": [
+     -0.082,
+     0.005,
+     0.0
+    ],
+    "tool_rest_centre": [
+     -0.239,
+     0.005,
+     0.0
+    ],
+    "scrap_tray_centre": [
+     -0.005,
+     0.005,
+     0.115
+    ]
+   }
+  },
+  "watch": {
+   "rest_centre_mm": [
+    -20.0,
+    0.0
+   ],
+   "footprint_mm": [
+    50.0,
+    65.0
+   ],
+   "tool_rest_x_mm": [
+    -170.0,
+    -60.0
+   ],
+   "tool_rest_y_mm": 0.0,
+   "scrap_tray_centre_mm": [
+    26.0,
+    107.0
+   ],
+   "note": "the bow toward +y",
+   "unity_local": {
+    "rest_centre": [
+     -0.02,
+     0.005,
+     0.0
+    ],
+    "tool_rest_centre": [
+     -0.115,
+     0.005,
+     0.0
+    ],
+    "scrap_tray_centre": [
+     0.026,
+     0.005,
+     0.107
+    ]
+   }
+  }
+ },
+ "materials": {
+  "BM_Silicone": {
+   "hex": "4F70A0",
+   "smoothness": 0.28,
+   "metallic": 0.0,
+   "why": "the mat's slate-blue silicone with its printed 10 mm grid; the top is mapped in metres from the rulers' zero, the tile is 50 mm, so tiling 20",
+   "texture": "Assets/Art/Textures/Bench/BM_Grid_color.png",
+   "tiling": 20.0,
+   "wrap": "Repeat"
+  },
+  "BM_Recess": {
+   "hex": "3D5680",
+   "smoothness": 0.22,
+   "metallic": 0.0,
+   "why": "the cups' walls, the cover well's walls and floor: a deeper blue (shadowed silicone)"
+  },
+  "BM_Pad": {
+   "hex": "B4C3D6",
+   "smoothness": 0.3,
+   "metallic": 0.0,
+   "why": "the pale new-part pad and the cups' floors: dark screws and parts read on it"
+  },
+  "BM_Print": {
+   "hex": "EDE4D3",
+   "smoothness": 0.28,
+   "metallic": 0.0,
+   "why": "the two printed ruler strips (cream ticks and numbers on the blue; the texture carries both colours, so the material's base is white)",
+   "texture": "Assets/Art/Textures/Bench/BM_Rulers.png",
+   "tiling": 1.0,
+   "wrap": "Clamp"
+  },
+  "BM_Ink": {
+   "hex": "F2EFE8",
+   "smoothness": 0.28,
+   "metallic": 0.0,
+   "why": "the cups' numbers and the pad's corner marks, raised print"
+  },
+  "BM_Steel": {
+   "hex": "B9B5AD",
+   "smoothness": 0.5,
+   "metallic": 0.0,
+   "why": "the steel disc in each cup's floor (the magnetic insert; BT_Steel's values)"
+  }
+ }
+}

@@ -47,6 +47,11 @@ public class CustomerIdentity : MonoBehaviour
     public bool RemembersFocusBoundary => previousVisit != null && previousVisit.focusBoundarySet;
     /// <summary>This visit is Grace's camera episode (her intake is the authored story).</summary>
     public bool IsGraceCameraRequest => isGraceCameraRequest;
+    /// <summary>
+    /// Which of her two camera visits this is (specs/days-1-3.md §5.3, R2): Day 1's clean or Day 2's shutter, from the job's
+    /// fault type; None when this visit isn't her camera episode.
+    /// </summary>
+    public GraceCameraVisit GraceVisit => isGraceCameraRequest ? graceVisit : GraceCameraVisit.None;
     public CustomerReturnOutcome ReturnOutcome => CustomerReturnPolicy.Classify(previousVisit);
     public PortraitExpression Expression { get; private set; } = PortraitExpression.Neutral;
     // Regulars have faces. Walk-ins fall back to a silhouette in the UI.
@@ -58,6 +63,8 @@ public class CustomerIdentity : MonoBehaviour
     private Beat lastBeat = Beat.Intake;
     private string deviceName = "thing";
     private bool isGraceCameraRequest;
+    // Read only while isGraceCameraRequest is true (GraceVisit), so a reused identity never carries it into another visit.
+    private GraceCameraVisit graceVisit;
     // A visit for a drink only: the intake orders it by name ({a drink}, {drink}) rather than bringing
     // a device in (the repair lines would say "my Latte: broken").
     private bool drinkVisit;
@@ -163,6 +170,8 @@ public class CustomerIdentity : MonoBehaviour
     {
         isGraceCameraRequest = profile != null && job != null && job.kind == JobKind.Repair
             && GraceCameraEpisode.Matches(profile.PersistentId, job.storyEpisodeId);
+        // R2 (Days 1-3, 14 Oct): her camera comes in twice under one episode id; the job's fault type says which visit.
+        graceVisit = isGraceCameraRequest ? GraceCameraEpisode.VisitFor(job.faultType == FaultType.Cleaning) : GraceCameraVisit.None;
         drinkVisit = job != null && job.kind == JobKind.Drink;
         if (drinkVisit)
         {
@@ -192,6 +201,9 @@ public class CustomerIdentity : MonoBehaviour
     // closes (TakeClosingNote), never a narrator in the speech panel.
     public string AcceptReturnMemento(string acceptedLine)
     {
+        // Days 1-3 (14 Oct): the photo's news never comes with the camera in her hands. A save whose camera attempt is from
+        // before the split (Day 1's four tasks) meets Day 2's shutter visit: the news waits for her next visit (Day 3).
+        if (isGraceCameraRequest) return acceptedLine;
         if (!HasGraceReturn || SaveManager.Instance == null
             || !SaveManager.Instance.AcknowledgeGraceReturn(profile, out GracePhotoOutcome outcome))
             return acceptedLine;
@@ -362,11 +374,13 @@ public class CustomerIdentity : MonoBehaviour
 
         // Her return visit asks for what she came in for first; the photo's news waits until Ace has
         // taken it (AcceptReturnMemento), so the request is short and one clear thing.
+        // Days 1-3 (R2): her camera visit's own words, per visit: Day 1 the clean, Day 2 the shutter (which reads her memory
+        // of Day 1: previousVisit is her record from before this visit).
         if (beat == Beat.Intake && isGraceCameraRequest)
-            return WithFocusCallback(GraceCameraEpisode.Intake, beat);
-        // Her thanks when Ace takes the camera: the reveal, the episode's own line.
+            return WithFocusCallback(GraceCameraEpisode.IntakeFor(graceVisit, previousVisit), beat);
+        // Her thanks when Ace takes the camera: Day 1's is the reveal; Day 2's, who takes the pictures tonight.
         if (beat == Beat.Accepted && isGraceCameraRequest)
-            return GraceCameraEpisode.AcceptedLine;
+            return GraceCameraEpisode.AcceptedFor(graceVisit);
 
         if (beat == Beat.Intake && profile != null && previousVisit != null)
         {
@@ -426,7 +440,7 @@ public class CustomerIdentity : MonoBehaviour
         else if (grade == JobGrade.Rejected) Expression = PortraitExpression.Impatient;
 
         if (profile == null) return fallback;
-        if (isGraceCameraRequest) return GraceCameraEpisode.CompletionLine(grade);
+        if (isGraceCameraRequest) return GraceCameraEpisode.CompletionFor(graceVisit, grade);
         if (grade == JobGrade.Passable)
             return Format(PickValid(profile.passableRepairLines, "It works, but it could use more care. I'll take it as it is."));
         if (grade == JobGrade.Rejected)

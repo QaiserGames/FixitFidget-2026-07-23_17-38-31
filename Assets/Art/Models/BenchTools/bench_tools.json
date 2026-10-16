@@ -1,5 +1,5 @@
 {
- "version": 2,
+ "version": 3,
  "pieces": [
   {
    "name": "BT_Screwdriver",
@@ -77,7 +77,18 @@
     "BT_Steel",
     "BT_Wood"
    ],
-   "islands": 9
+   "islands": 9,
+   "blend_shapes_order": [
+    "Bend"
+   ],
+   "stroke_axis_unity": [
+    1,
+    0,
+    0
+   ],
+   "blend_shapes": {
+    "Bend": "0..1 from the stroke's speed and the press: the clumps bend from the ferrule's mouth, their ends 25 degrees off and 7.4 mm toward -X (they trail a stroke along +X); the tips stay on y 0 (the origin contract holds bent) and splay 2 mm"
+   }
   },
   {
    "name": "BT_PryTool",
@@ -103,20 +114,293 @@
   {
    "name": "BT_Cloth",
    "tool": "Cloth",
-   "what": "cloth: its face on the glass is the origin; wiped in circles",
-   "tris": 4358,
+   "what": "cloth, folded (on the rest): its face on the glass is the origin; wiped in circles",
+   "tris": 2436,
    "meshes": 1,
    "children": [],
    "size": [
     0.076,
-    0.013,
+    0.009,
     0.09
    ],
    "bottom": 0.0,
    "materials": [
     "BT_Cloth"
    ],
-   "islands": 4
+   "islands": 4,
+   "rests": "folded on the rest's cork at Seat_Cloth, its free corner lifted 6 mm toward the player (the grab point)"
+  },
+  {
+   "name": "BT_ClothHeld",
+   "tool": "Cloth",
+   "what": "cloth in the hand: a wad, the pad's face on the glass the origin; keys Press and Bunch (stroke along +X)",
+   "tris": 1152,
+   "meshes": 1,
+   "children": [],
+   "size": [
+    0.044,
+    0.042,
+    0.049
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "BT_Cloth"
+   ],
+   "islands": 1,
+   "blend_shapes_order": [
+    "Press",
+    "Bunch"
+   ],
+   "place": "a second model under Tool_Cloth (the ToolPickup), shown while the cloth is in the hand: the folded BT_Cloth is hidden and BT_ClothHeld shown at the cursor's contact point (the swap is hidden by the pick-up motion)",
+   "rests": "its pad's face on the glass (origin, y 0); the tail rises +Y and leans toward Unity -Z (the player)",
+   "stroke_axis_unity": [
+    1,
+    0,
+    0
+   ],
+   "blend_shapes": {
+    "Press": "0..1 from the press: the pad 40 x 45 -> 50 x 52 mm, the tail 5 mm lower",
+    "Bunch": "0..1 from the stroke's speed (Audio's reference px/s): the leading edge (+X) rolls up 4 mm in three folds, the trailing edge (-X) drags 9 mm, the tail leans 12 degrees toward -X"
+   }
+  },
+  {
+   "name": "BT_ToolRest",
+   "tool": "",
+   "what": "tool rest: the five tools' seats (Seat_*) as children, its origin the bottom centre; no turn in the rig",
+   "tris": 448,
+   "meshes": 1,
+   "children": [
+    {
+     "name": "Seat_Screwdriver",
+     "at": [
+      -0.0375,
+      0.00588,
+      0.03
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      -0.67559,
+      0.0,
+      0.0,
+      0.73728
+     ],
+     "euler": [
+      275.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Seat_Pry",
+     "at": [
+      -0.0125,
+      0.00528,
+      0.025
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      -0.67559,
+      0.0,
+      0.0,
+      0.73728
+     ],
+     "euler": [
+      275.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Seat_Tweezers",
+     "at": [
+      0.0125,
+      0.00921,
+      0.018
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      -0.67559,
+      0.0,
+      0.0,
+      0.73728
+     ],
+     "euler": [
+      275.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Seat_Brush",
+     "at": [
+      0.0375,
+      0.01055,
+      0.032
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      -0.67559,
+      0.0,
+      0.0,
+      0.73728
+     ],
+     "euler": [
+      275.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Seat_Cloth",
+     "at": [
+      -0.0,
+      0.003,
+      0.075
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      -0.0,
+      -0.70711,
+      -0.0,
+      0.70711
+     ],
+     "euler": [
+      0.0,
+      270.0,
+      0.0
+     ]
+    }
+   ],
+   "size": [
+    0.11,
+    0.018,
+    0.23
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "DC_Steel",
+    "BT_Cork"
+   ],
+   "islands": 5,
+   "place": "under the InspectRig's stage, local rotation 0 (built in the rig's frame: +X the player's right, +Z away), its bottom on the mat's top; centre x per device (bench_stage.json per_device tool_rest_x), z 0 on the mat's centre line. Replaces the 'Tool caddy' block. Each tool's slot takes its Seat_* pose (local to the rest)",
+   "rests": "flat on the mat; the tools lie on its two bars (each U notch fitted to its tool: both bars touched, 0.0 mm)",
+   "notch_bottoms_mm": [
+    8.26,
+    10.46,
+    13.94,
+    17.58
+   ],
+   "seat_gaps_mm": {
+    "Seat_Screwdriver": [
+     0.0,
+     0.0,
+     2.7
+    ],
+    "Seat_Pry": [
+     0.0,
+     0.0,
+     3.08
+    ],
+    "Seat_Tweezers": [
+     0.0,
+     0.0,
+     7.06
+    ],
+    "Seat_Brush": [
+     0.0,
+     0.0,
+     5.36
+    ]
+   }
+  },
+  {
+   "name": "BT_ScrapTray",
+   "tool": "",
+   "what": "old-parts tray: its origin the bottom centre; it stands on the mat's far band behind the device",
+   "tris": 252,
+   "meshes": 1,
+   "children": [
+    {
+     "name": "Slot_1",
+     "at": [
+      -0.01,
+      0.0008,
+      -0.0
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "euler": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Slot_2",
+     "at": [
+      0.025,
+      0.0008,
+      -0.0
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "euler": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Slot_3",
+     "at": [
+      0.06,
+      0.0008,
+      -0.0
+     ],
+     "turned": true,
+     "empty": true,
+     "quaternion_xyzw": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "euler": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   ],
+   "size": [
+    0.16,
+    0.022,
+    0.09
+   ],
+   "bottom": 0.0,
+   "materials": [
+    "BT_Steel"
+   ],
+   "islands": 1,
+   "place": "under the InspectRig's stage, local rotation 0, on the mat's top at the device's scrap_tray_centre (bench_stage.json per_device); the old-parts bin the auto-tray flies broken parts into",
+   "rests": "flat on the mat; its floor's top is 0.8 mm up (where a broken part lands); Slot_1..3 are Systems' scrapSlots"
   }
  ],
  "materials": {
@@ -164,6 +448,20 @@
    "hex": "F2EFE8",
    "smoothness": 0.3,
    "metallic": 0.0
+  },
+  "BT_Cork": {
+   "hex": "A57B4F",
+   "smoothness": 0.15,
+   "metallic": 0.0
   }
- }
+ },
+ "existing_materials": {
+  "DC_Steel": {
+   "hex": "93908A",
+   "smoothness": 0.5,
+   "metallic": 0.0,
+   "use": "by name, from Assets/Art/Materials"
+  }
+ },
+ "note": "Unity (x, y, z) = Blender (-x, z, -y). A tool's origin is its working tip. The rest and the tray are built in the bench rig's frame (no turn under the stage). Empties: children with no mesh, named; their 'at' is the local position and 'quaternion_xyzw' / 'euler' the local rotation as Unity will import them. Shape keys: import with importBlendShapes = true (Bench tools 1 sets it false today)."
 }

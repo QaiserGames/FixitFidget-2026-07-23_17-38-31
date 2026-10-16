@@ -76,6 +76,16 @@ public class PatronBrain : MonoBehaviour
              "and goes into the bins by the door when they leave. 0: no cup.")]
     [SerializeField, Range(0f, 30f)] private float cupAfterSeated = 6f;
 
+    // THE ROOM KEEPS SOME FACES (14 Oct 2026, NPC wave 2). His girlfriend, playtest 5: "as for now it seems robotic". Day 1
+    // ran as a conveyor: a patron every 12 s, to the nearest chair, 40-90 s, gone. Now someone working stays longer and a
+    // pair catching up a little longer, so from above some tables keep their people while others turn over (and
+    // PatronSpawner's arrivals come in clumps and lulls: Spawn Jitter 0.6). Presentation only: no money changes.
+    [Header("How long they stay, by who they are (NPC wave 2)")]
+    [Tooltip("A laptop patron at a laptop stays this many times as long: they're working. 2 = 80-180 s.")]
+    [SerializeField, Range(1f, 4f)] private float laptopStay = 2f;
+    [Tooltip("A pair stays this many times as long (the second leaves with the first). 1.3 = 52-117 s.")]
+    [SerializeField, Range(1f, 3f)] private float pairStay = 1.3f;
+
     private NavMeshAgent agent;
     // How the body gets where this brain sends it (turning, walk clip, stalls
     // and their recovery). Shared with CustomerBrain since pass 1.
@@ -119,6 +129,13 @@ public class PatronBrain : MonoBehaviour
     public bool IsPairLeader => pairLeader && companion != null;
     /// <summary>Where they sit (or are going to sit), for the checks.</summary>
     public WaitingSpot Seat => seat;
+    /// <summary>The day they came in on (DayClock.Day when they started), or -1 before. A seat still held by someone from
+    /// another day belongs to a patron the morning is clearing away (PatronSpawner.SeatOpeningGuests).</summary>
+    public int Day { get; private set; } = -1;
+    /// <summary>A settled guest: already in their seat when the café opened (InitSeated), not through the door.</summary>
+    public bool SettledGuest { get; private set; }
+    /// <summary>The share of the day they leave at (StayUntil), or -1 for a stay in seconds.</summary>
+    public float LeavesAtDay => untilDay;
 
     /// <summary>
     /// Stay exactly <paramref name="seconds"/> once seated, instead of the usual 40-90 s. Call before Init.
@@ -131,6 +148,9 @@ public class PatronBrain : MonoBehaviour
     /// <summary>
     /// Stay until the day is <paramref name="dayFraction"/> through (DayClock.NormalizedDay; the man at the bins' morning
     /// at a table, until about 1:30 PM: playtest 3), however long the walk to the seat took. Call before Init.
+    /// The leave time is a share of the day's real length, so the 240 s lifetime cap doesn't apply while they stay (14 Oct
+    /// 2026: at the 420 s day a settled guest's 0.55 is 231 s of clock, plus the intro's held seconds: at the cap). The cap's
+    /// backstop for a body that can't get out still applies once they leave (Update).
     /// </summary>
     public void StayUntil(float dayFraction)
     {
@@ -156,6 +176,9 @@ public class PatronBrain : MonoBehaviour
 
     // Leave when the day reaches this (StayUntil), or -1 for the stay in seconds.
     private float untilDay = -1f;
+    // When they set off for the door (Leave), and how long someone who stayed until a share of the day may take to get out.
+    private float leftAt = -1f;
+    private const float StayUntilWayOut = 60f;
 
     private void Awake()
     {
@@ -173,6 +196,7 @@ public class PatronBrain : MonoBehaviour
     {
         exitPoint = exit;
         bornAt = Time.time;
+        Day = DayClock.Instance != null ? DayClock.Instance.Day : -1;
 
         // A patron is nobody in particular: roll how they move and carry themselves.
         if (social != null && social.Profile == null) social.AssignProfile(GetComponent<CustomerIdentity>());
@@ -183,6 +207,58 @@ public class PatronBrain : MonoBehaviour
         if (companion != null && social != null && companion.social != null) NpcAttentionDirector.Companions(social, companion.social);
 
         TryTakeSeat();
+    }
+
+    /// <summary>
+    /// A settled guest (14 Oct 2026, NPC wave 2; his girlfriend: "the cafe felt empty"): already in <paramref name="at"/>
+    /// when the café opens, made there by PatronSpawner.SeatOpeningGuests. As Init, but nobody came through the door (no
+    /// arrival notice, no payment: that is ComeIn's), the seat is theirs at once, they sit at once (NpcSeating.SitAtOnce),
+    /// and their coffee is already on the table. A laptop guest's laptop at that seat opens as they sit. Call PairWith,
+    /// BeLaptopPatron and StayUntil first, as for Init. False when they couldn't sit at once: then they are on their way
+    /// to the same seat from its stand point (the ordinary sit), or, with the seat gone, an ordinary patron.
+    /// <paramref name="sittingPhase"/>: where in the sitting idle they start (0-1), so the morning's guests never breathe
+    /// in step; negative: at random.
+    /// </summary>
+    public bool InitSeated(Transform exit, TableSeat at, float sittingPhase = -1f)
+    {
+        exitPoint = exit;
+        bornAt = Time.time;
+        Day = DayClock.Instance != null ? DayClock.Instance.Day : -1;
+        SettledGuest = true;
+        if (social != null && social.Profile == null) social.AssignProfile(GetComponent<CustomerIdentity>());
+        if (stroll && locomotion != null && !IsHurriedSort()) locomotion.RequestWalk(NpcLocomotion.Gait.Relaxed, .94f);
+        if (companion != null && social != null && companion.social != null) NpcAttentionDirector.Companions(social, companion.social);
+
+        if (at == null || WaitingArea.Instance == null || !(at.Occupant == this || at.Claim(this)))
+        {
+            TryTakeSeat();   // their seat went (nobody should hold it at the open): the nearest free one, as a patron would
+            return false;
+        }
+        seat = at;
+        if (laptopPatron) TakeTheLaptopAt(at);
+        if (seating == null || !seating.SitAtOnce(at, sittingPhase))
+        {
+            // Not this frame (no sit states, or a body not ready): the ordinary sit from the seat's stand point, where they
+            // were made, so it's done in about a second, under the intro's first shot.
+            state = State.Settling;
+            locomotion.MoveTo(seat.StandPoint.position, NpcLocomotion.Move.To(seatStoppingDistance, priority, "seat"));
+            return false;
+        }
+        Sat();
+        // The coffee is already on the table (TendTheTable puts it there on the first seated frame).
+        seatedAt = Time.time - cupAfterSeated;
+        return true;
+    }
+
+    // A laptop guest: the laptop lying at their seat (and the bag beside it) are theirs, as ClaimLaptopSeat keeps them;
+    // Sat switches them on.
+    private void TakeTheLaptopAt(TableSeat at)
+    {
+        Transform l = NpcLifeProps.LaptopFor(at);
+        if (l == null || !NpcLifeProps.Reserve(l, this)) return;
+        laptop = l;
+        bag = NpcLifeProps.BagFor(at);
+        if (bag != null && !NpcLifeProps.Reserve(bag, this)) bag = null;
     }
 
     private bool IsHurriedSort() => social != null && social.Profile != null
@@ -291,7 +367,9 @@ public class PatronBrain : MonoBehaviour
 
     private void Update()
     {
-        if (Time.time - bornAt > maxLifetime && state != State.Leaving)
+        // The lifetime cap, except for someone who stays until a share of the day (StayUntil): the day's length decides
+        // their stay, and the cap's backstop takes over once they leave.
+        if (untilDay < 0f && Time.time - bornAt > maxLifetime && state != State.Leaving)
         {
             Leave();
             return;
@@ -381,7 +459,9 @@ public class PatronBrain : MonoBehaviour
                     // walk over to the street from here (NpcJourney steers itself).
                     if (!CafeArrivals.TryDepart(gameObject)) Destroy(gameObject);
                 }
-                else if (Time.time - bornAt > maxLifetime + 20f) Destroy(gameObject);
+                // The backstop for a body that can't get out: 20 s past the lifetime cap, or for someone who stayed until a
+                // share of the day (no cap while they stayed), a minute after they set off (the bins and the door take ~20 s).
+                else if (untilDay < 0f ? Time.time - bornAt > maxLifetime + 20f : Time.time - leftAt > StayUntilWayOut) Destroy(gameObject);
                 break;
         }
     }
@@ -391,7 +471,9 @@ public class PatronBrain : MonoBehaviour
     {
         state = State.Sitting;
         seatedAt = Time.time;
-        leaveAt = Time.time + Random.Range(minStay, maxStay);
+        // Someone working at a laptop stays longer, a pair a little longer (14 Oct 2026: the room keeps some faces).
+        float stay = laptop != null ? laptopStay : companion != null ? pairStay : 1f;
+        leaveAt = Time.time + Random.Range(minStay, maxStay) * stay;
         // The pair's second stays with the leader: their time is the leader's, however the walk in went.
         if (companion != null && !pairLeader) leaveAt = Time.time + 1e6f;
         // The laptop opens and the bag goes down at their feet as they sit.
@@ -421,6 +503,7 @@ public class PatronBrain : MonoBehaviour
 
         ReleaseSeat();
         state = State.Leaving;
+        leftAt = Time.time;
         if (social != null) social.Prop = null;
         if (laptop != null) { NpcLifeProps.Release(laptop, this); laptop = null; }
         if (bag != null) { NpcLifeProps.Release(bag, this); bag = null; }

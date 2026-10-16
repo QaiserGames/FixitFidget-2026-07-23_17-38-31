@@ -20,16 +20,17 @@ using Object = UnityEngine.Object;
 //       photos; first person at the stand point, looking at the middle and at the cup stack, and what moving the stand point
 //       back would cost.
 //   1 - Frame the whole dispenser (scene): the drinks close-up's camera (the station's own CinemachineCamera, the one its
-//       BeverageLook turns; the look takes its rest from this turn) is moved back and turned onto the cup stack so that the
-//       whole working face (six paddles, six cup places, the cup stack, the discard basin) is inside a 16:9 frame with a 4%
-//       margin as it opens, and the cup stack and every paddle stay in it when the view is turned onto the far cup place
-//       (Latte's). One undo group; checks in numbers; before and after photos; nothing saved; safe to run twice.
+//       BeverageLook turns; the look takes its rest from this turn) stands straight on, at Ace's eye: on the dispenser's axis,
+//       10 cm behind the stand point, the dispenser's own heading, tilted onto the working face's middle, no roll
+//       (CinematicsWave2Steps.StraightOn, the rule Fixit Fidget > Cinematics > Drinks close-up - straight on uses). One undo
+//       group; checks in numbers; before and after photos; nothing saved; safe to run twice.
 //   2 - The dispenser's frame - play check (lab, Play Mode): DispenserFrameCheck, in a lab session.
 //
-// The first-hour playtester: "Only 4 of the 6 paddles are fully in view: Americano is cut by the screen's edge and Latte is
-// off it", in both photos. Both were taken with the crosshair on the cup stack (the Stations lab aims there first, as a
-// player must to take a cup): at rest the close-up framed everything, but the first thing a drink needs cut its far end off.
-// The close-up now opens on the cup stack, from far enough back that nothing leaves the frame.
+// 10 Oct, the first-hour playtester: "Only 4 of the 6 paddles are fully in view: Americano is cut by the screen's edge and Latte
+// is off it". Step 1 then searched a grid for a pose turned onto the cup stack that kept the whole face in frame; the pose it
+// chose sat on the grid's ceiling, 44 cm above Ace's eye and turned 34.5°: the paddle row slanted 13.9°. 14 Oct, his note: "when
+// in isometric view, and getting to the drink station, the overall look and feel is up and diagonal". The rule is now straight on
+// (Cinematics spec §4.2): turned onto the cup stack, the far end leaves the frame, as turning your head does.
 // ---------------------------------------------------------------------------
 public static class Playtest4BenchSteps
 {
@@ -37,16 +38,6 @@ public static class Playtest4BenchSteps
     const string Tag = "[Playtest 4 · Bench] ";
     const string FrameTitle = "Bench 1 - Frame the whole dispenser";
 
-    // The look's own reach from its rest (BeverageLook: 52° either way, 28° up, 34° down), kept a little inside.
-    const float LookYaw = 52f - 4f, LookUp = 28f - 2f, LookDown = 34f - 2f;
-    // The grid the close-up's camera is placed on, in the dispenser's own frame (metres: across, up, out in front of it).
-    const float GridX0 = -.15f, GridX1 = .35f, GridDX = .025f;
-    const float GridY0 = .60f, GridY1 = 1.10f, GridDY = .05f;
-    const float GridZ0 = -2.20f, GridZ1 = -1.10f, GridDZ = .02f;
-    // Of the poses that frame it all, those within this many pixels (at 1080p) of the biggest paddles; then the nearest.
-    const float PixelTie = .5f;
-    // The paddles must read: the smallest at least this tall at 1080p.
-    const float PaddlePixels = 48f;
 
     // ================================================================== menus
 
@@ -148,10 +139,22 @@ public static class Playtest4BenchSteps
             MeshFilter mf = cloth.GetComponent<MeshFilter>();
             Vector3 folded = mf != null && mf.sharedMesh != null ? Vector3.Scale(mf.sharedMesh.bounds.size, Abs(cloth.transform.lossyScale)) : Vector3.zero;
             var so = new SerializedObject(cloth);
-            float pad = run.Prop(so, "padSize").floatValue, thick = run.Prop(so, "padThickness").floatValue;
             run.Info($"folded on the mat it is {folded.x * 1000f:0} x {folded.z * 1000f:0} mm, {folded.y * 1000f:0.0} mm thick ({Playtest4Shared.PathOf(cloth.gameObject)})");
-            run.Check(folded.x * pad <= .045f && folded.z * pad <= .05f,
-                $"in the hand it is a pad of {folded.x * pad * 1000f:0} x {folded.z * pad * 1000f:0} mm ({pad:P0} of its folded size), {folded.y * thick * 1000f:0.0} mm thick");
+            if (so.FindProperty("padSize") == null || so.FindProperty("padThickness") == null)
+            {
+                // The forgiving bench (14 Oct) retired the gathered pad (padSize, padThickness): in the hand the cloth is Art's held
+                // wad, BT_ClothHeld, and since the Producer's call 23 it leads with its far edge at the cursor so the glass it
+                // cleans shows (Bench 8 measures how much). The integration, 14 Oct: this read the deleted fields and threw.
+                Transform held = cloth.transform.Find("BT_ClothHeld");
+                run.Check(held != null, $"in the hand it is Art's held wad (BT_ClothHeld{(held != null ? "" : ": NOT under the cloth yet; Bench 7 puts it there")}), " +
+                                        $"cleaning {BenchRules.ClothContact * 1000f:0} mm across; Bench 8 measures what it leaves in sight mid-wipe");
+            }
+            else
+            {
+                float pad = run.Prop(so, "padSize").floatValue, thick = run.Prop(so, "padThickness").floatValue;
+                run.Check(folded.x * pad <= .045f && folded.z * pad <= .05f,
+                    $"in the hand it is a pad of {folded.x * pad * 1000f:0} x {folded.z * pad * 1000f:0} mm ({pad:P0} of its folded size), {folded.y * thick * 1000f:0.0} mm thick");
+            }
         }
         run.Check(PlaceholderSounds.Has("cloth.lift"), "the cloth's lift has its placeholder sound (cloth.lift)");
         run.Info($"the pry goes in at the seam {RemovablePart.PryAngle:0}° up from the cover, its blade {RemovablePart.BladeIn * 1000f:0} mm in under the edge while held (Bench 3 measures it)");
@@ -239,16 +242,20 @@ public static class Playtest4BenchSteps
         run.Info($"now, turned onto the cup stack (the playtesters' photos): {stack.least:P1} at the least ({stack.worst})" +
                  (cut.Count > 0 ? "; cut by the edge or off it: " + string.Join(", ", cut) : ""));
 
-        // The plan: every pose on the grid, judged as the lab judges the frame.
-        f.now = Judge(f, f.localNow);
-        f.plan = Search(f);
-        run.Require(f.plan != null, "No pose on the grid frames the whole dispenser with the margin from the cup stack and keeps the cup stack and the paddles " +
-                                    "in view turned onto the far cup place, within the look's own reach, with nothing in the way. Nothing changes; tell Claude.");
+        // The plan: straight on, at Ace's eye (the Cinematics rule, 14 Oct; the same one Drinks close-up - straight on applies).
+        float eyeHeight = CinematicsWave2Steps.EyeHeight();
+        run.Require(CinematicsWave2Steps.StraightOn(f.station, f.parent, f.face, eyeHeight, out Vector3 planLocal, out Quaternion planTurn, out string why),
+            "Can't work out the straight-on pose: " + why + ". Nothing changes; tell Claude.");
+        f.plan = Measure(f, f.parent.TransformPoint(planLocal), f.parent.rotation * planTurn);
+        f.plan.local = planLocal;
+        f.plan.localTurn = planTurn;
+        f.now = rest;
         f.already = Vector3.Distance(f.plan.local, f.localNow) < .001f && Quaternion.Angle(f.plan.localTurn, f.localTurnNow) < .1f;
+        run.Info($"now: {f.eyeNow.y - f.station.StandPoint.position.y:0.00} m above the floor (Ace's eye is {eyeHeight:0.00}), the paddle row slants " +
+                 $"{DispenserFrameCheck.RowSlant(f.eyeNow, f.turnNow, f.fov, f.face):0.0}°");
         run.Info($"the frame: {(f.already ? "already at" : forTheStep ? "it goes to" : "step 1 would put it at")} {V(f.plan.local)} in the dispenser's frame ({V(f.plan.eye)} in the world), " +
-                 $"turned {V(f.plan.localTurn.eulerAngles)} (onto the cup stack, {Vector3.Distance(f.plan.eye, f.stackCentre):0.00} m from it): " +
-                 $"{f.plan.least:P1} in at the least ({f.plan.worst}); turned onto {f.face.FarName}'s cup place the cup stack and the paddles {f.plan.kept:P1} in " +
-                 $"({f.plan.worstKept}); the smallest paddle ({f.plan.smallestName}) {f.plan.smallest:0} px tall at 1080p");
+                 $"turned {V(f.plan.localTurn.eulerAngles)} (straight on, at Ace's eye): {f.plan.least:P1} in at the least ({f.plan.worst}); the row slants " +
+                 $"{DispenserFrameCheck.RowSlant(f.plan.eye, f.plan.turn, f.fov, f.face):0.0}°; the smallest paddle ({f.plan.smallestName}) {f.plan.smallest:0} px tall at 1080p");
         if (forTheStep)
         {
             f.folder = PhotoFolder(run.Label);
@@ -260,7 +267,7 @@ public static class Playtest4BenchSteps
 
     static void ChangeFrame(Playtest4Shared.Run run, DispenserPlan f)
     {
-        if (f.already) { run.Info("the close-up already opens on the cup stack with the whole dispenser in frame: nothing to change"); return; }
+        if (f.already) { run.Info("the close-up already stands straight on at Ace's eye: nothing to change"); return; }
         Transform t = f.camera.transform;
         run.Record(t);
         Vector3 wasAt = t.localPosition;
@@ -268,107 +275,27 @@ public static class Playtest4BenchSteps
         t.localPosition = f.plan.local;
         t.localRotation = f.plan.localTurn;
         run.Changed($"{Playtest4Shared.PathOf(t.gameObject)}: placed at {V(wasAt)} → {V(t.localPosition)} in the dispenser's frame, turned {V(wasTurn)} → {V(t.localRotation.eulerAngles)} " +
-                    $"(onto the cup stack, {Vector3.Distance(f.eyeNow, t.position):0.00} m from where it was; BeverageLook takes its rest from this turn)");
+                    $"(straight on, at Ace's eye, {Vector3.Distance(f.eyeNow, t.position):0.00} m from where it was; BeverageLook takes its rest from this turn)");
     }
 
     static void CheckFrame(Playtest4Shared.Run run, DispenserPlan f)
     {
         Transform t = f.camera.transform;
         Physics.SyncTransforms();
-        Vector3 eye = t.position;
-        Quaternion turn = t.rotation;
         run.Check(Vector3.Distance(t.localPosition, f.plan.local) < .0005f && Quaternion.Angle(t.localRotation, f.plan.localTurn) < .05f,
-            $"the close-up's camera is where the plan put it ({V(t.localPosition)}, {V(t.localRotation.eulerAngles)})");
-        run.Check(Mathf.Abs(Vector3.SignedAngle(Vector3.ProjectOnPlane(turn * Vector3.right, Vector3.up), turn * Vector3.right, turn * Vector3.forward)) < .05f,
-            "it isn't rolled (the look keeps a level horizon)");
-
-        Placing p = Measure(f, eye, turn);
-        foreach (var target in f.all)
-        {
-            float m = DispenserFrameCheck.Inside(eye, turn, f.fov, DispenserFrameCheck.Box(target.thing));
-            run.Check(m >= DispenserFrameCheck.Margin, $"as it opens, {target.name} is in the 16:9 frame, {m:P1} in from the edge");
-        }
-        Interactable first = UnderCrosshair(f, eye, turn);
-        run.Check(first == f.face.stack, $"it opens with the crosshair on the cup stack, where a drink starts (under it: {Name(first)})");
-
-        Quaternion onFar = Quaternion.LookRotation(f.farCentre - eye, Vector3.up);
-        float kept = DispenserFrameCheck.Least(eye, onFar, f.fov, f.stays, out string worstKept);
-        run.Check(kept >= DispenserFrameCheck.Margin,
-            $"turned onto {f.face.FarName}'s cup place (the far end), the cup stack and every paddle are still in the frame, {kept:P1} in at the least ({worstKept})");
-        Interactable onFarThing = UnderCrosshair(f, eye, onFar);
-        run.Check(onFarThing == f.face.FarPlace, $"...and the crosshair is then on {f.face.FarName}'s cup place (under it: {Name(onFarThing)})");
-
-        Vector2 rest = AimAssist.Angles(eye, f.stackCentre);
-        foreach (var target in f.all)
-        {
-            Vector2 a = AimAssist.Angles(eye, DispenserFrameCheck.Box(target.thing).center);
-            float yaw = Mathf.DeltaAngle(rest.x, a.x), pitch = a.y - rest.y;
-            run.Check(Mathf.Abs(yaw) <= LookYaw && pitch >= -LookUp && pitch <= LookDown,
-                $"the look reaches {target.name}: {yaw:0}° across, {pitch:0}° {(pitch >= 0f ? "down" : "up")} from its rest (it turns 52° either way, 28° up, 34° down)");
-        }
-        run.Check(Clear(f, eye, out string inTheWay), "nothing solid stands between the camera and any of them, and the camera is clear of everything" + (inTheWay.Length > 0 ? $" ({inTheWay})" : ""));
-        run.Check(p.smallest >= PaddlePixels,
-            $"the paddles read: the smallest ({p.smallestName}) is {p.smallest:0} px tall at 1080p ({PaddlePixels:0} is the bar; at the old pose turned onto the cup stack they were bigger, but two were off the screen)");
-        run.Check(Mathf.Approximately(f.camera.Lens.FieldOfView, f.fov), $"the lens is untouched ({f.fov:0}° tall)");
+            $"the close-up's camera is where the rule put it ({V(t.localPosition)}, {V(t.localRotation.eulerAngles)})");
+        CinematicsWave2Steps.CheckStraightOn(f.station, f.camera, f.face, CinematicsWave2Steps.EyeHeight(), run.Check, run.Info);
         var so = new SerializedObject(f.station);
         run.Check(so.FindProperty("stationCamera").objectReferenceValue == f.camera && f.camera.GetComponent<BeverageLook>() == f.look,
             "the station still opens this camera, and its look is on it");
 
         if (f.folder != null)
         {
-            Shoot(f.folder, "2-after", eye, turn, f.fov);
-            Shoot(f.folder, "3-after-on-the-far-cup-place", eye, onFar, f.fov);
-            run.Info("after: " + Path.Combine(f.folder, "2-after.png") + " and 3-after-on-the-far-cup-place.png (Play Mode: Bench 2, the lab, photographs the real close-up)");
+            Vector3 eye = t.position;
+            Shoot(f.folder, "2-after", eye, t.rotation, f.fov);
+            Shoot(f.folder, "3-after-on-the-cup-stack", eye, Quaternion.LookRotation(f.stackCentre - eye, Vector3.up), f.fov);
+            run.Info("after: " + Path.Combine(f.folder, "2-after.png") + " and 3-after-on-the-cup-stack.png (Play Mode: Bench 2, the lab, photographs the real close-up)");
         }
-    }
-
-    // ================================================================== the search
-
-    // Every pose on the grid, each turned onto the cup stack's middle with a level horizon; kept when it frames the whole face
-    // with the margin, keeps the cup stack and the paddles in frame turned onto the far cup place, reaches every target within
-    // the look's own limits and sees each with nothing solid in the way. Of those, the ones whose smallest paddle is within half
-    // a pixel of the biggest; of those, the nearest to where the camera is now (so a second run finds it where the first left it).
-    static Placing Search(DispenserPlan f)
-    {
-        var kept = new List<Placing>();
-        int nx = Mathf.RoundToInt((GridX1 - GridX0) / GridDX), ny = Mathf.RoundToInt((GridY1 - GridY0) / GridDY), nz = Mathf.RoundToInt((GridZ1 - GridZ0) / GridDZ);
-        for (int ix = 0; ix <= nx; ix++)
-            for (int iy = 0; iy <= ny; iy++)
-                for (int iz = 0; iz <= nz; iz++)
-                {
-                    Placing p = Judge(f, new Vector3(GridX0 + GridDX * ix, GridY0 + GridDY * iy, GridZ0 + GridDZ * iz));
-                    if (p != null) kept.Add(p);
-                }
-        if (f.now != null) kept.Add(f.now);   // where it is now, if that frames it already
-        if (kept.Count == 0) return null;
-        float best = kept.Max(p => p.smallest);
-        return kept.Where(p => p.smallest >= best - PixelTie).OrderBy(p => p.moved).First();
-    }
-
-    // A pose (in the dispenser's frame) turned onto the cup stack, judged; null when it fails any rule.
-    static Placing Judge(DispenserPlan f, Vector3 local)
-    {
-        Vector3 eye = f.parent.TransformPoint(local);
-        Vector3 toStack = f.stackCentre - eye;
-        if (toStack.sqrMagnitude < 1e-4f) return null;
-        Quaternion turn = Quaternion.LookRotation(toStack, Vector3.up);
-        Placing p = Measure(f, eye, turn);
-        if (p.least < DispenserFrameCheck.Margin) return null;
-        Quaternion onFar = Quaternion.LookRotation(f.farCentre - eye, Vector3.up);
-        p.kept = DispenserFrameCheck.Least(eye, onFar, f.fov, f.stays, out p.worstKept);
-        if (p.kept < DispenserFrameCheck.Margin) return null;
-        Vector2 rest = AimAssist.Angles(eye, f.stackCentre);
-        foreach (var t in f.all)
-        {
-            Vector2 a = AimAssist.Angles(eye, DispenserFrameCheck.Box(t.thing).center);
-            float pitch = a.y - rest.y;
-            if (Mathf.Abs(Mathf.DeltaAngle(rest.x, a.x)) > LookYaw || pitch < -LookUp || pitch > LookDown) return null;
-        }
-        if (!Clear(f, eye, out _)) return null;
-        p.local = local;
-        p.localTurn = Quaternion.Inverse(f.parent.rotation) * turn;
-        p.moved = Vector3.Distance(local, f.localNow);
-        return p;
     }
 
     static Placing Measure(DispenserPlan f, Vector3 eye, Quaternion turn)
@@ -377,40 +304,6 @@ public static class Playtest4BenchSteps
         p.least = DispenserFrameCheck.Least(eye, turn, f.fov, f.all, out p.worst);
         p.smallest = DispenserFrameCheck.SmallestPaddle(eye, turn, f.fov, f.face, out p.smallestName);
         return p;
-    }
-
-    // Nothing solid (triggers aside) between the eye and any target's middle, and the eye clear of everything; the dispenser's
-    // own colliders and Ace's never count (Ace is hidden in the close-up).
-    static bool Clear(DispenserPlan f, Vector3 eye, out string inTheWay)
-    {
-        inTheWay = "";
-        foreach (Collider c in Physics.OverlapSphere(eye, .08f, ~0, QueryTriggerInteraction.Ignore))
-            if (!Ours(f, c)) { inTheWay = "the camera is inside " + Playtest4Shared.PathOf(c.gameObject); return false; }
-        foreach (var t in f.all)
-        {
-            Vector3 to = DispenserFrameCheck.Box(t.thing).center - eye;
-            float length = to.magnitude;
-            if (length < .01f) continue;
-            foreach (RaycastHit h in Physics.RaycastAll(eye, to / length, length - .01f, ~0, QueryTriggerInteraction.Ignore))
-                if (!Ours(f, h.collider)) { inTheWay = $"{Playtest4Shared.PathOf(h.collider.gameObject)} hides {t.name}"; return false; }
-        }
-        return true;
-    }
-
-    static bool Ours(DispenserPlan f, Collider c) =>
-        c.transform.IsChildOf(f.station.transform) || f.player != null && c.transform.IsChildOf(f.player);
-
-    // What the close-up's crosshair would pick from this view: the first thing to use along the screen's middle, seeing past
-    // what isn't one, as PlayerInteractor.FindStationTarget does (its "is it available" aside: that is the game's own state).
-    static Interactable UnderCrosshair(DispenserPlan f, Vector3 eye, Quaternion turn)
-    {
-        foreach (RaycastHit h in Physics.RaycastAll(eye, turn * Vector3.forward, 10f).OrderBy(hit => hit.distance))
-        {
-            Interactable it = h.collider.GetComponentInParent<Interactable>();
-            if (it == null || it is StationInteractable) continue;
-            return it;
-        }
-        return null;
     }
 
     // ================================================================== first person at the stand point
@@ -470,7 +363,7 @@ public static class Playtest4BenchSteps
         Path.Combine(Playtest4Shared.LogRoot, $"{label}-photos-{DateTime.Now:yyyy-MM-dd_HHmmss}");
 
     // A photo of a view at 1920 x 1080 (16:9: the frame the dispenser is judged in), Ace's stand-in hidden.
-    static void Shoot(string folder, string name, Vector3 at, Quaternion turn, float fov)
+    internal static void Shoot(string folder, string name, Vector3 at, Quaternion turn, float fov)
     {
         Directory.CreateDirectory(folder);
         var hidden = new List<Renderer>();

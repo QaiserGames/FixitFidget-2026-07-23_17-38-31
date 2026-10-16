@@ -27,11 +27,25 @@ using Object = UnityEngine.Object;
 // Nothing in the café scene changes: the tools go onto the rail in session 4 (the bench's feel), the island and the
 // boxes into Grace's house in session 5 (cover). Report and photos: Logs/Bench/bench-tools-<time>/ and
 // Logs/Night/grace-cover-<time>/.
+//
+// 14 OCT 2026 (wave 1 of "the forgiving bench"; specs/blender-wave1.md §5 step 1): the tools' manifest (v3) adds the
+// tool rest (BT_ToolRest, its five Seat_* as empties), the old-parts tray (BT_ScrapTray, Slot_1..3), the cloth in the
+// hand (BT_ClothHeld, keys Press and Bunch) and the brush's bend (key Bend on BT_Brush). His notes: "i would prefer the
+// cloth to actually open up and be used like a cloth". So:
+//   * a piece whose manifest lists "blend_shapes_order" imports its blend shapes (normals imported: Blender 5.2 writes
+//     the keys' own normals) and is made readable, so the step can measure each key; every other FBX keeps them off;
+//   * Unity gives a mesh with blend shapes a SkinnedMeshRenderer instead of a MeshFilter: the checks count both;
+//   * each key must be there, in the manifest's order, and must move the mesh (its largest vertex move is reported);
+//   * a child with "quaternion_xyzw" (the rest's seats) must sit at that local rotation as well as at its place, and an
+//     "empty" child must carry no renderer;
+//   * two more photos: the rest with each tool laid on its seat (its origin at the seat, turned as the seat), and the
+//     held cloth and the brush with each key at 0 and at 100.
+// The repair mat's own step (BenchStageImportSteps, "Bench stage 1") runs through this same Run with its own materials.
 // ---------------------------------------------------------------------------
 internal static class BlenderKitSteps
 {
-    [Serializable] class Child { public string name; public float[] at; public bool turned; }
-    [Serializable] class Piece { public string name, tool, room, what; public int tris, meshes; public Child[] children; public float[] size; public float bottom; public string[] materials; public int islands; }
+    [Serializable] class Child { public string name; public float[] at; public bool turned, empty; public float[] quaternion_xyzw; }
+    [Serializable] class Piece { public string name, tool, room, what; public int tris, meshes; public Child[] children; public float[] size; public float bottom; public string[] materials; public int islands; public string[] blend_shapes_order; }
     [Serializable] class Manifest { public int version; public Piece[] pieces; }
 
     const string CafeMaterials = "Assets/Art/Materials";
@@ -72,8 +86,11 @@ internal static class BlenderKitSteps
 
     // ------------------------------------------------------------------ the shared step
 
-    static void Run(string title, string tag, string manifestPath, string modelFolder, string ownPrefix, string ownMaterialFolder,
-                    string logRoot, string logName, Action<List<string>, string, StringBuilder> photograph)
+    // moreMaterials: the caller's own materials (made its own way: the repair mat's are textured, CafeLivedInSteps.Define),
+    // added to the ones found by name before the FBX files are mapped. Null: the manifest's own flat ones only.
+    internal static void Run(string title, string tag, string manifestPath, string modelFolder, string ownPrefix, string ownMaterialFolder,
+                             string logRoot, string logName, Action<List<string>, string, StringBuilder> photograph,
+                             Func<StringBuilder, Dictionary<string, Material>> moreMaterials = null)
     {
         var report = new StringBuilder(title + "\n" + DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + "\n\n");
         int failures = 0;
@@ -91,6 +108,9 @@ internal static class BlenderKitSteps
             string json = File.ReadAllText(manifestFile);
             Manifest manifest = JsonUtility.FromJson<Manifest>(json);
             Dictionary<string, Material> materials = GatherMaterials(json, ownPrefix, ownMaterialFolder, report);
+            if (moreMaterials != null)
+                foreach (KeyValuePair<string, Material> own in moreMaterials(report))
+                    if (own.Value != null) materials[own.Key] = own.Value;
 
             var models = new List<(Piece piece, string path)>();
             foreach (Piece piece in manifest.pieces)
@@ -104,7 +124,7 @@ internal static class BlenderKitSteps
             AssetDatabase.StartAssetEditing();
             try
             {
-                foreach (var model in models) Configure(model.path, materials, unmapped);
+                foreach (var model in models) Configure(model.path, materials, unmapped, Keys(model.piece).Length > 0);
             }
             finally { AssetDatabase.StopAssetEditing(); }
             Check(unmapped.Count == 0, "every material in the FBX files has a project material of the same name" +
@@ -116,25 +136,25 @@ internal static class BlenderKitSteps
             foreach (var (piece, path) in models)
             {
                 GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                MeshFilter[] filters = asset.GetComponentsInChildren<MeshFilter>(true).Where(f => f.sharedMesh != null).ToArray();
+                List<(Transform node, Mesh mesh, Renderer renderer)> meshes = MeshesOf(asset);
                 int wanted = Mathf.Max(1, piece.meshes);
-                if (filters.Length != wanted) { Check(false, $"{piece.name}: {wanted} mesh(es) ({filters.Length} found)"); continue; }
+                if (meshes.Count != wanted) { Check(false, $"{piece.name}: {wanted} mesh(es) ({meshes.Count} found)"); continue; }
                 int tris = 0;
                 var whole = new Bounds();
                 bool first = true, upright = true, mapped = true;
                 var names = new List<string>();
-                foreach (MeshFilter f in filters)
+                foreach (var (node, mesh, renderer) in meshes)
                 {
-                    Matrix4x4 toRoot = asset.transform.worldToLocalMatrix * f.transform.localToWorldMatrix;
+                    Matrix4x4 toRoot = asset.transform.worldToLocalMatrix * node.localToWorldMatrix;
                     long indices = 0;
-                    for (int i = 0; i < f.sharedMesh.subMeshCount; i++) indices += f.sharedMesh.GetIndexCount(i);
+                    for (int i = 0; i < mesh.subMeshCount; i++) indices += mesh.GetIndexCount(i);
                     tris += (int)(indices / 3);
-                    Bounds b = Transformed(f.sharedMesh.bounds, toRoot);
+                    Bounds b = Transformed(AsBuilt(mesh), toRoot);
                     if (first) { whole = b; first = false; } else whole.Encapsulate(b);
                     // a child the prefab turns (the watch's crown) is built turned on purpose: the manifest flags it
-                    bool turnedByDesign = piece.children != null && piece.children.Any(c => c.turned && c.name == f.transform.name);
+                    bool turnedByDesign = piece.children != null && piece.children.Any(c => c.turned && c.name == node.name);
                     upright &= (turnedByDesign || Quaternion.Angle(toRoot.rotation, Quaternion.identity) < .5f) && (toRoot.lossyScale - Vector3.one).magnitude < .001f;
-                    Material[] used = f.GetComponent<Renderer>().sharedMaterials;
+                    Material[] used = renderer.sharedMaterials;
                     mapped &= used.Length > 0 && used.All(m => m != null && AssetDatabase.GetAssetPath(m).EndsWith(".mat", StringComparison.Ordinal));
                     foreach (Material m in used) if (m != null && !names.Contains(m.name)) names.Add(m.name);
                 }
@@ -142,7 +162,8 @@ internal static class BlenderKitSteps
                 var built = new Vector3(piece.size[0], piece.size[1], piece.size[2]);
                 bool size = (whole.size - built).magnitude < .012f;
                 bool standing = Mathf.Abs(whole.min.y - piece.bottom) < .006f;
-                // a jointed piece: each named child where it was built (Unity's axes in the manifest)
+                // a jointed piece: each named child where it was built (Unity's axes in the manifest); a seat also turned as
+                // built (its quaternion, as Unity imports it), and an empty with nothing drawn on it
                 var joints = new StringBuilder();
                 bool jointed = true;
                 if (piece.children != null)
@@ -150,17 +171,51 @@ internal static class BlenderKitSteps
                     {
                         Transform t = asset.transform.Find(c.name);
                         var at = new Vector3(c.at[0], c.at[1], c.at[2]);
-                        bool ok = t != null && (t.localPosition - at).magnitude < .001f && (c.turned || Quaternion.Angle(t.localRotation, Quaternion.identity) < .5f);
+                        bool hasTurn = c.quaternion_xyzw != null && c.quaternion_xyzw.Length == 4;
+                        var turn = hasTurn ? new Quaternion(c.quaternion_xyzw[0], c.quaternion_xyzw[1], c.quaternion_xyzw[2], c.quaternion_xyzw[3]) : Quaternion.identity;
+                        bool placed = t != null && (t.localPosition - at).magnitude < .001f;
+                        bool turned = t != null && (hasTurn ? Quaternion.Angle(t.localRotation, turn) < .5f : c.turned || Quaternion.Angle(t.localRotation, Quaternion.identity) < .5f);
+                        bool bare = t == null || !c.empty || t.GetComponent<Renderer>() == null;
+                        bool ok = placed && turned && bare;
                         jointed &= ok;
-                        joints.Append(ok ? $"; {c.name} at {V(at)}" : $"; {c.name} {(t == null ? "MISSING" : "at " + V(t.localPosition) + " (built at " + V(at) + ")")}");
+                        if (ok) joints.Append($"; {c.name} at {V(at)}" + (hasTurn ? $" turned {V(turn.eulerAngles)}" : ""));
+                        else if (t == null) joints.Append($"; {c.name} MISSING");
+                        else joints.Append($"; {c.name} at {V(t.localPosition)} turned {V(t.localRotation.eulerAngles)} (built at {V(at)}" +
+                                           (hasTurn ? $" turned {V(turn.eulerAngles)}" : "") + ")" + (bare ? "" : " WITH A RENDERER (an empty is expected)"));
                     }
+                // the keys (blend shapes) in the manifest's order, each moving the mesh; a piece without keys imports none
+                string[] keys = Keys(piece);
+                string keyText = "";
+                bool keyed = true;
+                Mesh keyMesh = meshes.Select(m => m.renderer is SkinnedMeshRenderer ? m.mesh : null).FirstOrDefault(m => m != null);
+                if (keys.Length > 0)
+                {
+                    keyed = keyMesh != null && keyMesh.blendShapeCount == keys.Length;
+                    var moves = new List<string>();
+                    for (int i = 0; keyMesh != null && i < keyMesh.blendShapeCount; i++)
+                    {
+                        string name = keyMesh.GetBlendShapeName(i);
+                        float moved = KeyMove(keyMesh, i);
+                        // a key that moves nothing was lost on the way (a mesh that can't be read is reported, not failed)
+                        bool good = i < keys.Length && name == keys[i] && (float.IsNaN(moved) || moved >= .0005f);
+                        keyed &= good;
+                        moves.Add($"{name} {(float.IsNaN(moved) ? "unread" : (moved * 1000f).ToString("0.0", CultureInfo.InvariantCulture) + " mm")}{(good ? "" : " (NOT AS BUILT)")}");
+                    }
+                    keyText = keyMesh == null ? $"; NO KEYS imported (wanted {string.Join(", ", keys)})"
+                                              : $"; keys {string.Join(", ", moves)} (largest vertex move each; built {string.Join(", ", keys)})";
+                }
+                else
+                {
+                    keyed = meshes.All(m => m.mesh.blendShapeCount == 0);
+                    if (!keyed) keyText = "; keys imported where none were built";
+                }
                 // Unity's importer may drop a few sliver triangles (the camera loses 20 of 10,900): within half a percent is whole
                 bool wholeMesh = Mathf.Abs(tris - piece.tris) <= Mathf.Max(2, piece.tris / 200);
-                Check(mapped && upright && size && standing && jointed && wholeMesh,
+                Check(mapped && upright && size && standing && jointed && wholeMesh && keyed,
                       $"{piece.name}: {piece.what}; {tris} triangles{(tris == piece.tris ? "" : " (built with " + piece.tris + (wholeMesh ? ", slivers dropped on import)" : ")"))}, " +
                       $"{V(whole.size)}{(size ? "" : " (built " + V(built) + ")")}, {(upright ? "upright" : "TURNED or scaled")}, " +
                       $"{(standing ? "origin where it was built" : "bottom at " + whole.min.y.ToString("0.000", CultureInfo.InvariantCulture) + " (built " + piece.bottom.ToString("0.000", CultureInfo.InvariantCulture) + ")")}" +
-                      $"{joints}, {names.Count} material(s){(mapped ? "" : " (NOT all project materials: " + string.Join(", ", names) + ")")}");
+                      $"{joints}{keyText}, {names.Count} material(s){(mapped ? "" : " (NOT all project materials: " + string.Join(", ", names) + ")")}");
             }
             report.AppendLine($"{models.Count} pieces, {totalTris} triangles in all.");
             report.AppendLine();
@@ -271,20 +326,82 @@ internal static class BlenderKitSteps
         return entry.Substring(i, end - i);
     }
 
-    static void Configure(string path, Dictionary<string, Material> materials, SortedSet<string> unmapped)
+    // Every mesh in a model, drawn by a MeshRenderer (its MeshFilter's mesh) or a SkinnedMeshRenderer (Unity's choice for a
+    // mesh with blend shapes: the held cloth, the brush since 14 Oct).
+    internal static List<(Transform node, Mesh mesh, Renderer renderer)> MeshesOf(GameObject root)
+    {
+        var list = new List<(Transform node, Mesh mesh, Renderer renderer)>();
+        if (root == null) return list;
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+        {
+            if (r is SkinnedMeshRenderer skinned)
+            {
+                if (skinned.sharedMesh != null) list.Add((r.transform, skinned.sharedMesh, r));
+            }
+            else if (r is MeshRenderer)
+            {
+                MeshFilter f = r.GetComponent<MeshFilter>();
+                if (f != null && f.sharedMesh != null) list.Add((r.transform, f.sharedMesh, r));
+            }
+        }
+        return list;
+    }
+
+    static string[] Keys(Piece piece) => piece.blend_shapes_order ?? Array.Empty<string>();
+
+    // Unity's mesh.bounds takes in every key's reach (15 Oct: the held cloth's 44 x 49 mm wad reads 59 x 57 mm, the union of
+    // its rest, Press and Bunch), so a keyed mesh is measured from its own vertices at rest, as it was built. Keyed meshes
+    // are readable (Configure); one that isn't keeps the bounds.
+    static Bounds AsBuilt(Mesh mesh)
+    {
+        if (mesh.blendShapeCount == 0 || !mesh.isReadable) return mesh.bounds;
+        Vector3[] v = mesh.vertices;
+        if (v.Length == 0) return mesh.bounds;
+        var b = new Bounds(v[0], Vector3.zero);
+        for (int i = 1; i < v.Length; i++) b.Encapsulate(v[i]);
+        return b;
+    }
+
+    // A key's largest vertex move, in metres (its last frame against the rest pose); NaN when the mesh can't be read.
+    static float KeyMove(Mesh mesh, int shape)
+    {
+        try
+        {
+            int frames = mesh.GetBlendShapeFrameCount(shape);
+            if (frames < 1) return 0f;
+            int n = mesh.vertexCount;
+            var moved = new Vector3[n];
+            mesh.GetBlendShapeFrameVertices(shape, frames - 1, moved, new Vector3[n], new Vector3[n]);
+            float most = 0f;
+            foreach (Vector3 d in moved) most = Mathf.Max(most, d.magnitude);
+            return most;
+        }
+        catch (Exception) { return float.NaN; }
+    }
+
+    // blendShapes: the manifest lists keys for this piece (the held cloth's Press and Bunch, the brush's Bend). Off for
+    // every other FBX, as before (14 Oct: "it must import blend shapes for BT_ClothHeld and BT_Brush", blender-wave1 §5).
+    // A keyed mesh is also readable: the check measures each key, and the bench's code may read the pressed pad's size.
+    internal static void Configure(string path, Dictionary<string, Material> materials, SortedSet<string> unmapped, bool blendShapes = false)
     {
         var importer = (ModelImporter)AssetImporter.GetAtPath(path);
         importer.globalScale = 1f;
         importer.useFileScale = true;
         importer.bakeAxisConversion = false;
         importer.importAnimation = false;
-        importer.animationType = ModelImporterAnimationType.None;
+        // A keyed mesh needs a SkinnedMeshRenderer to show its keys, and Unity 6.5 makes one only under a rig: with rig None
+        // the keys import onto the mesh but the model gets a plain MeshRenderer (15 Oct, the keys probe: Generic and Legacy
+        // give a SkinnedMeshRenderer, None never does). Generic with no avatar: no bones, no clips, just the skinned renderer.
+        importer.animationType = blendShapes ? ModelImporterAnimationType.Generic : ModelImporterAnimationType.None;
+        if (blendShapes) importer.avatarSetup = ModelImporterAvatarSetup.NoAvatar;
         importer.importCameras = false;
         importer.importLights = false;
         importer.importVisibility = false;
-        importer.importBlendShapes = false;
+        importer.importBlendShapes = blendShapes;
+        // Blender 5.2's FBX writes each key's own normals (with a nudge for Unity when they are all zero), so they import.
+        if (blendShapes) importer.importBlendShapeNormals = ModelImporterNormals.Import;
         importer.meshCompression = ModelImporterMeshCompression.Off;
-        importer.isReadable = false;
+        importer.isReadable = blendShapes;
         importer.addCollider = false;
         importer.importNormals = ModelImporterNormals.Import;
         importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
@@ -302,7 +419,7 @@ internal static class BlenderKitSteps
 
     // ------------------------------------------------------------------ the photos
 
-    sealed class Studio : IDisposable
+    internal sealed class Studio : IDisposable
     {
         public readonly PreviewRenderUtility Utility = new PreviewRenderUtility();
         readonly List<Object> made = new List<Object>();
@@ -423,6 +540,58 @@ internal static class BlenderKitSteps
             s.Shoot(Path.Combine(folder, "3-from-above.png"), new Vector3(0f, .45f, .12f), new Vector3(0f, .05f, 0f), 36f);
             report.AppendLine($"Photos (a preview scene, {placed} tools points-down on a bench top as the rail will hold them; the café scene isn't touched): 1-on-the-rail, 2-close, 3-from-above, in {folder}");
         }
+
+        // 14 Oct: the rest as the bench stage will use it (the rig's frame: +x his right, +z away; built with no turn), each
+        // tool laid on its own seat (its origin, the working tip, at the Seat_*, turned as the seat), the tray behind; seen
+        // from the close-up's 58 degrees. "Modelled right, placed wrong" (the cloth in the caddy) is what this photo catches.
+        string P(string name) => paths.FirstOrDefault(p => p.EndsWith("/" + name + ".fbx", StringComparison.Ordinal));
+        string rest = P("BT_ToolRest");
+        if (rest != null)
+            using (var s = new Studio())
+            {
+                s.Primitive(PrimitiveType.Cube, "Bench top (photo)", new Vector3(0f, -.02f, 0f), new Vector3(.8f, .04f, .5f), s.Flat(new Color(.56f, .36f, .20f)));
+                s.Primitive(PrimitiveType.Cube, "Mat (photo)", new Vector3(0f, .0025f, 0f), new Vector3(.6f, .005f, .36f), s.Flat(new Color(.31f, .44f, .63f)));
+                GameObject restGo = s.Place(rest, new Vector3(0f, .005f, 0f), Vector3.zero);
+                int seated = 0;
+                var missing = new List<string>();
+                foreach (var (seat, file) in new[] { ("Seat_Screwdriver", "BT_Screwdriver"), ("Seat_Pry", "BT_PryTool"), ("Seat_Tweezers", "BT_Tweezers"), ("Seat_Brush", "BT_Brush"), ("Seat_Cloth", "BT_Cloth") })
+                {
+                    Transform at = restGo != null ? restGo.transform.Find(seat) : null;
+                    string tool = P(file);
+                    if (at == null || tool == null) { missing.Add(seat); continue; }
+                    if (s.Place(tool, at.position, at.rotation.eulerAngles) != null) seated++;
+                }
+                string tray = P("BT_ScrapTray");
+                if (tray != null) s.Place(tray, new Vector3(.17f, .005f, .1f), Vector3.zero);
+                float pitch = 58f * Mathf.Deg2Rad;
+                s.Shoot(Path.Combine(folder, "4-the-rest-with-each-tool-on-its-seat.png"), new Vector3(.04f, .005f + Mathf.Sin(pitch) * .5f, .02f - Mathf.Cos(pitch) * .5f), new Vector3(.04f, .01f, .02f), 40f);
+                s.Shoot(Path.Combine(folder, "5-the-rest-from-the-side.png"), new Vector3(.34f, .1f, .02f), new Vector3(0f, .012f, .02f), 34f);
+                report.AppendLine($"Photos: the rest with {seated} of 5 tools laid on their seats (each tool's origin at its Seat_*, turned as the seat), the tray behind it" +
+                                  $"{(missing.Count > 0 ? " (not found: " + string.Join(", ", missing) + ")" : "")}: 4-the-rest-with-each-tool-on-its-seat, 5-the-rest-from-the-side");
+            }
+
+        // The keys: the held cloth at rest, pressed and bunched (its stroke runs along +X), then the brush straight and bent.
+        string held = P("BT_ClothHeld"), brush = P("BT_Brush");
+        if (held != null || brush != null)
+            using (var s = new Studio())
+            {
+                s.Primitive(PrimitiveType.Cube, "Glass (photo)", new Vector3(0f, -.002f, 0f), new Vector3(.5f, .004f, .2f), s.Flat(new Color(.20f, .22f, .25f)));
+                int posed = 0;
+                float x = -.13f;
+                foreach (var (file, key) in new[] { (held, ""), (held, "Press"), (held, "Bunch"), (brush, ""), (brush, "Bend") })
+                {
+                    GameObject go = file != null ? s.Place(file, new Vector3(x, 0f, 0f), Vector3.zero) : null;
+                    SkinnedMeshRenderer skinned = go != null ? go.GetComponentInChildren<SkinnedMeshRenderer>() : null;
+                    if (skinned != null && skinned.sharedMesh != null && key.Length > 0)
+                    {
+                        int i = skinned.sharedMesh.GetBlendShapeIndex(key);
+                        if (i >= 0) { skinned.SetBlendShapeWeight(i, 100f); posed++; }
+                    }
+                    x += .065f;
+                }
+                s.Shoot(Path.Combine(folder, "6-held-cloth-rest-press-bunch-then-brush-straight-bent.png"), new Vector3(0f, .26f, -.32f), new Vector3(0f, .04f, 0f), 34f);
+                report.AppendLine($"Photos: the held cloth at rest, pressed and bunched, then the brush straight and bent ({posed} of 3 keys at 100): 6-held-cloth-rest-press-bunch-then-brush-straight-bent");
+            }
     }
 
     // The island and the boxes, and the cover test: a crouched Ace (his 1.0 m capsule) 0.45 m behind each piece,
@@ -454,7 +623,7 @@ internal static class BlenderKitSteps
 
     // ------------------------------------------------------------------ helpers
 
-    static Bounds Transformed(Bounds b, Matrix4x4 m)
+    internal static Bounds Transformed(Bounds b, Matrix4x4 m)
     {
         var result = new Bounds(m.MultiplyPoint3x4(b.center), Vector3.zero);
         for (int i = 0; i < 8; i++)
@@ -462,7 +631,7 @@ internal static class BlenderKitSteps
         return result;
     }
 
-    static string LogFolder(string root, string name)
+    internal static string LogFolder(string root, string name)
     {
         string folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", root,
             name + "-" + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture)));
@@ -470,6 +639,6 @@ internal static class BlenderKitSteps
         return folder;
     }
 
-    static string V(Vector3 v) => string.Format(CultureInfo.InvariantCulture, "({0:0.000}, {1:0.000}, {2:0.000})", v.x, v.y, v.z);
+    internal static string V(Vector3 v) => string.Format(CultureInfo.InvariantCulture, "({0:0.000}, {1:0.000}, {2:0.000})", v.x, v.y, v.z);
 }
 #endif

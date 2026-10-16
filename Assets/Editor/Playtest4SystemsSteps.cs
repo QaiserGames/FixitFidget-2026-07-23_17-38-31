@@ -39,9 +39,13 @@ using Object = UnityEngine.Object;
 // The labs (each one Play session in the lab's own save; your playtest save is never used):
 //   Fixit Fidget > Playtest 4 > Systems > Lab A / B - Stations and the repair bar, from above / first person
 //       (StationsCheck: the playtest 3 check, plus the repair bar's hand-back and a drink over the counter; S2, S9)
-//   Fixit Fidget > Playtest 4 > Systems > Lab C / D / E - The day's shape at the counter, Day 5: the scene's 180 s day /
-//       the ship's 420 s day / the autopilot at human speed (DayShapeCheck; S3)
+//   Fixit Fidget > Playtest 4 > Systems > Lab C / D / E - The day's shape at the counter, Day 5: the scene's day (420 s
+//       since 14 Oct; it was 180) / the ship's 420 s day / the autopilot at human speed (DayShapeCheck; S3)
 //   Fixit Fidget > Café life > Lab > Play a lab session - Day 5, autopilot at human speed (S8; CafeLab.HumanSpeedKey)
+//   Fixit Fidget > Days > Lab - Day 1 / 2 / 3 at the counter (DayShapeCheck with a day number: specs/days-1-3.md §10's bars,
+//       the autopilot at human speed, the scene's 420 s day; Days 2 and 3 start from the save a good Day 1 and Day 2 leave).
+//       One run per Play session; each run adds a line to Logs/CafeLife/days-1-3-runs.csv and the report gives the medians so
+//       far (the spec asks for 20 runs a day).
 // ---------------------------------------------------------------------------
 public static class Playtest4SystemsSteps
 {
@@ -68,7 +72,12 @@ public static class Playtest4SystemsSteps
     const string MenuRushed = Menu + "2 - Rushed patience x0.6 to x0.75 (scene)";
     const string MenuStationsAbove = Menu + "Lab A - Stations and the repair bar, from above (drives itself)";
     const string MenuStationsFirst = Menu + "Lab B - Stations and the repair bar, first person (drives itself)";
-    const string MenuShape = Menu + "Lab C - The day's shape at the counter, Day 5 (the scene's 180 s day)";
+    const string MenuShape = Menu + "Lab C - The day's shape at the counter, Day 5 (the scene's day)";
+    // Days 1-3 at the counter (14 Oct 2026, specs/days-1-3.md §10), beside the Days steps.
+    const string DaysLabMenu = "Fixit Fidget/Days/";
+    const string MenuDay1 = DaysLabMenu + "Lab - Day 1 at the counter (the autopilot at human speed)";
+    const string MenuDay2 = DaysLabMenu + "Lab - Day 2 at the counter (the autopilot at human speed)";
+    const string MenuDay3 = DaysLabMenu + "Lab - Day 3 at the counter (the autopilot at human speed)";
     const string MenuShapeShip = Menu + "Lab D - The day's shape at the counter, Day 5 (the ship's 420 s day)";
     const string MenuShapeHuman = Menu + "Lab E - The day's shape at the counter, Day 5 (autopilot at human speed)";
     const string MenuHumanSession = LabMenu + "Play a lab session - Day 5, autopilot at human speed";
@@ -216,8 +225,8 @@ public static class Playtest4SystemsSteps
         }
         foreach (WaitingSpot spot in active.Where(s => s.Kind != WaitingSpot.SpotKind.Seat))
             run.Info($"    standing: {Playtest4Shared.PathOf(spot.gameObject)}  drains x{spot.DrainMultiplier:0.##}");
-        foreach (TableSeat stool in active.OfType<TableSeat>().Where(s => !s.SnapToSeat))
-            run.Info($"    bar stool (Snap To Seat off: waits standing beside it): {Playtest4Shared.PathOf(stool.gameObject)}  " +
+        foreach (TableSeat stool in active.OfType<TableSeat>().Where(s => s.RepairBar || !s.SnapToSeat))
+            run.Info($"    bar stool ({(stool.RepairBar ? "the repair bar: they sit on it, raised" : "Snap To Seat off: waits standing beside it")}): {Playtest4Shared.PathOf(stool.gameObject)}  " +
                      $"drains x{stool.DrainMultiplier:0.##}, at ({stool.StandPoint.position.x:0.00}, {stool.StandPoint.position.z:0.00}){BenchDistance(stool)}");
 
         // The new Systems fields (playtest 4), once the code has compiled.
@@ -390,16 +399,19 @@ public static class Playtest4SystemsSteps
             run.Check(profile.preferredWaitKind != WaitingSpot.SpotKind.Loiter, $"{profile.name} waits {Wait(profile.preferredWaitKind)}");
 
         DayDefinition d1 = found.day1;
+        DayClock dayClock = Object.FindAnyObjectByType<DayClock>(FindObjectsInactive.Include);
+        SerializedProperty dayLength = dayClock != null ? new SerializedObject(dayClock).FindProperty("dayLengthSeconds") : null;
         string grace = d1.featuredRegular != null
             ? $"; {d1.featuredRegular.name} (x{d1.featuredRegular.patienceMultiplier:0.##}) {found.queuePatience * d1.featuredRegular.patienceMultiplier * d1.patienceMultiplier:0} s in the queue, " +
-              $"{Service(d1.featuredRegular.patienceMultiplier * d1.patienceMultiplier, SeatDrain):0} s seated after \"yes\" (the day is 180 s)"
+              $"{Service(d1.featuredRegular.patienceMultiplier * d1.patienceMultiplier, SeatDrain):0} s seated after \"yes\" " +
+              $"(the day is {(dayLength != null ? dayLength.floatValue : 180f):0} s)"
             : "";
         run.Check(Mathf.Approximately(d1.patienceMultiplier, Day1Patience),
             $"Day 1 ({d1.name}) patience x{d1.patienceMultiplier:0.##} (was x{found.day1Before:0.##}){grace}");
 
         // A customer waiting at a bar stool stands beside it (Snap To Seat off), but drains at the seat's rate: an impatient
         // customer who picks one is not back to a stander's x1.15.
-        var stools = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude).Where(s => s.isActiveAndEnabled && !s.SnapToSeat).ToList();
+        var stools = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude).Where(s => s.isActiveAndEnabled && (s.RepairBar || !s.SnapToSeat)).ToList();
         run.Check(stools.Count > 0, $"the bar stools are found ({stools.Count})");
         foreach (TableSeat stool in stools)
             run.Check(stool.Kind == WaitingSpot.SpotKind.Seat && stool.DrainMultiplier <= SeatDrain + .001f,
@@ -432,17 +444,67 @@ public static class Playtest4SystemsSteps
     static void HumanSession() => StartLab(5, true, true, null, null,
         "Day 5 with the autopilot at human speed (repairs 45-90 s, drinks 20-40 s, a 3-6 s reaction, one pair of hands)");
 
+    [MenuItem(MenuDay1, false, 30)]
+    static void DayOneAtTheCounter() => StartDaysLab(1);
+
+    [MenuItem(MenuDay2, false, 31)]
+    static void DayTwoAtTheCounter() => StartDaysLab(2);
+
+    [MenuItem(MenuDay3, false, 32)]
+    static void DayThreeAtTheCounter() => StartDaysLab(3);
+
     [MenuItem(MenuStationsAbove, true)]
     [MenuItem(MenuStationsFirst, true)]
     [MenuItem(MenuShape, true)]
     [MenuItem(MenuShapeShip, true)]
     [MenuItem(MenuShapeHuman, true)]
     [MenuItem(MenuHumanSession, true)]
+    [MenuItem(MenuDay1, true)]
+    [MenuItem(MenuDay2, true)]
+    [MenuItem(MenuDay3, true)]
     static bool CanStartLab() => Playtest4Shared.NotPlaying();
 
-    // One lab Play session: the lab's own save (Day 1 fresh, or day N with the lab's usual money and stock), the lab
-    // switched on, its autopilot as asked, and the check's own request.
-    static void StartLab(int day, bool autopilot, bool humanSpeed, string checkKey, Action more, string what)
+    // Days 1-3 at the counter (14 Oct 2026, specs/days-1-3.md §10): the day's shape with its day number and the spec's bars
+    // (the first walk-in, Grace handed back, storm-outs, the day's end, the walk-ins' repairs), the autopilot at human speed,
+    // the scene's day (420 s). Day 2 starts from the save a Perfect Day 1 clean leaves (Grace served, no photo attempt: R3);
+    // Day 3 from a Perfect Day 2 shutter (the attempt on Day 2), so her return brings the photo's news.
+    static void StartDaysLab(int day)
+    {
+        SaveData start = null;
+        if (day >= 2)
+        {
+            var grace = new RegularMemoryData
+            {
+                profileId = GraceCameraEpisode.ProfileId,
+                visits = day - 1,
+                relationship = 2 * (day - 1),
+                lastSeenDay = day - 1,
+                lastVisitHappy = true,
+                lastJobAccepted = true,
+                lastVisitServed = true,
+                lastGrade = nameof(JobGrade.Perfect),
+            };
+            if (day >= 3)
+            {
+                grace.graceCameraAttempted = true;
+                grace.graceCameraReturned = true;
+                grace.graceCameraGrade = nameof(JobGrade.Perfect);
+                grace.graceCameraDay = 2;
+            }
+            // The money a median first-timer has by then (specs/days-1-3.md §4.5): $369 after Day 1, $788 after Day 2.
+            start = new SaveData { day = day, money = day == 2 ? 369 : 788, cups = 40, beans = 40, dayCompleted = false, regularMemories = new[] { grace } };
+        }
+        StartLab(day, true, true, DayShapeCheck.PendingKey, () =>
+            {
+                PlayerPrefs.SetInt(DayShapeCheck.ShipLengthKey, 0);
+                PlayerPrefs.SetInt(DayShapeCheck.DayKey, day);
+            },
+            $"Days 1-3: Day {day} at the counter, the autopilot at human speed, the scene's day (specs/days-1-3.md §10's bars)", start);
+    }
+
+    // One lab Play session: the lab's own save (Day 1 fresh, or day N with the lab's usual money and stock, or the one given),
+    // the lab switched on, its autopilot as asked, and the check's own request.
+    static void StartLab(int day, bool autopilot, bool humanSpeed, string checkKey, Action more, string what, SaveData save = null)
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         if (SceneManager.GetActiveScene().path != Playtest4Shared.ScenePath)
@@ -451,9 +513,9 @@ public static class Playtest4SystemsSteps
             return;
         }
         string path = Path.Combine(Application.persistentDataPath, CafeLab.SaveFileName);
-        SaveData start = day <= 1
+        SaveData start = save ?? (day <= 1
             ? new SaveData()                                                   // a fresh game: Day 1's morning
-            : new SaveData { day = day, money = 600, cups = 40, beans = 40, dayCompleted = false };
+            : new SaveData { day = day, money = 600, cups = 40, beans = 40, dayCompleted = false });
         SaveCheckpointStorage.Write(path, start);
         PlayerPrefs.SetInt(CafeLab.PendingKey, 1);
         PlayerPrefs.SetInt(CafeLab.AutopilotKey, autopilot ? 1 : 0);
@@ -473,7 +535,7 @@ public static class Playtest4SystemsSteps
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         bool any = false;
-        foreach (string key in new[] { DayShapeCheck.PendingKey, DayShapeCheck.ShipLengthKey, CafeLab.HumanSpeedKey })
+        foreach (string key in new[] { DayShapeCheck.PendingKey, DayShapeCheck.ShipLengthKey, DayShapeCheck.DayKey, CafeLab.HumanSpeedKey })
             if (PlayerPrefs.HasKey(key)) { PlayerPrefs.DeleteKey(key); any = true; }
         if (any) PlayerPrefs.Save();
     }

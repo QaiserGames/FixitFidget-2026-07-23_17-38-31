@@ -700,6 +700,25 @@ public class CustomerBrain : MonoBehaviour
         }
     }
 
+    // HANDS ON IT (15 Oct 2026). Day 1 played by hand at a slow first-timer's pace: Grace stormed out "Never again" 178 s
+    // after handing her camera over, with Ace brushing its film path (the close-up taken from under the brush); on the
+    // replay, with it fixed and in his hands while E wouldn't hand it over the bench. Nobody walks out on a device that is in
+    // Ace's hands: while it is, their patience still drains as ever (the tip still pays speed, and a long wait still costs
+    // "Loved it": ReputationRules.LongWait) but stops at this share of their bar. Put down, it runs on from there.
+    public const float HandsOnFloor = .1f;
+
+    // Their device in Ace's hands: on the bench's close-up, or carried, in either hand. Read every frame: no allocation.
+    private bool HandsOnIt
+    {
+        get
+        {
+            if (activeJob == null) return false;
+            if (ItemInspector.Instance != null && ItemInspector.Instance.FocusedItem == activeJob) return true;
+            PlayerCarry carry = DeliveryCarry;
+            return carry != null && (carry.GetItem(0) == activeJob || carry.GetItem(1) == activeJob);
+        }
+    }
+
     private float DrainRate
     {
         get
@@ -826,7 +845,7 @@ public class CustomerBrain : MonoBehaviour
         // expected at the till: StraightToCounter.)
         Vector3 drift;
         Vector3 firstLeg;
-        if (!StraightToCounter && PickDriftPoint(out drift))
+        if (!StraightToCounter && LooksRoundOnTheWayIn(profile) && PickDriftPoint(out drift))
         {
             locomotion.MoveTo(drift, Walk("drift"));
             firstLeg = drift;
@@ -850,6 +869,17 @@ public class CustomerBrain : MonoBehaviour
         bool phoneToMend = record != null && record.kind == JobKind.Repair && !IsCounterRepair;
         if (phoneToMend && Random.value < .65f && beats.TryHoldingWalk(seconds + 8f)) return;
         beats.TryWalkingBeat(seconds);
+    }
+
+    // ONLY SOME LOOK ROUND (14 Oct 2026, NPC wave 2). His girlfriend, playtest 5: "as for now it seems robotic". Every
+    // walk-in but the day's first walked 2-5 m in, stopped for 1-3 s and turned round, regulars too: the same beat on
+    // every arrival. Regulars never do it now (they know the place); a walk-in does with a chance of 0.9 minus their
+    // urgency: Relaxed 0.7, Distracted 0.55, Shy and Social 0.4, Hurried 0 (about 42 % across the profiles' weights).
+    private bool LooksRoundOnTheWayIn(NpcMovementProfile profile)
+    {
+        if (identity != null && identity.IsRegular) return false;
+        float urgency = profile != null ? profile.urgency : .5f;
+        return Random.value < Mathf.Clamp01(.9f - urgency);
     }
 
     // About how long a walk to `to` takes at this person's pace (a straight line, generous).
@@ -945,6 +975,7 @@ public class CustomerBrain : MonoBehaviour
             // Keep normal conversation patience drain; the locomotion is paused
             // (OnConversationOpened) until the camera gives this customer back.
             patienceLeft -= Time.deltaTime * DrainRate;
+            if (HandsOnIt) patienceLeft = Mathf.Max(patienceLeft, serviceMax * HandsOnFloor);
             UpdateBar(CurrentMax, Color.green);
             if (patienceLeft <= 0f) StormOut();
             return;
@@ -1062,6 +1093,7 @@ public class CustomerBrain : MonoBehaviour
             case State.Settling:
                 // Walking to their spot. Still waiting on you, so still draining.
                 patienceLeft -= Time.deltaTime * DrainRate;
+                if (HandsOnIt) patienceLeft = Mathf.Max(patienceLeft, serviceMax * HandsOnFloor);
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) { StormOut(); break; }
 
@@ -1110,6 +1142,7 @@ public class CustomerBrain : MonoBehaviour
                 TendTheCup();
 
                 patienceLeft -= Time.deltaTime * DrainRate;
+                if (HandsOnIt) patienceLeft = Mathf.Max(patienceLeft, serviceMax * HandsOnFloor);
                 UpdateBar(serviceMax, new Color(0.3f, 0.7f, 1f));
                 if (patienceLeft <= 0f) StormOut();
                 break;
@@ -1228,6 +1261,10 @@ public class CustomerBrain : MonoBehaviour
                     // Ace is bringing their order: the phone goes away, eyes up.
                     else if (!orderComing && beats != null) beats.StopIdle();
                     orderComing = coming;
+                    // THEY WATCH THEIR OWN REPAIR (14 Oct 2026, NPC wave 2; his girlfriend: "it seems robotic"). While
+                    // their device is on the bench or in Ace's hands there, many of their idle looks go to it
+                    // (NpcSocial's LookRepair beat): across the ledge from the bench, Grace watches her camera.
+                    if (social != null) social.Watching = BeingRepaired ? activeJob.transform : null;
                 }
                 if (orderComing || Time.time < attentionUntil)
                 {
@@ -1592,7 +1629,14 @@ public class CustomerBrain : MonoBehaviour
         WaitingSpot.SpotKind preferred = identity != null
             ? identity.PreferredWaitKind : WaitingSpot.SpotKind.Loiter;
 
-        WaitingSpot spot = WaitingArea.Instance.Claim(this, preferred);
+        // The repair bar first (14 Oct 2026, NPC wave 2; his girlfriend: "people wouldn't sit down on the bar stools that
+        // are infront of the repair station"): someone whose repair goes to the bench takes the free stool nearest it,
+        // across the counter from the mat, where Ace reassures and hands back without a step. Everyone else, and anyone
+        // who finds the three taken, takes the nearest seat as before.
+        WaitingSpot spot = null;
+        if (preferred == WaitingSpot.SpotKind.Seat && GoesToTheBench && BenchPoint(out Vector3 bench))
+            spot = WaitingArea.Instance.ClaimRepairBar(this, bench);
+        if (spot == null) spot = WaitingArea.Instance.Claim(this, preferred);
         if (spot == null) return false;
 
         Vector3 destination = spot.StandPoint.position;
@@ -1679,6 +1723,24 @@ public class CustomerBrain : MonoBehaviour
         // From the counter: hand the device over first, then turn away.
         if (hasStepBack) MoveAfter(destination, LeaveCounter("step back"), Mathf.Max(reactionTime, counterTurnAwayAfter));
         else MoveAfterReacting(destination, LeaveCounter("spot"));
+        return true;
+    }
+
+    /// <summary>A repair that is worked at the bench: every repair but the Human fault, which is done at the counter (IsCounterRepair).</summary>
+    public bool GoesToTheBench => record != null && record.kind == JobKind.Repair && !IsCounterRepair;
+
+    /// <summary>Their device is on the bench (StationInteractable.BenchHolds) or in Ace's hands there (the close-up): what they watch.</summary>
+    public bool BeingRepaired => activeJob != null && (StationInteractable.BenchHolds(activeJob)
+        || ItemInspector.Instance != null && ItemInspector.Instance.FocusedItem == activeJob);
+
+    // Where the bench is worked from (PlayerInteractor.BenchStation's stand point): what the repair bar is measured from.
+    private bool BenchPoint(out Vector3 point)
+    {
+        point = default;
+        PlayerInteractor ace = Player;
+        StationInteractable bench = ace != null ? ace.BenchStation : null;
+        if (bench == null) return false;
+        point = bench.StandPoint != null ? bench.StandPoint.position : bench.transform.position;
         return true;
     }
 
@@ -2321,6 +2383,7 @@ public class CustomerBrain : MonoBehaviour
             });
 
         hasPendingDestination = false;
+        if (social != null) social.Watching = null;   // nothing of theirs left to watch
         // How they go (12 Oct 2026): a storm-out briskly, at once; someone whose repair came back Perfect strolls out;
         // the rest at their own walk. Then the cup into the bins by the door, if they carry one.
         if (happy && repairReturned && lastGrade == JobGrade.Perfect) { leavingGait = NpcLocomotion.Gait.Relaxed; leavingPace = .92f; leavingHurried = false; }

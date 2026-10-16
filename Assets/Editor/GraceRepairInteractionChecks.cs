@@ -27,7 +27,9 @@ public static class GraceRepairInteractionChecks
             var host = new GameObject("Isolated Grace click checks"); SceneManager.MoveGameObjectToScene(host, scene);
             var camera = UnityEngine.Object.Instantiate(prefab, host.transform);
             camera.transform.SetPositionAndRotation(new Vector3(5, 5, 5), Quaternion.identity);
-            camera.GetComponent<DeviceDefinition>().ApplyFault(0);
+            // Days 1-3 (14 Oct 2026, specs/days-1-3.md §5): the shutter is Day 2's visit, fault 1 (the part on, the spots off: the
+            // camera comes back clean). Day 1's clean (fault 0) is brushed on a second camera below.
+            camera.GetComponent<DeviceDefinition>().ApplyFault(1);
             var job = camera.GetComponent<GraceCameraRepairJob>();
             var shutter = job.Shutter;
             Call(shutter, "Awake");   // edit mode: the part learns its seat, its device and which way is out (the bench, v2)
@@ -63,12 +65,20 @@ public static class GraceRepairInteractionChecks
             // a neighbouring collider). This used to delete the grime directly,
             // which is how a lens spot hidden inside the lens glass's capsule
             // collider went unnoticed while players could never reach Perfect.
-            foreach (var grime in camera.GetComponentsInChildren<GrimeSpot>())
+            // Days 1-3: the spots are Day 1's job (fault 0), on their own camera, with the shutter switched off (R1).
+            var clean = UnityEngine.Object.Instantiate(prefab, host.transform);
+            clean.transform.SetPositionAndRotation(new Vector3(-5, 5, 5), Quaternion.identity);
+            clean.GetComponent<DeviceDefinition>().ApplyFault(0);
+            var cleanJob = clean.GetComponent<GraceCameraRepairJob>();
+            Require(clean.GetComponentsInChildren<GrimeSpot>().Length == 3 && !cleanJob.ShutterIsTask,
+                "Day 1's camera (fault 0): the three spots, and the shutter not a task.");
+            foreach (var grime in clean.GetComponentsInChildren<GrimeSpot>())
             {
                 Require(Resolve(grime.GetComponent<Collider>()).grime == grime,
                     "All authored camera cleaning surfaces remain discoverable by the bench resolver.");
-                ScrubThroughView(camera, grime);
+                ScrubThroughView(clean, grime);
             }
+            Require(cleanJob.Grade == JobGrade.Perfect, "Day 1: cleaned, the camera is Perfect; its jammed shutter isn't today's job (R1).");
             Require(job.Quality == 0f, "A clean camera with a jammed shutter still cannot receive a passing grade.");
             Press(inspector, Resolve(tweezers.GetComponentInChildren<Collider>()));
             Require(inspector.CurrentTool == ToolType.Tweezers, "Clicking a tool's child handle selects the tweezers.");
@@ -88,25 +98,27 @@ public static class GraceRepairInteractionChecks
             // dropped; the fresh blade is presented and seated. What a player does over about a second at the bench.
             var hand = new BenchHand { deltaTime = .3f, tool = ToolType.Tweezers };
             shutter.HoldTick(hand);
-            Require(shutter.State == ReplaceablePart.PartState.HeldBroken && shutter.transform.parent == null,
-                "Holding the tweezers on the shutter pinches the jammed mechanism out of the camera.");
+            Require(shutter.State == ReplaceablePart.PartState.Removed
+                    && (shutter.transform.parent == null || BenchStage.Instance != null && BenchStage.Instance.PlaceOf(shutter) != null),
+                "Holding the tweezers on the shutter pinches the jammed mechanism out; it flies to the old-parts tray (edit mode: at once).");
             Require(!job.CanHandBack, "With its mechanism out, the camera can't be handed back.");
             shutter.HoldEnd(hand, false);
             Require(shutter.State == ReplaceablePart.PartState.Removed && job.Quality == 0f,
                 "Let go, the jammed mechanism is dropped, and the grade hasn't moved for taking it out.");
             shutter.PresentFresh();
             Require(shutter.Fresh != null && shutter.Fresh.transform.parent == null && job.CanHandBack == false,
-                "The working blade waits loose, on its own, as the fresh part.");
+                "The fresh part (the clean mechanism since wave 2) waits loose, on its own, on the pad.");
             shutter.SeatFresh();
             Require(shutter.IsReplaced && job.Grade == JobGrade.Perfect && job.IsComplete && job.CanHandBack,
-                "Seated, the fresh blade finishes the cleaned camera as Perfect, in one piece (the scrap in the tray doesn't count against it).");
-            var workingBlade = shutter.Fresh == null ? camera.transform.Find("Working shutter blade") : null;
-            if (workingBlade == null) foreach (Transform t in camera.GetComponentsInChildren<Transform>(true)) if (t.name == "Working shutter blade") workingBlade = t;
+                "Seated, the fresh part finishes the camera as Perfect, in one piece (the scrap in the tray doesn't count against it).");
+            // The fresh part is whatever the shutter names (since the Blender lead's wave 2, Devices 2 wires the "Clean shutter
+            // mechanism"; before it, the working blade): found through the part's own field, never by a name.
+            var workingBlade = (new SerializedObject(shutter).FindProperty("freshVisual")?.objectReferenceValue as GameObject)?.transform;
             Require(workingBlade != null && workingBlade.gameObject.activeSelf && workingBlade.IsChildOf(camera.transform) && !blade.transform.IsChildOf(camera.transform),
-                "Repair visibly puts the working blade into the camera while the bent one is out of it.");
+                $"Repair visibly puts the fresh part ({(workingBlade != null ? workingBlade.name : "none")}) into the camera while the jammed one is out of it.");
             Press(inspector, Resolve(workingBlade.GetComponent<Collider>()));
-            Require(shutter.Prompt == "Hold to move it" && shutter.Grabbable && !shutter.Holdable && shutter.RequiredTool == ToolType.Hand && shutter.DisplayName.StartsWith("Old "),
-                "A finished shutter's old mechanism is scrap: a loose piece any tool moves, not another step (8 Oct: so it can never bury the fresh part).");
+            Require(shutter.Prompt == "" && !shutter.Grabbable && !shutter.Holdable && !shutter.CanInteract && shutter.DisplayName.StartsWith("Old "),
+                "A finished shutter's old mechanism is scrap: it lies in the old-parts tray and can't be moved (the forgiving bench, Systems' decision 15), never another step.");
             Require(job.Grade == JobGrade.Perfect && camera.transform.Find("KEEP - scratched sentimental strap") != null,
                 "Repeated presses preserve the finished repair and original sentimental strap.");
 
@@ -126,7 +138,7 @@ public static class GraceRepairInteractionChecks
             var screwHit = Child(screw.gameObject, "Screw head mesh").AddComponent<BoxCollider>();
             Require(Resolve(screwHit).part == screw,
                 "The nearest screw target wins over its parent cover, preserving the existing disassembly hierarchy.");
-            Debug.Log("[Grace camera interaction] PASS: every grime spot brushed clean through view rays (down and 30-degree tilts, re-checked as it shrinks), real blade collider ray, parent task resolution, child tool selection, wrong-tool/pause/recap gates, the tweezers' hold (v2) pinches the mechanism out and the seated fresh blade reaches Perfect, visual swap, strap preservation, covered parts and nearest screw targets. No scene or save changes.");
+            Debug.Log("[Grace camera interaction] PASS: every grime spot of Day 1's camera (fault 0) brushed clean through view rays (down and 30-degree tilts, re-checked as it shrinks) to Perfect with the shutter off; Day 2's camera (fault 1): real blade collider ray, parent task resolution, child tool selection, wrong-tool/pause/recap gates, the tweezers' hold (v2) pinches the mechanism out and the seated fresh blade reaches Perfect, visual swap, strap preservation, covered parts and nearest screw targets. No scene or save changes.");
         }
         finally
         {

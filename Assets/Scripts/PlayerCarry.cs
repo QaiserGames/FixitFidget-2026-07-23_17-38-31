@@ -24,6 +24,8 @@ public class PlayerCarry : MonoBehaviour
         public Vector3 visualCentre;
         public Vector3 visualBounds;
         public UnityEngine.Rendering.ShadowCastingMode[] shadows;
+        public float overhead = 1f;     // how much bigger it is drawn from above (OverheadScaleFor, at pickup)
+        public DropSpot liftedFrom;     // the spot that held it when it was picked up (LiftedFrom); null from anywhere else
     }
     private readonly List<Held> hands = new();
     private PlayerInteractor interaction;
@@ -63,9 +65,18 @@ public class PlayerCarry : MonoBehaviour
     // From above, a thing in hand would be a few pixels at its real size, held at the waist beside a wide body: it is
     // carried high, bigger, with a slow bob, so you can see what you've got (Mansoor, 8 Oct: "literally impossible to
     // notice if I'm grabbing an item like a phone or a watch when in isometric view"). First person keeps real sizes.
+    //
+    // One scale (14 Oct, td-one-scale.md §6.8): the devices are real size now, in Ace's hands too, so a pocket watch is 5 cm
+    // and a phone 14. From above (36-42 px a metre) that is 2-3 px across at 2.2x: a carried DEVICE is drawn at least
+    // overheadLength long instead (the watch about 6.4x, the camera 2.6x, the phone 3x; 16-19 px), never more than
+    // overheadCap times its size. A cup keeps overheadScale. First person keeps real sizes, as before.
     [Header("From above")]
-    [Tooltip("How much bigger a carried item is drawn in the overhead view.")]
+    [Tooltip("How much bigger a carried item is drawn in the overhead view (a cup; and the least for a device: see Overhead Length).")]
     [SerializeField, Range(1f, 4f)] private float overheadScale = 2.2f;
+    [Tooltip("From above, a carried device is drawn at least this long, metres (its largest side when it was picked up).")]
+    [SerializeField, Range(.1f, 1f)] private float overheadLength = .45f;
+    [Tooltip("...but never more than this many times its real size.")]
+    [SerializeField, Range(1f, 10f)] private float overheadCap = 7f;
     [Tooltip("How far up and down the carried item bobs in the overhead view, metres.")]
     [SerializeField, Range(0f, .1f)] private float overheadBob = .03f;
     public int Count { get { Prune(); return hands.Count; } }
@@ -79,6 +90,21 @@ public class PlayerCarry : MonoBehaviour
     {
         get { Prune(); return preferredPickupHand >= 0 ? preferredPickupHand : hands.Count > 0 ? hands[selected].hand : 0; }
     }
+    /// <summary>
+    /// The spot the item in the selected hand was lifted from (the intake tray's DropSpot, a bench slot's), so the spot's prompt
+    /// can say "Put it back" (UI/UX checklist v2 §5.7, First Hour #4). Null when it came from anywhere else, or nothing is in
+    /// hand. It is forgotten with the item: set down (PlaceAt), handed back or used up (Consume).
+    /// </summary>
+    public DropSpot LiftedFrom { get { Prune(); Held held = SelectedHeld(); return held != null ? held.liftedFrom : null; } }
+
+    /// <summary>The spot <paramref name="item"/> was lifted from, in whichever hand holds it (null: not carried, or from elsewhere).</summary>
+    public DropSpot LiftedFromFor(JobBase item)
+    {
+        Prune();
+        for (int i = 0; i < hands.Count; i++) if (hands[i].item == item) return hands[i].liftedFrom;
+        return null;
+    }
+
     public JobBase GetItem(int index) { Prune(); return index >= 0 && index < hands.Count ? hands[index].item : null; }
     public JobBase GetHandItem(int side) { Prune(); return hands.Find(h => h.hand == side)?.item; }
     public bool Contains(JobBase item) { Prune(); return item != null && hands.Exists(h => h.item == item); }
@@ -198,8 +224,9 @@ public class PlayerCarry : MonoBehaviour
             Vector3 centre = HandCentre(side, firstPerson, active);
             if (held != null)
             {
-                // Metre-authored objects keep their real scale in first person; from above they are drawn bigger (see overheadScale).
-                held.item.transform.localScale = firstPerson || !show ? held.scale : held.scale * overheadScale;
+                // Metre-authored objects keep their real scale in first person; from above they are drawn bigger (see overheadScale,
+                // and for a device overheadLength: its own factor, fixed when it was picked up).
+                held.item.transform.localScale = firstPerson || !show ? held.scale : held.scale * held.overhead;
                 held.item.transform.rotation = facing;
                 held.item.transform.position += centre - held.item.transform.TransformPoint(held.visualCentre);
                 for (int j = 0; j < held.renderers.Length; j++)
@@ -248,7 +275,11 @@ public class PlayerCarry : MonoBehaviour
             while (side < capacity && hands.Exists(h => h.hand == side)) side++;
             if (side >= capacity) return false;
         }
-        foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(item);
+        // Which spot held it, before the spots let it go: its prompt says "Put it back" while it is in hand (LiftedFrom).
+        DropSpot[] spots = FindObjectsByType<DropSpot>();
+        DropSpot from = null;
+        foreach (DropSpot spot in spots) if (from == null && spot != null && spot.Holds(item)) from = spot;
+        foreach (DropSpot spot in spots) spot.Release(item);
         if (item is DrinkJob drink)
             foreach (BeverageSlot slot in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude)) slot.Release(drink);
         var held = new Held { item = item, hand = side, scale = item.transform.localScale,
@@ -261,18 +292,32 @@ public class PlayerCarry : MonoBehaviour
             var renderer = held.renderers[i]; held.visible[i] = renderer.enabled;
             held.shadows[i] = renderer.shadowCastingMode;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            if (!renderer.enabled || !renderer.gameObject.activeInHierarchy || renderer is LineRenderer || renderer is ParticleSystemRenderer
-                || renderer.GetComponent<TMPro.TMP_Text>() != null) continue;
+            // Its own solid parts only (DeviceBounds, 12 Oct). From above, the job tag over a device on the tray is a screen-sized
+            // sprite about 0.4 m across at 34 m: counted, it was "the device's largest side" and a real-size watch was drawn at
+            // 2.2x, 11 cm, instead of 0.45 m (one scale, 14 Oct), and it pulled the hand's centre up toward the tag.
+            if (!DeviceBounds.Counts(renderer)) continue;
             if (!hasBounds) { bounds = renderer.bounds; hasBounds = true; } else bounds.Encapsulate(renderer.bounds);
         }
         held.visualCentre = hasBounds ? item.transform.InverseTransformPoint(bounds.center) : Vector3.zero;
         held.visualBounds = hasBounds ? bounds.size : new Vector3(.08f, .112f, .08f);
+        held.overhead = OverheadScaleFor(item, held.visualBounds);
+        held.liftedFrom = from;
         held.collision = new bool[held.colliders.Length];
         for (int i = 0; i < held.colliders.Length; i++) { held.collision[i] = held.colliders[i].enabled; held.colliders[i].enabled = false; }
         hands.Add(held); selected = hands.Count - 1; preferredPickupHand = -1;
         Sfx.Play(item is DrinkJob ? "cup.pickup" : "item.pickup", item.transform.position);
         return true;
     }
+    // From above: a cup at overheadScale; a device at least overheadLength long (its largest side as it was picked up), at
+    // least overheadScale and at most overheadCap times (TD §6.8: "max(overheadScale, 0.45 m ÷ its largest bound), capped at 7x").
+    private float OverheadScaleFor(JobBase item, Vector3 size)
+    {
+        if (item is DrinkJob) return overheadScale;
+        float longest = Mathf.Max(size.x, Mathf.Max(size.y, size.z));
+        if (longest < 1e-4f) return overheadScale;
+        return Mathf.Min(Mathf.Max(overheadCap, overheadScale), Mathf.Max(overheadScale, overheadLength / longest));
+    }
+
     public void PlaceAt(Transform spot)
     {
         if (spot == null || !IsCarrying) return;

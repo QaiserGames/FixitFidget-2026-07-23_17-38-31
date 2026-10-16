@@ -7,6 +7,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_ScrewBlued
+    second: {fileID: 2100000, guid: 19fc129138b5f4cc79dc9dc6265b11c5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_ScrewRecess
+    second: {fileID: 2100000, guid: 9bd55322abe6a4b0fbf1f9e61bc2d846, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_ScrewSlot
     second: {fileID: 2100000, guid: 6eb4230259b844ae6a9e742572d7bc06, type: 2}
   - first:

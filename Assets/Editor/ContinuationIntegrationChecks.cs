@@ -65,31 +65,56 @@ public static class ContinuationIntegrationChecks
         }
     }
 
+    // DAYS 1-3 (14 Oct 2026; specs/days-1-3.md §5, specs/systems-forgiving-bench.md §6): the camera comes in twice, so "working
+    // but dirty → Passable" can no longer happen in one job. Fault 0 (Day 1, the clean) grades by its three spots: all three
+    // Perfect, two Good, one Passable, none Rejected, with the shutter switched off (R1). Fault 1 (Day 2, the shutter) arrives
+    // clean: untouched it is Rejected (no photo from a jammed shutter), swapped it is Perfect. The photo reads the shutter's
+    // grade, downgraded after a poor clean (R3: ContinuationRuleChecks). Needs Fixit Fidget › Days › B first (the two faults).
     [MenuItem("Fixit Fidget/Checks/Grace camera content")]
     public static void GraceContent()
     {
         Require(!EditorApplication.isPlayingOrWillChangePlaymode, "Stop Play Mode first.");
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(GraceShowcaseSetup.CameraPath);
         Require(prefab != null, "Run Content > Grace showcase > Create prototype assets first.");
+        var cameraDefinition = prefab.GetComponent<DeviceDefinition>();
+        Require(cameraDefinition != null && cameraDefinition.faults != null && cameraDefinition.faults.Length == 2,
+            "The camera has its two faults, the clean and the shutter (Fixit Fidget › Days › B).");
         var scene = EditorSceneManager.NewPreviewScene();
         try
         {
+            // Fault 0, Day 1: the clean.
             var camera = UnityEngine.Object.Instantiate(prefab); SceneManager.MoveGameObjectToScene(camera, scene);
             var definition = camera.GetComponent<DeviceDefinition>(); definition.ApplyFault(0);
             var job = camera.GetComponent<GraceCameraRepairJob>();
-            Require(job != null && job.Shutter != null && job.Quality == 0, "Broken shutter is not a usable camera.");
+            Require(job != null && job.Shutter != null && !job.Shutter.gameObject.activeSelf && !job.ShutterIsTask,
+                "Day 1's clean: the shutter part is off (not today's job).");
             var grime = camera.GetComponentsInChildren<GrimeSpot>(); Require(grime.Length == 3, "Lens and film path have three cleaning tasks.");
             var request = new FeaturedRepairRequest { devicePrefab = prefab, faultIndex = 0, storyEpisodeId = GraceCameraEpisode.EpisodeId };
-            Require(request.TryCreateJob(out Job record, out _) && record.storyEpisodeId == GraceCameraEpisode.EpisodeId,
-                "Featured job carries the exact camera episode.");
-            job.Shutter.Activate(); Require(job.Grade == JobGrade.Passable, "Working but dirty camera gives the imperfect-print path.");   // (edit mode: the swap is done at once; the bench, v2)
+            Require(request.TryCreateJob(out Job record, out _) && record.storyEpisodeId == GraceCameraEpisode.EpisodeId
+                    && record.faultType == FaultType.Cleaning, "Day 1's featured job carries the exact camera episode, as a cleaning job.");
+            Require(job.Grade == JobGrade.Rejected, "An uncleaned camera is Rejected.");
             UnityEngine.Object.DestroyImmediate(grime[0].gameObject);
+            Require(job.Grade == JobGrade.Passable, "One spot of three is Passable (the smudged-photo path, once the shutter is fixed).");
             UnityEngine.Object.DestroyImmediate(grime[1].gameObject);
-            Require(job.Grade == JobGrade.Good, "Mostly cleaned working camera is Good.");
+            Require(job.Grade == JobGrade.Good, "Mostly cleaned camera is Good.");
             UnityEngine.Object.DestroyImmediate(grime[2].gameObject);
-            Require(job.Grade == JobGrade.Perfect, "Clean working camera is Perfect.");
-            Require(camera.transform.Find("KEEP - scratched sentimental strap") != null, "Original strap survives the repair.");
-            Debug.Log("[Grace content] PASS: exact request, broken-shutter gate, cleaning grades and preserved strap. No scenes or saves changed.");
+            Require(job.Grade == JobGrade.Perfect, "Clean camera is Perfect, its shutter still jammed: it isn't today's job (R1).");
+            Require(camera.transform.Find("KEEP - scratched sentimental strap") != null, "Original strap survives the clean.");
+
+            // Fault 1, Day 2: the shutter.
+            var second = UnityEngine.Object.Instantiate(prefab); SceneManager.MoveGameObjectToScene(second, scene);
+            second.GetComponent<DeviceDefinition>().ApplyFault(1);
+            var swap = second.GetComponent<GraceCameraRepairJob>();
+            Require(second.GetComponentsInChildren<GrimeSpot>().Length == 0, "Day 2's camera comes back clean (no spots).");
+            Require(swap != null && swap.Shutter != null && swap.ShutterIsTask && swap.Grade == JobGrade.Rejected,
+                "Broken shutter is not a usable camera: untouched, Rejected.");
+            var shutterRequest = new FeaturedRepairRequest { devicePrefab = prefab, faultIndex = 1, storyEpisodeId = GraceCameraEpisode.EpisodeId };
+            Require(shutterRequest.TryCreateJob(out Job shutterRecord, out _) && shutterRecord.storyEpisodeId == GraceCameraEpisode.EpisodeId
+                    && shutterRecord.faultType != FaultType.Cleaning, "Day 2's featured job carries the exact camera episode, as the shutter visit.");
+            swap.Shutter.Activate(); Require(swap.Grade == JobGrade.Perfect, "Swapped, the shutter visit is Perfect.");   // (edit mode: the swap is done at once; the bench)
+            Require(second.transform.Find("KEEP - scratched sentimental strap") != null, "Original strap survives the swap.");
+            Debug.Log("[Grace content] PASS: exact requests for both visits, the clean graded by its spots (the shutter off), the shutter gate " +
+                      "on Day 2, the swap Perfect, and the preserved strap. No scenes or saves changed.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }
     }

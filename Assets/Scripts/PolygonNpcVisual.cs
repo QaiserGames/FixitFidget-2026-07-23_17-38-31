@@ -63,6 +63,20 @@ using UnityEngine;
 /// exists); nobody else wears a regular's stand-in look. When the purchased art is
 /// missing (for example a fresh clone of the public repository, which never
 /// contains Synty files) nothing changes and the original body stays visible.
+///
+/// DEALT, NOT HASHED (14 Oct 2026, NPC wave 2; the veteran playtester, 13 Oct: 8
+/// of 10 in the same red shirt; his girlfriend: "it seems robotic"). The look was
+/// a hash: patrons by (k+1) x 2654435761 / 1000 % 17, which walks the list in
+/// near-steps of five (his Day 1: 14 patrons in 7 looks, three looks on 8 of
+/// them), walk-ins by their name's FNV hash (4 of the 15 names in one coat, 5 of
+/// them in the other sex's body). Now everyone else gets the look worn by the
+/// fewest people in the café right now, from their name's sex when it has one
+/// (<see cref="RegisterNameSexes"/>), ties at random; a look counts as worn from
+/// the moment it is applied. The CC0 share is a plain roll, its five outfits dealt
+/// the same way, and never for a woman's name: they are men's bodies (Quaternius'
+/// Modular Men, Assets/Art/PlaceholderNeighbors/README.md). Optional palette
+/// swaps (<see cref="paletteAlternates"/>, empty until the line-up allows them)
+/// recolour a look's atlas, dealt the same way among people in the same look.
 /// </summary>
 [DisallowMultipleComponent, DefaultExecutionOrder(150)]
 public sealed class PolygonNpcVisual : MonoBehaviour
@@ -93,6 +107,18 @@ public sealed class PolygonNpcVisual : MonoBehaviour
     [Tooltip("On a phone call, reach so that the phone lies against this body's ear. Off: copy the turns only, which " +
              "carries the phone in front of the mouth on these longer arms.")]
     [SerializeField] private bool handsToFace = true;
+
+    [Header("Palette swaps (NPC wave 2, step 6)")]
+    [Tooltip("The atlas material, by name, that the alternates below replace on a dealt look's body (e.g. PolygonCity_01_A). " +
+             "Set by Fixit Fidget > NPC > Wave 2 6b, only for an atlas the line-up found on the looks. Empty: no swaps.")]
+    [SerializeField] private string paletteBase = "";
+    [Tooltip("Alternate colourings of that atlas (Assets/Synty/PolygonCity/Materials/Alts). Each walk-in or patron in a look " +
+             "drawn with it gets the colouring fewest people in the same look wear (the base counts as one). Strike off any " +
+             "whose line-up photo turns skin or hair an unnatural colour. Empty: no swaps.")]
+    [SerializeField] private Material[] paletteAlternates = Array.Empty<Material>();
+
+    /// <summary>Whose body a name walks in wearing (14 Oct 2026, NPC wave 2): a woman's, a man's, or either.</summary>
+    public enum NameSex { Any, Woman, Man }
 
     // Source (Quaternius rig) bone -> POLYGON bone, parents before children.
     public static readonly string[] SourceBones =
@@ -129,8 +155,16 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         ClavicleR = 10, UpperArmR = 11, LowerArmR = 12, WristR = 13,
         UpperLegL = 14, LowerLegL = 15, FootL = 16, UpperLegR = 17, LowerLegR = 18, FootR = 19;
 
-    private static uint anonymousSequence;
+    // Every body in the scene (enabled), for dealing looks: who wears what right now.
+    private static readonly List<PolygonNpcVisual> everyone = new List<PolygonNpcVisual>();
+    // The names' sexes, as the CustomerSpawner registers them from its list beside its first names (the scene's data, his
+    // sister's to correct). A name it doesn't list is Any.
+    private static readonly Dictionary<string, NameSex> nameSexes = new Dictionary<string, NameSex>(StringComparer.OrdinalIgnoreCase);
     private GameObject instance;
+    // The look worn, by name (lists differ between the Customer and Patron prefabs, so looks are compared by name), and
+    // the palette: -1 the look's own colouring, else an index into paletteAlternates.
+    private string activeLookName = "";
+    private int activePalette = -1;
     private SkinnedMeshRenderer[] hiddenRenderers;
     private bool[] hiddenWasEnabled;
     private Animator sourceAnimator;
@@ -149,6 +183,14 @@ public sealed class PolygonNpcVisual : MonoBehaviour
     public float KeepOriginalShare => keepOriginalShare;
     public int ActiveAppearance { get; private set; } = -1;
     public string ActiveAppearanceName => instance != null ? appearancePrefabs[ActiveAppearance].name : "Original";
+    /// <summary>The palette alternate this body wears (its material's name), or "" for the look's own colouring (checks).</summary>
+    public string ActivePaletteName => activePalette >= 0 && activePalette < paletteAlternates.Length && paletteAlternates[activePalette] != null
+        ? paletteAlternates[activePalette].name : "";
+    /// <summary>The sex their name asks for (Any for patrons and names nobody listed): what the look was dealt from (checks).</summary>
+    public NameSex DealtFor { get; private set; } = NameSex.Any;
+    /// <summary>Whether a look's name makes it a woman's body ("Female" or "Woman" in it; all 17 city looks follow that naming).</summary>
+    public static bool IsWomansLook(string lookName) =>
+        !string.IsNullOrEmpty(lookName) && (lookName.Contains("Female") || lookName.Contains("Woman"));
     public GameObject VisualInstance => instance;
     /// <summary>
     /// Set by NpcSeating from the first step towards a chair until the NPC is back on its feet (and by the
@@ -190,7 +232,36 @@ public sealed class PolygonNpcVisual : MonoBehaviour
     public Transform CityHand(bool left) => instance != null && target != null ? target[left ? WristL : WristR] : null;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetSequence() => anonymousSequence = 0;
+    private static void ResetStatics()
+    {
+        everyone.Clear();
+        nameSexes.Clear();
+    }
+
+    private void OnEnable() { if (!everyone.Contains(this)) everyone.Add(this); }
+    private void OnDisable() => everyone.Remove(this);
+
+    /// <summary>
+    /// The walk-in names' sexes (14 Oct 2026, NPC wave 2): the CustomerSpawner registers its list beside its first names each
+    /// morning. Named walk-ins are then dealt only their own sex's looks (and a woman's name never the CC0 men's bodies). A
+    /// name with no entry, or entries missing: Any.
+    /// </summary>
+    public static void RegisterNameSexes(string[] names, NameSex[] sexes)
+    {
+        if (names == null) return;
+        for (int i = 0; i < names.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(names[i])) continue;
+            nameSexes[names[i].Trim()] = sexes != null && i < sexes.Length ? sexes[i] : NameSex.Any;
+        }
+    }
+
+    /// <summary>The sex a walk-in's name asks for (<see cref="RegisterNameSexes"/>), Any when nobody listed it.</summary>
+    public static NameSex SexOfName(string name) =>
+        !string.IsNullOrWhiteSpace(name) && nameSexes.TryGetValue(name.Trim(), out NameSex sex) ? sex : NameSex.Any;
+
+    /// <summary>Names registered so far (checks).</summary>
+    public static int NameSexesKnown => nameSexes.Count;
 
     public void Configure(GameObject[] choices, float keepOriginal, int fixedIndex, float scale = 0f)
     {
@@ -211,18 +282,131 @@ public sealed class PolygonNpcVisual : MonoBehaviour
             if (own >= 0) ApplyAppearance(own);
             return;
         }
-        int index = fixedAppearance;
-        if (index < 0)
+        if (fixedAppearance >= 0)
         {
-            int count = appearancePrefabs.Length;
-            if (count == 0) return;
-            string name = identity != null ? identity.DisplayName : null;
-            uint choice = !string.IsNullOrEmpty(name) && name != "Customer"
-                ? StableHash(name) : (anonymousSequence++ + 1u) * 2654435761u;
-            if (choice % 1000u < (uint)Mathf.RoundToInt(keepOriginalShare * 1000f)) return;
-            index = (int)(choice / 1000u % (uint)count);
+            ApplyAppearance(SkipStandIns(fixedAppearance));   // street neighbours: their own look, as before
+            return;
         }
-        ApplyAppearance(SkipStandIns(index));
+        if (appearancePrefabs.Length == 0) return;
+        // Dealt (14 Oct 2026, NPC wave 2): see the class notes. Their name's sex, when it has one (patrons: Any).
+        string name = identity != null ? identity.DisplayName : null;
+        DealtFor = !string.IsNullOrEmpty(name) && name != "Customer" ? SexOfName(name) : NameSex.Any;
+        // The CC0 share keeps the actor's own body: a plain roll now (it was the hash's thousandths), never for a woman's
+        // name (the CC0 bodies are men's), its outfit dealt as the looks are.
+        if (DealtFor != NameSex.Woman && UnityEngine.Random.value < keepOriginalShare)
+        {
+            DealOwnOutfit();
+            return;
+        }
+        int index = DealLook(DealtFor);
+        if (index < 0) { DealOwnOutfit(); return; }   // no city look to wear (the purchased art missing): an outfit, dealt
+        if (!ApplyAppearance(index)) return;
+        DealPalette();
+    }
+
+    // The look worn by the fewest people in the café right now (customers and patrons, by look name), among the looks
+    // this person may wear: never a regular's stand-in, and their name's sex when it has one (Any when no look has it).
+    // Ties at random. -1 when there is no look to wear.
+    private int DealLook(NameSex sex)
+    {
+        Dictionary<string, int> worn = WornLooks();
+        int pick = PickLeastWorn(sex, worn);
+        if (pick < 0 && sex != NameSex.Any) pick = PickLeastWorn(NameSex.Any, worn);
+        return pick;
+    }
+
+    private int PickLeastWorn(NameSex sex, Dictionary<string, int> worn)
+    {
+        int pick = -1, fewest = int.MaxValue, ties = 0;
+        for (int i = 0; i < appearancePrefabs.Length; i++)
+        {
+            GameObject look = appearancePrefabs[i];
+            if (look == null) continue;
+            string lookName = look.name;
+            if (CustomerProfile.IsStandInLook(lookName)) continue;
+            if (sex != NameSex.Any && IsWomansLook(lookName) != (sex == NameSex.Woman)) continue;
+            worn.TryGetValue(lookName, out int n);
+            if (n < fewest) { fewest = n; pick = i; ties = 1; }
+            else if (n == fewest && UnityEngine.Random.Range(0, ++ties) == 0) pick = i;   // an even chance among the ties
+        }
+        return pick;
+    }
+
+    // The looks worn right now by people in the café (anyone with a customer's or a patron's brain), by name; also the
+    // CC0 outfits of those who kept their own body, by their outfit's label, under "CC0/".
+    private Dictionary<string, int> WornLooks()
+    {
+        var worn = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (PolygonNpcVisual other in everyone)
+        {
+            if (other == null || other == this || !other.InTheCafe) continue;
+            string key = other.instance != null ? other.activeLookName : OwnOutfitKey(other);
+            if (string.IsNullOrEmpty(key)) continue;
+            worn.TryGetValue(key, out int n);
+            worn[key] = n + 1;
+        }
+        return worn;
+    }
+
+    // Someone in the café: a customer or a patron (street neighbours, Ace's body and Grace at home have neither).
+    private bool InTheCafe => GetComponent<CustomerBrain>() != null || GetComponent<PatronBrain>() != null;
+
+    private static string OwnOutfitKey(PolygonNpcVisual who)
+    {
+        NpcVisualVariants outfits = who.GetComponent<NpcVisualVariants>();
+        return outfits != null && outfits.ActiveAppearance >= 0 ? "CC0/" + outfits.ActiveAppearanceName : "";
+    }
+
+    // The CC0 share: the actor keeps its own body, in the outfit fewest people who kept theirs wear (NpcVisualVariants
+    // already showed one by its own rule in its Start, which runs first: this deals over it).
+    private void DealOwnOutfit()
+    {
+        NpcVisualVariants outfits = GetComponent<NpcVisualVariants>();
+        if (outfits == null || !outfits.enabled || outfits.AppearanceCount == 0) return;
+        Dictionary<string, int> worn = WornLooks();
+        int pick = -1, fewest = int.MaxValue, ties = 0;
+        for (int i = 0; i < outfits.AppearanceCount; i++)
+        {
+            worn.TryGetValue("CC0/" + outfits.LabelOf(i), out int n);
+            if (n < fewest) { fewest = n; pick = i; ties = 1; }
+            else if (n == fewest && UnityEngine.Random.Range(0, ++ties) == 0) pick = i;
+        }
+        if (pick >= 0) outfits.ApplyAppearance(pick);
+    }
+
+    // Palette swaps (step 6): when this look's body is drawn with the palette's base atlas, the colouring fewest people
+    // in the same look wear (the look's own counts as one choice). Nothing when no alternates are allowed.
+    private void DealPalette()
+    {
+        activePalette = -1;
+        if (instance == null || string.IsNullOrEmpty(paletteBase) || paletteAlternates == null || paletteAlternates.Length == 0) return;
+        bool drawnWithBase = false;
+        foreach (SkinnedMeshRenderer part in visibleParts)
+            if (part != null && Array.Exists(part.sharedMaterials, m => m != null && m.name == paletteBase)) { drawnWithBase = true; break; }
+        if (!drawnWithBase) return;
+        var worn = new int[paletteAlternates.Length + 1];   // [0] the look's own colouring, [i + 1] alternate i
+        foreach (PolygonNpcVisual other in everyone)
+            if (other != null && other != this && other.instance != null && other.InTheCafe && other.activeLookName == activeLookName)
+                worn[Mathf.Clamp(other.activePalette + 1, 0, worn.Length - 1)]++;
+        int pick = -1, fewest = int.MaxValue, ties = 0;
+        for (int i = 0; i < worn.Length; i++)
+        {
+            if (i > 0 && paletteAlternates[i - 1] == null) continue;
+            if (worn[i] < fewest) { fewest = worn[i]; pick = i; ties = 1; }
+            else if (worn[i] == fewest && UnityEngine.Random.Range(0, ++ties) == 0) pick = i;
+        }
+        if (pick <= 0) return;
+        Material alternate = paletteAlternates[pick - 1];
+        foreach (SkinnedMeshRenderer part in visibleParts)
+        {
+            if (part == null) continue;
+            Material[] materials = part.sharedMaterials;
+            bool changed = false;
+            for (int m = 0; m < materials.Length; m++)
+                if (materials[m] != null && materials[m].name == paletteBase) { materials[m] = alternate; changed = true; }
+            if (changed) part.sharedMaterials = materials;
+        }
+        activePalette = pick - 1;
     }
 
     // A regular's own stand-in look in this list (CustomerProfile.StandInLook), or -1.
@@ -308,6 +492,8 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         }
         else sourceAnimator = null;
         ActiveAppearance = index;
+        activeLookName = appearancePrefabs[index].name;   // worn from this moment (the dealing counts it)
+        activePalette = -1;
         Follow();
         return true;
     }
@@ -677,6 +863,8 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         fingerSource = fingerTarget = Array.Empty<Transform>();
         fingerSourceBind = fingerTargetBind = Array.Empty<Quaternion>();
         ActiveAppearance = -1;
+        activeLookName = "";
+        activePalette = -1;
     }
 
     private void OnDestroy() => RemoveAppearance();
@@ -714,15 +902,5 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         }
         // Hips, spine, arms and legs must all be present for a faithful copy.
         return found == names.Length;
-    }
-
-    private static uint StableHash(string value)
-    {
-        unchecked
-        {
-            uint hash = 2166136261;
-            foreach (char c in value) hash = (hash ^ c) * 16777619;
-            return hash;
-        }
     }
 }

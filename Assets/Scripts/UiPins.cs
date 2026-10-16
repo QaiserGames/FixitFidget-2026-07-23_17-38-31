@@ -397,7 +397,7 @@ public sealed class UiPins : MonoBehaviour
         float dt = UiClock.Delta;
         PlaceBars(scale);
         PlacePin(focus, scale, dt, false);
-        PlacePin(guide, scale, dt, SameAsFocus());
+        PlacePin(guide, scale, dt, SameAsFocus() || OnFocusOnScreen(scale));
         PlacePin(self, scale, dt, false);
     }
 
@@ -438,6 +438,22 @@ public sealed class UiPins : MonoBehaviour
         if (focus == null || guide == null || !focus.wanted || !guide.wanted || !focus.placed) return false;
         if (guide.who != null) return guide.who == focus.who;
         return focus.who == null && (focus.point - guide.point).sqrMagnitude < .36f;
+    }
+
+    // ...or where it would be drawn on the name, whatever the two are over (15 Oct, the Day 1 guide's photo: the camera set down
+    // on the bench, its name and the green "Repair bench" lay on each other from above and read "Grace's Repair bench camera";
+    // the bench's point and the camera's are further apart than SameAsFocus's 0.6 m, mostly in height). The name says what E
+    // acts on there, and the card says where: the green pin gives way.
+    bool OnFocusOnScreen(float scale)
+    {
+        if (focus == null || guide == null || !focus.wanted || !guide.wanted || !focus.placed || cam == null) return false;
+        Vector3 s = cam.WorldToScreenPoint(guide.who != null ? Barks.HeadPointOf(guide.who) : guide.point);
+        if (s.z <= 0f) return false;
+        Vector2 size = guide.root.sizeDelta * scale;
+        var mine = new Rect(s.x - size.x * .5f, s.y + PinGap * scale, size.x, size.y);
+        Rect theirs = focus.onScreen;
+        float m = 6f * scale;
+        return mine.xMin < theirs.xMax + m && mine.xMax > theirs.xMin - m && mine.yMin < theirs.yMax + m && mine.yMax > theirs.yMin - m;
     }
 
     void PlaceBars(float scale)

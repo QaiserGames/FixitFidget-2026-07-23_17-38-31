@@ -159,13 +159,15 @@ public class StationInteractable : Interactable
         isWorkSurface = false; dropSpot = null;
     }
 
-    // Only offered to Interact when we're carrying something to put down.
+    // Only offered to Interact when we're carrying something to put down. UI/UX §5.7 (First Hour #4): while the Day 1 card
+    // tells Ace to carry this job to the repair bench, the counter's tray isn't offered for it, so the card and E agree
+    // (after the pickup the line shows only "In hand ..."). One rule, DropInteractable's (the Producer's call 22).
     public override bool IsAvailable
     {
         get
         {
             PlayerCarry c = PlayerCarry.Current;
-            return c != null && c.IsCarrying && dropSpot != null;
+            return c != null && c.IsCarrying && dropSpot != null && DropInteractable.Takes(dropSpot, c.Carried);
         }
     }
 
@@ -175,9 +177,9 @@ public class StationInteractable : Interactable
         {
             PlayerCarry c = PlayerCarry.Current;
             if (c == null || !c.IsCarrying || dropSpot == null) return "";
-            if (!dropSpot.CanAccept(c.Carried)) return "No room here";
-            // The intake tray: "Return item" read like giving it back to its owner (DropInteractable).
-            return dropSpot.Kind == DropSpot.SpotKind.Counter ? DropInteractable.IntakeTrayWords : "Set down";
+            // The intake tray: "Return item" read like giving it back to its owner; "Put it back" for a device lifted from it;
+            // nothing on Day 1's carry step (DropInteractable, checklist v2 §5.7). The bench: "Set down"; full: "No room here".
+            return DropInteractable.TrayWords(dropSpot, c.Carried);
         }
     }
 
@@ -186,7 +188,7 @@ public class StationInteractable : Interactable
     public override void Interact(PlayerInteractor player)
     {
         PlayerCarry c = player.GetComponent<PlayerCarry>();
-        if (c == null || !c.IsCarrying || dropSpot == null) return;
+        if (c == null || !c.IsCarrying || dropSpot == null || !DropInteractable.Takes(dropSpot, c.Carried)) return;
 
         Transform point = dropSpot.ResolvePoint(c.Carried);
         if (point == null) return;      // full — the prompt already said so

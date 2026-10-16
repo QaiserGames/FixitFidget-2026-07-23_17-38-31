@@ -107,6 +107,10 @@ public class CustomerSpawner : MonoBehaviour
         "Marisol", "Deshawn", "Priya", "Tomas", "Ingrid", "Kenji",
         "Rosa", "Abdi", "Nina", "Walter", "Yuki", "Leandro"
     };
+    [Tooltip("Beside First Names, one per name: the body that name walks in wearing (Any, Woman, Man). His sister's to " +
+             "correct with the names; a missing entry is Any. NPC wave 2 (14 Oct 2026): a man's name no longer walks in " +
+             "wearing a woman's body. Filled by Fixit Fidget > NPC > Wave 2 3.")]
+    [SerializeField] private PolygonNpcVisual.NameSex[] firstNameSexes = System.Array.Empty<PolygonNpcVisual.NameSex>();
 
     [Header("Regulars")]
     [SerializeField] private CustomerProfile[] regulars;
@@ -152,6 +156,9 @@ public class CustomerSpawner : MonoBehaviour
     private const float WordVisitorArrivesAt = .3f;
     private const float FirstThingWaitsAtMost = 60f;
     private readonly CustomerVisitRoster roster = new();
+    // Days 1-3 (14 Oct 2026, specs/days-1-3.md §6): how many of today's authored walk-in repairs (DayDefinition.walkInRepairs)
+    // have walked in. Reset each morning; never saved (a day's jobs end with the day).
+    private int walkInRepairsUsed;
 
     // Playtest 4: the walk in, learned from the people who make it (spawned -> at the counter, seconds), kept across the
     // session's days; -1 until the first one arrives. Who is still on the way, and when they set off.
@@ -312,6 +319,7 @@ public class CustomerSpawner : MonoBehaviour
             storySpawned = today != null ? new bool[today.StoryVisitsOn(lastSeenDay).Length] : System.Array.Empty<bool>();
             wordVisitor = ResolveWordVisitor(lastSeenDay);
             wordVisitorSpawned = false;
+            walkInRepairsUsed = 0;
             firstThing = null;
             openingCustomer = null;
             openingDrink = ResolveOpeningDrink();
@@ -705,6 +713,8 @@ public class CustomerSpawner : MonoBehaviour
                         if (visit != null && visit.who != null) reserved.Add(visit.who.characterName);
             }
         roster.Reset(firstNames, reserved);
+        // Which body each name walks in wearing (NPC wave 2): PolygonNpcVisual deals named walk-ins their name's looks.
+        PolygonNpcVisual.RegisterNameSexes(firstNames, firstNameSexes);
     }
 
     private CustomerProfile PickAvailableRegular()
@@ -811,6 +821,17 @@ public class CustomerSpawner : MonoBehaviour
 
         if (forcedKind.HasValue) wantsDrink = forcedKind.Value == JobKind.Drink;
 
+        // DAYS 1-3 (14 Oct 2026, specs/days-1-3.md §6; the Producer's call 8). On a day with authored walk-in repairs a
+        // walk-in who brings a device brings the next one in order, so nobody walks in with a job the game hasn't taught yet
+        // (playtest 5: a random roll gave Day 2 Walter's seized watch, and Grace and Walter both stormed out). Once they are
+        // used up, walk-ins come for drinks. Named visits keep their own reasons (above).
+        if (!wantsDrink && profile == null)
+        {
+            Job listed = NextWalkInRepair(out bool authored);
+            if (listed != null) return listed;
+            if (authored && hasDrinks && forcedKind != JobKind.Repair) wantsDrink = true;
+        }
+
         if (wantsDrink)
         {
             DrinkDefinition d = forcedKind == JobKind.Drink ? openingDrink
@@ -859,5 +880,26 @@ public class CustomerSpawner : MonoBehaviour
         }
 
         return job;
+    }
+
+    /// <summary>How many of today's authored walk-in repairs have walked in so far (reports and the Days 1-3 checks).</summary>
+    public int WalkInRepairsUsed => walkInRepairsUsed;
+
+    // Today's next authored walk-in repair (DayDefinition.walkInRepairs), or null: none are authored today (authored false),
+    // or they are all used. An entry that can't make a job (no prefab, a fault index past the end) is skipped, loudly: the
+    // Days 1-3 check (Fixit Fidget > Checks > Days 1-3) fails on it first.
+    private Job NextWalkInRepair(out bool authored)
+    {
+        FeaturedRepairRequest[] list = today != null ? today.WalkInRepairsOn(lastSeenDay) : System.Array.Empty<FeaturedRepairRequest>();
+        authored = list.Length > 0;
+        while (walkInRepairsUsed < list.Length)
+        {
+            FeaturedRepairRequest entry = list[walkInRepairsUsed];
+            walkInRepairsUsed++;
+            string error = "the entry is empty";
+            if (entry != null && entry.TryCreateJob(out Job job, out error)) return job;
+            Debug.LogWarning($"{today.name}: walk-in repair {walkInRepairsUsed} of {list.Length} is invalid ({error}); skipped.", today);
+        }
+        return null;
     }
 }

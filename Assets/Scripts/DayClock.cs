@@ -25,7 +25,11 @@ public class DayClock : MonoBehaviour
 {
     public static DayClock Instance { get; private set; }
 
-    [SerializeField] private float dayLengthSeconds = 180f;   // 3 min for testing, 7 for ship
+    // 7 minutes, every day (14 Oct 2026, specs/days-1-3.md §7; was 180 s, "3 min for testing, 7 for ship"). Playtest 5: "i stayed
+    // all day on the repair" was three minutes; at 420 s the first repair is about a sixth of Day 1. The scene holds its own
+    // value (a new default never reaches it): Fixit Fidget > Days > Days 1 - The day: 420 s (scene) sets it. Several labs read
+    // this field by name (reflection): keep the name.
+    [SerializeField] private float dayLengthSeconds = 420f;
     [SerializeField] private int startingDay = 1;
 
     [Header("Cafe opening hours")]
@@ -50,6 +54,9 @@ public class DayClock : MonoBehaviour
 
     public int Day { get; private set; }
     public float TimeRemaining { get; private set; }
+
+    /// <summary>How long a day lasts in real seconds (the scene's value: 420 since 14 Oct). Read-only; checks and reports.</summary>
+    public float DayLengthSeconds => dayLengthSeconds;
 
     public float OpeningHour => Mathf.Clamp(openingHour, 0f, 23f);
     public float ClosingHour => Mathf.Clamp(closingHour, OpeningHour + 1f, 24f);

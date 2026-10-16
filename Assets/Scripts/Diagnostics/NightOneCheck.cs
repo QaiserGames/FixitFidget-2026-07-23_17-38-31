@@ -281,8 +281,10 @@ public sealed class NightOneCheck : MonoBehaviour
         Check(Vector3.Distance(Flat(movement.transform.position), Flat(home)) < .6f, $"Ace starts Day {morning} back where the day starts");
         CustomerSpawner spawner = FindAnyObjectByType<CustomerSpawner>();
         bool asMorningVisitor = spawner != null && spawner.MorningVisitor != null && spawner.MorningVisitor.PersistentId == Grace;
+        bool asFeatured = spawner != null && spawner.Today != null && spawner.Today.featuredRegular != null
+                          && spawner.Today.featuredRegular.PersistentId == Grace;
         if (recapDay == 2)
-            Check(asMorningVisitor || FindGrace() != null, "Grace is due first thing, as the morning's visitor (Day 3 has no featured regular)");
+            Check(asMorningVisitor || asFeatured || FindGrace() != null, "Grace is due first thing (Day 3's featured regular since 14 Oct)");
         else Note(asMorningVisitor ? "Grace is due as the morning's visitor" : "Grace is due as Day 2's featured regular");
         Check(shelf.Showing == 1, "Barnaby is on the shelf by day");
         Check(gnome.visual != null && !gnome.visual.activeSelf, "and not back on Grace's step");
@@ -383,9 +385,8 @@ public sealed class NightOneCheck : MonoBehaviour
         if (morning == 2)
         {
             // The dialogue pass: she asks for what she came in for first; the photo's news waits until it's taken.
-            Check(Line().IndexOf("latte", StringComparison.OrdinalIgnoreCase) >= 0 && !Line().Contains("{")
-                  && Line().IndexOf("reunion", StringComparison.OrdinalIgnoreCase) < 0,
-                $"her usual Day 2 visit follows: her latte first, in her own words (\"{Short(Line())}\")");
+            Check(Line().IndexOf("shutter", StringComparison.OrdinalIgnoreCase) >= 0 && !Line().Contains("{"),
+                $"her Day 2 visit follows: her camera's shutter, in her own words (\"{Short(Line())}\")");
         }
         else
         {
@@ -394,9 +395,9 @@ public sealed class NightOneCheck : MonoBehaviour
             Check(Line().IndexOf("latte", StringComparison.OrdinalIgnoreCase) >= 0 && !Line().Contains("broken") && !Line().Contains("{"),
                 $"…her latte, ordered in her own words, not a repair (\"{Short(Line())}\")");
         }
-        yield return Until(() => conversation.ReplyTexts.Contains(AceReplies.TakeDrink), 12f,
-            $"Ace's replies come up once she has said it: \"{AceReplies.TakeDrink}\" (a drink, not a job)");
-        Check(conversation.Highlighted == 0 && conversation.ReplyTexts.Count > 0 && conversation.ReplyTexts[0] == AceReplies.TakeDrink,
+        string take = morning == 2 ? AceReplies.TakeRepair : AceReplies.TakeDrink;   // Day 2 brings the camera (14 Oct)
+        yield return Until(() => conversation.ReplyTexts.Contains(take), 12f, $"Ace's replies come up once she has said it: \"{take}\"");
+        Check(conversation.Highlighted == 0 && conversation.ReplyTexts.Count > 0 && conversation.ReplyTexts[0] == take,
             $"taking it is highlighted first, so E, E still takes it ({Options()})");
         Check(!StraightFaceUI.Showing, "the meter is put away");
         yield return Seconds(1.2f);
@@ -405,20 +406,12 @@ public sealed class NightOneCheck : MonoBehaviour
         {
             // Taking her order: the photo's news and the print (a Good repair made a clear photo), then a line
             // on screen once the conversation closes, never a narrator in the speech panel.
-            conversation.ChooseReply(0);   // what E on "Coming right up." does
+            conversation.ChooseReply(0);   // "I'll take a look."
             yield return null;
-            string news = GraceCameraEpisode.ReturnNews(GracePhotoOutcome.Clear);
-            Check(conversation.Closing && conversation.CurrentLine == news,
-                $"once her order is taken she tells Ace about the photo and gives the print (\"{Short(conversation.CurrentLine)}\")");
-            Check(saves.Notebook.Knows("grace.reunion.photo"), "the notebook has the photo");
-            yield return Seconds(2.5f);
-            yield return Photo("11-the-photo-after-the-order");
-            yield return Until(() => !conversation.InConversation, 25f, "the conversation closes by itself once she has said it");
-            yield return Seconds(.4f);
-            string note = NoteShowing();
-            Check(note == GraceCameraEpisode.HandoffLine(GracePhotoOutcome.Clear), $"a line on screen says what happened (\"{note}\")");
-            Check(NoteClearOfPrompt(), "…above the prompt at the bottom of the screen, never on it");
-            yield return Photo("12-the-print-left-for-the-shop");
+            Check(conversation.CurrentLine == GraceCameraEpisode.ShutterAcceptedLine,
+                $"taking the camera, her Day 2 thanks; the photo's news waits for Day 3 (\"{Short(conversation.CurrentLine)}\")");
+            Check(!saves.Notebook.Knows("grace.reunion.photo"), "no photo in the notebook yet");
+            yield return Until(() => !conversation.InConversation, 25f, "the conversation closes");
         }
         report.AppendLine();
         report.AppendLine("The night's ledger now: " + JsonUtility.ToJson(ledger.Snapshot()));

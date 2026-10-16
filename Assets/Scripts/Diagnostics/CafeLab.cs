@@ -221,7 +221,10 @@ public sealed class CafeLabDirector : MonoBehaviour
                 hearAt.Remove(c);
                 nextConversationAllowed = now + Range(betweenConversations);
                 c.HearIntake();
-                bool decline = UnityEngine.Random.value < declineShare || !c.CanAcceptJob;
+                // A regular's visit (Grace, the Officer: the days' story) is never declined at random: a player turns away a
+                // walk-in, not the story (15 Oct: Day 2's lab declined Grace on her return morning, so its Grace bar read "never").
+                bool regular = c.Identity != null && c.Identity.IsRegular;
+                bool decline = !regular && UnityEngine.Random.value < declineShare || !c.CanAcceptJob;
                 if (decline)
                 {
                     c.RefuseJob();

@@ -267,6 +267,16 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
+        // AT THE BENCH, NO PROMPT LINE (checklist v2, 14 Oct 2026; his playtest 5: "the checklist is terrible"). Its 36 px
+        // "[E] Pick up item and step back" was the largest words on the first repair's screen, and its "Clean: lens, film
+        // path ..." said the job a third time. The bench's card carries the way out once the job is fixed ("[E] Take it to
+        // Grace"), and the controls card or "[Tab] Help" the rest (BenchCards).
+        if (inspector != null && inspector.IsHoldingItem)
+        {
+            ClearPrompt();
+            return;
+        }
+
         string interact = interactor.CurrentPrompt;
         // The second verb, on a click or RT (a device on the bench in first person: "Work on it"). There is no station
         // to step up to by day any more (playtest 3), so F has no line.

@@ -74,6 +74,7 @@ public static class PadInput
         SwitchedAtFrame = -1;
         trackedFrame = -1;
         lastActive = null;
+        rumbling = null;
     }
 
     // One small helper object per play session drives the tracking and the
@@ -175,6 +176,30 @@ public static class PadInput
             case PadButton.DpadLeft: return pad.dpad.left;
             default: return pad.dpad.right;
         }
+    }
+
+    // ---------- the rumble (the forgiving bench, 14 Oct 2026; systems-forgiving-bench.md §4.4.3) ----------
+
+    private static Gamepad rumbling;
+
+    /// <summary>
+    /// The pad's two motors (0-1 each: the low, heavy one and the high, buzzy one) on the pad in hand, until StopRumble or the next
+    /// call. BenchFeel drives it (the rub, the bench's pulses) and checks GameSettings.Vibration first.
+    /// </summary>
+    public static void Rumble(float low, float high)
+    {
+        Gamepad pad = Pad;
+        if (pad == null) return;
+        if (rumbling != null && rumbling != pad && rumbling.added) rumbling.SetMotorSpeeds(0f, 0f);
+        pad.SetMotorSpeeds(Mathf.Clamp01(low), Mathf.Clamp01(high));
+        rumbling = pad;
+    }
+
+    /// <summary>Both motors off (a release, the pause, focus lost, the close-up's end, the setting off).</summary>
+    public static void StopRumble()
+    {
+        if (rumbling != null && rumbling.added) rumbling.SetMotorSpeeds(0f, 0f);
+        rumbling = null;
     }
 
     // ---------- sticks and triggers ----------

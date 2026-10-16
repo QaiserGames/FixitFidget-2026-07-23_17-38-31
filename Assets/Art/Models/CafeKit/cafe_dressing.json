@@ -1,0 +1,667 @@
+{
+ "version": 1,
+ "kit": "cafe_dressing",
+ "note": "Built by Tools/Blender/cafe_repairside.py and cafe_cafeside.py (Art's B3, specs/art-bench-and-cafe.md). Unity (x, y, z) = Blender (-x, z, -y) inside a piece. Every placement is in Unity world space with rotation (0, 180, 0) (S1: 192) as cafe_bar.json's pieces: the fronts face the room (-z). A y of 0 means the floor's top: find it by a ray down. Every word on LI_Tags, LI_Whiteboard, LI_Mortgage and LI_FinalNotice is PLACEHOLDER COPY for Content; the lender is fictional. None of these pieces has a collider or a hover: decor (his decision 9); R1 holds no phones, watches or cameras (they'd read as jobs).",
+ "pieces": [
+  {
+   "name": "LI_PickupRow",
+   "group": "Repair side",
+   "what": "R1: seven finished repairs waiting for pickup, bagged and tagged; the cherry-red radio the accent",
+   "tris": 1840,
+   "size": [
+    2.83,
+    0.325,
+    0.247
+   ],
+   "bottom": 0.0,
+   "back": 0.09,
+   "materials": [
+    "LI_RadioRed",
+    "DC_SteelDark",
+    "LI_PaperWhite",
+    "CF_Black",
+    "CF_Manila",
+    "DC_Chalk",
+    "CF_Kraft",
+    "DC_Steel",
+    "LI_ZipBag",
+    "LI_RecycleBlue",
+    "LI_Plastic",
+    "DC_Sticker_Green",
+    "LI_Tape"
+   ],
+   "islands": 40,
+   "origin": "bottom centre",
+   "placement": {
+    "position": [
+     -5.65,
+     1.0,
+     17.25
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "CK_BackBar's top in front of CK_PartsWall: x -7.20..-4.10, z 17.10-17.40"
+   },
+   "collider": null,
+   "textured_faces": {
+    "CF_Manila": 7
+   }
+  },
+  {
+   "name": "LI_DeskCorner",
+   "group": "Repair side",
+   "what": "R2: Ace's desk corner: parts cabinet, spool rack, multimeter, ticket pad, post-its, tape, steel rule, his green mug",
+   "tris": 2988,
+   "size": [
+    1.22,
+    0.222,
+    0.54
+   ],
+   "bottom": 0.0,
+   "back": 0.27,
+   "materials": [
+    "LI_EsdGrey",
+    "LI_Plastic",
+    "LI_ZipBag",
+    "CF_Black",
+    "DC_Steel",
+    "LI_WireRed",
+    "LI_WireGreen",
+    "LI_Yellow",
+    "DC_SteelDark",
+    "LI_PaperWhite",
+    "LI_PostItPink",
+    "LI_PostItYellow",
+    "LI_Tape",
+    "DC_Sticker_Green"
+   ],
+   "islands": 47,
+   "origin": "bottom centre (the bench top)",
+   "placement": {
+    "position": [
+     -3.775,
+     1.005,
+     14.08
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "CK_RepairBench's top east of the stage: x -4.40..-3.15, z 13.78-14.38; two post-its on the glass screen's Ace side (world z 13.681, 1.25 m up), between the posts at x -4.30 and -3.47"
+   },
+   "collider": null,
+   "textured_faces": {}
+  },
+  {
+   "name": "LI_GlassNotes",
+   "group": "Repair side",
+   "what": "R2's two post-its on the glass screen's Ace side (yellow, the pink one over its corner)",
+   "tris": 24,
+   "size": [
+    0.141,
+    0.086,
+    0.001
+   ],
+   "bottom": 0.0,
+   "back": 0.001,
+   "materials": [
+    "LI_PostItYellow",
+    "LI_PostItPink"
+   ],
+   "islands": 2,
+   "origin": "bottom centre of the back",
+   "placement": {
+    "position": [
+     -4.05,
+     1.215,
+     13.681
+    ],
+    "rotation": [
+     0,
+     0,
+     0
+    ],
+    "on": "CK_RepairBench's glass screen, Ace's side (its +z face at world z 13.6795; the notes' backs 1.5 mm behind it), between the posts at x -4.30 and -3.47, their middle 1.25 m up; facing Ace (+z), so rotation 0, not 180"
+   },
+   "collider": null,
+   "textured_faces": {}
+  },
+  {
+   "name": "LI_DonorParts",
+   "group": "Repair side",
+   "what": "R3: under-bench donor parts: a grey tote heaped with old parts and cable, two stacked open-front bins",
+   "tris": 866,
+   "size": [
+    0.612,
+    0.255,
+    0.3
+   ],
+   "bottom": 0.0,
+   "back": 0.15,
+   "materials": [
+    "LI_Plastic",
+    "CF_Black",
+    "LI_RadioRed",
+    "DC_Chalk",
+    "DC_SteelDark",
+    "LI_RecycleBlue",
+    "T2_Brass",
+    "LI_BinRed",
+    "DC_Steel"
+   ],
+   "islands": 25,
+   "origin": "bottom centre",
+   "placement": {
+    "position": [
+     -3.375,
+     0.0,
+     13.88
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "the floor in CK_RepairBench's knee space at its east end (y 0 = the floor's top: find it by a ray down)"
+   },
+   "collider": null,
+   "textured_faces": {}
+  },
+  {
+   "name": "LI_Whiteboard",
+   "group": "Repair side",
+   "what": "R4: \"this week\" whiteboard 0.90 x 0.60, black frame, marker notes, magnets, two post-its, a clipped invoice",
+   "tris": 524,
+   "size": [
+    0.9,
+    0.6,
+    0.045
+   ],
+   "bottom": 0.0,
+   "back": 0.0,
+   "materials": [
+    "DC_Steel",
+    "CF_Black",
+    "CF_Whiteboard",
+    "LI_RecycleBlue",
+    "LI_BinRed",
+    "LI_WireGreen",
+    "LI_PostItYellow",
+    "LI_PostItPink",
+    "LI_PaperWhite",
+    "DC_SteelDark"
+   ],
+   "islands": 14,
+   "origin": "bottom centre of its back",
+   "placement": {
+    "position": [
+     -5.6,
+     1.92,
+     17.99
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "the back wall over CK_PartsWall, its face to the room"
+   },
+   "collider": null,
+   "textured_faces": {
+    "CF_Whiteboard": 1
+   }
+  },
+  {
+   "name": "LI_PartsDelivery",
+   "group": "Repair side",
+   "what": "R5: a half-open shipping box with tape, slip and bubble wrap, two small parts boxes",
+   "tris": 460,
+   "size": [
+    0.638,
+    0.347,
+    0.627
+   ],
+   "bottom": 0.0,
+   "back": 0.314,
+   "materials": [
+    "CF_Kraft",
+    "LI_PaperWhite",
+    "LI_BubbleWrap",
+    "LI_TapeBrown"
+   ],
+   "islands": 17,
+   "origin": "bottom centre",
+   "placement": {
+    "position": [
+     -6.6,
+     1.095,
+     13.95
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "CK_FrontCounter's west end top, Ace's half"
+   },
+   "collider": null,
+   "textured_faces": {}
+  },
+  {
+   "name": "LI_MortgageLetter",
+   "group": "Story",
+   "what": "S1: the mortgage statement, opened and flattened, the overdue line circled in red (texture)",
+   "tris": 28,
+   "size": [
+    0.216,
+    0.003,
+    0.279
+   ],
+   "bottom": 0.0,
+   "back": 0.14,
+   "materials": [
+    "LI_Mortgage"
+   ],
+   "islands": 1,
+   "origin": "bottom centre",
+   "placement": {
+    "position": [
+     0.3,
+     1.0955,
+     14.15
+    ],
+    "rotation": [
+     0,
+     192,
+     0
+    ],
+    "on": "under 'Register v4''s corner on Ace's side, flat on the counter (its far third under the till)"
+   },
+   "collider": null,
+   "textured_faces": {
+    "LI_Mortgage": 3
+   }
+  },
+  {
+   "name": "LI_FinalNotice",
+   "group": "Story",
+   "what": "S2: the FINAL NOTICE taped up by two corners, its stamped envelope pinned beside it (texture)",
+   "tris": 92,
+   "size": [
+    0.385,
+    0.34,
+    0.009
+   ],
+   "bottom": 0.0,
+   "back": -0.0,
+   "materials": [
+    "LI_FinalNotice",
+    "LI_Tape",
+    "CF_PinRed"
+   ],
+   "islands": 5,
+   "origin": "bottom centre of its back",
+   "placement": {
+    "position": [
+     6.63,
+     1.36,
+     17.94
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "inside the back door at 1.50 m (the page's middle); a child of the door leaf if it swings (unverified); never rename the door (Night 0 finds it by name)"
+   },
+   "collider": null,
+   "textured_faces": {
+    "LI_FinalNotice": 2
+   }
+  },
+  {
+   "name": "LI_SyrupRack",
+   "group": "Caf\u00e9 side",
+   "what": "C1: syrup rack, six bottles with white and black pumps (caramel, vanilla, hazelnut, chocolate, raspberry, sugar-free)",
+   "tris": 1872,
+   "size": [
+    0.5,
+    0.405,
+    0.1
+   ],
+   "bottom": 0.0,
+   "back": 0.05,
+   "materials": [
+    "CF_Black",
+    "LI_SyrupCaramel",
+    "LI_PaperWhite",
+    "DC_Chalk",
+    "DC_Steel",
+    "LI_SyrupVanilla",
+    "LI_SyrupHazelnut",
+    "LI_SyrupChocolate",
+    "LI_SyrupRaspberry",
+    "LI_SyrupSugarFree"
+   ],
+   "islands": 37,
+   "origin": "bottom centre",
+   "placement": {
+    "position": [
+     1.9,
+     1.0,
+     17.85
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "CK_BackBar's top at the dispenser bay's west end against the tile, x 1.65-2.15; switch off the three Synty 'Drinks - Bottle_01..03' there (x 1.74-2.06), recorded"
+   },
+   "collider": null,
+   "textured_faces": {}
+  },
+  {
+   "name": "LI_CupStation",
+   "group": "Caf\u00e9 side",
+   "what": "C2: three-tube to-go cup dispenser, three-bay lid organiser, green-banded kraft sleeves, steel milk pitcher",
+   "tris": 1460,
+   "size": [
+    0.692,
+    0.52,
+    0.246
+   ],
+   "bottom": 0.0,
+   "back": 0.144,
+   "materials": [
+    "CF_Black",
+    "LI_CupPaper",
+    "DC_Chalk",
+    "CF_Kraft",
+    "DC_Sticker_Green",
+    "DC_Steel"
+   ],
+   "islands": 21,
+   "origin": "bottom centre",
+   "placement": {
+    "position": [
+     0.7,
+     1.0,
+     17.8
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "CK_BackBar's top behind the till, against the tile, x 0.35-1.05"
+   },
+   "collider": null,
+   "textured_faces": {}
+  },
+  {
+   "name": "LI_BarMat",
+   "group": "Caf\u00e9 side",
+   "what": "C3: black ribbed bar mat 0.60 x 0.30, eight cream mugs upside down, a 0.25 m mug tree with four green mugs, two stacks of saucers",
+   "tris": 3382,
+   "size": [
+    0.752,
+    0.271,
+    0.3
+   ],
+   "bottom": 0.0,
+   "back": 0.15,
+   "materials": [
+    "LI_Rubber",
+    "DC_Ceramic",
+    "CF_Black",
+    "LI_MugGreen"
+   ],
+   "islands": 51,
+   "origin": "bottom centre",
+   "placement": {
+    "position": [
+     -0.5,
+     1.0,
+     17.75
+    ],
+    "rotation": [
+     0,
+     180,
+     0
+    ],
+    "on": "CK_BackBar's top under CK_MenuBoard, x -0.80..-0.20 (the saucers stand just east of the mat, to x -0.04)"
+   },
+   "collider": null,
+   "textured_faces": {}
+  }
+ ],
+ "materials": {
+  "CF_Manila": {
+   "hex": "E8D9A8",
+   "smoothness": 0.1,
+   "metallic": 0.0,
+   "why": "the repair tags' manila card; names handwritten (atlas)",
+   "texture": "Assets/Art/Textures/Cafe/LI_Tags.png"
+  },
+  "CF_Whiteboard": {
+   "hex": "F4F3EF",
+   "smoothness": 0.55,
+   "metallic": 0.0,
+   "why": "the whiteboard's face with this week's marker notes",
+   "texture": "Assets/Art/Textures/Cafe/LI_Whiteboard.png"
+  },
+  "LI_Mortgage": {
+   "hex": "F4F1EA",
+   "smoothness": 0.05,
+   "metallic": 0.0,
+   "why": "the mortgage statement's page, the overdue line circled",
+   "texture": "Assets/Art/Textures/Cafe/LI_Mortgage.png"
+  },
+  "LI_FinalNotice": {
+   "hex": "F4F1EA",
+   "smoothness": 0.05,
+   "metallic": 0.0,
+   "why": "the final notice's page and its envelope (one atlas)",
+   "texture": "Assets/Art/Textures/Cafe/LI_FinalNotice.png"
+  },
+  "LI_RadioRed": {
+   "hex": "8E2F2A",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "the table radio's muted cherry red: the pickup row's one accent"
+  },
+  "LI_PaperWhite": {
+   "hex": "ECE8DE",
+   "smoothness": 0.06,
+   "metallic": 0.0,
+   "why": "white paper bags and wrapping"
+  },
+  "LI_ZipBag": {
+   "hex": "D5DEE0",
+   "smoothness": 0.7,
+   "metallic": 0.0,
+   "why": "a clear zip bag seen as a cool pale sheen"
+  },
+  "LI_Plastic": {
+   "hex": "5E5A55",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "grey plastic: the controller, the router, the tote, the remote"
+  },
+  "LI_Yellow": {
+   "hex": "E2B33C",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "the multimeter's yellow holster"
+  },
+  "LI_PostItYellow": {
+   "hex": "F5D76E",
+   "smoothness": 0.1,
+   "metallic": 0.0,
+   "why": "a yellow post-it pad and notes"
+  },
+  "LI_PostItPink": {
+   "hex": "F2A7B8",
+   "smoothness": 0.1,
+   "metallic": 0.0,
+   "why": "a pink post-it"
+  },
+  "LI_Tape": {
+   "hex": "E6D3A3",
+   "smoothness": 0.2,
+   "metallic": 0.0,
+   "why": "masking tape"
+  },
+  "LI_TapeBrown": {
+   "hex": "9C6B3A",
+   "smoothness": 0.4,
+   "metallic": 0.0,
+   "why": "brown packing tape"
+  },
+  "LI_WireRed": {
+   "hex": "A8332B",
+   "smoothness": 0.4,
+   "metallic": 0.0,
+   "why": "red hook-up wire, the red probe lead"
+  },
+  "LI_WireGreen": {
+   "hex": "3F7A3A",
+   "smoothness": 0.4,
+   "metallic": 0.0,
+   "why": "green hook-up wire (a grass green, not Ace's)"
+  },
+  "LI_BinRed": {
+   "hex": "A33A2E",
+   "smoothness": 0.35,
+   "metallic": 0.0,
+   "why": "the red open-front parts bin"
+  },
+  "LI_BubbleWrap": {
+   "hex": "DCE4E6",
+   "smoothness": 0.6,
+   "metallic": 0.0,
+   "why": "bubble wrap"
+  },
+  "LI_EsdGrey": {
+   "hex": "4A4F55",
+   "smoothness": 0.2,
+   "metallic": 0.0,
+   "why": "the grey anti-static pad under Ace's desk corner (the cluster's base from above)"
+  },
+  "LI_SyrupCaramel": {
+   "hex": "B4782E",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "a syrup bottle (glass and syrup seen as one colour): caramel"
+  },
+  "LI_SyrupVanilla": {
+   "hex": "E3CF9A",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "a syrup bottle (glass and syrup seen as one colour): vanilla"
+  },
+  "LI_SyrupHazelnut": {
+   "hex": "7A4A28",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "a syrup bottle (glass and syrup seen as one colour): hazelnut"
+  },
+  "LI_SyrupChocolate": {
+   "hex": "3E2A1E",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "a syrup bottle (glass and syrup seen as one colour): chocolate"
+  },
+  "LI_SyrupRaspberry": {
+   "hex": "8E2A3A",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "a syrup bottle (glass and syrup seen as one colour): raspberry"
+  },
+  "LI_SyrupSugarFree": {
+   "hex": "D9D3C4",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "a syrup bottle (glass and syrup seen as one colour): sugarfree"
+  },
+  "LI_Rubber": {
+   "hex": "232120",
+   "smoothness": 0.22,
+   "metallic": 0.0,
+   "why": "the bar mat's black ribbed rubber (the till mat's smoothness)"
+  },
+  "LI_MugGreen": {
+   "hex": "2E7D5B",
+   "smoothness": 0.6,
+   "metallic": 0.0,
+   "why": "glazed mugs in Ace's green on the mug tree (the style guide: the green lives on cups)"
+  }
+ },
+ "existing_materials": {
+  "CF_Kraft": {
+   "hex": "B08A5E",
+   "smoothness": 0.15,
+   "metallic": 0.0
+  },
+  "CF_Black": {
+   "hex": "2B2724",
+   "smoothness": 0.35,
+   "metallic": 0.0
+  },
+  "DC_Steel": {
+   "hex": "93908A",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "DC_SteelDark": {
+   "hex": "4E4B47",
+   "smoothness": 0.5,
+   "metallic": 0.0
+  },
+  "DC_Chalk": {
+   "hex": "E8E4D8",
+   "smoothness": 0.05,
+   "metallic": 0.0
+  },
+  "DC_Ceramic": {
+   "hex": "F2EFE8",
+   "smoothness": 0.6,
+   "metallic": 0.0
+  },
+  "DC_Sticker_Green": {
+   "hex": "2E7D5B",
+   "smoothness": 0.45,
+   "metallic": 0.0
+  },
+  "LI_CupPaper": {
+   "hex": "E8D9B3",
+   "smoothness": 0.08,
+   "metallic": 0.0
+  },
+  "LI_RecycleBlue": {
+   "hex": "2C67A3",
+   "smoothness": 0.35,
+   "metallic": 0.0
+  },
+  "CF_PinRed": {
+   "hex": "B5402F",
+   "smoothness": 0.6,
+   "metallic": 0.0
+  },
+  "CF_PinYellow": {
+   "hex": "D9A93A",
+   "smoothness": 0.6,
+   "metallic": 0.0
+  },
+  "T2_Brass": {
+   "hex": "B8933F",
+   "smoothness": 0.6,
+   "metallic": 0.0
+  }
+ }
+}

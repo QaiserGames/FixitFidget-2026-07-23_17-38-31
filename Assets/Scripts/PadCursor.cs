@@ -19,6 +19,10 @@ using UnityEngine.UI;
 /// within about 60 px of one (on a 1080p screen) the cursor glides onto it. The view can also glide it somewhere
 /// (GlideTo: the bench's D-pad steps). With aim help switched off (AimAssist.Enabled) it never snaps.
 ///
+/// Friction (the forgiving bench, 14 Oct 2026; systems-forgiving-bench.md §4.6): while the cursor is over the hit area of
+/// a target of the step to do now, the bench asks for 0.55 of the stick's speed (Friction), so a thumb that overshoots a 4 mm
+/// screw lingers on it instead of sailing past. Aim help only, like the snap.
+///
 /// Why not a virtual Mouse device: PlayerInput auto-switches control schemes
 /// when a "mouse" moves, which would unpair the very pad driving it. A cursor
 /// that lives in script space has no such side effects.
@@ -43,10 +47,14 @@ public sealed class PadCursor : MonoBehaviour
     private static int snapFrame = -10;
     private bool gliding, stickMoving;
     private Vector2 glideTo;
+    private Vector2 pushFrom;   // where the stick's current push took the cursor from (the glide never undoes a push: Nearest)
     /// <summary>How near a point (pixels on a 1080p screen) the stick must let go for the cursor to settle on it.</summary>
     public const float SnapPixels = 60f;
     /// <summary>The glide's time constant, seconds (about three of these to land).</summary>
     public const float GlideSeconds = .03f;
+    // Friction: the share of its speed the cursor moves at this frame (the bench asks every frame it wants it).
+    private static float friction = 1f;
+    private static int frictionFrame = -10;
     private int consumedFrame = -1;
     private bool consumedHold;
     private Canvas canvas;
@@ -91,6 +99,19 @@ public sealed class PadCursor : MonoBehaviour
         instance.gliding = true;
     }
 
+    /// <summary>
+    /// Slows the cursor to <paramref name="share"/> of its speed for this frame and the next (aim help only): the bench asks
+    /// while the cursor is over a current-step target's hit area (0.55, §4.6).
+    /// </summary>
+    public static void Friction(float share)
+    {
+        friction = Mathf.Clamp(share, .1f, 1f);
+        frictionFrame = Time.frameCount;
+    }
+
+    /// <summary>The share of its speed the cursor moves at now: under 1 over a current-step target with aim help on (checks).</summary>
+    public static float FrictionNow => AimAssist.Enabled && frictionFrame >= Time.frameCount - 1 ? friction : 1f;
+
     /// <summary>A glide is under way (checks).</summary>
     public static bool Gliding => instance != null && instance.gliding;
 
@@ -101,6 +122,8 @@ public sealed class PadCursor : MonoBehaviour
         requestedFrame = -10;
         snapPoints.Clear();
         snapFrame = -10;
+        friction = 1f;
+        frictionFrame = -10;
     }
 
     private void Awake()
@@ -140,14 +163,15 @@ public sealed class PadCursor : MonoBehaviour
             {
                 // The stick has the cursor: any glide stops.
                 gliding = false;
+                if (!stickMoving) pushFrom = position;
                 stickMoving = true;
-                next = position + stick * speed * scale * Time.unscaledDeltaTime;
+                next = position + stick * speed * scale * FrictionNow * Time.unscaledDeltaTime;
             }
             else
             {
-                // Just let go near something worth landing on: settle onto it.
+                // Just let go near something worth landing on: settle onto it (never undoing the push: Nearest).
                 if (stickMoving && AimAssist.Enabled && snapFrame >= Time.frameCount - 1
-                    && Nearest(position, SnapPixels * scale, out Vector2 snap))
+                    && Nearest(position, SnapPixels * scale, position - pushFrom, out Vector2 snap))
                 {
                     glideTo = snap;
                     gliding = true;
@@ -173,16 +197,26 @@ public sealed class PadCursor : MonoBehaviour
         Draw();
     }
 
-    // The offered point nearest the cursor, within a radius (pixels).
-    private static bool Nearest(Vector2 from, float radius, out Vector2 point)
+    // The offered point nearest the cursor, within a radius (pixels), that doesn't undo the push just let go: ahead of it or
+    // beside it, or behind it by under half its length (a flick that went past its target settles back onto it).
+    //
+    // 15 Oct, Bench 8 on his Mac (a pad at 15 fps): the first push for the screwdriver on the rest went past it, and every small
+    // push back after was pulled back by the glide to the point it had just been nudged off, a tug of war of 8 s (206 to 244 px,
+    // fourteen pushes) that ended with the screwdriver not taken. A nudge away from a point is never pulled back onto it now.
+    private static bool Nearest(Vector2 from, float radius, Vector2 push, out Vector2 point)
     {
         point = from;
         float best = radius * radius;
         bool found = false;
+        float pushed = push.magnitude;
+        Vector2 way = pushed > 1e-3f ? push / pushed : Vector2.zero;
         foreach (Vector2 p in snapPoints)
         {
-            float d = (p - from).sqrMagnitude;
-            if (d <= best) { best = d; point = p; found = true; }
+            Vector2 d = p - from;
+            float sq = d.sqrMagnitude;
+            if (sq > best) continue;
+            if (Vector2.Dot(d, way) < 0f && sq > .25f * pushed * pushed) continue;   // behind it, by half the push or more
+            best = sq; point = p; found = true;
         }
         return found;
     }

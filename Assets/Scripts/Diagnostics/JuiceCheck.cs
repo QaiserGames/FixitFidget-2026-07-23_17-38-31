@@ -25,6 +25,10 @@ using UnityEngine;
 //      "Back together · Good" a device closed up with faults left gets instead (no sparkle, not an ending);
 //   7. a lasting badge (the man at the bins' mess on a table, playtest 3): up over a point, still up after a pop would
 //      have gone, and gone when it's taken down;
+//   8. the forgiving bench (14 Oct; systems-forgiving-bench.md §6): the four repairs of the clumsy-hand lab (Grace's camera
+//      clean and swap, the phone's screen, the watch's seized movement) done at the bench by the check's hand, each piece
+//      waited for until it has landed: each ends once, face up, "Fixed! · Perfect" (Juice.OnFixed once for each), and the
+//      fresh part laid on its pad as the close-up opens pops no "New part" word any more (the pad and the glow say it);
 // and nothing logs an error the whole time. A photo for each and report.txt go to Logs/Juice/juice-check-<time>/. Nothing is
 // saved in the scene; the lab save is the only file written (by the game). The view goes back where it was at the end.
 // ---------------------------------------------------------------------------
@@ -294,7 +298,131 @@ public sealed class JuiceCheck : MonoBehaviour
         yield return null;
         Check(!Juice.MarkShowing(mark, out _) && Juice.MarksUp == upBefore, "...and gone when it's taken down");
 
+        // ---------- 8. the bench's endings, the four repairs by the check's hand (the forgiving bench, §6) ----------
+        yield return BenchEndings(ace);
+
         Check(errors == 0, errors == 0 ? "nothing logged an error the whole time" : $"{errors} error(s) logged: {string.Join(" | ", errorLines)}");
+    }
+
+    // The clumsy-hand lab's four repairs, done at the bench by the check's hand (each part's own Activate, each spot's whole-spot
+    // scrub), each piece waited for until it lands: one ending each, face up; no "New part" word as the fresh part is laid out.
+    IEnumerator BenchEndings(PlayerMovement ace)
+    {
+        ItemInspector inspector = ace.GetComponent<ItemInspector>();
+        if (inspector == null || BenchStage.Instance == null) { Note("the bench's endings: no inspector or bench stage in the scene: left out"); yield break; }
+        if (inspector.IsHoldingItem) inspector.CancelInspection();
+        var repairs = new List<(string path, string[] words, int index, string what)>
+        {
+            ("Assets/GraceShowcase/GraceReunionCamera.prefab", null, 0, "Grace's camera, the clean (fault 0)"),
+            ("Assets/GraceShowcase/GraceReunionCamera.prefab", null, 1, "Grace's camera, the swap (fault 1)"),
+            ("Assets/AssetsPrefabs/PhoneRepair.prefab", new[] { "crack", "screen" }, -1, "the phone's cracked screen"),
+            ("Assets/AssetsPrefabs/PocketWatch.prefab", new[] { "seiz", "spring" }, -1, "the watch's seized movement"),
+        };
+        var fixedFor = new Dictionary<JobBase, int>();
+        Action<JobBase> counted = job => { if (job != null) fixedFor[job] = (fixedFor.TryGetValue(job, out int n) ? n : 0) + 1; };
+        Juice.OnFixed += counted;
+        try
+        {
+            foreach (var (path, words, index, what) in repairs)
+            {
+                GameObject prefab = null;
+#if UNITY_EDITOR
+                prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+#endif
+                DeviceDefinition onPrefab = prefab != null ? prefab.GetComponent<DeviceDefinition>() : null;
+                int fault = onPrefab == null || onPrefab.faults == null ? -1 : words == null ? (index < onPrefab.faults.Length ? index : -1)
+                    : Array.FindIndex(onPrefab.faults, f => f != null && words.Any(w => (f.description ?? "").ToLowerInvariant().Contains(w)));
+                if (fault < 0) { Note($"the bench's endings, {what}: not on this build (no such fault yet): left out"); continue; }
+                Vector3 at = ace.transform.position + Flat(ace.transform.forward).normalized * .8f + Vector3.up * .9f;
+                GameObject device = Instantiate(prefab, at, Quaternion.identity);
+                device.name = "Juice check: " + what;
+                var definition = device.GetComponent<DeviceDefinition>();
+                JobBase job = device.GetComponent<JobBase>();
+                DeviceFault f = definition.GetFault(fault);
+                definition.ApplyFault(fault);
+                job.Configure(new Job
+                {
+                    kind = JobKind.Repair, devicePrefab = prefab, deviceName = definition.displayName, faultIndex = fault,
+                    faultType = f.type, faultDescription = f.description, payout = f.payout, number = 80 + fault, color = Color.white
+                });
+                yield return null;
+                yield return null;
+                int finishesBefore = Juice.Finishes, popsBefore = Juice.PopsUp;
+                string wordsBefore = Juice.LastWords;
+                if (!inspector.BeginInspection(job)) { Check(false, $"{what}: the close-up opens on it"); Destroy(device); continue; }
+                yield return Seconds(1.2f);
+                Check(Juice.LastWords == wordsBefore && Juice.LastWords != "New part",
+                    $"{what}: no \"New part\" word as the close-up lays out its stock (the last words: \"{Juice.LastWords}\")");
+                yield return ByHand(job);
+                float until = Time.realtimeSinceStartup + 3f;
+                while (Juice.Finishes == finishesBefore && Time.realtimeSinceStartup < until) yield return null;
+                yield return Seconds(.9f);
+                fixedFor.TryGetValue(job, out int endings);
+                Check(job.IsFinished && Juice.Finishes == finishesBefore + 1 && endings == 1 && Juice.LastWords == "Fixed! · Perfect" && inspector.FaceShowing,
+                    $"{what}: it ends once, face up: \"{Juice.LastWords}\" (Juice.OnFixed {endings} time(s); endings {Juice.Finishes - finishesBefore}; {job.Grade})");
+                yield return Photo("80-bench-ending-" + new string(what.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant());
+                inspector.CancelInspection();
+                yield return Seconds(.6f);
+                foreach (DropSpot spot in FindObjectsByType<DropSpot>()) spot.Release(job);
+                Destroy(device);
+                yield return Seconds(.3f);
+            }
+        }
+        finally { Juice.OnFixed -= counted; }
+    }
+
+    // The job's steps by the check's hand in the work's order (the Stations lab's hand): open it up and fix it while work is left,
+    // then close it up; each piece is waited for until it lands in its place (or back on the device) before the next.
+    IEnumerator ByHand(JobBase job)
+    {
+        for (int step = 0; step < 60 && job != null && !job.IsComplete; step++)
+        {
+            var parts = new List<Component>(job.GetComponentsInChildren<Component>());
+            foreach (GameObject loose in job.LooseParts) if (loose != null) parts.AddRange(loose.GetComponentsInChildren<Component>());
+            bool fixing = job.Quality < .999f;
+            Component did = null;
+            if (fixing)
+            {
+                ScrewTarget unscrew = parts.OfType<ScrewTarget>().FirstOrDefault(t => !t.GetComponent<Screw>().IsOut && t.CanInteract);
+                RemovablePart lift = parts.OfType<RemovablePart>().FirstOrDefault(c => !c.IsRemoved && c.CanInteract);
+                GrimeSpot grime = parts.OfType<GrimeSpot>().FirstOrDefault(g => g != null && !g.IsClean && g.CoveredBy == null);
+                ReplaceablePart replace = parts.OfType<ReplaceablePart>().FirstOrDefault(p => p.CanInteract);
+                if (unscrew != null) { unscrew.Activate(); did = unscrew; }
+                else if (lift != null) { lift.Activate(); did = lift; }
+                else if (grime != null) { grime.Scrub(100000f); did = grime; }
+                else if (replace != null) { replace.Activate(); did = replace; }
+            }
+            else
+            {
+                RemovablePart refit = parts.OfType<RemovablePart>().FirstOrDefault(c => c.InWell && c.CanInteract);
+                ScrewTarget rescrew = parts.OfType<ScrewTarget>().FirstOrDefault(t => t.GetComponent<Screw>().IsOut && t.CanInteract);
+                if (refit != null) { refit.Activate(); did = refit; }
+                else if (rescrew != null) { rescrew.Activate(); did = rescrew; }
+            }
+            float until = Time.realtimeSinceStartup + (did == null ? .3f : 4f);
+            while (Time.realtimeSinceStartup < until && (did == null || !Landed(did))) yield return null;
+            yield return Seconds(.1f);
+        }
+    }
+
+    static bool Landed(Component did)
+    {
+        if (did == null) return true;
+        BenchStage stage = BenchStage.Instance;
+        switch (did)
+        {
+            case ScrewTarget target:
+            {
+                Screw screw = target.GetComponent<Screw>();
+                return screw == null || !screw.IsBusy && !screw.Flying && (!screw.IsOut || screw.InCup && (stage == null || stage.InPlace(screw)));
+            }
+            case RemovablePart cover:
+                return !cover.Flying && !cover.Popping && (cover.State == RemovablePart.CoverState.Seated || cover.InWell);
+            case ReplaceablePart part:
+                return part.IsReplaced && (stage == null || !stage.IsFlying(part));
+            default:
+                return true;
+        }
     }
 
     // Everyone sitting down whose head is on screen, the middle of the view first.

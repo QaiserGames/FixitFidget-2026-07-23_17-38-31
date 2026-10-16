@@ -8,8 +8,8 @@ using UnityEngine;
 //     guide still use ("do the whole thing") — a screw's Activate unscrews it all the way, a cover's lifts it off;
 //   * a hold (Holdable): press and keep pressing while the work happens (a screw backing out, a cover being pried,
 //     tweezers pinching); let go early and the part keeps what was done (a screw stays part-way out);
-//   * a grab (Grabbable): the part follows the cursor while pressed and is dropped where you let go (a popped cover, a
-//     part in the tweezers).
+//   * a grab (Grabbable): kept for a part that wants one. None does at the forgiving bench (14 Oct 2026): nothing is carried
+//     or dropped any more; freed pieces fly to their places (BenchStage), so the carry at depth (PointAtDepth) went too.
 // The hand passed in is the cursor's ray and what it hit, the tool in use and the tool model, so a part can place the
 // tool on itself (the driver on the screw head) and read where the press landed (which edge of a cover).
 // The highlight is an outline round the whole part (BenchOutline.cs), not a tinted material.
@@ -23,21 +23,6 @@ public struct BenchHand
     public ToolPickup toolModel;
     public Camera camera;
     public float deltaTime;
-
-    /// <summary>
-    /// The point on the cursor's ray this deep in front of the camera (its distance along the camera's forward). A held
-    /// part rides here at the depth it was picked up at. Measured from the camera, not from the ray's own origin: a
-    /// screen ray starts on the near clip plane, 5 cm out, and a part placed "depth along the ray" from there rode 5 cm
-    /// too deep and was carried in under the tray's floor (8 Oct).
-    /// </summary>
-    public Vector3 PointAtDepth(float depth)
-    {
-        Vector3 forward = camera != null ? camera.transform.forward : ray.direction;
-        Vector3 eye = camera != null ? camera.transform.position : ray.origin;
-        float cos = Mathf.Max(.2f, Vector3.Dot(ray.direction, forward));
-        float startDepth = Vector3.Dot(ray.origin - eye, forward);
-        return ray.origin + ray.direction * ((depth - startDepth) / cos);
-    }
 }
 
 public abstract class BenchInteractable : MonoBehaviour

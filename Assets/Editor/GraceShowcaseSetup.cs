@@ -25,11 +25,19 @@ public static class GraceShowcaseSetup
         Material paper = MaterialAsset("PhotoPaper", new Color(0.95f, 0.91f, 0.81f));
         Material gold = MaterialAsset("GraceGold", new Color(0.83f, 0.64f, 0.23f));
         Material backdrop = MaterialAsset("PhotoBackdrop", new Color(0.29f, 0.49f, 0.45f));
-        if (AssetDatabase.LoadAssetAtPath<GameObject>(CameraPath) == null)
+        GameObject existingCamera = AssetDatabase.LoadAssetAtPath<GameObject>(CameraPath);
+        if (existingCamera == null)
         {
             GameObject camera = BuildCamera(body, silver, glass, dirt, strap);
             try { SaveNewPrefab(camera, CameraPath); }
             finally { UnityEngine.Object.DestroyImmediate(camera); }
+        }
+        else
+        {
+            // One scale (14 Oct, td-one-scale.md §6.4): BuildCamera's numbers are the 2x stand-in's. An existing camera is never
+            // rebuilt here, so a real-size one (baked by Devices 2) can't be written over; this says so.
+            DeviceDefinition baked = existingCamera.GetComponent<DeviceDefinition>();
+            if (baked != null && baked.realSize) Debug.Log("[Grace showcase] GraceReunionCamera is at real size (Devices 2): left as it is (the 2x stand-in is built only when no camera exists).");
         }
         if (AssetDatabase.LoadAssetAtPath<GameObject>(PhotoPath) == null)
         {

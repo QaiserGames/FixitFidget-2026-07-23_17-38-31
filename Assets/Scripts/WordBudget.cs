@@ -27,6 +27,29 @@ public static class WordBudget
     public const int Page = 12;
     public const int ClosingScreen = 40;
 
+    // THE BENCH SCREEN (playtest 5, 14 Oct 2026). His note: "the checklist is terrible"; the First Hour counted about 120 words
+    // on the first repair's screen; his decision 7: "Under 25 words on the bench screen". Counted as the player sees them
+    // (Fixit Fidget › Bench › Bench 6 counts every word on screen; Fixit Fidget › Checks › Bench words checks each source):
+    //   * the first repair, with its controls card up, mouse or pad: at most 25 (the Producer's T7 and call 6, not UI/UX's 39);
+    //   * steady play aims at 15 and is never over 24 (the longest card line, a flip, a blocked part hovered, last orders);
+    //   * an alert (the bench's impatience card, a stock chip) has its own 12, on top;
+    //   * the card's line, "Grace: "The lens and film path are dirty."", at most 8 words and 46 characters with the longest name;
+    //   * a step's verb at most 2 words ("Unscrew", "Press in"), the flip at most 4 ("[Y] Flip it over");
+    //   * the first repair's controls card 11 words (three lines with a mouse, four with a pad), a line at most 6;
+    //   * the help hint 2 ("[Tab] Help"), the finished row 6 ("[E] Take it to the Officer").
+    public const int BenchFirstRepair = 25;
+    public const int BenchSteady = 24;
+    public const int BenchSteadyAim = 15;
+    public const int BenchAlert = 12;
+    public const int CardLineWords = 8;
+    public const int CardLineChars = 46;
+    public const int BenchVerb = 2;
+    public const int BenchFlip = 4;
+    public const int FirstRepairControls = 11;
+    public const int ControlsLine = 6;
+    public const int HelpHint = 2;
+    public const int FinishedRow = 6;
+
     /// <summary>
     /// How many words <paramref name="text"/> has: runs of anything that isn't white space, as long as the run has a
     /// letter or a digit in it (a lone "·", "›" or "—" between words isn't a word). 0 for nothing.

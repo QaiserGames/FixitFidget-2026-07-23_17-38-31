@@ -32,15 +32,22 @@ public static class FaultSpeech
         ("Cracked Screen", "the screen's cracked"),
         ("Gunked Up, Won't Charge", "it's gunked up and won't charge"),
         ("Frozen Boot Sequence - Reconnect Signal", "it's frozen on the start-up screen"),
-        ("Calls light up the screen, but the phone never rings", "calls light up the screen, but it never rings"),
+        // 14 Oct (the integration, review M2): the bench card's 8 words and 46 characters with "Officer"; "calls light up the
+        // screen, but it never rings" was 10 words and 57 characters, so Checks › Bench words could never pass.
+        ("Calls light up the screen, but the phone never rings", "calls light up, but it never rings"),
         // The phone with no service (PhoneJob.prefab): the hold call, Ace's to make.
         ("Service disconnected - call support to restore it", "the service is cut off and support won't answer"),
-        // The pocket watch (PocketWatch.prefab).
-        ("Debris Inside, Won't Tell Time", "there's grit inside and it won't keep time"),
+        // The pocket watch (PocketWatch.prefab). 14 Oct (UI/UX's checklist v2, §5.2): the bench card's line is
+        // {Name}: "{Spoken}." in at most 8 words and 46 characters; "there's grit inside and it won't keep time" was 9 words
+        // and 54 characters with "Beatriz".
+        ("Debris Inside, Won't Tell Time", "there's grit inside; it won't tick"),
         ("Seized Movement", "it's seized up and won't wind"),
-        // Grace's reunion camera (GraceReunionCamera.prefab). Her visit says it in her own words (GraceCameraEpisode.Intake);
-        // this is for any other line that ever names it.
-        ("dirty lens and film path, jammed shutter; keep the scratched strap", "the lens is dirty and the shutter's jammed, but the strap stays"),
+        // Grace's reunion camera (GraceReunionCamera.prefab), in two visits since 14 Oct (specs/days-1-3.md §5.2): fault 0,
+        // Day 1's clean, and fault 1, Day 2's shutter. Her visits say it in her own words (GraceCameraEpisode); these are
+        // for every other line that names it, and the bench card: Grace: "The lens and film path are dirty." (8 words,
+        // 42 characters). Day 2's is "the shutter's jammed", not "still jammed": on Day 1 she didn't know it was.
+        ("Dirty Lens and Film Path", "the lens and film path are dirty"),
+        ("Jammed Shutter", "the shutter's jammed"),
     };
 
     static Dictionary<string, string> byLabel;

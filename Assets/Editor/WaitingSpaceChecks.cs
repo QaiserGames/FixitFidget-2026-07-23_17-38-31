@@ -26,6 +26,12 @@ using UnityEngine.SceneManagement;
 // (WaitingArea.HasArrived). Checked here on synthetic spots (arrived / still walking), and in the café scene: the three
 // stools' stand points are far enough apart to be claimed together, and with the east stool held by someone standing at
 // it, a customer claiming from the counter's west place is given the middle stool (before: the banquette's chair).
+//
+// THE REPAIR BAR FIRST (14 Oct 2026, NPC wave 2; his girlfriend: "people wouldn't sit down on the bar stools that are
+// infront of the repair station"). The stools are found by TableSeat.RepairBar now (they sit, so Snap To Seat no longer
+// tells them apart), and three more rules are checked: the three are flagged; from every counter place, three bench jobs in
+// turn take the middle, east and west stools (WaitingArea.ClaimRepairBar), and a fourth gets nothing from the bar (the
+// nearest seat then, as before); a drink claim from place 0 still gets one of the nearest seats.
 public static class WaitingSpaceChecks
 {
     const float SeatDrain = .6f;
@@ -144,7 +150,7 @@ public static class WaitingSpaceChecks
         Expect(seats.Count > 0, $"the café has seats ({seats.Count})");
         foreach (TableSeat seat in seats)
             Expect(seat.Kind == WaitingSpot.SpotKind.Seat && seat.DrainMultiplier <= SeatDrain + .001f,
-                $"{seat.name} drains at a seat's rate (x{seat.DrainMultiplier:0.##}{(seat.SnapToSeat ? "" : ", a bar stool: they wait standing beside it")})");
+                $"{seat.name} drains at a seat's rate (x{seat.DrainMultiplier:0.##}{(seat.RepairBar ? ", a repair-bar stool: they sit on it, raised" : seat.SnapToSeat ? "" : ", a window-counter stool: they wait standing beside it")})");
 
         // The repair bar: its stools, across the counter from the bench, within E's reach over it.
         PlayerInteractor ace = UnityEngine.Object.FindAnyObjectByType<PlayerInteractor>(FindObjectsInactive.Include);
@@ -159,11 +165,12 @@ public static class WaitingSpaceChecks
             Vector3 from = bench.StandPoint.position, toward = bench.StandPoint.forward;
             toward.y = 0f;
             toward.Normalize();
-            var inFront = seats.Where(s => !s.SnapToSeat).Select(s => (seat: s, d: Flat(s.StandPoint.position - from)))
-                               .Where(x => Vector3.Dot(x.d, toward) > .5f && x.d.magnitude < reach + 1.5f).ToList();
-            Expect(inFront.Count > 0, $"the repair bar's stools are found in front of the bench ({inFront.Count})");
+            // The repair bar's stools by their flag (NPC wave 2: they sit now, so Snap To Seat no longer tells them apart).
+            var inFront = seats.Where(s => s.RepairBar).Select(s => (seat: s, d: Flat(s.StandPoint.position - from))).ToList();
+            Expect(inFront.Count == 3, $"the three repair-bar stools are flagged Repair Bar ({inFront.Count}; Fixit Fidget > NPC > Wave 2 1)");
             foreach (var x in inFront)
-                Expect(x.d.magnitude <= reach, $"{x.seat.name} is {x.d.magnitude:0.00} m from the bench's stand point: within E's reach over the counter ({reach:0.0} m)");
+                Expect(Vector3.Dot(x.d, toward) > .5f && x.d.magnitude <= reach,
+                    $"{x.seat.name} is {x.d.magnitude:0.00} m from the bench's stand point, in front of it: within E's reach over the counter ({reach:0.0} m)");
             barStools = inFront.Select(x => x.seat).OrderByDescending(s => s.StandPoint.position.x).ToList();   // east first: nearest the till
         }
 
@@ -180,6 +187,7 @@ public static class WaitingSpaceChecks
                 }
             TheSecondStool(barStools, Expect);
         }
+        if (barStools.Count == 3) TheRepairBarFirst(bench, barStools, Expect);
 
         string text = $"[Waiting space] The café scene: {passes.Count} passed, {failures.Count} failed.\n" +
                       string.Join("\n", failures.Select(f => "FAIL  " + f).Concat(passes.Select(p => "PASS  " + p)));
@@ -250,6 +258,99 @@ public static class WaitingSpaceChecks
         {
             foreach (WaitingSpot spot in UnityEngine.Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
                 if (spot != null) { spot.Release(customer.transform); spot.Release(holder.transform); }
+            foreach (WaitingSpot spot in registered) WaitingArea.Unregister(spot);
+            EditorSceneManager.ClosePreviewScene(preview);
+        }
+    }
+
+    // THE REPAIR BAR FIRST (14 Oct 2026). From every counter place, three bench jobs in turn (three stand-in bodies there)
+    // take the middle stool, then the east, then the west (the seat nearest the bench first; the east and west tie and go to
+    // the one nearer the customer); a fourth gets nothing from the bar. Then a drink claim from place 0: one of the seats the
+    // nearest-seat rule weighs as nearest (within its Nearly As Near of the nearest, by the area's own walking distance), never
+    // steered to the bar. Registered and released as TheSecondStool does.
+    private static void TheRepairBarFirst(StationInteractable bench, List<TableSeat> barStools, Action<bool, string> expect)
+    {
+        WaitingArea area = UnityEngine.Object.FindAnyObjectByType<WaitingArea>(FindObjectsInactive.Exclude);
+        CounterQueue queue = UnityEngine.Object.FindAnyObjectByType<CounterQueue>(FindObjectsInactive.Exclude);
+        expect(area != null && queue != null && queue.SlotCount > 0 && bench != null && bench.StandPoint != null, "the café has a WaitingArea, a CounterQueue and the bench for the bar's order");
+        if (area == null || queue == null || queue.SlotCount == 0 || bench == null || bench.StandPoint == null) return;
+        string[] order =
+        {
+            barStools.First(s => s.name.Contains("middle")).name,
+            barStools.First(s => s.name.Contains("east")).name,
+            barStools.First(s => s.name.Contains("west")).name,
+        };
+        Vector3 benchPoint = bench.StandPoint.position;
+        var registered = new List<WaitingSpot>();
+        var people = new List<GameObject>();
+        var preview = EditorSceneManager.NewPreviewScene();
+        GameObject Person(string name, Vector3 at)
+        {
+            var go = new GameObject("Waiting space check: " + name);
+            SceneManager.MoveGameObjectToScene(go, preview);
+            go.transform.position = at;
+            people.Add(go);
+            return go;
+        }
+        try
+        {
+            foreach (WaitingSpot spot in UnityEngine.Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
+            {
+                if (spot == null || !spot.isActiveAndEnabled) continue;
+                int before = WaitingArea.RegisteredSpots;
+                WaitingArea.Register(spot);
+                if (WaitingArea.RegisteredSpots > before) registered.Add(spot);
+            }
+            for (int i = 0; i < queue.SlotCount; i++)
+            {
+                Transform slot = queue.SlotPoint(i);
+                if (slot == null) continue;
+                var claimed = new List<(WaitingSpot spot, Transform who)>();
+                var given = new List<string>();
+                for (int k = 0; k < 3; k++)
+                {
+                    Transform who = Person($"bench job {k + 1} at place {i}", slot.position).transform;
+                    WaitingSpot spot = area.ClaimRepairBar(who, benchPoint);
+                    given.Add(spot != null ? spot.name : "nothing");
+                    if (spot != null) claimed.Add((spot, who));
+                }
+                expect(given.SequenceEqual(order), $"from the counter's place {i} at ({slot.position.x:0.0}, {slot.position.z:0.0}), three bench jobs in turn take: " +
+                                                   $"{string.Join(", then ", given)} (the middle, east and west stools wanted)");
+                Transform fourth = Person($"a fourth bench job at place {i}", slot.position).transform;
+                WaitingSpot none = area.ClaimRepairBar(fourth, benchPoint);
+                expect(none == null, $"from place {i}, with the three taken the bar gives a fourth bench job {(none != null ? none.name : "nothing")} (nothing wanted: the nearest seat then)");
+                if (none != null) none.Release(fourth);
+                foreach (var c in claimed) c.spot.Release(c.who);
+            }
+
+            // A drink customer at place 0 (anyone alone at the counter): the nearest-seat rule, as before.
+            Transform zero = queue.SlotPoint(0);
+            if (zero == null) return;
+            Transform drinker = Person("a drink order at place 0", zero.position).transform;
+            MethodInfo walking = typeof(WaitingArea).GetMethod("WalkingDistance", Hidden);
+            SerializedProperty tieProp = new SerializedObject(area).FindProperty("nearlyAsNear");
+            float tie = tieProp != null ? tieProp.floatValue : .6f;
+            var weighed = new List<(WaitingSpot seat, float d)>();
+            if (walking != null)
+            {
+                List<TableSeat> candidates = UnityEngine.Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude)
+                    .Where(t => t.isActiveAndEnabled && t.IsAvailable && WaitingArea.HasClaimClearance(t, drinker))
+                    .OrderBy(t => Flat(t.StandPoint.position - zero.position).sqrMagnitude).Take(8).ToList();
+                foreach (TableSeat candidate in candidates)
+                    weighed.Add((candidate, (float)walking.Invoke(null, new object[] { zero.position, candidate.StandPoint.position })));
+            }
+            float nearest = weighed.Count > 0 ? weighed.Min(w => w.d) : float.PositiveInfinity;
+            var nearestSet = weighed.Where(w => w.d <= nearest + tie).Select(w => w.seat).ToList();
+            WaitingSpot drinkSeat = area.Claim(drinker, WaitingSpot.SpotKind.Seat);
+            expect(drinkSeat != null && (walking == null || nearestSet.Contains(drinkSeat)),
+                $"a drink claim from place 0 gets {(drinkSeat != null ? drinkSeat.name : "nothing")}: one of the nearest seats " +
+                $"({string.Join(", ", nearestSet.Select(s => s.name))}; within {tie:0.0} m of the nearest walk, {nearest:0.00} m), not steered to the bar");
+            if (drinkSeat != null) drinkSeat.Release(drinker);
+        }
+        finally
+        {
+            foreach (WaitingSpot spot in UnityEngine.Object.FindObjectsByType<WaitingSpot>(FindObjectsInactive.Exclude))
+                if (spot != null) foreach (GameObject p in people) if (p != null) spot.Release(p.transform);
             foreach (WaitingSpot spot in registered) WaitingArea.Unregister(spot);
             EditorSceneManager.ClosePreviewScene(preview);
         }

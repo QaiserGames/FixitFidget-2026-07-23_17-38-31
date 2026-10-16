@@ -1,12 +1,22 @@
 {
- "version": 2,
+ "version": 3,
+ "units": "real",
+ "note": "v3 (14 Oct 2026, TD one-scale §6.3): every FBX is REAL SIZE, 1 unit = 1 m (each script's authoredScale is undone at export by hero_lib.scale_build). 'moves' are prefab places at real size (Unity, the prefab root's frame): Devices 2 bakes today's places x 1/authoredScale, then sets each 'to'. 'real' is the REAL audit (+-7 %). Screw heads are 3.8 mm (feel-targets call 3); their holes are BT_ScrewHole.png on a quad 1.15 x the head (Resources 'Bench/BT_ScrewHole').",
+ "screwHole": {
+  "texture": "Bench/BT_ScrewHole",
+  "quad": 1.15,
+  "bore": 0.48,
+  "lip": 0.55,
+  "proud_m": 5e-05
+ },
  "pieces": [
   {
    "name": "HD_Phone",
    "tool": "",
    "room": "",
    "what": "the hero phone: body, screen, back cover and a screw, assembled as the prefab has them",
-   "tris": 4980,
+   "authoredScale": 1.0,
+   "tris": 4936,
    "meshes": 6,
    "children": [
     {
@@ -49,7 +59,7 @@
      "name": "Screw",
      "at": [
       0.022,
-      -0.0047,
+      -0.00457,
       -0.058
      ],
      "turned": false
@@ -57,10 +67,11 @@
    ],
    "size": [
     0.2426,
-    0.0099,
+    0.00989,
     0.1403
    ],
    "bottom": -0.0058,
+   "lowestInPrefab": -0.0058,
    "materials": [
     "HD_PhoneRail",
     "HD_PhoneBlack",
@@ -75,8 +86,8 @@
     "HD_Lens",
     "HD_Flash",
     "HD_PhoneLogo",
-    "HD_Screw",
-    "HD_ScrewSlot"
+    "HD_ScrewBlack",
+    "HD_ScrewRecess"
    ],
    "islands": 0,
    "targets": {
@@ -99,6 +110,175 @@
      "Screw0",
      "Screw1"
     ]
+   },
+   "real": {
+    "HD_Phone": [
+     {
+      "axis": "x",
+      "built_mm": 71.2,
+      "real_mm": 71.6,
+      "ratio": 0.994,
+      "ok": true,
+      "source": "iPhone 15 width (sheet §6)"
+     },
+     {
+      "axis": "y",
+      "built_mm": 7.8,
+      "real_mm": 7.8,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "iPhone 15 thickness"
+     },
+     {
+      "axis": "z",
+      "built_mm": 140.3,
+      "real_mm": 147.6,
+      "ratio": 0.951,
+      "ok": true,
+      "source": "iPhone 15 height"
+     }
+    ],
+    "ScreenCracked": [
+     {
+      "axis": "x",
+      "built_mm": 62.6,
+      "real_mm": 64.0,
+      "ratio": 0.978,
+      "ok": true,
+      "source": "the display glass ≈ 64 x 140 (TD §3)"
+     },
+     {
+      "axis": "z",
+      "built_mm": 132.6,
+      "real_mm": 140.0,
+      "ratio": 0.947,
+      "ok": true,
+      "source": "the display glass"
+     }
+    ],
+    "Screen": [
+     {
+      "axis": "x",
+      "built_mm": 62.6,
+      "real_mm": 64.0,
+      "ratio": 0.978,
+      "ok": true,
+      "source": "the display glass"
+     },
+     {
+      "axis": "z",
+      "built_mm": 132.6,
+      "real_mm": 140.0,
+      "ratio": 0.947,
+      "ok": true,
+      "source": "the display glass"
+     }
+    ],
+    "ScreenPlain": [
+     {
+      "axis": "x",
+      "built_mm": 62.6,
+      "real_mm": 64.0,
+      "ratio": 0.978,
+      "ok": true,
+      "source": "the display glass"
+     },
+     {
+      "axis": "z",
+      "built_mm": 132.6,
+      "real_mm": 140.0,
+      "ratio": 0.947,
+      "ok": true,
+      "source": "the display glass"
+     }
+    ],
+    "BackCover": [
+     {
+      "axis": "x",
+      "built_mm": 67.6,
+      "real_mm": 69.6,
+      "ratio": 0.971,
+      "ok": true,
+      "source": "the back glass: iPhone 15 less its 1 mm rail"
+     },
+     {
+      "axis": "z",
+      "built_mm": 137.6,
+      "real_mm": 145.6,
+      "ratio": 0.945,
+      "ok": true,
+      "source": "the back glass"
+     }
+    ],
+    "Screw": [
+     {
+      "axis": "x",
+      "built_mm": 3.8,
+      "real_mm": 3.8,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "head Ø 3.8: an M2 pan head (ISO 7045 dk 3.7-4.0); feel-targets call 3"
+     },
+     {
+      "axis": "z",
+      "built_mm": 3.8,
+      "real_mm": 3.8,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "head Ø"
+     }
+    ]
+   },
+   "moves": [
+    {
+     "name": "Screw0",
+     "today": [
+      0.022,
+      -0.0047,
+      -0.058
+     ],
+     "baked": [
+      0.022,
+      -0.0047,
+      -0.058
+     ],
+     "to": [
+      0.022,
+      -0.004565,
+      -0.058
+     ],
+     "why": "the 3.8 x 1.33 head's underside on the back glass (-3.9)"
+    },
+    {
+     "name": "Screw1",
+     "today": [
+      -0.022,
+      -0.0047,
+      -0.058
+     ],
+     "baked": [
+      -0.022,
+      -0.0047,
+      -0.058
+     ],
+     "to": [
+      -0.022,
+      -0.004565,
+      -0.058
+     ],
+     "why": "the 3.8 x 1.33 head's underside on the back glass (-3.9)"
+    }
+   ],
+   "screws": {
+    "head_d": 0.0038,
+    "head_h": 0.00133,
+    "shank_d": 0.00209,
+    "shank_len": 0.0045,
+    "material": "HD_ScrewBlack",
+    "rest_gap_mm": [
+     0.0,
+     0.0
+    ]
    }
   },
   {
@@ -106,14 +286,15 @@
    "tool": "",
    "room": "",
    "what": "the hero pocket watch: case, back plate, crown, a screw and the mainspring, assembled as the prefab has them",
-   "tris": 18234,
+   "authoredScale": 3.0,
+   "tris": 18178,
    "meshes": 6,
    "children": [
     {
      "name": "BackPlate",
      "at": [
       0.0,
-      -0.016,
+      -0.00533,
       0.0
      ],
      "turned": false
@@ -123,32 +304,32 @@
      "at": [
       0.0,
       0.0,
-      0.085
+      0.02833
      ],
      "turned": true
     },
     {
      "name": "Screw",
      "at": [
-      0.032,
-      -0.02,
-      0.032
+      0.01067,
+      -0.00688,
+      0.01067
      ],
      "turned": false
     },
     {
      "name": "MainspringBroken",
      "at": [
-      0.03,
-      -0.007,
-      0.02
+      0.01,
+      -0.00233,
+      0.00667
      ],
      "turned": false
     },
     {
      "name": "Mainspring",
      "at": [
-      0.11,
+      0.03667,
       0.0,
       0.0
      ],
@@ -156,11 +337,12 @@
     }
    ],
    "size": [
-    0.2096,
-    0.0342,
-    0.2
+    0.06985,
+    0.01173,
+    0.06667
    ],
-   "bottom": -0.0217,
+   "bottom": -0.00755,
+   "lowestInPrefab": -0.00755,
    "materials": [
     "HD_WatchGold",
     "HD_WatchNickel",
@@ -172,6 +354,8 @@
     "HD_WatchRuby",
     "HD_ScrewSlot",
     "HD_WatchGoldDark",
+    "HD_ScrewBlued",
+    "HD_ScrewRecess",
     "HD_WatchBlueDull"
    ],
    "islands": 0,
@@ -197,95 +381,300 @@
     "Mainspring": [
      "Fresh"
     ]
+   },
+   "real": {
+    "HD_Watch": [
+     {
+      "axis": "x",
+      "built_mm": 50.0,
+      "real_mm": 50.0,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "open-face case Ø 48-52 (sheet §7a)"
+     },
+     {
+      "axis": "z",
+      "built_mm": 66.67,
+      "real_mm": 66.7,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "the case with its pendant and bow, a third of the Ø more"
+     }
+    ],
+    "BackPlate": [
+     {
+      "axis": "x",
+      "built_mm": 43.2,
+      "real_mm": 43.0,
+      "ratio": 1.005,
+      "ok": true,
+      "source": "back Ø ≈ 43 (TD §3)"
+     },
+     {
+      "axis": "z",
+      "built_mm": 43.2,
+      "real_mm": 43.0,
+      "ratio": 1.005,
+      "ok": true,
+      "source": "back Ø"
+     }
+    ],
+    "Crown": [
+     {
+      "axis": "x",
+      "built_mm": 8.36,
+      "real_mm": 8.0,
+      "ratio": 1.045,
+      "ok": true,
+      "source": "crown Ø 7-9 (TD §3)"
+     }
+    ],
+    "Screw": [
+     {
+      "axis": "x",
+      "built_mm": 3.8,
+      "real_mm": 3.8,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "head Ø 3.8 (feel-targets call 3)"
+     },
+     {
+      "axis": "z",
+      "built_mm": 3.8,
+      "real_mm": 3.8,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "head Ø"
+     }
+    ],
+    "MainspringBroken": [
+     {
+      "axis": "xz",
+      "built_mm": 17.62,
+      "real_mm": 17.3,
+      "ratio": 1.019,
+      "ok": true,
+      "source": "the same spring, snapped and sprung"
+     }
+    ],
+    "Mainspring": [
+     {
+      "axis": "x",
+      "built_mm": 17.05,
+      "real_mm": 17.3,
+      "ratio": 0.986,
+      "ok": true,
+      "source": "mainspring coil Ø ≈ 15-17 (TD §3: 17.3)"
+     },
+     {
+      "axis": "z",
+      "built_mm": 16.37,
+      "real_mm": 17.3,
+      "ratio": 0.946,
+      "ok": true,
+      "source": "coil Ø"
+     }
+    ]
+   },
+   "moves": [
+    {
+     "name": "Screw0",
+     "today": [
+      0.032,
+      -0.02,
+      0.032
+     ],
+     "baked": [
+      0.010667,
+      -0.006667,
+      0.010667
+     ],
+     "to": [
+      0.010667,
+      -0.006878,
+      0.010667
+     ],
+     "why": "the 3.8 x 1.33 head's middle on the back plate's dome"
+    },
+    {
+     "name": "Screw1",
+     "today": [
+      -0.032,
+      -0.02,
+      0.032
+     ],
+     "baked": [
+      -0.010667,
+      -0.006667,
+      0.010667
+     ],
+     "to": [
+      -0.010667,
+      -0.006878,
+      0.010667
+     ],
+     "why": "the same"
+    },
+    {
+     "name": "Screw2",
+     "today": [
+      0.032,
+      -0.02,
+      -0.032
+     ],
+     "baked": [
+      0.010667,
+      -0.006667,
+      -0.010667
+     ],
+     "to": [
+      0.010667,
+      -0.006878,
+      -0.010667
+     ],
+     "why": "the same"
+    },
+    {
+     "name": "Screw3",
+     "today": [
+      -0.032,
+      -0.02,
+      -0.032
+     ],
+     "baked": [
+      -0.010667,
+      -0.006667,
+      -0.010667
+     ],
+     "to": [
+      -0.010667,
+      -0.006878,
+      -0.010667
+     ],
+     "why": "the same"
+    }
+   ],
+   "screws": {
+    "head_d": 0.0038,
+    "head_h": 0.00133,
+    "shank_d": 0.00209,
+    "shank_len": 0.0076,
+    "material": "HD_ScrewBlued",
+    "rest_gap_mm": [
+     0.001,
+     0.001,
+     0.001,
+     0.001
+    ]
    }
   },
   {
    "name": "HD_Camera",
    "tool": "",
    "room": "",
-   "what": "Grace's camera, hero: body, lens, glass, film path, shutter mechanism and blades, straps, assembled as the prefab has them",
-   "tris": 12464,
-   "meshes": 9,
+   "what": "Grace's camera, hero: body, lens, glass, film path, the shutter (jammed and clean) and blades, the strap's three pieces, assembled as the prefab has them",
+   "authoredScale": 2.0,
+   "tris": 16892,
+   "meshes": 11,
    "children": [
     {
      "name": "LensHousing",
      "at": [
-      -0.065,
-      0.032,
-      -0.024
+      -0.0325,
+      0.0205,
+      -0.012
      ],
      "turned": false
     },
     {
      "name": "LensGlass",
      "at": [
-      -0.065,
-      0.07,
-      -0.024
+      -0.0325,
+      0.0395,
+      -0.012
      ],
      "turned": false
     },
     {
      "name": "FilmPath",
      "at": [
-      0.056,
-      0.026,
-      -0.043
+      0.028,
+      0.0175,
+      -0.0215
      ],
      "turned": false
     },
     {
      "name": "Mechanism",
      "at": [
-      0.053,
-      0.037,
-      0.041
+      0.0265,
+      0.023,
+      0.0205
      ],
      "turned": false
     },
     {
      "name": "BentBlade",
      "at": [
-      0.053,
-      0.0493,
-      0.041
+      0.0265,
+      0.02916,
+      0.0205
      ],
      "turned": false
     },
     {
      "name": "WorkingBlade",
      "at": [
-      0.053,
-      0.027,
-      0.041
+      0.0265,
+      0.018,
+      0.0205
      ],
      "turned": false
     },
     {
-     "name": "Strap",
+     "name": "CleanMechanism",
      "at": [
-      -0.162,
-      0.003,
-      -0.063
+      0.1765,
+      0.023,
+      0.0205
+     ],
+     "turned": false
+    },
+    {
+     "name": "UpperStrap",
+     "at": [
+      -0.06375,
+      0.0,
+      -0.0325
+     ],
+     "turned": false
+    },
+    {
+     "name": "LowerStrap",
+     "at": [
+      0.06375,
+      0.0,
+      -0.0325
      ],
      "turned": false
     },
     {
      "name": "WornLoop",
      "at": [
-      -0.2,
-      0.003,
-      0.0
+      -0.05,
+      -0.0165,
+      0.095
      ],
      "turned": false
     }
    ],
    "size": [
-    0.333,
-    0.0972,
-    0.1725
+    0.29475,
+    0.05772,
+    0.16968
    ],
-   "bottom": -0.024,
+   "bottom": -0.01662,
+   "lowestInPrefab": -0.00062,
    "materials": [
     "HD_CamLeather",
     "HD_CamLeatherWorn",
@@ -296,8 +685,14 @@
     "HD_CamWhite",
     "HD_CamSteel",
     "HD_CamFilm",
-    "HD_CamBrass",
+    "HD_CamSteelOld",
+    "HD_CamBrassOld",
+    "HD_CamBlackSatin",
+    "HD_CamChromeBright",
+    "HD_CamSteelBright",
+    "HD_CamBrassNew",
     "HD_CamStrap",
+    "HD_CamStrapEdge",
     "HD_CamStitch"
    ],
    "islands": 0,
@@ -323,14 +718,387 @@
     "WorkingBlade": [
      "Working shutter blade"
     ],
-    "Strap": [
-     "Upper strap",
+    "CleanMechanism": [
+     "Clean shutter mechanism"
+    ],
+    "UpperStrap": [
+     "Upper strap"
+    ],
+    "LowerStrap": [
      "Lower strap"
     ],
     "WornLoop": [
      "Worn loop"
     ]
-   }
+   },
+   "real": {
+    "HD_Camera": [
+     {
+      "axis": "x",
+      "built_mm": 134.0,
+      "real_mm": 129.0,
+      "ratio": 1.039,
+      "ok": true,
+      "source": "Olympus 35 SP overall width (Canonet QL17 GIII 120 without lugs)"
+     },
+     {
+      "axis": "y",
+      "built_mm": 32.0,
+      "real_mm": 32.0,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "body depth without the lens (sheet §8; Art A6)"
+     },
+     {
+      "axis": "z",
+      "built_mm": 81.0,
+      "real_mm": 76.0,
+      "ratio": 1.066,
+      "ok": true,
+      "source": "height of the plates (Olympus 35 SP ≈ 76; Art A6 keeps 80, +6 %)"
+     }
+    ],
+    "LensHousing": [
+     {
+      "axis": "x",
+      "built_mm": 38.74,
+      "real_mm": 38.0,
+      "ratio": 1.019,
+      "ok": true,
+      "source": "AS BUILT: Ø 38, the TD's 0.73x-real flag (a real 40 mm f/1.7 barrel is Ø 50-52), kept at Art's call"
+     }
+    ],
+    "LensGlass": [
+     {
+      "axis": "x",
+      "built_mm": 25.0,
+      "real_mm": 24.0,
+      "ratio": 1.042,
+      "ok": true,
+      "source": "a 40 mm f/1.7's front element ≈ Ø 24 (hero_camera.lens_glass)"
+     }
+    ],
+    "Mechanism": [
+     {
+      "axis": "x",
+      "built_mm": 36.5,
+      "real_mm": 36.5,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "the shutter chassis 36.5 x 24.5 (TD §3)"
+     },
+     {
+      "axis": "z",
+      "built_mm": 24.5,
+      "real_mm": 24.5,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "the chassis"
+     }
+    ],
+    "CleanMechanism": [
+     {
+      "axis": "x",
+      "built_mm": 36.5,
+      "real_mm": 36.5,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "the same chassis"
+     },
+     {
+      "axis": "z",
+      "built_mm": 24.5,
+      "real_mm": 24.5,
+      "ratio": 1.0,
+      "ok": true,
+      "source": "the same chassis"
+     }
+    ],
+    "WornLoop": [
+     {
+      "axis": "z",
+      "built_mm": 58.21,
+      "real_mm": 55.0,
+      "ratio": 1.058,
+      "ok": true,
+      "source": "Art A6: the loop lies 30-85 mm beyond the body's far edge"
+     }
+    ]
+   },
+   "moves": [
+    {
+     "name": "Camera body",
+     "today": [
+      0.0,
+      0.023,
+      0.0
+     ],
+     "baked": [
+      0.0,
+      0.0115,
+      0.0
+     ],
+     "to": [
+      0.0,
+      0.016,
+      0.0
+     ],
+     "why": "the body 32 mm deep (was 23), its back where it was"
+    },
+    {
+     "name": "Lens housing",
+     "today": [
+      -0.065,
+      0.055,
+      -0.024
+     ],
+     "baked": [
+      -0.0325,
+      0.0275,
+      -0.012
+     ],
+     "to": [
+      -0.0325,
+      0.0365,
+      -0.012
+     ],
+     "why": "up 9 mm with the front face (the lens itself unchanged)"
+    },
+    {
+     "name": "Lens glass",
+     "today": [
+      -0.065,
+      0.093,
+      -0.024
+     ],
+     "baked": [
+      -0.0325,
+      0.0465,
+      -0.012
+     ],
+     "to": [
+      -0.0325,
+      0.0555,
+      -0.012
+     ],
+     "why": "the lens centre: up 9 mm with the front face"
+    },
+    {
+     "name": "Lens grime",
+     "today": [
+      -0.065,
+      0.1,
+      -0.024
+     ],
+     "baked": [
+      -0.0325,
+      0.05,
+      -0.012
+     ],
+     "to": [
+      -0.0325,
+      0.059,
+      -0.012
+     ],
+     "why": "over the lens glass, up 9 mm"
+    },
+    {
+     "name": "Open film path",
+     "today": [
+      0.056,
+      0.049,
+      -0.043
+     ],
+     "baked": [
+      0.028,
+      0.0245,
+      -0.0215
+     ],
+     "to": [
+      0.028,
+      0.0335,
+      -0.0215
+     ],
+     "why": "the film path, up 9 mm with the well"
+    },
+    {
+     "name": "Film-path grime",
+     "today": [
+      0.045,
+      0.058,
+      -0.043
+     ],
+     "baked": [
+      0.0225,
+      0.029,
+      -0.0215
+     ],
+     "to": [
+      0.0225,
+      0.038,
+      -0.0215
+     ],
+     "why": "over the film gate, up 9 mm"
+    },
+    {
+     "name": "Film-guide grime",
+     "today": [
+      0.079,
+      0.058,
+      -0.043
+     ],
+     "baked": [
+      0.0395,
+      0.029,
+      -0.0215
+     ],
+     "to": [
+      0.0395,
+      0.038,
+      -0.0215
+     ],
+     "why": "over the sprocket drum (the film guide), up 9 mm"
+    },
+    {
+     "name": "Jammed shutter mechanism",
+     "today": [
+      0.053,
+      0.06,
+      0.041
+     ],
+     "baked": [
+      0.0265,
+      0.03,
+      0.0205
+     ],
+     "to": [
+      0.0265,
+      0.039,
+      0.0205
+     ],
+     "why": "the shutter's seat, up 9 mm with the well"
+    },
+    {
+     "name": "Upper strap",
+     "today": [
+      -0.162,
+      0.026,
+      -0.063
+     ],
+     "baked": [
+      -0.081,
+      0.013,
+      -0.0315
+     ],
+     "to": [
+      -0.06375,
+      0.016,
+      -0.0325
+     ],
+     "why": "new strap: the lens-end lug's hole (its ring, fold, keeper and run)"
+    },
+    {
+     "name": "Lower strap",
+     "today": [
+      -0.162,
+      0.026,
+      0.063
+     ],
+     "baked": [
+      -0.081,
+      0.013,
+      0.0315
+     ],
+     "to": [
+      0.06375,
+      0.016,
+      -0.0325
+     ],
+     "why": "new strap: the opening-end lug's hole (it was at the lens end)"
+    },
+    {
+     "name": "Worn loop",
+     "today": [
+      -0.2,
+      0.026,
+      0.0
+     ],
+     "baked": [
+      -0.1,
+      0.013,
+      0.0
+     ],
+     "to": [
+      -0.05,
+      -0.0005,
+      0.095
+     ],
+     "why": "new strap: the loop's middle, on the mat behind the lens half"
+    }
+   ],
+   "newObjects": [
+    {
+     "name": "Clean shutter mechanism",
+     "source": "CleanMechanism",
+     "createUnder": "GraceReunionCamera",
+     "at": [
+      0.0265,
+      0.039,
+      0.0205
+     ],
+     "active": false,
+     "why": "Art A7's fresh visual: the jammed mechanism's twin, in the jammed one's seat, off until Systems presents it on Pad_Small"
+    }
+   ],
+   "scratches": [
+    {
+     "name": "Old scratch 0",
+     "today": [
+      -0.2,
+      0.032,
+      -0.027
+     ],
+     "at": [
+      -0.056,
+      0.0046,
+      0.11439
+     ]
+    },
+    {
+     "name": "Old scratch 1",
+     "today": [
+      -0.2,
+      0.032,
+      -0.009
+     ],
+     "at": [
+      -0.048,
+      0.0046,
+      0.1185
+     ]
+    },
+    {
+     "name": "Old scratch 2",
+     "today": [
+      -0.2,
+      0.032,
+      0.009
+     ],
+     "at": [
+      -0.04,
+      0.0046,
+      0.11598
+     ]
+    }
+   ],
+   "strapNoCollider": [
+    "Upper strap",
+    "Lower strap",
+    "Worn loop",
+    "Old scratch 0",
+    "Old scratch 1",
+    "Old scratch 2"
+   ]
   }
  ],
  "materials": {
@@ -374,14 +1142,14 @@
    "smoothness": 0.5,
    "metallic": 0.0
   },
-  "HD_Screw": {
-   "hex": "93908A",
+  "HD_ScrewBlack": {
+   "hex": "2B2724",
    "smoothness": 0.45,
    "metallic": 0.0
   },
-  "HD_ScrewSlot": {
-   "hex": "2A2D31",
-   "smoothness": 0.3,
+  "HD_ScrewRecess": {
+   "hex": "121110",
+   "smoothness": 0.2,
    "metallic": 0.0
   },
   "HD_Glass": {
@@ -459,6 +1227,16 @@
    "smoothness": 0.45,
    "metallic": 0.0
   },
+  "HD_ScrewSlot": {
+   "hex": "2A2D31",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_ScrewBlued": {
+   "hex": "2A3F6B",
+   "smoothness": 0.55,
+   "metallic": 0.0
+  },
   "HD_CamLeather": {
    "hex": "2A2623",
    "smoothness": 0.25,
@@ -509,6 +1287,11 @@
    "smoothness": 0.3,
    "metallic": 0.0
   },
+  "HD_CamStrapEdge": {
+   "hex": "4A2C18",
+   "smoothness": 0.35,
+   "metallic": 0.0
+  },
   "HD_CamStitch": {
    "hex": "D9C7A6",
    "smoothness": 0.3,
@@ -517,6 +1300,36 @@
   "HD_CamWhite": {
    "hex": "F2EFE8",
    "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_CamBrassNew": {
+   "hex": "D4AF5A",
+   "smoothness": 0.55,
+   "metallic": 0.0
+  },
+  "HD_CamBrassOld": {
+   "hex": "8A6A32",
+   "smoothness": 0.35,
+   "metallic": 0.0
+  },
+  "HD_CamSteelBright": {
+   "hex": "C9C5BC",
+   "smoothness": 0.55,
+   "metallic": 0.0
+  },
+  "HD_CamSteelOld": {
+   "hex": "77746E",
+   "smoothness": 0.3,
+   "metallic": 0.0
+  },
+  "HD_CamChromeBright": {
+   "hex": "CFCBC2",
+   "smoothness": 0.6,
+   "metallic": 0.0
+  },
+  "HD_CamBlackSatin": {
+   "hex": "1F1D1B",
+   "smoothness": 0.5,
    "metallic": 0.0
   }
  }

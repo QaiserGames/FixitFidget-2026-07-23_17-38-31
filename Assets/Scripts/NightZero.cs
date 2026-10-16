@@ -320,6 +320,8 @@ public sealed class NightZero : MonoBehaviour
     {
         if (grace == null || day <= 0) return false;
         if (grace.lastSeenDay == day && !grace.lastVisitHappy) return true;
+        // Days 1-3 (14 Oct): Day 1's clean records no photo attempt (R3); a camera handed back still grubby shows in her grade.
+        if (grace.lastSeenDay == day && grace.lastGrade == nameof(JobGrade.Rejected)) return true;
         return grace.graceCameraAttempted && grace.graceCameraDay == day
                && GraceCameraEpisode.PhotoOutcome(grace) == GracePhotoOutcome.Missed;
     }

@@ -524,8 +524,20 @@ public sealed class StationsCheck : PlayLab
                 continue;
             }
             handSteps.Add($"{(fixing ? "fix" : "close")}: {did.GetType().Name} {did.name}");
-            yield return Seconds(.55f);
+            // The forgiving bench (14 Oct, §6): each piece flies to its place by itself; the next call waits until it has
+            // landed (no longer busy, in its place or back on the device), and no bench piece is ever a rigidbody.
+            Component landing = did;
+            float until = Time.realtimeSinceStartup + 4f;
+            while (Time.realtimeSinceStartup < until && !Settled(landing))
+            {
+                if (HasBodies(job)) benchBodies++;
+                yield return null;
+            }
+            if (!Settled(landing)) Note($"  {did.GetType().Name} {did.name} hadn't landed after 4 s");
+            if (HasBodies(job)) benchBodies++;
+            yield return Seconds(.15f);
         }
+        Check(benchBodies == 0, $"no bench piece held a rigidbody at any point of the work ({benchBodies} frame(s) with one)");
         if (job != null && !job.IsComplete)
         {
             // What was left, for the report: every part, and what each said it could do.
@@ -543,6 +555,39 @@ public sealed class StationsCheck : PlayLab
     }
 
     readonly List<string> handSteps = new List<string>();
+    int benchBodies;
+
+    // A piece the lab's hand worked on has landed: a screw out in its cup (or home), a cover in its well (or home), a part's
+    // swap done with the broken one in the tray, a spot gone.
+    static bool Settled(Component did)
+    {
+        if (did == null) return true;
+        BenchStage stage = BenchStage.Instance;
+        switch (did)
+        {
+            case ScrewTarget target:
+            {
+                Screw screw = target.GetComponent<Screw>();
+                return screw == null || !screw.IsBusy && !screw.Flying && (!screw.IsOut || screw.InCup && (stage == null || stage.InPlace(screw)));
+            }
+            case RemovablePart cover:
+                return !cover.Flying && !cover.Popping && (cover.State == RemovablePart.CoverState.Seated || cover.InWell && (stage == null || stage.InPlace(cover)));
+            case ReplaceablePart part:
+                return part.IsReplaced && (stage == null || !stage.IsFlying(part));
+            default:
+                return true;
+        }
+    }
+
+    // Any piece of the job (on the device or off it) with a rigidbody.
+    static bool HasBodies(JobBase job)
+    {
+        if (job == null) return false;
+        if (job.GetComponentsInChildren<Rigidbody>(true).Length > 0) return true;
+        foreach (GameObject loose in job.LooseParts)
+            if (loose != null && loose.GetComponentsInChildren<Rigidbody>(true).Length > 0) return true;
+        return false;
+    }
 
     // ---------- handing over ----------
 

@@ -40,12 +40,18 @@ using Shared = CafeRedesignShared;
 // with a replica of the guard (steps-seats/analysis/final_plan.py prints every number and the map). Style Bench for the
 // banquette (footprint 0.3, as the lounge's benches), Chair for the rest. Drain 0.6 everywhere.
 //
-// THE BAR STOOLS DON'T SIT (Snap To Seat off on the six). The sit clips are fitted to the café's 0.45 m chairs, and
-// NpcSeating lifts a body at most 12 cm to meet a seat (maxHeightCorrection): on a 0.745 m stool the hips would land about
-// 14 cm under where the clip wants them, 5 cm inside the seat, the thighs through it (Sit 4 allows 5 cm). Off, a customer
-// waits standing at the stool's stand point facing the counter, as the grey-box did; the seat still counts as a seat
-// (drain 0.6, the guards, the claims), with a 0.3 m claim footprint so that neighbours 1.0 m apart can both be taken.
-// Tick Snap To Seat on the six to see them sit anyway; a tall-stool sit clip is the real fix (not built: no new mechanic).
+// THE REPAIR BAR'S STOOLS SIT; THE WINDOW COUNTER'S DON'T (14 Oct 2026, NPC wave 2; was "the bar stools don't sit", 10 Oct).
+// The sit clips are fitted to the café's 0.45 m chairs, and NpcSeating lifted a body at most 12 cm to meet a seat
+// (maxHeightCorrection): on a 0.745 m stool the hips would land about 14 cm under where the clip wants them. So on 10 Oct
+// all six had Snap To Seat off, and a customer waited standing beside the stool. His girlfriend, playtest 5: "people
+// wouldn't sit down on the bar stools that are infront of the repair station". At the repair bar a stool and its counter are
+// a chair and its table raised 0.30 m together, so the chair clips fit once the body is raised with them: the repair bar's
+// three now sit (Snap To Seat on, Max Lift 0.32 met inside the clips, Approach Side 0.50 between stools 1.0 m apart, Repair
+// Bar on so bench-job customers take them first, and turned 45 degrees by a Face Towards point because the counter has no
+// knee space: west turned west, middle and east turned east). The data is RepairBarSeats (NpcWave2Steps.cs), which
+// Fixit Fidget > NPC > Wave 2 1 sets in a scene Seats 1 has already laid; a rerun of Seats 1 lays it too. The window
+// counter's three still wait standing (Snap To Seat off): the brackets under its top leave knee space, so they could sit
+// unturned with the same fields; not this wave. Every stool keeps a 0.3 m claim footprint so neighbours can both be taken.
 //
 // THE SOLIDS: each piece gets the manifest's box (cafe_seating.json `collider`) on its root; the step's group carries a
 // Not Walkable NavMeshModifier (as the tables' and the lounge's groups do), so no table top or cushion becomes a step
@@ -230,11 +236,16 @@ internal static class CafeSeatsSteps
         public Piece on;
         public GameObject made;
         public TableSeat seat;
+        // The repair bar's stools (NPC wave 2): Repair Bar on, their own lift and side step, and turned by a Face Towards point.
+        public bool repairBar;
+        public float faceTurn;
         public Seat(string name, string piece, string group, bool bench, bool snap, Vector3 pose, Vector3 cup, float standX, float standZ, string why)
         {
             this.name = name; this.piece = piece; this.group = group; this.bench = bench; this.snap = snap; this.pose = pose; this.cup = cup;
             stand = new Vector3(standX, StandY, standZ); this.why = why;
         }
+        // Wide footprint for the bench seats and the stools (people wait at them or sit 1.0 m apart); 0 (0.3 by default) otherwise.
+        public float Footprint => bench || !snap || repairBar ? BenchFootprint : 0f;
         public Quaternion Facing => Quaternion.LookRotation(Flat(cup - pose), Vector3.up);
         public Quaternion StandFacing => Quaternion.LookRotation(Flat(cup - stand), Vector3.up);
     }
@@ -246,8 +257,9 @@ internal static class CafeSeatsSteps
         var s = new List<Seat>();
         const string behind = "today's rule: 0.67 m behind the seat, facing the table";
         foreach ((string label, float x) in new[] { ("west", -5.2f), ("middle", -4.2f), ("east", -3.2f) })
-            s.Add(new Seat($"Seat (repair bar, {label})", $"CK_Stool_Bar (repair bar, {label})", GRepair, false, false,
-                           V(x, .7449f, 12.8565f), V(x, 1.095f, LedgeZ), x, 12.1865f, behind));
+            s.Add(new Seat(RepairBarSeats.SeatName(label), $"CK_Stool_Bar (repair bar, {label})", GRepair, false, true,
+                           V(x, .7449f, 12.8565f), V(x, 1.095f, LedgeZ), x, 12.1865f, behind)
+                  { repairBar = true, faceTurn = RepairBarSeats.Turns.First(t => t.label == label).turn });
         (float x, float z, string why)[] bench =
         {
             (-6.24f, 3.36f, "south of the 2-top, past the banquette's south end: the sitter steps along the cushion from the south"),
@@ -740,7 +752,7 @@ internal static class CafeSeatsSteps
 
         // ---- the plan, seat by seat ----
         foreach (Seat s in Seats)
-            run.Info($"{s.name}: {(s.bench ? "Bench" : "Chair")}, Snap To Seat {(s.snap ? "on" : "OFF (a bar stool: the sit clips can't reach it)")}; sit {V3(s.pose)} facing {F(Shared.Facing(s.Facing), "0")}; " +
+            run.Info($"{s.name}: {(s.bench ? "Bench" : "Chair")}, Snap To Seat {(s.snap ? (s.repairBar ? "on (a repair-bar stool: raised inside the clips, turned 45)" : "on") : "OFF (a window-counter stool: they wait standing beside it)")}; sit {V3(s.pose)} facing {F(Shared.Facing(s.Facing), "0")}; " +
                      $"cup {V3(s.cup)}; stand {V3(s.stand)} ({s.why}).");
     }
 
@@ -778,7 +790,8 @@ internal static class CafeSeatsSteps
         // 4. The seats.
         foreach (Seat s in Seats) MakeSeat(run, group, s);
         Physics.SyncTransforms();
-        Shared.Note(run, $"24 seats laid in {Shared.RedesignGroup}/{GroupName}; the six bar-stool seats have Snap To Seat off (customers wait standing beside them).");
+        Shared.Note(run, $"24 seats laid in {Shared.RedesignGroup}/{GroupName}; the repair bar's three stools sit (NPC wave 2: raised inside the clips, turned 45 degrees); " +
+                         "the window counter's three have Snap To Seat off (customers wait standing beside them).");
 
         // 5. The checks.
         After(run, p, group);
@@ -803,7 +816,17 @@ internal static class CafeSeatsSteps
         so.FindProperty("seatPose").objectReferenceValue = pose;
         so.FindProperty("sitStyle").intValue = (int)(s.bench ? TableSeat.SitStyle.Bench : TableSeat.SitStyle.Chair);
         so.FindProperty("faceTowards").objectReferenceValue = null;                               // towards the cup spot
-        so.FindProperty("clearanceRadius").floatValue = s.bench || !s.snap ? BenchFootprint : 0f;   // chairs that sit: 0, i.e. 0.3 (WaitingArea)
+        so.FindProperty("clearanceRadius").floatValue = s.Footprint;                              // chairs that sit: 0, i.e. 0.3 (WaitingArea)
+        if (s.repairBar)
+        {
+            // The repair bar's stools (NPC wave 2): bench-job customers first, the lift inside the clips, the narrow way in,
+            // and turned 45 degrees (the counter has no knee space).
+            Transform face = Anchor(go.transform, RepairBarSeats.FaceName, RepairBarSeats.FacePoint(s.pose, s.faceTurn), Quaternion.identity);
+            so.FindProperty("faceTowards").objectReferenceValue = face;
+            so.FindProperty("repairBar").boolValue = true;
+            so.FindProperty("maxLift").floatValue = RepairBarSeats.MaxLift;
+            so.FindProperty("approachSide").floatValue = RepairBarSeats.ApproachSide;
+        }
         so.ApplyModifiedPropertiesWithoutUndo();                                                    // a new object: its creation is the undo
         Shared.Made(run, go);
         s.made = go;
@@ -847,9 +870,12 @@ internal static class CafeSeatsSteps
         {
             TableSeat t = s.seat;
             bool wired = t != null && t.Kind == WaitingSpot.SpotKind.Seat && Mathf.Approximately(t.DrainMultiplier, SeatDrain) && t.SnapToSeat == s.snap
-                         && t.Style == (s.bench ? TableSeat.SitStyle.Bench : TableSeat.SitStyle.Chair) && Mathf.Approximately(t.ClearanceRadius, s.bench || !s.snap ? BenchFootprint : 0f)
-                         && Near(t.StandPoint.position, s.stand, Mm) && Near(t.SeatPose.position, s.pose, Mm) && Near(t.CupSpot.position, s.cup, Mm);
-            run.Check(wired, $"{s.name}: a Seat, drain {F(SeatDrain, "0.0")}, {(s.bench ? "Bench" : "Chair")}, Snap To Seat {(s.snap ? "on" : "off")}, its three points where planned.");
+                         && t.Style == (s.bench ? TableSeat.SitStyle.Bench : TableSeat.SitStyle.Chair) && Mathf.Approximately(t.ClearanceRadius, s.Footprint)
+                         && Near(t.StandPoint.position, s.stand, Mm) && Near(t.SeatPose.position, s.pose, Mm) && Near(t.CupSpot.position, s.cup, Mm)
+                         && t.RepairBar == s.repairBar && Mathf.Approximately(t.MaxLift, s.repairBar ? RepairBarSeats.MaxLift : 0f)
+                         && Mathf.Approximately(t.ApproachSide, s.repairBar ? RepairBarSeats.ApproachSide : 0f);
+            run.Check(wired, $"{s.name}: a Seat, drain {F(SeatDrain, "0.0")}, {(s.bench ? "Bench" : "Chair")}, Snap To Seat {(s.snap ? "on" : "off")}, its three points where planned" +
+                             (s.repairBar ? $"; Repair Bar, Max Lift {F(RepairBarSeats.MaxLift, "0.00")}, Approach Side {F(RepairBarSeats.ApproachSide, "0.00")}." : "."));
             float? surface = MeshTopUnder(s.on.placed, s.pose + Vector3.up * .3f, .6f);
             run.Check(surface.HasValue && s.pose.y - surface.Value >= -.005f && s.pose.y - surface.Value <= .03f,
                       $"{s.name}: the sit point {F(s.pose.y)} over its seat's surface at {(surface.HasValue ? F(surface.Value) : "nothing")} (a ray down the mesh).");
@@ -861,8 +887,10 @@ internal static class CafeSeatsSteps
             run.Check(onTop && (table == null || drawnTop.HasValue && Mathf.Abs(drawnTop.Value - s.cup.y) <= .01f),
                       $"{s.name}: the cup spot on {(under.HasValue ? under.Value.collider.name : "nothing")} (solid at {(under.HasValue ? F(under.Value.point.y) : "-")}" +
                       $"{(table != null ? ", drawn top at " + (drawnTop.HasValue ? F(drawnTop.Value) : "-") : "")}; the cup at {F(s.cup.y)}).");
-            float face = Mathf.Abs(Mathf.DeltaAngle(Shared.Facing(Quaternion.LookRotation(Flat(t.FacingPoint - t.SeatPose.position), Vector3.up)), s.on.Front));
-            run.Check(face <= 2f && NpcBeats.TableInFront(t), $"{s.name}: faces its table ({F(face, "0.0")} degrees off the piece's front; NpcBeats counts a table in front).");
+            // The repair bar's stools are turned on purpose (Face Towards, 45 degrees); the rest face straight down their piece.
+            float face = Mathf.Abs(Mathf.DeltaAngle(Shared.Facing(Quaternion.LookRotation(Flat(t.FacingPoint - t.SeatPose.position), Vector3.up)), s.on.Front + s.faceTurn));
+            run.Check(face <= 2f && NpcBeats.TableInFront(t), $"{s.name}: faces its table{(s.repairBar ? $", turned {F(s.faceTurn, "0")} degrees" : "")} " +
+                                                              $"({F(face, "0.0")} degrees off; NpcBeats counts a table in front).");
         }
 
         // ---- exactly the plan's seats on, today's off ----

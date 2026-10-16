@@ -25,6 +25,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bpy  # noqa: E402
 import bmesh  # noqa: E402
 import fixit_blender as fb  # noqa: E402
 import hero_lib as hl  # noqa: E402
@@ -42,11 +43,20 @@ BT_MATERIALS = {
     'BT_Bristle':      ('#CFA253', 0.10, 0.0),   # golden synthetic bristle
     'BT_Cloth':        ('#D9BD5C', 0.05, 0.0),   # a yellow microfibre lens cloth
     'BT_White':        ('#F2EFE8', 0.30, 0.0),   # the cap's printed cross
+    'BT_Cork':         ('#A57B4F', 0.15, 0.0),   # the tool rest's cloth tray lining (14 Oct 2026)
+}
+# the café's own, used by name (Unity keeps its values; BlenderKitSteps maps them from Assets/Art/Materials)
+EXISTING = {
+    'DC_Steel':        ('#93908A', 0.50, 0.0),   # warm satin steel: the tool rest (bent sheet steel)
 }
 
 
 def M(name):
-    return hl.material(BT_MATERIALS, name)
+    return hl.material(BT_MATERIALS if name in BT_MATERIALS else EXISTING, name)
+
+
+SCREW_HEAD = .0038            # the devices' screw heads (hero_phone.SCREW_HEAD; feel-targets call 3)
+TIP_CROSS = 0.6 * SCREW_HEAD  # the driver's tip cross: 2.28 mm (was 2.6)
 
 
 # ----------------------------------------------------------------------------- the five tools
@@ -57,10 +67,11 @@ def screwdriver():
     steel, dark, black, green, white = M('BT_Steel'), M('BT_SteelDark'), M('BT_Grip_Black'), M('BT_Handle_Green'), M('BT_White')
     # the blade: 3 mm round, matt steel, 41 mm up into the neck; the tip ground to a point
     p.add('blade', revolve([(.0028, .0015), (.0410, .0015)], sides=10, bottom_tip=(0, 0, .0004)), steel)
-    # the Phillips cross: four fins, 0.5 mm thick, as two crossed plates that taper to the point
+    # the Phillips cross: four fins, 0.5 mm thick, as two crossed plates that taper to the point. 14 Oct 2026 (wave 2): the
+    # cross is TIP_CROSS (2.3 mm, 0.6 x the 3.8 mm screw head, feel-targets call 3; was 2.6), so the tip fits the screws
     for rot in (0.0, 90.0):
-        fin = tube([ring_rrect(0, 0, .0003, .0010, .0005, .0001, per_corner=1), ring_rrect(0, 0, .0030, .0026, .0005, .0001, per_corner=1),
-                    ring_rrect(0, 0, .0036, .0026, .0005, .0001, per_corner=1)])
+        fin = tube([ring_rrect(0, 0, .0003, TIP_CROSS * .385, .0005, .0001, per_corner=1), ring_rrect(0, 0, .0030, TIP_CROSS, .0005, .0001, per_corner=1),
+                    ring_rrect(0, 0, .0036, TIP_CROSS, .0005, .0001, per_corner=1)])
         fb.turn(fin, rot, 'Z')
         p.add('tip fin', fin, dark)
     # the handle: neck, spinning waist, grip swell, the groove, then the cap (measured: Wiha PicoFinish, 134 mm)
@@ -191,8 +202,9 @@ def brush():
 
 def cloth():
     """
-    A 15 x 18 cm terry microfibre cloth folded in quarters, lying on the glass (its underside is the origin): 75 x 90 mm,
-    four layers of about 2 mm. The -X edge is the first fold and the +Y edge the second: there the top layer WRAPS down
+    A 15 x 18 cm suede microfibre lens cloth folded in quarters, lying on the glass (its underside is the origin): 75 x 90
+    mm, four layers of 0.8 mm, about 5 mm with the puff (14 Oct 2026, Art's A4.1: today's 2.1 mm layers were terry-thick;
+    a lens cloth is 0.5-0.8 mm; the free corner lifts 6 mm, the grab point; ~2,500 triangles, from 4,358). The -X edge is the first fold and the +Y edge the second: there the top layer WRAPS down
     over the inner layers (which end inside the roll), so the stack's edge is a round shoulder. The +X and -Y edges are
     OPEN: the four layers end there one after another, pulled back by different amounts because nobody folds square,
     each ending in a soft lip (a terrace). The top puffs, sags toward the open edges, carries three old creases, and the
@@ -202,7 +214,7 @@ def cloth():
     yellow = M('BT_Cloth')
     sx, sy = .075, .090
     hx, hy = sx / 2, sy / 2
-    t = .0021                                                      # terry microfibre: about 2 mm a layer
+    t = .0008                                                      # suede lens cloth: 0.8 mm a layer
     # per layer, bottom (4) to top (1): pull-back from the open edges (+X, -Y) and inset from the fold edges (-X, +Y)
     layers = {4: ((0.0, 0.0), (0.0, 0.0)), 3: ((.0034, .0012), (.0016, .0020)), 2: ((.0016, .0046), (.0026, .0032)), 1: ((.0050, .0032), (0.0, 0.0))}
     # the three inner layers: flat slabs with a soft top lip (one chamfer), their terraces showing at the open edges
@@ -210,13 +222,13 @@ def cloth():
         (px, py), (ix, iy) = layers[k]
         z0 = (4 - k) * t
         x0, x1, y0, y1 = -hx + ix, hx - px, -hy + py, hy - iy
-        slab_ = fb.zbox(x0, x1, y0, y1, z0 - (.0003 if k != 4 else 0.0), z0 + t)
-        fb.bevel_all(slab_, .0007, segments=1)
+        slab_ = fb.zbox(x0, x1, y0, y1, z0 - (.0002 if k != 4 else 0.0), z0 + t)
+        fb.bevel_all(slab_, .00025, segments=1)
         p.add('layer %d' % k, slab_, yellow, smooth=True)
     # the top layer: a draped surface over the stack, wrapping down at the fold edges, lipped at the open edges
     (px, py), _ = layers[1]
     x0, x1, y0, y1 = -hx, hx - px, -hy + py, hy
-    cell = .0018
+    cell = .0025
     nx, ny = int(round((x1 - x0) / cell)), int(round((y1 - y0) / cell))
 
     def shoulder(d, w, floor):
@@ -225,27 +237,27 @@ def cloth():
 
     def base(x, y):
         # the underside: on the inner layers inside, down onto the bottom layer at the fold edges
-        wrap = min(smoothstep((x - x0) / .0046), smoothstep((y1 - y) / .0056))
+        wrap = min(smoothstep((x - x0) / .0030), smoothstep((y1 - y) / .0036))
         return t + 2 * t * wrap
 
     def top(x, y):
         h = base(x, y) + t
         u, v = (x - x0) / (x1 - x0), (y - y0) / (y1 - y0)
         dome = max(0.0, 4.0 * u * (1 - u) * 4.0 * v * (1 - v))
-        h += .0024 * dome ** .6 + .0006 * (1 - u) * v
+        h += .0016 * dome ** .6 + .0004 * (1 - u) * v
         d1 = abs((x - .004) - (y + .010) * .55)
         d2 = abs((x + .012) + (y - .006) * .8)
         d3 = abs((y - .028) - (x + .02) * .2)
-        h -= .0008 * math.exp(-(d1 / .006) ** 2) + .0006 * math.exp(-(d2 / .007) ** 2) + .0005 * math.exp(-(d3 / .005) ** 2)
+        h -= .0005 * math.exp(-(d1 / .006) ** 2) + .0004 * math.exp(-(d2 / .007) ** 2) + .0003 * math.exp(-(d3 / .005) ** 2)
         # the lips: the layer's own rounded edge, all four sides (the fold sides round down onto the wrap)
         edge = min(x - x0, x1 - x, y - y0, y1 - y)
-        lip = shoulder(edge, .0017, .40)
+        lip = shoulder(edge, .0011, .40)
         return base(x, y) + (h - base(x, y)) * lip + curl(x, y)
 
     def curl(x, y):
         # the free corner lifts as a sheet: most at the tip, nothing 16 mm in
         dc = math.hypot(max(0.0, x1 - x), max(0.0, y - y0))
-        return .0046 * smoothstep(1.0 - dc / .020) ** 1.2
+        return .0060 * smoothstep(1.0 - dc / .022) ** 1.2
 
     def under(x, y):
         # the layer's underside: on the stack, except where the corner lifts (then the sheet's own thickness)
@@ -288,6 +300,389 @@ def cloth():
     return p
 
 
+# ----------------------------------------------------------------------------- the bench stage's steel (14 Oct 2026)
+#
+# Art Direction's briefs A2-A5 (specs/art-bench-and-cafe.md). The rest and the tray are built in the bench rig's own frame
+# (like bench_stage.py's mat): imported with no turn, their Unity +x is the player's right and +z away from the player, so
+# in Blender the player sits at +Y. Origin: the bottom centre. Unity (x, y, z) = Blender (-x, z, -y).
+
+REST_W, REST_D, REST_T = .110, .230, .002            # the base plate: across, deep (toward/away), thick
+NEAR_BAR = {'y': .020, 'h': .016, 't': .003}         # from the near edge, tall above the plate, thick
+FAR_BAR = {'y': .120, 'h': .009, 't': .003}
+CLOTH_TRAY = {'y0': .150, 'y1': .230, 'w': .100, 'h': .006, 'wall': .0012, 'cork': .001}
+REST_TILT = 5.0                                      # degrees: the handles higher (Art: "about 5")
+# the four tools, left to right as the player sees them, 25 mm apart (Art x = player's right); tip = how far the working
+# tip lies from the near edge; the far bar's V notch half-width and depth for each (the U notches are 18 mm wide)
+REST_TOOLS = [
+    # (builder name, ToolType, Art x, tip from the near edge, V half-width, V depth)
+    ('screwdriver', 'Screwdriver', -.0375, .145, .0035, .0045),
+    ('pry_tool', 'Pry', -.0125, .140, .0060, .0045),
+    ('tweezers', 'Tweezers', .0125, .133, .0045, .0045),
+    ('brush', 'Brush', .0375, .147, .0140, .0045),
+]
+
+
+def _rest_y(from_near):
+    """Blender y of a point this far from the rest's near edge (the near edge, toward the player, at +Y)."""
+    return REST_D / 2 - from_near
+
+
+def _bar_profile(x_half, z0, z_top, notches):
+    """A bar's outline in (x, z), counter-clockwise from its bottom left: notches [(x, kind, a, b)] cut from its top;
+    kind 'U' (a = half-width, b = bottom z: a half-round bottom under straight sides) or 'V' (a = half-width, b = depth)."""
+    pts = [(-x_half, z0)]
+    top = []
+    for x, kind, a, b in sorted(notches):
+        if kind == 'U':
+            zc = b + a                                   # the half-round's centre
+            arc = [(x + a * math.cos(t), zc + a * math.sin(t)) for t in (math.pi + math.pi * k / 10 for k in range(11))]
+            arc = [(px, pz) for px, pz in arc if pz < z_top - 1e-5]
+            if zc < z_top:
+                top += [(x - a, z_top), (x - a, zc)] + arc[1:-1] + [(x + a, zc), (x + a, z_top)]
+            else:                                        # a shallow notch: only the arc's foot
+                ends = math.sqrt(max(0.0, a * a - (z_top - zc) ** 2))
+                top += [(x - ends, z_top)] + arc + [(x + ends, z_top)]
+        else:
+            top += [(x - a, z_top), (x, z_top - b), (x + a, z_top)]
+    # the top edge runs right to left in a counter-clockwise outline
+    pts += [(x_half, z0), (x_half, z_top)] + list(reversed(top)) + [(-x_half, z_top)]
+    return pts
+
+
+def _extrude_xz(profile, y0, y1):
+    """An outline in (x, z) extruded along Y from y0 to y1; the two ends are filled by ear clipping (concave)."""
+    bm = bmesh.new()
+    a = [bm.verts.new((x, y0, z)) for x, z in profile]
+    b = [bm.verts.new((x, y1, z)) for x, z in profile]
+    n = len(profile)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new([a[i], a[j], b[j], b[i]])
+    # the two ends: a constrained Delaunay fill (ear clipping made zero-area triangles from the collinear points along
+    # the bar's top between its notches)
+    from mathutils import Vector as V, geometry
+    vc, _e, tris, orig, _oe, _of = geometry.delaunay_2d_cdt([V(p) for p in profile], [], [list(range(n))], 1, 1e-9)
+    if len(vc) != n:
+        raise ValueError('the bar outline crosses itself')
+    for t in tris:
+        ids = [orig[i][0] for i in t]
+        bm.faces.new([a[i] for i in reversed(ids)])
+        bm.faces.new([b[i] for i in ids])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return bm
+
+
+def _rest_mesh(u_bottoms):
+    """The rest itself, with each tool's U notch bottom (z, m) as given."""
+    p = Faceted('BT_ToolRest')
+    steel, cork = M('DC_Steel'), M('BT_Cork')
+    plate = hl.chamfered_slab(REST_W, REST_D, REST_T, .006, .0004, per_corner=3, centre_z=REST_T / 2)
+    p.add('base plate', plate, steel)
+    xh = REST_W / 2 - .003
+    near = [(-x, 'U', .009, zb) for (_, _, x, _, _, _), zb in zip(REST_TOOLS, u_bottoms)]     # Blender x = -Art x
+    prof = _bar_profile(xh, REST_T - .0002, REST_T + NEAR_BAR['h'], near)
+    y = _rest_y(NEAR_BAR['y'])
+    p.add('near bar', _extrude_xz(prof, y - NEAR_BAR['t'] / 2, y + NEAR_BAR['t'] / 2), steel)
+    far = [(-x, 'V', vw, vd) for (_, _, x, _, vw, vd) in REST_TOOLS]
+    prof = _bar_profile(xh, REST_T - .0002, REST_T + FAR_BAR['h'], far)
+    y = _rest_y(FAR_BAR['y'])
+    p.add('far bar', _extrude_xz(prof, y - FAR_BAR['t'] / 2, y + FAR_BAR['t'] / 2), steel)
+    # the cloth tray at the far end: steel walls round a cork lining
+    ct = CLOTH_TRAY
+    cy = (_rest_y(ct['y0']) + _rest_y(ct['y1'])) / 2
+    wall = hl.rrect_wall(REST_T - .0002, REST_T + ct['h'], ct['w'], ct['y1'] - ct['y0'], .004, ct['wall'], per_corner=2)
+    hl.moved(wall, 0.0, cy, 0.0)
+    p.add('cloth tray wall', wall, steel)
+    liner = fb.zbox(-ct['w'] / 2 + ct['wall'] - .0002, ct['w'] / 2 - ct['wall'] + .0002,
+                    cy - (ct['y1'] - ct['y0']) / 2 + ct['wall'] - .0002, cy + (ct['y1'] - ct['y0']) / 2 - ct['wall'] + .0002,
+                    REST_T - .0003, REST_T + ct['cork'])
+    p.add('cork lining', liner, cork)
+    return p.finish()
+
+
+def _world_mesh(objs):
+    """World-space vertices and polygons of some mesh objects, for a BVH."""
+    from mathutils.bvhtree import BVHTree
+    verts, polys = [], []
+    for o in objs:
+        mw = o.matrix_world
+        base = len(verts)
+        verts += [mw @ v.co for v in o.data.vertices]
+        polys += [[base + i for i in poly.vertices] for poly in o.data.polygons]
+    return verts, polys, BVHTree.FromPolygons(verts, polys)
+
+
+def _clearances(tool_objs, rest_ob):
+    """How far the tool (held high) can drop before it meets the rest: (at the near bar, at the far bar, anywhere)."""
+    from mathutils import Vector as V
+    bpy.context.view_layer.update()
+    tv, _tp, tbvh = _world_mesh(tool_objs)
+    rv, _rp, rbvh = _world_mesh([rest_ob])
+    down, up = V((0, 0, -1)), V((0, 0, 1))
+    y_near, y_far = _rest_y(NEAR_BAR['y']), _rest_y(FAR_BAR['y'])
+    best = {'near': 9.0, 'far': 9.0, 'other': 9.0}
+
+    def which(y):
+        if abs(y - y_near) < .006:
+            return 'near'
+        if abs(y - y_far) < .006:
+            return 'far'
+        return 'other'
+    for v in tv:                                     # from the tool down onto the rest
+        hit = rbvh.ray_cast(v, down, 1.0)
+        if hit[0] is not None:
+            k = which(hit[0].y)
+            best[k] = min(best[k], hit[3])
+    for v in rv:                                     # from the rest up into the tool (a notch's edge between tool points)
+        hit = tbvh.ray_cast(v, up, 1.0)
+        if hit[0] is not None:
+            k = which(v.y)
+            best[k] = min(best[k], hit[3])
+    return best['near'], best['far'], best['other']
+
+
+def _place_tool(objs, root, x_b, tip_from_near, z):
+    from mathutils import Euler
+    root.location = (x_b, _rest_y(tip_from_near), z)
+    root.rotation_euler = Euler((math.radians(-(90.0 - REST_TILT)), 0.0, 0.0))
+
+
+def tool_rest():
+    """
+    BT_ToolRest (Art's A2): a bench-top tool rest in bent sheet steel (the café's DC_Steel), 110 x 230 mm. A near bar 16 mm
+    tall with a U notch per tool takes the handles; a far bar 9 mm tall with a V notch per tool takes the blades; the
+    tools lie on them 5 degrees tipped, handles higher and toward the player, tips away, 25 mm apart, left to right
+    screwdriver, pry tool, tweezers, brush (the work's order; the brush nearest the device), each with its flat side up.
+    At the far end a cork-lined tray 100 x 80 mm holds the folded cloth. Each U notch's depth is fitted to its tool (the
+    tool rests on both bars, measured by rays: nothing floats, nothing sinks), and each tool's resting pose is an empty,
+    a child of the rest: Seat_Screwdriver, Seat_Pry, Seat_Tweezers, Seat_Brush, Seat_Cloth (where the tool's origin, its
+    working tip, goes; its turn). Cut: hang holes, a brand plate, magnets (the auto-tray does the holding), a fifth slot.
+    Returns (rest object, [the seat empties]).
+    """
+    from mathutils import Euler
+    builders = {'screwdriver': screwdriver, 'pry_tool': pry_tool, 'tweezers': tweezers, 'brush': brush}
+    bottoms = [.0080] * len(REST_TOOLS)
+    poses = []
+    for attempt in range(3):                         # fit, adjust the notches, check
+        rest = _rest_mesh(bottoms)
+        poses, adjust = [], []
+        for (name, ttype, x_art, tip, _vw, _vd), zb in zip(REST_TOOLS, bottoms):
+            built = builders[name]()
+            if isinstance(built, tuple):
+                root, kids = built
+            else:
+                root, kids = built.finish(), []
+            objs = [root] + kids
+            high = .060
+            _place_tool(objs, root, -x_art, tip, high)
+            near, far, other = _clearances(objs, rest)
+            drop = min(near, far, other)
+            poses.append((ttype, root.location.copy(), root.rotation_euler.copy(), near - drop, far - drop, other - drop, high - drop))
+            adjust.append(near - far)                # > 0: the handle hovers over its notch by this much
+            for o in objs:
+                bpy.data.objects.remove(o, do_unlink=True)
+        if all(abs(a) < .0002 for a in adjust) or attempt == 2:
+            break
+        bottoms = [zb + a for zb, a in zip(bottoms, adjust)]
+        bpy.data.objects.remove(rest, do_unlink=True)
+    seats = []
+    for ttype, loc, rot, gap_near, gap_far, gap_other, z in poses:
+        e = bpy.data.objects.new('Seat_' + ttype, None)
+        bpy.context.scene.collection.objects.link(e)
+        e.empty_display_type = 'ARROWS'
+        e.empty_display_size = .01
+        e.parent = rest
+        e.location = (loc.x, loc.y, z)
+        e.rotation_euler = rot
+        e['gaps_mm'] = [round(gap_near * 1000, 2), round(gap_far * 1000, 2), round(gap_other * 1000, 2)]
+        seats.append(e)
+    # the cloth: folded, on the cork, turned a quarter so its 90 mm side lies across the tray and its lifted corner
+    # faces the player (the cloth's own free corner is its +X -Y corner; a quarter turn sends it to Blender +Y)
+    ct = CLOTH_TRAY
+    e = bpy.data.objects.new('Seat_Cloth', None)
+    bpy.context.scene.collection.objects.link(e)
+    e.empty_display_type = 'ARROWS'
+    e.empty_display_size = .01
+    e.parent = rest
+    e.location = (0.0, (_rest_y(ct['y0']) + _rest_y(ct['y1'])) / 2, REST_T + ct['cork'])
+    e.rotation_euler = Euler((0.0, 0.0, math.radians(90.0)))
+    seats.append(e)
+    rest['notch_bottoms_mm'] = [round(b * 1000, 2) for b in bottoms]
+    return rest, seats
+
+
+def scrap_tray():
+    """
+    BT_ScrapTray (Art's A3): the old-parts bin, a shallow stainless instrument tray 160 x 90 x 22 mm, corners r 10,
+    slightly flared walls 0.8 mm thick, a rolled rim, satin BT_Steel. It stands on the mat's far band behind the device;
+    a different material and height say "out of the job", and dark broken parts read on its L* 74. Cut: handles, a lid,
+    graduations, a brand. One closed shell, ~250 triangles.
+    """
+    p = Faceted('BT_ScrapTray')
+    steel = M('BT_Steel')
+    loops = []
+    for z, sx, sy, r in ((0.0, .150, .080, .006), (.0008, .151, .081, .0065), (.0195, .156, .086, .009), (.0212, .1592, .0892, .0106),
+                         (.0220, .1576, .0876, .0098), (.0210, .1552, .0852, .0086), (.0195, .1544, .0844, .0082), (.0008, .1484, .0784, .0052)):
+        loops.append(ring_rrect(0, 0, z, sx, sy, r, per_corner=3))
+    p.add('tray', tube(loops), steel)
+    tray = p.finish()
+    # Systems' scrapSlots (their spec 4.0.1): three places on the floor (0.8 mm up) in the tray's right two-thirds, as the
+    # player sees it (Art x -10, +25, +60 mm = Blender -x), centred in depth. A long part (the phone's 133 mm screen) lies
+    # along the tray's length and takes the middle one.
+    slots = []
+    for k, x_art in enumerate((-0.010, 0.025, 0.060)):
+        e = bpy.data.objects.new('Slot_%d' % (k + 1), None)
+        bpy.context.scene.collection.objects.link(e)
+        e.empty_display_type = 'PLAIN_AXES'
+        e.empty_display_size = .01
+        e.parent = tray
+        e.location = (-x_art, 0.0, .0008)
+        slots.append(e)
+    return tray, slots
+
+
+# ----------------------------------------------------------------------------- the cloth in the hand, the brush's bend
+
+HELD_N = 36                                          # around the wad
+HELD_RINGS = [   # (fraction of the pad's half-sizes, z m): the flat pad, its soft edge rolling up, the gathered tail
+    (.22, 0.0), (.44, 0.0), (.64, 0.0), (.80, 0.0), (.92, .00015), (1.00, .0009), (1.06, .0026), (1.08, .0050),
+    (1.02, .0078), (.86, .0110), (.64, .0150), (.46, .0200), (.34, .0260), (.30, .0320), (.31, .0370), (.24, .0405)]
+HELD_TIP = .0420
+HELD_A, HELD_B = .0200, .0225                        # the working pad's half-sizes: 40 x 45 mm
+PRESS_RINGS = [   # the pressed wad: the pad 50 x 52 mm, the rolled edge lower, the tail 5 mm down
+    (.22, 0.0), (.44, 0.0), (.64, 0.0), (.80, 0.0), (.92, 0.0), (1.00, .0004), (1.05, .0014), (1.08, .0032),
+    (1.05, .0056), (.90, .0082), (.68, .0112), (.49, .0152), (.36, .0210), (.31, .0270), (.32, .0320), (.25, .0355)]
+PRESS_TIP = .0370
+PRESS_SCALE = (1.25, 1.155)                          # 40 x 45 -> 50 x 52
+FOLD_AMP = [0, 0, 0, 0, 0, 0, .020, .035, .050, .070, .100, .130, .150, .130, .100, .080]   # per ring: folds grow toward the fist
+TAIL_LEAN = 24.0                                     # degrees toward the player (Blender +Y): the hand is there
+
+
+def _held_positions(rings, tip, scale=(1.0, 1.0), bunch=0.0):
+    """The wad's vertices: the centre point, the rings (HELD_N each), the tip. bunch 1 = the stroke at full speed."""
+    from mathutils import Vector as V
+    pts = [V((0.0, 0.0, 0.0))]
+    for j, (f, z) in enumerate(rings):
+        a = HELD_A * f * scale[0]
+        b = HELD_B * f * scale[1]
+        twist = math.radians(80.0) * min(1.0, z / .040)
+        lean_y = z * math.tan(math.radians(TAIL_LEAN)) * smoothstep(z / .014)       # the tail leans toward the player (+Y)
+        lean_x = z * math.tan(math.radians(12.0)) * smoothstep((z - .006) / .012) * bunch   # and against the stroke
+        for i in range(HELD_N):
+            phi = 2 * math.pi * i / HELD_N
+            # irregular folds radiating up into the fist: two harmonics, not a star
+            fold = .62 * math.cos(5 * phi + twist + .7) + .38 * math.cos(3 * phi - .5 * twist + 2.1)
+            k = 1.0 + FOLD_AMP[j] * fold + (.025 * math.cos(4 * phi + 1.3) if 4 <= j <= 7 else 0.0)
+            x, y = a * k * math.cos(phi), b * k * math.sin(phi)
+            zz = z
+            if bunch and j <= 9:
+                # the stroke runs along Unity +x = Blender -x: the leading edge (Blender -x) rolls up into folds, the
+                # trailing edge (Blender +x) stretches flat and drags behind
+                lead = max(0.0, -math.cos(phi)) ** 1.5
+                trail = max(0.0, math.cos(phi)) ** 1.5
+                crest = {3: .0006, 4: .0024, 5: .0012, 6: .0042, 7: .0028, 8: .0045, 9: .0032}.get(j, 0.0)
+                zz += bunch * lead * crest
+                x += bunch * lead * .0040 * min(1.0, f)
+                x += bunch * trail * .0100 * min(1.0, f / .8)
+                zz -= bunch * trail * .7 * max(0.0, z)
+            pts.append(V((x + lean_x, y + lean_y, zz)))
+    lean_y = tip * math.tan(math.radians(TAIL_LEAN))
+    lean_x = tip * math.tan(math.radians(12.0)) * bunch
+    pts.append(V((lean_x, lean_y, tip)))
+    return pts
+
+
+def cloth_held():
+    """
+    BT_ClothHeld (Art's A4.2-3): the lens cloth folded once and gathered in an unseen fist. A working pad about 40 x 45 mm
+    lies on the glass (its contact face is the origin, z = 0) with soft edges and six radial folds; the gathered excess
+    rises behind it into a twisted tail 42 mm high, leaning 24 degrees toward the player (Blender +Y = Unity -Z) where the
+    hand is; the folds are irregular (two harmonics), not a star.
+    From the close-up camera: a rounded yellow wad about 45 x 55 mm. Smooth (the hero rule for soft things).
+    Shape keys (one topology): Press (the pad spreads to 50 x 52 mm, the rolled edge flattens, the tail drops 5 mm) and
+    Bunch (for a stroke along the model's Unity +X: the leading edge rolls up into three folds up to 4 mm high, the
+    trailing edge stretches flat and drags 9 mm behind, the tail leans 12 degrees against the stroke). Systems turns the
+    cloth so Unity +X points along the stroke, sets Bunch from the stroke's speed and Press from the press.
+    Returns the object (the keys on it).
+    """
+    from mathutils import Vector as V
+    base = _held_positions(HELD_RINGS, HELD_TIP)
+    bm = bmesh.new()
+    vs = [bm.verts.new(p) for p in base]
+    n, rings = HELD_N, len(HELD_RINGS)
+
+    def ring(j):
+        return vs[1 + j * n: 1 + (j + 1) * n]
+    r0 = ring(0)
+    for i in range(n):
+        bm.faces.new([vs[0], r0[(i + 1) % n], r0[i]])               # the pad's centre, facing down onto the glass
+    for j in range(rings - 1):
+        lo, hi = ring(j), ring(j + 1)
+        for i in range(n):
+            k = (i + 1) % n
+            bm.faces.new([lo[i], lo[k], hi[k], hi[i]])
+    last, tipv = ring(rings - 1), vs[-1]
+    for i in range(n):
+        bm.faces.new([last[i], last[(i + 1) % n], tipv])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    fb.orient_shells(bm)
+    for f in bm.faces:
+        f.smooth = True
+    fb.box_uvs(bm)
+    me = bpy.data.meshes.new('BT_ClothHeld')
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(M('BT_Cloth'))
+    ob = bpy.data.objects.new('BT_ClothHeld', me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.shape_key_add(name='Basis', from_mix=False)
+    for key_name, pts in (('Press', _held_positions(PRESS_RINGS, PRESS_TIP, scale=PRESS_SCALE)),
+                          ('Bunch', _held_positions(HELD_RINGS, HELD_TIP, bunch=1.0))):
+        key = ob.shape_key_add(name=key_name, from_mix=False)
+        for i, p in enumerate(pts):
+            key.data[i].co = V(p)
+    return ob
+
+
+BRUSH_MOUTH = .0255                                  # the ferrule's mouth: the bristles bend below it
+BRUSH_BEND_DEG = 25.0
+
+
+def brush_bend(ob):
+    """
+    The Bend shape key on BT_Brush (Art's A5): the seven clumps bend from the ferrule's mouth like a loaded cantilever,
+    their ends 25 degrees off the handle's line and 7.4 mm aside, toward the model's Unity -X (Blender +X: against a
+    stroke along Unity +X), the tips staying on the working plane (z 0: the origin contract holds bent), and the tips
+    splay 2 mm (the outer clumps 1 mm outward each, the bundle 2 mm thicker). No new triangles. Systems turns the brush
+    so Unity +X points along the stroke and sets Bend from the stroke's speed and the press.
+    """
+    from mathutils import Vector as V
+    me = ob.data
+    bristle = me.materials.find('BT_Bristle')
+    verts = set()
+    for poly in me.polygons:
+        if poly.material_index == bristle:
+            verts.update(poly.vertices)
+    L = BRUSH_MOUTH
+    delta = (2.0 / 3.0) * L * math.radians(BRUSH_BEND_DEG)   # a cantilever's end deflection for that end slope
+    if ob.data.shape_keys is None:
+        ob.shape_key_add(name='Basis', from_mix=False)
+    key = ob.shape_key_add(name='Bend', from_mix=False)
+    moved = 0
+    for i in verts:
+        co = me.vertices[i].co
+        if co.z >= L:
+            continue
+        s_ = (L - co.z) / L
+        dx = delta * (3 * s_ * s_ - s_ ** 3) / 2.0
+        splay_x = (co.x / .0105) * .0010 * s_ * s_
+        y = co.y * (1.0 + .30 * s_ * s_)
+        key.data[i].co = V((co.x + dx + splay_x, y, co.z))
+        moved += 1
+    ob['bend_vertices'] = moved
+    return ob
+
+
 # ----------------------------------------------------------------------------- the list
 
 
@@ -297,19 +692,31 @@ TOOLS = [
     (tweezers, 'Tweezers', "tweezers: the points are the origin; Leaf_L and Leaf_R turn about their own axis to pinch"),
     (brush, 'Brush', "brush: the bristles' ends are the origin; strokes along the surface"),
     (pry_tool, 'Pry', "pry tool: the blade's edge is the origin; the lever goes in flat along -Y"),
-    (cloth, 'Cloth', "cloth: its face on the glass is the origin; wiped in circles"),
+    (cloth, 'Cloth', "cloth, folded (on the rest): its face on the glass is the origin; wiped in circles"),
+    (cloth_held, 'Cloth', "cloth in the hand: a wad, the pad's face on the glass the origin; keys Press and Bunch (stroke along +X)"),
+    (tool_rest, '', "tool rest: the five tools' seats (Seat_*) as children, its origin the bottom centre; no turn in the rig"),
+    (scrap_tray, '', "old-parts tray: its origin the bottom centre; it stands on the mat's far band behind the device"),
 ]
 
 
 def build_all():
-    """Every tool, finished and audited: [{object, children, tool, what, islands, floating, tris, size, min, max, materials}]."""
+    """Every piece, finished and audited: [{object, children, empties, tool, what, islands, floating, tris, size, min, max,
+    materials, keys}]. children are the meshes under the root (the tweezers' leaves), empties the named places under it
+    (the rest's seats); keys the shape keys (the held cloth's Press and Bunch, the brush's Bend)."""
     out = []
     for builder, tool, what in TOOLS:
         built = builder()
         if isinstance(built, tuple):
-            root, children = built
+            root, kids = built
+        elif isinstance(built, fb.Prop):
+            root, kids = built.finish(), []
         else:
-            root, children = built.finish(), []
+            root, kids = built, []
+        if root.name == 'BT_Brush':
+            brush_bend(root)
+        children = [k for k in kids if k.type == 'MESH']
+        empties = [k for k in kids if k.type == 'EMPTY']
+        bpy.context.view_layer.update()
         tris, mins, maxs, mats, islands, floating = 0, [], [], [], 0, []
         objs = [root] + children
         for ob in objs:
@@ -331,9 +738,10 @@ def build_all():
                 best = min(fb.gap(a, b) for j, b in enumerate(boxes) if j != i)
                 if best > .002:
                     floating.append((objs[i].name, 'part', round(best * 1000, 1)))
-        out.append({'object': root, 'children': children, 'tool': tool, 'what': what, 'islands': islands,
+        keys = [k.name for k in root.data.shape_keys.key_blocks[1:]] if root.data.shape_keys else []
+        out.append({'object': root, 'children': children, 'empties': empties, 'tool': tool, 'what': what, 'islands': islands,
                     'floating': floating, 'tris': tris,
                     'size': tuple(round(hi[k] - lo[k], 4) for k in range(3)),
                     'min': tuple(round(lo[k], 4) for k in range(3)), 'max': tuple(round(hi[k], 4) for k in range(3)),
-                    'materials': mats})
+                    'materials': mats, 'keys': keys})
     return out

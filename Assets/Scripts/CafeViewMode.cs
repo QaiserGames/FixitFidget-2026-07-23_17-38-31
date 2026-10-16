@@ -19,8 +19,21 @@ using Unity.Cinemachine;
 // Inside a house at night (the break-ins; GraceHouse calls EnterHouseView), the
 // camera turns to look in from the street, like a doll's house with its front
 // open, and zooms in closer than the café allows (House Distance Min/Max). The
-// player can still orbit and zoom; turning the view by hand ends the turn at
-// once. ExitHouseView turns it back to the angle it had outside.
+// player can still orbit and zoom. ExitHouseView turns it back to the angle it
+// had outside.
+//
+// THE NIGHT ZOOM (14 Oct 2026, decision 10; claude cinematics spec §4.3). His note: "when talking to the random guy in the
+// dumpster, i can zoom up pretty close to ace which is awesome but when i walk towards to graces house ... the zoom
+// INSTANTLY SHOOTS up ONLY if i try to zoom or touch the zoom button at all". The cause: leaving the bins put the limits
+// back to 24-48 m while any camera input killed the turn back, leaving the distance at 8 m; the next zoom press clamped it
+// to 24 m in one frame (240 m/s at his 15 fps). Now:
+//   * outside at night, following Ace, the view may come in to Night Zoom Min (8 m) everywhere, not only round the back;
+//   * a turn has two parts, the angle and the distance: orbiting or tilting cancels only the angle part, zooming only the
+//     distance part, so steering can never strand the distance outside its limits;
+//   * limits are never applied in one frame: a distance outside them eases back (smoothstep, never over 35 m/s);
+//   * zoom input can't push the distance further out of range, and never yanks it in;
+//   * leaving a house or the bins keeps a zoom he chose inside; a zoom the house view set by itself is undone;
+//   * R3 eases home (the angle in 0.5 s), by day too.
 [DefaultExecutionOrder(-100)]
 [DisallowMultipleComponent]
 public sealed class CafeViewMode : MonoBehaviour
@@ -83,6 +96,10 @@ public sealed class CafeViewMode : MonoBehaviour
     [SerializeField, Range(0, 1)] private float followLag = .2f;
     [Tooltip("The point on Ace the camera looks at, metres above the feet.")]
     [SerializeField, Range(0, 2)] private float followHeight = 1f;
+    [Tooltip("How close the overhead camera may zoom while it follows Ace outside at night (Follow With Day Framing on), metres " +
+             "from Ace, everywhere he walks. A house view keeps its own House Distance Min. His note, 14 Oct: \"i can zoom up " +
+             "pretty close to ace which is awesome\".")]
+    [SerializeField, Range(4, 24)] private float nightZoomMin = 8f;
 
     [Header("Inside a house (the break-ins)")]
     [Tooltip("Zoom limits while Ace is inside a house and the camera looks in from the street, metres from Ace.")]
@@ -110,10 +127,24 @@ public sealed class CafeViewMode : MonoBehaviour
     bool following;
     Vector3 followFocus, followVelocity;
     float dayIsoYaw, dayIsoPitch, dayIsoDistance, dayHomeYaw, dayHomePitch, dayHomeDistance;
-    // Inside a house (the break-ins): the view it turns to, the view to turn back to, and the turn itself.
-    bool inHouse, turning;
-    float turnT, turnFromYaw, turnFromPitch, turnFromDistance, turnToYaw, turnToPitch, turnToDistance;
+    // Inside a house (the break-ins): the view to turn back to, and whether he zoomed while inside (then his zoom stays).
+    bool inHouse, zoomedInside;
     float outsideYaw, outsidePitch, outsideDistance, outsideHomeYaw, outsideHomePitch, outsideHomeDistance;
+    // A turn, in two parts (14 Oct): the angle (turn and tilt) over its own seconds, and the distance, eased (smoothstep) over
+    // max(0.5 s, 1.5 x the gap / Limit Speed) so it never moves faster than Limit Speed. Orbit and tilt input cancel only the
+    // angle part; zoom input only the distance part. The distance part also carries the limits' pull (KeepInLimits).
+    bool turningAngle, turningDistance, zoomedThisFrame;
+    float angleT, angleSeconds = .8f, distanceT, distanceSeconds = .5f;
+    float turnFromYaw, turnFromPitch, turnToYaw, turnToPitch, turnFromDistance, turnToDistance;
+
+    /// <summary>The most a limit change, an eased turn or R3 moves the overhead camera's distance, metres a second (feel target T20).</summary>
+    public const float LimitSpeed = 35f;
+    /// <summary>The shortest distance ease, seconds (decision 10: "easing over about half a second").</summary>
+    public const float DistanceEaseLeast = .5f;
+    /// <summary>R3's angle part, seconds.</summary>
+    public const float HomeTurnSeconds = .5f;
+    // The tilt's own pull, should its limits ever move under it (today they don't: Follow With Day Framing is on).
+    const float PitchLimitSpeed = 90f;
 
     public bool FirstPersonSelected => firstPerson;
     public bool WalkingFirstPerson => isActiveAndEnabled && firstPerson && !AtStation && !OverlayOwnsInput;
@@ -184,11 +215,19 @@ public sealed class CafeViewMode : MonoBehaviour
     /// capsule, what's in Ace's hand), and the view can't be switched until Ace comes out; it stays where it is.
     /// </summary>
     public bool AceSetAside { get; set; }
-    // The night's own limits apply only while following with the day's framing switched off.
+    /// <summary>How close the view may come while following Ace outside at night (metres; checks).</summary>
+    public float NightZoomMin => nightZoomMin;
+    /// <summary>A turn's angle part is easing (EnterHouseView, ExitHouseView, R3).</summary>
+    public bool AngleEasing => turningAngle;
+    /// <summary>The distance is easing: a turn's distance part, R3's, or the limits' pull back into range.</summary>
+    public bool DistanceEasing => turningDistance;
+    // The night's own limits apply only while following with the day's framing switched off. Following with the day's
+    // framing (the scene's setting), the night comes in to Night Zoom Min everywhere outside (14 Oct); a house view keeps
+    // its own; by day nothing changes (24-48 m round the café's middle).
     bool NightFraming => following && !followWithDayFraming;
     float PitchMin => NightFraming ? followPitchMin : 38f;
     float PitchMax => NightFraming ? followPitchMax : 68f;
-    float DistanceMin => inHouse ? houseDistanceMin : NightFraming ? followDistanceMin : minimumDistance;
+    float DistanceMin => inHouse ? houseDistanceMin : NightFraming ? followDistanceMin : following ? nightZoomMin : minimumDistance;
     float DistanceMax => inHouse ? houseDistanceMax : NightFraming ? followDistanceMax : maximumDistance;
     Vector3 AceFocus => AceFeet + Vector3.up * followHeight;
     bool AtStation => interactor != null && interactor.IsAtStation;
@@ -361,41 +400,43 @@ public sealed class CafeViewMode : MonoBehaviour
                 if (mouse.middleButton.isPressed)
                 {
                     Vector2 delta = mouse.delta.ReadValue();
-                    if (delta != Vector2.zero) turning = false;
+                    if (delta != Vector2.zero) turningAngle = false;   // steering ends the angle part only: the distance eases on
                     isoYaw = Mathf.Repeat(isoYaw + delta.x * .18f * GameSettings.LookScale, 360);
                     isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f * GameSettings.LookScale * GameSettings.YSign, PitchMin, PitchMax);
                 }
                 float scroll = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(scroll) > .01f)
-                {
-                    turning = false;
-                    isoDistance = Mathf.Clamp(isoDistance - Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f, DistanceMin, DistanceMax);
-                }
+                if (Mathf.Abs(scroll) > .01f) Zoom(-Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f);
             }
             // Controller: right stick orbits and tilts, triggers zoom (RT in,
-            // LT out), R3 returns to the authored overhead angle.
+            // LT out), R3 eases back to the authored overhead angle.
             Vector2 orbit = PadInput.Curved(PadInput.RightStick, 1.4f);
             if (orbit != Vector2.zero)
             {
-                turning = false;
+                turningAngle = false;   // the angle part only (14 Oct): the stick he steers with while walking can't strand the distance
                 isoYaw = Mathf.Repeat(isoYaw + orbit.x * padOrbitSpeed * GameSettings.PadLookScale * padDelta, 360);
                 isoPitch = Mathf.Clamp(isoPitch - orbit.y * padTiltSpeed * GameSettings.PadLookScale * padDelta * GameSettings.YSign, PitchMin, PitchMax);
             }
             float zoom = PadInput.RightTrigger - PadInput.LeftTrigger;
-            if (Mathf.Abs(zoom) > .01f)
-            {
-                turning = false;
-                isoDistance = Mathf.Clamp(isoDistance - zoom * padZoomSpeed * padDelta, DistanceMin, DistanceMax);
-            }
-            if (PadInput.Pressed(PadButton.RightStickPress))
-            {
-                turning = false;
-                isoYaw = homeIsoYaw;
-                isoPitch = homeIsoPitch;
-                isoDistance = homeIsoDistance;
-            }
+            if (Mathf.Abs(zoom) > .01f) Zoom(-zoom * padZoomSpeed * padDelta);
+            if (PadInput.Pressed(PadButton.RightStickPress)) GoHome();
         }
     }
+
+    // Zoom input (the wheel, the triggers): it cancels the distance part of a turn and skips this frame's pull. Clamped to the
+    // limits widened to include where the distance is now (14 Oct): it can't push the distance further out of range and never
+    // pulls it in. The old hard clamp here was the snap: 8 m to 24 m in one frame the moment he touched a trigger.
+    void Zoom(float change)
+    {
+        zoomedThisFrame = true;
+        turningDistance = false;
+        if (inHouse) zoomedInside = true;
+        float lo = Mathf.Min(DistanceMin, isoDistance), hi = Mathf.Max(DistanceMax, isoDistance);
+        isoDistance = Mathf.Clamp(isoDistance + change, lo, hi);
+    }
+
+    // R3: home, eased (14 Oct; by day too, so the controller's re-centre reads as one camera language with the house turns).
+    // Outside at night home is the day's home that FollowAce carried over; in a house view, the house's own.
+    void GoHome() => TurnTo(homeIsoYaw, Mathf.Clamp(homeIsoPitch, PitchMin, PitchMax), Mathf.Clamp(homeIsoDistance, DistanceMin, DistanceMax), HomeTurnSeconds);
 
     /// <summary>
     /// Turns the overhead camera to a given angle (the same limits as orbiting by
@@ -404,7 +445,8 @@ public sealed class CafeViewMode : MonoBehaviour
     /// </summary>
     public void OrbitTo(float yawDegrees, float pitchDegrees, float distance)
     {
-        turning = false;
+        // A hard set, as before (labs and scripted views): no ease, both parts of any turn ended.
+        turningAngle = turningDistance = false;
         isoYaw = Mathf.Repeat(yawDegrees, 360);
         isoPitch = Mathf.Clamp(pitchDegrees, PitchMin, PitchMax);
         isoDistance = Mathf.Clamp(distance, DistanceMin, DistanceMax);
@@ -437,6 +479,7 @@ public sealed class CafeViewMode : MonoBehaviour
         {
             dayIsoYaw = isoYaw; dayIsoPitch = isoPitch; dayIsoDistance = isoDistance;
             dayHomeYaw = homeIsoYaw; dayHomePitch = homeIsoPitch; dayHomeDistance = homeIsoDistance;
+            turningAngle = turningDistance = false;   // a cut under the night's curtain: whatever the day was easing is over
             following = true;
             // Keep the heading, so the streets stay the way round they were. With the day's
             // framing the tilt and the zoom carry on too: only what the camera looks at changes.
@@ -451,9 +494,11 @@ public sealed class CafeViewMode : MonoBehaviour
         }
         else
         {
-            // The night is over: the day's view comes back, whatever the house view was doing.
+            // The night is over: the day's view comes back, whatever the house view was doing. A cut, under the morning's
+            // curtain (NightWalk.End), never an ease.
             inHouse = false;
-            turning = false;
+            zoomedInside = false;
+            turningAngle = turningDistance = false;
             following = false;
             isoYaw = dayIsoYaw; isoPitch = dayIsoPitch; isoDistance = dayIsoDistance;
             homeIsoYaw = dayHomeYaw; homeIsoPitch = dayHomePitch; homeIsoDistance = dayHomeDistance;
@@ -469,42 +514,95 @@ public sealed class CafeViewMode : MonoBehaviour
     public void EnterHouseView(float yawDegrees, float pitchDegrees, float distance)
     {
         if (!following || inHouse) return;
-        outsideYaw = isoYaw; outsidePitch = isoPitch; outsideDistance = isoDistance;
+        // Where the view was going, if it was still on its way back from the last house (so a quick in-and-out doesn't
+        // remember a half-way distance as "outside").
+        outsideYaw = turningAngle ? turnToYaw : isoYaw;
+        outsidePitch = turningAngle ? turnToPitch : isoPitch;
+        outsideDistance = turningDistance ? turnToDistance : isoDistance;
         outsideHomeYaw = homeIsoYaw; outsideHomePitch = homeIsoPitch; outsideHomeDistance = homeIsoDistance;
         inHouse = true;
+        zoomedInside = false;
         homeIsoYaw = Mathf.Repeat(yawDegrees, 360);
         homeIsoPitch = Mathf.Clamp(pitchDegrees, PitchMin, PitchMax);
         homeIsoDistance = Mathf.Clamp(distance, DistanceMin, DistanceMax);
-        TurnTo(homeIsoYaw, homeIsoPitch, homeIsoDistance);
+        TurnTo(homeIsoYaw, homeIsoPitch, homeIsoDistance, houseTurnSeconds);
     }
 
-    /// <summary>Ace has walked out again: turn back to the view from before EnterHouseView. Safe to call twice.</summary>
+    /// <summary>
+    /// Ace has walked out again: turn back to the angle from before EnterHouseView. The distance goes back too, unless he
+    /// zoomed while inside: a zoom he chose stays (14 Oct; "it stays in this close view which is cool"), a zoom the house view
+    /// set by itself is undone. Safe to call twice.
+    /// </summary>
     public void ExitHouseView()
     {
         if (!inHouse) return;
         inHouse = false;
         homeIsoYaw = outsideHomeYaw; homeIsoPitch = outsideHomePitch; homeIsoDistance = outsideHomeDistance;
-        TurnTo(outsideYaw, Mathf.Clamp(outsidePitch, PitchMin, PitchMax), Mathf.Clamp(outsideDistance, DistanceMin, DistanceMax));
+        float distance = zoomedInside ? isoDistance : outsideDistance;
+        zoomedInside = false;
+        TurnTo(outsideYaw, Mathf.Clamp(outsidePitch, PitchMin, PitchMax), Mathf.Clamp(distance, DistanceMin, DistanceMax), houseTurnSeconds);
     }
 
-    void TurnTo(float yawDegrees, float pitchDegrees, float distance)
+    // A turn in two parts: the angle over its own seconds (0: at once, as before), the distance eased (EaseDistance).
+    void TurnTo(float yawDegrees, float pitchDegrees, float distance, float seconds)
     {
-        turnFromYaw = isoYaw; turnFromPitch = isoPitch; turnFromDistance = isoDistance;
-        turnToYaw = yawDegrees; turnToPitch = pitchDegrees; turnToDistance = distance;
-        turnT = 0f;
-        turning = houseTurnSeconds > 0f;
-        if (!turning) { isoYaw = turnToYaw; isoPitch = turnToPitch; isoDistance = turnToDistance; }
+        turnFromYaw = isoYaw; turnFromPitch = isoPitch;
+        turnToYaw = Mathf.Repeat(yawDegrees, 360f); turnToPitch = pitchDegrees;
+        angleT = 0f;
+        angleSeconds = seconds;
+        turningAngle = seconds > 0f;
+        if (!turningAngle) { isoYaw = turnToYaw; isoPitch = turnToPitch; }
+        EaseDistance(distance);
     }
 
-    void StepTurn()
+    // The distance part: from where it is, smoothstep over max(0.5 s, 1.5 x the gap / Limit Speed). Smoothstep's steepest
+    // slope is 1.5, so the camera never moves faster than Limit Speed (35 m/s); a gap up to 11.7 m takes the half second.
+    // Closed form from the ease's own elapsed time (rule 8: his Mac runs at 15-20 fps), never a stepped spring.
+    void EaseDistance(float target)
     {
-        if (!turning) return;
-        turnT = Mathf.MoveTowards(turnT, 1f, Time.unscaledDeltaTime / Mathf.Max(.01f, houseTurnSeconds));
-        float t = Mathf.SmoothStep(0f, 1f, turnT);
-        isoYaw = Mathf.Repeat(Mathf.LerpAngle(turnFromYaw, turnToYaw, t), 360);
-        isoPitch = Mathf.Lerp(turnFromPitch, turnToPitch, t);
-        isoDistance = Mathf.Lerp(turnFromDistance, turnToDistance, t);
-        if (turnT >= 1f) turning = false;
+        float gap = Mathf.Abs(target - isoDistance);
+        if (gap < .001f) { isoDistance = target; turningDistance = false; return; }
+        turnFromDistance = isoDistance;
+        turnToDistance = target;
+        distanceT = 0f;
+        distanceSeconds = Mathf.Max(DistanceEaseLeast, 1.5f * gap / LimitSpeed);
+        turningDistance = true;
+    }
+
+    void StepTurn(float dt)
+    {
+        if (turningAngle)
+        {
+            angleT = Mathf.MoveTowards(angleT, 1f, dt / Mathf.Max(.01f, angleSeconds));
+            float t = Mathf.SmoothStep(0f, 1f, angleT);
+            isoYaw = Mathf.Repeat(Mathf.LerpAngle(turnFromYaw, turnToYaw, t), 360);
+            isoPitch = Mathf.Lerp(turnFromPitch, turnToPitch, t);
+            if (angleT >= 1f) turningAngle = false;
+        }
+        if (turningDistance)
+        {
+            distanceT = Mathf.MoveTowards(distanceT, 1f, dt / Mathf.Max(.01f, distanceSeconds));
+            isoDistance = Mathf.Lerp(turnFromDistance, turnToDistance, Mathf.SmoothStep(0f, 1f, distanceT));
+            if (distanceT >= 1f) turningDistance = false;
+        }
+    }
+
+    // Limits are never applied in one frame (14 Oct, decision 10): a distance outside them, by whatever way it got there,
+    // eases back into them as a distance part of its own; one already easing toward a place the limits now forbid is aimed
+    // at the limit instead, from where it is (never a jump). A frame with zoom input skips this, so the two never stack.
+    void KeepInLimits(float dt)
+    {
+        if (!zoomedThisFrame)
+        {
+            float lo = DistanceMin, hi = DistanceMax;
+            if (turningDistance)
+            {
+                if (turnToDistance < lo - .001f || turnToDistance > hi + .001f) EaseDistance(Mathf.Clamp(turnToDistance, lo, hi));
+            }
+            else if (isoDistance < lo - .001f || isoDistance > hi + .001f) EaseDistance(Mathf.Clamp(isoDistance, lo, hi));
+        }
+        if (!turningAngle && (isoPitch < PitchMin - .001f || isoPitch > PitchMax + .001f))
+            isoPitch = Mathf.MoveTowards(isoPitch, Mathf.Clamp(isoPitch, PitchMin, PitchMax), PitchLimitSpeed * dt);
     }
 
     // Public so the existing scene recipe and play-mode validation can use the
@@ -529,7 +627,13 @@ public sealed class CafeViewMode : MonoBehaviour
         if (following)
             followFocus = followLag <= 0f ? AceFocus
                 : Vector3.SmoothDamp(followFocus, AceFocus, ref followVelocity, followLag, Mathf.Infinity, Time.deltaTime);
-        StepTurn();
+        // Real time (the pause phone can't strand a turn half way), with a hitch capped as the intro caps it: after a long
+        // frame the ease carries on from where it was rather than leaping to its end. The cap is 3/35 s (T20, restated 14 Oct):
+        // at most 3 m of the distance's ease in any frame, a hitch included; 15 fps is unchanged.
+        float dt = Mathf.Min(Time.unscaledDeltaTime, 3f / LimitSpeed);
+        StepTurn(dt);
+        KeepInLimits(dt);
+        zoomedThisFrame = false;
         RefreshCameraPose();
         RefreshCursor();
         if (bodyRenderer != null)

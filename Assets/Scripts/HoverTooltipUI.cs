@@ -71,8 +71,10 @@ public class HoverTooltipUI : MonoBehaviour
             title = counter.HoverName;
             action = counter.HoverAction;
         }
-        else if (inspector != null && inspector.IsHoldingItem)
+        else if (inspector != null && inspector.IsHoldingItem && !inspector.Rubbing)
         {
+            // Not mid-rub (15 Oct, Bench 8's photo of the lens wipe): the card's "Lens" sat over the very glass the cloth was
+            // clearing, beside the cursor. It fades while the cloth or the brush is down on dirt and comes back when it lifts.
             title = inspector.HoverName;
             action = inspector.HoverAction;
         }
