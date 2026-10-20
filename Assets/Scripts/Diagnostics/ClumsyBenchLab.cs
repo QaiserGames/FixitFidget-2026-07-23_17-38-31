@@ -24,19 +24,25 @@ using UnityEditor;
 // sees (the card's step and its glowing targets, the hover, the tools on the rest, the dirt still drawn, the cursor).
 //
 //   1. Grace's camera, Day 1's clean (fault 0);   2. Grace's camera, Day 2's swap (fault 1);
-//   3. the phone's cracked screen;                 4. the watch's seized movement.
+//   3. the phone's cracked screen;                 4. the watch's seized movement;
+//   5. the watch's "Debris Inside" (19 Oct 2026; playtest 7: "the cloth didn't work to clean the pocket watch entirely, she
+//      wasn't able to get a perfect grade"): the grit brushed off the open movement, then the card says flip, the watch is
+//      turned over and the crystal's smudge wiped, then closed up. It plays through the card's own words, so a card that said
+//      "Wipe" with the smudge facing the mat (what she had) leaves the hand scrubbing nothing and the run short of Perfect.
 //
-// Each with the mouse and the pad, at 60 and at 15 fps: 16 runs (Full: three seeds each, 48). The same seed plays a repair
+// Each with the mouse and the pad, at 60 and at 15 fps: 20 runs (Full: three seeds each, 60). The same seed plays a repair
 // at both frame rates (the hand's choices are the same; only the frames differ), so their steps can be compared.
 //
-// The bars (every run): finished, Perfect, within 45 / 30 / 75 / 110 s; no piece lost or hidden for a single frame (a piece
-// at rest off the device out of the frame, at zoom ≤ 0.3, or behind something; the tool in the hand and flights don't
+// The bars (every run): finished, Perfect, within 45 / 30 / 75 / 110 / 110 s; no piece lost or hidden for a single frame (a
+// piece at rest off the device out of the frame, at zoom ≤ 0.3, or behind something; the tool in the hand and flights don't
 // count); every near-miss press inside a target's hit area acted on it; no step with more than 3 misses; no early-released
 // hold lost its progress; strokes per spot median ≤ 3, every spot ≤ 6, ≥ 90 % within 4; 60 and 15 fps within 25 % per step
 // (beyond whole frames); no guard trips; nothing logged an error. And the cloth shows what it cleans (the Producer's call
 // 23, QA M3): over the middle of every cloth wipe (the spot 25-75 % clean), on average at least 40 % of the spot's disc (its
 // real disc on its plane, on screen) lies outside the held cloth's box on screen (its drawn vertices at that frame's keys);
-// the worst single frame is reported, and the first wipe of each run is photographed mid-wipe.
+// the worst single frame is reported, and the first wipe of each run is photographed mid-wipe. And (19 Oct) the hover never
+// names a screw hole during a brush or a cloth step, on any run: her "it just said something about the hole" was the watch's
+// four holes left floating where the back plate had been (ScrewSocket hides them with the plate off now).
 //
 // Report, timeline.csv and a photo at each step's end: Logs/BenchClumsy/<time>/.
 // ---------------------------------------------------------------------------
@@ -71,12 +77,13 @@ public sealed class ClumsyBenchLab : PlayLab
     }
 #endif
 
-    // ---------- the four repairs ----------
+    // ---------- the five repairs ----------
 
-    enum Repair { CameraClean, CameraSwap, PhoneScreen, WatchSeized }
-    static readonly string[] RepairName = { "Camera clean", "Camera swap", "Phone screen", "Watch seized" };
-    /// <summary>The bars (seconds, finished and Perfect within): §5's table.</summary>
-    static readonly float[] Bar = { 45f, 30f, 75f, 110f };
+    enum Repair { CameraClean, CameraSwap, PhoneScreen, WatchSeized, WatchDebris }
+    static readonly string[] RepairName = { "Camera clean", "Camera swap", "Phone screen", "Watch seized", "Watch debris" };
+    /// <summary>The bars (seconds, finished and Perfect within): §5's table; the Debris watch the seized one's (the same four
+    /// screws and plate, a flip and a wipe in place of the mainspring's two holds).</summary>
+    static readonly float[] Bar = { 45f, 30f, 75f, 110f, 110f };
     const string PhonePath = "Assets/AssetsPrefabs/PhoneRepair.prefab", WatchPath = "Assets/AssetsPrefabs/PocketWatch.prefab",
                  CameraPath = "Assets/GraceShowcase/GraceReunionCamera.prefab";
 
@@ -86,6 +93,7 @@ public sealed class ClumsyBenchLab : PlayLab
         public int index;
         public float started, took = -1f;
         public int presses, misses, retries, nearMisses, nearInside, nearActed;
+        public int flips;   // times the card said "Flip it over" in this step and the hand turned the device over
         public readonly List<float> nearPx = new List<float>();
     }
 
@@ -98,6 +106,9 @@ public sealed class ClumsyBenchLab : PlayLab
         public bool finished;
         public string grade = "-";
         public int lostFrames, hiddenFrames, guardTrips, resets, errors, bounces, wipes;
+        // 19 Oct: frames in a brush or cloth step whose hover named a screw hole (her "something about the hole"), and the step.
+        public int holeHoverFrames;
+        public string holeHoverStep = "";
         public readonly HashSet<string> lost = new HashSet<string>(), hidden = new HashSet<string>();
         public readonly List<StepLog> steps = new List<StepLog>();
         public readonly List<int> strokes = new List<int>();
@@ -250,7 +261,7 @@ public sealed class ClumsyBenchLab : PlayLab
         Application.targetFrameRate = rate;
 
         // The device, by the lab's hand: on the bench, its fault on, with a full day ahead.
-        GameObject prefab = repair == Repair.PhoneScreen ? phonePrefab : repair == Repair.WatchSeized ? watchPrefab : cameraPrefab;
+        GameObject prefab = repair == Repair.PhoneScreen ? phonePrefab : repair == Repair.WatchSeized || repair == Repair.WatchDebris ? watchPrefab : cameraPrefab;
         int fault = prefab != null ? FaultFor(repair, prefab.GetComponent<DeviceDefinition>()) : -1;
         if (prefab == null || fault < 0)
         {
@@ -324,7 +335,8 @@ public sealed class ClumsyBenchLab : PlayLab
     }
 
     // The fault each repair plays: the camera's clean and its swap (faults 0 and 1, the days builder's split); the phone's
-    // cracked screen; the watch's seized movement.
+    // cracked screen; the watch's seized movement; the watch's debris inside ("Debris Inside, Won't Tell Time": the grit on
+    // the movement and the crystal's smudge, Bench 4's addition of 9 Oct).
     static int FaultFor(Repair repair, DeviceDefinition definition)
     {
         if (definition == null || definition.faults == null || definition.faults.Length == 0) return -1;
@@ -333,6 +345,7 @@ public sealed class ClumsyBenchLab : PlayLab
             case Repair.CameraClean: return 0;
             case Repair.CameraSwap: return definition.faults.Length >= 2 ? 1 : -1;
             case Repair.PhoneScreen: return Find(definition, "crack", "screen");
+            case Repair.WatchDebris: return Find(definition, "debris", "tell time");
             default: return Find(definition, "seiz", "spring");
         }
     }
@@ -602,7 +615,7 @@ public sealed class ClumsyBenchLab : PlayLab
             if (now == null) { yield return Idle(.2f); continue; }
 
             // Face down: the card says flip (R, or Y on a pad).
-            if (now.under) { yield return FlipIt(); continue; }
+            if (now.under) { step.flips++; yield return FlipIt(); continue; }
 
             // Its tool, if it isn't in the hand.
             if (now.tool != ToolType.Hand && inspector.CurrentTool != now.tool)
@@ -1055,9 +1068,24 @@ public sealed class ClumsyBenchLab : PlayLab
     {
         if (!watching || run == null) return;
         run.frames.Add(Time.unscaledDeltaTime);
-        if (job != null && cam != null && inspector != null && inspector.IsHoldingItem) WatchPieces();
+        if (job != null && cam != null && inspector != null && inspector.IsHoldingItem) { WatchPieces(); WatchTheHover(); }
         WriteRow();
         Cap();
+    }
+
+    // 19 Oct: in a brush or a cloth step the hover must never name a screw hole (playtest 7's "it just said something about
+    // the hole": the holes floating where the back plate had been, the only thing the cursor could find near the middle of
+    // the watch's open back). Counted every frame of every run.
+    void WatchTheHover()
+    {
+        RepairChecklist.Step step = inspector.CurrentStep;
+        if (step == null || step.tool != ToolType.Brush && step.tool != ToolType.Cloth) return;
+        if (inspector.Hovered is ScrewSocket || inspector.HoverName == "Screw hole")
+        {
+            run.holeHoverFrames++;
+            if (run.holeHoverStep.Length == 0) run.holeHoverStep = step.verb ?? "?";
+            mark = "HOLE HOVERED in " + step.verb;
+        }
     }
 
     void WatchPieces()
@@ -1204,9 +1232,10 @@ public sealed class ClumsyBenchLab : PlayLab
             table.AppendLine();
             table.AppendLine($"{r.Label} (seed {r.seed}){(r.note.Length > 0 ? ": " + r.note : "")}");
             foreach (StepLog s in r.steps)
-                table.AppendLine($"    {s.index,2} {s.verb,-12} {(s.took >= 0f ? s.took.ToString("0.0") : "-"),6} s  presses {s.presses}, misses {s.misses}, retries {s.retries}, near misses {s.nearMisses} ({s.nearInside} in, {s.nearActed} acted{(s.nearPx.Count > 0 ? $", {string.Join("/", s.nearPx.Select(p => p.ToString("0")))} px" : "")})");
+                table.AppendLine($"    {s.index,2} {s.verb,-12} {(s.took >= 0f ? s.took.ToString("0.0") : "-"),6} s  presses {s.presses}, misses {s.misses}, retries {s.retries}, near misses {s.nearMisses} ({s.nearInside} in, {s.nearActed} acted{(s.nearPx.Count > 0 ? $", {string.Join("/", s.nearPx.Select(p => p.ToString("0")))} px" : "")}){(s.flips > 0 ? $", flipped {s.flips}x" : "")}");
             if (r.lost.Count > 0) table.AppendLine("    lost: " + string.Join(", ", r.lost));
             if (r.hidden.Count > 0) table.AppendLine($"    hidden ({r.hiddenFrames} frames): " + string.Join(", ", r.hidden));
+            if (r.holeHoverFrames > 0) table.AppendLine($"    a screw hole hovered in a brush or cloth step: {r.holeHoverFrames} frames, first in \"{r.holeHoverStep}\"");
         }
         report.Append(table);
 
@@ -1230,6 +1259,20 @@ public sealed class ClumsyBenchLab : PlayLab
             }
             Check(r.guardTrips == 0 && r.errors == 0, $"{r.Label}: no guard trips ({r.guardTrips}), nothing logged an error ({r.errors})");
             Check(r.bounces == 0 && r.wipes == 0, $"{r.Label}: the retired cues stayed quiet (screw.bounce {r.bounces}, cloth.wipe {r.wipes})");
+            // 19 Oct: no hole under the cursor in a brush or a cloth step (the holes go with the plate now).
+            Check(r.holeHoverFrames == 0, $"{r.Label}: the hover never named a screw hole during a brush or cloth step" +
+                (r.holeHoverFrames > 0 ? $" ({r.holeHoverFrames} frames did, first in \"{r.holeHoverStep}\")" : ""));
+            if (r.repair == Repair.WatchDebris)
+            {
+                // Her job: the grit brushed on the open back, THEN the card says flip (the smudge faces the mat), the watch is
+                // turned over and the crystal wiped. Before 19 Oct the card said "Wipe" with the smudge underneath: no flip, no
+                // reach, Passable at best.
+                StepLog brush = r.steps.FirstOrDefault(s => s.verb == "Brush"), wipe = r.steps.FirstOrDefault(s => s.verb == "Wipe");
+                bool order = brush != null && wipe != null && r.steps.IndexOf(brush) < r.steps.IndexOf(wipe);
+                Check(order && wipe.flips >= 1 && wipe.took >= 0f,
+                    $"{r.Label}: the grit brushed first, then the card asked for a flip before the crystal's wipe, and the wipe was done " +
+                    $"(brush {(brush != null ? "seen" : "MISSING")}, wipe {(wipe != null ? $"seen, {wipe.flips} flip(s), {(wipe.took >= 0f ? wipe.took.ToString("0.0") + " s" : "not done")}" : "MISSING")})");
+            }
             if (r.clothWipes > 0)
             {
                 // Call 23: the cloth shows what it cleans. A wipe that skipped its whole middle in one frame is noted, not failed.

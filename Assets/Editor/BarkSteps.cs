@@ -45,6 +45,12 @@ using UnityEngine;
 // the place of lodger.night0.05, and the deal's two choices. Barks 1 adds the line and the scene if they're missing (from
 // the deal as it made it); Fixit Fidget › Playtest 4 › Content › 3 makes the sibling from the deal as it is now, and makes it
 // again if the deal is reshaped. The deal itself is never touched.
+//
+// Playtest 7 (19 Oct 2026; his girlfriend: "What's he even for?"): Barnaby's reason comes before the errand. The ask says it
+// ("Grace's gnome. It watches my alley. Bring it here.") and the "Why?" answer says what he wants instead ("It watches my
+// alley. I want it watching the street."; the return's "It was watching me. Now it watches for me." pays it off). And "You're
+// going the wrong way." is out of his waiting pool (it was picked at random and could mislead a lost player): "Tick tock."
+// Three more rewordings, once, only to a line still exactly as it was made (Retexts).
 // ---------------------------------------------------------------------------
 internal static class BarkSteps
 {
@@ -76,9 +82,9 @@ internal static class BarkSteps
         ("lodger.night0.05", "lodger", "night0.deal", "Grace likes you. Café owners who talk don't last."),
         ("lodger.night0.06", "lodger", "night0.deal", "But I like you. So here's the thing."),
         ("lodger.night0.07", "lodger", "night0.deal", "Everything I know about this street. Learn the rest."),
-        ("lodger.night0.09", "lodger", "night0.deal", "A gnome on the corner step. Bring it here."),
+        ("lodger.night0.09", "lodger", "night0.deal", "Grace's gnome. It watches my alley. Bring it here."),
         ("ace.night0.10", "ace", "night0.deal", "Why?"),
-        ("lodger.night0.11", "lodger", "night0.deal", "Don't ask why. Ask how."),
+        ("lodger.night0.11", "lodger", "night0.deal", "It watches my alley. I want it watching the street."),
         // The asks of Nights 2 and 3, and a night off.
         ("lodger.night2.01", "lodger", "night2.ask", "Grace has a box of cups. Get me a sleeve."),
         ("ace.night2.02", "ace", "night2.ask", "Cups? Why cups?"),
@@ -91,7 +97,7 @@ internal static class BarkSteps
         ("lodger.cold.02", "lodger", "lodger.cold", "Still waiting."),
         ("lodger.cold.03", "lodger", "lodger.cold", "I asked nicely once."),
         ("lodger.waiting.01", "lodger", "lodger.waiting", "Not yet."),
-        ("lodger.waiting.02", "lodger", "lodger.waiting", "You're going the wrong way."),
+        ("lodger.waiting.02", "lodger", "lodger.waiting", "Tick tock."),
         ("lodger.waiting.03", "lodger", "lodger.waiting", "I'm not going anywhere."),
         ("lodger.done.01", "lodger", "lodger.done", "Good."),
         ("lodger.done.02", "lodger", "lodger.done", "Not bad. Not bad at all."),
@@ -246,6 +252,10 @@ internal static class BarkSteps
         ("lodger.verdict.flinched.01", "The cop asked. You flinched. He'll be back.", "Flinched at the cop. He'll be back."),
         ("lodger.visit.warm.01", "Nice place. Take your time. Not too much.", "Nice place. Don't take too long."),
         ("lodger.visit.cold.01", "Nice place. Be a shame if people asked questions.", "Nice place. Shame if people asked questions."),
+        // Playtest 7: Barnaby's reason before the errand; the misleading waiting line out of the pool.
+        ("lodger.night0.09", "A gnome on the corner step. Bring it here.", "Grace's gnome. It watches my alley. Bring it here."),
+        ("lodger.night0.11", "Don't ask why. Ask how.", "It watches my alley. I want it watching the street."),
+        ("lodger.waiting.02", "You're going the wrong way.", "Tick tock."),
     };
 
     // A scene's lines changed once, only if they are still exactly as they were made (the choices stay).

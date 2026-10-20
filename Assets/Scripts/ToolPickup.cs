@@ -39,6 +39,12 @@ public enum ToolType { Hand, Brush, Screwdriver, Pry, Tweezers, Cloth }
 // 30° off the view ray, so a tip never hides its own target.
 //
 // THE PRY AT A PRY ANGLE (playtest 4; RemovablePart.PryPose, FollowPose): a spudger is held low, not stood on its tip.
+//
+// THE CLOTH READ AS A BLOB (19 Oct 2026; playtest 7, his girlfriend: "it looks like a glob"; the reviewers: "a smooth yellow
+// blob tapering to the cursor"). Two of its keys made it rounder than it need be: in the air Press sat at 0.4 (a plump
+// wad), and on a quick stroke Bunch ran to 1.0 (the whole wad gathered to its leading edge). Now Press is 0.55 in the air and
+// Bunch never passes 0.45 while rubbing (BunchMost): flatter and more spread on the glass. What is left is the model's: the
+// held wad (BT_ClothHeld) is a smooth dome with no fold or loose corner, which is Blender work, not this file's.
 // ---------------------------------------------------------------------------
 public class ToolPickup : MonoBehaviour
 {
@@ -74,6 +80,8 @@ public class ToolPickup : MonoBehaviour
     // The pry held low, as a spudger is: its handle this far up from the surface it is over, degrees (the seam's own angle is
     // RemovablePart.PryAngle).
     private const float PryHeld = 38f;
+    /// <summary>The cloth's keys (19 Oct, the header): Press in the air (it was 0.4) and the most Bunch a stroke may raise.</summary>
+    public const float PressInAir = .55f, BunchMost = .45f;
     // Rotation and shape keys ease at this rate (closed form): turns can lag, the tip never does.
     private const float TurnRate = 14f;
 
@@ -289,10 +297,11 @@ public class ToolPickup : MonoBehaviour
         transform.SetPositionAndRotation(position, Quaternion.Slerp(transform.rotation, target, Ease(dt)));
         transform.localScale = new Vector3(heldScale.x * ((PressedFlat || tool == ToolType.Brush) ? mirror : 1f), heldScale.y, heldScale.z);
 
-        // The keys (Art A4-A5): the cloth's Press (pressed on the device 1, in the air 0.4) and Bunch (the stroke's speed); the
-        // brush's Bend (the speed, while pressed). In the air nothing drags, so nothing bunches or bends.
-        float wantPress = down ? 1f : .4f;
-        float wantBunch = down ? BenchRules.Bunch(BenchFeel.StrokeSpeed) : 0f;
+        // The keys (Art A4-A5): the cloth's Press (pressed on the device 1, in the air 0.55) and Bunch (the stroke's speed, never
+        // past BunchMost: the header, the blob); the brush's Bend (the speed, while pressed). In the air nothing drags, so
+        // nothing bunches or bends.
+        float wantPress = down ? 1f : PressInAir;
+        float wantBunch = down ? Mathf.Min(BunchMost, BenchRules.Bunch(BenchFeel.StrokeSpeed)) : 0f;
         float wantBend = down ? BenchRules.Bend(BenchFeel.StrokeSpeed) : 0f;
         float k = Ease(dt);
         pressKey = Mathf.Lerp(pressKey, wantPress, k);

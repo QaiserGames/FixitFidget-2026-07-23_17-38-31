@@ -10,11 +10,18 @@ using TMPro;
 // Talking feels like Skyrim rather than a novel:
 //   * what they say is a subtitle under their face, the whole line at once (no letters typing out);
 //   * a speech of several lines (a "\n" between them) plays one line after another, at reading pace,
-//     the earlier ones staying on screen dimmed, so what they asked for is still there when Ace decides;
+//     one line on screen at a time (19 Oct 2026, below);
 //   * after a short listening beat Ace's replies appear beside them (ConversationController builds
 //     them; each is drawn on its own plate, with the keys' hint line in optionsText: the new layout below);
-//   * E (SkipReveal) shows everything they're saying at once and ends the beat: the first press never
+//   * E (SkipReveal) brings the next line up at once, and on the last line ends the beat: the first press never
 //     answers, which keeps "dialogue gates the decision".
+//
+// ONE LINE AT A TIME (19 Oct 2026, playtest 7). His girlfriend is dyslexic: "sometimes when she speaks, it's like double
+// text." The earlier lines used to stay on screen dimmed above the new one; now only the line being said is on screen, on
+// a dark plate (like the night's speech boxes), 32 px, and E steps to the next line rather than showing them all at once,
+// so nothing is skipped unread. And the line waits for the camera: the reviewers saw a request and the replies up while the
+// conversation camera was still over the roof, so their line (and so the replies) holds until the brain's blend has landed,
+// 0.8 s at the most (HoldForCamera); an E cuts the wait.
 // The line and the replies are placed and given a shadow while playing (Look), so the scene is not rebuilt for it.
 // The UI skin (playtest 3, session 3): the skin's lettering and its one shadow, the band in the phone's warm ink.
 //
@@ -59,9 +66,16 @@ public class ConversationUI : MonoBehaviour
     private float nextAt = -1f;
     private float listenUntil;
 
-    // Dimmed earlier lines, and at most this many lines on screen at once.
-    private const string EarlierLine = "<size=86%><color=#B9B3A8>";
-    private const int MostLinesOnScreen = 3;
+    // The line waits for the conversation camera to land (see the header): at least this long after it was set (the brain
+    // begins its blend in its own LateUpdate), at most this long.
+    private const float HoldLeast = .15f, HoldMost = .8f;
+    private bool holding;
+    private float holdSince;
+    private Unity.Cinemachine.CinemachineBrain brain;
+    private bool brainLooked;
+
+    /// <summary>Their line is waiting for the camera to land (labs).</summary>
+    public bool HoldingForCamera => holding;
 
     /// <summary>
     /// The controller waits on this before offering replies: every line has been shown and the
@@ -147,6 +161,7 @@ public class ConversationUI : MonoBehaviour
         SetReplies(null, -1, "");
         visible = false;
         nextAt = -1f;
+        holding = false;
         LineFinished = true;
         if (DayClock.Instance != null && DayClock.Instance.DayOver && group != null)
             group.alpha = 0f;
@@ -177,10 +192,37 @@ public class ConversationUI : MonoBehaviour
         if (beats.Length == 0)
         {
             dialogueText.text = "";
+            holding = false;
             LineFinished = true;
+            PlaceLinePlate();
             return;
         }
         LineFinished = false;
+        // The line waits for the camera (the header): nothing drawn until it lands, or HoldMost.
+        holding = true;
+        holdSince = Time.time;
+        dialogueText.text = "";
+        PlaceLinePlate();
+        PlaceNameCard();
+        LayOutReplies();
+    }
+
+    // The camera has landed: the brain isn't blending (a brain is looked for once, on the main camera).
+    private bool CameraLanded()
+    {
+        if (!brainLooked)
+        {
+            brainLooked = true;
+            Camera main = Camera.main;
+            brain = main != null ? main.GetComponent<Unity.Cinemachine.CinemachineBrain>() : null;
+        }
+        return brain == null || !brain.IsBlending;
+    }
+
+    // Ends the wait for the camera and starts the first line's beat.
+    private void EndHold()
+    {
+        holding = false;
         StartBeat();
     }
 
@@ -235,17 +277,29 @@ public class ConversationUI : MonoBehaviour
     }
 
     /// <summary>
-    /// E while they're talking: everything they're saying at once (the earlier lines dimmed), and the
-    /// listening beat is over, so the replies come up. It never answers anything itself.
+    /// E while they're talking: the next line at once (one line at a time, so nothing is skipped unread); on the last line
+    /// the listening beat is over, so the replies come up. It never answers anything itself.
     /// </summary>
     public void SkipReveal()
     {
         if (LineFinished) return;
-        nextAt = -1f;
-        if (beats.Length > 0)
+        if (holding)
         {
-            shown = beats.Length - 1;
+            // A press while the line waits for the camera: the line now; on a one-line speech the beat is over too (the quick
+            // second E of playtest 4 still brings the replies up at once).
+            EndHold();
+            if (beats.Length <= 1) { nextAt = -1f; LineFinished = true; }
+            return;
+        }
+        nextAt = -1f;
+        if (beats.Length > 0 && shown < beats.Length - 1)
+        {
+            shown++;
             Render();
+            bool last = shown >= beats.Length - 1;
+            if (!last) nextAt = Time.time + ReadTime(beats[shown]);
+            else listenUntil = Time.time + ListenBeat(beats[shown]);
+            return;
         }
         LineFinished = true;
     }
@@ -267,6 +321,12 @@ public class ConversationUI : MonoBehaviour
     private void TickLine()
     {
         if (LineFinished || beats.Length == 0) return;
+        if (holding)
+        {
+            float waited = Time.time - holdSince;
+            if (waited >= HoldMost || waited >= HoldLeast && CameraLanded()) EndHold();
+            return;
+        }
         if (nextAt >= 0f)
         {
             if (Time.time < nextAt) return;
@@ -276,19 +336,13 @@ public class ConversationUI : MonoBehaviour
         else if (Time.time >= listenUntil) LineFinished = true;
     }
 
-    // The lines so far: the latest in full, up to two before it dimmed and a little smaller.
+    // The line being said, alone (19 Oct 2026: one line at a time), on its plate.
     private void Render()
     {
         if (dialogueText == null) return;
-        var text = new StringBuilder();
-        int first = Mathf.Max(0, shown - (MostLinesOnScreen - 1));
-        for (int i = first; i <= shown && i < beats.Length; i++)
-        {
-            if (i < shown) text.Append(EarlierLine).Append(beats[i]).Append("</color></size>\n");
-            else text.Append(beats[i]);
-        }
-        dialogueText.text = text.ToString();
+        dialogueText.text = shown >= 0 && shown < beats.Length ? beats[shown] : "";
         dialogueText.maxVisibleCharacters = 99999;
+        PlaceLinePlate();
         PlaceNameCard();
         LayOutReplies();
     }
@@ -318,6 +372,7 @@ public class ConversationUI : MonoBehaviour
     private const float LineBottom = 72f;          // their line's foot, over the bottom edge
     private const float LineWidth = 1100f;
     private const float LineSize = 32f;
+    private const float LinePadX = 22f, LinePadY = 10f;   // the plate round their line
     private const float NameSize = 24f;
     private const float PortraitSize = 88f;
     /// <summary>The replies' left edge, right of the screen's middle (their face), reference pixels. The straight-face meter
@@ -325,7 +380,7 @@ public class ConversationUI : MonoBehaviour
     public const float ColumnLeft = 160f;
     /// <summary>The first reply's top, over their face's height, reference pixels.</summary>
     public const float ColumnAboveFace = 34f;
-    private const float ReplySize = 32f;
+    private const float ReplySize = 32f;   // the spec of 19 Oct said 30: kept at 32 (bigger is the direction, and the view probe asserts 32)
     private const float PlatePadX = 20f, PlatePadY = 10f, PlateGap = 8f, PlateMin = 320f, PlateMax = 640f;
     private const float FooterSize = 22f;
 
@@ -334,7 +389,7 @@ public class ConversationUI : MonoBehaviour
 
     // The replies' column and its plates (made the first time there are replies), and the hint line's own plate (the lab's
     // photos, 12 Oct: over a bright window the hint line was faint without one).
-    private RectTransform column, footerPlate;
+    private RectTransform column, footerPlate, linePlate;
     private readonly List<RectTransform> plates = new();
     private readonly List<Image> plateImages = new();
     private readonly List<Image> plateEdges = new();
@@ -385,9 +440,22 @@ public class ConversationUI : MonoBehaviour
             dialogueText.alignment = TextAlignmentOptions.Bottom;
             UiSkin.UseFont(dialogueText);
             dialogueText.fontSize = LineSize;
+            dialogueText.fontStyle = UiSkin.SemiBold;
             dialogueText.color = UiSkin.BandText;
             dialogueText.textWrappingMode = TextWrappingModes.Normal;
+            dialogueText.richText = true;
             UiSkin.Shadowed(dialogueText);
+            // The dark plate under their line (19 Oct 2026): a sibling drawn just before the text, sized to it (PlaceLinePlate).
+            if (linePlate == null && line.parent != null)
+            {
+                linePlate = new GameObject("Line plate (while playing)", typeof(RectTransform)).GetComponent<RectTransform>();
+                linePlate.SetParent(line.parent, false);
+                linePlate.SetSiblingIndex(line.GetSiblingIndex());
+                linePlate.anchorMin = linePlate.anchorMax = new Vector2(.5f, 0f);
+                linePlate.pivot = new Vector2(.5f, 0f);
+                UiSkin.Paint(linePlate, PlateColour, UiSkin.Radius);
+                linePlate.gameObject.SetActive(false);
+            }
         }
         if (nameText != null)
         {
@@ -423,6 +491,8 @@ public class ConversationUI : MonoBehaviour
             optionsText.text = "";   // the scene's text says "New Text" (the lab's photo, 12 Oct: it showed in the morning scene)
             UiSkin.UseFont(optionsText);
             optionsText.fontSize = FooterSize;
+            optionsText.fontStyle = UiSkin.SemiBold;
+            optionsText.richText = true;   // the buttons are icons (ControlHints)
             optionsText.color = UiSkin.BandText;
             optionsText.lineSpacing = 0f;
             optionsText.textWrappingMode = TextWrappingModes.NoWrap;
@@ -474,13 +544,25 @@ public class ConversationUI : MonoBehaviour
         float lineHeight = 0f;
         if (dialogueText != null && !string.IsNullOrEmpty(dialogueText.text))
             lineHeight = dialogueText.GetPreferredValues(dialogueText.text, LineWidth, 0f).y;
-        float y = LineBottom + lineHeight + 6f;
+        float y = LineBottom + lineHeight + LinePadY + 6f;
         nameText.rectTransform.anchoredPosition = new Vector2(0f, y);
         if (portrait != null && realPortrait)
         {
             float half = nameText.GetPreferredValues(nameText.text, LineWidth, 0f).x * .5f;
             portrait.rectTransform.anchoredPosition = new Vector2(-half - 12f, y - 6f);
         }
+    }
+
+    // The plate under their line: the line's drawn size plus padding, at the line's foot; none with no line.
+    private void PlaceLinePlate()
+    {
+        if (linePlate == null || dialogueText == null) return;
+        bool any = !string.IsNullOrEmpty(dialogueText.text);
+        if (linePlate.gameObject.activeSelf != any) linePlate.gameObject.SetActive(any);
+        if (!any) return;
+        Vector2 size = dialogueText.GetPreferredValues(dialogueText.text, LineWidth, 0f);
+        linePlate.sizeDelta = new Vector2(Mathf.Min(LineWidth, Mathf.Ceil(size.x)) + LinePadX * 2f, Mathf.Ceil(size.y) + LinePadY * 2f);
+        linePlate.anchoredPosition = new Vector2(0f, LineBottom - LinePadY);
     }
 
     private void EnsureColumn()
@@ -578,7 +660,7 @@ public class ConversationUI : MonoBehaviour
 
         // From a little over their face's height down; up again if it would reach their line, never above the top margin.
         float top = ColumnTop(size);
-        float lineTop = -size.y * .5f + LineBottom + LineHeightNow() + NameSize * 1.5f + 18f;
+        float lineTop = -size.y * .5f + LineBottom + LineHeightNow() + LinePadY + NameSize * 1.5f + 18f;
         float bottom = top - total - footer;
         if (bottom < lineTop) top += lineTop - bottom;
         top = Mathf.Min(top, size.y * .5f - safeY);

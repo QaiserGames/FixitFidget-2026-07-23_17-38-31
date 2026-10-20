@@ -1690,7 +1690,7 @@ public sealed class GraceAtHome : MonoBehaviour
         if (view != null) view.AceSetAside = true;
         seeing = false;
         Sfx.Play("night.hide", place.transform.position, .6f);
-        NightCycle.Note($"Hidden in {place.what}. [{ControlHints.Interact}] Come out", 9999f);
+        NightCycle.Note($"Hidden in {place.what}. {ControlHints.Interact} Come out", 9999f);   // 20 Oct: the key is an icon, no brackets
         if (mark > GraceNight.Third && CanSearch && mood != Mood.Searching) StartSearch(noticePoint);
     }
 

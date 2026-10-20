@@ -131,6 +131,10 @@ public sealed class DayShapeCheck : PlayLab
     readonly Dictionary<CustomerBrain, Arrival> people = new Dictionary<CustomerBrain, Arrival>();
     readonly List<Arrival> arrivals = new List<Arrival>();
     int fullCounterSamples, samples;
+    // One name per person (20 Oct, this lab's own photo "03-build": "Valerie" pinned twice, Day 1's green pin over her head
+    // and the name of what E acts on hanging under it, clear of Ace's head). Every look of the day counts it.
+    int pinLooks, doubledNames;
+    string firstDoubled = "";
     float closedAt = -1f, endedAt = -1f;
     bool firstPhoto;
     int lostAtEnd = -1;   // the day's storm-outs (DayClock.Lost) when it ended
@@ -235,6 +239,8 @@ public sealed class DayShapeCheck : PlayLab
         Check(stillInside == 0, $"the day ended only once everyone inside had been seen to ({stillInside} still waiting when it ended)");
         yield return Photo($"{today.phases.Length + 3:00}-the-day-ends");
 
+        Check(doubledNames == 0, $"one name per person: no look of the day had the same name pinned twice, Day 1's green pin and " +
+                                 $"the name of what E acts on ({doubledNames} of {pinLooks} looks{(doubledNames > 0 ? ", the first " + firstDoubled : "")})");
         Report(today, day, spawner);
     }
 
@@ -242,6 +248,16 @@ public sealed class DayShapeCheck : PlayLab
     // one is doing, kept up to date until they are gone.
     IEnumerator Watch(float now)
     {
+        UiPins pins = UiPins.Instance;
+        if (pins != null)
+        {
+            pinLooks++;
+            if (pins.FocusShowing && pins.GuideShowing && pins.FocusText.Length > 0 && pins.FocusText == pins.GuideText)
+            {
+                doubledNames++;
+                if (firstDoubled.Length == 0) firstDoubled = $"\"{pins.FocusText}\" at {now:0.0} s";
+            }
+        }
         foreach (CustomerBrain c in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude))
         {
             if (c == null) continue;

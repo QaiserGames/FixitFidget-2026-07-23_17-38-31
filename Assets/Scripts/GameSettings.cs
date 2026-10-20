@@ -79,9 +79,31 @@ public static class GameSettings
         dayIntro = null;
     }
 
-    // The master volume is the listener's, so it's set as the game starts.
+    /// <summary>
+    /// Set once per machine when the aim help was put back on (19 Oct 2026). A lab interrupted on 15 Oct left his Mac's
+    /// aim help off, and his girlfriend's playtest ran without it until he turned it on ("Better? Yeah."). On the first
+    /// launch after this the help goes on and the key is written; a player who turns it off afterwards keeps it off.
+    /// </summary>
+    public const string AimHelpResetKey = "FixitFidget.AimHelp.Reset19Oct";
+
+    // The master volume is the listener's, so it's set as the game starts; the one-time aim help reset runs here too.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    static void ApplyOnLaunch() => AudioListener.volume = Master;
+    static void ApplyOnLaunch()
+    {
+        AudioListener.volume = Master;
+        ResetAimHelpOnce();
+    }
+
+    /// <summary>The one-time reset (see AimHelpResetKey); true when it ran now.</summary>
+    public static bool ResetAimHelpOnce()
+    {
+        if (PlayerPrefs.HasKey(AimHelpResetKey)) return false;
+        AimAssist.Enabled = true;
+        PlayerPrefs.SetInt(AimHelpResetKey, 1);
+        PlayerPrefs.Save();
+        Debug.Log("[Settings] Aim help put back on, once (19 Oct 2026; a lab had left it off). Settings › CONTROLS turns it off again.");
+        return true;
+    }
 
     static float Get(ref float? cache, string key, float fallback, float min, float max)
     {
@@ -159,7 +181,7 @@ public static class GameSettings
     /// <summary>1, or -1 when Y is inverted: what a look's up-and-down is multiplied by.</summary>
     public static float YSign => InvertY ? -1f : 1f;
 
-    /// <summary>The aim help on a pad (AimAssist's own saved switch).</summary>
+    /// <summary>The aim help on a pad (AimAssist's own saved switch; on by default, and put back on once on 19 Oct: AimHelpResetKey).</summary>
     public static bool AimHelp
     {
         get => AimAssist.Enabled;

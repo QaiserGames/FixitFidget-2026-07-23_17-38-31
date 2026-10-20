@@ -16,7 +16,7 @@ MonoBehaviour:
   - id: west
     name: West Street
     where: "Between the caf\xE9's street-side windows and the bay-window houses (Grace's
-      saffron house is on it)."
+      yellow house is on it)."
   - id: east
     name: East Street
     where: Past the courtyard, in front of the courtyard shops.

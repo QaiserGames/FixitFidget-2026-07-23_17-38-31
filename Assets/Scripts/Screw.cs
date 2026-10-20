@@ -25,6 +25,16 @@ using UnityEngine;
 // Unscrew(bin) and Rescrew() do the whole thing by themselves (the labs' hand, the Day 1 guide): the same motions, no hold
 // needed. IsOut: free of its hole (in its cup, flying, or fetched and hovering). IsBusy: a flight or a self-driven turn owns
 // it (no press lands on it).
+//
+// NO FLOATING HOLES (19 Oct 2026; playtest 7, his girlfriend with the pocket watch: "It just said something about the hole").
+// The hole is made under the device root at the screw's seated place on the plate's dome. When the plate flew to its well
+// the four holes stayed behind in the air over the open movement, and with the crystal's smudge facing the mat the hover's
+// best hit near the middle of the back was a hole: "Screw hole · The cover goes back on first" during the cloth step. Now
+// (ScrewSocket.Sync, driven by the screw every frame): a hole SHOWS only while its screw is out AND the plate it goes through
+// is on the device (off: the hole goes with nothing, so it is hidden; home again: it lines up where it was); and it is
+// PICKABLE (its component enabled: the picker skips a disabled part, so no hover, no press, no snap) only during a step of
+// the screwdriver's (Unscrew, Screws back) or with no step at all. During the pry, the brush, the cloth, the tweezers and
+// the cover's press home a hole is a mark on the plate and nothing more.
 // ---------------------------------------------------------------------------
 public class Screw : MonoBehaviour
 {
@@ -310,6 +320,13 @@ public class Screw : MonoBehaviour
         IsBusy = flying || fetching;
     }
 
+    // The hole it left keeps to its rules (shown with the plate on, pickable in a screw step: the header). The screw drives
+    // it because a hidden hole runs no Update of its own.
+    private void Update()
+    {
+        if (socket != null) socket.Sync();
+    }
+
     private void OnDestroy()
     {
         if (socket == null) return;
@@ -320,7 +337,8 @@ public class Screw : MonoBehaviour
 // ---------------------------------------------------------------------------
 // THE EMPTY HOLE a screw leaves: Art's decal (A8) on the surface where the screw was, hoverable and holdable with the driver,
 // which fetches the screw from its cup and screws it home. Made by the screw the first time it comes free; hidden when it is
-// seated again.
+// seated again, and while the plate it goes through is off the device; pickable only in a screw step (Sync; the screw's
+// header, "No floating holes").
 // ---------------------------------------------------------------------------
 public class ScrewSocket : BenchInteractable
 {
@@ -333,6 +351,39 @@ public class ScrewSocket : BenchInteractable
     public const float BorePerHead = .48f;
 
     public Screw Screw => screw;
+
+    /// <summary>The plate this hole's screw goes through is on the device (or there is none): the hole has a surface to be on.</summary>
+    public bool PlateSeated => target == null || target.PlateSeated;
+
+    /// <summary>
+    /// The hole shows: its screw is out and its plate is on. Off the device the plate takes the hole's surface with it (the
+    /// hole floated in the air over the watch's open movement until 19 Oct); home again, the hole lines up where it was.
+    /// </summary>
+    public bool Shown => screw != null && screw.IsOut && PlateSeated;
+
+    /// <summary>
+    /// The picker may take the hole now (its component is enabled; ItemInspector skips a part that isn't): in a step of the
+    /// screwdriver's (Unscrew, Screws back), or with no step to read. In any other step (the pry, the brush, the cloth, the
+    /// tweezers, the cover's press home) a hole is nobody's target: no hover card, no press, no snap of the pad's cursor.
+    /// </summary>
+    public static bool StepTakesHoles(JobBase job)
+    {
+        ItemInspector inspector = ItemInspector.Instance;
+        if (inspector == null || job == null || inspector.FocusedItem != job) return true;
+        RepairChecklist.Step step = inspector.CurrentStep;
+        return step == null || step.tool == ToolType.Screwdriver;
+    }
+
+    /// <summary>Keeps the hole to its rules this frame: shown (the object active) and pickable (the component enabled). The
+    /// screw calls it every frame (a hidden object's own Update never runs).</summary>
+    public void Sync()
+    {
+        bool shown = Shown;
+        if (gameObject.activeSelf != shown) gameObject.SetActive(shown);
+        if (!shown) return;
+        bool pickable = StepTakesHoles(screw != null ? screw.Job : null);
+        if (enabled != pickable) enabled = pickable;
+    }
 
     public static ScrewSocket Make(Screw screw, Transform parent, Vector3 localPos, Quaternion localRot)
     {

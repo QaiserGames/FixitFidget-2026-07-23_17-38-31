@@ -29,6 +29,13 @@ using UnityEngine.UI;
 //                                       Ace is busy (talking, at a station or the counter's repair view, holding something
 //                                       up to look at), paused, or once the day is over
 //
+// A MISSED STEP IS SAID (19 Oct 2026; playtest 7, his girlfriend: if you miss a step "it affects them. Like the customer
+// experience or like the tip"; it already did, the game just never said so: Passable pays $45 where Perfect pays $94 on the
+// watch's job, the tip shrinks with it, the review is "Liked it" not "Loved it"). Now the quiet "Back together · Passable"
+// carries a second line naming what was missed by its verb ("Missed: wipe the crystal"; RepairJob.MissedWords), and the
+// pay pop at the hand-back a second line with what Perfect would have paid ("Perfect pays $94"). The pay, the tip and the
+// review don't change; only the words. ("Fixed!" itself only ever fires at Perfect, so it needs no such line.)
+//
 // A repair on the bench gets its moments by itself (the item being worked on is watched). ONE ENDING (playtest 4, 10 Oct;
 // the veteran: "a repair ends twice", "Fixed!" fired with the cover on the mat and both screws out, then "Back together ·
 // Perfect" came after the climax). Now: the moment the LAST TASK completes (the last seat, the last fleck), the device
@@ -64,8 +71,9 @@ public sealed class Juice : MonoBehaviour
     const float MarkerSize = 46f;
     const float EmoteLife = 1.5f, MoneyLife = 1.35f, WordsLife = 1.4f, SparkLife = .55f, BigSparkLife = .85f;
     const float IconSize = 58f, Rise = 46f;
-    // The one ending is read, not glanced at: it stays up longer than a word; the quiet closing a little less.
-    const float FixedLife = 2.1f, TogetherLife = 1.6f;
+    // The one ending is read, not glanced at: it stays up longer than a word; the quiet closing a little less, unless it
+    // says what was missed (two lines, read slowly: 19 Oct), and so the pay pop when it says what Perfect would have paid.
+    const float FixedLife = 2.1f, TogetherLife = 1.6f, TogetherToldLife = 2.8f, MoneyToldLife = 2.4f;
     // When the device wakes in the same frame as "Fixed!" (a device never opened: its last task is the end), the device
     // speaks first, with its own parts, and the words come a beat after (the phone's glow starts 0.25 s in).
     const float WakeLead = .3f;
@@ -81,6 +89,8 @@ public sealed class Juice : MonoBehaviour
         nextMarker = 0;
         LastWords = "";
         LastWordsAt = -1f;
+        LastWordsSecondLine = "";
+        LastMoneySecondLine = "";
         LastWordsPoint = Vector3.zero;
         LastWordsContrast = 0f;
         DustPuffs = 0;
@@ -155,6 +165,10 @@ public sealed class Juice : MonoBehaviour
     /// <summary>The last words popped (for checks; plain, without the colour tags), and when (UiClock).</summary>
     public static string LastWords { get; private set; } = "";
     public static float LastWordsAt { get; private set; } = -1f;
+    /// <summary>The second line under the last words, plain ("Missed: wipe the crystal"), or "" (checks).</summary>
+    public static string LastWordsSecondLine { get; private set; } = "";
+    /// <summary>The last pay pop's second line, plain ("Perfect pays $94"), or "" (checks).</summary>
+    public static string LastMoneySecondLine { get; private set; } = "";
     /// <summary>Where in the world the last words were pinned (checks: "Fixed!" over the device's face, not its back).</summary>
     public static Vector3 LastWordsPoint { get; private set; }
     /// <summary>The last words' contrast with their plate, as WCAG reckons it (the plate over white, its worst case; checks).</summary>
@@ -202,7 +216,7 @@ public sealed class Juice : MonoBehaviour
     /// comes a beat after their face (the badge lands first, the money a moment later, above and to the side, so the two
     /// don't crowd: Mansoor, 8 Oct, "they look a little clustered when they both come at the same time").
     /// </summary>
-    public static void Money(Transform who, int amount, int tip = 0, float delay = .45f)
+    public static void Money(Transform who, int amount, int tip = 0, float delay = .45f, JobBase repair = null)
     {
         if (who == null || amount + tip <= 0 || !Application.isPlaying) return;
         Juice j = Ensure();
@@ -210,17 +224,40 @@ public sealed class Juice : MonoBehaviour
         Pop pop = j.Take();
         pop.image.enabled = false;
         pop.text.enabled = true;
-        // In a chip of the brand's green: the money's colour everywhere now (the cash stack's pop is the same chip).
-        pop.text.text = tip > 0 ? $"+${amount}  <size=72%><color={TipColour}>+${tip} tip</color></size>" : $"+${amount}";
+        // In a chip of the brand's green: the money's colour everywhere now (the cash stack's pop is the same chip). Under it,
+        // when the repair was handed back below Perfect, what Perfect would have paid (19 Oct; the header).
+        string more = PerfectPays(who, amount, repair);
+        LastMoneySecondLine = more;
+        pop.text.text = (tip > 0 ? $"+${amount}  <size=72%><color={TipColour}>+${tip} tip</color></size>" : $"+${amount}")
+            + (more.Length > 0 ? $"\n<size=75%><color={TipColour}>{more}</color></size>" : "");
         pop.text.fontSize = 32f;
         pop.text.color = UiSkin.Paper;
         pop.text.alignment = TextAlignmentOptions.Center;
         Vector2 words = pop.text.GetPreferredValues(pop.text.text, 999f, 999f);
-        pop.root.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 30f, 46f);
+        pop.root.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 30f, more.Length > 0 ? Mathf.Ceil(words.y) + 16f : 46f);
         pop.chip.enabled = true;
         pop.chip.color = UiSkin.Brand;
-        j.Show(pop, who, Vector3.zero, new Vector2(84f, 34f), MoneyLife);
+        j.Show(pop, who, Vector3.zero, new Vector2(84f, 34f), more.Length > 0 ? MoneyToldLife : MoneyLife);
         pop.born += Mathf.Max(0f, delay);
+    }
+
+    /// <summary>
+    /// "Perfect pays $94" for a repair paid below Perfect, else "". The repair is <paramref name="repair"/> when the caller
+    /// says, else the payer's own job (CustomerBrain.ActiveJob) when it is a repair whose graded pay is exactly
+    /// <paramref name="amount"/> (a drink paid for while a repair is on the bench is never mistaken for it: Grace's latte).
+    /// </summary>
+    public static string PerfectPays(Transform who, int amount, JobBase repair = null)
+    {
+        JobBase job = repair;
+        if (job == null && who != null)
+        {
+            CustomerBrain brain = who.GetComponent<CustomerBrain>();
+            job = brain != null ? brain.ActiveJob : null;
+            if (job != null && Mathf.RoundToInt(job.Payout * JobBase.PayMultiplier(job.Grade)) != amount) job = null;
+        }
+        if (job == null || !(job is RepairJob) || job.Payout <= 0 || job.Grade == JobGrade.Perfect) return "";
+        int perfect = Mathf.RoundToInt(job.Payout * JobBase.PayMultiplier(JobGrade.Perfect));
+        return perfect > amount ? $"Perfect pays ${perfect}" : "";
     }
 
     static readonly string TipColour = UiSkin.HexOf(UiSkin.GoldSoft);
@@ -258,13 +295,17 @@ public sealed class Juice : MonoBehaviour
     /// A device closed up with faults left (playtest 4): "Back together · Good" at <paramref name="wordsAt"/>, smaller and
     /// quieter than the ending (no sparkle, a softer chime), so the grade it would go back at is told before it goes back.
     /// </summary>
-    public static void BackTogether(Vector3 wordsAt, JobGrade grade)
+    public static void BackTogether(Vector3 wordsAt, JobGrade grade, string missed = null)
     {
         if (!Application.isPlaying) return;
         Juice j = Ensure();
         if (j == null) return;
         string rich = $"Back together  <color={UiSkin.HexOf(GradeColour(grade))}>· {grade}</color>";
-        j.Say(wordsAt, "Back together · " + grade, rich, UiSkin.BandText, 30f, TogetherLife, 0f);
+        // What was missed, by its verb, under it (19 Oct): "Missed: wipe the crystal". Read slowly: it stays up longer.
+        string second = string.IsNullOrWhiteSpace(missed) ? "" : "Missed: " + missed.Trim();
+        if (second.Length > 0) rich += $"\n<size=75%><color={UiSkin.HexOf(UiSkin.GoldSoft)}>{second}</color></size>";
+        j.Say(wordsAt, "Back together · " + grade, rich, UiSkin.BandText, 32f, second.Length > 0 ? TogetherToldLife : TogetherLife, 0f);
+        LastWordsSecondLine = second;
         Sfx.Play2D("repair.ready", .6f);
     }
 
@@ -284,7 +325,8 @@ public sealed class Juice : MonoBehaviour
         pop.text.color = colour;
         pop.text.alignment = TextAlignmentOptions.Center;
         Vector2 measured = pop.text.GetPreferredValues(rich, 9999f, 9999f);
-        pop.root.sizeDelta = new Vector2(Mathf.Ceil(measured.x) + size * .9f, Mathf.Ceil(size * 1.55f));
+        // One line sits in a plate 1.55 x its size; a second line (a missed step) grows the plate to fit.
+        pop.root.sizeDelta = new Vector2(Mathf.Ceil(measured.x) + size * .9f, Mathf.Ceil(Mathf.Max(size * 1.55f, measured.y + size * .55f)));
         pop.chip.enabled = true;
         pop.chip.color = Plate;
         Show(pop, null, point, new Vector2(0f, 26f), life);
@@ -292,6 +334,7 @@ public sealed class Juice : MonoBehaviour
         pop.clamp = true;
         LastWords = plain;
         LastWordsAt = UiClock.Now;
+        LastWordsSecondLine = "";
         LastWordsPoint = point;
         LastWordsContrast = Contrast(colour, Plate);
     }
@@ -817,7 +860,7 @@ public sealed class Juice : MonoBehaviour
             else Finish(item, delay);
         }
         else if (together && !watchedTogether && !done && item.Quality > 0f)
-            BackTogether(Above(item.gameObject), item.Grade);
+            BackTogether(Above(item.gameObject), item.Grade, item is RepairJob repair ? repair.MissedWords() : "");
         watchedTogether = together;
     }
 

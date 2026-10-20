@@ -243,7 +243,7 @@ public class PlayerInteractor : MonoBehaviour
             && Flat(at - transform.position).magnitude <= acrossCounterReach) return true;
         if (!BehindTheBench(transform.position, out Vector3 toward)) return false;
         Vector3 stand = benchStation.StandPoint.position;
-        return Vector3.Dot(Flat(at - stand), toward) > .5f && Flat(at - stand).magnitude <= acrossCounterReach;
+        return Vector3.Dot(Flat(at - stand), toward) > .5f && Flat(at - stand).magnitude <= AcrossTheBenchReach;
     }
 
     // Someone waiting in front of the counter, within reach over it, nearest first. handOver: only someone waiting for
@@ -261,16 +261,21 @@ public class PlayerInteractor : MonoBehaviour
         CustomerInteractable best = null;
         float nearest = float.PositiveInfinity;
         if (IsBehindCounter(transform.position))
-            AcrossFrom(counterStation.StandPoint.position, TowardCustomers(), transform.position, wanted, ref best, ref nearest);
+            AcrossFrom(counterStation.StandPoint.position, TowardCustomers(), transform.position, acrossCounterReach, wanted, ref best, ref nearest);
         if (BehindTheBench(transform.position, out Vector3 toward))
-            AcrossFrom(benchStation.StandPoint.position, toward, benchStation.StandPoint.position, wanted, ref best, ref nearest);
+            AcrossFrom(benchStation.StandPoint.position, toward, benchStation.StandPoint.position, AcrossTheBenchReach, wanted, ref best, ref nearest);
         return best;
     }
 
-    private void AcrossFrom(Vector3 from, Vector3 toward, Vector3 reachFrom, System.Func<CustomerInteractable, bool> wanted,
+    // Over the bench the reach covers the repair bar's three stools (20 Oct: the stations lab's customer sat on the east stool,
+    // 3.75 m from the bench's stand point, and Ace couldn't reassure them from the bench; the middle one is 3.25 m).
+    const float BenchAcrossExtra = .6f;
+    float AcrossTheBenchReach => acrossCounterReach + BenchAcrossExtra;
+
+    private void AcrossFrom(Vector3 from, Vector3 toward, Vector3 reachFrom, float reach, System.Func<CustomerInteractable, bool> wanted,
                             ref CustomerInteractable best, ref float nearest)
     {
-        int count = Physics.OverlapSphereNonAlloc(reachFrom, acrossCounterReach, AcrossBuffer);
+        int count = Physics.OverlapSphereNonAlloc(reachFrom, reach, AcrossBuffer);
         for (int i = 0; i < count; i++)
         {
             Collider c = AcrossBuffer[i];
@@ -280,7 +285,7 @@ public class PlayerInteractor : MonoBehaviour
             if (!wanted(who)) continue;
             Vector3 at = who.transform.position;
             float flat = Flat(at - reachFrom).magnitude;
-            if (flat > acrossCounterReach || flat >= nearest) continue;
+            if (flat > reach || flat >= nearest) continue;
             if (Vector3.Dot(Flat(at - from), toward) <= .5f) continue;   // not in front of the counter
             nearest = flat;
             best = who;
@@ -1079,6 +1084,13 @@ public class PlayerInteractor : MonoBehaviour
 
     // Where to aim at a thing, and half its smallest width: a person at their chest (aiming at their middle would aim
     // into the counter), anything else at the middle of the collider that was found.
+    //
+    // SEATED (19 Oct 2026, playtest 7). Her, aiming at a man at a table: "I keep looking at his top left head. And it just
+    // gets stuck there? ... Oh, maybe it's when they're sitting down." The look target is a standing-height transform on the
+    // root, and NpcSeating lowers only the patience bar and the speech bubble when they sit, never it: so the aim point
+    // stayed about 1.4 m up over a seated chest at about 1.05 m. The same drop NpcSeating applies to its overheads (the
+    // standing hips to the seated hips, less a city body's seated lift) is applied here, so the help lands on the chest.
+    // The conversation camera frames the look target itself and conversations happen at the counter, standing: unchanged.
     private static AimAssist.Target TargetOf(Interactable it, Collider c)
     {
         Bounds b = c.bounds;
@@ -1088,10 +1100,24 @@ public class PlayerInteractor : MonoBehaviour
             Vector3 chest = brain != null && brain.LookTarget != null
                 ? brain.LookTarget.position - Vector3.up * .2f
                 : b.center + Vector3.up * b.extents.y * .5f;
+            chest -= Vector3.up * SeatedDrop(it);
             return new AimAssist.Target(chest, Mathf.Min(b.extents.x, b.extents.z));
         }
         float size = Mathf.Min(b.extents.x, Mathf.Min(b.extents.y, b.extents.z));
         return new AimAssist.Target(b.center, Mathf.Max(.03f, size));
+    }
+
+    // How far a seated customer's head and chest are below where they stand (world metres; 0 when standing): NpcSeating's
+    // own drop for its overheads (NpcSeating.PlaceOverheads), in local units, scaled to the world.
+    private static float SeatedDrop(Interactable it)
+    {
+        NpcSeating seating = it.GetComponent<NpcSeating>();
+        if (seating == null || !seating.IsSeated || seating.Data == null) return 0f;
+        float scaleY = Mathf.Max(1e-4f, it.transform.lossyScale.y);
+        float drop = Mathf.Max(0f, seating.Data.standingHipHeight - seating.Data.seatedHip.y);
+        PolygonNpcVisual visual = it.GetComponent<PolygonNpcVisual>();
+        if (visual != null) drop = Mathf.Max(0f, drop - visual.SeatedLift / scaleY);
+        return drop * scaleY;
     }
 
     // Nothing solid but the thing itself between the eye and the point.

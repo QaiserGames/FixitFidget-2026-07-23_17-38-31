@@ -17,12 +17,17 @@ using Object = UnityEngine.Object;
 // and the data. Decided 27 Sept 2026: Grace lives in the saffron bay-window
 // house across the west street (house 1); her address is a placeholder,
 // 12 West Street; street names live in one asset that can be edited any time.
+// Playtest 7 (19 Oct 2026, "What's saffron how?"): her door's "looks" is "the
+// yellow house" (HomeDoor.GraceLooks), the one way the night names her house;
+// Fixit Fidget › Night › Night guidance 1 repaints the street's other saffron
+// house so the yellow one is hers alone.
 //
 // "Give Grace her home" (idempotent; Edit > Undo works):
 //   * District streets (Assets/Data/Resources) with placeholder names, if it
 //     isn't there yet. An existing one is never overwritten.
 //   * Grace's profile gets Home Id home.grace.
-//   * A HomeDoor on the saffron house's doorstep (12, west street).
+//   * A HomeDoor on the saffron house's doorstep (12, west street; it looks
+//     like "the yellow house").
 //   * The walking route that already starts at that door becomes hers alone.
 //     The walk-ins' neighbour's door moves next door, to the dusty rose house:
 //     a new route down the pavement that joins hers at the kerb, so it uses the
@@ -121,7 +126,7 @@ public static class HomeSetup
         door.transform.SetPositionAndRotation(saffron.TransformPoint(DoorFace), Quaternion.LookRotation(Flat(saffron.forward), Vector3.up));
         Undo.RecordObject(door, "Give Grace her home");
         door.homeId = GraceHome;
-        door.looks = "the saffron house";
+        door.looks = HomeDoor.GraceLooks;   // "the yellow house" (playtest 7: never a colour word she had to decode)
         door.houseNumber = "12";
         door.streetId = "west";
         log.Add($"  at {door.transform.position:F2}, facing {Flat(door.transform.forward):F0}; address {door.Address}.");

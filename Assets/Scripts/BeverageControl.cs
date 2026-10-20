@@ -1,5 +1,7 @@
 using UnityEngine;
 
+// 19 Oct 2026: no percentage while pouring (the station's card shows a ring that fills instead; BeverageStation), and the
+// hands' buttons are icons (ControlHints), never words in brackets.
 public sealed class BeverageControl : Interactable
 {
     public BeverageSlot slot;
@@ -12,7 +14,7 @@ public sealed class BeverageControl : Interactable
             if (slot == null) return "";
             if (dispenseButton) return slot.PourPrompt;
             if (slot.drink == null) return "No drink assigned";
-            if (slot.IsPouring) return $"Pouring {slot.drink.drinkName} · {Mathf.RoundToInt(slot.Progress * 100)}%";
+            if (slot.IsPouring) return $"Pouring {slot.drink.drinkName}";
             var carry = PlayerCarry.Current;
             if (slot.Cup != null)
                 return slot.Cup.IsEmpty ? "Take empty cup · aim at the named paddle to pour"
@@ -21,8 +23,7 @@ public sealed class BeverageControl : Interactable
             bool hasEmpty = carry != null && ((carry.GetHandItem(0) is DrinkJob left && left.IsEmpty)
                 || (carry.GetHandItem(1) is DrinkJob right && right.IsEmpty));
             return hasEmpty ? $"Place cup under {slot.drink.drinkName}"
-                : PadInput.UsingPad ? $"Take a cup · {ControlHints.LeftHand} / {ControlHints.RightHand} chooses that hand"
-                : "Take a cup · left / right click chooses that hand";
+                : $"Take a cup · {ControlHints.LeftHand} / {ControlHints.RightHand} chooses that hand";
         }
     }
     public override void Interact(PlayerInteractor player)

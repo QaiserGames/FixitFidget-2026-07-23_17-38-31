@@ -37,6 +37,10 @@ using UnityEngine.InputSystem.LowLevel;
 // the name over her head and her job's dot are measured against UiPins' one family (BarScale), never a number of their own;
 // and three close-ups of her head (name, bar, dot) at three times a 1080p screen's size, for the Producer's eye on the size:
 // 02b when her bar first shows, 05b with her job's colour beside it, 09b impatient (the bar low and red, her name pinned).
+// Playtest 7 (19 Oct 2026): the first card says the goal ("Five stars and the café can franchise."); the words carry the
+// button as the icon contract's helper (ControlHints.Interact), never a spelled-out key; the line is 26 px and at most
+// WordBudget.NowLine words once the card has settled; "Go behind the counter" follows the staff's side (the till, the bench,
+// the back bar), never Ace standing there.
 // The repair itself is the bench's (Bench 3). Photos and report.txt go to Logs/UI/day1-guide-<time>/. Nothing is saved in
 // the scene; the lab's save is the only file the game writes. Play mode ends by itself when it reports.
 // ---------------------------------------------------------------------------
@@ -113,15 +117,19 @@ public sealed class Day1GuideCheck : PlayLab
         Note($"the Game view is {Screen.width} x {Screen.height}; photos are saved at 1920 x 1080; the HUD's scale here is {HudScale():0.00}");
 
         // ---------- 1. the first screen ----------
-        yield return Until(() => guide.CardShowing && guide.CardText.Contains("You're Ace"), 15f,
-            "the first card says who you are (\"You're Ace. ...\")");
+        yield return Until(() => guide.CardShowing && guide.CardText.Contains("Five stars"), 15f,
+            "the first card says the goal (\"Five stars and the café can franchise. ...\")");
         string first = guide.CardText;
         Check(first.Contains("DAY 1 · GRACE") && (first.Contains(DayOneGuideUI.FirstCard("Grace", true)) || first.Contains(DayOneGuideUI.FirstCard("Grace", false))),
             $"...and who is on the way, in the guide's words: \"{Plain(first)}\"");
-        Check(interactor.BehindCounter != first.Contains("behind the counter"),
-            $"\"behind the counter\" only when Ace isn't there already (he is{(interactor.BehindCounter ? "" : "n't")})");
+        bool staffSide = interactor.OnStaffSide || interactor.NearDrinks || interactor.IsAtBeverageStation;
+        Check(staffSide != first.Contains("behind the counter"),
+            $"\"behind the counter\" only when Ace isn't on the staff's side already (he is{(staffSide ? "" : "n't")})");
+        Check(Mathf.Abs(guide.LineSize - DayOneGuideUI.FullSize) < .01f && DayOneGuideUI.FullSize >= 24f && DayOneGuideUI.TitleSize >= 20f,
+            $"the step is drawn at {guide.LineSize:0} px (the rule: at least 24; the title {DayOneGuideUI.TitleSize:0}, at least 20)");
         Check(pins.SelfShowing && pins.SelfText == DayOneGuideUI.SelfWords, "\"You\" is pinned over Ace");
-        Check(DayOneGuideUI.MovementHintWanted && shop.ViewHint.Contains("WASD") && shop.ViewHint.Contains("Move") && shop.ViewHint.Contains("Use"),
+        // 20 Oct (builder T's strip): the walk key is an icon now, so the check compares against the same helper the strip uses.
+        Check(DayOneGuideUI.MovementHintWanted && shop.ViewHint.Contains(ControlHints.Walk) && shop.ViewHint.Contains("Move") && shop.ViewHint.Contains("Use"),
             $"Day 1's controls strip says how to walk and use: \"{Plain(shop.ViewHint)}\"");
         yield return Photo1080("01-the-first-screen");
 
@@ -146,8 +154,10 @@ public sealed class Day1GuideCheck : PlayLab
         // The guide reads the café every 0.15 s: give it a look at her before judging its card and pin.
         yield return Seconds(.4f);
         if (!grace.CanHearIntake && !grace.CanDecide)
-            Check(guide.CardText.Contains("You're Ace") && guide.PinWho == grace.transform,
-                "while she walks in, the card still says who you are, with the pin over her");
+            // 20 Oct: the first card says the goal now ("Five stars and the café can franchise. Grace is on her way."), and
+            // settles to its one line ("Grace is on her way."); either way it hasn't jumped ahead while she walks in.
+            Check(guide.CardText.Contains("is on her way") && guide.PinWho == grace.transform,
+                $"while she walks in, the card still says she's on her way, with the pin over her (\"{Plain(guide.CardText)}\")");
         yield return Until(() => grace == null || grace.CanHearIntake, 150f, "she reaches the counter");
         if (!lastWait || grace == null) yield break;
         if (!interactor.BehindCounter) PutAce(till.position, till.eulerAngles.y);
@@ -183,8 +193,15 @@ public sealed class Day1GuideCheck : PlayLab
         if (barUp) yield return CloseOnHead("02b-patience-bar-close", grace.transform);
 
         // The card stays: settled to one line after ~6 s, back in full after ~10 s more with no progress.
-        yield return Until(() => guide.CardCompact, 9f, "after about six seconds the card settles to one smaller line, still on screen");
-        if (lastWait) yield return Photo1080("03-the-card-settled");
+        yield return Until(() => guide.CardCompact, 9f, "after about six seconds the card settles to one line, still on screen");
+        if (lastWait)
+        {
+            Check(Mathf.Abs(guide.LineSize - DayOneGuideUI.CompactSize) < .01f && DayOneGuideUI.CompactSize >= 24f,
+                $"...the line at {guide.LineSize:0} px (the rule: at least 24; it was 18)");
+            Check(!WordBudget.Over(guide.NowText, WordBudget.NowLine),
+                $"...one step, within the Now line's budget (\"{Plain(guide.NowText)}\": {WordBudget.Report(guide.NowText, WordBudget.NowLine)})");
+            yield return Photo1080("03-the-card-settled");
+        }
         yield return Until(() => !guide.CardCompact && guide.CardReminding, 13f, "ten seconds more with no progress: back in full, once (a pulse, no sound)");
         if (lastWait) yield return Photo1080("04-the-card-back-in-full");
 
@@ -218,8 +235,8 @@ public sealed class Day1GuideCheck : PlayLab
         Check(conversation.InConversation, "E on her opens the conversation");
         Check(!guide.CardShowing && pins.AllHidden, "a conversation has the screen: no card, no pins");
         if (realE)
-            Check(!DayOneGuideUI.MovementHintWanted && !shop.ViewHint.Contains("WASD"),
-                "walked a few metres and used E: the strip's \"WASD Move · E Use\" goes");
+            Check(!DayOneGuideUI.MovementHintWanted,
+                "walked a few metres and used E: the guide's movement words go (the strip keeps Move and Use every day)");
         else Note("E wasn't pressed for real, so the strip's movement words stay (they go after a real E)");
         conversation.Advance();
         yield return Until(() => conversation.RepliesShowing, 10f, "her request, then Ace's replies");
@@ -242,7 +259,8 @@ public sealed class Day1GuideCheck : PlayLab
         JobBase camera = grace != null ? grace.ActiveJob : null;
         if (camera == null) yield break;
         yield return Until(() => guide.CardText.Contains("from the intake tray"), 6f, "the card: pick it up from the intake tray");
-        Check(guide.CardText.Contains("Press E to pick up Grace's") && !guide.CardText.Contains("shelf"), $"...in those words: \"{Plain(guide.CardText)}\"");
+        Check(guide.CardText.Contains($"{ControlHints.Interact} Pick up Grace's") && !guide.CardText.Contains("shelf") && !guide.CardText.Contains("Press "),
+            $"...in those words, the button as its icon: \"{Plain(guide.CardText)}\"");
         Check(guide.PinLabel == FocusNameUI.TrayName && guide.PinWho == null
               && (guide.PinPoint - FocusNameUI.TopOf(camera.gameObject)).magnitude < .6f, "Day 1's pin says \"Intake tray\", over the camera on it");
         PutAce(bench.StandPoint.position, bench.StandPoint.eulerAngles.y);   // a step away: nothing in reach, so the pin shows alone
@@ -289,7 +307,7 @@ public sealed class Day1GuideCheck : PlayLab
         yield return Frames(3);
         bench.Interact(interactor);
         yield return Until(() => !carry.Contains(camera) && StationInteractable.BenchHolds(camera), 3f, "...and sets it down on the bench (as E there does)");
-        yield return Until(() => guide.CardText.Contains("At the repair bench, press E"), 4f, "the card: E at the bench works on it");
+        yield return Until(() => guide.CardText.Contains($"At the repair bench, {ControlHints.Interact} Work on"), 4f, "the card: E at the bench works on it");
         // Within a second (15 Oct: four frames at 15 fps caught the green pin giving way to the name as it faded in).
         for (float until = Time.realtimeSinceStartup + 1f; !(pins.FocusShowing || pins.GuideShowing) && Time.realtimeSinceStartup < until;) yield return null;
         Check(pins.FocusShowing || pins.GuideShowing, $"a pin over it says what it is (\"{(pins.FocusShowing ? pins.FocusText : pins.GuideText)}\")");
@@ -311,10 +329,12 @@ public sealed class Day1GuideCheck : PlayLab
         Check(markers.All(m => m.LabelText.Length == 0), $"no job number anywhere ({markers.Length} job tags up in the café)");
         Check(!markers.Any(m => m.TagShowing && m.GetComponentInParent<JobBase>(true) == inspector.FocusedItem), "no tag over the device on the mat");
         // The close-up's controls are on their own card since 12 Oct (BenchCards), not the bottom prompt's tools line.
-        yield return Await(() => BenchCards.ControlsText.Contains("[Drag a tool]"), 2f);
+        // 20 Oct (builder B's card): the keys are icons from ControlHints, the words say what they do; no brackets.
+        yield return Await(() => BenchCards.ControlsText.Contains("Drag a tool"), 2f);
         string controls = BenchCards.ControlsText;
-        Check(controls.Contains("[Drag a tool]") && controls.Contains("[Right-click]") && controls.Contains("[Tab]") && BenchCards.ControlsShowing,
-            $"the first repair's controls card, in the mouse's words: \"{Plain(controls)}\"");
+        Check(controls.Contains(ControlHints.Use) && controls.Contains("Drag a tool") && controls.Contains(ControlHints.Cancel)
+              && controls.Contains(ControlHints.BenchHelp) && !controls.Contains("[") && BenchCards.ControlsShowing,
+            $"the first repair's controls card, the mouse's icons with words: \"{Plain(controls)}\"");
         yield return Photo1080("08-at-the-bench");
         inspector.StepBack();
         yield return Until(() => !inspector.IsHoldingItem, 3f, "...and right-click with bare hands puts it down and steps back");
@@ -584,6 +604,7 @@ public sealed class Day1GuideCheck : PlayLab
             yield break;
         }
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         Texture2D big = null;
         try
         {
@@ -629,6 +650,7 @@ public sealed class Day1GuideCheck : PlayLab
     {
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         Texture2D save = shot;
         if (shot.width != 1920 || shot.height != 1080)
         {

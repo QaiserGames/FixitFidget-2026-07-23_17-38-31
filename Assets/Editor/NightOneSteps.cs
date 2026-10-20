@@ -366,7 +366,7 @@ internal static class NightOneSteps
               $"to Grace's visit on Day {day + 1} (two or three minutes). Keep the Game view in front and leave the mouse and keyboard alone."
             : "Night 1 lab: Day 1's recap. Its button (Close up for the night) leads into the night: the first night opens with Night 0 " +
               "(the bins, out the café's back door) when the bins are in the scene; the man at the bins then asks for Barnaby, who is on the " +
-              "front step of Grace's saffron house on the corner (12 West Street). E inside the café's door, or at the back door, calls it a night.")
+              "front step of Grace's yellow house, porch light on (12 West Street). E inside the café's door, or at the back door, calls it a night.")
             + $" Test save {path}; your playtest save is not used.");
         EditorApplication.EnterPlaymode();
     }

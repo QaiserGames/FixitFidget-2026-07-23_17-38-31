@@ -229,6 +229,7 @@ public sealed class NightTour : MonoBehaviour
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
         photos++;
         string file = Path.Combine(folder, $"{photos:00}-{name ?? $"{Time.time - started:000.0}s"}.jpg");
+        ReviewScreen.Scan(shot, folder, Path.GetFileNameWithoutExtension(file));   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         File.WriteAllBytes(file, shot.EncodeToJPG(88));
         Destroy(shot);
         skipFrames = 2;   // the capture itself costs a frame or two: keep it out of the frame times

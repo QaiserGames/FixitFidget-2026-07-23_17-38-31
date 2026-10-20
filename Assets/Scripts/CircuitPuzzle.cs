@@ -134,7 +134,8 @@ public sealed class CircuitPuzzle : MonoBehaviour
 
     private static bool BoostHeld => Keyboard.current != null && Keyboard.current.spaceKey.isPressed
         || PadInput.LeftTrigger > .5f;
-    private static string BoostKey => PadInput.UsingPad ? ControlHints.Boost : "SPACE";
+    // The boost's button as its icon (19 Oct 2026): Space, or L2 (LT, ZL) on a pad; never in brackets (ControlHints).
+    private static string BoostKey => ControlHints.Boost;
 
     private void UpdateBoost(bool held)
     {
@@ -315,14 +316,17 @@ public sealed class CircuitPuzzle : MonoBehaviour
         hudRect.anchoredPosition = new Vector2(0, 24); hudRect.sizeDelta = new Vector2(760, 148);
         // The UI skin (playtest 3, session 3): its band, its lettering, its colours.
         UiSkin.Paint(hudRect, new Color(UiSkin.Ink.r, UiSkin.Ink.g, UiSkin.Ink.b, .95f), UiSkin.Radius);
-        status = HudTopText(new Vector2(22, -16), new Vector2(400, 30), 25);
-        resultLabel = HudTopText(new Vector2(422, -18), new Vector2(316, 28), 20);
+        // 19 Oct 2026 (her: "your text needs to be bolder"): the instruction 24 px semibold, the rest 20; the buttons icons.
+        status = HudTopText(new Vector2(22, -14), new Vector2(400, 32), 26);
+        status.fontStyle = FontStyles.Bold;
+        resultLabel = HudTopText(new Vector2(422, -17), new Vector2(316, 28), 20);
         resultLabel.alignment = TextAlignmentOptions.Right;
-        instruction = HudTopText(new Vector2(22, -54), new Vector2(716, 30), 21);
+        instruction = HudTopText(new Vector2(22, -52), new Vector2(716, 34), 24);
         instruction.color = UiSkin.BandText;
-        progressLabel = HudTopText(new Vector2(22, -108), new Vector2(250, 24), 18);
+        instruction.fontStyle = UiSkin.SemiBold;
+        progressLabel = HudTopText(new Vector2(22, -108), new Vector2(250, 26), 20);
         progressLabel.color = UiSkin.BandFaint;
-        boostLabel = HudTopText(new Vector2(282, -108), new Vector2(456, 24), 18);
+        boostLabel = HudTopText(new Vector2(282, -108), new Vector2(456, 26), 20);
         boostLabel.alignment = TextAlignmentOptions.Right;
         var track = new GameObject("Verified progress", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
         track.SetParent(hudRect, false);
@@ -335,7 +339,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
         progressFill.offsetMin = progressFill.offsetMax = Vector2.zero;
         progressFill.GetComponent<Image>().color = liveColor;
         progressFill.GetComponent<Image>().raycastTarget = false;
-        retryCost = HudText(hudRect, new Vector2(22, 18), new Vector2(444, 40), 18);
+        retryCost = HudText(hudRect, new Vector2(22, 18), new Vector2(444, 40), 20);
         retryCost.alignment = TextAlignmentOptions.MidlineLeft;
         retryCost.color = UiSkin.BandText;
         RectTransform button = new GameObject("Retry", typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<RectTransform>();
@@ -347,7 +351,8 @@ public sealed class CircuitPuzzle : MonoBehaviour
         // never to a previously selected Retry button via the UI Submit action.
         retry.navigation = new Navigation { mode = Navigation.Mode.None };
         retry.onClick.AddListener(RetryFromButton);
-        retryLabel = HudText(button, Vector2.zero, button.sizeDelta, 20);
+        retryLabel = HudText(button, Vector2.zero, button.sizeDelta, 22);
+        retryLabel.fontStyle = FontStyles.Bold;
         retryLabel.alignment = TextAlignmentOptions.Center;
     }
 
@@ -384,13 +389,12 @@ public sealed class CircuitPuzzle : MonoBehaviour
             : run.Halted ? $"Connect the white ports on tile {run.Reached + 1}, then retry."
             : run.RouteClear ? $"Wires all connected. Hold {BoostKey} to speed up the charge."
             : run.Reached < run.BestReached ? "Rechecking locked wires. Prepare the next connection."
-            : PadInput.UsingPad ? $"Aim at a wire and press {ControlHints.Use} to connect the white ports."
-            : "Click wires to connect the white ports.";
+            : $"Aim at a wire and press {ControlHints.Use} to connect the white ports.";
         progressLabel.text = $"Verified {run.BestReached} / {run.Count}";
         boostLabel.text = run.Finished || run.Halted ? ""
-            : IsBoosting ? $"[{BoostKey}] Fast-forwarding"
+            : IsBoosting ? $"{BoostKey}  Fast-forwarding"
             : boostRequiresRelease && BoostHeld
-                ? $"Release {BoostKey}, then hold to speed up" : $"Hold [{BoostKey}] to speed up pulse";
+                ? $"Release {BoostKey}, then hold to speed up" : $"Hold {BoostKey} to speed up the pulse";
         boostLabel.color = IsBoosting ? UiSkin.Gold : UiSkin.BandFaint;
         resultLabel.text = $"Repair result: {job.Grade}";
         progressFill.anchorMax = new Vector2((float)run.BestReached / run.Count, 1);
@@ -400,7 +404,7 @@ public sealed class CircuitPuzzle : MonoBehaviour
         retry.interactable = run.Halted;
         if (run.Halted)
         {
-            retryLabel.text = PadInput.UsingPad ? $"[{ControlHints.Refuse}] Retry (-1 point)" : "Retry (-1 point)";
+            retryLabel.text = PadInput.UsingPad ? $"{ControlHints.Refuse}  Retry (-1 point)" : "Retry (-1 point)";
             retryCost.text = $"Circuit points after retry: at most {run.NextRetryCeiling}/{run.Count}";
         }
     }

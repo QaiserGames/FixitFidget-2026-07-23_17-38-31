@@ -11,6 +11,18 @@ using UnityEngine.Rendering;
 /// default all three are neutral, so the day plays exactly as before. While the
 /// moon is up, stars and the moon itself are drawn in the sky (<see cref="NightSky"/>,
 /// the second playtest, 29 Sept); by day nothing of it exists.
+///
+/// THE LAST HOUR IS GOLDEN (19 Oct 2026, his answer to playtest 7: the orange tint at
+/// last orders and the red tint at closing "doesnt fit the overall cozy aesthetic
+/// despite we needing something like that but not that"). The HUD's screen tints are
+/// gone; the light through the windows tells the last hour instead. The dusk was
+/// already warm from 16:24, but night fell from 18:48, so by last orders (19:00) the
+/// room was going blue and dark. Now: night falls from 19:06 and is down by 20:06, so
+/// the first half of the last hour stays in the warm dusk; the evening ambient on the
+/// walls (the equator term) warms toward honey with the dusk instead of staying the
+/// day's cool grey; and the window and lamp glow lifts by a fifth from last orders
+/// until the night takes over (<c>goldenHour</c> in the sample). No new lights; the
+/// sun's path and the night's own look are unchanged.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class CafeDaylight : MonoBehaviour
@@ -66,6 +78,8 @@ public sealed class CafeDaylight : MonoBehaviour
     public struct LightingSample
     {
         public float hour, altitude, sunStrength, dusk, night, skyExposure;
+        /// <summary>The last hour's lift on the window and lamp glow (0 before last orders, up to 1 at about 19:40, back to 0 as night falls).</summary>
+        public float goldenHour;
         public Color sunColor, skyTint, ambientSky, ambientEquator, ambientGround, hazeColor;
     }
 
@@ -140,8 +154,11 @@ public sealed class CafeDaylight : MonoBehaviour
     public static LightingSample EvaluateAtHour(float hour)
     {
         hour = Mathf.Clamp(hour, 0f, 24f);
-        float night = Mathf.Max(1f - Smooth(5.8f, 7.2f, hour), Smooth(18.8f, 20f, hour));
+        // Night falls from 19:06 (was 18:48), so the first half of the café's last hour (19:00-20:00) keeps the dusk's warmth.
+        float night = Mathf.Max(1f - Smooth(5.8f, 7.2f, hour), Smooth(19.1f, 20.1f, hour));
         float dusk = Smooth(16.4f, 19f, hour);
+        // The last hour's lift on the glow: up from last orders, gone again as the night takes over.
+        float goldenHour = Smooth(19f, 19.6f, hour) * (1f - night);
         float altitude = Mathf.Sin((hour - 6.5f) / 12.75f * Mathf.PI) * 60f;
         float strength = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-1f, 28f, altitude));
         Color daylightSky = new Color(.59f, .70f, .84f);
@@ -152,13 +169,15 @@ public sealed class CafeDaylight : MonoBehaviour
             altitude = altitude,
             dusk = dusk,
             night = night,
+            goldenHour = goldenHour,
             sunStrength = strength,
             sunColor = Color.Lerp(new Color(1f, .94f, .80f), new Color(1f, .42f, .18f), dusk),
             skyExposure = Mathf.Lerp(1.05f, .13f, night),
             skyTint = Color.Lerp(Color.Lerp(new Color(.49f, .52f, .56f),
                 new Color(.65f, .46f, .36f), dusk), new Color(.18f, .23f, .36f), night),
             ambientSky = Color.Lerp(Color.Lerp(daylightSky, eveningSky, dusk), new Color(.10f, .14f, .23f), night),
-            ambientEquator = Color.Lerp(new Color(.40f, .43f, .47f), new Color(.12f, .11f, .16f), night),
+            // The walls' ambient warms with the dusk (it used to stay the day's cool grey until night took it).
+            ambientEquator = Color.Lerp(Color.Lerp(new Color(.40f, .43f, .47f), new Color(.50f, .41f, .33f), dusk), new Color(.12f, .11f, .16f), night),
             ambientGround = Color.Lerp(new Color(.25f, .22f, .19f), new Color(.055f, .055f, .07f), night),
             hazeColor = Color.Lerp(Color.Lerp(new Color(.68f, .77f, .83f),
                 new Color(.79f, .57f, .42f), dusk), new Color(.075f, .10f, .17f), night)
@@ -216,8 +235,9 @@ public sealed class CafeDaylight : MonoBehaviour
         float lamps = Mathf.Lerp(daytimeLampStrength, 1f, evening);
         foreach (var state in lightStates)
             if (state.light != null) state.light.intensity = state.intensity * lamps * (state.inside ? InteriorLampScale : 1f);
+        // The windows and lamps glow up with the evening, and a fifth brighter through the last hour (goldenHour, the header).
         foreach (var copy in glowCopies.Values)
-            copy.SetColor(Emission, eveningGlow * Mathf.Lerp(.035f, 1f, evening));
+            copy.SetColor(Emission, eveningGlow * Mathf.Lerp(.035f, 1f, evening) * (1f + .2f * sample.goldenHour));
     }
 
     // The stars and the moon (NightSky): made the first time the moon is up, and never by day.

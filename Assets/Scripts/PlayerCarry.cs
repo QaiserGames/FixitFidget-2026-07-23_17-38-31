@@ -41,6 +41,37 @@ public class PlayerCarry : MonoBehaviour
     public JobBase Carried { get { Prune(); return SelectedHeld()?.item; } }
     public bool IsCarrying => Carried != null;
 
+    /// <summary>
+    /// The device in Ace's hands whose next place is the repair bench: a repair (not a cup, not a support call, not a Human
+    /// fault's counter repair) with work still on it (one lifted out of the close-up mid-repair too). Null with nothing of the
+    /// kind in either hand. Only read: BenchGlow marks that device's place on the mat while this says so (19 Oct 2026, his
+    /// girlfriend: "highlight ... where you're going to place the phone or the watch ... I don't know where to go").
+    /// </summary>
+    public JobBase BenchBound
+    {
+        get
+        {
+            Prune();
+            for (int i = 0; i < hands.Count; i++)
+            {
+                JobBase item = hands[i].item;
+                if (!(item is RepairJob) || item.IsFinished) continue;
+                if (item.Record != null && item.Record.faultType == FaultType.Human) continue;   // the counter's phone, not the bench
+                return item;
+            }
+            return null;
+        }
+    }
+
+    /// <summary>The size of <paramref name="item"/>'s drawn solid parts as it was picked up, metres (its real size: it was lying
+    /// at that scale), whatever it is drawn at in the hand now. Zero when it isn't carried. Only read (BenchGlow's put-down mark).</summary>
+    public Vector3 CarriedSize(JobBase item)
+    {
+        Prune();
+        for (int i = 0; i < hands.Count; i++) if (hands[i].item == item) return hands[i].visualBounds;
+        return Vector3.zero;
+    }
+
     /// <summary>What's in hand, in words, for the HUD ("Phone · Cracked screen", "Coffee + Phone · Cracked screen"); "" with nothing.</summary>
     public string Summary
     {

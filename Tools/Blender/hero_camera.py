@@ -727,22 +727,44 @@ def _sections(frames):
 
 def _sweep(frames, origin):
     """The strap's solid along frames: (leather bmesh, edge bmesh), in this file's 2x Blender frame about origin (real mm,
-    Unity). The face and back are leather; the two burnished edges and the cut ends are the edge colour."""
+    Unity). The face and back are leather; the two burnished edges and the cut ends are the edge colour.
+
+    Every face is turned to point OUT of the strap: away from the section's middle (or, for the cut ends, along the strap
+    out of its end). Until 19 Oct 2026 the two bmeshes were each run through recalc_face_normals, but the leather on its
+    own is two open sheets (the face and the back, with the edges in the other bmesh), and on an open sheet Blender's
+    "outside" is a guess: on the runs both sheets came out facing the mat and on the loop both faced up. Blender's review
+    renders draw both sides of a face, so the strap looked right there; Unity draws front faces only, so in the game the
+    runs were see-through from above and the loop from below, with only the stitches and the burnished edges floating.
+    His girlfriend's playtest (19 Oct): "That's invisible... Strap." Found again by Review 1 - model sheets (the face
+    test: 63-73 % of the runs seen from above were the backs of their faces)."""
     rings = _sections(frames)
     leather, edge = bmesh.new(), bmesh.new()
     n = len(SECTION)
+
+    def middle(ring):
+        return sum((Vector(p) for p in ring), Vector((0.0, 0.0, 0.0))) / len(ring)
+
+    def outward(face, out_mm):
+        """Flip face unless it points along out_mm (a Unity real-mm direction, taken into this file's Blender frame)."""
+        face.normal_update()
+        want = Vector(to_blender((out_mm.x, out_mm.y, out_mm.z)))
+        if face.normal.dot(want) < 0:
+            face.normal_flip()
+
     for a, b in zip(rings, rings[1:]):
+        mid = (middle(a) + middle(b)) * 0.5
         for k in range(n):
             m = (k + 1) % n
             quad = [a[k], a[m], b[m], b[k]]
             dst = leather if k in STRAP_FACES else edge
-            dst.faces.new([dst.verts.new(_b(q, origin)) for q in quad])
-    for ring, rev in ((rings[0], True), (rings[-1], False)):
-        pts = list(reversed(ring)) if rev else ring
-        edge.faces.new([edge.verts.new(_b(q, origin)) for q in pts])
+            face = dst.faces.new([dst.verts.new(_b(q, origin)) for q in quad])
+            outward(face, middle(quad) - mid)
+    for ring, beyond in ((rings[0], rings[1]), (rings[-1], rings[-2])):
+        cap = edge.faces.new([edge.verts.new(_b(q, origin)) for q in ring])
+        outward(cap, middle(ring) - middle(beyond))   # the cut end faces out of the strap's end
     for bm in (leather, edge):
         bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-7)
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        bm.normal_update()   # no recalc_face_normals: every face was turned out above, and recalc guesses on open sheets
     return leather, edge
 
 
@@ -903,13 +925,16 @@ def strap_piece(name):
     idx = _resample(d, s0, s1)
     frames = [(d['pts'][i], d['T'][i], d['W'][i]) for i in idx]
     leather, edge = _sweep(frames, origin)
-    p.add('strap', leather, leather_m, smooth=True)
-    p.add('strap edges', edge, edge_m, smooth=True)
+    # keep_normals: _sweep and _stitches turn every face out themselves; the leather and the dashes are open sheets whose
+    # outside a recalc only guesses (19 Oct 2026: the runs came out facing the mat, see-through from above in the game).
+    p.add('strap', leather, leather_m, smooth=True, keep_normals=True)
+    p.add('strap edges', edge, edge_m, smooth=True, keep_normals=True)
     skip = [(0.0, FOLD + 3.0), (d['L'] - FOLD - 3.0, d['L'])]
-    p.add('stitches', _stitches(d, s0, s1, origin=origin, skip=skip), stitch_m)
+    p.add('stitches', _stitches(d, s0, s1, origin=origin, skip=skip), stitch_m, keep_normals=True)
     if name != 'WornLoop':
         for part, bm, mat in _ring_and_end(d, -1 if name == 'UpperStrap' else 1, origin):
-            p.add(part, bm, M(mat), smooth=mat in ('HD_CamStrap', 'HD_CamStrapEdge') and 'keeper' not in part and 'protector' not in part)
+            p.add(part, bm, M(mat), smooth=mat in ('HD_CamStrap', 'HD_CamStrapEdge') and 'keeper' not in part and 'protector' not in part,
+                  keep_normals=part in ('strap end, folded', 'strap end, edges', 'fold stitches'))
     return p
 
 

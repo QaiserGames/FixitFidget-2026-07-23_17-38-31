@@ -1,6 +1,8 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 // ---------------------------------------------------------------------------
@@ -38,6 +40,19 @@ using UnityEngine.UI;
 // Grace's mark fills (GraceAtHome) she says "Ace?! What on earth—", the screen goes dark on "Caught.", whatever Ace took
 // tonight goes back (NightLedger.PutBack; the notebook crosses it out), and the night ends there, as dawn would. Nothing
 // else is lost yet, and the card says so. The captions name the day of the week (Day 1 is a Monday: Weekdays).
+//
+// PLAYTEST 7 (19 Oct 2026; his girlfriend, dyslexic, on a PlayStation pad: "I couldn't read it fast enough... I'm dyslexic.
+// I can read it and then I'm gonna forget what I read", "you should have like an object[ive]"):
+//   * The Now line (NowLine): one read-only line, built from the night's existing state, that always says what the night is
+//     for: the bag, the bins, the errand's thing (where it is, in hand, on the shelf), or home. DayOneGuideUI draws it at the
+//     top left, day and night, in the same place; while a scene plays (his lines, Ace's replies) it is "" and the line hides.
+//     Until the notebook has been opened once this session, the line ends with the notebook's icon and "notes".
+//   * Notes (Note) are never shorter than 2.5 s plus 0.45 s a word, and a new note waits for the one on screen to finish
+//     (a queue) instead of replacing it mid-read. ClearNote(text) takes a stale one down ("Last job: the bins. Out the back."
+//     goes the moment the back door is used).
+//   * The "Caught." card holds until a button is pressed (or 8 s), with the button's icon under its words.
+//   * The "You" pin over Ace for the night's first seconds (UiPins is otherwise off at night): "the first frame of the night
+//     and you cannot find yourself" (the reviewers; the back door is unlit and Ace a 25 px figure in it).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightCycle : MonoBehaviour
@@ -60,6 +75,10 @@ public sealed class NightCycle : MonoBehaviour
     {
         Instance = null;
         haveHome = false;
+        nowLine = null;
+        nowStep = NightZero.Step.Done;
+        nowErrand = nowHeld = "";
+        nowName = null;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -112,6 +131,61 @@ public sealed class NightCycle : MonoBehaviour
         }
     }
     static string shelfPromptFor, shelfPrompt = "";
+
+    // ---------- the Now line (playtest 7) ----------
+
+    /// <summary>
+    /// What the night is for, right now, in one line of at most WordBudget.NowLine words (the top-left line, DayOneGuideUI):
+    /// built from the night's existing state, in this order: the bag still to take out ("Take the rubbish out the back door");
+    /// outside with it ("Put the bag in the bins"); a scene playing (his lines, Ace's replies): "" (the line hides); his
+    /// errand's thing in Ace's hand ("Bring Barnaby to the man at the bins"); on Ace's shelf ("Barnaby is on your shelf, behind
+    /// the counter"); still to take (where it is: LodgerStory.Favour.now, "Barnaby: Grace's step, 12 West Street"); nothing left
+    /// to do ("Call it a night at a café door"). "" when no night is on. Read every frame: made again only when its state
+    /// changes (no garbage a frame).
+    /// </summary>
+    public static string NowLine
+    {
+        get
+        {
+            NightWalk walk = NightWalk.Instance;
+            if (walk == null || !walk.Active || Instance == null || Instance.Now != Phase.Night) return "";
+            NightZero bins = NightZero.Instance;
+            NightZero.Step step = bins != null && bins.Now != NightZero.Step.Done ? bins.Now : NightZero.Step.Done;
+            bool scene = Barks.ScenePlaying || Lodger.Instance != null && Lodger.Instance.Returning;
+            NightLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Night : null;
+            Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+            string errand = LodgerStory.Errand(ledger);
+            NightCarry carry = NightCarry.Current;
+            string held = carry != null && carry.Holding ? carry.HeldId : "";
+            NightThing thing = NightThings.Find(errand);
+            string name = thing == null ? "" : notebook != null && notebook.Knows(thing.id) ? thing.name : thing.unknownName;
+            bool onShelf = ledger != null && thing != null && ledger.OnShelf(thing.id);
+            bool nudge = !NightNotebook.EverOpened;
+            bool pad = PadInput.UsingPad;   // the notebook's icon follows the device in hand
+            // The same state as last time: the same line (nothing is built).
+            if (step == nowStep && scene == nowScene && errand == nowErrand && held == nowHeld && onShelf == nowOnShelf
+                && ReferenceEquals(name, nowName) && nudge == nowNudge && pad == nowPad && nowLine != null) return nowLine;
+            nowStep = step; nowScene = scene; nowErrand = errand; nowHeld = held; nowOnShelf = onShelf; nowName = name; nowNudge = nudge; nowPad = pad;
+            string line;
+            if (step == NightZero.Step.AtTheDoor && held == NightZero.BagId) line = "Take the rubbish out the back door";
+            else if (step == NightZero.Step.Outside && held == NightZero.BagId) line = "Put the bag in the bins";
+            else if (step != NightZero.Step.Done || scene) line = "";   // the bag going in, the reveal, his lines: nothing to read but him
+            else if (thing != null && held == errand) line = $"Bring {name} to the man at the bins";
+            else if (thing != null && onShelf) line = $"{Capital(name)} is on your shelf, behind the counter";
+            else if (thing != null) line = LodgerStory.Now(LodgerStory.FindFavour(errand), name);
+            else line = "Call it a night at a café door";
+            // "you should give me a tip to do that" (the notebook): the notebook's icon on every night line until it has been opened.
+            if (line.Length > 0 && nudge) line += " · " + ControlHints.NotebookPage + " notes";
+            nowLine = line;
+            return nowLine;
+        }
+    }
+    static NightZero.Step nowStep = NightZero.Step.Done;
+    static bool nowScene, nowOnShelf, nowNudge, nowPad;
+    static string nowErrand = "", nowHeld = "", nowName, nowLine;
+
+    static string Capital(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+
     /// <summary>Ace has left the café since this night began (reports and checks).</summary>
     public bool BeenOut => beenOut;
     /// <summary>Nights begun in this Play session, and how the last one ended (reports).</summary>
@@ -153,23 +227,51 @@ public sealed class NightCycle : MonoBehaviour
         return go.AddComponent<NightCycle>();
     }
 
-    /// <summary>A short line on screen for a few seconds (at night: "Barnaby is coming home with Ace").</summary>
+    /// <summary>
+    /// A short line on screen for a few seconds (at night: "Barnaby is coming home with Ace"). Never shorter than a slow
+    /// reader needs (NoteSeconds: 2.5 s plus 0.45 s a word, whatever <paramref name="seconds"/> says), and never over the note
+    /// already up: it waits its turn (playtest 7: "I can read it and then I'm gonna forget what I read").
+    /// </summary>
     public static void Note(string text, float seconds = 4.5f)
     {
         if (string.IsNullOrWhiteSpace(text) || !Application.isPlaying) return;
         Ensure().ShowNote(text, seconds);
     }
 
-    /// <summary>The note goes now (one put up for as long as something lasts: "Hidden. [E] Come out").</summary>
+    /// <summary>The shortest a note stays up: 2.5 s and 0.45 s a word (an icon isn't a word: WordBudget.Words).</summary>
+    public static float NoteSeconds(string text) => NoteBase + NotePerWord * WordBudget.Words(text);
+    public const float NoteBase = 2.5f, NotePerWord = .45f;
+
+    /// <summary>The note goes now (one put up for as long as something lasts: "Hidden. [E] Come out"), and the ones waiting.</summary>
     public static void ClearNote()
     {
         if (Instance != null) Instance.HideNote();
     }
 
     /// <summary>
+    /// This note goes, if it is on screen or still waiting ("Last job: the bins. Out the back." once the back door has been
+    /// used: a stale instruction next to a live one, the reviewers). Any other note stays.
+    /// </summary>
+    public static void ClearNote(string text)
+    {
+        if (Instance == null || string.IsNullOrEmpty(text)) return;
+        Instance.waiting.RemoveAll(n => n.text == text);
+        if (Instance.note != null && Instance.noteBox.gameObject.activeSelf && Instance.note.text == text)
+        {
+            Instance.noteBox.gameObject.SetActive(false);
+            Instance.ShowNextNote();
+        }
+    }
+
+    /// <summary>The note on screen now, or "" (the labs, and whoever wants to know whether theirs is up yet).</summary>
+    public static string NoteShowing => Instance != null && Instance.note != null && Instance.noteBox.gameObject.activeSelf ? Instance.note.text : "";
+    /// <summary>Notes waiting their turn behind the one on screen.</summary>
+    public static int NotesWaiting => Instance != null ? Instance.waiting.Count : 0;
+
+    /// <summary>
     /// A note for the next beat: shown <paramref name="after"/> seconds from now, for <paramref name="seconds"/> (the first
     /// night's keys, once the player has read where to go). One note on screen at a time, so it never stacks on the one
-    /// before it; a note put up in the meantime isn't cut short (this one waits for it).
+    /// before it; a note put up in the meantime isn't cut short (this one waits for it, as every note does now).
     /// </summary>
     public static void NoteThen(string text, float after, float seconds = 4.5f)
     {
@@ -181,10 +283,12 @@ public sealed class NightCycle : MonoBehaviour
     IEnumerator ShowNoteLater(string text, float after, float seconds)
     {
         yield return new WaitForSecondsRealtime(Mathf.Max(0f, after));
-        float giveUp = UiClock.Now + 10f;
-        while (noteBox != null && noteBox.gameObject.activeSelf && UiClock.Now < noteUntil && UiClock.Now < giveUp) yield return null;
-        if (Now == Phase.Night || Now == Phase.Day) ShowNote(text, seconds);   // never over a fade
+        if (Now == Phase.Night || Now == Phase.Day) ShowNote(text, seconds);   // never over a fade (the queue waits for the one up)
     }
+
+    // The notes waiting their turn (text and seconds), oldest first.
+    struct Waiting { public string text; public float seconds; }
+    readonly List<Waiting> waiting = new List<Waiting>();
 
     void Awake()
     {
@@ -247,9 +351,12 @@ public sealed class NightCycle : MonoBehaviour
         bool first = SaveManager.Instance == null || SaveManager.Instance.Night.Nights == 0;
         // One note a beat, within the budget (WordBudget.Note): where to go now; the keys come on the first night once
         // the deal is done (NightZero.After), or here when a lab skips the bins.
-        if (NightZero.Pending) Note("Last job: the bins. Out the back.", 6f);
+        if (NightZero.Pending) Note(LastJobNote, 6f);
         else if (first) Note(NightZero.KeysNote, 8f);
     }
+
+    /// <summary>The nightfall note on a night that opens at the bins; NightZero takes it down once the back door is used.</summary>
+    public const string LastJobNote = "Last job: the bins. Out the back.";
 
     static void Nightfall()
     {
@@ -269,7 +376,15 @@ public sealed class NightCycle : MonoBehaviour
         beenOut = false;
         NightsThisSession++;
         MakeTheDoorway();
+        // "You" over Ace for the night's first seconds, as on Day 1 (playtest 7: the reviewers couldn't find Ace in the unlit
+        // back doorway on the night's first frame). The only pin the night allows (UiPins).
+        PlayerMovement ace = FindAnyObjectByType<PlayerMovement>();
+        UiPins pins = ace != null ? UiPins.Ensure() : null;
+        if (pins != null) pins.ShowSelfAtNight(DayOneGuideUI.SelfWords, ace.transform, SelfPinSeconds);
     }
+
+    /// <summary>How long "You" stays over Ace from nightfall (the fade in takes the first second of it).</summary>
+    public const float SelfPinSeconds = 7f;
 
     void Update()
     {
@@ -300,7 +415,22 @@ public sealed class NightCycle : MonoBehaviour
             }
         }
         // On the UI's own clock (UiClock): a note holds while the phone pauses the game, so it can't run out behind it.
+        // Its time up, the next one waiting takes its place (never while the screen is dark: it waits for the night or the day).
         if (note != null && noteBox.gameObject.activeSelf && UiClock.Now >= noteUntil) noteBox.gameObject.SetActive(false);
+        if (note != null && !noteBox.gameObject.activeSelf && waiting.Count > 0 && (Now == Phase.Night || Now == Phase.Day)) ShowNextNote();
+        // The "Caught." card waits for a press (or 8 s): any face button, E, Enter, Space or a click.
+        if (cardWaiting && (Pressed() || Time.unscaledTime >= cardWaitUntil)) cardWaiting = false;
+    }
+
+    static bool Pressed()
+    {
+        Keyboard keys = Keyboard.current;
+        Mouse mouse = Mouse.current;
+        return keys != null && (keys.eKey.wasPressedThisFrame || keys.enterKey.wasPressedThisFrame || keys.numpadEnterKey.wasPressedThisFrame
+                                || keys.spaceKey.wasPressedThisFrame)
+               || mouse != null && mouse.leftButton.wasPressedThisFrame
+               || PadInput.Pressed(PadButton.South) || PadInput.Pressed(PadButton.East) || PadInput.Pressed(PadButton.West)
+               || PadInput.Pressed(PadButton.North) || PadInput.Pressed(PadButton.Start);
     }
 
     // ---------- the morning ----------
@@ -369,8 +499,11 @@ public sealed class NightCycle : MonoBehaviour
         yield return Fade(1f, .8f);
         // PLACEHOLDER COPY (the card's second line names where she saw Ace from). "The cells come later" went on 13 Oct:
         // a newcomer read it as jail ahead (the First Hour); what being caught costs beyond tonight is the Director's.
+        // Playtest 7: the card holds until a press (or 8 s; it was 2.6 s, "about 5 words a second" for a reader who can't),
+        // and says which button under its words.
         Caption("Caught.", $"Grace saw Ace {LastCaughtWhere}. Whatever Ace took tonight goes back.\n" +
-                           "<size=80%>For now, that's all.</size>");
+                           "<size=80%>For now, that's all.</size>\n" +
+                           $"<size=80%>{ControlHints.Interact}  Go on</size>");
         int night = DayClock.Instance != null ? DayClock.Instance.Day : 0;
         Safely("putting back what Ace took", () => PutBack(night));
         Safely("putting the night away", PutTheNightAway);
@@ -378,10 +511,22 @@ public sealed class NightCycle : MonoBehaviour
         {
             if (SaveManager.Instance != null) SaveManager.Instance.Night.CameHome(night);
         });
-        yield return new WaitForSecondsRealtime(2.6f);
+        yield return new WaitForSecondsRealtime(.6f);   // a press already down can't skip it unread
+        cardWaiting = true;
+        cardWaitUntil = Time.unscaledTime + CardHoldSeconds;
+        while (cardWaiting) yield return null;
         PlayerMovement.Release(this);
         yield return Tomorrow();
     }
+
+    /// <summary>The "Caught." card holds this long at most before the morning (a press moves it on sooner).</summary>
+    public const float CardHoldSeconds = 8f;
+    bool cardWaiting;
+    float cardWaitUntil;
+    /// <summary>The "Caught." card is up, waiting for a press (the labs press through GoOn).</summary>
+    public bool CardWaiting => cardWaiting;
+    /// <summary>The press that moves the "Caught." card on, as a button does (for the labs).</summary>
+    public void GoOn() => cardWaiting = false;
 
     // Caught: out of Ace's hand, off the shelf, and crossed out of the notebook, whatever Ace took on this night.
     static void PutBack(int night)
@@ -538,9 +683,30 @@ public sealed class NightCycle : MonoBehaviour
         if (subtitle != null) subtitle.text = small;
     }
 
+    // A note on screen: now, or once the one up has had its time (a queue; the same words twice aren't queued twice).
     void ShowNote(string text, float seconds)
     {
         if (note == null) return;
+        if (noteBox.gameObject.activeSelf)
+        {
+            if (note.text == text) return;
+            foreach (Waiting w in waiting) if (w.text == text) return;
+            waiting.Add(new Waiting { text = text, seconds = seconds });
+            return;
+        }
+        PutUpNote(text, seconds);
+    }
+
+    void ShowNextNote()
+    {
+        if (waiting.Count == 0 || note == null) return;
+        Waiting next = waiting[0];
+        waiting.RemoveAt(0);
+        PutUpNote(next.text, next.seconds);
+    }
+
+    void PutUpNote(string text, float seconds)
+    {
         note.text = text;
         // As wide as its words (the skin's band, not a bar across the screen), one or two lines.
         Vector2 words = note.GetPreferredValues(text, NoteTextWidth, 0f);
@@ -549,12 +715,15 @@ public sealed class NightCycle : MonoBehaviour
         noteBox.sizeDelta = new Vector2(width, height);
         note.rectTransform.sizeDelta = new Vector2(width - 2f * NotePadX, height - 2f * NotePadY);
         noteBox.gameObject.SetActive(true);
-        noteUntil = UiClock.Now + Mathf.Max(1f, seconds);
+        // Never shorter than a slow reader needs, whatever the caller asked for.
+        noteUntil = UiClock.Now + Mathf.Max(Mathf.Max(1f, seconds), NoteSeconds(text));
     }
 
+    // Everything down, the waiting ones too (the morning, the caught card: nothing from the night stays on over them).
     void HideNote()
     {
         if (noteBox != null) noteBox.gameObject.SetActive(false);
+        waiting.Clear();
     }
 
     void BuildScreen()

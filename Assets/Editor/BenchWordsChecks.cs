@@ -154,9 +154,11 @@ public static class BenchWordsChecks
             string verb = BenchCards.VerbOf(new RepairChecklist.Step { tool = tool });
             Check(WordBudget.Words(verb) <= WordBudget.BenchVerb, $"{input}: the card's own verb for the {tool} (when a step has none): \"{verb}\"");
         }
-        string flip = BenchCards.Plain(BenchCards.FlipWords());
-        Check(WordBudget.Words(flip) <= WordBudget.BenchFlip && flip.Contains("[" + ControlHints.Flip + "]"),
-            $"{input}: the flip, with its key: \"{flip}\" ({WordBudget.Report(flip, WordBudget.BenchFlip)})");
+        // 19 Oct: a key is an icon (a sprite tag) found in the rich text through the helper the card uses, never a bracketed
+        // word; the plain text (the tags out) is what the word count reads.
+        string flipRich = BenchCards.FlipWords(), flip = BenchCards.Plain(flipRich);
+        Check(WordBudget.Words(flip) <= WordBudget.BenchFlip && flipRich.Contains(ControlHints.Flip) && !flipRich.Contains("[") && flip.Contains("Flip it over"),
+            $"{input}: the flip, with its key as an icon: \"{flip}\" ({WordBudget.Report(flip, WordBudget.BenchFlip)})");
     }
 
     // ------------------------------------------------------------------ 3. the controls card
@@ -173,16 +175,16 @@ public static class BenchWordsChecks
             string one = BenchCards.Plain(line);
             Check(WordBudget.Words(one) <= WordBudget.ControlsLine, $"{input}: a line of it, \"{one}\" ({WordBudget.Report(one, WordBudget.ControlsLine)})");
         }
-        Check(plain.Contains("[" + ControlHints.BenchHelp + "]") && plain.Contains("What's left") && !plain.Contains("hold: controls"),
-            $"{input}: it names the help key for what's left, and leaves \"(hold: controls)\" to the held card");
+        Check(card.Contains(ControlHints.BenchHelp) && plain.Contains("What's left") && !plain.Contains("hold: controls") && !card.Contains("["),
+            $"{input}: it names the help key (an icon, no bracket) for what's left, and leaves \"(hold: controls)\" to the held card");
         if (ControlHints.Pad)
-            Check(plain.Contains("[" + ControlHints.BenchHandStick + "]"), $"{input}: the hand's stick follows the swap setting ({ControlHints.BenchHandStick})");
+            Check(card.Contains(ControlHints.BenchHandStick), $"{input}: the hand's stick follows the swap setting ({BenchCards.Plain(ControlHints.BenchHandStick)})");
         else
-            Check(plain.Contains("[Drag a tool]") && !plain.Contains("caddy") && !plain.Contains("Click a tool"),
-                $"{input}: a tool is taken by dragging it (direct grab, 14 Oct), not \"click it in the caddy\"");
-        string held = BenchCards.Plain(BenchCards.HeldControlsWords());
-        Check(held.Contains("hold: controls") && held.Contains("Pick it up") && held.Contains("Flip it over"),
-            $"{input}: the held card has every control (no budget): \"{held}\"");
+            Check(card.Contains(ControlHints.Use) && plain.Contains("Drag a tool") && !plain.Contains("caddy") && !plain.Contains("Click a tool"),
+                $"{input}: a tool is taken by dragging it with the mouse's button (direct grab, 14 Oct), not \"click it in the caddy\"");
+        string heldRich = BenchCards.HeldControlsWords(), held = BenchCards.Plain(heldRich);
+        Check(held.Contains("hold: controls") && held.Contains("Pick it up") && held.Contains("Flip it over") && heldRich.Contains(ControlHints.Flip) && heldRich.Contains(ControlHints.TakeFromBench) && !heldRich.Contains("["),
+            $"{input}: the held card has every control (no budget), its keys as icons: \"{held}\"");
         if (swapped) Note($"{input}: checked with the sticks swapped, put back after");
     }
 
@@ -190,14 +192,14 @@ public static class BenchWordsChecks
 
     static void Hint(string input, string longest)
     {
-        string hint = BenchCards.Plain(BenchCards.HintWords());
-        Check(WordBudget.Words(hint) <= WordBudget.HelpHint && hint.Contains("[" + ControlHints.BenchHelp + "]"),
-            $"{input}: the help hint \"{hint}\" ({WordBudget.Report(hint, WordBudget.HelpHint)})");
+        string hintRich = BenchCards.HintWords(), hint = BenchCards.Plain(hintRich);
+        Check(WordBudget.Words(hint) <= WordBudget.HelpHint && hintRich.Contains(ControlHints.BenchHelp) && !hintRich.Contains("["),
+            $"{input}: the help hint \"{hint}\", its key an icon ({WordBudget.Report(hint, WordBudget.HelpHint)})");
         foreach (string who in new[] { longest, "the Officer" })
         {
-            string done = BenchCards.Plain(BenchCards.FinishedWords(who, false));
-            Check(WordBudget.Words(done) <= WordBudget.FinishedRow && done.Contains("[" + ControlHints.TakeFromBench + "]"),
-                $"{input}: the finished line \"{done}\" ({WordBudget.Report(done, WordBudget.FinishedRow)})");
+            string doneRich = BenchCards.FinishedWords(who, false), done = BenchCards.Plain(doneRich);
+            Check(WordBudget.Words(done) <= WordBudget.FinishedRow && doneRich.Contains(ControlHints.TakeFromBench) && !doneRich.Contains("[") && done.Contains("Take it to"),
+                $"{input}: the finished line \"{done}\", its key an icon ({WordBudget.Report(done, WordBudget.FinishedRow)})");
         }
         string full = BenchCards.Plain(BenchCards.FinishedWords(longest, true)), nobody = BenchCards.Plain(BenchCards.FinishedWords("", false));
         Check(WordBudget.Words(full) <= WordBudget.FinishedRow && WordBudget.Words(nobody) <= WordBudget.FinishedRow,
@@ -208,10 +210,10 @@ public static class BenchWordsChecks
 
     static void Impatience(string input, string longest)
     {
-        string line = DayOneGuideUI.BenchReassureWords(longest);
-        Check(WordBudget.Words(line) <= WordBudget.BenchAlert
-              && line.Contains("[" + ControlHints.Cancel + "]") && line.Contains("[" + ControlHints.Interact + "]") && !line.Contains("press E"),
-            $"{input}: the bench's impatience line, in the bench's keys: \"{line}\" ({WordBudget.Report(line, WordBudget.BenchAlert)})");
+        string line = DayOneGuideUI.BenchReassureWords(longest), plainLine = BenchCards.Plain(line);
+        Check(WordBudget.Words(plainLine) <= WordBudget.BenchAlert
+              && line.Contains(ControlHints.Cancel) && line.Contains(ControlHints.Interact) && !plainLine.Contains("press E"),
+            $"{input}: the bench's impatience line, in the bench's keys (through ControlHints): \"{plainLine}\" ({WordBudget.Report(plainLine, WordBudget.BenchAlert)})");
     }
 
     // ------------------------------------------------------------------ 7. the screens, added up

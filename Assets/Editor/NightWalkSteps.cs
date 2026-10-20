@@ -371,7 +371,7 @@ internal static class NightWalkSteps
         HomeDoor door = SceneManager.GetActiveScene().IsValid()
             ? CityPackChecks.InScene<HomeDoor>().FirstOrDefault(d => d.homeId == "home.grace") : null;
         NotebookFactData home = NotebookEntries.HomeSeen(NotebookEntries.GraceId, NotebookEntries.GraceName,
-            door != null ? door.looks : "the saffron house", door != null ? door.houseNumber : "12", door != null ? door.streetId : "west",
+            door != null ? door.looks : HomeDoor.GraceLooks, door != null ? door.houseNumber : "12", door != null ? door.streetId : "west",
             true, Notebook.Sureness.Likely);
         home.day = 3;
         home.surerDay = 4;

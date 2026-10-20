@@ -73,4 +73,28 @@ public class RepairJob : JobBase
     // Kept for anything still asking the old question — the ticket rail, the
     // "is this finished" badge. It now means PERFECT specifically.
     public override bool IsComplete => CanHandBack && Quality >= 0.999f;
+
+    /// <summary>
+    /// What is still to do, by its verbs, for the words that say a step was missed (Juice's "Back together" line, 19 Oct
+    /// 2026): "wipe the crystal", "brush the film path", "fit the new screen", "reconnect the circuit"; two at most, then
+    /// "and 1 more". "" when nothing is left. The verbs are the card's (RepairChecklist), so the player reads the same word
+    /// she did not do. PLACEHOLDER COPY (his sister's).
+    /// </summary>
+    public string MissedWords()
+    {
+        EnsureSnapshot();
+        var left = new System.Collections.Generic.List<string>();
+        foreach (GrimeSpot spot in grime)
+            if (spot != null && !spot.IsClean) left.Add((spot.Tool == ToolType.Cloth ? "wipe the " : "brush the ") + spot.PartName.ToLowerInvariant());
+        foreach (ReplaceablePart part in parts)
+            if (part == null || !part.IsReplaced) left.Add("fit the new " + (part != null ? ReplaceablePart.Honest(part.DisplayName).ToLowerInvariant() : "part"));
+        foreach (CircuitPuzzle puzzle in circuits)
+            if (puzzle != null && puzzle.RemainingTasks > 0) left.Add("reconnect the circuit");
+        foreach (HumanFault human in humanFaults)
+            if (human != null && human.RemainingTasks > 0) left.Add("see to the customer");
+        if (left.Count == 0) return "";
+        if (left.Count == 1) return left[0];
+        if (left.Count == 2) return left[0] + " and " + left[1];
+        return left[0] + ", " + left[1] + " and " + (left.Count - 2) + " more";
+    }
 }

@@ -273,10 +273,17 @@ public sealed class JuiceCheck : MonoBehaviour
         // A device closed up with faults left: the quiet line, not an ending.
         Juice.BackTogether(bench + Vector3.up * .12f, JobGrade.Good);
         yield return Seconds(.3f);
-        Check(Juice.LastWords == "Back together · Good" && Juice.Finishes == finishesBefore + 1 && Juice.LastWordsContrast >= 4.5f,
+        Check(Juice.LastWords == "Back together · Good" && Juice.Finishes == finishesBefore + 1 && Juice.LastWordsContrast >= 4.5f && Juice.LastWordsSecondLine == "",
             $"closed up with faults left: \"{Juice.LastWords}\", quietly and not counted as an ending, {Juice.LastWordsContrast:0.0}:1 on its plate");
         yield return Photo("61-back-together");
         yield return Seconds(1.6f);
+        // 19 Oct: closed up with a step missed, the line says which, by its verb, under the grade (and stays up longer to be read).
+        Juice.BackTogether(bench + Vector3.up * .12f, JobGrade.Passable, "wipe the crystal");
+        yield return Seconds(.3f);
+        Check(Juice.LastWords == "Back together · Passable" && Juice.LastWordsSecondLine == "Missed: wipe the crystal" && Juice.Finishes == finishesBefore + 1,
+            $"closed up with a step missed: \"{Juice.LastWords}\" / \"{Juice.LastWordsSecondLine}\" (19 Oct)");
+        yield return Photo("62-back-together-missed");
+        yield return Seconds(2.6f);
         Note($"a moment later: {Juice.SparksUp} sparks, {Juice.PopsUp} pops up (the café's own may be among them)");
 
         // ---------- 7. a lasting badge (playtest 3: the man at the bins' mess on a table) ----------
@@ -349,6 +356,10 @@ public sealed class JuiceCheck : MonoBehaviour
                 yield return null;
                 int finishesBefore = Juice.Finishes, popsBefore = Juice.PopsUp;
                 string wordsBefore = Juice.LastWords;
+                // 19 Oct: a repair paid below Perfect says what Perfect pays, from the job's own payout (the pay rules unchanged).
+                int perfect = Mathf.RoundToInt(job.Payout * JobBase.PayMultiplier(JobGrade.Perfect)), passable = Mathf.RoundToInt(job.Payout * JobBase.PayMultiplier(JobGrade.Passable));
+                Check(Juice.PerfectPays(null, passable, job) == $"Perfect pays ${perfect}",
+                    $"{what}: paid ${passable} (Passable) the pay pop would add \"{Juice.PerfectPays(null, passable, job)}\" (payout ${job.Payout}, x1.25 = ${perfect})");
                 if (!inspector.BeginInspection(job)) { Check(false, $"{what}: the close-up opens on it"); Destroy(device); continue; }
                 yield return Seconds(1.2f);
                 Check(Juice.LastWords == wordsBefore && Juice.LastWords != "New part",
@@ -360,6 +371,8 @@ public sealed class JuiceCheck : MonoBehaviour
                 fixedFor.TryGetValue(job, out int endings);
                 Check(job.IsFinished && Juice.Finishes == finishesBefore + 1 && endings == 1 && Juice.LastWords == "Fixed! · Perfect" && inspector.FaceShowing,
                     $"{what}: it ends once, face up: \"{Juice.LastWords}\" (Juice.OnFixed {endings} time(s); endings {Juice.Finishes - finishesBefore}; {job.Grade})");
+                Check(job.IsFinished && Juice.PerfectPays(null, Mathf.RoundToInt(job.Payout * JobBase.PayMultiplier(JobGrade.Perfect)), job) == "",
+                    $"{what}: fixed to Perfect, the pay pop adds nothing (19 Oct)");
                 yield return Photo("80-bench-ending-" + new string(what.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant());
                 inspector.CancelInspection();
                 yield return Seconds(.6f);
@@ -491,6 +504,7 @@ public sealed class JuiceCheck : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         photos++;
         File.WriteAllBytes(Path.Combine(folder, name + ".jpg"), shot.EncodeToJPG(88));
         Destroy(shot);

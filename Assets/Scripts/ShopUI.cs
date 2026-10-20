@@ -31,7 +31,7 @@ public class ShopUI : MonoBehaviour
                 shownCups = int.MinValue, shownBeans = int.MinValue, shownNightMinute = int.MinValue;
     private bool shownOpen, shownCafeTime, shownNightClock;
     private string shownHint, shownHintBase, shownNightPrompt, shownPromptLine, shownInteract, shownAction, shownToolName;
-    private bool shownHintNight, shownPromptPad, shownPromptHolding, shownPromptDebug, shownPromptHand, shownHintWalk;
+    private bool shownHintNight, shownPromptPad, shownPromptHolding, shownPromptDebug, shownPromptHand, shownHintPad;
 
     /// <summary>The controls strip at the bottom middle, as it reads now (labs).</summary>
     public string ViewHint => shownHint ?? "";
@@ -46,6 +46,10 @@ public class ShopUI : MonoBehaviour
     // the controls line and the night's clock are dressed in the skin while playing (its font, its one shadow, its
     // colours); the controls line moves from the bottom left (the sign's corner now) to the bottom middle, under the
     // prompt, and steps aside while a close-up shows its own controls. Nothing in the scene is saved.
+    //
+    // 19 OCT 2026 (playtest 7, his girlfriend: dyslexic, on a PlayStation pad). Every button in the prompt line and the strip
+    // is its icon (ControlHints; no "[ ]" round it), the strip is three hints on a dark plate at 22 px (StripWords), and the
+    // prompt line's rich text carries the icon tags.
     private void Start()
     {
         if (moneyText != null) moneyColour = moneyText.color;
@@ -104,33 +108,73 @@ public class ShopUI : MonoBehaviour
             if (t != null) { UiSkin.UseFont(t); UiSkin.Shadowed(t); }
         if (viewHintText != null)
         {
+            // The strip: 22 px semibold on a dark rounded plate (19 Oct; see StripWords). The plate is a sibling drawn just
+            // under the text, sized to its words each time they change (Strip).
             UiSkin.UseFont(viewHintText);
             RectTransform r = viewHintText.rectTransform;
             r.anchorMin = r.anchorMax = new Vector2(.5f, 0f);
             r.pivot = new Vector2(.5f, 0f);
-            r.anchoredPosition = new Vector2(0f, 20f);
-            r.sizeDelta = new Vector2(1240f, 36f);
-            viewHintText.alignment = TextAlignmentOptions.Bottom;
-            viewHintText.fontSize = 19f;
-            viewHintText.color = new Color(UiSkin.BandText.r, UiSkin.BandText.g, UiSkin.BandText.b, .86f);
+            r.anchoredPosition = new Vector2(0f, StripBottom);
+            r.sizeDelta = new Vector2(1240f, StripHeight);
+            viewHintText.alignment = TextAlignmentOptions.Center;
+            viewHintText.fontSize = StripSize;
+            viewHintText.fontStyle = UiSkin.SemiBold;
+            viewHintText.color = UiSkin.BandText;
             viewHintText.textWrappingMode = TextWrappingModes.NoWrap;
-            UiSkin.Shadowed(viewHintText);
+            viewHintText.richText = true;
+            if (stripPlate == null && r.parent != null)
+            {
+                stripPlate = new GameObject("Controls plate (while playing)", typeof(RectTransform)).GetComponent<RectTransform>();
+                stripPlate.SetParent(r.parent, false);
+                stripPlate.SetSiblingIndex(r.GetSiblingIndex());   // just before the text: under it
+                stripPlate.anchorMin = stripPlate.anchorMax = new Vector2(.5f, 0f);
+                stripPlate.pivot = new Vector2(.5f, 0f);
+                stripPlate.anchoredPosition = new Vector2(0f, StripBottom - StripPadY);
+                UiSkin.Paint(stripPlate, UiSkin.Band, UiSkin.Radius);
+                stripPlate.gameObject.SetActive(false);
+            }
         }
     }
 
-    // The keys in a line in the brand's light green ("[E]  Take order"): the words stay the prompt's colour.
-    private static readonly string KeyColour = UiSkin.HexOf(UiSkin.BrandBright);
-    private static string Key(string label) => $"<color={KeyColour}>[{label}]</color>";
+    // The strip's size and place (reference pixels): 22 px, 16 px of plate either side of the words, 8 above and below.
+    const float StripSize = 22f, StripHeight = 30f, StripBottom = 20f, StripPadX = 18f, StripPadY = 7f;
+    private RectTransform stripPlate;
+
+    // Lays the plate under the strip's words (after the words changed).
+    private void Strip(string words)
+    {
+        if (viewHintText == null) return;
+        viewHintText.text = words;
+        if (stripPlate == null) return;
+        bool any = !string.IsNullOrEmpty(words);
+        if (!any) { if (stripPlate.gameObject.activeSelf) stripPlate.gameObject.SetActive(false); return; }
+        float width = viewHintText.GetPreferredValues(words, 4000f, 0f).x;
+        stripPlate.sizeDelta = new Vector2(Mathf.Ceil(width) + StripPadX * 2f, StripHeight + StripPadY * 2f);
+    }
+
+    // The key in a line is its icon now (19 Oct 2026: ControlHints), icon + two spaces + verb; the brackets and the green went
+    // with the words (an icon needs neither). The word is still the prompt's colour.
+    private static string Key(string label) => label;
 
     // AT THE BENCH (playtest 4; 12 Oct): the close-up's controls, the mouse's and the pad's, are on their own card (BenchCards).
 
-    // DAY 1'S FIRST STEPS (playtest 4; the first hour: "Nothing anywhere says how to move"): how to walk and use, at the
-    // front of the controls strip, the keys in the brand's light green, until Ace has walked a few metres and used E once.
-    private static string MovementWords()
+    // THE CONTROLS STRIP (19 Oct 2026, playtest 7). Her: "your text needs to be bolder"; the reviewers: 6-7 hints, 14-16 words,
+    // in one thin 19 px line with no plate, over a moving world; "the controls are unreadable" at the counter. Now at most
+    // three hints for the state Ace is in, each an icon and a word, 22 px on a dark rounded plate (Strip):
+    //   overhead       Move, Use, Pause
+    //   first person   Move, Use, and the way back to the overhead view
+    //   at night       the notebook first (her: "you should give me a tip to do that"), then the torch, then sneak
+    // The view's own line (CafeViewMode.ControlsHint: orbit, zoom...) is no longer shown: those are discoverable, and six
+    // hints were a wall for a dyslexic reader. (Day 1's "walk and use first" is the whole strip now, every day.)
+    private static string StripWords(bool atNight, bool firstPerson)
     {
-        string walk = PadInput.UsingPad ? "Left stick" : "WASD";
-        return $"<color={KeyColour}>{walk}</color>  Move    <color={KeyColour}>{ControlHints.Interact}</color>  Use    ";
+        if (atNight)
+            return Hint(ControlHints.NotebookPage, "Notebook") + Hint(ControlHints.Torch, "Torch") + Hint(ControlHints.Sneak, "Sneak", last: true);
+        return Hint(ControlHints.Walk, "Move") + Hint(ControlHints.Interact, "Use")
+             + (firstPerson ? Hint(ControlHints.View, "Overhead view", last: true) : Hint(ControlHints.Pause, "Pause", last: true));
     }
+
+    private static string Hint(string icon, string verb, bool last = false) => icon + "  " + verb + (last ? "" : "      ");
 
     private void Update()
     {
@@ -145,23 +189,24 @@ public class ShopUI : MonoBehaviour
         if (viewHintText != null)
         {
             // In a close-up (a conversation, the drinks, an item at the bench, the counter phone) the close-up's own
-            // controls are on screen: the view's line steps aside.
+            // controls are on screen: the strip steps aside, plate and all.
             bool closeUp = interactor != null && (interactor.InCloseUp || interactor.UsingDrinks);
-            viewHintText.gameObject.SetActive(!recapOpen && !closeUp && viewMode != null && viewMode.CanChangeView);
-            // At night the torch and the notebook join the view's own controls.
+            bool stripOn = !recapOpen && !closeUp && viewMode != null && viewMode.CanChangeView;
+            viewHintText.gameObject.SetActive(stripOn);
+            if (stripPlate != null && stripPlate.gameObject.activeSelf != (stripOn && !string.IsNullOrEmpty(shownHint)))
+                stripPlate.gameObject.SetActive(stripOn && !string.IsNullOrEmpty(shownHint));
+            // Three hints for the state Ace is in (StripWords); built again only when the state or the device changes.
             if (viewMode != null)
             {
-                string hintBase = viewMode.ControlsHint;   // built by the view only when its state changes
                 bool atNight = night != null;
-                // Day 1, until Ace has walked a few metres and used E (DayOneGuideUI): how to walk and use, first.
-                bool walk = !atNight && DayOneGuideUI.MovementHintWanted;
-                if (!ReferenceEquals(hintBase, shownHintBase) && hintBase != shownHintBase || atNight != shownHintNight || walk != shownHintWalk)
+                bool firstPerson = viewMode.FirstPersonSelected;
+                bool padNow = PadInput.UsingPad;
+                string hintBase = firstPerson ? "first person" : "overhead";   // the state, for the memory below
+                if (hintBase != shownHintBase || atNight != shownHintNight || padNow != shownHintPad)
                 {
-                    shownHintBase = hintBase; shownHintNight = atNight; shownHintWalk = walk;
-                    shownHint = atNight
-                        ? hintBase + $"    {ControlHints.Sneak}  Sneak    {ControlHints.Torch}  Torch    {ControlHints.NotebookPage}  Notebook"
-                        : walk ? MovementWords() + hintBase : hintBase;
-                    viewHintText.text = shownHint;
+                    shownHintBase = hintBase; shownHintNight = atNight; shownHintPad = padNow;
+                    shownHint = StripWords(atNight, firstPerson);
+                    Strip(shownHint);
                 }
             }
         }

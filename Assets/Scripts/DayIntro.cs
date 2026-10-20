@@ -48,7 +48,9 @@ using UnityEngine.UI;
 //
 // Never a hostage: any key, mouse button or pad button from the first frame skips to a shortened pull-out (0.5 s); the
 // title still shows for its 1.2 s minimum (it carries the day's one line), over a game that is already yours. Short: the
-// sting and the title over the player's own camera, 2.4 s. Off: the bell rings as before. In a lab session it is off
+// sting and the title over the player's own camera. 19 Oct 2026 (playtest 7): the title holds 6 s by itself (TitleHoldSeconds:
+// a dyslexic reader's pace), or until the player first moves or presses once the controls are back; the skip prompt is
+// "Skip" and the button's icon, 24 px white. Off: the bell rings as before. In a lab session it is off
 // (CafeLab.Active), unless the lab asks for it (ForceOn, or the LabKey the whole-game playtest can set): the Day 1 guide,
 // the night labs and the conversation checks start their days without it. The lab: Fixit Fidget > Cinematics > Day intro.
 // ---------------------------------------------------------------------------
@@ -74,6 +76,12 @@ public sealed class DayIntro : MonoBehaviour
     public const float SafeMargin = .05f;
     /// <summary>The title's least time on screen, even on a skip (it carries the day's one line).</summary>
     public const float TitleMinimumSeconds = 1.2f;
+    /// <summary>
+    /// How long the title holds by itself (19 Oct 2026: the reviewers timed the day's line at 2.8 s, about 215 words a
+    /// minute; a dyslexic reader needs 5-6 s). It goes sooner the moment the player first moves or presses something once
+    /// the controls are back, and never before its minimum.
+    /// </summary>
+    public const float TitleHoldSeconds = 6f;
     /// <summary>Where the title's middle sits: this share of the screen's height up from the bottom (above the middle, clear of the prompt).</summary>
     public const float TitleUp = .58f;
     /// <summary>The letterbox bars' height, as a share of the screen's height (each).</summary>
@@ -82,7 +90,7 @@ public sealed class DayIntro : MonoBehaviour
     // ---- timing (seconds of real time)
     const float FadeIn = .25f, BarsOut = .3f;
     const float PullOutSeconds = .75f, SkipPullOutSeconds = .5f;
-    const float TitleIn = .35f, TitleHold = 2.4f, TitleOut = .4f;
+    const float TitleIn = .35f, TitleHold = TitleHoldSeconds, TitleOut = .4f;
     const float ShortSeconds = 2.4f, ShortTitleAt = .15f, ShortStingAt = .1f, ShortBellAt = .45f;
     const float HudReturnAt = .3f, HudReturnSeconds = .35f;   // into the pull-out
     const float CurtainWaitMost = 4f;                          // the night's morning fade, if the day starts under it
@@ -384,8 +392,10 @@ public sealed class DayIntro : MonoBehaviour
         float dt = Mathf.Min(Time.unscaledDeltaTime, .1f);   // a hitch never jumps the picture
         elapsed += dt;
         // Any key, mouse button or pad button skips, from the first frame (not the frame that began it: the press that opened
-        // tomorrow can't also skip it). A press once the pull-out has begun only sends the title on its way.
+        // tomorrow can't also skip it). A press once the pull-out has begun only sends the title on its way, and so does the
+        // player's first move (a stick or a walking key), once the controls are back (19 Oct: the title holds 6 s otherwise).
         if (Time.frameCount != startFrame && AnyPress()) Skip();
+        else if ((phase == Phase.PullOut || phase == Phase.Title) && titleShown && !titleFading && AnyMove()) SkipTheTitle();
 
         // The brain reads its default blend when the live camera changes, in its own LateUpdate; the frame after, it is put back.
         if (blendRestoreAfterFrame >= 0 && Time.frameCount > blendRestoreAfterFrame) { RestoreBlend(); blendRestoreAfterFrame = -1; }
@@ -592,6 +602,15 @@ public sealed class DayIntro : MonoBehaviour
         titleFadeAt = Mathf.Max(elapsed, titleShownAt + TitleMinimumSeconds);
     }
 
+    // The player walking: the left stick past its deadzone, or W A S D or an arrow key held.
+    static bool AnyMove()
+    {
+        if (PadInput.LeftStick.sqrMagnitude > .25f) return true;
+        Keyboard kb = Keyboard.current;
+        return kb != null && (kb.wKey.isPressed || kb.aKey.isPressed || kb.sKey.isPressed || kb.dKey.isPressed
+            || kb.upArrowKey.isPressed || kb.downArrowKey.isPressed || kb.leftArrowKey.isPressed || kb.rightArrowKey.isPressed);
+    }
+
     static bool AnyPress()
     {
         Keyboard kb = Keyboard.current;
@@ -794,18 +813,29 @@ public sealed class DayIntro : MonoBehaviour
             barHeight = Mathf.Round(1080f * BarShare);
             barTop = Bar("Bar (top)", root, true);
             barBottom = Bar("Bar (bottom)", root, false);
-            // PLACEHOLDER COPY. Small, in the bottom bar, right; it fades in after a moment so the first frame is the picture.
-            skipHint = UiSkin.Text("Skip", barBottom.rectTransform, 18f, UiSkin.BandFaint, TextAlignmentOptions.MidlineRight, FontStyles.Normal);
+            // In the bottom bar, right: "Skip" and the Cross (A, B) or Enter icon, 24 px white on the black (19 Oct 2026: the
+            // reviewers found "Skip any key" in 14 px mid-grey the faintest text on screen, and keyboard wording for a pad).
+            // Any button still skips; it fades in after a moment so the first frame is the picture.
+            skipHint = UiSkin.Text("Skip", barBottom.rectTransform, 24f, Color.white, TextAlignmentOptions.MidlineRight, UiSkin.SemiBold);
             RectTransform hint = skipHint.rectTransform;
             hint.anchorMin = new Vector2(1f, 0f);
             hint.anchorMax = new Vector2(1f, 1f);
             hint.pivot = new Vector2(1f, .5f);
             hint.anchoredPosition = new Vector2(-Mathf.Round(1920f * SafeMargin), 0f);
             hint.sizeDelta = new Vector2(600f, 0f);
-            skipHint.text = PadInput.UsingPad ? "Skip   any button" : "Skip   any key";
+            skipHint.text = SkipWords();
             skipHint.alpha = 0f;
         }
         BuildTitle(root);
+    }
+
+    bool skipForPad;
+
+    /// <summary>"Skip" and the button that does it, as its icon (the labs read it).</summary>
+    public string SkipWords()
+    {
+        skipForPad = PadInput.UsingPad;
+        return "Skip  " + ControlHints.Confirm;
     }
 
     static RectTransform Stretch(string name, Transform parent)
@@ -914,8 +944,11 @@ public sealed class DayIntro : MonoBehaviour
             if (barTop != null) barTop.rectTransform.anchoredPosition = new Vector2(0f, (1f - bars) * barHeight);
             if (barBottom != null) barBottom.rectTransform.anchoredPosition = new Vector2(0f, -(1f - bars) * barHeight);
             if (skipHint != null)
+            {
                 skipHint.alpha = pullOutStarted >= 0f ? Mathf.MoveTowards(skipHint.alpha, 0f, dt * 8f)
                     : Mathf.Clamp01((shotsTime - .8f) / .4f);
+                if (PadInput.UsingPad != skipForPad) skipHint.text = SkipWords();
+            }
             // The other screens come back together on the pull-out (the fade itself is applied in HideScreens, each LateUpdate).
             if (hudReturn >= 0f && hudReturn < 1f)
             {

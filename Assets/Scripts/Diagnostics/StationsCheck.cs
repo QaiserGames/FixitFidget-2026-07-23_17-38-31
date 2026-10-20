@@ -92,7 +92,7 @@ public sealed class StationsCheck : PlayLab
     ItemInspector inspector;
     ConversationController conversation;
     CustomerSpawner spawner;
-    bool aimWas, spawnerWas = true;
+    bool aimWas, aimTaken, spawnerWas = true;
 
     struct PressNote { public string customer, what; public bool station, talk; }
     readonly List<PressNote> presses = new List<PressNote>();
@@ -142,6 +142,7 @@ public sealed class StationsCheck : PlayLab
         spawner.enabled = false;
         foreach (CustomerBrain c in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude)) Destroy(c.gameObject);
         aimWas = AimAssist.Enabled;
+        aimTaken = true;   // the player's setting goes back whatever happens (Restore, and OnDisable if Play stops: 19 Oct)
         AimAssist.Enabled = true;
         PlugInPad("Stations check pad");
         yield return Frames(4);
@@ -252,13 +253,27 @@ public sealed class StationsCheck : PlayLab
         Report();
     }
 
+    // The player's aim help setting is put back even when Play stops mid-check (the same net as AimHelpCheck's, 19 Oct 2026).
+    void PutAimHelpBack()
+    {
+        if (!aimTaken) return;
+        aimTaken = false;
+        if (AimAssist.Enabled != aimWas) AimAssist.Enabled = aimWas;
+    }
+
+    protected override void OnDisable()
+    {
+        base.OnDisable();
+        PutAimHelpBack();
+    }
+
     protected override void Restore()
     {
         if (movement != null) movement.ScriptedInput = null;
         if (interactor != null && interactor.IsAtStation) interactor.ExitStation();
         if (inspector != null && inspector.IsHoldingItem) inspector.CancelInspection();
         if (conversation != null && conversation.InConversation) conversation.End();
-        AimAssist.Enabled = aimWas;
+        PutAimHelpBack();
         if (spawner != null) spawner.enabled = spawnerWas;
         ReleaseHeldSeats();
         if (seatHolder != null) Destroy(seatHolder);

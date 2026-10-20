@@ -191,8 +191,22 @@ public sealed class ConversationCheck : MonoBehaviour
 
         // ---------- the next customer: a walk-in ----------
         CustomerBrain next = null;
-        yield return Until(() => (next = NextWalkIn(grace)) != null, 150f, "the next walk-in reaches the queue");
-        if (!lastWait || next == null) yield break;
+        // 20 Oct: since 15 Oct Day 1 brings the Officer (a regular) second and holds two customers at most (Calm: one every
+        // 75 s), so a walk-in only comes once a place frees up. The lab sends any regular but Grace away (its own save) and
+        // waits up to 4 minutes for the walk-in.
+        float giveUp = Time.realtimeSinceStartup + 240f;
+        while ((next = NextWalkIn(grace)) == null && Time.realtimeSinceStartup < giveUp)
+        {
+            foreach (CustomerBrain other in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude))
+                if (other != null && other != grace && other.Identity != null && other.Identity.IsRegular)
+                {
+                    Note($"{other.Identity.DisplayName} sent away by the lab, to free a place for a walk-in");
+                    other.ForceRemove();
+                }
+            yield return Seconds(1f);
+        }
+        Check(next != null, next != null ? "the next walk-in reaches the queue" : "the next walk-in reaches the queue (gave up after 240 s)");
+        if (next == null) yield break;
         bool regular = next.Identity != null && next.Identity.IsRegular;
         Check(!regular, "they are a walk-in (a regular in the queue is passed over)");
         yield return Seconds(.3f);
@@ -347,6 +361,7 @@ public sealed class ConversationCheck : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         photos++;
         File.WriteAllBytes(Path.Combine(folder, name + ".jpg"), shot.EncodeToJPG(88));
         Destroy(shot);

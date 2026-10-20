@@ -11,14 +11,24 @@ using UnityEngine;
 //
 // The address is a placeholder for now: the house number here, and the street
 // by its id in District streets, where the name can be changed at any time.
+//
+// Playtest 7 (19 Oct 2026; "What's saffron how?"): Grace's house looks like "the
+// yellow house", the one way the night names it (LodgerStory: "12 West Street, the
+// yellow house with the porch light"), never "the saffron house": a colour word that
+// doesn't read at night, and the street had two of them. HomeSetup writes it; the
+// notebook's address line reads "Went into the yellow house at 12 West Street." (9
+// words: the page's budget is 12).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class HomeDoor : MonoBehaviour
 {
+    /// <summary>Grace's house as Ace sees it (HomeSetup writes it onto her door; LodgerStory names it the same way, with its porch light).</summary>
+    public const string GraceLooks = "the yellow house";
+
     [Tooltip("Stable id; a regular's profile points at it (Home Id). Never change it once saves exist.")]
     public string homeId = "home.grace";
-    [Tooltip("The house as Ace would describe it at a glance, e.g. \"the saffron house\". What's on screen, not canon.")]
-    public string looks = "the saffron house";
+    [Tooltip("The house as Ace would describe it at a glance, e.g. \"the yellow house\". What's on screen, not canon.")]
+    public string looks = GraceLooks;
     [Tooltip("The house number, as written on the door. A placeholder for now.")]
     public string houseNumber = "12";
     [Tooltip("The street it's on: an id from District streets (Assets/Data/Resources), e.g. west.")]

@@ -63,6 +63,7 @@ public sealed class NightTwoCheck : MonoBehaviour
     SaveManager saves;
     NightLedger ledger;
     NightZeroSet set;
+    DayOneGuideUI guide;
     NightLines lines;
 
 #if UNITY_EDITOR
@@ -131,6 +132,7 @@ public sealed class NightTwoCheck : MonoBehaviour
         ledger = saves != null ? saves.Night : null;
         set = NightZeroSet.Instance;
         lines = NightLines.Current;
+        guide = FindAnyObjectByType<DayOneGuideUI>();
         Check(movement != null && interactor != null && view != null && conversation != null && ledger != null, "Ace and the save manager are in the scene");
         Check(set != null && set.cornerCups != null && set.cornerCups.transform.childCount == 4 && set.crate != null,
             "the bins are in the scene with his crate and four cups (Bins 1, Night 2 1): " + (set != null ? set.Describe() : "none"));
@@ -249,6 +251,8 @@ public sealed class NightTwoCheck : MonoBehaviour
         yield return Until(() => man.Hidden && set.LidOpen(set.farLid) < .01f, 3f, "his say done, he ducks back into the dumpster and the lid drops");
         yield return Seconds(1f);
         Check(NoteShowing().Contains("kitchen"), $"the note says where the cups are (\"{Short(NoteShowing())}\")");
+        if (mode == Mode.Cups)
+            yield return NowLine("The reunion cups: Grace's kitchen. Go in once she's asleep.", "the Now line says where the cups are, and when to go in");
         yield return Photo("04-after-his-ask");
 
         if (mode != Mode.Cups)
@@ -347,6 +351,7 @@ public sealed class NightTwoCheck : MonoBehaviour
         Check(NightCarry.Current != null && NightCarry.Current.HeldId == cups.id && shelf.Showing == 0, "in Ace's hand, for him, not on the shelf");
         Check(saves.Notebook.Find(cups.id + ".taken")?.text == cups.notebookTakenFor, "the notebook says who they were for");
         Check(NoteShowing().Contains("back to the man at the bins"), $"the note says where to take them (\"{Short(NoteShowing())}\")");
+        yield return NowLine("Bring the reunion cups to the man at the bins", "the Now line says to bring them to the man");
         string aceLine = lines.FindLine(favour.aceLine)?.text ?? "?";
         Check(Barks.TryGetShown(movement.transform, out Barks.Shown mine) && mine.text == aceLine, $"Ace mutters \"{aceLine}\"");
         yield return Seconds(.6f);
@@ -590,7 +595,8 @@ public sealed class NightTwoCheck : MonoBehaviour
             Note($"the note: \"{NoteShowing()}\"");
             yield return Photo("05-his-mess");
             yield return Until(() => day.NoteShown, 14f, "then his note on the counter");
-            Check(NoteShowing().Contains(cups.note), $"on screen (\"{Short(NoteShowing())}\")");
+            // Notes queue now (playtest 7): his waits for the mess note's time before it shows.
+            yield return Until(() => NoteShowing().Contains(cups.note), 10f, $"on screen, once the mess note has had its time (\"{Short(NoteShowing())}\")");
             NotebookFactData page = saves.Notebook.Find("lodger.note." + NightThings.GraceCups);
             Check(page != null && page.source == Notebook.Sources.Inherited && page.text == cups.note, "and in the notebook, as one of his pages");
             yield return Photo("06-his-note");
@@ -745,22 +751,54 @@ public sealed class NightTwoCheck : MonoBehaviour
 
     void Press() => movement.SendMessage("OnInteract", SendMessageOptions.DontRequireReceiver);
 
-    // Reply 0 or 1: the key (1 or 2) when the Game view has the keyboard, as a player would; otherwise directly.
+    // Reply 0 or 1 the day's way (playtest 7): down moves the highlight (S when the Game view has the keyboard, else the
+    // check's own move), E says it; failing that, directly.
     IEnumerator Answer(int reply)
     {
-        if (Application.isFocused && Keyboard.current != null)
+        bool keys = Application.isFocused && Keyboard.current != null;
+        Check(Barks.Highlighted == 0, $"the chips come up with the first reply highlighted ({Barks.Highlighted + 1})");
+        for (int i = 0; i < reply; i++)
         {
-            var state = new KeyboardState(reply == 0 ? Key.Digit1 : Key.Digit2);
-            InputSystem.QueueStateEvent(Keyboard.current, state);
+            if (keys) yield return PressKey(Key.S);
+            else Barks.MoveHighlight(1);
             yield return null;
-            yield return null;
-            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
-            yield return Seconds(.3f);
-            if (!Barks.Choosing) { Note($"picked reply {reply + 1} with the {reply + 1} key"); yield break; }
         }
-        Barks.Choose(reply);
-        Note($"picked reply {reply + 1} directly (the Game view didn't have the keyboard)");
+        if (reply > 0) Check(Barks.Highlighted == reply, $"down moved the highlight to reply {reply + 1} ({Barks.Highlighted + 1})");
+        if (keys)
+        {
+            yield return PressKey(Key.E);
+            yield return Seconds(.3f);
+            if (!Barks.Choosing) { Note($"said reply {reply + 1} with E on the highlighted chip"); yield break; }
+        }
+        if (Barks.PickHighlighted()) Note($"said reply {reply + 1} as E does on the highlighted chip (the Game view didn't have the keyboard)");
+        else
+        {
+            Barks.Choose(reply);
+            Note($"picked reply {reply + 1} directly (the chips were too new to pick)");
+        }
         yield return Seconds(.3f);
+    }
+
+    // A key pressed and let go the way a player does it (the Game view has the keyboard).
+    static IEnumerator PressKey(Key key)
+    {
+        InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+        yield return null;
+        yield return null;
+        InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+        yield return null;
+    }
+
+    // The Now line (DayOneGuideUI, top left) says this, within its budget, at the line's size.
+    IEnumerator NowLine(string words, string what)
+    {
+        if (guide == null) { Check(false, what + " (no guide in the scene)"); yield break; }
+        yield return Until(() => guide.CardShowing && guide.NightLine && guide.NowText.StartsWith(words, StringComparison.Ordinal), 4f, $"{what}: \"{words}\"");
+        if (!lastWait) { Note($"the Now line reads \"{Short(guide.NowText)}\""); yield break; }
+        // 20 Oct: the budget is the step's; the notebook's nudge after " · " (an icon and "notes") is the line's chrome, not a step.
+        string stepWords = guide.NowText.Split(new[] { " · " }, StringSplitOptions.None)[0];
+        Check(!WordBudget.Over(stepWords, WordBudget.NowLine) && Mathf.Abs(guide.LineSize - DayOneGuideUI.CompactSize) < .01f,
+            $"...within the Now line's budget, at {guide.LineSize:0} px ({WordBudget.Report(stepWords, WordBudget.NowLine)})");
     }
 
     static List<Vector3> Plan(GraceHouse house, params (float X, float Y)[] stops) => stops.Select(s => house.World(s.X, s.Y)).ToList();
@@ -873,6 +911,7 @@ public sealed class NightTwoCheck : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         photos++;
         File.WriteAllBytes(Path.Combine(folder, name + ".jpg"), shot.EncodeToJPG(88));
         Destroy(shot);

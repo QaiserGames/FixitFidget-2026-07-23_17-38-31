@@ -15,6 +15,13 @@ using TMPro;
 // verb.
 // The name is worked out again only when what E acts on changes (and a few times a second for something that moves), so
 // nothing is built every frame.
+//
+// CLEAR OF ACE (19 Oct 2026, playtest 7). From the overhead camera Ace stands behind the counter, which is "above" the
+// customer at the till and the tray on screen, so the name pinned over their head sat on his head and shoulders in 15
+// of the reviewers' photos ("the player's own character vanishes under a label at the spot they use most"). When the
+// chip over the thing would cover Ace's head, it hangs under the thing instead (its anchor pushed toward the camera until
+// the chip's top is at the thing's point): a name badge on a customer's chest, a label on the counter's front under a
+// device. The words (22 px, UiPins.NameSize) don't change.
 // ---------------------------------------------------------------------------
 public class FocusNameUI : MonoBehaviour
 {
@@ -73,8 +80,14 @@ public class FocusNameUI : MonoBehaviour
             UiPins pins = string.IsNullOrEmpty(describedName) && UiPins.Instance == null ? null : UiPins.Ensure();
             if (pins != null)
             {
-                if (string.IsNullOrEmpty(describedName)) pins.HideFocus();
-                else pins.ShowFocus(describedName, describedOver, describedPoint);
+                if (string.IsNullOrEmpty(describedName)) { pins.HideFocus(); hangingBelow = false; }
+                else
+                {
+                    Transform over = describedOver;
+                    Vector3 point = describedPoint;
+                    ClearOfAce(pins, ref over, ref point);
+                    pins.ShowFocus(describedName, over, point, describedOver, describedPoint);   // drawn there, about them
+                }
             }
             PinnedName = describedName;
             PinnedOver = string.IsNullOrEmpty(describedName) ? null : describedOver;
@@ -101,6 +114,43 @@ public class FocusNameUI : MonoBehaviour
     private void OnDisable()
     {
         if (UiPins.Instance != null) UiPins.Instance.HideFocus();
+        hangingBelow = false;
+    }
+
+    // ---------- clear of Ace (see the header) ----------
+
+    private bool hangingBelow;
+    private const float ChipGap = 4f, PointerAndGap = 12f, Hysteresis = 16f;
+
+    // The pin's anchor: over the thing (as given), or, when the chip there would cover Ace's head on screen, a point toward
+    // the camera so the chip hangs under the thing instead.
+    private void ClearOfAce(UiPins pins, ref Transform over, ref Vector3 point)
+    {
+        Camera cam = Camera.main;
+        if (cam == null || interactor == null) { hangingBelow = false; return; }
+        Vector3 anchor = over != null ? Barks.HeadPointOf(over) : point;
+        Vector3 ace = view != null ? view.EyePoint : interactor.transform.position + Vector3.up * 1.6f;
+        Vector3 anchorOnScreen = cam.WorldToScreenPoint(anchor), aceOnScreen = cam.WorldToScreenPoint(ace);
+        if (anchorOnScreen.z <= 0f || aceOnScreen.z <= 0f) { hangingBelow = false; return; }
+        // The chip's size as last drawn (reference pixels times the canvas's scale), or a usual one before it has been.
+        float scale = Mathf.Sqrt(Mathf.Max(.1f, Screen.width / 1920f) * Mathf.Max(.1f, Screen.height / 1080f));
+        Rect drawn = pins.FocusOnScreen;
+        float chipWidth = drawn.width > 0f ? drawn.width : 160f * scale, chipHeight = drawn.height > 0f ? drawn.height : (UiPins.NameSize + 18f) * scale;
+        float grow = hangingBelow ? Hysteresis * scale : 0f;   // once hanging, it stays until Ace is well clear (no flapping)
+        var above = new Rect(anchorOnScreen.x - chipWidth / 2f - grow, anchorOnScreen.y + ChipGap * scale - grow, chipWidth + 2f * grow, chipHeight + 2f * grow);
+        var head = new Rect(aceOnScreen.x - 14f * scale, aceOnScreen.y - 16f * scale, 28f * scale, 40f * scale);
+        if (!above.Overlaps(head)) { hangingBelow = false; return; }
+        // Toward the camera (down the screen) until the chip's top is just under the thing's point.
+        Vector3 toward = -cam.transform.forward;
+        toward.y = 0f;
+        if (toward.sqrMagnitude < 1e-4f) { hangingBelow = false; return; }
+        toward.Normalize();
+        float perMetre = anchorOnScreen.y - cam.WorldToScreenPoint(anchor + toward).y;   // screen pixels dropped per metre
+        if (perMetre < 1f) { hangingBelow = false; return; }
+        float need = chipHeight + PointerAndGap * scale;
+        point = anchor + toward * (need / perMetre);
+        over = null;
+        hangingBelow = true;
     }
 
     /// <summary>

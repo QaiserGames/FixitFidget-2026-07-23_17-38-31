@@ -41,6 +41,13 @@ using UnityEngine;
 // turned away, or took her camera home unfixed: GraceLetDownOn) the deal plays its sibling scene, which says "Grace walked
 // out." in that one place and is the deal in every other line, choice and beat (LodgerStory.DealSceneLetDown). Without the
 // sibling in the Night lines (Fixit Fidget › Playtest 4 › Content › 3 not run yet) the deal plays as it always has.
+//
+// Playtest 7 (19 Oct 2026; his girlfriend: "Look up. Maybe something where it automatically looks at him."): the reveal
+// camera stays on through the deal, so he and his lines are framed in either view (it used to switch off before his first
+// line, leaving first person looking at the dumpster's rim with his line clamped to the top edge); it goes when the deal
+// ends (SceneDone). "Last job: the bins. Out the back." comes down the moment the back door is used (a stale instruction
+// beside "Bin it", the reviewers). The notes after the deal: where Barnaby is (LodgerStory.Hint, now with her number and
+// street), then the keys, as icons (the Now line carries the notebook and the way home from then on: NightCycle.NowLine).
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightZero : MonoBehaviour
@@ -170,7 +177,9 @@ public sealed class NightZero : MonoBehaviour
     public void TakeTheBinsOut()
     {
         if (Now != Step.AtTheDoor) return;
-        if (NightCycle.Through(set.outsideDoor)) Now = Step.Outside;
+        if (!NightCycle.Through(set.outsideDoor)) return;
+        Now = Step.Outside;
+        NightCycle.ClearNote(NightCycle.LastJobNote);   // "Out the back" is done: the note mustn't stand beside "Bin it"
     }
 
     // ---------- the dumpster ----------
@@ -263,7 +272,7 @@ public sealed class NightZero : MonoBehaviour
         yield return new WaitForSeconds(.95f);
         if (man != null) man.Beat(NpcBeats.Clip.LookingAround, 1.4f);
         yield return new WaitForSeconds(1.1f);
-        if (set.revealCamera != null) set.revealCamera.SetActive(false);
+        // The reveal camera stays on for the deal (playtest 7): it frames him and his lines; SceneDone switches it off.
         if (man != null) man.Face(ace.transform.position);
         if (aceBody != null && man != null) aceBody.FaceToward(man.Speaker.position);
         yield return new WaitForSeconds(.7f);
@@ -349,7 +358,7 @@ public sealed class NightZero : MonoBehaviour
                 foreach (NotebookFactData page in LodgerStory.Pages(InTheGame))   // the parking page waits for the cones
                     if (notebook.Learn(page, NotebookHooks.Today)) learned++;
             Sfx.Play2D("notebook.handover");
-            if (learned > 0) NightCycle.Note($"His notebook is yours now. {ControlHints.NotebookPage} to read it.", 6f);
+            if (learned > 0) NightCycle.Note($"His notebook is yours now. {ControlHints.NotebookPage} Read it.", 6f);
         }
         else if ((id == LodgerStory.GraceLine || id == LodgerStory.GraceWalkedOutLine) && man != null) man.Beat(NpcBeats.Clip.Dismissing);
     }
@@ -429,6 +438,8 @@ public sealed class NightZero : MonoBehaviour
         if (Now == Step.Done) return;
         Now = Step.Done;
         if (First) ledger.Meet(Night);
+        // The deal is made: the view comes back from the reveal camera (a Cinemachine blend) to the bins view.
+        if (set != null && set.revealCamera != null) set.revealCamera.SetActive(false);
         NightWalk walk = NightWalk.Instance;
         if (walk != null) walk.ClockHeld = false;
         // His say done, he's back in the bin (he comes up again for Ace bringing what he asked for).
@@ -436,8 +447,9 @@ public sealed class NightZero : MonoBehaviour
         StartCoroutine(After());
     }
 
-    /// <summary>The keys, said once on the first night (a beat after where to go).</summary>
-    public static string KeysNote => $"{ControlHints.Torch} torch · {ControlHints.NotebookPage} notebook · {ControlHints.Interact} at a café door: home.";
+    /// <summary>The keys, said once on the first night (a beat after where to go), as icons: the torch and the notes. The way
+    /// home is the Now line's once the night is done ("Call it a night at a café door").</summary>
+    public static string KeysNote => $"{ControlHints.Torch} Torch  ·  {ControlHints.NotebookPage} Notes";
 
     // Ace's line of the night (Night 0), then what the night is for: one note a beat (the budget: 12 words).
     IEnumerator After()

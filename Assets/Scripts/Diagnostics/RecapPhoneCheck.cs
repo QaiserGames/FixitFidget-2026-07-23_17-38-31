@@ -161,7 +161,8 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(over.Length == 0, "nothing else draws over the phone" + (over.Length == 0 ? "" : $" ({over} does)"));
         Check(phone.Current == RecapPhone.App.Tonight, "it opens on Tonight");
         Check(!PadInput.UsingPad || Note("a pad was the last device used before the check"), "the keyboard and mouse are in use");
-        Check(phone.HintText.Contains("Q / E"), $"the hint under it is the keyboard's (\"{phone.HintText}\")");
+        // The buttons are icons (19 Oct 2026): compared through the same helpers the phone writes with, never literal words.
+        Check(phone.HintText.Contains(ControlHints.Key("Q") + " / " + ControlHints.Key("E")), $"the hint under it is the keyboard's (\"{phone.HintText}\")");
 
         // ---------- Tonight: one screen ----------
         // Tonight's split (12 Oct): out of sight while the takings count up, it lands with them.
@@ -422,6 +423,10 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         if (cheapest != null)
         {
             int level = upgrades.LevelOf(cheapest), cost = cheapest.CostAt(level), before = till.Money;
+            // 20 Oct: with the bigger type the Shop runs past the screen, so its last upgrade is scrolled into view first,
+            // as a player would scroll to it (the phone's own RevealKey).
+            phone.RevealKey("upgrade:" + cheapest.name);
+            yield return null;
             Button buy = phone.ContentButton("upgrade:" + cheapest.name);
             Check(buy != null && buy.interactable && Clickable(buy), $"{cheapest.upgradeName}'s button can be pressed (${cost})");
             labBefore = labAfter;
@@ -492,8 +497,8 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         }
         yield return PadPress(GamepadButton.RightShoulder);
         Check(PadInput.UsingPad && phone.Current == RecapPhone.App.Notes, $"a pad's RB opens the next app (Notes; it's on {phone.Current})");
-        Check(phone.HintText.Contains("RB") || phone.HintText.Contains("R1") || phone.HintText.Contains("R "),
-            $"the hint under the phone becomes the pad's (\"{phone.HintText}\")");
+        Check(phone.HintText.Contains(PadInput.Label(PadButton.RightShoulder)) && !phone.HintText.Contains(ControlHints.Key("Q")),
+            $"the hint under the phone becomes the pad's ({PadInput.Word(PadButton.RightShoulder)} as its icon: \"{phone.HintText}\")");
         yield return PadPress(GamepadButton.LeftShoulder);
         Check(phone.Current == RecapPhone.App.Shop, "LB goes back (Shop)");
         yield return Frames(2);
@@ -881,6 +886,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
 #endif
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         photos++;
         File.WriteAllBytes(Path.Combine(folder, name + ".jpg"), shot.EncodeToJPG(90));
         Destroy(shot);

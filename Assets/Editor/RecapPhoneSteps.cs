@@ -148,7 +148,7 @@ internal static class RecapPhoneSteps
             fact.day = 1;
             facts.Add(fact);
         }
-        NotebookFactData home = NotebookEntries.HomeSeen(NotebookEntries.GraceId, NotebookEntries.GraceName, "the saffron house", "12", "west",
+        NotebookFactData home = NotebookEntries.HomeSeen(NotebookEntries.GraceId, NotebookEntries.GraceName, HomeDoor.GraceLooks, "12", "west",
             true, Notebook.Sureness.Hunch);
         home.day = 2;
         facts.Add(home);

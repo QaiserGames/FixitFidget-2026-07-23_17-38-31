@@ -141,8 +141,8 @@ public static class DayOneOnboardingChecks
             Require(!first.GuidesFeaturedVisitOn(2), path + ": its featured hints don't repeat on a later day.");
             string name = first.featuredRegular.characterName;
             string card = DayOneGuideUI.FirstCard(name, true);
-            Require(card.StartsWith("You're Ace.") && card.Contains(name) && card.Length <= 90,
-                $"{path}: the first card says who you are and who is coming (\"{card}\", {card.Length} characters).");
+            Require(card.StartsWith("Five stars") && card.Contains("franchise") && card.Contains(name) && card.Length <= 90,
+                $"{path}: the first card says the goal and who is coming (\"{card}\", {card.Length} characters).");
         }
         // Whoever else comes in on a story visit that day is guided too (the Officer's coffee): said, for the report.
         foreach (StoryVisit visit in first.StoryVisitsOn(1))
@@ -184,8 +184,10 @@ public static class DayOneOnboardingChecks
             typeof(CustomerBrain).GetField("repairReturned", PrivateInstance).SetValue(customer, true);
             typeof(CustomerBrain).GetField("drinkOrdered", PrivateInstance).SetValue(customer, true);
             string next = (string)featuredAction.Invoke(guide, new object[] { customer, null });
-            Require(next.StartsWith("Repair returned.") && !next.Contains("intake"),
-                "Returning the repair cannot hide an outstanding drink behind a missing-item hint.");
+            // 20 Oct (the Now line, one step per line): no "Repair returned." prefix any more; the line is the drink's own step.
+            Require(!next.Contains("intake") && (next.IndexOf("drink", System.StringComparison.OrdinalIgnoreCase) >= 0
+                                                 || next.IndexOf("cup", System.StringComparison.OrdinalIgnoreCase) >= 0),
+                $"Returning the repair cannot hide an outstanding drink behind a missing-item hint (\"{next}\").");
             var job = host.AddComponent<RepairJob>();
             var inspector = host.AddComponent<ItemInspector>();
             typeof(CustomerBrain).GetField("activeJob", PrivateInstance).SetValue(customer, job);
@@ -193,8 +195,9 @@ public static class DayOneOnboardingChecks
             typeof(DayOneGuideUI).GetField("inspector", PrivateInstance).SetValue(guide, inspector);
             string collection = (string)typeof(DayOneGuideUI).GetMethod("RepairAction", PrivateInstance)
                 .Invoke(guide, new object[] { customer });
-            Require(collection.Contains("Press E") && !collection.Contains("Right-click"),
-                "Completed inspection explains direct E collection, without the old exit-first sequence.");
+            // 20 Oct (the icon contract): the key is ControlHints.TakeFromBench's icon, never the words "Press E".
+            Require(collection.Contains(ControlHints.TakeFromBench) && !collection.Contains("Press") && !collection.Contains("Right-click"),
+                $"Completed inspection explains direct E collection, without the old exit-first sequence (\"{collection}\").");
         }
         finally
         {
@@ -206,30 +209,42 @@ public static class DayOneOnboardingChecks
     // The cards' words, read from DayOneGuideUI (where the cards get them): short, true, and in the player's words.
     private static void CheckWords()
     {
+        // Playtest 7 (19 Oct 2026): the first card says the goal; "Go behind the counter" only away from the staff's side; the
+        // button is the icon contract's helper (ControlHints), never a spelled-out key; one step a line, no semicolons.
         string there = DayOneGuideUI.FirstCard("Grace", true), away = DayOneGuideUI.FirstCard("Grace", false);
-        Require(there.StartsWith("You're Ace.") && there.Contains("Grace") && !there.Contains("behind the counter") && there.Length <= 90,
-            $"Behind the counter already, the first card doesn't send Ace there (\"{there}\").");
-        Require(away.StartsWith("You're Ace.") && away.Contains("behind the counter") && away.Length <= 90,
+        Require(there.StartsWith("Five stars") && there.Contains("franchise") && there.Contains("Grace") && !there.Contains("behind the counter")
+                && WordBudget.Words(there) <= 12 && there.Length <= 90,
+            $"On the staff's side already, the first card says the goal and doesn't send Ace behind the counter (\"{there}\").");
+        Require(away.StartsWith("Five stars") && away.Contains("behind the counter") && away.Length <= 90,
             $"Elsewhere, it does (\"{away}\").");
+        string nowThere = DayOneGuideUI.FirstNow("Grace", true), nowAway = DayOneGuideUI.FirstNow("Grace", false);
+        Require(!WordBudget.Over(nowThere, WordBudget.NowLine) && !WordBudget.Over(nowAway, WordBudget.NowLine) && nowAway.Contains("behind the counter"),
+            $"Settled, the first card's line is one step within the Now line's budget (\"{nowThere}\" / \"{nowAway}\").");
         string over = DayOneGuideUI.VisitOver("Grace", 0), open = DayOneGuideUI.VisitOver("Grace", 2);
         Require(!over.Contains("request") && !over.Contains("order") && over.Length <= 90,
             $"With nothing open, the card after the visit says nothing about requests (\"{over}\").");
-        Require(open.Contains("open orders") && open.Length <= 90, $"With orders open, it says to finish them (\"{open}\").");
+        Require(open.Contains("open orders") && !open.Contains(";") && open.Length <= 90, $"With orders open, it says to finish them (\"{open}\").");
         string tray = DayOneGuideUI.PickUpFromTray("Grace", "reunion film camera");
-        Require(tray.Contains("intake tray") && !tray.Contains("shelf") && tray.StartsWith("Press E") && tray.Length <= 90,
-            $"The device waits on the intake tray (\"{tray}\").");
+        Require(tray.Contains("intake tray") && !tray.Contains("shelf") && tray.StartsWith(ControlHints.Interact) && !tray.Contains("Press ") && tray.Length <= 90,
+            $"The device waits on the intake tray, the button as its icon (\"{tray}\").");
         string calm = DayOneGuideUI.ReassureWords("Walter");
-        Require(calm.Contains("Walter") && calm.Contains("press E") && calm.Length <= 90, $"The impatience card says how to reassure (\"{calm}\").");
+        Require(calm.Contains("Walter") && calm.Contains(ControlHints.Interact) && !calm.Contains("press ") && calm.Length <= 90,
+            $"The impatience card says how to reassure (\"{calm}\").");
         string atBench = DayOneGuideUI.BenchReassureWords("Walter");
-        Require(atBench.Contains("Walter") && atBench.Contains("[Right-click]") && atBench.Contains("[E]") && WordBudget.Words(atBench) <= WordBudget.BenchAlert,
-            $"At the bench the impatience card says to step back first, in the bench's keys (\"{atBench}\").");
+        Require(atBench.Contains("Walter") && atBench.Contains(ControlHints.Cancel) && atBench.Contains(ControlHints.Interact) && !atBench.Contains("[")
+                && WordBudget.Words(atBench) <= WordBudget.BenchAlert,
+            $"At the bench the impatience card says to step back first, in the bench's keys as icons (\"{atBench}\").");
+        string drink = DayOneGuideUI.TakeDrinkWords("latte", "Grace");
+        Require(drink.StartsWith("Take the latte to Grace") && !WordBudget.Over(drink, WordBudget.NowLine),
+            $"With a filled cup in hand the drink step says to take it to them (\"{drink}\").");
         Require(DropInteractable.TrayWords(DropSpot.SpotKind.Counter, true, true) == DropInteractable.PutBackWords
                 && DropInteractable.TrayWords(DropSpot.SpotKind.Counter, true, false) == DropInteractable.IntakeTrayWords,
             "At the intake tray a device lifted from it reads \"Put it back\", any other \"Put it on the intake tray\".");
-        Require(DayOneGuideUI.TalkWords("the Officer", false, true).Contains("E takes the order")
-                && DayOneGuideUI.TalkWords("Grace", false, false).Contains("E takes the job")
-                && DayOneGuideUI.TalkWords("Grace", true, false).StartsWith("Look at Grace."),
-            "Talking takes the job (or the order, for a drink), in the words of the view in use.");
+        Require(DayOneGuideUI.TalkWords("the Officer", false, true) == ControlHints.Interact + " Talk to the Officer."
+                && DayOneGuideUI.TalkWords("Grace", false, false) == ControlHints.Interact + " Talk to Grace."
+                && DayOneGuideUI.TalkWords("Grace", true, false).StartsWith("Look at Grace.")
+                && !DayOneGuideUI.TalkWords("Grace", false, false).Contains(";"),
+            "The talk step is one step, the button as its icon, in the words of the view in use (taking the job is the conversation's).");
         Require(DayOneGuideUI.Possessive("Grace") == "Grace's" && DayOneGuideUI.Possessive("the Officer") == "the Officer's"
                 && DayOneGuideUI.Possessive("Agnes") == "Agnes'", "Names take their possessive.");
         Require(FocusNameUI.BenchName == "Repair bench" && FocusNameUI.TrayName == "Intake tray" && FocusNameUI.DrinksName == "Drinks",

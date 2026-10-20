@@ -159,6 +159,37 @@ public class ReplaceablePart : BenchInteractable
     public bool Loose => State != PartState.InPlace;
 
     public override string DisplayName => IsReplaced ? "Old " + partName.ToLowerInvariant() : partName;
+
+    /// <summary>
+    /// The part's name without its fault word: "Cracked screen" → "Screen", "Jammed shutter mechanism" → "Shutter mechanism",
+    /// "Old cracked screen" → "Screen", "Mainspring" → "Mainspring". The fresh part is named with it (LoosePart: "New screen";
+    /// 19 Oct 2026, the fresh-eyes review: "New cracked screen" read as another broken one to a newcomer), and so is a missed
+    /// swap ("fit the new screen"). The broken one keeps its fault word: it is cracked.
+    /// </summary>
+    public static string Honest(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "part";
+        string[] words = name.Trim().Split(' ');
+        int from = 0;
+        while (from < words.Length - 1 && IsFaultWord(words[from])) from++;
+        string rest = string.Join(" ", words, from, words.Length - from).Trim();
+        if (rest.Length == 0) return name.Trim();
+        return char.ToUpperInvariant(rest[0]) + rest.Substring(1);
+    }
+
+    static readonly string[] FaultWords =
+    {
+        "old", "cracked", "jammed", "broken", "dead", "seized", "worn", "burnt", "burned", "bent", "torn", "faulty", "smashed",
+        "shattered", "stuck", "snapped", "blown", "corroded", "rusted", "rusty", "frayed", "damaged", "scratched", "dirty", "split",
+        "loose", "leaking", "flat", "swollen", "cut", "melted", "warped", "chipped"
+    };
+
+    static bool IsFaultWord(string word)
+    {
+        string w = word.ToLowerInvariant().Trim(',', '.');
+        foreach (string f in FaultWords) if (w == f) return true;
+        return false;
+    }
     public override string Prompt => State != PartState.InPlace ? ""
         : coveredBy != null && !coveredBy.IsRemoved ? CoveredHint(partName, coveredBy.DisplayName)
         : "Hold to pinch it out";
@@ -380,7 +411,9 @@ public class LoosePart : BenchInteractable
     /// <summary>On its pad, waiting.</summary>
     public bool OnPad => !seated && !flying && !hovering;
 
-    public override string DisplayName => part != null ? "New " + part.DisplayName.ToLowerInvariant() : "New part";
+    /// <summary>"New screen", "New shutter mechanism": the part's name without its fault word (ReplaceablePart.Honest; 19 Oct:
+    /// "New cracked screen" told a newcomer she had picked another broken one).</summary>
+    public override string DisplayName => part != null ? "New " + ReplaceablePart.Honest(part.DisplayName).ToLowerInvariant() : "New part";
     // Its own "why not" when it can't act; otherwise the hover is its name only (UI/UX §5.10 item 7).
     public override string Prompt => part == null ? ""
         : part.State == ReplaceablePart.PartState.InPlace ? "The broken one comes out first"

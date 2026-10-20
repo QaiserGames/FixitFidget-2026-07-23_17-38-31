@@ -10,7 +10,9 @@ using System.Collections.Generic;
 // console tests (Tests/BarkRules) compile it exactly as the game does.
 //
 //   * How long: the conversation's reading time (ConversationUI.ReadTime): 0.6 s + 1/18 s a character,
-//     between 1.4 and 4.5 s.
+//     between 2.5 and 4.5 s. (The floor was 1.4 s until playtest 7, 19 Oct 2026: his girlfriend, dyslexic,
+//     "couldn't read it fast enough", and the reviewers saw Grace's "Hello?" half faded within 1-2 s. A short
+//     line now holds its box at full alpha for 2.5 s; E still moves a held scene's line on sooner.)
 //   * Ambient lines (from a pool, said by the world, not by a scene): a speaker waits Speaker Cooldown
 //     between their own lines, and a new ambient line from anyone starts at most once every Global Gap.
 //     None while a scene plays.
@@ -24,7 +26,7 @@ public sealed class BarkRules
     /// <summary>The writing rule (characters): the Bark rules check warns above it. Two lines on screen hold about this much.</summary>
     public const int LengthRule = 60;
 
-    public float readingBase = .6f, readingPerCharacter = 1f / 18f, readingMin = 1.4f, readingMax = 4.5f;
+    public float readingBase = .6f, readingPerCharacter = 1f / 18f, readingMin = 2.5f, readingMax = 4.5f;
     /// <summary>A speaker's own ambient lines are at least this far apart (seconds).</summary>
     public float speakerCooldown = 20f;
     /// <summary>A new ambient line from anyone starts at most once in this (seconds).</summary>

@@ -844,6 +844,11 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
             $"the screen goes dark on \"Caught.\" (\"{Caption()}\")");
         yield return Seconds(.3f);
         yield return Photo("13-the-caught-card");
+        // Playtest 7: the card holds for a press (or 8 s). The check reads it for a moment, then presses on as a player would.
+        yield return Until(() => NightCycle.Instance.CardWaiting, 2f, "the card holds, waiting for a press");
+        yield return Seconds(1.5f);
+        Check(NightCycle.Instance.CardWaiting && Caption() == "Caught.", "...and is still up a moment later (nobody pressed)");
+        NightCycle.Instance.GoOn();
         yield return Until(() => !night.Active, 6f, "and the night ends there");
         Check(!ledger.HasTrophy(cups.id) && trophy.visual != null && trophy.visual.activeSelf && !saves.Notebook.Knows(cups.id + ".taken"),
             "what Ace took tonight went back: off the shelf, on her worktop again, crossed out of the notebook");
@@ -996,6 +1001,8 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
             $"the card says where she saw Ace from (\"{(NightCycle.Instance != null ? NightCycle.Instance.LastCaughtWhere : "")}\")");
         yield return Seconds(.3f);
         yield return Photo("w06-the-caught-card");
+        yield return Until(() => NightCycle.Instance.CardWaiting, 2f, "the card holds, waiting for a press (playtest 7)");
+        NightCycle.Instance.GoOn();
         yield return Until(() => !night.Active, 6f, "and the night ends there");
         yield return Until(() => NightCycle.Instance.Now == NightCycle.Phase.Day && !PlayerMovement.Held, 8f, "the morning: Ace free to move");
         if (view.FirstPersonSelected) view.SetFirstPerson(false);
@@ -1393,6 +1400,7 @@ public sealed class GraceAtHomeCheck : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         photos++;
         File.WriteAllBytes(Path.Combine(folder, name + ".jpg"), shot.EncodeToJPG(88));
         Destroy(shot);

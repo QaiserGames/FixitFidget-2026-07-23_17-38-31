@@ -27,40 +27,70 @@ using UnityEngine;
 // moment of the pickup (E in the close-up takes the device mid-repair) would be switched on again every frame of the carry,
 // a mint line round a cover in the café that nothing would ever switch off. forceRenderingOff is ours alone. A hull's
 // bounds are its part's own (the same mesh, the same place), so DeviceBounds measures the device the same with them.
+//
+// TWO TONES (19 Oct 2026; playtest 7, his girlfriend: the fresh part "is highlighted, but it doesn't show. You gotta make it
+// red. Or highlight it."; the cloth's highlight "hidden in the bottom left"). The mint line had a luminance contrast of 1.01:1
+// on the pale new-part pad and 1.04:1 on the yellow cloth; red would have 1.03:1 on the slate mat (the 19 Oct investigation
+// §5): no one flat colour reads on every surface of the bench. So the guide's line is TWO hulls now, a narrow dark one (ink,
+// warmed a little toward the amber) and a wider warm amber one outside it. A narrower hull's back faces lie nearer the camera
+// than a wider one's, so with both writing depth the dark line sits against the part and the amber line outside it, whatever
+// the part's colour: on the pale pad the ink carries the line (9.5:1), on the slate mat the amber does (2.8:1), and on the
+// yellow cloth the ink again (9.3:1). Amber, not red: red reads as "wrong" (his plan, 19 Oct). The pointer's layer (the
+// white hover, the gold hold) stays one line. Where a target is hidden, only the amber hull draws the dashed x-ray pass.
 // ---------------------------------------------------------------------------
 public static class BenchOutline
 {
     public static readonly Color Hover = Color.white;
     public static readonly Color Busy = new Color(1f, .82f, .35f);       // a hold under way
-    /// <summary>The glow on the next thing to touch (checklist v2): the brand's light green, which UiSkin calls "a glow".</summary>
-    public static readonly Color Guide = UiSkin.BrandBright;
-    /// <summary>"What's left" (Tab / View): PowerWash's yellow, our gold.</summary>
+    /// <summary>The glow on the next thing to touch: a warm amber (#FFB238; 19 Oct, in place of the mint that vanished on the
+    /// pale pad and the cloth). Never red: red reads as "wrong".</summary>
+    public static readonly Color Guide = new Color(1f, .698f, .22f);
+    /// <summary>The amber's bright end, which the glow breathes toward (#FFD27A).</summary>
+    public static readonly Color GuideSoft = new Color(1f, .824f, .478f);
+    /// <summary>The dark line inside the amber one: the skin's ink, warmed a quarter of the way toward the amber (about 70 %
+    /// ink), so it reads as the amber's own shadow, not a black ring.</summary>
+    public static readonly Color GuideInk = Color.Lerp(UiSkin.Ink, Guide, .25f);
+    /// <summary>"What's left" (Tab / View): PowerWash's yellow, our gold. Drawn two-tone too (the ink inside it), so it reads on
+    /// the pad and the cloth; told from the guide's amber by what it does (everything left, for 1.5 s) more than by its hue.</summary>
     public static readonly Color Left = UiSkin.Gold;
     /// <summary>The hover line's width, per metre from the camera (the shader's own default; a layer's width is a multiple of it).</summary>
     public const float BaseWidth = .0035f;
+    /// <summary>The two-tone guide's widths, as multiples of the hover's: the ink line to 0.65 (about 3 px at the close-up's
+    /// zoom 0), the amber line from there out to 1.7 (about 8 px in all, so the amber band is 5 px: at least 4 px at 1080p).</summary>
+    public const float GuideInnerWidth = .65f, GuideOuterWidth = 1.7f;
 
     static readonly int ColourId = Shader.PropertyToID("_Color");
     static readonly int WidthId = Shader.PropertyToID("_Width");
     static readonly int XRayId = Shader.PropertyToID("_XRay");
 
-    // One target's hulls (one per renderer under it, beside the renderer it outlines) and its two layers.
+    // One target's hulls (one per renderer under it, beside the renderer it outlines; a second, wider one for the two-tone
+    // guide) and its two layers.
     sealed class Lines
     {
         public readonly List<MeshRenderer> hulls = new List<MeshRenderer>();
+        public readonly List<MeshRenderer> outerHulls = new List<MeshRenderer>();
         public readonly List<Renderer> sources = new List<Renderer>();
         public bool pointer, glow;
         public Color pointerColour = Hover, glowColour = Guide;
         public float pointerWidth = 1f, glowWidth = 1f;
         public bool pointerXRay, glowXRay;
+        // The guide's second line (two-tone): on, its colour and its width (a multiple of the hover's, wider than the inner).
+        public bool glowOuter, glowOuterXRay;
+        public Color glowOuterColour = Guide;
+        public float glowOuterWidth = GuideOuterWidth;
         // What was last put on the hulls, so an unchanged call costs nothing.
         public bool shownOn;
         public Color shownColour;
         public float shownWidth = -1f;
         public bool shownXRay;
+        public bool shownOuterOn;
+        public Color shownOuterColour;
+        public float shownOuterWidth = -1f;
+        public bool shownOuterXRay;
     }
 
     static Material material;
-    static MaterialPropertyBlock block;
+    static MaterialPropertyBlock block, outerBlock;
     static readonly Dictionary<Mesh, Mesh> smoothed = new Dictionary<Mesh, Mesh>();
     static readonly Dictionary<GameObject, Lines> targets = new Dictionary<GameObject, Lines>();
     static readonly List<GameObject> gone = new List<GameObject>();
@@ -74,6 +104,7 @@ public static class BenchOutline
         targets.Clear();
         material = null;
         block = null;
+        outerBlock = null;
     }
 
     // ------------------------------------------------------------------ the pointer's layer (the hover, a hold)
@@ -117,6 +148,7 @@ public static class BenchOutline
         Lines lines = For(target, on);
         if (lines == null) return;
         lines.glow = on;
+        lines.glowOuter = false;
         if (on)
         {
             lines.glowColour = colour;
@@ -126,11 +158,36 @@ public static class BenchOutline
         Apply(lines);
     }
 
+    /// <summary>
+    /// The guide's glow in two tones (19 Oct): a narrow <paramref name="inner"/> line against the part, <paramref name="innerWidth"/>
+    /// times the hover's width, and a wider <paramref name="outer"/> line outside it to <paramref name="outerWidth"/> times. Where
+    /// something covers the part, the outer line alone is drawn dashed when <paramref name="xray"/>. Shown only while the
+    /// pointer's line is off on it, as the one-tone glow is.
+    /// </summary>
+    public static void Glow(GameObject target, bool on, Color inner, float innerWidth, Color outer, float outerWidth, bool xray)
+    {
+        Lines lines = For(target, on);
+        if (lines == null) return;
+        lines.glow = on;
+        lines.glowOuter = on;
+        if (on)
+        {
+            lines.glowColour = inner;
+            lines.glowWidth = innerWidth;
+            lines.glowXRay = false;   // the dashes are the outer line's: dark dashes through a cover would read as cracks
+            lines.glowOuterColour = outer;
+            lines.glowOuterWidth = Mathf.Max(innerWidth + .05f, outerWidth);
+            lines.glowOuterXRay = xray;
+        }
+        Apply(lines);
+    }
+
     /// <summary>The hulls are children of the part's renderers: when a part's mesh changes, throw them away.</summary>
     public static void Forget(GameObject target)
     {
         if (target == null || !targets.TryGetValue(target, out Lines lines)) return;
         foreach (MeshRenderer hull in lines.hulls) if (hull != null) Object.Destroy(hull.gameObject);
+        foreach (MeshRenderer hull in lines.outerHulls) if (hull != null) Object.Destroy(hull.gameObject);
         targets.Remove(target);
     }
 
@@ -158,6 +215,14 @@ public static class BenchOutline
         lines.shownColour = colour;
         lines.shownWidth = width;
         lines.shownXRay = xray;
+        // The second line: the guide's only (the pointer's white and gold stay one line), outside the first.
+        bool outerOn = on && !lines.pointer && lines.glowOuter;
+        bool outerChanged = outerOn != lines.shownOuterOn || outerOn && (lines.glowOuterColour != lines.shownOuterColour
+            || !Mathf.Approximately(lines.glowOuterWidth, lines.shownOuterWidth) || lines.glowOuterXRay != lines.shownOuterXRay);
+        lines.shownOuterOn = outerOn;
+        lines.shownOuterColour = lines.glowOuterColour;
+        lines.shownOuterWidth = lines.glowOuterWidth;
+        lines.shownOuterXRay = lines.glowOuterXRay;
         if (on)
         {
             if (block == null) block = new MaterialPropertyBlock();
@@ -166,17 +231,36 @@ public static class BenchOutline
             block.SetFloat(WidthId, BaseWidth * Mathf.Max(.1f, width));
             block.SetFloat(XRayId, xray ? 1f : 0f);
         }
+        if (outerOn)
+        {
+            if (outerBlock == null) outerBlock = new MaterialPropertyBlock();
+            outerBlock.Clear();
+            outerBlock.SetColor(ColourId, lines.glowOuterColour);
+            outerBlock.SetFloat(WidthId, BaseWidth * Mathf.Max(.15f, lines.glowOuterWidth));
+            outerBlock.SetFloat(XRayId, lines.glowOuterXRay ? 1f : 0f);
+        }
         for (int i = 0; i < lines.hulls.Count; i++)
         {
             MeshRenderer hull = lines.hulls[i];
-            if (hull == null) continue;
             Renderer source = lines.sources[i];
             // A part's mesh switched off (a fault's other parts, a carried device's hidden pieces) has no line of its own.
-            bool shown = on && source != null && source.enabled && source.gameObject.activeInHierarchy;
-            bool wasHidden = hull.forceRenderingOff;
-            if (wasHidden == shown) hull.forceRenderingOff = !shown;
-            // A hull coming back (its part shown again) gets the look too, not the last one it had.
-            if (shown && (changed || wasHidden)) hull.SetPropertyBlock(block);
+            bool sourceShown = source != null && source.enabled && source.gameObject.activeInHierarchy;
+            if (hull != null)
+            {
+                bool shown = on && sourceShown;
+                bool wasHidden = hull.forceRenderingOff;
+                if (wasHidden == shown) hull.forceRenderingOff = !shown;
+                // A hull coming back (its part shown again) gets the look too, not the last one it had.
+                if (shown && (changed || wasHidden)) hull.SetPropertyBlock(block);
+            }
+            MeshRenderer outer = i < lines.outerHulls.Count ? lines.outerHulls[i] : null;
+            if (outer != null)
+            {
+                bool shown = outerOn && sourceShown;
+                bool wasHidden = outer.forceRenderingOff;
+                if (wasHidden == shown) outer.forceRenderingOff = !shown;
+                if (shown && (outerChanged || wasHidden)) outer.SetPropertyBlock(outerBlock);
+            }
         }
     }
 
@@ -197,32 +281,40 @@ public static class BenchOutline
             if (source is SkinnedMeshRenderer skinned) mesh = skinned.sharedMesh;
             else if (source is MeshRenderer) { MeshFilter filter = source.GetComponent<MeshFilter>(); if (filter != null) mesh = filter.sharedMesh; }
             if (mesh == null) continue;
-            var go = new GameObject("Outline (bench)");
-            go.hideFlags = HideFlags.HideAndDontSave | HideFlags.NotEditable;
-            go.layer = source.gameObject.layer;
-            go.transform.SetParent(source.transform, false);
-            go.transform.localPosition = Vector3.zero;
-            go.transform.localRotation = Quaternion.identity;
-            go.transform.localScale = Vector3.one;
-            go.AddComponent<BenchOutlineHull>();
-            go.AddComponent<MeshFilter>().sharedMesh = Smoothed(mesh);
-            var renderer = go.AddComponent<MeshRenderer>();
-            int subMeshes = Mathf.Max(1, mesh.subMeshCount);
-            var materials = new Material[subMeshes];
-            for (int i = 0; i < subMeshes; i++) materials[i] = Material;
-            renderer.sharedMaterials = materials;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
-            // Enabled for good; shown and hidden by forceRenderingOff (the header says why).
-            renderer.forceRenderingOff = true;
-            renderer.enabled = true;
-            lines.hulls.Add(renderer);
+            // Two hulls a renderer: the line, and the two-tone guide's wider line outside it (hidden until a two-tone glow asks).
+            lines.hulls.Add(Hull("Outline (bench)", source, mesh));
+            lines.outerHulls.Add(Hull("Outline (bench, outer)", source, mesh));
             lines.sources.Add(source);
         }
         found.Clear();
         return lines;
+    }
+
+    // One hull renderer beside a source renderer: its smoothed mesh in the outline's material, hidden until it is asked for.
+    static MeshRenderer Hull(string name, Renderer source, Mesh mesh)
+    {
+        var go = new GameObject(name);
+        go.hideFlags = HideFlags.HideAndDontSave | HideFlags.NotEditable;
+        go.layer = source.gameObject.layer;
+        go.transform.SetParent(source.transform, false);
+        go.transform.localPosition = Vector3.zero;
+        go.transform.localRotation = Quaternion.identity;
+        go.transform.localScale = Vector3.one;
+        go.AddComponent<BenchOutlineHull>();
+        go.AddComponent<MeshFilter>().sharedMesh = Smoothed(mesh);
+        var renderer = go.AddComponent<MeshRenderer>();
+        int subMeshes = Mathf.Max(1, mesh.subMeshCount);
+        var materials = new Material[subMeshes];
+        for (int i = 0; i < subMeshes; i++) materials[i] = Material;
+        renderer.sharedMaterials = materials;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+        renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+        // Enabled for good; shown and hidden by forceRenderingOff (the header says why).
+        renderer.forceRenderingOff = true;
+        renderer.enabled = true;
+        return renderer;
     }
 
     static Material Material

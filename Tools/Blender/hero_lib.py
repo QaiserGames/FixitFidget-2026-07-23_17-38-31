@@ -78,11 +78,11 @@ class Faceted(fb.Prop):
         super().__init__(name, floor=False)
         self.smooth_faces = set()
 
-    def add(self, part_name, src_bm, mat, bevel=0.0, segments=1, smooth=False):
+    def add(self, part_name, src_bm, mat, bevel=0.0, segments=1, smooth=False, keep_normals=False):
         if bevel > 0:
             fb.bevel_all(src_bm, bevel, segments=segments, angle=30.0)
             bmesh.ops.dissolve_degenerate(src_bm, dist=2e-6, edges=src_bm.edges[:])
-        faces = super().add(part_name, src_bm, mat, smooth=smooth)
+        faces = super().add(part_name, src_bm, mat, smooth=smooth, keep_normals=keep_normals)
         if smooth:
             self.smooth_faces.update(faces)
         return faces

@@ -574,13 +574,15 @@ public class ConversationController : MonoBehaviour
         return -1;
     }
 
-    private const string Gold = "#D4A23A", Soft = "#E4DFD6", Faded = "#8E8980", KeyColour = "#CFC27D", HintColour = "#B9B1A6";
+    private const string Gold = "#D4A23A", Soft = "#E4DFD6", Faded = "#8E8980", HintColour = "#D9D2C7";
     // The highlighted reply: the brand's light green (12 Oct, the new layout), on its plate with a green edge (ConversationUI).
     private static readonly string Lit = UiSkin.HexOf(UiSkin.BrandBright);
     private readonly List<string> rows = new();
 
     // The list as drawn, a row a reply (ConversationUI puts each on its own plate): the highlighted reply in light green with
-    // a marker and its key, asked topics faded (with "noted" when Ace learned something), the turn-away line with its key.
+    // a marker and its button's icon, asked topics faded (with "noted" when Ace learned something), the turn-away line with
+    // its button's icon. The icons (19 Oct 2026: her "Instead of writing out square, just put the icon") sit after the words
+    // at the words' own size, no brackets: ControlHints.
     private List<string> Render()
     {
         rows.Clear();
@@ -594,19 +596,19 @@ public class ConversationController : MonoBehaviour
             text.Append(on ? $"<color={Lit}>►</color><space=0.35em>" : "<space=1.15em>");
             text.Append($"<color={(on ? Lit : asked ? Faded : Soft)}>{reply.Text}</color>");
             if (asked && reply.Topic.Taught) text.Append($" <size=72%><color={Gold}>noted</color></size>");
-            if (on) text.Append($"  <size=78%><color={KeyColour}>[{ControlHints.Interact}]</color></size>");
-            else if (reply.Kind == ReplyKind.Refuse) text.Append($"  <size=78%><color={KeyColour}>[{ControlHints.Refuse}]</color></size>");
+            if (on) text.Append($"  {ControlHints.Interact}");
+            else if (reply.Kind == ReplyKind.Refuse) text.Append($"  {ControlHints.Refuse}");
             rows.Add(text.ToString());
         }
         return rows;
     }
 
+    // The keys' line under the replies: icon + verb, no brackets (19 Oct 2026).
     private string Footer()
     {
-        string back = ControlHints.Say("Esc", ControlHints.Back);
-        if (replies.Count < 2) return $"<color={HintColour}>[{back}]  Step away</color>";
-        string choose = ControlHints.Pad ? "D-pad" : "W/S";
-        return $"<color={HintColour}>[{choose}]  Choose      [{back}]  Step away</color>";
+        string back = ControlHints.Back;
+        if (replies.Count < 2) return $"<color={HintColour}>{back}  Step away</color>";
+        return $"<color={HintColour}>{ControlHints.Choose}  Choose      {back}  Step away</color>";
     }
 
     // ---------- closing ----------

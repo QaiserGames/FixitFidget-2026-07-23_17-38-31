@@ -749,6 +749,7 @@ public sealed class DayIntroCheck : PlayLab
     {
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         Texture2D save = shot;
         if (shot.width != 1920 || shot.height != 1080)
         {

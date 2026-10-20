@@ -12,10 +12,22 @@ using UnityEngine.UI;
 // at night yet. Ace can keep walking with it open; the same key closes it.
 //
 // Only while a night walk runs: NightWalk adds it and calls Begin/End.
+//
+// Playtest 7 (19 Oct 2026; his girlfriend: "you should give me a tip to do that"): the night's Now line (NightCycle.NowLine)
+// ends with the notebook's icon and "notes" until the page has been opened once this Play session (EverOpened). And while
+// Ace is choosing a reply at night (Barks.Choosing: up and down move the highlight), D-pad up moves the highlight and does
+// not open the page over the chips. The facts are 24 px and the footer 20 px (they were 23 and 18: "your text needs to be
+// bolder").
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightNotebook : MonoBehaviour
 {
+    /// <summary>The page has been opened at least once this Play session (the Now line's nudge goes once it has).</summary>
+    public static bool EverOpened { get; private set; }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => EverOpened = false;
+
     // A dark page like the game's other panels, with warm cream writing: thin lettering stays readable
     // at any window size (dark writing on paper went faint when the game view was small), and the
     // recap's own grey marks guesses ("likely", "hunch") the same way here. The UI skin's (playtest 3,
@@ -61,12 +73,12 @@ public sealed class NightNotebook : MonoBehaviour
         // A rule under the title, in the band's own line colour.
         RectTransform rule = Rect("Rule", page, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -66f), new Vector2(484f, 2f));
         UiSkin.Paint(rule, UiSkin.BandLine, 0f);
-        body = Text("Facts", page, new Vector2(28f, -76f), new Vector2(484f, 580f), 23f, Ink, font);
+        body = Text("Facts", page, new Vector2(28f, -76f), new Vector2(484f, 580f), 24f, Ink, font);
         body.alignment = TextAlignmentOptions.TopLeft;
         body.textWrappingMode = TextWrappingModes.Normal;
         body.overflowMode = TextOverflowModes.Ellipsis;
         body.lineSpacing = 6f;
-        footer = Text("Close", page, new Vector2(28f, -670f), new Vector2(484f, 32f), 18f, Faint, font);
+        footer = Text("Close", page, new Vector2(28f, -670f), new Vector2(484f, 32f), 20f, Faint, font);
         page.gameObject.SetActive(false);
     }
 
@@ -80,7 +92,7 @@ public sealed class NightNotebook : MonoBehaviour
     public void Show(bool open)
     {
         if (page == null) return;
-        if (open && !Open) Opened++;
+        if (open && !Open) { Opened++; EverOpened = true; }
         page.gameObject.SetActive(open);
         if (open) Refresh();
     }
@@ -88,7 +100,8 @@ public sealed class NightNotebook : MonoBehaviour
     void Update()
     {
         if (page == null || Time.timeScale <= 0f) return;
-        bool pressed = Keyboard.current != null && Keyboard.current.nKey.wasPressedThisFrame || PadInput.Pressed(PadButton.DpadUp);
+        // While Ace is choosing a reply, D-pad up moves the highlight (Barks): it mustn't also open the page over the chips.
+        bool pressed = Keyboard.current != null && Keyboard.current.nKey.wasPressedThisFrame || PadInput.Pressed(PadButton.DpadUp) && !Barks.Choosing;
         if (pressed) Show(!Open);
         if (Open && Time.unscaledTime >= nextRefresh) Refresh();
     }

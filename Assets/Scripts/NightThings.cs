@@ -22,6 +22,11 @@ using System.Collections.Generic;
 // (saves hold them). The meter's numbers are the thing's difficulty: a stolen gnome is easy. The notes and the notebook's
 // lines keep to the word budget (WordBudget: 12 words; the Night rules check fails on more).
 //
+// Playtest 7 (19 Oct 2026; "What's saffron how?"): her house is named the one way the night names it everywhere, "12 West
+// Street, the yellow house with the porch light" (LodgerStory.GraceHouseName; the street as a token in the notebook's
+// lines, so a renamed street renames it there too). Never "the saffron house on the corner": a colour word a first-time
+// reader must decode, that doesn't read at night, and West Street had two saffron houses.
+//
 // No Unity types: the Night 1 rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
 // ---------------------------------------------------------------------------
 public sealed class NightThing
@@ -86,8 +91,11 @@ public static class NightThings
         name = "Barnaby",
         unknownName = "the garden gnome",
         topic = "Big plans tonight?",
+        // Her second line names her house the night's one way (88 characters): a line by day she hears in full, by night the
+        // Now line and the notebook say it again. Spoken lines don't pass through StreetNames (CustomerIdentity.Format), so
+        // the street is written out here: a renamed street means rewriting this line too.
         mention = "Polishing Barnaby for the reunion. He's my garden gnome.\n"
-            + "Twenty years on the front step of the saffron house, on the corner.",
+            + "Twenty years on my front step at 12 West Street. The yellow house, porch light always on.",
         waitingMention = "Tonight I'm polishing Barnaby. My garden gnome.",
         complaint = "Somebody took Barnaby off my front step last night.\n"
             + "Twenty years he stood there. Who steals a garden gnome, Ace?",
@@ -95,7 +103,8 @@ public static class NightThings
         cracked = "Ace. Are you smiling?\n...Hm. I'll be keeping an eye on my front step.",
         takenNote = "Barnaby is coming home with Ace. He'll go on the shelf.",
         takenNoteUnknown = "The garden gnome's coming home with Ace. On the shelf.",
-        notebookMention = "Barnaby, her gnome: twenty years on the saffron house's front step.",
+        // 12 words as it reads (the notebook's budget).
+        notebookMention = "Barnaby, her gnome: on her step, 12 " + StreetNames.Token(LodgerStory.GraceStreet) + ". Porch light on.",
         notebookComplaint = "Had a garden gnome, Barnaby, on her front step. Twenty years.",
         notebookTaken = "Took Barnaby from her front step. He's on the shelf now.",
         notebookTakenFor = "Took Barnaby from her front step, for the man at the bins.",

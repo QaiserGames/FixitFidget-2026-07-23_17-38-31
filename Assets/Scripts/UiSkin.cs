@@ -122,6 +122,13 @@ public static class UiSkin
     /// <summary>True when the font came from the swap point (Resources/UI/UI font), not the HUD's own.</summary>
     public static bool FontChosen { get { _ = Font; return fontFromResources; } }
 
+    /// <summary>
+    /// "Semibold" for anything that instructs (19 Oct 2026, her: "your text needs to be bolder"). The chosen UI font's regular
+    /// face is Baloo 2 SemiBold (UiFontSteps), so Normal is semibold there; on the fallback font (LiberationSans, a thin
+    /// regular) it is TextMesh Pro's Bold, so nothing instructing is ever thin.
+    /// </summary>
+    public static FontStyles SemiBold => FontChosen ? FontStyles.Normal : FontStyles.Bold;
+
     /// <summary>Puts the skin's font on a text (scene texts too: the HUD's prompt, the conversation's lines).</summary>
     public static void UseFont(TMP_Text text)
     {

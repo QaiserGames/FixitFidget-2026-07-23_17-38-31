@@ -29,6 +29,12 @@ using System.Collections.Generic;
 // EVERY WORD HERE IS A PLACEHOLDER: Mansoor and his sister write him. Keep the ids (saves hold them). Every line keeps to
 // the word budget (WordBudget: a note or a page 12 words; the Night rules check fails on more).
 // No Unity types: the Night rules (Fixit Fidget > Checks, and Tests/NightRules) compile this file.
+//
+// PLAYTEST 7 (19 Oct 2026; his girlfriend, dyslexic, first time: "What's saffron how?" ... "Is this West Street or is that
+// West Street?"): Grace's house has one name everywhere the night names it: "12 West Street, the yellow house with the porch
+// light" (the street as a token, so a renamed street renames it here too). Colour alone didn't read at night, and West Street
+// had two saffron houses (Fixit Fidget › Night › Night guidance 1 repaints the other). Each favour also has a Now line (now),
+// the one objective line at the top left while the thing is still to take (NightCycle.NowLine), at most 10 words.
 // ---------------------------------------------------------------------------
 public static class LodgerStory
 {
@@ -128,6 +134,9 @@ public static class LodgerStory
         public string aceLine = "";
         /// <summary>The night's note once he has asked: where it is. {Thing} is its name as Ace knows it, capitalised.</summary>
         public string hint = "";
+        /// <summary>The Now line while it is still to take (NightCycle.NowLine): where it is, in at most WordBudget.NowLine words.
+        /// {Thing} as in hint; a street as its token ("{street:west}").</summary>
+        public string now = "";
         /// <summary>His note on the counter the morning of the third skip in a row (with the review and the officer's word).</summary>
         public string note = "";
         /// <summary>What stands in his corner once he has it (NightZeroSet: "gnome", "cups").</summary>
@@ -138,6 +147,13 @@ public static class LodgerStory
     /// <summary>Her photos (break-ins chunk D): the cups' page waits for them to be a thing in the game.</summary>
     public const string GracePhotos = "grace.photos";
 
+    /// <summary>Grace's street's id (HomeDoor.streetId; District streets names it).</summary>
+    public const string GraceStreet = "west";
+    /// <summary>Grace's house, the one way the night names it, the street as its token: "12 {street:west}, the yellow house with the porch light".</summary>
+    public static string GraceHouseToken => "12 " + StreetNames.Token(GraceStreet) + ", the yellow house with the porch light";
+    /// <summary>The same, as it reads: "12 West Street, the yellow house with the porch light".</summary>
+    public static string GraceHouseName => StreetNames.Resolve(GraceHouseToken);
+
     static readonly Favour[] favours =
     {
         new Favour
@@ -145,7 +161,11 @@ public static class LodgerStory
             id = NightThings.GraceGnome, ask = "", askWarm = "", firstLine = "", remind = "lodger.remind.gnome",
             returnScene = ReturnScene, takes = TakesItLine, sets = TurnsItLine, lesson = LessonLine, page = PageLine,
             teaches = Nerve, pageId = "lodger.page.grace.thursdays", pageText = "Grace is out every Thursday. Back at 1:30.",
-            aceLine = AceNightOne, hint = "{Thing}: Grace's front step, the saffron house on the corner.",
+            aceLine = AceNightOne,
+            // Where he is, in words she can see at night (the number and the street; the porch light, not a colour alone).
+            // 10 words with "Barnaby", 12 with "the garden gnome": the note's budget.
+            hint = "{Thing}: Grace's step, 12 " + StreetNames.Token(GraceStreet) + ". Yellow house, porch light.",
+            now = "{Thing}: Grace's step, 12 " + StreetNames.Token(GraceStreet),
             note = "Reviews are easy. Bring the gnome.", corner = "gnome",
         },
         new Favour
@@ -157,13 +177,16 @@ public static class LodgerStory
             // changes nothing for you broke the rule. Her photos are chunk D too: the page waits for them.
             teaches = Feet, pageId = "lodger.page.grace.photos", pageText = "Grace's photos. She's in none of them.",
             pageNeeds = GracePhotos, aceLine = "ace.line.night2",
-            hint = "{Thing}: Grace's kitchen worktop. Her front door opens.",
+            // "Her front door opens" read as a riddle (the reviewers): say when to go in.
+            hint = "{Thing}: Grace's kitchen worktop. Go in once she's asleep.",
+            now = "{Thing}: Grace's kitchen. Go in once she's asleep.",
             note = "Reviews are easy. Bring the cups.", corner = "cups",
         },
         new Favour
         {
             id = Cones, ask = "night3.ask", askWarm = "", firstLine = "", remind = "lodger.remind.cones", returnScene = "",
             teaches = "routines", aceLine = "ace.line.night3", hint = "Two spots on West Street. The road works have cones.",
+            now = "The cones: the road works on " + StreetNames.Token(GraceStreet),
             note = "Reviews are easy. Bring the cones.", corner = "cones",
         },
     };
@@ -236,12 +259,17 @@ public static class LodgerStory
     /// <summary>His line in the café the morning after a skip: a pool by how warm he is.</summary>
     public static string VisitPool(int warmth) => warmth >= WarmFrom ? VisitWarm : warmth <= ColdFrom ? VisitCold : Visit;
 
-    /// <summary>The night's note: where the thing is, named as Ace knows it ("Barnaby", "the reunion cups").</summary>
-    public static string Hint(Favour favour, string thingName)
+    /// <summary>The night's note: where the thing is, named as Ace knows it ("Barnaby", "the reunion cups"); streets by name.</summary>
+    public static string Hint(Favour favour, string thingName) => Said(favour?.hint, thingName);
+
+    /// <summary>The Now line while the thing is still to take (NightCycle.NowLine): "Barnaby: Grace's step, 12 West Street".</summary>
+    public static string Now(Favour favour, string thingName) => Said(favour?.now, thingName);
+
+    static string Said(string words, string thingName)
     {
-        if (favour == null || string.IsNullOrEmpty(favour.hint)) return "";
+        if (string.IsNullOrEmpty(words)) return "";
         string name = string.IsNullOrEmpty(thingName) ? "It" : char.ToUpperInvariant(thingName[0]) + thingName.Substring(1);
-        return favour.hint.Replace("{Thing}", name);
+        return StreetNames.Resolve(words.Replace("{Thing}", name));
     }
 
     // ---------- lessons ----------
@@ -307,8 +335,10 @@ public static class LodgerStory
     /// </summary>
     public static IEnumerable<NotebookFactData> Pages(Func<string, bool> inTheGame = null)
     {
+        // Her house as the night names it everywhere (playtest 7; 12 words as it reads). Playtest 4: her usual bedtime moved to
+        // 1:20, lamp off 1:40 (GraceNight).
         yield return Page("lodger.page.grace", Notebook.Kinds.Schedule,
-            "Grace: the saffron house on the corner. Asleep by 1:45.");   // playtest 4: her usual bedtime moved to 1:20, lamp off 1:40 (GraceNight)
+            "Grace: 12 " + StreetNames.Token(GraceStreet) + ", the yellow house, porch light. Asleep by 1:45.");
         yield return Page("lodger.page.gnome", Notebook.Kinds.Possession,
             "A gnome on her step. It faces the alley.");
         yield return Page("lodger.page.windows", Notebook.Kinds.Schedule,

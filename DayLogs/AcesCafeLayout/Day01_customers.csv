@@ -1,3 +1,6 @@
 ﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant,review
-"Beatriz",no,"Chatty","Repair","Pocket Watch","Debris Inside, Won't Tell Time","Cleaning","Hot Chocolate",55.5,143.4,87.9,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,,"Let down"
-"Grace",yes,"Grace","Repair","reunion film camera","dirty lens and film path, jammed shutter; keep the scratched strap","Mechanical","Latte",23.9,189.7,165.9,136.0,yes,no,"StormedOutWaiting",,0.0,"Seat",0,0,1,no,no,"grace_reunion_camera_v1",,,"Never again"
+"Officer",yes,"Officer","Drink","Coffee",,,,102.8,203.4,100.6,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,,"Let down"
+"Grace",yes,"Grace","Repair","reunion film camera","Dirty Lens and Film Path","Cleaning",,3.6,224.4,220.8,157.8,yes,yes,"Served","Perfect",0.1,"Seat",50,4,0,no,no,"grace_reunion_camera_v1",,,"Liked it"
+"Yuki",no,"Chatty","Drink","Espresso",,,,241.4,299.1,57.7,35.3,yes,yes,"Served",,1.0,"Seat",4,2,0,no,no,,,,"Loved it"
+"Priya",no,"Cheerful","Repair","Phone","Gunked Up, Won't Charge","Cleaning",,266.8,398.4,131.6,92.2,yes,yes,"Served","Perfect",0.6,"Seat",56,21,0,no,no,,,,"Loved it"
+"Saamin",no,"Chatty","Drink","Tea",,,,328.7,536.8,208.1,130.9,yes,yes,"Served",,0.5,"Seat",3,1,0,no,no,,,,"Loved it"

@@ -69,7 +69,7 @@ public sealed class AimHelpCheck : PlayLab
     ItemInspector inspector;
     ConversationController conversation;
     CustomerSpawner spawner;
-    bool aimWas, spawnerWas = true;
+    bool aimWas, aimTaken, spawnerWas = true;
 
     protected override IEnumerator Run()
     {
@@ -92,6 +92,7 @@ public sealed class AimHelpCheck : PlayLab
         spawner.enabled = false;
         foreach (CustomerBrain c in FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude)) Destroy(c.gameObject);
         aimWas = AimAssist.Enabled;
+        aimTaken = true;   // from here the player's setting is put back whatever happens (Restore, and OnDisable if Play stops)
         AimAssist.Enabled = true;
         PlugInPad("Aim help check pad");
         // A touch of the pad: the game now takes it as the one in hand (the help is for a pad only).
@@ -310,8 +311,26 @@ public sealed class AimHelpCheck : PlayLab
         if (interactor != null && interactor.IsAtStation) interactor.ExitStation();
         if (inspector != null && inspector.IsHoldingItem) inspector.CancelInspection();
         if (conversation != null && conversation.InConversation) conversation.End();
-        AimAssist.Enabled = aimWas;
+        PutAimHelpBack();
         if (spawner != null) spawner.enabled = spawnerWas;
+    }
+
+    // THE PLAYER'S SETTING, ALWAYS (19 Oct 2026). The check turns the help off for one case and on again after; stopping
+    // Play between the two (15 Oct, on his Mac) left "off" saved for every player on that machine, and his girlfriend's
+    // playtest ran without the help until he found the switch. Restore runs only when the check finishes, so the setting is
+    // put back on OnDisable too (Play stopping destroys the check: OnDisable runs), and GameSettings puts it on once more
+    // on the next launch (AimHelpResetKey).
+    void PutAimHelpBack()
+    {
+        if (!aimTaken) return;
+        aimTaken = false;
+        if (AimAssist.Enabled != aimWas) AimAssist.Enabled = aimWas;
+    }
+
+    protected override void OnDisable()
+    {
+        base.OnDisable();
+        PutAimHelpBack();
     }
 
     // ---------- first person: the stick toward a target, let go, settled ----------

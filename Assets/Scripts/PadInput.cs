@@ -29,6 +29,13 @@ using UnityEngine.InputSystem.Controls;
 ///
 /// UsingPad remembers which device the player touched last, so prompts can
 /// say "A" instead of "E" and the mouse cursor can hide while a pad is in use.
+///
+/// BUTTONS ARE ICONS (19 Oct 2026, playtest 7). His girlfriend is dyslexic and plays on a PlayStation pad: "Instead of
+/// writing out square, just put the icon." "I like how you gotta see what button you press, but I can't read fast
+/// enough. So icons would look better." Label(button) is a TextMesh Pro sprite tag now (`<sprite name="ps_cross">`),
+/// drawn from the icon sheet (Tools/UI/draw_button_icons.py; Fixit Fidget › UI › Button icons makes it TMP's default
+/// sprite asset). Word(button) is the old word, for logs and labs. If the sheet isn't there, or lacks a name, Label
+/// gives the word, so a raw tag never shows (Icon, checked once per name).
 /// </summary>
 /// <summary>Controller buttons by position (South = A on Xbox, Cross on PlayStation).</summary>
 public enum PadButton
@@ -75,6 +82,8 @@ public static class PadInput
         trackedFrame = -1;
         lastActive = null;
         rumbling = null;
+        iconTags.Clear();
+        iconsCheckedAgainst = null;
     }
 
     // One small helper object per play session drives the tracking and the
@@ -266,6 +275,7 @@ public static class PadInput
     // the name-building here was garbage every frame with a controller plugged in (30 Sept).
     private static Gamepad kindPad;
     private static Family kindCache = Family.Xbox;
+    private static bool dualSenseCache;
 
     public static Family Kind
     {
@@ -280,17 +290,87 @@ public static class PadInput
                 kindCache = name.Contains("dualshock") || name.Contains("dualsense") || name.Contains("playstation") || name.Contains("sony")
                     ? Family.PlayStation
                     : name.Contains("switch") || name.Contains("pro controller") || name.Contains("nintendo") ? Family.Nintendo : Family.Xbox;
+                dualSenseCache = name.Contains("dualsense");   // Create on a DualSense, Share on a DualShock
             }
             return kindCache;
         }
     }
 
-    /// <summary>What this pad's own face prints for <paramref name="button"/>.</summary>
-    public static string Label(PadButton button)
+    /// <summary>
+    /// The pad's own icon for <paramref name="button"/>, as a TextMesh Pro sprite tag (`&lt;sprite name="ps_cross"&gt;`) for
+    /// the pad family in hand; the word (Word) where the icon sheet isn't there. Put it in a rich text, never in brackets.
+    /// </summary>
+    public static string Label(PadButton button) => Icon(IconName(button), Word(button));
+
+    /// <summary>
+    /// The icon sheet's name for <paramref name="button"/> on the pad in hand: ps_cross / xb_a / sw_b, ps_l1 / xb_lb / sw_l,
+    /// ps_options / xb_menu / sw_plus, ls_press, dpad_up... (Tools/UI/draw_button_icons.py draws them).
+    /// </summary>
+    public static string IconName(PadButton button)
     {
         Family family = Kind;
-        bool dualSense = family == Family.PlayStation && Pad != null
-            && (Pad.layout + " " + Pad.description.product).ToLowerInvariant().Contains("dualsense");
+        string prefix = family == Family.PlayStation ? "ps_" : family == Family.Nintendo ? "sw_" : "xb_";
+        switch (button)
+        {
+            // The face buttons by position: the sheet names them by what the pad prints (Nintendo's A is on the east).
+            case PadButton.South: return family == Family.PlayStation ? "ps_cross" : family == Family.Nintendo ? "sw_b" : "xb_a";
+            case PadButton.East: return family == Family.PlayStation ? "ps_circle" : family == Family.Nintendo ? "sw_a" : "xb_b";
+            case PadButton.West: return family == Family.PlayStation ? "ps_square" : family == Family.Nintendo ? "sw_y" : "xb_x";
+            case PadButton.North: return family == Family.PlayStation ? "ps_triangle" : family == Family.Nintendo ? "sw_x" : "xb_y";
+            case PadButton.LeftShoulder: return family == Family.PlayStation ? "ps_l1" : family == Family.Nintendo ? "sw_l" : "xb_lb";
+            case PadButton.RightShoulder: return family == Family.PlayStation ? "ps_r1" : family == Family.Nintendo ? "sw_r" : "xb_rb";
+            case PadButton.LeftTrigger: return family == Family.PlayStation ? "ps_l2" : family == Family.Nintendo ? "sw_zl" : "xb_lt";
+            case PadButton.RightTrigger: return family == Family.PlayStation ? "ps_r2" : family == Family.Nintendo ? "sw_zr" : "xb_rt";
+            case PadButton.Select:
+                return family == Family.PlayStation ? (DualSense ? "ps_create" : "ps_share") : family == Family.Nintendo ? "sw_minus" : "xb_view";
+            case PadButton.Start: return family == Family.PlayStation ? "ps_options" : family == Family.Nintendo ? "sw_plus" : "xb_menu";
+            case PadButton.LeftStickPress: return "ls_press";
+            case PadButton.RightStickPress: return "rs_press";
+            case PadButton.DpadUp: return "dpad_up";
+            case PadButton.DpadDown: return "dpad_down";
+            case PadButton.DpadLeft: return "dpad_left";
+            case PadButton.DpadRight: return "dpad_right";
+            default: return prefix + button.ToString().ToLowerInvariant();
+        }
+    }
+
+    // ---------- the icons (19 Oct 2026) ----------
+
+    // Each name is looked up once against TMP's default sprite asset (the labels are asked for every frame by the HUD).
+    private static readonly System.Collections.Generic.Dictionary<string, string> iconTags = new System.Collections.Generic.Dictionary<string, string>();
+    private static TMPro.TMP_SpriteAsset iconsCheckedAgainst;
+
+    /// <summary>
+    /// A sprite tag for <paramref name="iconName"/> on the icon sheet (`&lt;sprite name="..."&gt;`), or <paramref name="word"/>
+    /// when TextMesh Pro's default sprite asset is missing or has no icon of that name: a raw tag never shows. The answer is
+    /// cached per name; the cache empties when the default sprite asset changes (the step ran, or was undone).
+    /// </summary>
+    public static string Icon(string iconName, string word)
+    {
+        if (string.IsNullOrEmpty(iconName)) return word ?? "";
+        TMPro.TMP_SpriteAsset sheet = IconSheet;
+        if (!ReferenceEquals(sheet, iconsCheckedAgainst)) { iconTags.Clear(); iconsCheckedAgainst = sheet; }
+        if (iconTags.TryGetValue(iconName, out string tag)) return tag ?? word ?? "";
+        bool known = sheet != null && sheet.GetSpriteIndexFromName(iconName) >= 0;
+        tag = known ? "<sprite name=\"" + iconName + "\">" : null;
+        iconTags[iconName] = tag;
+        return tag ?? word ?? "";
+    }
+
+    /// <summary>True when the icon sheet is in place: button names draw as icons (labs: which words to expect).</summary>
+    public static bool IconsAvailable => Icon("ps_cross", "") != "";
+
+    /// <summary>TextMesh Pro's default sprite asset (null without TMP Settings): where the tags are looked up.</summary>
+    private static TMPro.TMP_SpriteAsset IconSheet => TMPro.TMP_Settings.instance != null ? TMPro.TMP_Settings.defaultSpriteAsset : null;
+
+    // Worked out with Kind, once per pad (the old per-call name building was garbage every frame).
+    private static bool DualSense => Kind == Family.PlayStation && dualSenseCache;
+
+    /// <summary>What this pad's own face prints for <paramref name="button"/>, in words (logs, labs, and the fallback when there is no icon).</summary>
+    public static string Word(PadButton button)
+    {
+        Family family = Kind;
+        bool dualSense = DualSense;
         switch (button)
         {
             case PadButton.South: return family == Family.PlayStation ? "Cross" : family == Family.Nintendo ? "B" : "A";

@@ -802,7 +802,7 @@ public class ItemInspector : MonoBehaviour
 
     private void OnTargetDone(JobBase job, Component target)
     {
-        if (job != null && job == focusedItem && target is GrimeSpot) checkToolHome = true;
+        if (job != null && job == focusedItem) checkToolHome = true;   // 19 Oct: every tool, not only the cloth and the brush
         stepsAt = -10f;   // the steps change with it
     }
 
@@ -811,18 +811,30 @@ public class ItemInspector : MonoBehaviour
         if (job != null) flashedFor = job;
     }
 
-    // The cloth or the brush in the hand, its last spot on this device just came clean: it lifts and flies home, held or not,
-    // and the press is spent until the button is up (§4.4.1).
+    // The tool in the hand whose step is done flies home, held or not, and the press is spent until the button is up (§4.4.1).
+    // The cloth and the brush did after their last spot; 19 Oct, the reviewers: "at 'Fixed!' the last tool stays where it was
+    // dropped" (the driver across the fixed phone's screen). A rub tool goes when none of its spots is left; any other when the
+    // next step wants another tool, or the job is done.
     private void ToolHomeAfterLastSpot()
     {
         checkToolHome = false;
-        if (currentToolPickup == null || !IsRubTool(currentTool) || currentToolPickup.Returning) return;
-        focusedItem.GetComponentsInChildren(spotsBuffer);
-        bool left = false;
-        foreach (GrimeSpot spot in spotsBuffer)
-            if (spot != null && spot.isActiveAndEnabled && !spot.IsClean && spot.Tool == currentTool) { left = true; break; }
-        spotsBuffer.Clear();
-        if (left) return;
+        if (currentToolPickup == null || currentToolPickup.Returning || holdTarget != null) return;
+        if (IsRubTool(currentTool))
+        {
+            focusedItem.GetComponentsInChildren(spotsBuffer);
+            bool left = false;
+            foreach (GrimeSpot spot in spotsBuffer)
+                if (spot != null && spot.isActiveAndEnabled && !spot.IsClean && spot.Tool == currentTool) { left = true; break; }
+            spotsBuffer.Clear();
+            if (left) return;
+        }
+        else
+        {
+            RepairChecklist.Build(focusedItem, steps);
+            RepairChecklist.Step next = RepairChecklist.Current(steps);
+            stepsAt = -10f;
+            if (!focusedItem.IsFinished && next != null && next.tool == currentTool) return;
+        }
         EndRub();
         if (UseHeldRaw) consumedUntilUp = true;
         pressLive = false;

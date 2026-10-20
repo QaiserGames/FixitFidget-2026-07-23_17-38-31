@@ -69,14 +69,20 @@ class Prop:
         self.mats = []          # material objects, in slot order
         self.parts = []         # (part name, set of face indices) for the audit and the report
         self.smooth = set()     # material names shaded smooth
+        # Faces whose builder already turned each one out (open sheets: a strap's face and back, stitch dashes). finish()'s
+        # recalc_face_normals guesses an open sheet's outside and can turn the whole sheet the wrong way: Grace's camera
+        # strap came out with both leather sheets facing the mat on its runs (see-through from above in the game; his
+        # girlfriend's playtest, 19 Oct 2026). recalc leaves these faces as built.
+        self.keep_normals = set()
 
     def slot(self, mat):
         if mat not in self.mats:
             self.mats.append(mat)
         return self.mats.index(mat)
 
-    def add(self, part_name, src_bm, mat, smooth=False):
-        """Append src_bm (freed afterwards) as a part with one material."""
+    def add(self, part_name, src_bm, mat, smooth=False, keep_normals=False):
+        """Append src_bm (freed afterwards) as a part with one material. keep_normals: its faces already point out as
+        built (an open sheet), so finish() must not re-guess them."""
         idx = self.slot(mat)
         dst = self.bm
         vmap = {}
@@ -93,6 +99,8 @@ class Prop:
             nf.smooth = smooth
             new_faces.append(nf)
         src_bm.free()
+        if keep_normals:
+            self.keep_normals.update(new_faces)
         self.parts.append((part_name, new_faces))
         return new_faces
 
@@ -107,7 +115,7 @@ class Prop:
                 if -0.02 < v.co.z < 0.0:
                     v.co.z = 0.0
                     self.floored += 1
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        bmesh.ops.recalc_face_normals(bm, faces=[f for f in bm.faces if f not in self.keep_normals])
         # recalc_face_normals guesses each shell's outside from one face, and can guess wrong on a bent, tipped shape
         # (Barnaby's flopped hat came out inside out: 57 of its 61 faces facing in, so from any side you saw into his
         # head; Mansoor's playtest, 6 Oct 2026). Every closed shell is checked by its volume and turned round if needed.

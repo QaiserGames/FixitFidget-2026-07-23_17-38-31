@@ -476,7 +476,7 @@ internal static class NightTwoSteps
         Debug.Log(Tag + (check > 0
             ? "Night 2 play check: it drives itself from Day 2's recap (a few minutes). Keep the Game view in front and leave the mouse and keyboard alone."
             : "Night 2 lab: Day 2's recap, after Night 1 (the man met, Barnaby given, Nerve, Grace's morning held). Its button leads into Night 2: " +
-              "the bins, his verdict, and the cups. Grace's house is the saffron house on the corner; the cups are on her kitchen worktop.")
+              "the bins, his verdict, and the cups. Grace's house is the yellow house with the porch light (12 West Street); the cups are on her kitchen worktop.")
             + $" Test save {path}; your playtest save is not used.");
         EditorApplication.EnterPlaymode();
     }

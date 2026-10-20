@@ -31,7 +31,7 @@ public sealed class DistrictStreets : ScriptableObject
     [Tooltip("Placeholder names for now. Rename freely; keep the ids.")]
     public Street[] streets =
     {
-        new Street { id = "west", name = "West Street", where = "Between the café's street-side windows and the bay-window houses (Grace's saffron house is on it)." },
+        new Street { id = "west", name = "West Street", where = "Between the café's street-side windows and the bay-window houses (Grace's yellow house is on it)." },
         new Street { id = "east", name = "East Street", where = "Past the courtyard, in front of the courtyard shops." },
         new Street { id = "front", name = "Front Street", where = "In front of the café's door, with the café's car park across it." },
         new Street { id = "back", name = "Back Street", where = "Behind the café, at the far end of the west and east streets." },

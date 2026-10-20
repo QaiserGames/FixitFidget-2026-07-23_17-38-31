@@ -106,8 +106,17 @@ public class GrimeSpot : MonoBehaviour
     public bool Armed => !done && Progress >= BenchRules.ArmAt;
     /// <summary>The spot's radius on the part (metres): the geometric mean of the patch's two scales.</summary>
     public float Radius => BenchRules.SpotRadius(Mathf.Abs(transform.lossyScale.x), Mathf.Abs(transform.lossyScale.z));
-    /// <summary>The patch's own up (out of the surface, where the dirt shows), in the world.</summary>
-    public Vector3 Normal => (transform.up * (awoke ? facing : 1f)).normalized;
+    /// <summary>The patch's own up (out of the surface, where the dirt shows), in the world. Which of its two faces that is
+    /// is worked out as it wakes (LayThePatch), so a reader that comes first (the checklist built in the editor's checks, before
+    /// any Awake) wakes it, as Contact and Pass do: the answer is the same whoever asks first (19 Oct, the watch's crystal).</summary>
+    public Vector3 Normal
+    {
+        get
+        {
+            if (!awoke) Awake();
+            return (transform.up * facing).normalized;
+        }
+    }
     /// <summary>The patch's middle on the surface, in the world.</summary>
     public Vector3 Centre => awoke ? transform.TransformPoint(new Vector3(0f, surfaceY, 0f)) : transform.position;
 

@@ -18,44 +18,58 @@ using UnityEngine.UI;
 //   * THE PAPER CARD, top right under today's takings (ReStory's notepad is on the right): a cream card with the job's tape,
 //     the customer's own words in one line (Grace: "The lens and film path are dirty."; FaultSpeech's spoken form, at most
 //     8 words), then one icon per step (the bench's own tools), the current one big on a soft disc with its verb under it
-//     ("Wipe"), the done ones ticked, pips for a step with several targets. A step whose work lies on the face turned down
-//     says "[Y] Flip it over". When it's fixed the row folds into "[E] Take it to Grace".
+//     ("Wipe"), the done ones ticked, "2 left" for a step with several targets. A step whose work lies on the face turned
+//     down says "Flip it over" after the flip key's icon. When it's fixed the row folds into "Take it to Grace" after E's.
 //   * THE GLOW (BenchGlow) on the next thing to touch: the card's icon says which tool, the glow says where.
 //   * TAB / VIEW: a press shows "what's left" (BenchWork.Flash: every speck still dirty flashes gold, PowerWash's dirt
 //     indicator); held 0.35 s, every control while it's held.
 //   * THE CONTROLS CARD, bottom right: on the first repair only (Day 1 until a repair is handed back, worked out from the
 //     day, never PlayerPrefs: "Fresh game" shows it again to playtest 6's stranger), 11 words (the Producer's call 6). After
-//     that one hint, "[Tab] Help". Stuck 20 s with no progress, the first repair's lines come back until the next tick.
+//     that one hint, the help key's icon and "Help". Stuck 20 s with no progress, the first repair's lines come back until
+//     the next tick.
 //   * STUCK: no progress for 12 s, the glow pulses once (BenchGlow) and the help hint with it; on the first repair "what's
 //     left" fires once by itself then if nothing showed it yet (T17; the bench raises the 3 s scrub case itself).
 //
 // Everything times itself on UiClock (real seconds that stand still while the phone pauses), so it is the same at his Mac's
 // 15 fps as at 60. The card re-reads the steps every 0.1 s and on the frame a target finishes (BenchWork.TargetDone).
 // PLACEHOLDER COPY throughout: his sister writes the words (the Content role).
+//
+// PLAYTEST 7 (19 Oct 2026; his girlfriend, dyslexic, first time, a PlayStation pad): "What does it tell you on the right?
+// Flip it over?... It's just so tiny." and "your text needs to be bolder"; "Instead of writing out square, just put the icon."
+//   * READABLE: the verb under the current icon is 28 px bold (it was 17), the customer's line 22 (19), the controls card and
+//     the help hint 22 (18, 17), the finished line 24. The card keeps to UI/UX's zone U3 (480 x 168): the icons' disc is 58
+//     (64), the paddings 10 (12). A step with several pieces says "2 left" after its verb (22 px) instead of 6 px pips that
+//     nobody could read.
+//   * HONEST TICKS: a step is ticked only when it was done in this job (RepairChecklist: "Cover on" no longer ticks before
+//     the cover was ever off), and only the current step wears the soft disc: one icon lit at a time, the one to do.
+//   * ICONS, NOT NAMES: every button is its icon (PadInput.Label and ControlHints return a TextMesh Pro sprite tag for the
+//     device in hand, builder T's contract of 19 Oct), with no "[ ]" round it and no "Press X" spelled out; the card's words
+//     follow whichever device was touched last (the key for the controls card carries it). A press on the cloth and a drag
+//     is one line, "Drag a tool", after the mouse's icon.
 // ---------------------------------------------------------------------------
 public sealed class BenchCards : MonoBehaviour
 {
     const int SortingOrder = 20;          // over the HUD's corners (2) and the glow (15), under the pins (30) and the circuit (80)
 
-    // ---- the paper card (reference pixels, 1920 x 1080; §5.2) ----
+    // ---- the paper card (reference pixels, 1920 x 1080; §5.2; the sizes of 19 Oct, the header) ----
     const float CardRight = UiSkin.Margin, CardTop = 132f;   // under the takings (18 + 92) with room for the "+$" pop
     const float CardMinWidth = 360f, CardMaxWidth = 480f;
-    const float PadX = 14f, PadY = 12f, LineSize = 19f, LineHeight = 26f, LineGap = 10f;
-    const float Disc = 64f, BigIcon = 56f, SmallIcon = 36f, IconGap = 10f, VerbSize = 17f, VerbHeight = 18f;
-    const float Pip = 6f, PipGap = 4f, PipDrop = 4f, BadgeSize = 18f, FinishedCheck = 36f;
+    const float PadX = 14f, PadY = 10f, LineSize = 22f, LineHeight = 28f, LineGap = 4f;
+    const float Disc = 58f, BigIcon = 50f, SmallIcon = 32f, IconGap = 10f, VerbSize = 28f, VerbHeight = 30f;
+    const float LeftSize = 22f, BadgeSize = 20f, FinishedCheck = 40f, FinishedSize = 24f;
     const float TapeWidth = 44f, TapeHeight = 14f;
-    const int MostIcons = 8, MostPips = 6;
+    const int MostIcons = 8;
 
     // ---- the controls card and the hint (§5.5) ----
-    const float ControlsWidth = 400f, ControlsSize = 18f, ControlsPadX = 14f, ControlsPadY = 11f, Bottom = 26f;
-    const float HintSize = 17f, HintHeight = 34f;
-    const float ChipRow = 44f, LabNudge = 92f;   // HudCorners' stock chips (one row each) and the café lab's banner
+    const float ControlsWidth = 400f, ControlsSize = 22f, ControlsPadX = 14f, ControlsPadY = 11f, Bottom = 26f;
+    const float HintSize = 22f, HintHeight = 40f;
+    const float ChipRow = 70f, LabNudge = 92f;   // HudCorners' stock chips (two lines each since 20 Oct: 62 px at a 70 px pitch) and the café lab's banner
 
     // ---- timing (UiClock seconds) ----
     const float RefreshEvery = .1f, HoldForControls = .35f, FlashSeconds = 1.5f;
     const float StuckPulseAfter = 12f, StuckControlsAfter = 20f, TickedFlashAfter = 1.5f, FinishedHold = .6f;
     const float InSeconds = .25f, OutSeconds = .15f, SlideFrom = 40f;
-    const float PopSeconds = .22f, StampSeconds = .18f, GrowSeconds = .25f, PipPopSeconds = .12f, TickSoundDelay = .12f;
+    const float PopSeconds = .22f, StampSeconds = .18f, GrowSeconds = .25f, TickSoundDelay = .12f;
     const float PulseSeconds = .6f;
 
     // ------------------------------------------------------------------ what the labs, the glow and the checks read
@@ -72,16 +86,20 @@ public sealed class BenchCards : MonoBehaviour
     public static bool Showing => Instance != null && Instance.group != null && Instance.canvas.enabled && Instance.group.alpha > .5f;
     /// <summary>The card's line as it reads now, plain (Grace: "The lens and film path are dirty.").</summary>
     public static string JobLine => Instance != null ? Instance.plainLine : "";
-    /// <summary>The words under the current icon ("Wipe", "[Y] Flip it over"); "" when every step is ticked.</summary>
+    /// <summary>The words under the current icon ("Wipe", "Flip it over" after its icon), plain; "" when every step is ticked.</summary>
     public static string CurrentVerb => Instance != null ? Instance.shownVerb : "";
+    /// <summary>The "2 left" after the current verb, plain ("" when the step has one piece, or none to do).</summary>
+    public static string CurrentLeft => Instance != null ? Instance.shownLeft : "";
     /// <summary>The current step's icon key ("cloth", "screwdriver"); "" when every step is ticked.</summary>
     public static string CurrentIcon => Instance != null ? Instance.shownIcon : "";
     /// <summary>The icons on the card, in order (their Resources names under UI/BenchIcons).</summary>
     public static IReadOnlyList<string> Icons => Instance != null ? Instance.iconKeys : null;
-    /// <summary>The card's row has folded into its finished line ("[E] Take it to Grace").</summary>
+    /// <summary>The card's row has folded into its finished line (the icon, then "Take it to Grace").</summary>
     public static bool FinishedShowing => Instance != null && Instance.finishedFolded;
-    /// <summary>The finished line as it reads now, plain ("" before it folds).</summary>
+    /// <summary>The finished line as it reads now, plain ("" before it folds). Its icon is a tag, so it isn't in the plain text:
+    /// FinishedRich has it.</summary>
     public static string FinishedText => Instance != null && Instance.finishedFolded ? Plain(Instance.finishedWords) : "";
+    public static string FinishedRich => Instance != null && Instance.finishedFolded ? Instance.finishedWords : "";
     /// <summary>The checklist in one line, plain: the card's line, then the verb (or the finished line).</summary>
     public static string ChecklistText => Instance == null ? "" : Instance.plainLine + " / " + (Instance.finishedFolded ? FinishedText : Instance.shownVerb);
     /// <summary>The job's steps as they stand (labs; ItemInspector's "next part" reads the current one).</summary>
@@ -104,11 +122,11 @@ public sealed class BenchCards : MonoBehaviour
     public static bool ControlsInFull => ControlsShowing;
     /// <summary>The full controls card is up (Tab / View held 0.35 s).</summary>
     public static bool ControlsHeld => Instance != null && Instance.controlsMode == ControlsMode.Held && Showing;
-    /// <summary>The controls card's words as they read now ("" when no card is up).</summary>
+    /// <summary>The controls card's words as they read now ("" when no card is up), rich (the buttons are sprite tags).</summary>
     public static string ControlsText => ControlsShowing ? Instance.controlsText.text : "";
-    /// <summary>The full card's words for the input in hand now, shown or not (labs: the sticks' names, the flip's key).</summary>
+    /// <summary>The full card's words for the input in hand now, shown or not (labs: the sticks' icons, the flip's key).</summary>
     public static string HeldControlsText => HeldControlsWords();
-    /// <summary>The help hint is up ("[Tab] Help").</summary>
+    /// <summary>The help hint is up (the help key's icon, then "Help").</summary>
     public static bool HintShowing => Instance != null && Instance.hint != null && Instance.hint.gameObject.activeSelf && Showing;
     public static string HintText => HintShowing ? Instance.hintText.text : "";
 
@@ -142,8 +160,10 @@ public sealed class BenchCards : MonoBehaviour
     static readonly string KeyOnBand = UiSkin.HexOf(UiSkin.BrandBright), FaintOnBand = UiSkin.HexOf(UiSkin.BandFaint),
         KeyOnPaper = UiSkin.HexOf(UiSkin.Brand);
 
-    static string K(string label) => $"<color={KeyOnBand}>[{label}]</color>";
-    static string KP(string label) => $"<color={KeyOnPaper}><b>[{label}]</b></color>";
+    // A button on the band and on the paper: its icon (a sprite tag from PadInput / ControlHints; the colour only shows if the
+    // icon ever falls back to a word), with no brackets round it (19 Oct: an icon needs none).
+    static string K(string label) => $"<color={KeyOnBand}>{label}</color>";
+    static string KP(string label) => $"<color={KeyOnPaper}><b>{label}</b></color>";
 
     /// <summary>
     /// The card's line: the customer's name and what's wrong in their own words (FaultSpeech), a capital and a full stop:
@@ -166,7 +186,7 @@ public sealed class BenchCards : MonoBehaviour
     /// <summary>
     /// The first repair's controls card (the Producer's call 6: 11 words with either input; "(hold: controls)" only on the
     /// held card). Direct grab (14 Oct): the cloth and the brush are taken by pressing on them and dragging, so taking a tool
-    /// and using it are one line.
+    /// and using it are one line: the mouse's button, "Drag a tool" (19 Oct: the icon says which button; the words say what).
     /// </summary>
     public static string FirstRepairControlsWords()
     {
@@ -175,8 +195,8 @@ public sealed class BenchCards : MonoBehaviour
                  + $"{K(PadInput.Label(PadButton.South))}  Use\n"
                  + $"{K(ControlHints.Back)}  Step back\n"
                  + $"{K(ControlHints.BenchHelp)}  What's left";
-        return $"{K("Drag a tool")}  Use it\n"
-             + $"{K("Right-click")}  Step back\n"
+        return $"{K(ControlHints.Use)}  Drag a tool\n"
+             + $"{K(ControlHints.Cancel)}  Step back\n"
              + $"{K(ControlHints.BenchHelp)}  What's left";
     }
 
@@ -188,38 +208,43 @@ public sealed class BenchCards : MonoBehaviour
             return $"{K(ControlHints.BenchHandStick)}  Move your hand\n"
                  + $"{K(ControlHints.Tools)}  Pick a tool\n"
                  + $"{K(ControlHints.BenchUse)}  Hold to use\n"
-                 + $"{K(ControlHints.BenchTurnStick)}  Turn it a quarter · up/down: peek\n"
+                 + $"{K(ControlHints.BenchTurnStick)}  Turn it a quarter · up/down tilts it\n"
                  + $"{K(ControlHints.Flip)}  Flip it over\n"
-                 + $"{K("D-pad left/right")}  Next part\n"
+                 + $"{K(PadInput.Label(PadButton.DpadLeft))} {K(PadInput.Label(PadButton.DpadRight))}  Next part\n"
                  + $"{K(ControlHints.BenchZoom)}  Zoom\n"
                  + $"{K(ControlHints.Back)}  Step back\n"
                  + $"{K(ControlHints.TakeFromBench)}  Pick it up\n"
                  + help;
-        return $"{K("Drag a tool")}  Use it\n"
-             + $"{K("Drag")}  Turn it · up/down: peek\n"
+        return $"{K(ControlHints.Use)}  Drag a tool to use it\n"
+             + $"{K(ControlHints.Use)}  Drag the mat to turn it · up/down tilts it\n"
              + $"{K(ControlHints.Flip)}  Flip it over\n"
              + $"{K(ControlHints.BenchZoom)}  Zoom\n"
-             + $"{K("Right-click")}  Step back\n"
+             + $"{K(ControlHints.Cancel)}  Step back\n"
              + $"{K(ControlHints.TakeFromBench)}  Pick it up\n"
              + help;
     }
 
-    /// <summary>The one hint after the first repair: "[Tab] Help" ("[View] Help" on a pad). The phone can't open at the bench, so this is where the controls are found.</summary>
+    /// <summary>The one hint after the first repair: the help key's icon, then "Help". The phone can't open at the bench, so this is where the controls are found.</summary>
     public static string HintWords() => $"{K(ControlHints.BenchHelp)}  Help";
 
-    /// <summary>The verb for a step whose work lies on the face turned down: "[R] Flip it over" ("[Y]" on a pad); 4 words.</summary>
+    /// <summary>The verb for a step whose work lies on the face turned down: the flip key's icon, then "Flip it over"; 3 words.</summary>
     public static string FlipWords() => $"{KP(ControlHints.Flip)} Flip it over";
 
     /// <summary>
-    /// The finished line: "[E] Take it to Grace" ("[X]" on a pad: A uses at the bench); "Hands full: free a hand first";
-    /// "[E] Pick it up" for a device with no owner. <paramref name="called"/> is the owner as a sentence says them
-    /// ("Grace", "the Officer": DayOneGuideUI.Called), or "" for none.
+    /// The finished line: the pick-up key's icon, then "Take it to Grace" (E; Square on a PlayStation pad: Cross uses at the
+    /// bench); "Hands full: free a hand first"; "Pick it up" for a device with no owner. <paramref name="called"/> is the owner
+    /// as a sentence says them ("Grace", "the Officer": DayOneGuideUI.Called), or "" for none.
     /// </summary>
     public static string FinishedWords(string called, bool handsFull)
     {
         if (handsFull) return "Hands full: free a hand first";
         return string.IsNullOrWhiteSpace(called) ? $"{KP(ControlHints.TakeFromBench)} Pick it up" : $"{KP(ControlHints.TakeFromBench)} Take it to {called}";
     }
+
+    /// <summary>"2 left" after the current verb for a step with several pieces (19 Oct: the 6 px pips were unreadable); ""
+    /// for one piece, or none left.</summary>
+    public static string LeftWords(RepairChecklist.Step step) =>
+        step == null || step.done || step.total <= 1 || step.left <= 0 ? "" : step.left + " left";
 
     /// <summary>The words under a step's icon: its verb (RepairChecklist fills it), or one from its tool while that's missing.</summary>
     public static string VerbOf(RepairChecklist.Step step)
@@ -271,12 +296,9 @@ public sealed class BenchCards : MonoBehaviour
     {
         public RectTransform root, iconRect, discRect, badgeRect;
         public Image disc, icon, checkDisc, checkMark, flipDisc, flipMark;
-        public readonly Image[] pips = new Image[MostPips];
-        public readonly float[] pipSince = new float[MostPips];
         public float sizeFrom = SmallIcon, sizeTo = SmallIcon, sizeSince = -10f, tickSince = -10f;
         public string key;
         public bool used, done, current, flip, real;
-        public int pipsDone, pipsTotal;
     }
 
     // A step as the card knows it from one refresh to the next (its icon and verb and which of its kind it is): a step done
@@ -292,7 +314,7 @@ public sealed class BenchCards : MonoBehaviour
     CanvasGroup group;
     RectTransform card, tape, controls, hint, row;
     Image cardShadow, controlsShadow, hintEdge, controlsEdge, finishedCheckImage;
-    TextMeshProUGUI lineText, verbText, finishedText, controlsText, hintText;
+    TextMeshProUGUI lineText, verbText, leftText, finishedText, controlsText, hintText;
     readonly Slot[] slots = new Slot[MostIcons];
     readonly List<RepairChecklist.Step> steps = new();
     readonly List<string> iconKeys = new();
@@ -302,11 +324,12 @@ public sealed class BenchCards : MonoBehaviour
     JobBase shownFor;
     float nextRefresh, inSince = -10f, outSince = -10f, cardAlpha, stepSince = -10f, lastProgressAt, stuckPulseAt = -10f;
     float tickedSince = -1f, finishedAt = -1f, helpDownSince = -1f, pulseAt = -10f;
-    bool refreshNow, wasWanted, stuckPulsed, stuckControls, tickedFlashed, finishedFolded, lineWraps;
+    bool refreshNow, wasWanted, stuckPulsed, stuckControls, tickedFlashed, finishedFolded;
+    float lineH = LineHeight;   // the customer's line as measured in the skin's font (one line, or two when it wraps)
     JobBase flashedJob;   // the last job "what's left" showed for, kept across close-ups: T17's automatic flash is once a job
     int currentIndex = -1;
     StepKey currentKey;
-    string plainLine = "", shownVerb = "", shownIcon = "", finishedWords = "";
+    string plainLine = "", shownVerb = "", shownLeft = "", shownIcon = "", finishedWords = "";
     int controlsKey = -1, hintKey = -1;   // ints, so the bench screen allocates nothing per frame (review m3)
     float cardWidth = CardMinWidth;
     ControlsMode controlsMode;
@@ -402,7 +425,7 @@ public sealed class BenchCards : MonoBehaviour
         tickedSince = finishedAt = -1f;
         nextRefresh = 0f;
         refreshNow = true;
-        plainLine = shownVerb = shownIcon = finishedWords = "";
+        plainLine = shownVerb = shownLeft = shownIcon = finishedWords = "";
         layoutDirty = true;
         foreach (Slot s in slots)
             if (s != null) { s.used = false; s.key = null; s.tickSince = -10f; s.sizeFrom = s.sizeTo = SmallIcon; s.sizeSince = -10f; }
@@ -495,7 +518,7 @@ public sealed class BenchCards : MonoBehaviour
         }
         else { tickedSince = -1f; tickedFlashed = false; }
 
-        // Finished: the checks hold 0.6 s, then the row folds into "[E] Take it to Grace".
+        // Finished: the checks hold 0.6 s, then the row folds into "Take it to Grace" (after E's icon).
         if (finished && finishedAt < 0f) finishedAt = now;
         if (!finished) { finishedAt = -1f; if (finishedFolded) { finishedFolded = false; layoutDirty = true; } }
         if (finished && !finishedFolded && now - finishedAt >= FinishedHold) { finishedFolded = true; layoutDirty = true; }
@@ -516,12 +539,7 @@ public sealed class BenchCards : MonoBehaviour
             iconKeys.Add(key);
             bool current = i == newCurrent;
             bool flip = current && step.under;
-            int total = Mathf.Clamp(step.total, 0, MostPips), done = Mathf.Clamp(step.total - step.left, 0, total);
-            if (step.done) done = total;
-            if (!s.used || s.key != key || s.done != step.done || s.current != current || s.flip != flip || s.pipsTotal != total) layoutDirty = true;
-            if (s.used && s.key == key)
-                for (int p = s.pipsDone; p < done && p < MostPips; p++) s.pipSince[p] = now;   // a pip fills with a pop
-            if (s.pipsDone != done) layoutDirty = true;
+            if (!s.used || s.key != key || s.done != step.done || s.current != current || s.flip != flip) layoutDirty = true;
             if (!s.used || s.key != key)
             {
                 s.icon.sprite = Icon(key, out bool real);
@@ -531,8 +549,6 @@ public sealed class BenchCards : MonoBehaviour
             s.key = key;
             s.done = step.done;
             s.flip = flip;
-            s.pipsTotal = total;
-            s.pipsDone = done;
             float size = current ? BigIcon : SmallIcon;
             if (!Mathf.Approximately(s.sizeTo, size) || s.current != current)
             {
@@ -548,7 +564,11 @@ public sealed class BenchCards : MonoBehaviour
         RepairChecklist.Step doing = newCurrent >= 0 ? steps[newCurrent] : null;
         string verb = doing == null ? "" : doing.under ? FlipWords() : VerbOf(doing);
         if (verb != verbText.text) { verbText.text = verb; layoutDirty = true; }
+        // "2 left" after the verb for a step with several pieces (not while it asks for the flip: one thing at a time).
+        string left = doing == null || doing.under ? "" : LeftWords(doing);
+        if (left != leftText.text) { leftText.text = left; layoutDirty = true; }
         shownVerb = Plain(verb);
+        shownLeft = left;
         shownIcon = doing != null ? IconOf(doing) : "";
     }
 
@@ -655,7 +675,9 @@ public sealed class BenchCards : MonoBehaviour
             rich = "<b>" + name.Trim() + ":</b>" + rich.Substring(name.Trim().Length + 1);
         lineText.text = rich;
         Vector2 size = lineText.GetPreferredValues(rich, CardMaxWidth - 2f * PadX, 0f);
-        lineWraps = size.y > LineHeight * 1.4f;
+        // Its height as the font draws it (a font with tall ascenders, Baloo 2 say, needs more than LiberationSans): the layout
+        // keeps to the measure, never to a guess of one or two lines.
+        lineH = Mathf.Max(LineHeight, Mathf.Ceil(size.y));
         // The tape: the job's colour, as on its tab and its tag.
         Color c = job.Owner != null ? job.Owner.JobColor : job.Record != null ? job.Record.color : UiSkin.Brand;
         tape.GetComponent<Image>().color = new Color(c.r, c.g, c.b, .92f);
@@ -683,7 +705,6 @@ public sealed class BenchCards : MonoBehaviour
         {
             if (s == null || !s.used) continue;
             if (now - s.sizeSince < GrowSeconds || now - s.tickSince < Mathf.Max(PopSeconds, StampSeconds)) moving = true;
-            for (int p = 0; p < s.pipsDone && p < MostPips; p++) if (now - s.pipSince[p] < PipPopSeconds) moving = true;
         }
         if (!moving) { UiSkin.Follow(cardShadow.rectTransform, card, 8f, 3f); return; }
         layoutDirty = false;
@@ -691,11 +712,11 @@ public sealed class BenchCards : MonoBehaviour
         UiSkin.Follow(cardShadow.rectTransform, card, 8f, 3f);
     }
 
-    // Everything on the card placed for this moment: the line, the icons (sizes easing), the verb and the pips, or the
+    // Everything on the card placed for this moment: the line, the icons (sizes easing), the verb and "2 left", or the
     // finished line. Only while something moves (a tick, a grow, the slide in, new words); still frames cost nothing.
     void Layout(float now)
     {
-        float lineH = lineWraps ? LineHeight * 2f : LineHeight;
+        float lineH = this.lineH;
         Place(lineText.rectTransform, new Vector2(PadX, -PadY), new Vector2(CardMaxWidth - 2f * PadX, lineH));
         float rowTop = -PadY - lineH - LineGap;
         float centreY = rowTop - Disc * .5f;
@@ -723,13 +744,7 @@ public sealed class BenchCards : MonoBehaviour
             {
                 Slot s = slots[i];
                 if (s == null) continue;
-                if (!s.used)
-                {
-                    s.root.gameObject.SetActive(false);
-                    // A current step's pips sit on the verb's line (the row's), not under the slot: put them away too.
-                    foreach (Image pip in s.pips) if (pip.gameObject.activeSelf) pip.gameObject.SetActive(false);
-                    continue;
-                }
+                if (!s.used) { s.root.gameObject.SetActive(false); continue; }
                 s.root.gameObject.SetActive(true);
                 used++;
                 float size = SizeOf(s, now);
@@ -740,13 +755,19 @@ public sealed class BenchCards : MonoBehaviour
                 x += w + IconGap;
                 finalX += (s.current ? Disc : SmallIcon) + IconGap;
             }
-            // The verb under the current icon (centred on it when it fits, else from its left edge), its pips after it.
+            // The verb under the current icon (centred on it when it fits, else from its left edge), "2 left" after it.
             float verbWidth = verbText.text.Length > 0 ? verbText.GetPreferredValues(verbText.text, 999f, VerbHeight).x : 0f;
+            float leftWidth = leftText.text.Length > 0 ? leftText.GetPreferredValues(leftText.text, 999f, VerbHeight).x : 0f;
             float verbLeft = current == null ? PadX : verbWidth <= Disc + 16f ? currentLeft + Disc * .5f - verbWidth * .5f : currentLeft;
             verbLeft = Mathf.Max(PadX, verbLeft);
             Place(verbText.rectTransform, new Vector2(verbLeft, rowTop - Disc), new Vector2(Mathf.Ceil(verbWidth) + 4f, VerbHeight));
             float verbRight = verbLeft + verbWidth;
-            if (current != null) verbRight = PlaceCurrentPips(current, verbRight + 6f, rowTop - Disc - VerbHeight * .5f, now);
+            leftText.gameObject.SetActive(leftWidth > 0f);
+            if (leftWidth > 0f)
+            {
+                Place(leftText.rectTransform, new Vector2(verbRight + 10f, rowTop - Disc), new Vector2(Mathf.Ceil(leftWidth) + 4f, VerbHeight));
+                verbRight += 10f + leftWidth;
+            }
             width = Mathf.Max(lineWidth + 2f * PadX, finalX - IconGap + PadX, verbRight + PadX);
             height = PadY + lineH + LineGap + Disc + VerbHeight + PadY;
             if (used == 0) height = PadY + lineH + PadY;
@@ -759,9 +780,10 @@ public sealed class BenchCards : MonoBehaviour
     void PlaceSlot(Slot s, float left, float centreY, float width, float size, float k, float now)
     {
         Place(s.root, new Vector2(left, centreY + Disc * .5f), new Vector2(width, Disc));
-        // The soft disc behind the current icon grows in with it.
+        // The soft disc behind the current icon grows in with it, and only the current one wears it (19 Oct: one icon lit at a
+        // time; the one shrinking away showed a fading disc beside the one growing).
         s.discRect.sizeDelta = new Vector2(width, width);
-        s.disc.color = new Color(UiSkin.BrandSoft.r, UiSkin.BrandSoft.g, UiSkin.BrandSoft.b, k);
+        s.disc.color = new Color(UiSkin.BrandSoft.r, UiSkin.BrandSoft.g, UiSkin.BrandSoft.b, s.current ? k : 0f);
         // The tick's pop: 1.0 → 1.18 → 1.0 over 0.22 s.
         float pop = now - s.tickSince < PopSeconds ? 1f + .18f * Mathf.Sin(Mathf.Clamp01((now - s.tickSince) / PopSeconds) * Mathf.PI) : 1f;
         s.iconRect.sizeDelta = new Vector2(size, size);
@@ -787,51 +809,6 @@ public sealed class BenchCards : MonoBehaviour
         // Flip: the step's icon with a badge (the turn-over arrow) at its upper right.
         s.flipDisc.gameObject.SetActive(s.flip);
         if (s.flip) s.badgeRect.anchoredPosition = new Vector2(size * .5f - 4f, size * .5f - 4f);
-        // The pips under a small icon (the current step's go after its verb).
-        for (int p = 0; p < MostPips; p++)
-        {
-            Image pip = s.pips[p];
-            bool on = !s.current && p < s.pipsTotal && s.pipsTotal > 1;
-            if (pip.gameObject.activeSelf != on) pip.gameObject.SetActive(on);
-            if (!on) continue;
-            float rowWidth = s.pipsTotal * Pip + (s.pipsTotal - 1) * PipGap;
-            RectTransform r = pip.rectTransform;
-            r.SetParent(s.root, false);
-            r.anchorMin = r.anchorMax = new Vector2(.5f, .5f);
-            r.pivot = new Vector2(.5f, .5f);
-            r.anchoredPosition = new Vector2(-rowWidth * .5f + Pip * .5f + p * (Pip + PipGap), -SmallIcon * .5f - PipDrop - Pip * .5f);
-            PipLook(pip, p < s.pipsDone, s.pipSince[p], now);
-        }
-    }
-
-    // The current step's pips, after its verb on the same line; returns their right edge.
-    float PlaceCurrentPips(Slot s, float left, float centreY, float now)
-    {
-        if (s.pipsTotal <= 1) return left - 6f;
-        for (int p = 0; p < MostPips; p++)
-        {
-            Image pip = s.pips[p];
-            bool on = p < s.pipsTotal;
-            if (pip.gameObject.activeSelf != on) pip.gameObject.SetActive(on);
-            if (!on) continue;
-            RectTransform r = pip.rectTransform;
-            r.SetParent(row, false);
-            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
-            r.pivot = new Vector2(.5f, .5f);
-            // The row hangs from the card's top left corner, so a point measured from the card's top is the row's own.
-            r.anchoredPosition = new Vector2(left + Pip * .5f + p * (Pip + PipGap), centreY);
-            PipLook(pip, p < s.pipsDone, s.pipSince[p], now);
-        }
-        return left + s.pipsTotal * Pip + (s.pipsTotal - 1) * PipGap;
-    }
-
-    static void PipLook(Image pip, bool filled, float since, float now)
-    {
-        float t = Mathf.Clamp01((now - since) / PipPopSeconds);
-        float pop = filled && now - since < PipPopSeconds ? 1f + .5f * Mathf.Sin(t * Mathf.PI) : 1f;
-        pip.rectTransform.sizeDelta = new Vector2(Pip, Pip);
-        pip.rectTransform.localScale = new Vector3(pop, pop, 1f);
-        pip.color = filled ? UiSkin.Brand : new Color(UiSkin.InkFaint.r, UiSkin.InkFaint.g, UiSkin.InkFaint.b, .55f);
     }
 
     static void Place(RectTransform r, Vector2 topLeft, Vector2 size)
@@ -873,23 +850,27 @@ public sealed class BenchCards : MonoBehaviour
         tape.localRotation = Quaternion.Euler(0f, 0f, -7f);
         UiSkin.Paint(tape, UiSkin.Brand, 2f);
 
+        // The customer's line at 22 px (19 Oct: "your text needs to be bolder"; the name in bold, SetLine).
         lineText = UiSkin.Text("The customer's words", card, LineSize, UiSkin.Ink, TextAlignmentOptions.TopLeft, FontStyles.Normal, true);
 
         row = new GameObject("The steps", typeof(RectTransform)).GetComponent<RectTransform>();
         row.SetParent(card, false);
         Place(row, Vector2.zero, Vector2.zero);
         for (int i = 0; i < MostIcons; i++) slots[i] = MakeSlot(i);
+        // The verb at 28 px bold: the one line on the bench screen that says what to do now (her "it's just so tiny").
         verbText = UiSkin.Text("The verb", row, VerbSize, UiSkin.Ink, TextAlignmentOptions.TopLeft, FontStyles.Bold);
+        leftText = UiSkin.Text("How many left", row, LeftSize, UiSkin.InkSoft, TextAlignmentOptions.BottomLeft, FontStyles.Bold);
+        leftText.gameObject.SetActive(false);
 
         finishedCheckImage = MakeImage("Fixed (check)", card, Check, UiSkin.Brand);
-        finishedText = UiSkin.Text("Take it back", card, LineSize, UiSkin.Ink, TextAlignmentOptions.MidlineLeft, FontStyles.Normal);
+        finishedText = UiSkin.Text("Take it back", card, FinishedSize, UiSkin.Ink, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
         finishedCheckImage.gameObject.SetActive(false);
         finishedText.gameObject.SetActive(false);
 
-        // The controls card and the hint, bottom right.
+        // The controls card and the hint, bottom right (22 px, semibold: they instruct).
         controls = BandCard("The controls", root, ControlsWidth, out controlsShadow, out controlsEdge, out _);
-        controlsText = UiSkin.Text("Words", controls, ControlsSize, UiSkin.BandText, TextAlignmentOptions.TopLeft, FontStyles.Normal, true);
-        controlsText.lineSpacing = 2f;
+        controlsText = UiSkin.Text("Words", controls, ControlsSize, UiSkin.BandText, TextAlignmentOptions.TopLeft, FontStyles.Bold, true);
+        controlsText.lineSpacing = 4f;
         RectTransform ct = controlsText.rectTransform;
         ct.anchorMin = Vector2.zero;
         ct.anchorMax = Vector2.one;
@@ -903,7 +884,7 @@ public sealed class BenchCards : MonoBehaviour
         UiSkin.Round(hintFace, HintHeight * .5f);
         UiSkin.Round(hintEdge, HintHeight * .5f + 3f);
         hintShadow.gameObject.SetActive(false);
-        hintText = UiSkin.Text("Words", hint, HintSize, UiSkin.BandText, TextAlignmentOptions.Center, FontStyles.Normal);
+        hintText = UiSkin.Text("Words", hint, HintSize, UiSkin.BandText, TextAlignmentOptions.Center, FontStyles.Bold);
         RectTransform ht = hintText.rectTransform;
         ht.anchorMin = Vector2.zero;
         ht.anchorMax = Vector2.one;
@@ -966,13 +947,6 @@ public sealed class BenchCards : MonoBehaviour
         s.flipMark = MakeImage("Arrow", s.badgeRect, FlipArrow, UiSkin.Ink);
         Centre(s.flipMark.rectTransform, BadgeSize - 4f);
         s.flipDisc.gameObject.SetActive(false);
-        for (int p = 0; p < MostPips; p++)
-        {
-            s.pips[p] = MakeImage("Pip " + (p + 1), s.root, UiSkin.Circle, UiSkin.Brand);
-            Centre(s.pips[p].rectTransform, Pip);
-            s.pips[p].gameObject.SetActive(false);
-            s.pipSince[p] = -10f;
-        }
         s.root.gameObject.SetActive(false);
         return s;
     }

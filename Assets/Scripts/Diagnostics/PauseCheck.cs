@@ -30,12 +30,24 @@ using UnityEngine.UI;
 // morning", Full / Short / Off, and each pill sets GameSettings.DayIntro. Every change is kept in PlayerPrefs at once and
 // reads back as kept (GameSettings.Reload, then read again), the switch and the pills showing it. A pad reaches the morning
 // the way it reaches the picture's quality: its routes, then a virtual pad's D-pad and A. Both settings are put back.
+//
+// 19 Oct 2026 (her playtest 7; his answers): the HUD is one column top right: the sign, then on a dark shelf the sun dial
+// with the time and the day, the takings with the stack against the figure, and the café's stars with "Franchise at 5
+// stars". The checks follow it: the sign and the takings both top right, the sign above the takings; the sun where the
+// day's clock is; the stars as the ledger holds them; a low-stock chip that says when to buy, within the alert budget; at
+// last orders the dial warms and the hud.lastorders chime is asked for, and there is no screen tint any more; at closing the
+// sign turns to CLOSED without ever showing OPEN on the way (the reviewers saw "OPEN · COME IN" at 8:00 PM), the sign's flap
+// (intro.sign) is asked for, and the sun sets below the dial with the moon up.
 // ---------------------------------------------------------------------------
 public sealed class PauseCheck : PlayLab
 {
     public const string PendingKey = "FixitFidget.Pause.Check";
 
     const string SwapKey = "swapsticks";
+    const string PauseNote = "A note that runs out in two seconds.";
+    // The switch just above the morning's row (20 Oct: since 15 Oct "Vibration" sits under "Swap the sticks", so the route down
+    // onto Full starts from it; the swap switch is still checked by its own steps above).
+    const string AboveMorningKey = "vibration";
     static readonly DayIntroMode[] Mornings = { DayIntroMode.Full, DayIntroMode.Short, DayIntroMode.Off };
 
     protected override string Title => "The phone by day (the pause) and the HUD's corners - play check";
@@ -85,14 +97,15 @@ public sealed class PauseCheck : PlayLab
         Check(RecapPhone.PauseSortingOrder == 95 && pause.Phone.GetComponent<Canvas>().sortingOrder == 95,
             "the phone by day draws over everything but the pad's cursor (95)");
 
-        // ---------- the HUD's corners, by day ----------
+        // ---------- the HUD's column, by day ----------
         yield return Seconds(1.5f);
-        Check(corners.Showing && corners.BottomShowing, "the corners are up by day: today's takings top right, the sign bottom left");
-        Check(corners.SignWord == "OPEN" && !corners.LastOrders && !corners.SignClosed, $"the sign reads {corners.SignWord}");
-        Check(corners.ClockLine.Contains(Weekdays.Label(clock.Day)), $"under it, the day and the time: \"{corners.ClockLine}\"");
-        // Playtest 4 (the first hour: "Wednesday · Day 3 9:09 AM" ran together): the day and the time keep apart, measured
-        // with the time at its widest, on today's line and on every weekday's (a long day number too).
-        Check(corners.ClockGap >= 10f, $"...with room between them ({corners.ClockGap:0} px with the time at its widest, at {corners.ClockLineSize:0.#} px)");
+        Check(corners.Showing && corners.BottomShowing, "the HUD is up by day: the column top right (the sign, the day, the takings, the stars) and the chips' corner");
+        Check(corners.SignWord == "OPEN" && corners.FaceShowing == "OPEN" && !corners.LastOrders && !corners.SignClosed, $"the sign reads {corners.SignWord}");
+        Check(corners.ClockLine.Contains(Weekdays.Label(clock.Day)), $"under it, beside the dial, the day and the time: \"{corners.ClockLine}\"");
+        Check(corners.ClockLineSize >= 20f, $"...the day line at {corners.ClockLineSize:0.#} px (22, or 20 for a long weekday, never less: her \"way too small\")");
+        // Playtest 4 (the first hour: "Wednesday · Day 3 9:09 AM" ran together): the day line and the time each have room,
+        // measured with the time at its widest, on today's line and on every weekday's (a long day number too).
+        Check(corners.ClockGap >= 10f, $"...with room to spare beside the dial and across the shelf ({corners.ClockGap:0} px with the time at its widest)");
         float least = float.MaxValue;
         string tightest = "";
         foreach (int d in new[] { 1, 2, 3, 4, 5, 6, 7, 10, 100 })
@@ -101,15 +114,27 @@ public sealed class PauseCheck : PlayLab
             if (gap < least) { least = gap; tightest = Weekdays.Label(d); }
         }
         Check(least >= 10f, $"...and on every weekday's line (the tightest, \"{tightest}   12:00 PM\", keeps {least:0} px)");
+        // The sun dial: the sun where the day's clock is, up (not set), no moon yet.
+        Check(Mathf.Abs(corners.SunProgress - clock.NormalizedDay) < .03f && !corners.SunSet && !corners.MoonShowing,
+            $"the sun is {corners.SunProgress:0.00} of the way along the dial's arc (the day is {clock.NormalizedDay:0.00} through); no moon");
+        Check(corners.DialWarmth < .05f, "...and the dial is still paper (it warms in the last hour)");
         Check(corners.TakingsShown == "$" + clock.Earned, $"today's takings read {corners.TakingsShown} (today ${clock.Earned})");
+        // The café's stars, and the goal under them (her: "You have no idea, right? No.").
+        ReputationLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Reputation : null;
+        int starsHeld = ledger != null ? Mathf.Clamp(ledger.StarsEarned, 0, ReputationRules.MaxStars) : 0;
+        Check(corners.StarsShown == starsHeld && corners.FranchiseLine.Contains("Franchise"),
+            $"the café's stars: {corners.StarsShown} of {ReputationRules.MaxStars} gold (the ledger holds {starsHeld}), and \"{corners.FranchiseLine}\" under them");
         ShopUI hud = FindAnyObjectByType<ShopUI>();
         Check(!HudText(hud, "moneyText") && !HudText(hud, "clockText") && !HudText(hud, "stockText"),
-            "the old money, clock and stock lines are put away by day (the corners carry them)");
+            "the old money, clock and stock lines are put away by day (the column carries them)");
         RectTransform cash = corners.CashRect, sign = corners.SignRect;
         Rect cashOn = OnScreen(cash), signOn = OnScreen(sign);
-        Check(cashOn.xMax > Screen.width * .8f && cashOn.yMax > Screen.height * .8f && signOn.xMin < Screen.width * .2f && signOn.yMin < Screen.height * .2f,
-            $"the stack sits top right ({cashOn.xMin:0}-{cashOn.xMax:0} x {cashOn.yMin:0}-{cashOn.yMax:0}) and the sign bottom left " +
-            $"({signOn.xMin:0}-{signOn.xMax:0} x {signOn.yMin:0}-{signOn.yMax:0}) of {Screen.width} x {Screen.height}");
+        Check(cashOn.xMax > Screen.width * .8f && cashOn.yMin > Screen.height * .55f && signOn.xMax > Screen.width * .8f && signOn.yMax > Screen.height * .85f
+              && signOn.yMin >= cashOn.yMax - 1f,
+            $"the sign sits top right ({signOn.xMin:0}-{signOn.xMax:0} x {signOn.yMin:0}-{signOn.yMax:0}) with the takings under it " +
+            $"({cashOn.xMin:0}-{cashOn.xMax:0} x {cashOn.yMin:0}-{cashOn.yMax:0}) of {Screen.width} x {Screen.height}");
+        Check(corners.TopRightBottom > HudCorners.ColumnTop + 300f && corners.TopRightBottom < 420f && !corners.BenchStrip,
+            $"the column's bottom edge, for whatever sits under it, is {corners.TopRightBottom:0} px down (reference pixels; not folded for the bench)");
         yield return Photo("01-the-corners-by-day");
 
         // A payment: the stack and the figure.
@@ -131,7 +156,11 @@ public sealed class PauseCheck : PlayLab
             int beansWas = stock.Beans;
             stock.SetStock(3, beansWas);
             yield return Seconds(.6f);
-            Check(corners.CupsChipShowing && corners.ChipsText.Contains("cups"), $"low on cups: a chip, bottom right (\"{corners.ChipsText}\")");
+            Check(corners.CupsChipShowing && corners.ChipsText.Contains("cups") && corners.ChipsText.Contains("3 left"), $"low on cups: a chip, bottom right (\"{corners.ChipsText}\")");
+            // 19 Oct (her: "Low on beans... How do you know?... You buy it up through your phone. Oh, I wouldn't know."): it
+            // says when to buy, inside the alert's word budget.
+            Check(corners.ChipsText.Contains("Restock at closing") && !WordBudget.Over(corners.ChipsText, WordBudget.BenchAlert),
+                $"...and it says when to buy, in {WordBudget.Report(corners.ChipsText, WordBudget.BenchAlert)}");
             Rect chipsOn = OnScreen(corners.ChipsRect);
             Check(chipsOn.xMax > Screen.width * .8f && chipsOn.yMin < Screen.height * .3f, "...in the bottom right corner");
             yield return Photo("03-low-on-cups");
@@ -156,21 +185,38 @@ public sealed class PauseCheck : PlayLab
 
         // ---------- moment 3: last orders ----------
         float lastOrdersAt = DayLengthSeconds() / Mathf.Max(1f, clock.ClosingHour - clock.OpeningHour);
+        int chimesBefore = Sfx.Requested("hud.lastorders");
         SetRemaining(Mathf.Min(clock.TimeRemaining, lastOrdersAt * .7f));
         yield return Until(() => corners.LastOrders, 3f, "an hour before closing the sign turns to LAST ORDERS");
         yield return Seconds(1.2f);
-        Check(corners.SignWord == "LAST ORDERS", $"...it reads \"{corners.SignWord}\"");
-        Check(corners.VignetteAlpha > .05f, $"...and an amber glow pulses round the edge of the screen ({corners.VignetteAlpha:0.00})");
+        Check(corners.SignWord == "LAST ORDERS" && corners.FaceShowing == "LAST ORDERS", $"...it reads \"{corners.SignWord}\" (the face showing: \"{corners.FaceShowing}\")");
+        Check(Sfx.Requested("hud.lastorders") > chimesBefore, "...with the soft chime (hud.lastorders asked for)");
+        // 19 Oct: no screen tint any more (his: the orange tint "doesnt fit the overall cozy aesthetic"); the dial warms instead.
+        Check(corners.DialWarmth > .2f, $"...and the dial has warmed toward honey ({corners.DialWarmth:0.00}; no screen tint)");
         yield return Photo("20-last-orders");
         yield return Moment("last orders", pressEsc: false, closeWith: "pad");
 
         // ---------- closing ----------
+        int flapsBefore = Sfx.Requested("intro.sign");
         SetRemaining(.5f);
         yield return Until(() => corners.SignClosed, 4f, "at closing the sign flips over to CLOSED");
-        yield return Seconds(.35f);
-        yield return Photo("30-the-sign-flips");
-        yield return Seconds(1.2f);
-        Check(corners.SignWord == "CLOSED", $"...it reads \"{corners.SignWord}\" once it has turned");
+        // Through the whole turn the face on screen is the old one (LAST ORDERS) and then CLOSED, never OPEN (the reviewers
+        // saw "OPEN · COME IN" at 8:00 PM, mid-turn: the faces are set before the card turns now).
+        bool sawOpen = false, sawLastOrders = false, photographed = false;
+        float turnStarted = UiClock.Now;
+        while (UiClock.Now - turnStarted < .9f)
+        {
+            string facing = corners.FaceShowing;
+            if (facing == "OPEN") sawOpen = true;
+            if (facing == "LAST ORDERS") sawLastOrders = true;
+            if (!photographed && UiClock.Now - turnStarted >= .35f) { photographed = true; yield return Photo("30-the-sign-flips"); }
+            yield return null;
+        }
+        Check(!sawOpen && sawLastOrders, $"...the turn shows LAST ORDERS, then CLOSED, never OPEN ({(sawOpen ? "OPEN was seen" : "no OPEN")}; {(sawLastOrders ? "LAST ORDERS on the way" : "LAST ORDERS not seen")})");
+        yield return Seconds(.4f);
+        Check(corners.SignWord == "CLOSED" && corners.FaceShowing == "CLOSED", $"...it reads \"{corners.SignWord}\" once it has turned");
+        Check(Sfx.Requested("intro.sign") > flapsBefore, "...with the sign's own wooden flap (intro.sign asked for; the day's bell is DayClock's)");
+        Check(corners.SunSet && corners.MoonShowing, "...the sun has set below the dial's right end and the moon is up");
         yield return Photo("31-closed");
         bool up = pause.Open();
         Check(up, "the phone still comes up while the café finishes up (it isn't the recap yet)");
@@ -186,7 +232,7 @@ public sealed class PauseCheck : PlayLab
         // Wait for someone in the café, to watch them hold still.
         yield return Await(() => Customers().Any(), 20f);
         CustomerBrain someone = Customers().FirstOrDefault();
-        NightCycle.Note("A note that runs out in two seconds.", 2f);
+        NightCycle.Note(PauseNote, 2f);
         if (someone != null) Juice.Emote(someone.transform, Juice.Icon.Star);
         yield return Seconds(.25f);
         View before = ViewNow();
@@ -214,7 +260,7 @@ public sealed class PauseCheck : PlayLab
         Vector3 at = someone != null ? someone.transform.position : Vector3.zero;
         float patience = someone != null ? someone.PatienceFraction : 0f;
         int pops = Juice.PopsUp;
-        float sway = corners.SignRect != null ? SwayOf() : 0f, glow = corners.VignetteAlpha;
+        float sway = corners.SignRect != null ? SwayOf() : 0f, sun = corners.SunProgress;
         View held = ViewNow();
         RecapPhone phone = pause.Phone;
         Check(phone.Root.activeInHierarchy && phone.Current == RecapPhone.App.Reviews && phone.LabelOf(phone.Current) == "Today"
@@ -243,8 +289,8 @@ public sealed class PauseCheck : PlayLab
                 $"{when}: nor {someone.CustomerName}, whose patience is where it was ({patience:0.000}; moved {(someone.transform.position - at).magnitude:0.000} m)");
         Check(UiClock.Now - ui < .3f, $"{when}: the screen's own clock stood still ({UiClock.Now - ui:0.00} s of it passed)");
         Check(NoteUp() && Juice.PopsUp >= Mathf.Min(1, pops), $"{when}: the two-second note and the badge are still up");
-        Check(Mathf.Abs(Mathf.DeltaAngle(SwayOf(), sway)) < .01f && Mathf.Abs(corners.VignetteAlpha - glow) < .01f,
-            $"{when}: the sign's sway and the glow round the edge held too ({Mathf.DeltaAngle(sway, SwayOf()):0.000}°, {corners.VignetteAlpha - glow:0.000})");
+        Check(Mathf.Abs(Mathf.DeltaAngle(SwayOf(), sway)) < .01f && Mathf.Abs(corners.SunProgress - sun) < .001f,
+            $"{when}: the sign's sway and the sun on the dial held too ({Mathf.DeltaAngle(sway, SwayOf()):0.000}°, {corners.SunProgress - sun:0.0000})");
         View later = ViewNow();
         Check(Same(before, held) && Same(held, later),
             $"{when}: the view behind the phone holds still (before {before}; up {held}; three seconds on {later})");
@@ -263,7 +309,11 @@ public sealed class PauseCheck : PlayLab
             $"{when}: {closeWith} puts it away and gives the game back");
         yield return Seconds(2.6f);
         Check(clock.CurrentHour > hour + .0001f, $"{when}: the day carries on ({ShopUI.FormatHour(hour)} to {ShopUI.FormatHour(clock.CurrentHour)})");
-        Check(!NoteUp(), $"{when}: and the note runs out now, after the pause");
+        // 20 Oct (builder N): a note stays at least NightCycle.NoteSeconds (2.5 s and 0.45 s a word, a slow reader's time),
+        // whatever it asks for; it was up 0.25 s before the pause, so the rest of its time is waited out here.
+        float rest = NightCycle.NoteSeconds(PauseNote) - .25f - 2.6f;
+        if (rest > 0f) yield return Seconds(rest + .3f);
+        Check(!NoteUp(), $"{when}: and the note runs out now, after the pause ({NightCycle.NoteSeconds(PauseNote):0.0} s of reading time)");
         if (pad != null) PadRelease();
     }
 
@@ -407,7 +457,7 @@ public sealed class PauseCheck : PlayLab
     // (Short over Medium) and back up. Then the D-pad and A themselves, on a virtual pad added for this and removed after.
     IEnumerator PadToTheMorning(RecapPhone phone)
     {
-        Button swap = phone.ContentButton(SwapKey), full = phone.ContentButton("morning:Full"), shortPill = phone.ContentButton("morning:Short"),
+        Button swap = phone.ContentButton(AboveMorningKey) ?? phone.ContentButton(SwapKey), full = phone.ContentButton("morning:Full"), shortPill = phone.ContentButton("morning:Short"),
             off = phone.ContentButton("morning:Off"), medium = phone.ContentButton("quality:Medium");
         if (swap == null || full == null || shortPill == null || off == null || medium == null)
         {
@@ -433,7 +483,7 @@ public sealed class PauseCheck : PlayLab
         // a slider would take as a change); then the pad starts on the switch above the row.
         yield return PadPress(GamepadButton.DpadUp);
         EventSystem events = EventSystem.current;
-        Button from = phone.ContentButton(SwapKey);
+        Button from = phone.ContentButton(AboveMorningKey) ?? phone.ContentButton(SwapKey);
         if (events != null && from != null) events.SetSelectedGameObject(from.gameObject);
         yield return Frames(2);
         Check(PadInput.UsingPad && from != null && Selected() == from.gameObject, $"a pad, on the switch above the row (on {Name(Selected())})");

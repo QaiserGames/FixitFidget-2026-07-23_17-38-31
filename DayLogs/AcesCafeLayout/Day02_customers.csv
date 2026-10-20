@@ -1,4 +1,6 @@
 ﻿name,regular,character,kind,subject,fault,fault_family,drink_wish,arrived_s,left_s,in_shop_s,service_s,accepted,served,outcome,grade,patience_at_exit,wait_kind,base_pay,tip,story_lines,focus_requested,remembered_focus,story_episode,camera_grade,photo_variant,review
-"Grace",yes,"Grace","Drink","Latte",,,,19.8,101.1,81.3,53.2,yes,yes,"Served",,0.6,"Seat",6,1,0,no,no,,,,"Loved it"
-"Nina",no,"Cheerful","Repair","Phone","Gunked Up, Won't Charge","Cleaning",,60.3,161.4,101.1,40.8,yes,yes,"Served","Perfect",0.7,"Seat",56,26,0,no,no,,,,"Loved it"
-"Ali",no,"Chatty","Repair","Phone","Frozen Boot Sequence - Reconnect Signal","Software","Latte",132.0,223.0,91.0,59.1,yes,yes,"Served","Perfect",0.9,"Seat",62,28,0,no,no,,,,"Loved it"
+"Grace",yes,"Grace","Repair","reunion film camera","Jammed Shutter","Mechanical","Latte",3.4,172.9,169.5,126.8,yes,yes,"Served","Perfect",0.3,"Seat",81,27,0,no,no,"grace_reunion_camera_v1","Perfect",,"Loved it"
+"Nina",no,"Sentimental","Drink","Americano",,,,227.2,297.6,70.4,,no,no,"StormedOutInQueue",,0.0,,0,0,0,no,no,,,,"Let down"
+"Deshawn",no,"Chatty","Repair","Phone","Gunked Up, Won't Charge","Cleaning","Latte",99.5,321.0,221.5,174.2,yes,yes,"Served","Perfect",0.3,"Seat",62,17,0,no,no,,,,"Loved it"
+"Ingrid",no,"Cheerful","Drink","Tea",,,,350.1,439.8,89.7,58.2,yes,yes,"Served",,0.7,"Seat",3,1,0,no,no,,,,"Loved it"
+"Priya",no,"Sentimental","Drink","Tea",,,,381.0,458.2,77.1,26.6,yes,yes,"Served",,1.0,"Seat",3,2,0,no,no,,,,"Loved it"

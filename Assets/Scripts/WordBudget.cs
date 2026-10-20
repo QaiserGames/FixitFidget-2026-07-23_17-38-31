@@ -15,6 +15,8 @@ using System;
 //
 // One number each, here, if his sister wants more room. A word is anything between spaces with a letter or a digit in it
 // (a "·" between two words isn't one); "{Thing}" and "N" count as one each, so a note is measured as it reads.
+// Since 19 Oct 2026 a button is an icon, a TextMesh Pro sprite tag ("<sprite name="ps_cross">"), and a rich-text tag is not
+// a word: tags are dropped before counting, so a line is still measured as it reads (the icon is a picture, not a word).
 // No Unity types: Tests/BarkRules and Tests/NightRules compile this file.
 // ---------------------------------------------------------------------------
 public static class WordBudget
@@ -26,6 +28,10 @@ public static class WordBudget
     public const int Note = 12;
     public const int Page = 12;
     public const int ClosingScreen = 40;
+
+    // THE NOW LINE (playtest 7, 19 Oct 2026; his girlfriend "felt overall lost most of the time"): the one objective line at the
+    // top left, day and night (DayOneGuideUI; NightCycle.NowLine at night). One step, at most 10 words, its button as an icon.
+    public const int NowLine = 10;
 
     // THE BENCH SCREEN (playtest 5, 14 Oct 2026). His note: "the checklist is terrible"; the First Hour counted about 120 words
     // on the first repair's screen; his decision 7: "Under 25 words on the bench screen". Counted as the player sees them
@@ -52,15 +58,19 @@ public static class WordBudget
 
     /// <summary>
     /// How many words <paramref name="text"/> has: runs of anything that isn't white space, as long as the run has a
-    /// letter or a digit in it (a lone "·", "›" or "—" between words isn't a word). 0 for nothing.
+    /// letter or a digit in it (a lone "·", "›" or "—" between words isn't a word). A tag ("&lt;sprite name=...&gt;", "&lt;b&gt;")
+    /// is skipped: an icon is not a word. 0 for nothing.
     /// </summary>
     public static int Words(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return 0;
         int words = 0;
         bool counted = false;   // this run already counted as a word
+        bool inTag = false;     // inside "<...>": a sprite tag (an icon) or a rich-text tag, never a word
         foreach (char c in text)
         {
+            if (inTag) { if (c == '>') inTag = false; continue; }
+            if (c == '<') { inTag = true; continue; }
             if (char.IsWhiteSpace(c)) { counted = false; continue; }
             if (!counted && char.IsLetterOrDigit(c)) { words++; counted = true; }
         }

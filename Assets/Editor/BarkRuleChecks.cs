@@ -199,12 +199,12 @@ public static class BarkRuleChecks
 
         // ---------- how long a line stays up (the conversation's reading time) ----------
         var rules = new BarkRules(7);
-        Check(Math.Abs(rules.ReadingSeconds("Hm?") - 1.4f) < 1e-4f, "A very short line still stays up 1.4 s.");
+        Check(Math.Abs(rules.ReadingSeconds("Hm?") - 2.5f) < 1e-4f, "A very short line still stays up 2.5 s (playtest 7: it was 1.4).");
         Check(Math.Abs(rules.ReadingSeconds(new string('x', 200)) - 4.5f) < 1e-4f, "A long line stays up at most 4.5 s.");
         const string Gnome = "There's a gnome on the corner step. Bring it to me.";   // 51 characters
         float mid = rules.ReadingSeconds(Gnome);
         Check(Math.Abs(mid - (.6f + Gnome.Length / 18f)) < 1e-3f && Gnome.Length == 51, "In between, 0.6 s plus 1/18 s a character.");
-        Check(Math.Abs(rules.ReadingSeconds(null) - 1.4f) < 1e-4f && Math.Abs(rules.ReadingSeconds("") - 1.4f) < 1e-4f, "No text is the shortest time, not an error.");
+        Check(Math.Abs(rules.ReadingSeconds(null) - 2.5f) < 1e-4f && Math.Abs(rules.ReadingSeconds("") - 2.5f) < 1e-4f, "No text is the shortest time, not an error.");
 
         // ---------- the ambient throttle ----------
         rules = new BarkRules(7) { speakerCooldown = 20f, globalGap = 4f };

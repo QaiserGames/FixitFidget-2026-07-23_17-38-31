@@ -157,11 +157,19 @@ public sealed class BenchLab : PlayLab
         Vector3 carriedScale = device.transform.localScale;
         Check(carriedScale.x > 1.5f && device.transform.position.y > movement.transform.position.y + .3f,
             $"from above the carried phone is drawn bigger and held high ({carriedScale.x:0.0}x, {device.transform.position.y - movement.transform.position.y:0.00} m above Ace's middle)");
+        // 19 Oct (her "I don't know where to go"): while a device that needs the bench is in hand, its place on the mat is
+        // marked (BenchGlow's put-down mark and its ring on the screen), on the mat's top, where the device's layout rests it.
+        {
+            Vector3 rest = stage.MatToWorld(DeviceDefinition.LayoutOf(job).rest, BenchStage.MatTop);
+            Check(BenchGlow.PutDownShowing && Vector3.Distance(BenchGlow.PutDownPoint, rest) < .01f,
+                $"carried, the phone's place on the mat is marked for it ({(BenchGlow.PutDownShowing ? $"{Vector3.Distance(BenchGlow.PutDownPoint, rest) * 1000f:0} mm from its rest point" : "no mark")})");
+        }
         yield return Photo("00-carried-from-above");
         bench.Interact(interactor);
         Check(StationInteractable.BenchHolds(job), "it's on the bench");
         Check(device.transform.localScale.x < 1.2f, $"put down, it is its real size again ({device.transform.localScale.x:0.00}x)");
         yield return Seconds(.6f);
+        Check(!BenchGlow.PutDownShowing, "set down, the mark on the mat is gone");
         yield return Photo("00-placed-from-above");
 
         // ---------- at the bench, the pad in hand ----------
@@ -310,9 +318,11 @@ public sealed class BenchLab : PlayLab
         Check(inspector.QuarterTurns == quarters0 && Mathf.Abs(Mathf.DeltaAngle(yaw0, inspector.Yaw)) < .5f && handMoved > 40f,
             $"...and the left stick moves the hand ({handMoved:0} px) without turning it");
         yield return Seconds(.35f);   // the cards refresh every 0.15 s
-        string card = Plain(BenchCards.HeldControlsText);
-        Check(card.Contains("[Left stick]  Move your hand") && card.Contains("[Right stick]  Turn it"),
-            $"...and the controls card says so: \"{card}\"");
+        // 19 Oct: the sticks are icons in the card's rich text, found through the helper the card uses (ControlHints follows the
+        // setting); the words after them in the plain text.
+        string rich = BenchCards.HeldControlsText ?? "", card = Plain(rich);
+        Check(GameSettings.SwapBenchSticks && LineHas(rich, "Move your hand", ControlHints.BenchHandStick) && LineHas(rich, "Turn it", ControlHints.BenchTurnStick) && !rich.Contains("["),
+            $"...and the controls card says so, the sticks as icons: \"{card}\"");
         // Put back as the player had it (the setting is PlayerPrefs, shared with his own game): the turn stick is whichever the
         // setting says again, and so is the card.
         GameSettings.SwapBenchSticks = swapWas;
@@ -323,10 +333,11 @@ public sealed class BenchLab : PlayLab
         yield return LetGo();
         yield return Await(() => !inspector.Turning, 1f);
         yield return Seconds(.35f);
-        card = Plain(BenchCards.HeldControlsText);
-        string handStick = swapWas ? "Left" : "Right", turnStick = swapWas ? "Right" : "Left";
-        Check(inspector.QuarterTurns == quarters0 + 1 && card.Contains($"[{handStick} stick]  Move your hand") && card.Contains($"[{turnStick} stick]  Turn it"),
-            $"the setting put back ({(swapWas ? "swapped, as the player had it" : "not swapped")}): the {turnStick.ToLowerInvariant()} stick turns it again, and the card says so: \"{card}\"");
+        rich = BenchCards.HeldControlsText ?? "";
+        card = Plain(rich);
+        string turnStick = swapWas ? "right" : "left";
+        Check(inspector.QuarterTurns == quarters0 + 1 && GameSettings.SwapBenchSticks == swapWas && LineHas(rich, "Move your hand", ControlHints.BenchHandStick) && LineHas(rich, "Turn it", ControlHints.BenchTurnStick),
+            $"the setting put back ({(swapWas ? "swapped, as the player had it" : "not swapped")}): the {turnStick} stick turns it again, and the card says so: \"{card}\"");
         inspector.LayDown();                        // square-on for the rest
         yield return Frames(2);
 
@@ -405,6 +416,18 @@ public sealed class BenchLab : PlayLab
                 $"one cup each, clear of the phone's every quarter turn: {string.Join(", ", used)} (the left column, cups 1-3, lies under a turned phone)");
         }
         yield return Photo("04-screws-in-their-cups");
+        // 19 Oct (her "it just said something about the hole"): in the pry step a hole is a mark on the cover and nothing more:
+        // it shows (its plate is on), it can't be picked (no screw step), and the cursor over it never reads "Screw hole".
+        {
+            Screw sh = first.GetComponent<Screw>();
+            Check(sh.Socket != null && sh.Socket.gameObject.activeInHierarchy && !sh.Socket.isActiveAndEnabled,
+                $"the pry step: the empty hole shows on the cover but can't be picked (shown {(sh.Socket != null && sh.Socket.gameObject.activeInHierarchy)}, pickable {(sh.Socket != null && sh.Socket.isActiveAndEnabled)})");
+            PadCursor.GlideTo(Px(sh.Socket != null ? sh.Socket.WorkPoint : sh.HomePosition));
+            yield return Frames(2);
+            yield return Await(() => !PadCursor.Gliding, 1f);
+            yield return Frames(3);
+            Check(inspector.HoverName != "Screw hole", $"...and the cursor over it reads \"{inspector.HoverName}\", not \"Screw hole\"");
+        }
 
         // ---------- the pry, and the cover (it pops where it was pried, then flies to the well by itself) ----------
         yield return SelectTool(ToolType.Pry);
@@ -434,6 +457,8 @@ public sealed class BenchLab : PlayLab
         Check(Sfx.Requested("cover.lift") > liftsBefore && Sfx.Requested("cover.clack") > clacksBefore, "its lift (cover.lift) and its landing (cover.clack) sounded");
         Check(cover.IsRemoved && job.HasDetachedComponent<RemovablePart>() && InView(cover.transform), "the device is open, and the cover is in view");
         Check(!HasBody(cover.gameObject), "the cover was never a rigidbody");
+        Check(screws.All(t => t.GetComponent<Screw>().Socket != null && !t.GetComponent<Screw>().Socket.gameObject.activeInHierarchy),
+            "the cover off, its holes go with it: none floats over the open device (19 Oct)");
         yield return Photo("06-cover-in-the-well");
 
         // ---------- the front, the tweezers, the broken screen (to the old-parts tray by itself) ----------
@@ -461,6 +486,10 @@ public sealed class BenchLab : PlayLab
         // ---------- the fresh screen: a click sends it over to hover above its seat; a hold presses it in ----------
         LoosePart fresh = part.Fresh;
         if (fresh == null) { Check(false, "the fresh screen is there"); yield break; }
+        yield return Seconds(.45f);   // the glow waits 0.3 s after a tick
+        Check(BenchGlow.IsGlowing(fresh) && BenchGlow.GuideOuterNow.r > .9f && BenchGlow.GuideOuterNow.b < .6f,
+            $"the fresh screen waiting on its pad wears the next-thing glow, amber over ink (19 Oct: the mint never showed on the pale pad; glowing {BenchGlow.Count})");
+        Check(fresh.DisplayName == "New screen", $"the fresh part is named by the part, not the fault: \"{fresh.DisplayName}\" (19 Oct)");
         yield return Hover(BenchInteractable.BoundsCentre(fresh.transform), fresh.DisplayName, null, "the fresh screen on its pad");
         int freshBefore = Sfx.Requested("part.fresh"), replacesBefore = Sfx.Requested("part.replace");
         PadHold(RT);
@@ -659,6 +688,8 @@ public sealed class BenchLab : PlayLab
         ToolPickup brush = FindObjectsByType<ToolPickup>(FindObjectsInactive.Exclude).FirstOrDefault(t => t.tool == ToolType.Brush && !t.IsStandIn);
         Check(brush != null, "the modelled brush lies on the tool rest");
         if (brush == null) yield break;
+        Check(BenchGlow.GlowingTool == brush && BenchGlow.SeatRinged,
+            $"the brush is next: it glows on the rest and its seat is ringed on the screen (19 Oct: a tray's walls hid the cloth's line; glowing {(BenchGlow.GlowingTool != null ? BenchGlow.GlowingTool.displayName : "no tool")}, seat ringed {BenchGlow.SeatRinged})");
         Vector3 brushAt = brush.transform.position + brush.transform.rotation * brush.RestBox.center;
         int picksBefore = Sfx.Requested("tool.pick");
         yield return Hover(brushAt, brush.displayName, "", "the brush at rest (its name, nothing more)");
@@ -1207,6 +1238,15 @@ public sealed class BenchLab : PlayLab
         CinemachineBrain brain = Camera.main != null ? Camera.main.GetComponent<CinemachineBrain>() : null;
         yield return Await(() => brain == null || !brain.IsBlending, 4f);
         yield return Frames(3);
+    }
+
+    // 20 Oct: a card line carries its key as an icon wrapped in the card's key colour (BenchCards.K: <color=…><sprite…></color>),
+    // so "the key, then the words" is checked line by line: the line that says the words must hold that key's icon.
+    static bool LineHas(string rich, string words, string key)
+    {
+        foreach (string line in (rich ?? "").Split('\n'))
+            if (line.Contains(words)) return line.Contains(key);
+        return false;
     }
 
     static string Plain(string rich) => System.Text.RegularExpressions.Regex.Replace(rich ?? "", "<[^>]+>", "").Replace("\n", " / ");

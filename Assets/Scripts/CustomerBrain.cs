@@ -1823,7 +1823,16 @@ public class CustomerBrain : MonoBehaviour
                 locomotion.Face(FacingTowards(ace.transform.position));
         }
         ReactOr(NpcBeats.Moment.CallForDrink);
-        Say(OrderLine(), broadcast: true);      // they're calling across the room
+
+        // 20 Oct (playtest 7, her: "you asked for a latte... it needs to be bigger, huh? With images?"): the order is the one
+        // line that tells the player to do something, so it's called in the bark box (30 px on screen at any zoom), with the
+        // drink's picture first, and it stays 8 s. The small world bubble says it only when Ace is out of earshot. Never both,
+        // so the same words never show twice.
+        string order = OrderLine();
+        string icon = WantedDrink != null ? PadInput.Icon(JobTicket.DrinkIconName(WantedDrink), "") : "";
+        string called = (icon.Length > 0 ? icon + " " : "") + order;
+        if (!Barks.Say(transform, Identity != null ? Identity.DisplayName : name, called, 8f))
+            Say(called, broadcast: true);      // they're calling across the room
     }
 
     private string OrderLine()
@@ -2108,7 +2117,7 @@ public class CustomerBrain : MonoBehaviour
 
         ShopEconomy.Instance.AddMoney(basePay + tip);
         if (DayClock.Instance != null) DayClock.Instance.RecordServed(basePay, tip, true, grade);
-        Juice.Money(transform, basePay, tip);
+        Juice.Money(transform, basePay, tip, repair: activeJob);   // 20 Oct: the pay pop says what Perfect would have paid
         Sfx.Play("handover.repair", transform.position);
         Sfx.Play2DLater("repair.returned", .15f);
         Sfx.PlayLater("money.paid", transform.position, .3f);

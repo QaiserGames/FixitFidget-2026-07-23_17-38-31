@@ -217,7 +217,7 @@ public sealed class BenchViewProbe : PlayLab
         string list = Plain(BenchCards.ChecklistText), controls = Plain(BenchCards.HeldControlsText);
         Check(BenchCards.CurrentVerb.Length > 0 && BenchCards.Steps != null && BenchCards.Steps.Any(step => step.current),
             $"{name}: the job card gives the step to do now: \"{list}\"");
-        Check(controls.Contains("Turn it") && controls.Contains("Flip it over") && controls.Contains("Pick it up"),
+        Check(controls.IndexOf("turn it", System.StringComparison.OrdinalIgnoreCase) >= 0 && controls.Contains("Flip it over") && controls.Contains("Pick it up"),
             $"{name}: the full controls card says how to turn it, flip it and take it away: \"{controls}\"");
 
         // Every quarter turn, and turned over; at each, the mat's places and the tools in view and clear of the device.
@@ -365,25 +365,32 @@ public sealed class BenchViewProbe : PlayLab
         yield return Seconds(.3f);
         Check(PadInput.UsingPad, "pad: the game sees the controller in hand");
         yield return Frames(12);
-        string controls = Plain(BenchCards.HeldControlsText);
-        Check(controls.Contains("Right stick") && controls.Contains("Left stick") && controls.Contains(PadInput.Label(PadButton.North) + "]  Flip it over")
-              && controls.Contains(PadInput.Label(PadButton.West) + "]  Pick it up"),
-            $"pad: the controls card names the sticks, Y to flip and X to take it away: \"{controls}\"");
+        // 19 Oct: the keys are icons (sprite tags), looked for in the rich text with the card's own helpers; the words after
+        // them in the plain text. Never a bracketed button word.
+        string rich = BenchCards.HeldControlsText ?? "", controls = Plain(rich);
+        Check(LineHas(rich, "Move your hand", ControlHints.BenchHandStick) && LineHas(rich, "Turn it a quarter", ControlHints.BenchTurnStick)
+              && LineHas(rich, "Flip it over", ControlHints.Flip) && LineHas(rich, "Pick it up", ControlHints.TakeFromBench) && !rich.Contains("["),
+            $"pad: the controls card names the sticks, the flip key and the pick-up key (as icons, through ControlHints): \"{controls}\"");
         yield return Photo("pad-1-controls-card");
 
         // The stick swap (GameSettings.SwapBenchSticks, 12 Oct), in the card's words; the sticks themselves are Bench 3's.
+        // The card must change with the setting (unless the player already had the sticks swapped), and name the hand's stick
+        // through the same helper the card uses.
+        string unswapped = rich;
         swapWas = GameSettings.SwapBenchSticks;
         swapTouched = true;
         GameSettings.SwapBenchSticks = true;
         yield return Seconds(.35f);   // the cards refresh every 0.15 s
-        controls = Plain(BenchCards.HeldControlsText);
-        Check(controls.Contains("[Left stick]  Move your hand") && controls.Contains("[Right stick]  Turn it a quarter"),
-            $"pad: with the sticks swapped the card says the left stick moves the hand and the right turns it: \"{controls}\"");
+        rich = BenchCards.HeldControlsText ?? "";
+        controls = Plain(rich);
+        Check((swapWas || rich != unswapped) && LineHas(rich, "Move your hand", ControlHints.BenchHandStick) && LineHas(rich, "Turn it a quarter", ControlHints.BenchTurnStick),
+            $"pad: with the sticks swapped the card changes and says the hand's stick moves the hand and the other turns it: \"{controls}\"");
         yield return Photo("pad-1b-controls-card-sticks-swapped");
         GameSettings.SwapBenchSticks = swapWas;
         yield return Seconds(.35f);
-        controls = Plain(BenchCards.HeldControlsText);
-        Check(controls.Contains("[" + (swapWas ? "Left" : "Right") + " stick]  Move your hand"),
+        rich = BenchCards.HeldControlsText ?? "";
+        controls = Plain(rich);
+        Check(LineHas(rich, "Move your hand", ControlHints.BenchHandStick),
             $"pad: the setting put back as it was ({(swapWas ? "swapped" : "not swapped")}), the card follows: \"{controls}\"");
         yield return PadPress(GamepadButton.South);
         yield return Seconds(.3f);
@@ -546,6 +553,15 @@ public sealed class BenchViewProbe : PlayLab
     static string Px(Rect r) => $"x {r.xMin:0}-{r.xMax:0}, y {r.yMin:0}-{r.yMax:0} px";
 
     static string Cm(Vector3 v) => $"({v.x * 100f:0.0}, {v.y * 100f:0.0}, {v.z * 100f:0.0}) cm";
+
+    // 20 Oct: a card line carries its key as an icon wrapped in the card's key colour (BenchCards.K: <color=…><sprite…></color>),
+    // so "the key, then the words" is checked line by line: the line that says the words must hold that key's icon.
+    static bool LineHas(string rich, string words, string key)
+    {
+        foreach (string line in (rich ?? "").Split('\n'))
+            if (line.Contains(words)) return line.Contains(key);
+        return false;
+    }
 
     static string Plain(string rich) => System.Text.RegularExpressions.Regex.Replace(rich ?? "", "<[^>]+>", "").Replace("\n", " / ");
 

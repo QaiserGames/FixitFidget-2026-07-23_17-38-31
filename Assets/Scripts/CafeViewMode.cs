@@ -405,7 +405,7 @@ public sealed class CafeViewMode : MonoBehaviour
                     isoPitch = Mathf.Clamp(isoPitch + delta.y * .12f * GameSettings.LookScale * GameSettings.YSign, PitchMin, PitchMax);
                 }
                 float scroll = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(scroll) > .01f) Zoom(-Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f);
+                if (Mathf.Abs(scroll) > .01f && !Barks.Choosing) Zoom(-Mathf.Clamp(scroll / 120f, -3, 3) * 1.6f);   // 20 Oct: while a reply is being chosen the wheel moves the highlight, as by day
             }
             // Controller: right stick orbits and tilts, triggers zoom (RT in,
             // LT out), R3 eases back to the authored overhead angle.

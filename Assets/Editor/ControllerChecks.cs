@@ -265,10 +265,13 @@ public static class ControllerChecks
             Teleport(drinks.StandPoint.position);
             yield return Frames(6);
             TMP_Text prompt = PromptText();
-            string a = "[" + PadInput.Label(PadButton.South) + "]", x = "[" + PadInput.Label(PadButton.West) + "]";
+            // The buttons are icons (19 Oct 2026): the prompt carries the same tag PadInput.Label gives (or the same word
+            // where the icon sheet isn't there), never a bracketed word.
+            string a = PadInput.Label(PadButton.South), x = PadInput.Label(PadButton.West);
+            string aWord = PadInput.Word(PadButton.South), xWord = PadInput.Word(PadButton.West);
             string text = prompt != null ? Flatten(prompt.text) : "";
-            Check(text.Contains(a) && text.Contains(drinks.StationLabel), $"At the dispenser the prompt offers {a} {drinks.StationLabel}: \"{text}\"");
-            Check(!text.Contains(x), $"and offers no {x}: stepping up is retired by day");
+            Check(text.Contains(a) && text.Contains(drinks.StationLabel), $"At the dispenser the prompt offers {aWord} {drinks.StationLabel}: \"{text}\"");
+            Check(!text.Contains(x) && !text.Contains("[" + aWord + "]"), $"and offers no {xWord} (and no bracketed word): stepping up is retired by day");
             yield return Press(GamepadButton.West);
             Check(!interactor.IsAtStation, "X steps up to nothing by day");
             yield return Press(GamepadButton.South);
@@ -319,8 +322,8 @@ public static class ControllerChecks
                 Check(!interactor.BehindCounter, "Where the customers stand, he isn't");
             }
             TMP_Text prompt = PromptText();
-            string x = "[" + PadInput.Label(PadButton.West) + "]";
-            Check(prompt == null || !prompt.text.Contains(x), "The counter offers no X");
+            string x = PadInput.Label(PadButton.West);
+            Check(prompt == null || !prompt.text.Contains(x), $"The counter offers no {PadInput.Word(PadButton.West)}");
         }
     }
 

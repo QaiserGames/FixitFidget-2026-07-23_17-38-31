@@ -42,6 +42,10 @@ using UnityEngine.UI;
 // one number, BarScale. 1.3 was the findings' pick (72 x 9); photographed over real heads from the game's overhead camera
 // on 13 Oct (Logs/UI/day1-guide-2026-10-13_070451), 72 x 9 read as a thin dash and 84 x 10 as a bar, so 1.5 (84 x 10, the
 // dot 14, the name 22). His to overrule: this one number.
+//
+// Playtest 7 (19 Oct 2026): the night allows one pin, "You" over Ace for the night's first seconds (ShowSelfAtNight, asked
+// for by NightCycle as the night begins): the reviewers could not find Ace, a 25 px figure in an unlit doorway, on the
+// night's first frame. The bars, the name and the guide's pin stay off all night, as before.
 // ---------------------------------------------------------------------------
 public sealed class UiPins : MonoBehaviour
 {
@@ -128,6 +132,10 @@ public sealed class UiPins : MonoBehaviour
         public bool wanted, bob, placed;
         public Transform who;          // over this person's head, or
         public Vector3 point;          // over this point in the world
+        // What the pin names, wherever it is drawn: the same as who and point, but for the name when it hangs below its
+        // person or thing, clear of Ace's head (FocusNameUI.ClearOfAce), which draws it over a point under them.
+        public Transform aboutWho;
+        public Vector3 aboutPoint;
         public string text = "";
         public bool relabel;           // the label still shows the words before text (they change where it's drawn next)
         public Rect onScreen;          // where it was last drawn (screen pixels from the bottom left)
@@ -156,6 +164,17 @@ public sealed class UiPins : MonoBehaviour
 
     /// <summary>The name of what E acts on, over <paramref name="who"/>'s head (a person) or over <paramref name="point"/>.</summary>
     public void ShowFocus(string text, Transform who, Vector3 point) => Want(focus, text, who, point);
+
+    /// <summary>The name drawn over <paramref name="who"/> or <paramref name="point"/> but naming <paramref name="aboutWho"/>
+    /// (or <paramref name="aboutPoint"/>): the name hanging below its person, clear of Ace's head. Day 1's green pin over
+    /// that same person still stands aside for it (20 Oct: "Valerie" twice, the green pin over her head and the name below).</summary>
+    public void ShowFocus(string text, Transform who, Vector3 point, Transform aboutWho, Vector3 aboutPoint)
+    {
+        Want(focus, text, who, point);
+        if (focus == null) return;
+        focus.aboutWho = aboutWho;
+        focus.aboutPoint = aboutPoint;
+    }
     public void HideFocus() { if (focus != null) focus.wanted = false; }
 
     /// <summary>Day 1's pin over the thing the guide's card names.</summary>
@@ -164,7 +183,21 @@ public sealed class UiPins : MonoBehaviour
 
     /// <summary>"You" over Ace, for the first seconds of his first day.</summary>
     public void ShowSelf(string text, Transform ace) => Want(self, text, ace, Vector3.zero);
-    public void HideSelf() { if (self != null) self.wanted = false; }
+    /// <summary>The day's "You" goes (the night's own, for its first seconds, stays until its time is up).</summary>
+    public void HideSelf() { if (self != null && !SelfAtNight) self.wanted = false; }
+
+    /// <summary>
+    /// "You" over Ace for <paramref name="seconds"/> at night, the one pin the night shows (NightCycle, as the night begins):
+    /// it goes by itself, and nothing else is pinned meanwhile.
+    /// </summary>
+    public void ShowSelfAtNight(string text, Transform ace, float seconds)
+    {
+        selfAtNightUntil = Time.unscaledTime + Mathf.Max(0f, seconds);
+        Want(self, text, ace, Vector3.zero);
+    }
+    float selfAtNightUntil = -1f;
+    /// <summary>The night's "You" is still allowed (its seconds aren't up).</summary>
+    public bool SelfAtNight => Time.unscaledTime < selfAtNightUntil;
 
     // ------------------------------------------------------------------ what checks read
 
@@ -348,6 +381,8 @@ public sealed class UiPins : MonoBehaviour
         pin.wanted = !string.IsNullOrEmpty(text);
         pin.who = who;
         pin.point = point;
+        pin.aboutWho = who;
+        pin.aboutPoint = point;
         if (text == pin.text) return;
         pin.text = text ?? "";
         pin.relabel = true;
@@ -372,12 +407,11 @@ public sealed class UiPins : MonoBehaviour
 
     // ------------------------------------------------------------------ placing them
 
-    // Whether everything is put away: the recap, the night, a conversation, a close-up, the morning's intro.
+    // Whether everything is put away: the recap, a conversation, a close-up, the morning's intro (the night: Night()).
     bool Hidden()
     {
         if (IntroPlaying()) return true;
         if (RecapUI.Showing) return true;
-        if (NightWalk.Instance != null && NightWalk.Instance.Active) return true;
         if (ConversationController.AnyOpen) return true;
         if (player == null)
         {
@@ -387,17 +421,22 @@ public sealed class UiPins : MonoBehaviour
         return player != null && player.InCloseUp;
     }
 
+    static bool Night() => NightWalk.Instance != null && NightWalk.Instance.Active;
+
     void Place()
     {
         if (canvas == null) return;
-        hidden = Hidden();
+        // At night everything is off but the night's own "You" for its first seconds (playtest 7).
+        bool night = Night();
+        bool selfOnly = night && SelfAtNight && !Hidden();
+        hidden = Hidden() || night && !selfOnly;
         all.alpha = hidden ? 0f : 1f;
         if (cam == null || !cam.isActiveAndEnabled) cam = Camera.main;
         float scale = canvas.scaleFactor > 0f ? canvas.scaleFactor : 1f;
         float dt = UiClock.Delta;
-        PlaceBars(scale);
-        PlacePin(focus, scale, dt, false);
-        PlacePin(guide, scale, dt, SameAsFocus() || OnFocusOnScreen(scale));
+        PlaceBars(scale, night);
+        PlacePin(focus, scale, dt, night);
+        PlacePin(guide, scale, dt, night || SameAsFocus() || OnFocusOnScreen(scale));
         PlacePin(self, scale, dt, false);
     }
 
@@ -433,11 +472,15 @@ public sealed class UiPins : MonoBehaviour
     }
 
     // Day 1's pin over the very thing the name is pinned over would say it twice, one pin on the other: the name is enough.
+    // The thing the name is about counts, not only where it is drawn: when the name hangs below a customer at the till to
+    // keep clear of Ace's head, it is still her name (20 Oct, the Day 1 lab's photo: "Valerie" in green over her head and
+    // "Valerie" again under it, the commonest moment of the day, talking to whoever is at the till).
     bool SameAsFocus()
     {
         if (focus == null || guide == null || !focus.wanted || !guide.wanted || !focus.placed) return false;
-        if (guide.who != null) return guide.who == focus.who;
-        return focus.who == null && (focus.point - guide.point).sqrMagnitude < .36f;
+        if (guide.who != null) return guide.who == focus.who || guide.who == focus.aboutWho;
+        if (focus.who != null || focus.aboutWho != null) return false;
+        return (focus.point - guide.point).sqrMagnitude < .36f || (focus.aboutPoint - guide.point).sqrMagnitude < .36f;
     }
 
     // ...or where it would be drawn on the name, whatever the two are over (15 Oct, the Day 1 guide's photo: the camera set down
@@ -456,7 +499,7 @@ public sealed class UiPins : MonoBehaviour
         return mine.xMin < theirs.xMax + m && mine.xMax > theirs.xMin - m && mine.yMin < theirs.yMax + m && mine.yMax > theirs.yMin - m;
     }
 
-    void PlaceBars(float scale)
+    void PlaceBars(float scale, bool night)
     {
         int shown = 0;
         for (int i = bars.Count - 1; i >= 0; i--)
@@ -467,7 +510,7 @@ public sealed class UiPins : MonoBehaviour
             BarView v = views[i];
             PatienceBar bar = i < bars.Count ? bars[i] : null;
             v.bar = bar;
-            bool on = bar != null && !hidden && cam != null && bar.Owner != null && bar.isActiveAndEnabled;
+            bool on = bar != null && !hidden && !night && cam != null && bar.Owner != null && bar.isActiveAndEnabled;
             Vector3 s = default;
             if (on)
             {

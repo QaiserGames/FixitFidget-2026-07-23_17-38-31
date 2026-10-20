@@ -161,7 +161,7 @@ public sealed class MorningFace
                     return;
                 }
                 if (resultSince < 0f) resultSince = Time.time;
-                StraightFaceUI.Result(meter, HeldWord, CrackedWord, $"[{ControlHints.Interact}]  Go on");
+                StraightFaceUI.Result(meter, HeldWord, CrackedWord, $"{ControlHints.Interact}  Go on");
                 if (next || Time.time - resultSince >= ReadTime(ui.LineFinished ? LastLine : ""))
                 {
                     Now = Step.Done;
@@ -187,7 +187,8 @@ public sealed class MorningFace
 
     static float ReadTime(string line) => Mathf.Clamp((line ?? "").Length / 30f, 1.6f, 4f);
 
-    static string StopKey => ControlHints.Say("Space", PadInput.Label(PadButton.West));
+    // The stop's button as its icon (19 Oct 2026): Space, or Square (X, Y) on a pad; never in brackets (ControlHints).
+    static string StopKey => ControlHints.StopNeedle;
 
     void StartMeter()
     {
@@ -199,7 +200,7 @@ public sealed class MorningFace
         float patience = question != null ? question.patience : thing.patience;
         meter = StraightFaceMeter.Rolled(sweep, LodgerStory.Green(green, Nerve), LodgerStory.Near(near, Nerve), patience, Rng);
         string what = question != null && !string.IsNullOrWhiteSpace(question.title) ? question.title : "Keep a straight face";
-        stopHint = $"[{StopKey}]  {what}" + (Nerve ? "   <color=#A6A6A6>Nerve</color>" : "");
+        stopHint = $"{StopKey}  {what}" + (Nerve ? "   <color=#A6A6A6>Nerve</color>" : "");
         Now = Step.Meter;
         // The meter takes the place of Ace's replies (since 12 Oct the column right of the person's face) and gives its key
         // itself (StraightFaceUI), so it sits clear of the person's line and their face.

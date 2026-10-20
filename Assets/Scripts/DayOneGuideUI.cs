@@ -5,10 +5,33 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 // ---------------------------------------------------------------------------
-// THE GUIDE'S CARDS (Day 1's guided visits; any day's first impatient customer)
+// THE NOW LINE, AND THE GUIDE'S CARDS (Day 1's guided visits; any day's first impatient customer; the night's goal)
 //
 // Observes the existing interactions. Does not issue orders, grant stock, complete repairs, change patience, or consume
 // input.
+//
+// PLAYTEST 7 (19 Oct 2026; his girlfriend, dyslexic, first time, on a PlayStation pad: she "felt overall lost most of the
+// time" and did not want to keep playing. "Wait for Grace to reach the counter. Yeah, but you should have like an
+// object[ive]." "I feel like you should do like maybe a checklist or something there." "your text needs to be bolder."):
+//   - ONE OBJECTIVE LINE, always in the same place, day and night: the top left (under the tabs by day; at night the top
+//     left is free). A dark plate (UiSkin.Band) with a thin amber bar down its left; the step in 26 px bold, at most
+//     WordBudget.NowLine (10) words, the button as its icon where the step names one (ControlHints: the icon contract of
+//     19 Oct). When the line changes it pulses once (1.06 to 1 over 0.25 s) and plays a soft tick (the "bark.choose" cue).
+//     It hides only while a conversation, the phone or the recap, the day intro or a night card owns the screen, and at
+//     the bench (the bench's own card guides there).
+//   - By day: today's guide step while a featured visit is guided (its full card, title and step, for its first 6 s as
+//     before, then the line); when nothing is guided (Day 3, or after the featured visits) the most urgent customer's next
+//     step from the same step logic (whoever E would serve first, else whoever is closest to walking out); at closing
+//     "Closing time: serve who's inside."
+//   - At night: NightCycle.NowLine (the bag, the bins, the errand's thing, home), with the notebook's icon and "notes" on
+//     the end until the notebook has been opened once; hidden while a scene plays.
+//   - The first card says the goal once: "Five stars and the café can franchise. Grace is on her way." ("Does that seem
+//     like it's apparent for you? Like you know to franchise or no?... No."). "Go behind the counter" is worked out every
+//     time the card's text is set, and the repair bar's side and the back bar count as behind it (the reviewers saw it
+//     while Ace stood at the till). With a filled cup in hand the drink step says "Take the latte to Grace". One step a
+//     line, no semicolons: "Talk to Grace" now; taking the job is the conversation's own (the card hides meanwhile).
+//   - The full card's step is 26 px and its title 20 px; the line is 26 px (they were 21 / 18, the smallest type on screen
+//     for the hardest reader).
 //
 // PLAYTEST 4 (10 Oct 2026; the first-hour playtester's #1, #3 and #4: "Day 1 teaches the whole loop in 6-second cards that
 // never come back"):
@@ -54,8 +77,8 @@ public class DayOneGuideUI : MonoBehaviour
     private readonly DayOneHintTimer toast = new();
 
     // ---- what the card says now, and where its pin points (set as the step's words are worked out) ----
-    private bool guiding;
-    private string cardTitle = "", cardStep = "", cardAlso = "";
+    private bool guiding, fallback;
+    private string cardTitle = "", cardStep = "", cardAlso = "", cardNow = "", stepAlso = "";
     private DayOneHintTimer.Kind stepKind = DayOneHintTimer.Kind.Step;
     private Transform pinWho;
     private Vector3 pinPoint;
@@ -69,7 +92,8 @@ public class DayOneGuideUI : MonoBehaviour
     private string shownText;
     private DayOneHintTimer.Look shownLook = DayOneHintTimer.Look.Hidden;
     private bool shownAtBench, placedAtBench;
-    private string shownTitle = "", shownStep = "", shownAlso = "";
+    private string shownTitle = "", shownStep = "", shownAlso = "", shownLine = "";
+    private float changedAt = -10f;
 
     // ---- the first impatient customer (any day) ----
     private CustomerBrain impatient;
@@ -115,6 +139,10 @@ public class DayOneGuideUI : MonoBehaviour
     public const string ImpatientTitle = "GETTING IMPATIENT";
     public const string SelfWords = "You";
     public const string BehindCounterName = "Behind the counter";
+    /// <summary>The line once the café has closed and someone is still inside (the fallback, any day).</summary>
+    public const string ClosingWords = "Closing time: serve who's inside.";
+    /// <summary>The soft tick as the line changes (a SoundBank UI cue: "a soft tick").</summary>
+    public const string ChangeCue = "bark.choose";
 
     public void Initialize(TMP_Text source, PlayerInteractor player,
         ItemInspector itemInspector, ConversationController dialogue, GameObject recapPanel)
@@ -136,10 +164,20 @@ public class DayOneGuideUI : MonoBehaviour
     public string CardText => CardShowing && hint != null ? hint.text : "";
     public string CardTitle => CardShowing && shownLook != DayOneHintTimer.Look.Compact ? shownTitle : "";
     public bool CardCompact => CardShowing && shownLook == DayOneHintTimer.Look.Compact;
+    /// <summary>The one line as drawn (the step; the compact words where the first card has shorter ones), or "".</summary>
+    public string NowText => CardShowing ? shownLine : "";
+    /// <summary>The line is the fallback (no featured visit guided: the most urgent customer's step, or closing time).</summary>
+    public bool Fallback => CardShowing && fallback;
+    /// <summary>The line is the night's (NightCycle.NowLine).</summary>
+    public bool NightLine => CardShowing && shownNight;
+    /// <summary>The size the step's words are drawn at (the full card's step and the line are both LineSize).</summary>
+    public float LineSize => hint != null ? hint.fontSize : 0f;
     /// <summary>The card sits over the bottom prompt, at the bench.</summary>
     public bool CardAtBench => CardShowing && shownAtBench;
     /// <summary>The step has been stuck long enough for the card to come back in full (with its one pulse).</summary>
-    public bool CardReminding => CardShowing && impatient == null && toast.Reminding(UiClock.Now);
+    public bool CardReminding => CardShowing && impatient == null && !fallback && toast.Reminding(UiClock.Now);
+    /// <summary>The line changed within the last quarter second: it is mid-pulse.</summary>
+    public bool Pulsing => CardShowing && UiClock.Now - changedAt < ChangePulseSeconds;
     /// <summary>The card on the screen, in screen pixels from the bottom left.</summary>
     public Rect CardOnScreen
     {
@@ -152,7 +190,7 @@ public class DayOneGuideUI : MonoBehaviour
         }
     }
     public bool ImpatienceShowing => impatient != null && CardShowing;
-    /// <summary>Whose steps the card follows (Grace, the Officer, the opening lesson's customer).</summary>
+    /// <summary>Whose steps the card follows (Grace, the Officer, the opening lesson's customer; the fallback's customer).</summary>
     public CustomerBrain GuidedCustomer => guiding ? primary : null;
     /// <summary>What the step's pin says and where it points (overhead only; "" for none).</summary>
     public string PinLabel => pinLabel;
@@ -166,6 +204,8 @@ public class DayOneGuideUI : MonoBehaviour
     // overhead view uses E on what's in reach (the dispenser's close-up, a device on the bench).
     private bool FirstPerson => view != null && view.FirstPersonSelected;
     private bool AtDrinks => interactor != null && (interactor.IsAtBeverageStation || interactor.NearDrinks);
+    // Behind the counter, in the player's sense: the till's side, the repair bar's side, or the back bar (the drinks).
+    private bool StaffSide => interactor != null && (interactor.OnStaffSide || interactor.NearDrinks || interactor.IsAtBeverageStation);
 
     private void LateUpdate()
     {
@@ -185,7 +225,15 @@ public class DayOneGuideUI : MonoBehaviour
         bool night = NightWalk.Instance != null && NightWalk.Instance.Active;
         WatchAce(clock, night, now);
 
-        bool blocked = clock == null || clock.DayOver || night
+        // The night: the one line from the night's own state (NightCycle.NowLine), in the same place as by day.
+        if (night)
+        {
+            CarryingToBench = null;
+            PresentNight(now);
+            return;
+        }
+
+        bool blocked = clock == null || clock.DayOver || PausePhone.Paused
             || (recap != null && recap.activeInHierarchy)
             || (conversation != null && conversation.InConversation)
             || sourceText == null || !sourceText.gameObject.activeInHierarchy;
@@ -233,13 +281,17 @@ public class DayOneGuideUI : MonoBehaviour
         if (WatchImpatience(clock, now)) return;
         // The guide's step comes back after the impatience card (compact: it was seen).
         if (wasImpatient) toast.Dismiss();
+        fallback = false;
         guiding = GuideStep(clock, now);
+        // Nothing guided, or the guide's last word said (a visit-over note shown and gone): the fallback line.
+        if (!guiding || toast.LookAt(now) == DayOneHintTimer.Look.Hidden) guiding = FallbackStep(clock);
     }
 
     // The guide's card for this moment: false for none. Sets the card's words, its kind and the pin.
     private bool GuideStep(DayClock clock, float now)
     {
         CarryingToBench = null;   // set again below while the card says to carry a device to the bench
+        cardNow = stepAlso = "";
         if (spawner == null) spawner = FindAnyObjectByType<CustomerSpawner>();
         CustomerProfile featured = spawner != null ? spawner.FeaturedHintProfile : null;
         if (spawner == null || (!spawner.IsGuidedOpening && featured == null)
@@ -276,11 +328,74 @@ public class DayOneGuideUI : MonoBehaviour
             : NextAction(customer, drinkLesson);
         cardTitle = title;
         cardStep = next;
-        cardAlso = also != null ? $"{Cap(Called(also))} is at the counter too." : "";
+        cardAlso = also != null ? $"{Cap(Called(also))} is at the counter too." : stepAlso;
         // The title separates the visits, so the same instruction can appear once for each visit.
         toast.Observe(title + "\n" + next + "\n" + cardAlso, now, spawner.OpeningHintDuration, stepKind);
         return true;
     }
+
+    // Nothing guided (Day 3; Days 1-2 after their featured visits): the most urgent customer's next step, from the same
+    // step logic, as the one line (never a full card); at closing, serve who's inside. False when there is nothing to say.
+    private bool FallbackStep(DayClock clock)
+    {
+        CarryingToBench = null;
+        cardNow = stepAlso = "";
+        ClearPin();   // (the guide's timer is left alone: a visit-over note it has shown must not come back)
+        string line = "";
+        if (!clock.IsOpen)
+        {
+            foreach (CustomerBrain c in present)
+                if (c != null && c.isActiveAndEnabled && !c.IsLeaving) { line = ClosingWords; break; }
+        }
+        else
+        {
+            CustomerBrain customer = MostUrgent();
+            primary = customer;
+            if (customer != null) line = customer.WasAccepted ? VisitAction(customer) : NextAction(customer, false);
+        }
+        if (string.IsNullOrEmpty(line)) { ClearPin(); return false; }
+        fallback = true;
+        cardTitle = "";
+        cardStep = line;
+        cardAlso = stepAlso;
+        return true;
+    }
+
+    // Whoever E would serve first: the one whose thing is in Ace's hands (or at the bench, or at the drinks); then whoever E
+    // talks to first at the counter (the longest wait there); then, among those waiting on Ace, whoever is closest to walking
+    // out; then anyone on their way in.
+    private CustomerBrain MostUrgent()
+    {
+        CustomerBrain pick = null;
+        foreach (CustomerBrain c in present)
+            if (Here(c) && InHand(c)) { pick = c; break; }
+        if (pick == null && interactor != null)
+        {
+            CustomerInteractable head = interactor.QueueHead();
+            CustomerBrain first = head != null ? head.Brain : null;
+            if (first != null && Here(first) && (first.CanHearIntake || first.CanDecide)) pick = first;
+        }
+        if (pick == null)
+        {
+            float lowest = float.PositiveInfinity;
+            foreach (CustomerBrain c in present)
+            {
+                if (!Here(c) || !c.WasAccepted) continue;
+                float p = c.ShowsPatience ? c.PatienceFraction : 2f;   // not waiting on Ace: after everyone who is
+                if (p < lowest) { lowest = p; pick = c; }
+            }
+            // The one the line already follows keeps it while nobody is clearly closer to walking out: two waiting customers
+            // with much the same patience mustn't swap the line (and its tick) back and forth.
+            if (pick != null && primary != null && primary != pick && Here(primary) && primary.WasAccepted
+                && (primary.ShowsPatience ? primary.PatienceFraction : 2f) < lowest + .15f) pick = primary;
+        }
+        if (pick == null)
+            foreach (CustomerBrain c in present)
+                if (Here(c)) { pick = c; break; }
+        return pick;
+    }
+
+    private static bool Here(CustomerBrain c) => c != null && c.isActiveAndEnabled && !c.IsLeaving;
 
     // Whose steps the card follows on a guided day: today's featured regular, and on Day 1 the story visit too (the
     // Officer's coffee: Day 1 has no other regulars). Whose thing Ace has in hand (or at the bench, or at the drinks) first;
@@ -318,7 +433,7 @@ public class DayOneGuideUI : MonoBehaviour
 
     // Whoever E talks to first at the counter (PlayerInteractor.QueueHead: the longest wait there), when that isn't the visit
     // the card follows and that visit hasn't been heard yet (on its way in, or waiting at the counter); null otherwise. Its
-    // card would say "E talks to ..." of someone E won't reach first.
+    // card would say "Talk to ..." of someone E won't reach first.
     private CustomerBrain HeardFirst(CustomerBrain guidedNow)
     {
         if (interactor == null || guidedNow == null || guidedNow.IsLeaving || guidedNow.WasAccepted || InHand(guidedNow)) return null;
@@ -350,12 +465,21 @@ public class DayOneGuideUI : MonoBehaviour
             return spawner != null && spawner.FeaturedVisitStarted
                 ? Noting(VisitOver(name, OpenOrders(customer)))
                 : hintDay == 1
-                    ? Waiting(FirstCard(name, interactor != null && interactor.BehindCounter))
-                    : Waiting($"{name} is visiting again. Talk at the counter to hear how things went.");
+                    ? Waiting(First(name))
+                    : Waiting($"{name} is visiting again. Talk at the counter.");
         // On their way in on Day 1: who you are and who's coming, with the pin over them.
         if (hintDay == 1 && !customer.WasAccepted && !customer.CanHearIntake && !customer.CanDecide)
-            return Waiting(Over(customer, FirstCard(name, interactor != null && interactor.BehindCounter)));
+            return Waiting(Over(customer, First(name)));
         return VisitAction(customer);
+    }
+
+    // The first card (the goal, said once), and its one line once it has settled: worked out every time the words are set,
+    // so "Go behind the counter" is never said to someone standing there (the reviewers saw it at the till).
+    private string First(string name)
+    {
+        bool behind = StaffSide;
+        cardNow = FirstNow(name, behind);
+        return FirstCard(name, behind);
     }
 
     // A guided visit's next step, once they're in.
@@ -365,7 +489,7 @@ public class DayOneGuideUI : MonoBehaviour
         // A repair can be returned while its drink is still outstanding.
         // Observe that order, even when another hand/cup has claimed it.
         if (customer.HasReturnedRepair && customer.HasDrinkOrder)
-            return "Repair returned. " + DrinkAction(customer);
+            return DrinkAction(customer);
         if (customer.Record != null && customer.Record.kind == JobKind.Drink)
             return DrinkAction(customer);
         if (customer.HasDrinkOrder && (customer.CanReceiveDrink || AtDrinks))
@@ -376,18 +500,16 @@ public class DayOneGuideUI : MonoBehaviour
     private string NextAction(CustomerBrain customer, bool drinkLesson)
     {
         if (customer == null || customer.IsLeaving)
-            return Waiting(hintDay == 1 && drinkLesson && spawner != null && spawner.OpeningCustomer == null
-                ? "You're Ace. Your café's first day: a customer is on the way."
-                : "A customer is on the way. Start with one request.");
+            return Waiting("A customer is on the way.");
         if (!customer.WasAccepted)
         {
             string name = Called(customer);
             if (interactor == null || !interactor.BehindCounter)
-                return OverPoint(CounterStand(), BehindCounterName, "Walk behind the service counter to take orders.");
+                return OverPoint(CounterStand(), BehindCounterName, "Go behind the counter to take orders.");
             if (customer.OutOfStock)
-                return Over(customer, $"No stock: {E} to talk, then {Q} to apologise.");
+                return Over(customer, $"No stock. {E} Talk to {name} and apologise.");
             if (customer.ShelfFull)
-                return OverPoint(TrayPoint(), FocusNameUI.TrayName, "The intake tray is full. Move an item to a free bench slot.");
+                return OverPoint(TrayPoint(), FocusNameUI.TrayName, "The intake tray is full. Move an item to the bench.");
             if (customer.CanHearIntake || customer.CanDecide)
                 return Over(customer, TalkWords(name, FirstPerson, IsDrinkVisit(customer)));
             return Waiting(Over(customer, $"Wait for {name} to reach the counter."));
@@ -408,48 +530,48 @@ public class DayOneGuideUI : MonoBehaviour
         if (carry != null)
             for (int i = 0; i < carry.Count; i++)
                 if (carry.GetItem(i) is DrinkJob cup && cup.CanHandBack && cup.Drink == wanted)
-                    return Over(customer, $"Walk to {name}; {E} serves the {drink}.");
+                    return Over(customer, TakeDrinkWords(drink, name));
         if (customer.CanApologiseForDrink)
-            return Over(customer, $"No stock. {E} near {name} apologises; restock after closing.");
+            return Over(customer, $"No stock. {E} Talk to {name} and apologise.");
         if (FindAnyObjectByType<BeverageStation>() != null)
         {
             Vector3 top = DrinksPoint();
             if (held != null && !held.IsEmpty && !held.CanHandBack)
-                return OverPoint(top, FocusNameUI.DrinksName, "That drink is cold. Use the discard tray; the cup and ingredients are lost.");
+                return OverPoint(top, FocusNameUI.DrinksName, "That drink is cold. Put it in the discard tray.");
             if (held != null && held.CanHandBack && held.Drink == wanted)
-                return Over(customer, $"Walk to {name}; {E} serves the {drink}.");
+                return Over(customer, TakeDrinkWords(drink, name));
             // From above the machine's controls work in its close-up (E at it); in first person, looking at it.
             bool inView = FirstPerson ? AtDrinks : interactor != null && interactor.IsAtBeverageStation;
             // "You're at it" only when E is the close-up (15 Oct, Day 1 by hand: half a metre short of the machine the card
             // said "E brings it into view" while E said "Take empty cup", and took one; NearDrinks keeps half a metre more
             // than the offer, for the card's steadiness).
             if (!inView)
-                return OverPoint(top, FocusNameUI.DrinksName, FirstPerson ? "Walk to the drinks machine on the back bar and look at it."
-                    : interactor != null && interactor.Focused is StationCloseUp ? $"You're at the drinks machine. {E} brings it into view."
-                    : interactor != null && interactor.NearDrinks ? $"One more step to the drinks machine: {E} brings it into view."
-                    : $"Walk to the drinks machine on the back bar. {E} brings it into view.");
+                return OverPoint(top, FocusNameUI.DrinksName, FirstPerson ? "Walk to the drinks machine and look at it."
+                    : interactor != null && interactor.Focused is StationCloseUp ? $"{E} Use the drinks machine."
+                    : interactor != null && interactor.NearDrinks ? "One more step to the drinks machine."
+                    : "Walk to the drinks machine on the back bar.");
             OverPoint(top, FocusNameUI.DrinksName, null);
             foreach (var section in FindObjectsByType<BeverageSlot>(FindObjectsInactive.Exclude))
             {
                 if (section.drink != wanted) continue;
-                if (section.IsPouring) return Waiting($"{drink} is filling. You can prepare another cup while it pours.");
+                if (section.IsPouring) return Waiting($"{drink} is pouring. Wait, or start another cup.");
                 if (section.Cup != null && section.Cup.IsEmpty)
-                    return Pad ? $"Cup placed. Aim at the {drink} paddle and press {E} to pour."
-                        : $"Cup placed. Look at the {drink} paddle and click to pour.";
+                    return Pad ? $"Aim at the {drink} paddle. {E} Pour."
+                        : $"Look at the {drink} paddle. {Use} Pour.";
                 if (section.Cup != null && section.Cup.CanHandBack)
-                    return Pad ? $"{drink} is ready. Aim at the cup and press {E} to take it."
-                        : $"{drink} is ready. Look at the cup and click to take it.";
+                    return Pad ? $"{drink} is ready. Aim at the cup. {E} Take it."
+                        : $"{drink} is ready. Look at the cup. {Use} Take it.";
             }
             if (held != null && held.IsEmpty)
-                return Pad ? $"Aim under the {drink} nozzle and press {E}: your cup goes there."
-                    : $"Look under the {drink} nozzle and click: your cup goes there.";
+                return Pad ? $"Aim under the {drink} nozzle. {E} Place the cup."
+                    : $"Look under the {drink} nozzle. {Use} Place the cup.";
             if (carry != null && !carry.HasSpace)
-                return $"Both hands are full. {ControlHints.SwitchHand} picks the other item; serve or set one down.";
-            return Pad ? $"Aim at the cup stack. {ControlHints.LeftHand} takes a cup in your left hand, {ControlHints.RightHand} in your right."
-                : "Look at the cup stack and click to take a cup (left or right click picks the hand).";
+                return "Both hands are full. Serve or set one down.";
+            return Pad ? $"Aim at the cup stack. {ControlHints.LeftHand} or {ControlHints.RightHand} Take a cup."
+                : $"Look at the cup stack. {ControlHints.LeftHand} or {ControlHints.RightHand} Take a cup.";
         }
         if (held != null && !held.IsEmpty && held.Drink == wanted)
-            return Over(customer, $"Take the {drink} to {name}. {E} serves it.");
+            return Over(customer, TakeDrinkWords(drink, name));
         if (carry != null && carry.IsCarrying && (held == null || !held.IsEmpty))
             return "Hands full. Set the item down or return your cup.";
 
@@ -463,8 +585,8 @@ public class DayOneGuideUI : MonoBehaviour
         {
             if (cup == null || cup.Owner != customer || cup.IsEmpty) continue;
             if (held != null)
-                return $"Return the spare cup to its stack with {E}.";
-            return $"{drink} ready. Press {E} at the machine or cup.";
+                return $"{E} Return the spare cup to its stack.";
+            return $"{drink} ready. {E} Take it at the machine.";
         }
         // A previous customer may have left a cup in the machine. Do not tell
         // the player to load another one into an occupied slot.
@@ -474,14 +596,14 @@ public class DayOneGuideUI : MonoBehaviour
         ShopInventory stock = ShopInventory.Instance;
         if (customer.CanApologiseForDrink &&
             (stock == null || !stock.CanBrew(wanted) || (held == null && stock.Cups <= 0)))
-            return Over(customer, $"No stock. {E} near {name} apologises; restock after closing.");
+            return Over(customer, $"No stock. {E} Talk to {name} and apologise.");
         if (stock != null && !stock.CanBrew(wanted))
             return "Not enough beans. Restock after closing.";
         if (held != null && held.IsEmpty)
-            return $"Empty cup ready. Press {E} at the espresso machine.";
+            return $"Empty cup ready. {E} Use the espresso machine.";
         if (stock != null && stock.Cups <= 0)
             return "No cups. Collect a spare or restock after closing.";
-        return $"Press {E} at the cup stack to take an empty cup.";
+        return $"{E} Take an empty cup from the stack.";
     }
 
     private string RepairAction(CustomerBrain customer)
@@ -495,36 +617,37 @@ public class DayOneGuideUI : MonoBehaviour
 
         if (customer.IsCounterRepair)
             return Over(customer, job.IsComplete
-                ? $"Sound restored. The phone is returned automatically; {E} on the customer resumes if you stepped away."
-                : Pad ? $"At the counter, press {E} to flip the orange mute switch. {ControlHints.Cancel} steps away without resetting the repair."
-                : "At the counter, click the orange mute switch. Right-click steps away without resetting the repair.");
+                ? "Sound restored. The phone goes back by itself."
+                : $"At the counter, {(Pad ? E : Use)} Flip the orange mute switch.");
         if (job is HoldCallJob call && !call.IsComplete)
-            return OverJob(job, "Phone", call.CurrentPhase == HoldCallRun.State.Ringing ? $"Support answered! {E} on the ringing phone picks up."
-                : call.CurrentPhase == HoldCallRun.State.OnHold ? "On hold. Work on another job; return when the phone rings."
-                : $"{E} on the support phone calls or redials. No menu choices.");
+            return OverJob(job, "Phone", call.CurrentPhase == HoldCallRun.State.Ringing ? $"Support answered! {E} Pick up the ringing phone."
+                : call.CurrentPhase == HoldCallRun.State.OnHold ? "On hold. Work on another job until the phone rings."
+                : $"{E} Call support on the phone.");
         if (job.IsComplete || (job.CanHandBack && job.Grade != JobGrade.Rejected && carrying))
         {
             if (inspecting)
                 return carry != null && !carry.HasSpace
                     ? "Fixed! Free a hand before collecting the item."
-                    : $"Fixed! Press {ControlHints.TakeFromBench} to pick up the item and step back from inspection.";   // X on a pad: A uses at the bench (12 Oct)
+                    : $"Fixed! {ControlHints.TakeFromBench} Pick it up.";   // X on a pad: A uses at the bench (12 Oct)
             if (carrying)
-                return Over(customer, $"{job.Grade} repair. Take it to {name}; {E} hands it back."
-                    + (job.Grade == JobGrade.Perfect ? "" : " You can keep repairing for a higher grade."));
-            return OverJob(job, PlaceName(job), $"Press {E} to pick up the repaired {device} for delivery.");
+            {
+                // Not Perfect: a second, smaller line says it can still be bettered (one step on the line itself).
+                if (job.Grade != JobGrade.Perfect) stepAlso = "You can keep repairing for a higher grade.";
+                return Over(customer, $"{job.Grade} repair. Take it to {name}. {E} Hand it back.");
+            }
+            return OverJob(job, PlaceName(job), $"{E} Pick up the repaired {device}.");
         }
 
         if (inspector != null && inspector.IsHoldingItem && !inspecting)
-            return $"Wrong item. {ControlHints.Cancel} puts down tools, then leaves inspection.";
+            return $"Wrong item. {ControlHints.Cancel} Step back.";
         HumanFault human = job.GetComponentInChildren<HumanFault>();
         if (human != null && !human.Finished && !job.HasDetachedParts)
-            return Over(customer, Pad ? $"At the counter, press {E} to flip the orange mute switch and turn sound on. {ControlHints.Cancel} steps away."
-                : "At the counter, click the orange mute switch to turn sound on. Right-click steps away.");
+            return Over(customer, $"At the counter, {(Pad ? E : Use)} Flip the orange mute switch.");
         if (carrying)
         {
             // While the card says this, the intake tray doesn't offer to take it back (CarryingToBench).
             CarryingToBench = job;
-            return OverPoint(BenchPoint(), FocusNameUI.BenchName, $"Carry the {device} to the repair bench. {E} sets it down.");
+            return OverPoint(BenchPoint(), FocusNameUI.BenchName, $"Carry the {device} to the repair bench. {E} Set it down.");
         }
         if (carry != null && carry.IsCarrying)
             return "Hands full. Set the item down or return your cup.";
@@ -535,56 +658,60 @@ public class DayOneGuideUI : MonoBehaviour
         if (!OnBench(job))
             return OverJob(job, PlaceName(job), PickUpFromTray(name, device));
         if (!FirstPerson)
-            return OverJob(job, FocusNameUI.BenchName, $"Placed. At the repair bench, press {E} to work on the {device}.");
-        return OverJob(job, FocusNameUI.BenchName, Pad ? $"Placed. Look at the {device} on the bench and press {ControlHints.Use} to work on it."
-            : $"Placed. Look at the {device} on the bench and click to work on it.");
+            return OverJob(job, FocusNameUI.BenchName, $"At the repair bench, {E} Work on the {device}.");
+        return OverJob(job, FocusNameUI.BenchName, $"Look at the {device} on the bench. {Use} Work on it.");
     }
 
-    // Button names follow the device in use (see ControlHints). With the
-    // keyboard these read exactly as the original hints did.
+    // Button names follow the device in use (see ControlHints), as icons since 19 Oct (the icon contract: an icon needs no
+    // brackets, and no line says "Press X"; the icon stands where the button's name stood, then the verb).
     private static bool Pad => PadInput.UsingPad;
     private static string E => ControlHints.Interact;
-    private static string Q => ControlHints.Refuse;
+    private static string Use => ControlHints.Use;
     // (Checklist v2, 14 Oct 2026: the bench's step words went with RepairBenchAction; the bench's card, its icons and the glow
     // say them now. Their helpers Aim, Hold and Select went with them.)
 
     // ------------------------------------------------------------------ the words (public: the checks read them here)
 
-    /// <summary>Day 1's first card: who you are, and who is on the way. Drops "behind the counter" when Ace is there.</summary>
-    // PLACEHOLDER COPY: the game's first words to a player (who Ace is), for his sister to rewrite; at most 90 characters.
-    public static string FirstCard(string name, bool behindCounter) => behindCounter
-        ? $"You're Ace. Your café's first day: {name} is on the way with a repair."
-        : $"You're Ace. Your café's first day: {name} is on the way. Go behind the counter.";
+    /// <summary>
+    /// Day 1's first card: the goal, said once ("Five stars and the café can franchise."), and who is on the way. Adds "Go
+    /// behind the counter." when Ace isn't on the staff's side. PLACEHOLDER COPY (the game's first words to a player), for
+    /// his sister to rewrite; at most 12 words before the suffix, 90 characters.
+    /// </summary>
+    public static string FirstCard(string name, bool behindCounter) =>
+        $"Five stars and the café can franchise. {name} is on {(name == "Grace" ? "her" : "the")} way." + (behindCounter ? "" : " Go behind the counter.");
+
+    /// <summary>The first card's one line once it has settled (the goal was said in full): who is coming, and where to stand.</summary>
+    public static string FirstNow(string name, bool behindCounter) =>
+        behindCounter ? $"{name} is on {(name == "Grace" ? "her" : "the")} way." : $"Go behind the counter. {name} is on the way.";
 
     /// <summary>After the featured visit: true words, whether or not anything is still open.</summary>
     public static string VisitOver(string name, int openOrders) => openOrders > 0
-        ? $"{name}'s visit is over. Finish the open {(openOrders == 1 ? "order" : "orders")}; closing time brings the recap."
-        : $"{name}'s visit is over. Closing time brings the day's recap.";
+        ? $"{name}'s visit is over. Finish the open {(openOrders == 1 ? "order" : "orders")}."
+        : $"{name}'s visit is over. Closing time brings the recap.";
 
-    /// <summary>The talk step: E talks, and E takes the job (or the order) when the replies appear.</summary>
-    public static string TalkWords(string name, bool firstPerson, bool drink)
-    {
-        string what = drink ? "order" : "job";
-        return firstPerson
-            ? $"Look at {name}. {E} talks; when your replies appear, {E} takes the {what}."
-            : $"{E} talks to {name}; when your replies appear, {E} takes the {what}.";
-    }
+    /// <summary>The talk step: one step, "Talk to Grace" (in first person, look at her first). Taking the job is the
+    /// conversation's own step (its replies say it; the card hides meanwhile).</summary>
+    public static string TalkWords(string name, bool firstPerson, bool drink) =>
+        firstPerson ? $"Look at {name}. {E} Talk." : $"{E} Talk to {name}.";
+
+    /// <summary>With a filled cup in hand: take it to them (the reviewers: the panel still said "Take a cup").</summary>
+    public static string TakeDrinkWords(string drink, string name) => $"Take the {drink} to {name}. {E} Serve it.";
 
     /// <summary>The device waits on the intake tray (playtest 4: a real tray in front of the till; it was "the intake shelf").</summary>
-    public static string PickUpFromTray(string name, string device) => $"Press {E} to pick up {Possessive(name)} {device} from the intake tray.";
+    public static string PickUpFromTray(string name, string device) => $"{E} Pick up {Possessive(name)} {device} from the intake tray.";
 
     /// <summary>The impatience card: the first time someone waiting on Ace gets frustrated.</summary>
     // 13 Oct 2026 (Systems): from behind the bench, E reaches a frustrated customer at a repair-bar stool over the counter, so the
-    // card no longer says "walk over". PLACEHOLDER COPY.
-    public static string ReassureWords(string name) => $"{name} is getting impatient. Get in reach and press {E} to reassure.";
+    // card no longer says "walk over". "In reach" had no visible distance (the reviewers): at the counter, then. PLACEHOLDER COPY.
+    public static string ReassureWords(string name) => $"{name} is getting impatient. At the counter, {E} Reassure.";
 
     /// <summary>
     /// The impatience card at the bench (checklist v2 §5.6): at the bench E takes the device away and A uses the tool, so it
-    /// says to step back first, in the bench's keys: "Grace is getting impatient. [Right-click] Step back, then [E]." ([B] and
-    /// [A] on a pad). 9 words, the alert's budget is 12 (WordBudget.BenchAlert). PLACEHOLDER COPY.
+    /// says to step back first, in the bench's keys (as icons): "Grace is getting impatient. [Circle] Step back, then [Cross]."
+    /// 8 words with the icons (they aren't words), the alert's budget is 12 (WordBudget.BenchAlert). PLACEHOLDER COPY.
     /// </summary>
     public static string BenchReassureWords(string name) =>
-        $"{name} is getting impatient. [{ControlHints.Cancel}] Step back, then [{ControlHints.Interact}].";
+        $"{name} is getting impatient. {ControlHints.Cancel} Step back, then {ControlHints.Interact}.";
 
     /// <summary>A customer as a sentence says them: "Grace", "the Officer" (his name is his job).</summary>
     public static string Called(CustomerBrain customer)
@@ -772,7 +899,7 @@ public class DayOneGuideUI : MonoBehaviour
     // ------------------------------------------------------------------ Ace on his first day
 
     // Day 1's controls strip (how to walk and use) until Ace has walked a few metres and used E; "You" over him for his first
-    // seconds, until he moves.
+    // seconds, until he moves. (At night the night's own "You" is UiPins' to keep: HideSelf leaves it.)
     private void WatchAce(DayClock clock, bool night, float now)
     {
         bool dayOne = clock != null && clock.Day == 1 && !night && !clock.DayOver;
@@ -849,20 +976,30 @@ public class DayOneGuideUI : MonoBehaviour
 
     // ------------------------------------------------------------------ drawing the card
 
-    // THE UI SKIN (playtest 3, session 3): a card of the phone's paper with dark ink, its title in the brand's green, under
-    // the tabs in the top left corner, clear of them as they come and go; compact, it is one smaller line.
+    // THE LOOK (playtest 7): one dark plate, the skin's band (the night's notes and speech boxes, the one style that read in
+    // every photo), with the amber bar down its left; the title in amber, the step in the band's cream, bold. In full: the
+    // title (20 px) over the step (26 px), and a second, smaller line under it when there is one; the line: the step alone
+    // at 26 px, as wide as it needs. Top left under the tabs by day, the same place at night. (It was the phone's paper with
+    // a green title at 21 px, settling to 18 px: the smallest, palest type on the screen, the reviewers.)
     // CHECKLIST V2 (14 Oct 2026, §5.6): no guide card at the bench. The bench's own card (BenchCards: her words, the tool's
     // icon big with its verb) and the glow on the next thing to touch are the guide there; the Day 1 card said the step a
     // fourth time ("Take the cloth (click it) to clean the smudge."). Only the impatience card shows at the bench, in the
     // bench's own keys (at the bench E takes the device away and A uses the tool) and with no title (its words say it), at
     // the bottom middle 26 px up (the stage's zone U6: the prompt line it used to sit over is gone).
-    private static readonly string TitleColour = UiSkin.HexOf(UiSkin.Brand);
-    private static readonly string AlsoColour = UiSkin.HexOf(UiSkin.InkSoft);
+    private static readonly string TitleColour = UiSkin.HexOf(UiSkin.Gold);
+    private static readonly string AlsoColour = UiSkin.HexOf(UiSkin.BandFaint);
     private const float Below = 16f;
-    private const float CardWidth = 460f, BenchCardWidth = 580f, CompactWidth = 640f;
+    private const float CardWidth = 560f, BenchCardWidth = 580f, CompactWidth = 800f;
+    // 20 Oct (Bench 6 on his Mac): at the bench the one-line card is the impatience alert, and it lives in the stage's zone U6
+    // (580 px across the top middle, BenchStageContract); in Baloo 2 at 26 px the line ran 658 px, so there it wraps instead
+    // (the full card at the bench is 580 too, and doesn't grow when it pulses).
+    private const float BenchAlertWidth = 580f;
     private const float BenchCardBottom = 26f;   // the stage's zone U6 (966-1054 px down at 1080p)
-    private const float FullSize = 21f, CompactSize = 18f;
-    private const float PadLeft = 24f, PadRight = 16f, PadFull = 11f, PadCompact = 7f;
+    /// <summary>The step's size (the full card's and the line's), the title's, and the second line's (reference pixels).</summary>
+    public const float FullSize = 26f, CompactSize = 26f, TitleSize = 20f, AlsoSize = 20f;
+    private const float PadLeft = 26f, PadRight = 18f, PadFull = 12f, PadCompact = 9f;
+    /// <summary>The change pulse: 1.06 to 1 over this long, with the tick.</summary>
+    public const float ChangePulseSeconds = .25f;
 
     private float WantedY() => -(TicketRailUI.BottomEdge > 0f ? TicketRailUI.BottomEdge + Below : 24f);
 
@@ -870,7 +1007,7 @@ public class DayOneGuideUI : MonoBehaviour
     {
         bool bench = inspector != null && inspector.IsHoldingItem;
         DayOneHintTimer.Look look;
-        string title, step, also;
+        string title, step, also, line;
         if (impatient != null)
         {
             look = DayOneHintTimer.Look.Full;
@@ -880,7 +1017,7 @@ public class DayOneGuideUI : MonoBehaviour
         }
         else if (guiding && !bench)
         {
-            look = toast.LookAt(now);
+            look = fallback ? DayOneHintTimer.Look.Compact : toast.LookAt(now);
             title = cardTitle;
             step = cardStep;
             also = cardAlso;
@@ -890,6 +1027,30 @@ public class DayOneGuideUI : MonoBehaviour
             look = DayOneHintTimer.Look.Hidden;
             title = step = also = "";
         }
+        // The line: the step, or the first card's shorter words once it has settled.
+        line = look == DayOneHintTimer.Look.Compact && cardNow.Length > 0 ? cardNow : step;
+        Draw(look, title, step, also, line, bench, false, now);
+    }
+
+    // The night's line (NightCycle.NowLine), hidden while a night card, the phone or a scene has the screen.
+    private void PresentNight(float now)
+    {
+        string line = NightCycle.NowLine;
+        bool blocked = PausePhone.Paused || NightCycle.Instance == null || NightCycle.Instance.Now != NightCycle.Phase.Night
+            || (conversation != null && conversation.InConversation) || sourceText == null || !sourceText.gameObject.activeInHierarchy;
+        if (blocked || string.IsNullOrEmpty(line))
+        {
+            Show(false);
+            GuidePin(false);
+            return;
+        }
+        Draw(DayOneHintTimer.Look.Compact, "", line, "", line, false, true, now);
+    }
+
+    private bool shownNight;
+
+    private void Draw(DayOneHintTimer.Look look, string title, string step, string also, string line, bool bench, bool night, float now)
+    {
         if (look == DayOneHintTimer.Look.Hidden || string.IsNullOrEmpty(step))
         {
             Show(false);
@@ -899,42 +1060,55 @@ public class DayOneGuideUI : MonoBehaviour
         if (panel == null && !CreatePanel()) return;
 
         // Built only when a word, the look or the place changes (nothing is allocated on the frames between).
-        if (shownText == null || look != shownLook || bench != shownAtBench || step != shownStep || title != shownTitle || also != shownAlso)
+        if (shownText == null || look != shownLook || bench != shownAtBench || step != shownStep || title != shownTitle || also != shownAlso || line != shownLine)
         {
-            string text = look == DayOneHintTimer.Look.Compact ? step
-                : (title.Length > 0 ? $"<color={TitleColour}><b>{title}</b></color>\n" : "") + step
-                  + (also.Length > 0 ? $"\n<size=86%><color={AlsoColour}>{also}</color></size>" : "");
+            // The step bold (it instructs: "your text needs to be bolder"); the title bold in amber; the second line plain.
+            string text = look == DayOneHintTimer.Look.Compact ? $"<b>{line}</b>"
+                : (title.Length > 0 ? $"<size={TitleSize}><color={TitleColour}><b>{title}</b></color></size>\n" : "") + $"<b>{step}</b>"
+                  + (also.Length > 0 ? $"\n<size={AlsoSize}><color={AlsoColour}>{also}</color></size>" : "");
             Layout(text, look, bench);
+            // The line changed: one pulse and a soft tick (not for the same words drawn again in another look).
+            if (line != shownLine && !string.IsNullOrEmpty(shownLine) || shownText == null)
+            {
+                changedAt = now;
+                Sfx.Play2D(ChangeCue);
+            }
             shownText = text;
             shownLook = look;
             shownAtBench = bench;
             shownStep = step;
             shownTitle = title;
             shownAlso = also;
+            shownLine = line;
+            shownNight = night;
         }
         Show(true);
         Follow();
-        // Stuck: back in full with one pulse (no sound).
-        float pulse = impatient == null ? toast.PulseAt(now) : 0f;
-        float s = 1f + .06f * pulse;
+        // Stuck: back in full with one pulse (no sound). Changed: one pulse with the tick.
+        float stuck = impatient == null && !fallback && !night ? toast.PulseAt(now) : 0f;
+        float change = Mathf.Clamp01(1f - (now - changedAt) / ChangePulseSeconds);
+        float pulse = Mathf.Max(stuck, change);
+        // At the bench the card is the impatience alert in the stage's zone U6 (580 px wide): it pulses by its edge's colour
+        // only, never by size, so it never grows out of its zone over the work (20 Oct, Bench 6).
+        float s = bench ? 1f : 1f + .06f * pulse;
         panelRect.localScale = new Vector3(s, s, 1f);
-        if (edge != null) edge.color = Color.Lerp(UiSkin.Brand, UiSkin.Gold, pulse);
-        GuidePin(true);
+        if (edge != null) edge.color = Color.Lerp(UiSkin.Gold, UiSkin.Paper, stuck);
+        GuidePin(!night);
     }
 
-    // The card's size for its words: full, the title and the step at 21 px in a 460 px card (580 at the bench), as tall as
-    // they need; compact, the step alone at 18 px, as wide as it needs up to 640 px.
+    // The card's size for its words: full, the title and the step in a 560 px card (580 at the bench), as tall as they
+    // need; the line, the step alone, as wide as it needs up to 800 px (a second line of words when it must).
     private void Layout(string text, DayOneHintTimer.Look look, bool bench)
     {
         bool compact = look == DayOneHintTimer.Look.Compact;
         hint.enableAutoSizing = false;
         hint.fontSize = compact ? CompactSize : FullSize;
         hint.text = text;
-        float most = compact ? CompactWidth : bench ? BenchCardWidth : CardWidth;
+        float most = compact ? (bench ? BenchAlertWidth : CompactWidth) : bench ? BenchCardWidth : CardWidth;
         float pad = compact ? PadCompact : PadFull;
         Vector2 words = hint.GetPreferredValues(text, most - PadLeft - PadRight, 0f);
         float width = compact ? Mathf.Min(most, Mathf.Ceil(words.x) + PadLeft + PadRight + 2f) : most;
-        float height = Mathf.Max(compact ? 34f : 64f, Mathf.Ceil(words.y) + 2f * pad);
+        float height = Mathf.Max(compact ? 46f : 72f, Mathf.Ceil(words.y) + 2f * pad);
         panelRect.sizeDelta = new Vector2(width, height);
         RectTransform label = hint.rectTransform;
         label.offsetMin = new Vector2(PadLeft, pad);
@@ -977,7 +1151,7 @@ public class DayOneGuideUI : MonoBehaviour
         Canvas canvas = sourceText.GetComponentInParent<Canvas>();
         if (canvas == null || canvas.rootCanvas.renderMode == RenderMode.WorldSpace) return false;
         canvas = canvas.rootCanvas;
-        panel = new GameObject("Next action hint (runtime)", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        panel = new GameObject("Now line (runtime)", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = panel.GetComponent<RectTransform>();
         panelRect = rect;
         rect.SetParent(canvas.transform, false);
@@ -985,19 +1159,20 @@ public class DayOneGuideUI : MonoBehaviour
         rect.pivot = new Vector2(0f, 1f);
         rect.anchoredPosition = new Vector2(UiSkin.Margin, WantedY());
         rect.sizeDelta = new Vector2(CardWidth, 104f);
-        UiSkin.Paint(rect, new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .96f), UiSkin.Radius);
+        // The skin's band: the dark plate the night's notes and speech boxes sit on.
+        UiSkin.Paint(rect, UiSkin.Band, UiSkin.Radius);
         var shadow = panel.AddComponent<Shadow>();
-        shadow.effectColor = new Color(0f, 0f, 0f, .3f);
+        shadow.effectColor = new Color(0f, 0f, 0f, .35f);
         shadow.effectDistance = new Vector2(0f, -3f);
-        // The brand's green down the card's left edge (gold for the moment of its one pulse).
-        edge = UiSkin.Paint(new GameObject("Edge", typeof(RectTransform)).GetComponent<RectTransform>(), UiSkin.Brand, 3f);
+        // The amber bar down the plate's left edge (paper for the moment of the stuck card's one pulse).
+        edge = UiSkin.Paint(new GameObject("Edge", typeof(RectTransform)).GetComponent<RectTransform>(), UiSkin.Gold, 3f);
         RectTransform edgeRect = edge.rectTransform;
         edgeRect.SetParent(rect, false);
         edgeRect.anchorMin = new Vector2(0f, 0f);
         edgeRect.anchorMax = new Vector2(0f, 1f);
         edgeRect.pivot = new Vector2(0f, .5f);
-        edgeRect.offsetMin = new Vector2(7f, 9f);
-        edgeRect.offsetMax = new Vector2(12f, -9f);
+        edgeRect.offsetMin = new Vector2(8f, 9f);
+        edgeRect.offsetMax = new Vector2(13f, -9f);
 
         GameObject label = new GameObject("Hint", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         RectTransform labelRect = label.GetComponent<RectTransform>();
@@ -1012,7 +1187,7 @@ public class DayOneGuideUI : MonoBehaviour
         hint.fontSize = FullSize;
         hint.enableAutoSizing = false;
         hint.textWrappingMode = TextWrappingModes.Normal;
-        hint.color = UiSkin.Ink;
+        hint.color = UiSkin.BandText;
         hint.alignment = TextAlignmentOptions.MidlineLeft;
         hint.raycastTarget = false;
         placedAtBench = false;
@@ -1023,7 +1198,7 @@ public class DayOneGuideUI : MonoBehaviour
     private void Show(bool visible)
     {
         if (panel != null && panel.activeSelf != visible) panel.SetActive(visible);
-        if (!visible) shownText = null;
+        if (!visible) { shownText = null; shownLine = ""; }
     }
 
     private void OnDisable()

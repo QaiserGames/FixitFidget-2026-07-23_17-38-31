@@ -30,6 +30,17 @@ using UnityEngine;
 // (the pieces still to do in it, in the state they are in now: the glow lights them, the bench's picker puts them first, the
 // D-pad goes to them even when something hides them), and left / total for the card's pips. Built from the parts' own states
 // every time, so it stays true while pieces fly home by themselves; a piece in flight is never a target.
+//
+// PLAYTEST 7 (19 Oct 2026; his girlfriend, dyslexic, first time, on a PlayStation pad). Two things here lied to her:
+//   * THE WATCH COULDN'T BE CLEANED TO PERFECT ("the cloth didn't work to clean the pocket watch entirely, she wasn't able to
+//     get a perfect grade"). A spot counted as "on the face turned down" when its middle lay below the middle of the device's
+//     drawn box. The watch is long (its bow and crown pull the box's middle 9 mm toward the bow), so the crystal's smudge, 13 mm
+//     to the side, never counted as under: the card said "Wipe" instead of "Flip it over" while the smudge faced the mat, and
+//     the cloth could not reach it. Now a spot is under when ITS OWN FACING (GrimeSpot.Normal: the side the dirt shows on,
+//     the same test the picker and the rub use) points down.
+//   * A TICK BEFORE THE WORK ("the 'Cover on' icon showed a tick before the cover was ever off"). "Cover on" counted as done
+//     while the cover was seated and any screw had ever been out. Now it ticks only once the cover has been OFF the device in
+//     this job and is seated again; "Screws back" only once every screw that came out is home.
 // ---------------------------------------------------------------------------
 public static class RepairChecklist
 {
@@ -120,19 +131,20 @@ public static class RepairChecklist
 
         // 2. The grime and the smudges. A done one first; while both are left, the one the device's first dirty spot wants (the
         // Day 1 guide names that spot's tool too: the two never point at different tools, the lab's photo, 12 Oct).
-        // A spot is on the underside when it lies below the device's middle (a patch's own up isn't its side: the watch's
-        // debris, reached from the back, is authored with its up toward the dial). A spot under a cover is not a target (the
-        // cover is: it is in the cover's own steps); it is still left.
+        // A spot is on the underside when the side its dirt shows on faces down (GrimeSpot.Normal: the patch works out which
+        // of its two faces is the surface in Awake, so the watch's debris, authored with its up toward the dial but reached
+        // from the back, faces the back; the picker and the rub read the same normal). Until 19 Oct this compared the spot's
+        // middle with the middle of the device's drawn box, which the watch's bow pulls aside: the header says what it cost.
+        // A spot under a cover is not a target (the cover is: it is in the cover's own steps); it is still left.
         int dirtLeft = 0, smudgesLeft = 0, dirtUnder = 0, smudgesUnder = 0;
         GrimeSpot firstLeft = null;
-        Vector3 middle = DeviceBounds.TryGet(job.gameObject, out Bounds box) ? box.center : job.transform.position;
         var dirtTargets = new List<Component>();
         var smudgeTargets = new List<Component>();
         foreach (GrimeSpot spot in job.GetComponentsInChildren<GrimeSpot>())
         {
             if (spot == null || spot.IsClean) continue;
             if (firstLeft == null) firstLeft = spot;
-            bool under = Under(BenchInteractable.BoundsCentre(spot.transform) - middle);
+            bool under = Under(spot.Normal);
             bool covered = spot.CoveredBy != null;
             if (spot.Tool == ToolType.Cloth) { smudgesLeft++; if (under) smudgesUnder++; if (!covered) smudgeTargets.Add(spot); }
             else { dirtLeft++; if (under) dirtUnder++; if (!covered) dirtTargets.Add(spot); }
@@ -177,14 +189,18 @@ public static class RepairChecklist
                 Pips(reconnect, 1, reconnect.done ? 0 : 1);
             }
 
-        // 5. Closing up, the last cover opened first.
+        // 5. Closing up, the last cover opened first. A closing step is DONE only when its work was done in this job (19 Oct;
+        // the fresh-eyes review: a tick is "done", never "is on"): the cover once it has been off and is home again, the screws
+        // once every one that came out is back in. A cover never taken off is "Cover on" to do (its screws came out: the
+        // card listed it) until it has been off, or, when the player screws them back in without ever lifting it, until the
+        // checklist is rebuilt with nothing open (the step then isn't listed at all).
         for (int i = covers.Count - 1; i >= 0; i--)
         {
             RemovablePart cover = covers[i];
-            bool opened = plan.opened.Contains(cover);
+            bool opened = plan.opened.Contains(cover), wasOff = plan.removed.Contains(cover);
             bool seated = cover.State == RemovablePart.CoverState.Seated;
             Step on = Add(steps, $"Put the {Lower(cover.DisplayName)} back on", Short(Lower(cover.DisplayName)) + " on", ToolType.Hand,
-                "click it in its well: it flies home", opened && seated, !seated && Under(cover.Outward), "Cover on", DeviceIcon("cover_", device, "cover"));
+                "click it in its well: it flies home", wasOff && seated, !seated && Under(cover.Outward), "Cover on", DeviceIcon("cover_", device, "cover"));
             if (cover.InWell) on.targets.Add(cover);
             Pips(on, 1, on.done ? 0 : 1);
             int screws = Count(cover);
@@ -192,10 +208,12 @@ public static class RepairChecklist
             {
                 Step back = Add(steps, screws == 1 ? "Put the screw back in" : "Put the screws back in", "Screws in", ToolType.Screwdriver,
                     "hold on each hole", opened && seated && !AnyOut(cover), ScrewsUnder(cover, true), "Screws back", "screw");
-                // The empty holes (the driver fetches each screw from its cup), once the cover they hold is home.
+                // The empty holes (the driver fetches each screw from its cup), once the cover they hold is home. A hole shows
+                // (its object is active) only while its screw is out and its cover is on (ScrewSocket); whether the picker may
+                // take it this step is the component's own switch, which is no reason to leave it out of the list.
                 if (!back.done && seated)
                     foreach (Screw s in cover.HeldBy)
-                        if (s != null && s.IsOut && s.Socket != null && s.Socket.isActiveAndEnabled) back.targets.Add(s.Socket);
+                        if (s != null && s.IsOut && s.Socket != null && s.Socket.gameObject.activeInHierarchy) back.targets.Add(s.Socket);
                 Pips(back, screws, back.done ? 0 : OutCount(cover));
             }
         }

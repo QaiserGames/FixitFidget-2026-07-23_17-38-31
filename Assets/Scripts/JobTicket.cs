@@ -18,6 +18,10 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private float cardWidth = 220, cardHeight = 118;
     // The UI skin (playtest 3, session 3): the phone's cream paper and dark ink, the customer's colour as a strip of tape
     // across the top corner (the spec's tab, claude/hud-spec.md §3), one chunky patience meter on a track.
+    // 19 OCT 2026 (playtest 7; her: "your text needs to be bolder"; the reviewers: the tabs' lines are 11-12 px at 1080p, the
+    // smallest type on screen): the name 20 px bold, the mood 16, the device and fault 18 semibold (the fault in sentence
+    // case, "Dirty lens and film path", not the ticket's Title Case id), the drink line 20 semibold with the drink's icon;
+    // the details panel has no "Patience: X%" (the bar already shows it) and no number anywhere.
     private static readonly Color Ink = UiSkin.Ink;
     private static readonly Color MutedInk = UiSkin.InkSoft;
     private static readonly Color UrgentInk = UiSkin.Red;
@@ -98,12 +102,14 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             callLine.gameObject.SetActive(!compact || ringing);
             if (jobText != null && !compact)
             {
-                Place(jobText.rectTransform, new Vector2(8, -38), new Vector2(cardWidth - 16, 18));
+                // With a call on the card there is no room for the mood line at these sizes: the call's own state ("Answer
+                // now") and the portrait's frame carry the urgency while it lasts.
+                if (moodText != null && moodText.gameObject.activeSelf) moodText.gameObject.SetActive(false);
+                Place(jobText.rectTransform, new Vector2(8, -28), new Vector2(cardWidth - 16, 22));
                 jobText.textWrappingMode = TextWrappingModes.NoWrap;
                 jobText.text = Target.Record != null ? Target.Record.deviceName : "Support phone";
             }
-            SetDrinkLine(Target.HasDrinkOrder && Target.WantedDrink != null
-                ? "+ " + Target.WantedDrink.drinkName : "", 56);
+            SetDrinkLine(Target.HasDrinkOrder && Target.WantedDrink != null ? DrinkLine(Target.WantedDrink) : "", 50);
             callIcon.Show(phase, Time.time);
             callState.text = phase switch
             {
@@ -130,16 +136,18 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             // A long fault must never push a voiced secondary drink off the card.
             bool secondaryDrink = Target.Record != null && Target.Record.kind == JobKind.Repair
                 && Target.HasDrinkOrder && Target.WantedDrink != null;
-            SetDrinkLine(secondaryDrink ? "+ " + Target.WantedDrink.drinkName : "", cardHeight - 28);
+            SetDrinkLine(secondaryDrink ? DrinkLine(Target.WantedDrink) : "", cardHeight - 34);
             if (jobText != null && !compact)
             {
-                Place(jobText.rectTransform, new Vector2(8, -40),
-                    new Vector2(cardWidth - 16, cardHeight - (secondaryDrink ? 70 : 54)));
+                if (moodText != null && !moodText.gameObject.activeSelf) moodText.gameObject.SetActive(true);
+                // The device and its fault, two lines at 18 px (one of them wrapped when the fault is long); with a drink the
+                // box stops over the drink's row, else a little over the bar.
+                Place(jobText.rectTransform, new Vector2(8, -41),
+                    new Vector2(cardWidth - 16, cardHeight - (secondaryDrink ? 77 : 55)));
                 jobText.textWrappingMode = TextWrappingModes.Normal;
                 // Delivery removes the repair obligation, even if a drink remains.
                 jobText.text = Target.Record != null && Target.Record.kind == JobKind.Repair && Target.ActiveJob == null
-                    ? "" : secondaryDrink ? Target.Record.deviceName + "\n" + Target.Record.faultDescription
-                    : wasSupport && Target.ActiveJob == null ? "" : Target.TabLines;
+                    ? "" : wasSupport && Target.ActiveJob == null ? "" : Lines();
             }
         }
         if (patienceFill != null)
@@ -170,12 +178,15 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         portraitInitial.alignment = TextAlignmentOptions.Center;
         portraitInitial.fontStyle = FontStyles.Bold;
         moodText = RepairOverlayUI.Text("Customer mood", transform,
-            new Vector2(46, -24), new Vector2(cardWidth - 54, 14), 11, MutedInk);
+            new Vector2(46, -24), new Vector2(cardWidth - 54, 18), 16, MutedInk);
         moodText.textWrappingMode = TextWrappingModes.NoWrap;
         drinkText = RepairOverlayUI.Text("Drink obligation", transform,
-            new Vector2(8, -90), new Vector2(cardWidth - 16, 18), 14, Ink);
+            new Vector2(8, -86), new Vector2(cardWidth - 16, 24), 20, Ink);
         drinkText.textWrappingMode = TextWrappingModes.NoWrap;
-        drinkText.fontStyle = FontStyles.Bold;
+        drinkText.fontStyle = UiSkin.SemiBold;
+        drinkText.richText = true;   // the drink's icon is a sprite tag
+        // 20 Oct: a long drink name on the narrowest card steps down to 17 px rather than run off it (20 px otherwise).
+        drinkText.enableAutoSizing = true; drinkText.fontSizeMin = 17f; drinkText.fontSizeMax = 20f;
         foreach (TMP_Text t in new[] { portraitInitial, moodText, drinkText }) UiSkin.UseFont(t);
     }
 
@@ -234,11 +245,55 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             : Color.Lerp(new Color(.90f, .93f, .90f), theme, .4f);
     }
 
+    // The tab's lines: the device and the fault as a sentence ("Dirty lens and film path"); a drink job's subject and detail
+    // (CustomerBrain.TabLines); the drink itself has its own row (DrinkLine).
+    private string Lines()
+    {
+        Job record = Target.Record;
+        if (record == null) return "";
+        if (record.kind == JobKind.Drink) return Target.TabLines;
+        return record.deviceName + "\n" + SentenceCase(record.faultDescription);
+    }
+
+    /// <summary>A Title Case label as a sentence: "Dirty Lens and Film Path" is "Dirty lens and film path" (the words a person
+    /// keeps capitalised, like USB, stay).</summary>
+    public static string SentenceCase(string label)
+    {
+        if (string.IsNullOrWhiteSpace(label)) return "";
+        string s = ReputationRules.InSentence(label.Trim());
+        return s.Length > 0 ? char.ToUpperInvariant(s[0]) + s.Substring(1) : s;
+    }
+
+    /// <summary>The drink's icon + its name (19 Oct 2026, her: "it needs to be bigger, huh? With images?"); the plain
+    /// "+ Latte" where the icon sheet isn't there. (20 Oct: the "+ " goes when the picture is there: the cup already says
+    /// "and a drink", and the 2 characters were what pushed "Hot Chocolate" off a 220 px card.)</summary>
+    public static string DrinkLine(DrinkDefinition drink)
+    {
+        if (drink == null) return "";
+        string icon = PadInput.Icon(DrinkIconName(drink), "");
+        return (icon.Length > 0 ? icon + " " : "+ ") + drink.drinkName;
+    }
+
+    /// <summary>The icon sheet's name for a drink, from its name: drink_latte, drink_coffee, drink_tea, drink_espresso,
+    /// drink_hotchocolate, drink_americano ("" for a drink the sheet doesn't know).</summary>
+    public static string DrinkIconName(DrinkDefinition drink)
+    {
+        if (drink == null || string.IsNullOrEmpty(drink.drinkName)) return "";
+        string n = drink.drinkName.ToLowerInvariant().Replace(" ", "");
+        if (n.Contains("latte")) return "drink_latte";
+        if (n.Contains("espresso")) return "drink_espresso";
+        if (n.Contains("americano")) return "drink_americano";
+        if (n.Contains("chocolate") || n.Contains("cocoa")) return "drink_hotchocolate";
+        if (n.Contains("tea")) return "drink_tea";
+        if (n.Contains("coffee")) return "drink_coffee";
+        return "";
+    }
+
     private void SetDrinkLine(string value, float offset)
     {
         drinkText.text = value;
         drinkText.gameObject.SetActive(!compact && !string.IsNullOrEmpty(value));
-        Place(drinkText.rectTransform, new Vector2(8, -offset), new Vector2(cardWidth - 16, 16));
+        Place(drinkText.rectTransform, new Vector2(8, -offset), new Vector2(cardWidth - 16, 22));
     }
 
     // The chip at the bench: the face on the left (where it always is), the tape on the top right, the bar beside the face (lower
@@ -280,8 +335,8 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (callIcon != null) { callIcon.rectTransform.anchoredPosition = new Vector2(15, -16); callIcon.rectTransform.sizeDelta = new Vector2(28, 28); }
         if (slotText != null)
         {
-            Place(slotText.rectTransform, new Vector2(46, -3), new Vector2(cardWidth - 54, 22));
-            slotText.enableAutoSizing = false; slotText.fontSize = 17; slotText.color = Ink;
+            Place(slotText.rectTransform, new Vector2(46, -2), new Vector2(cardWidth - 54, 24));
+            slotText.enableAutoSizing = false; slotText.fontSize = 20; slotText.color = Ink;
             slotText.overflowMode = TextOverflowModes.Ellipsis;
             slotText.textWrappingMode = TextWrappingModes.NoWrap;
             slotText.alignment = TextAlignmentOptions.TopLeft;
@@ -289,13 +344,15 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         }
         if (jobText != null)
         {
-            jobText.enableAutoSizing = false; jobText.fontSize = 14; jobText.color = Ink;
+            jobText.enableAutoSizing = false; jobText.fontSize = 18; jobText.color = Ink;
+            jobText.fontStyle = UiSkin.SemiBold;
+            jobText.lineSpacing = -8f;   // two lines at 18 px in the room two lines at 14 had
             jobText.overflowMode = TextOverflowModes.Ellipsis;
             jobText.alignment = TextAlignmentOptions.TopLeft;
             jobText.raycastTarget = false;
         }
         if (moodText != null)
-            Place(moodText.rectTransform, new Vector2(46, -24), new Vector2(cardWidth - 54, 14));
+            Place(moodText.rectTransform, new Vector2(46, -24), new Vector2(cardWidth - 54, 18));
         if (patienceFill != null)
         {
             patienceFill.raycastTarget = false;
@@ -337,9 +394,13 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         var rect = RepairOverlayUI.Rect("Phone", callLine, new Vector2(0, 1), new Vector2(.5f, .5f),
             new Vector2(15, -16), new Vector2(28, 28));
         callIcon = rect.gameObject.AddComponent<SupportCallIcon>(); callIcon.raycastTarget = false;
-        callState = RepairOverlayUI.Text("Call state", callLine, new Vector2(32, 0), new Vector2(cardWidth - 52, 16), 13, Color.white);
-        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(32, -16), new Vector2(cardWidth - 52, 16), 13, UiSkin.BandFaint);
+        callState = RepairOverlayUI.Text("Call state", callLine, new Vector2(32, 0), new Vector2(cardWidth - 52, 16), 16, Color.white);
+        callState.fontStyle = FontStyles.Bold;
+        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(32, -16), new Vector2(cardWidth - 52, 16), 16, UiSkin.BandFaint);
         callState.textWrappingMode = callSeconds.textWrappingMode = TextWrappingModes.NoWrap;
+        // 20 Oct: two 16 px rows don't fit the 32 px band (Baloo 2's line is ~18 px), and the band can't grow without
+        // covering the patience bar under it: the two rows take the largest size that fits, up to 16 (about 14).
+        foreach (TMP_Text t in new[] { callState, callSeconds }) { t.enableAutoSizing = true; t.fontSizeMin = 12f; t.fontSizeMax = 16f; }
         UiSkin.UseFont(callState);
         UiSkin.UseFont(callSeconds);
     }
@@ -353,8 +414,9 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             UiSkin.Round(detailBand, UiSkin.Radius);
             detailPanel = detailBand.rectTransform;
             detailText = RepairOverlayUI.Text("Full task text", detailPanel, new Vector2(12, -10),
-                new Vector2(296, 60), 16, UiSkin.BandText);
+                new Vector2(296, 60), 18, UiSkin.BandText);
             detailText.textWrappingMode = TextWrappingModes.Normal;
+            detailText.richText = true;
             detailText.alignment = TextAlignmentOptions.TopLeft;
             UiSkin.UseFont(detailText);
             // Draw above neighbours without a raycaster or input capture.
@@ -364,12 +426,14 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             layer.sortingOrder = parentCanvas != null ? parentCanvas.sortingOrder + 1 : 1;
         }
         detailPanel.gameObject.SetActive(true);
-        string obligations = Target.Record != null && Target.Record.kind == JobKind.Repair && Target.ActiveJob == null
-            ? Target.HasDrinkOrder && Target.WantedDrink != null ? "+ " + Target.WantedDrink.drinkName : ""
-            : Target.TabLines;
+        // The whole job in words: the name, the device and the fault (as a sentence) and the drink; a call's state. No
+        // "Patience: X%": the bar shows it (19 Oct).
+        bool delivered = Target.Record != null && Target.Record.kind == JobKind.Repair && Target.ActiveJob == null;
+        string obligations = delivered ? "" : Lines();
+        if (Target.HasDrinkOrder && Target.WantedDrink != null && (delivered || Target.Record == null || Target.Record.kind == JobKind.Repair))
+            obligations += (obligations.Length > 0 ? "\n" : "") + "+ " + Target.WantedDrink.drinkName;
         detailText.text = Target.CustomerName + "\n" + obligations
-            + (call != null ? "\n" + callState.text + " · " + callSeconds.text : "")
-            + "\nPatience: " + Mathf.CeilToInt(Target.PatienceFraction * 100f) + "%";
+            + (call != null ? "\n" + callState.text + " · " + callSeconds.text : "");
         float height = detailText.GetPreferredValues(detailText.text, 296, 0).y + 20;
         Place(detailPanel, new Vector2((cardWidth - 320) * .5f, -cardHeight - 5), new Vector2(320, height));
         Place(detailText.rectTransform, new Vector2(12, -10), new Vector2(296, height - 20));

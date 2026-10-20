@@ -43,6 +43,20 @@ using UnityEngine.Rendering;
 //
 // A house Ace has walked into (the break-ins) is left alone while Ace is inside
 // (Leave): it shows its own rooms, like a doll's house (GraceHouse).
+//
+// PLAYTEST 7 (19 Oct 2026; the reviewers' night photos: "the dumpster is not drawn"
+// at the bins' 8 m view; whole blocks dithered to "a screen-door mesh"; Ace "a grid
+// of dots" behind a faded piece):
+//   * The bins' set (NightZeroSet: the dumpster, the trash can, the crate, the lamp,
+//     the back door) never fades: it is what Ace must use there.
+//   * Only the pieces in the way fade (Fade Pieces, on): each renderer of a building
+//     has its own dots, and a piece no sightline passes through stays solid. A whole
+//     block no longer goes dotted for one wall. (Off: the whole building, as before.)
+//   * A piece between the camera and Ace's own body keeps fewer dots still (Over Ace
+//     Alpha, one in ten) than one over the ground ahead (one in four), so Ace reads
+//     through it as a figure, not a dot grid. What would fix it outright, Ace drawn
+//     over the dots (an x-ray pass) or a round cut-out in the dither shader, needs
+//     the shader, which isn't here.
 // ---------------------------------------------------------------------------
 [DefaultExecutionOrder(-50)]   // after CafeViewMode (-100) has placed the overhead camera this frame
 [DisallowMultipleComponent]
@@ -50,6 +64,10 @@ public sealed class NightSeeThrough : MonoBehaviour
 {
     [Tooltip("How much of a building in the way is still drawn: a quarter of its dots.")]
     [Range(.05f, 1f)] public float seeThroughAlpha = .25f;
+    [Tooltip("A piece right between the camera and Ace's body keeps only this many of its dots (one in ten): Ace reads through it.")]
+    [Range(.02f, 1f)] public float overAceAlpha = .1f;
+    [Tooltip("Only the pieces a sightline passes through fade; the rest of the building stays solid. Off: the whole building fades.")]
+    public bool fadePieces = true;
     [Tooltip("Seconds to fade out, or back in.")]
     [Min(.01f)] public float fadeSeconds = .2f;
     [Tooltip("Seconds a building must be clearly out of the way before it comes back. Stops it flickering at the edge.")]
@@ -84,6 +102,10 @@ public sealed class NightSeeThrough : MonoBehaviour
         public bool blocking, worn;
         public Material[][] own;      // what each renderer wore when the fade began
         public Color[][] colours;     // _BaseColor per material slot, for the property block
+        // Each piece on its own (Fade Pieces): in a sightline now, over Ace's body, its dots, and how long it has been clear.
+        public bool[] pieceBlocking, pieceOverAce;
+        public float[] pieceAlpha, pieceClear;
+        public bool overAce;          // the building as a whole: some piece is between the camera and Ace's body
     }
 
     CafeViewMode view;
@@ -164,6 +186,8 @@ public sealed class NightSeeThrough : MonoBehaviour
         // Grace's rooms show themselves (GraceHouse: cut-away walls, the floor above hidden); only her house's shell
         // can turn see-through, while Ace is outside it.
         foreach (var rooms in FindObjectsByType<GraceHouse>(FindObjectsInactive.Include)) skipRoots.Add(rooms.transform);
+        // The bins' set (the dumpster, the trash can, the crate, the lamp, the back door): what Ace must use there never fades.
+        foreach (var bins in FindObjectsByType<NightZeroSet>(FindObjectsInactive.Include)) skipRoots.Add(bins.transform);
         var skipRenderers = new HashSet<Renderer>();
         if (view != null)
         {
@@ -213,6 +237,11 @@ public sealed class NightSeeThrough : MonoBehaviour
                 boxes = new Bounds[pair.Value.Count],
             };
             for (int i = 0; i < g.renderers.Length; i++) g.boxes[i] = g.renderers[i].bounds;
+            g.pieceBlocking = new bool[g.renderers.Length];
+            g.pieceOverAce = new bool[g.renderers.Length];
+            g.pieceAlpha = new float[g.renderers.Length];
+            g.pieceClear = new float[g.renderers.Length];
+            for (int i = 0; i < g.pieceAlpha.Length; i++) g.pieceAlpha[i] = 1f;
             groups.Add(g);
             Renderers += g.renderers.Length;
             foreach (var r in g.renderers)
@@ -228,15 +257,18 @@ public sealed class NightSeeThrough : MonoBehaviour
     void LateUpdate()
     {
         bool looking = view != null && view.Following && view.OverheadShown && view.isometricCamera != null;
-        if (looking) FindBlocking(); else foreach (var g in groups) g.blocking = false;
+        if (looking) FindBlocking();
+        else foreach (var g in groups) { g.blocking = g.overAce = false; if (g.pieceBlocking != null) Array.Clear(g.pieceBlocking, 0, g.pieceBlocking.Length); }
 
         float dt = Time.unscaledDeltaTime;
-        float speed = (1f - seeThroughAlpha) / Mathf.Max(.01f, fadeSeconds);
+        float speed = (1f - Mathf.Min(seeThroughAlpha, overAceAlpha)) / Mathf.Max(.01f, fadeSeconds);
         int faded = 0;
         foreach (var g in groups)
         {
+            if (fadePieces && g.pieceAlpha != null) { if (StepPieces(g, dt, speed)) faded++; continue; }
             g.clearFor = g.blocking ? 0f : g.clearFor + dt;
-            float target = g.blocking || g.clearFor < backAfter && g.alpha < 1f ? seeThroughAlpha : 1f;
+            float keep = g.overAce ? overAceAlpha : seeThroughAlpha;
+            float target = g.blocking || g.clearFor < backAfter && g.alpha < 1f ? keep : 1f;
             if (Mathf.Approximately(g.alpha, target) && (target < 1f) == g.worn) { if (g.worn) faded++; continue; }
             g.alpha = Mathf.MoveTowards(g.alpha, target, speed * dt);
             if (g.alpha < 1f)
@@ -250,6 +282,38 @@ public sealed class NightSeeThrough : MonoBehaviour
         }
         FadedNow = faded;
         if (faded > MostAtOnce) MostAtOnce = faded;
+    }
+
+    // Each piece of a building on its own: a piece in a sightline fades (fewer dots still over Ace's body), a piece out of
+    // the way comes back after its moment, and the whole building wears the copies while any piece is see-through (its
+    // solid pieces draw all their dots: the same look as their own materials). True while any piece is see-through.
+    bool StepPieces(Group g, float dt, float speed)
+    {
+        bool any = false, changed = false;
+        float lowest = 1f;
+        for (int i = 0; i < g.renderers.Length; i++)
+        {
+            bool blocking = g.pieceBlocking[i];
+            g.pieceClear[i] = blocking ? 0f : g.pieceClear[i] + dt;
+            float keep = g.pieceOverAce[i] ? overAceAlpha : seeThroughAlpha;
+            float target = blocking || g.pieceClear[i] < backAfter && g.pieceAlpha[i] < 1f ? keep : 1f;
+            if (!Mathf.Approximately(g.pieceAlpha[i], target))
+            {
+                g.pieceAlpha[i] = Mathf.MoveTowards(g.pieceAlpha[i], target, speed * dt);
+                changed = true;
+            }
+            if (g.pieceAlpha[i] < 1f) { any = true; lowest = Mathf.Min(lowest, g.pieceAlpha[i]); }
+        }
+        g.alpha = any ? lowest : 1f;   // the building's own number: its most see-through piece (the notes)
+        if (any)
+        {
+            if (!g.worn) Wear(g);
+            if (changed || !g.worn) Show(g);
+            everFaded.Add(g.name);
+            return true;
+        }
+        if (g.worn) TakeOff(g);
+        return false;
     }
 
     void FindBlocking()
@@ -277,16 +341,28 @@ public sealed class NightSeeThrough : MonoBehaviour
         }
         foreach (var g in groups)
         {
-            g.blocking = false;
-            if (LeftAlone(g) || !AnyHit(g.bounds, eye)) continue;
-            foreach (var box in g.boxes)
-                if (AnyHit(box, eye)) { g.blocking = true; break; }
+            g.blocking = g.overAce = false;
+            if (g.pieceBlocking != null) Array.Clear(g.pieceBlocking, 0, g.pieceBlocking.Length);
+            if (g.pieceOverAce != null) Array.Clear(g.pieceOverAce, 0, g.pieceOverAce.Length);
+            if (LeftAlone(g) || !AnyHit(g.bounds, eye, 0, aims)) continue;
+            for (int i = 0; i < g.boxes.Length; i++)
+            {
+                // Ace's body first (the first five sightlines), then the ground ahead of him.
+                bool overAce = AnyHit(g.boxes[i], eye, 0, 5);
+                bool hit = overAce || AnyHit(g.boxes[i], eye, 5, aims);
+                if (!hit) continue;
+                g.blocking = true;
+                if (overAce) g.overAce = true;
+                if (g.pieceBlocking != null) { g.pieceBlocking[i] = true; g.pieceOverAce[i] = overAce; }
+                if (!fadePieces && overAce) break;
+            }
         }
     }
 
-    bool AnyHit(Bounds box, Vector3 eye)
+    // Does any of the sightlines from <paramref name="from"/> (inclusive) to <paramref name="to"/> (exclusive) pass through the box?
+    bool AnyHit(Bounds box, Vector3 eye, int from, int to)
     {
-        for (int i = 0; i < aims; i++)
+        for (int i = from; i < to && i < aims; i++)
         {
             Vector3 target = aim[i];
             Vector3 d = target - eye;
@@ -332,18 +408,20 @@ public sealed class NightSeeThrough : MonoBehaviour
         {
             Renderer r = g.renderers[i];
             if (r == null || r.forceRenderingOff || g.colours[i] == null) continue;
+            // Each piece's own dots (Fade Pieces), else the building's one value.
+            float alpha = fadePieces && g.pieceAlpha != null ? g.pieceAlpha[i] : g.alpha;
             if (dither != null)
             {
                 // The dots: one value for the whole renderer.
                 block.Clear();
-                block.SetFloat(SeeThroughId, g.alpha);
+                block.SetFloat(SeeThroughId, alpha);
                 r.SetPropertyBlock(block);
                 continue;
             }
             for (int m = 0; m < g.colours[i].Length; m++)
             {
                 Color c = g.colours[i][m];
-                c.a = g.alpha;
+                c.a = alpha;
                 block.Clear();
                 block.SetColor(BaseColorId, c);
                 r.SetPropertyBlock(block, m);
@@ -372,6 +450,7 @@ public sealed class NightSeeThrough : MonoBehaviour
         g.colours = null;
         g.worn = false;
         g.alpha = 1f;
+        if (g.pieceAlpha != null) for (int i = 0; i < g.pieceAlpha.Length; i++) g.pieceAlpha[i] = 1f;
     }
 
     /// <summary>Every building back as it was: its own materials, no property blocks.</summary>
@@ -427,9 +506,26 @@ public sealed class NightSeeThrough : MonoBehaviour
         return string.Join("/", parts);
     }
 
+    /// <summary>Pieces see-through right now (Fade Pieces), across every building; the whole building's pieces when it fades whole.</summary>
+    public int PiecesFadedNow
+    {
+        get
+        {
+            int n = 0;
+            foreach (var g in groups)
+            {
+                if (!g.worn) continue;
+                if (fadePieces && g.pieceAlpha != null) { foreach (float a in g.pieceAlpha) if (a < 1f) n++; }
+                else n += g.renderers.Length;
+            }
+            return n;
+        }
+    }
+
     /// <summary>For the night's notes.</summary>
     public string Describe() =>
-        $"See-through ({(dither != null ? "dotted" : "blended: the dither shader was not found")}): " +
+        $"See-through ({(dither != null ? "dotted" : "blended: the dither shader was not found")}; {(fadePieces ? "piece by piece" : "whole buildings")}; " +
+        $"one dot in {Mathf.RoundToInt(1f / Mathf.Max(.01f, seeThroughAlpha))} in the way, one in {Mathf.RoundToInt(1f / Mathf.Max(.01f, overAceAlpha))} over Ace): " +
         $"{groups.Count} buildings and trees ({Renderers} pieces, {HideInstead} of them hide instead) can fade; " +
         $"{FadedNow} faded now, {MostAtOnce} at most at once, {everFaded.Count} different ones so far; {SeeThroughMaterials.Made} see-through materials.";
 }

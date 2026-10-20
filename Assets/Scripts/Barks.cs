@@ -33,10 +33,18 @@ using UnityEngine.UI;
 //
 // Ace answers (6 Oct 2026, claude/the-man-at-the-bins-story.md §4): where a held scene from the asset has a choice
 // after one of its lines, the scene waits once that line is up and Ace's two replies come up as chips where Ace's
-// own line would be (over Ace's head; at the bottom in first person): 1 or 2 on the keyboard, X or Y on a pad
-// (the pad's labels follow the pad). The reply picked is said by Ace, then the line said back, and the scene goes
-// on; the caller hears which (to nudge the man's warmth). E never picks one: a press meant to move a line on
-// can't answer for Ace.
+// own line would be (over Ace's head; at the bottom in first person). The reply picked is said by Ace, then the line
+// said back, and the scene goes on; the caller hears which (to nudge the man's warmth).
+//
+// ONE WAY TO CHOOSE (playtest 7, 19 Oct 2026; his girlfriend on a PlayStation pad: "Square or triangle?... we were already
+// doing the up and down and all of a sudden we're doing..."): the night's replies work exactly like the day's
+// (ConversationController). One reply is highlighted (► and the Cross / E icon on it, in the brand's light green); up and
+// down move it (D-pad up / down, the left stick one step a push, W / S, the arrows); Cross / E / Enter / a click takes it;
+// the day's footer sits under the chips. 1 / 2 still pick directly. Square / Triangle no longer pick and the chips no
+// longer show them. The 0.2 s guard stays: the press that brought the chips up can't also pick. This reverses the 6 Oct
+// rule "E never picks one" (a press meant to move a line on can't answer for Ace): the guard keeps that press from
+// answering, and one way to choose everywhere beats the rule. His to overrule. While Ace is choosing the notebook ignores
+// D-pad up (NightNotebook) and the overhead's wheel zoom should too (CafeViewMode).
 //
 // Built in code on a screen canvas of its own (nothing in the scene changes). One object per Play session.
 // The pinning (head point, edge clamp, arrow) is what chunk C's mark ("?" over Grace) will use too.
@@ -104,6 +112,7 @@ public sealed class Barks : MonoBehaviour
         public float startedAt, lineStarted, lineEnds;
         public NightLines.Choice choosing;                        // waiting for Ace's reply to the line that's up
         public float choiceFrom;                                  // when the replies come up (seconds of barks)
+        public int highlighted;                                   // the reply Cross / E takes (up and down move it)
     }
 
     // Ace's two replies while a scene waits for one (the chips).
@@ -113,6 +122,7 @@ public sealed class Barks : MonoBehaviour
         public Image band, accent;
         public TextMeshProUGUI text;
         public Vector2 size;
+        public string line = "";   // the reply's words (drawn again when the highlight moves)
     }
 
     public static Barks Instance { get; private set; }
@@ -126,7 +136,8 @@ public sealed class Barks : MonoBehaviour
     readonly Chip[] chips = new Chip[2];
     View chipStack;                                     // where the chips sit, placed like one of Ace's lines
     CanvasGroup chipsGroup;
-    bool chipsUp;
+    TextMeshProUGUI chipFooter;                         // the day's footer under the chips: how to choose, how to say it
+    bool chipsUp, stickArmed = true;
     Sprite triangle;
     TMP_FontAsset font;
     Camera cam;
@@ -255,6 +266,24 @@ public sealed class Barks : MonoBehaviour
     public static bool Choosing => Instance != null && Instance.scene != null && Instance.scene.choosing != null;
     /// <summary>The replies' chips are on screen and can be picked.</summary>
     public static bool ChipsUp => Instance != null && Instance.chipsUp;
+    /// <summary>The reply Cross / E would take now (0 or 1), or -1 while Ace isn't choosing (for the checks).</summary>
+    public static int Highlighted => Choosing ? Instance.scene.highlighted : -1;
+    /// <summary>Move the highlight up (-1) or down (+1), as the D-pad does (for the checks). False if Ace isn't choosing.</summary>
+    public static bool MoveHighlight(int by)
+    {
+        if (!Choosing || !Instance.chipsUp) return false;
+        Instance.Highlight(Instance.scene.highlighted + by);
+        return true;
+    }
+    /// <summary>Take the highlighted reply, as Cross / E does (for the checks). False if Ace isn't choosing, or the chips are too new.</summary>
+    public static bool PickHighlighted()
+    {
+        if (!Choosing || !Instance.chipsUp || Instance.clock - Instance.scene.choiceFrom < PickGuard) return false;
+        Instance.Pick(Instance.scene.highlighted);
+        return true;
+    }
+    /// <summary>Seconds after the chips come up before any press can pick: the press that brought them up can't also pick.</summary>
+    public const float PickGuard = .2f;
     /// <summary>The text of reply 0 or 1 while Ace is choosing (for the checks), or "".</summary>
     public static string ReplyText(int reply)
     {
@@ -540,7 +569,8 @@ public sealed class Barks : MonoBehaviour
     }
 
     // Waiting for Ace's reply: the line being answered stays up; a moment after it came up (or at once, with E) the
-    // two replies come up, and a moment after that 1 / 2 (X / Y) picks one.
+    // two replies come up with the first highlighted. Up and down move the highlight (the day's Move), Cross / E / Enter /
+    // a click takes it a moment after they came up (PickGuard: not the press that brought them up), 1 / 2 pick directly.
     void StepChoice()
     {
         ScenePlay play = scene;
@@ -549,16 +579,65 @@ public sealed class Barks : MonoBehaviour
         if (!chipsUp)
         {
             if (clock < play.choiceFrom && !(clock - play.lineStarted >= sceneMinLine && MoveOnPressed())) return;
+            play.highlighted = 0;
+            stickArmed = PadInput.LeftStick.sqrMagnitude < .09f;   // a stick already pushed doesn't count as a push
             ShowChips(play.choosing);
             play.choiceFrom = clock;
             return;
         }
-        if (clock - play.choiceFrom < .2f || !Application.isFocused) return;
+        if (!Application.isFocused) return;
+        int move = Move();
+        if (move != 0) Highlight(play.highlighted + move);
+        if (clock - play.choiceFrom < PickGuard) return;
         Keyboard keys = Keyboard.current;
         int pick = -1;
-        if (keys != null && (keys.digit1Key.wasPressedThisFrame || keys.numpad1Key.wasPressedThisFrame) || PadInput.Pressed(PadButton.West)) pick = 0;
-        else if (keys != null && (keys.digit2Key.wasPressedThisFrame || keys.numpad2Key.wasPressedThisFrame) || PadInput.Pressed(PadButton.North)) pick = 1;
+        if (keys != null && (keys.digit1Key.wasPressedThisFrame || keys.numpad1Key.wasPressedThisFrame)) pick = 0;
+        else if (keys != null && (keys.digit2Key.wasPressedThisFrame || keys.numpad2Key.wasPressedThisFrame)) pick = 1;
+        else if (MoveOnPressed()) pick = play.highlighted;
         if (pick >= 0) Pick(pick);
+    }
+
+    // Up is -1, down is +1: W / S, the arrow keys, the wheel, the D-pad, or the left stick (one step each push). The day's
+    // (ConversationController.Move). The wheel also zooms the overhead view at night: CafeViewMode skips its zoom while
+    // Barks.Choosing, so one wheel does one thing.
+    int Move()
+    {
+        int move = 0;
+        Keyboard kb = Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.wKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame) move--;
+            if (kb.sKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame) move++;
+        }
+        Mouse mouse = Mouse.current;
+        if (mouse != null)
+        {
+            float wheel = mouse.scroll.ReadValue().y;
+            if (wheel > .01f) move--;
+            else if (wheel < -.01f) move++;
+        }
+        if (PadInput.Pressed(PadButton.DpadUp)) move--;
+        if (PadInput.Pressed(PadButton.DpadDown)) move++;
+        float stick = PadInput.LeftStick.y;
+        if (stickArmed && Mathf.Abs(stick) > .6f)
+        {
+            move += stick > 0f ? -1 : 1;
+            stickArmed = false;
+        }
+        else if (Mathf.Abs(stick) < .3f) stickArmed = true;
+        return Mathf.Clamp(move, -1, 1);
+    }
+
+    // The highlight moves to this reply (kept within the two), and the chips are drawn again.
+    void Highlight(int reply)
+    {
+        ScenePlay play = scene;
+        if (play == null || play.choosing == null || !chipsUp) return;
+        int to = Mathf.Clamp(reply, 0, chips.Length - 1);
+        if (to == play.highlighted) return;
+        play.highlighted = to;
+        DressChips();
+        Sfx.Play2D("phone.tap");
     }
 
     // Ace says the reply picked, then the line said back (if any), and the scene goes on from there.
@@ -858,7 +937,7 @@ public sealed class Barks : MonoBehaviour
             c.text = line.gameObject.AddComponent<TextMeshProUGUI>();
             if (font != null) c.text.font = font;
             UiSkin.Shadowed(c.text);
-            c.text.fontSize = fontSize * .9f;
+            c.text.fontSize = fontSize;   // the day's replies' size (30 px), not a smaller one of their own
             c.text.color = textColour;
             c.text.alignment = TextAlignmentOptions.MidlineLeft;
             c.text.textWrappingMode = TextWrappingModes.NoWrap;
@@ -867,41 +946,85 @@ public sealed class Barks : MonoBehaviour
             c.text.raycastTarget = false;
             chips[i] = c;
         }
+        // The day's footer, under the chips: how to choose, and how to say it.
+        RectTransform footer = Part("How to choose", chipStack.root, new Vector2(.5f, 0f), new Vector2(.5f, 0f));
+        chipFooter = footer.gameObject.AddComponent<TextMeshProUGUI>();
+        if (font != null) chipFooter.font = font;
+        UiSkin.Shadowed(chipFooter);
+        chipFooter.fontSize = FooterSize;
+        chipFooter.color = UiSkin.BandFaint;
+        chipFooter.alignment = TextAlignmentOptions.Center;
+        chipFooter.textWrappingMode = TextWrappingModes.NoWrap;
+        chipFooter.overflowMode = TextOverflowModes.Overflow;
+        chipFooter.richText = true;
+        chipFooter.raycastTarget = false;
         chipStack.root.gameObject.SetActive(false);
     }
 
-    // Sized to their words once, when they come up (never per frame).
+    const float FooterSize = 22f, FooterGap = 8f, ChipGapBetween = 6f;
+
+    // Sized to their words once, when they come up (never per frame); drawn again only when the highlight moves.
     void ShowChips(NightLines.Choice choice)
     {
         NightLines lines = NightLines.Current;
         if (choice == null || lines == null) return;
-        Color colour = ColourOf(AceId);
-        string hex = ColorUtility.ToHtmlStringRGB(colour);
-        float textMax = maxWidth - PadLeft - PadRight;
-        float lineHeight = fontSize * .9f * 1.32f;
-        float width = 0f, height = 0f;
-        const float Gap = 6f;
         for (int i = 0; i < chips.Length; i++)
         {
-            Chip c = chips[i];
             NightLines.Line line = lines.FindLine(i == 0 ? choice.first.line : choice.second.line);
-            string key = i == 0 ? ControlHints.Say("1", PadInput.Label(PadButton.West)) : ControlHints.Say("2", PadInput.Label(PadButton.North));
-            c.text.text = $"<color=#{hex}><b>{key}</b></color>   {(line != null ? line.text : "")}";
-            c.accent.color = colour;
-            Vector2 preferred = c.text.GetPreferredValues(c.text.text, textMax, 0f);
-            c.size = new Vector2(Mathf.Min(textMax, Mathf.Ceil(preferred.x) + 2f) + PadLeft + PadRight, lineHeight + 2f * PadY);
-            c.root.sizeDelta = c.size;
-            width = Mathf.Max(width, c.size.x);
-            height += c.size.y + (i > 0 ? Gap : 0f);
+            chips[i].line = line != null ? line.text : "";
         }
-        // The second reply at the bottom, the first above it.
-        chips[1].root.anchoredPosition = Vector2.zero;
-        chips[0].root.anchoredPosition = new Vector2(0f, chips[1].size.y + Gap);
-        chipStack.size = new Vector2(width, height);
-        chipStack.root.sizeDelta = chipStack.size;
+        chipFooter.text = Footer();
+        DressChips();
         chipsGroup.alpha = 0f;
         chipStack.root.gameObject.SetActive(true);
         chipsUp = true;
+    }
+
+    // Each chip's words: the highlighted one in the brand's light green with ► before it and the Cross / E icon after it
+    // (the day's reply list); the other plain. The stack is sized to the widest, the footer under them.
+    void DressChips()
+    {
+        ScenePlay play = scene;
+        int lit = play != null ? play.highlighted : 0;
+        Color colour = ColourOf(AceId);
+        string litHex = UiSkin.HexOf(UiSkin.BrandBright), keyHex = "#CFC27D";
+        float textMax = maxWidth - PadLeft - PadRight;
+        float lineHeight = fontSize * 1.32f;
+        float width = 0f, height = 0f;
+        for (int i = 0; i < chips.Length; i++)
+        {
+            Chip c = chips[i];
+            bool on = i == lit;
+            c.text.text = on
+                ? $"<color={litHex}>►</color><space=0.35em><color={litHex}>{c.line}</color>  <size=78%><color={keyHex}>{ControlHints.Interact}</color></size>"
+                : $"<space=1.15em>{c.line}";
+            c.accent.color = on ? colour : new Color(colour.r, colour.g, colour.b, .35f);
+            Vector2 preferred = c.text.GetPreferredValues(c.text.text, textMax, 0f);
+            c.size = new Vector2(Mathf.Min(textMax, Mathf.Ceil(preferred.x) + 2f) + PadLeft + PadRight, lineHeight + 2f * PadY);
+            width = Mathf.Max(width, c.size.x);
+            height += c.size.y + (i > 0 ? ChipGapBetween : 0f);
+        }
+        // The same width for both, so the lit one doesn't jump; the footer under the second, the first above it.
+        for (int i = 0; i < chips.Length; i++)
+        {
+            chips[i].size.x = width;
+            chips[i].root.sizeDelta = chips[i].size;
+        }
+        Vector2 footerSize = chipFooter.GetPreferredValues(chipFooter.text, 0f, 0f);
+        float footerHeight = Mathf.Ceil(footerSize.y) + FooterGap;
+        chipFooter.rectTransform.sizeDelta = new Vector2(Mathf.Max(width, Mathf.Ceil(footerSize.x) + 4f), Mathf.Ceil(footerSize.y));
+        chipFooter.rectTransform.anchoredPosition = Vector2.zero;
+        chips[1].root.anchoredPosition = new Vector2(0f, footerHeight);
+        chips[0].root.anchoredPosition = new Vector2(0f, footerHeight + chips[1].size.y + ChipGapBetween);
+        chipStack.size = new Vector2(Mathf.Max(width, chipFooter.rectTransform.sizeDelta.x), height + footerHeight);
+        chipStack.root.sizeDelta = chipStack.size;
+    }
+
+    // "D-pad up / down  Choose  ·  Cross  Say it" (icons on a pad; W / S on the keyboard), as the day's footer reads.
+    static string Footer()
+    {
+        string choose = ControlHints.Pad ? PadInput.Label(PadButton.DpadUp) + " " + PadInput.Label(PadButton.DpadDown) : "W / S";
+        return $"{choose}  Choose   ·   {ControlHints.Interact}  Say it";
     }
 
     void HideChips()

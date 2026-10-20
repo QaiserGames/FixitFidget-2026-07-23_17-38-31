@@ -105,13 +105,16 @@ public static class TicketLayoutChecks
             Set(owners[0], "drinkWish", drink);
             Invoke(first, "Update");
             var drinkLine = Get<TMP_Text>(first, "drinkText");
-            Require(drinkLine.gameObject.activeSelf && drinkLine.text == "+ Hot Chocolate", "Long repair cannot hide the secondary drink.");
+            Require(drinkLine.gameObject.activeSelf && drinkLine.text == JobTicket.DrinkLine(drink), "Long repair cannot hide the secondary drink.");   // 20 Oct: "+ <drink icon> Hot Chocolate" once the icon sheet is in
             Require(!LocalRect(drinkLine.rectTransform).Overlaps(LocalRect(Get<TMP_Text>(first, "jobText").rectTransform)), "Drink has a separate readable row.");
             CheckFits(drinkLine, "Longest current drink fits at six-card width.");
             Invoke(first, "RefreshDetails", (object)null);
             var detail = Get<TMP_Text>(first, "detailText");
-            Require(detail.text.Contains(owners[0].Record.faultDescription) && detail.text.Contains("+ Hot Chocolate"),
-                "Full task and constraint text remains available without abbreviation.");
+            // 20 Oct: the fault is written as a sentence now (JobTicket.SentenceCase), so its casing may differ from the record's.
+            string fault = owners[0].Record.faultDescription;
+            Require((detail.text.Contains(JobTicket.SentenceCase(fault)) || detail.text.IndexOf(fault, StringComparison.OrdinalIgnoreCase) >= 0)
+                    && detail.text.Contains("+ Hot Chocolate"),
+                $"Full task and constraint text remains available without abbreviation (\"{detail.text}\").");
             CheckFits(detail, "Full details grow to fit the authored task.");
             first.OnPointerExit(null);
             Require(!Get<RectTransform>(first, "detailPanel").gameObject.activeSelf, "Details close as soon as the pointer leaves.");

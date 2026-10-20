@@ -38,6 +38,11 @@ using UnityEngine.UI;
 // "Grace likes you."; from Fixit Fidget › Playtest 4 › Content › Lab - Night 0 after Grace walked out (GraceWalkedOutKey: she
 // walked out with her camera unfixed) he says "Grace walked out." in its place, and every other line of the deal is said as ever.
 // One check more than before (96 where it was 95).
+//
+// Playtest 7 (19 Oct 2026): the Now line (DayOneGuideUI, top left; NightCycle.NowLine) says the night's goal at each step: the
+// bag out the back door, the bag in the bins, hidden through the deal, Barnaby on Grace's step at 12 West Street, Barnaby to
+// the man, home; the reveal camera stays on through the deal; the replies are taken the day's way (down moves the highlight,
+// E says it); the note after the deal names her number and street and is waited for (notes queue now, never cut short).
 // ---------------------------------------------------------------------------
 public sealed class NightZeroCheck : MonoBehaviour
 {
@@ -66,6 +71,7 @@ public sealed class NightZeroCheck : MonoBehaviour
     SaveManager saves;
     NightLedger ledger;
     NightZeroSet set;
+    DayOneGuideUI guide;
 
 #if UNITY_EDITOR
     // Asked for by the editor (NightZeroSteps) for this lab Play session: start once the scene is up.
@@ -134,6 +140,8 @@ public sealed class NightZeroCheck : MonoBehaviour
         saves = SaveManager.Instance;
         ledger = saves != null ? saves.Night : null;
         set = NightZeroSet.Instance;
+        guide = FindAnyObjectByType<DayOneGuideUI>();
+        Check(guide != null, "the HUD has its guide (the Now line is drawn by it, day and night)");
         Check(movement != null && interactor != null && view != null && conversation != null && ledger != null, "Ace and the save manager are in the scene");
         Check(set != null && set.insideDoor != null && set.outsideDoor != null && set.nearLid != null && set.farLid != null && set.inside != null,
             "the bins are in the scene (Bins 1): " + (set != null ? set.Describe() : "none"));
@@ -172,6 +180,9 @@ public sealed class NightZeroCheck : MonoBehaviour
         Check(NoteShowing().Contains("the bins"), $"the note says what to do (\"{NoteShowing()}\")");
         Check(!gnome.IsAvailable && !NightCycle.Instance.CanCallItANight, "nothing else is offered yet: not Grace's gnome, not calling it a night");
         yield return Until(() => interactor.CurrentPrompt == "Take the bins out", 4f, "the prompt reads \"Take the bins out\"");
+        yield return NowLine("Take the rubbish out the back door", "at the back door the Now line says to take the bag out");
+        Check(UiPins.Instance != null && UiPins.Instance.SelfShowing && UiPins.Instance.SelfText == DayOneGuideUI.SelfWords,
+            "\"You\" is pinned over Ace for the night's first seconds");
         yield return Photo("02-night-0-at-the-back-door");
 
         // ---------- any door (playtest 3): out the front with the bag, the dumpster would take it; back in, the back door offers the way ----------
@@ -192,6 +203,8 @@ public sealed class NightZeroCheck : MonoBehaviour
             "E took Ace out through the back door (a blink) onto Back Street");
         yield return Until(() => man.InBinsView, 2f, "round the back, the camera looks at the bins from the street");
         yield return Seconds(1.2f);   // the camera's turn
+        yield return NowLine("Put the bag in the bins", "outside with the bag the Now line says to bin it");
+        Check(!NoteShowing().Contains(NightCycle.LastJobNote), $"\"{NightCycle.LastJobNote}\" came down with the back door used (the note: \"{Short(NoteShowing())}\")");
         yield return Photo("03-out-on-back-street");
         yield return Walk(new List<Vector3> { new Vector3(6.25f, 0f, 20.2f), set.binSpot.position }, new List<float> { .35f, .25f }, "to the dumpster's near half");
         yield return Until(() => interactor.CurrentPrompt == "Bin it", 3f, "at the dumpster the prompt reads \"Bin it\"");
@@ -232,6 +245,8 @@ public sealed class NightZeroCheck : MonoBehaviour
         // ---------- the deal ----------
         yield return Until(() => Barks.ScenePlaying, 3f, "the deal began");
         yield return Seconds(.6f);
+        Check(set.revealCamera != null && set.revealCamera.activeSelf, "the reveal camera stays on through the deal: he and his lines are framed");
+        Check(guide == null || !guide.CardShowing, "the Now line hides while his scene plays");
         yield return Photo("06-the-deal-begins");
         int warmthBefore = ledger.Warmth;
         int choices = 0;
@@ -276,6 +291,7 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return Until(() => zero.Now == NightZero.Step.Done, 2f, "the deal is made: Night 0 is over");
         Check(ledger.MetHim && !NightZero.Pending, "Ace has met him (the night's record)");
         Check(!NightWalk.Instance.ClockHeld, "the night's clock runs");
+        Check(set.revealCamera == null || !set.revealCamera.activeSelf, "the deal made, the reveal camera is off again");
         var pages = LodgerStory.Pages(NightZero.InTheGame).ToList();
         Check(pages.Count == 3 && pages.All(p => saves.Notebook.Knows(p.id) && saves.Notebook.Find(p.id).source == Notebook.Sources.Inherited)
               && !saves.Notebook.Knows("lodger.page.parking"),
@@ -286,9 +302,12 @@ public sealed class NightZeroCheck : MonoBehaviour
         Check(page.StartsWith("<b>" + LodgerStory.PagesName + "</b>", StringComparison.Ordinal) && page.Contains("<i>"),
             "the notebook's page opens with his pages, in italics");
         Check(LodgerStory.Errand(ledger) == barnaby.id, "his errand: Grace's gnome");
-        yield return Seconds(4f);   // Ace's line, then the night's note
-        Check(NoteShowing().Contains("Grace's front step") && !WordBudget.Over(NoteShowing(), WordBudget.Note),
-            $"the note says where the gnome is, within the budget (\"{Short(NoteShowing())}\": {WordBudget.Report(NoteShowing(), WordBudget.Note)})");
+        // Ace's line, then the night's note: it waits for the notebook note's time (notes queue now), so it is waited for.
+        yield return Until(() => NoteShowing().Contains("Grace's step"), 14f, "the note says where the gnome is: Grace's step");
+        Check(NoteShowing().Contains("12 West Street") && NoteShowing().Contains("porch light") && !WordBudget.Over(NoteShowing(), WordBudget.Note),
+            $"...with her number, her street and her porch light, within the budget (\"{Short(NoteShowing())}\": {WordBudget.Report(NoteShowing(), WordBudget.Note)})");
+        yield return NowLine("Barnaby: Grace's step, 12 West Street", "the Now line says where Barnaby is");
+        Check(guide != null && guide.NowText.Contains("notes"), $"...and, the notebook never opened, ends with the notebook's icon and \"notes\" (\"{Short(guide != null ? guide.NowText : "")}\")");
         Check(man.Hidden && set.LidOpen(set.farLid) < .01f, $"his say done, he ducked back into the dumpster and the lid dropped ({man.Describe()})");
         Check(interactor.CurrentPrompt != "Call it a night",
             $"at the dumpster after the deal the back door isn't offered (it's two metres away; the prompt reads \"{interactor.CurrentPrompt}\")");
@@ -318,7 +337,10 @@ public sealed class NightZeroCheck : MonoBehaviour
         Check(NightCarry.Current != null && NightCarry.Current.HeldId == barnaby.id, "he's in Ace's hand, for the man at the bins");
         Check(shelf.Showing == 0, "and not on Ace's shelf");
         Check(saves.Notebook.Find(barnaby.id + ".taken")?.text == barnaby.notebookTakenFor, "the notebook says who it was for");
-        Check(NoteShowing().Contains("back to the man at the bins"), $"the note says where to take him (\"{Short(NoteShowing())}\")");
+        // 20 Oct: notes queue now (each gets a slow reader's time), so this one may wait behind the keys' note; the Now line
+        // says it at once ("Bring Barnaby to the man at the bins").
+        yield return Until(() => NoteShowing().Contains("back to the man at the bins"), 10f, "the note says where to take him (after the note before it)");
+        yield return NowLine("Bring Barnaby to the man at the bins", "the Now line says to bring him to the man");
         yield return Seconds(.6f);
         yield return Photo("09-barnaby-in-hand");
 
@@ -404,6 +426,7 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return Seconds(.5f);
         yield return Photo("12-his-corner");
         yield return Until(() => man.Hidden, 4f, "a moment after the return he's back in the bin, the lid shut");
+        yield return NowLine("Call it a night at a café door", "the errand done, the Now line says to call it a night");
 
         // ---------- calling it a night at the back door ----------
         yield return Walk(new List<Vector3> { new Vector3(6.25f, 0f, 20.2f), set.outsideDoor.position }, new List<float> { .35f, .3f },
@@ -479,22 +502,52 @@ public sealed class NightZeroCheck : MonoBehaviour
     // E, as the interactor's own input message.
     void Press() => movement.SendMessage("OnInteract", SendMessageOptions.DontRequireReceiver);
 
-    // Reply 0 or 1: the key (1 or 2) when the Game view has the keyboard, as a player would; otherwise directly.
+    // Reply 0 or 1 the day's way (playtest 7): down moves the highlight (S when the Game view has the keyboard, else the
+    // check's own move), E says it; failing that, directly.
     IEnumerator Answer(int reply)
     {
-        if (Application.isFocused && Keyboard.current != null)
+        bool keys = Application.isFocused && Keyboard.current != null;
+        Check(Barks.Highlighted == 0, $"the chips come up with the first reply highlighted ({Barks.Highlighted + 1})");
+        for (int i = 0; i < reply; i++)
         {
-            var state = new KeyboardState(reply == 0 ? Key.Digit1 : Key.Digit2);
-            InputSystem.QueueStateEvent(Keyboard.current, state);
+            if (keys) yield return PressKey(Key.S);
+            else Barks.MoveHighlight(1);
             yield return null;
-            yield return null;
-            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
-            yield return Seconds(.3f);
-            if (!Barks.Choosing) { Note($"picked reply {reply + 1} with the {reply + 1} key"); yield break; }
         }
-        Barks.Choose(reply);
-        Note($"picked reply {reply + 1} directly (the Game view didn't have the keyboard)");
+        if (reply > 0) Check(Barks.Highlighted == reply, $"down moved the highlight to reply {reply + 1} ({Barks.Highlighted + 1})");
+        if (keys)
+        {
+            yield return PressKey(Key.E);
+            yield return Seconds(.3f);
+            if (!Barks.Choosing) { Note($"said reply {reply + 1} with E on the highlighted chip"); yield break; }
+        }
+        if (Barks.PickHighlighted()) Note($"said reply {reply + 1} as E does on the highlighted chip (the Game view didn't have the keyboard)");
+        else
+        {
+            Barks.Choose(reply);
+            Note($"picked reply {reply + 1} directly (the chips were too new to pick)");
+        }
         yield return Seconds(.3f);
+    }
+
+    // A key pressed and let go the way a player does it (the Game view has the keyboard).
+    static IEnumerator PressKey(Key key)
+    {
+        InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+        yield return null;
+        yield return null;
+        InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+        yield return null;
+    }
+
+    // The Now line (DayOneGuideUI, top left) says this, within its budget, at the line's size.
+    IEnumerator NowLine(string words, string what)
+    {
+        if (guide == null) { Check(false, what + " (no guide in the scene)"); yield break; }
+        yield return Until(() => guide.CardShowing && guide.NightLine && guide.NowText.StartsWith(words, StringComparison.Ordinal), 4f, $"{what}: \"{words}\"");
+        if (!lastWait) { Note($"the Now line reads \"{Short(guide.NowText)}\""); yield break; }
+        Check(!WordBudget.Over(guide.NowText, WordBudget.NowLine) && Mathf.Abs(guide.LineSize - DayOneGuideUI.CompactSize) < .01f,
+            $"...within the Now line's budget, at {guide.LineSize:0} px ({WordBudget.Report(guide.NowText, WordBudget.NowLine)})");
     }
 
     IEnumerator Walk(List<Vector3> points, List<float> radii, string what)
@@ -624,6 +677,7 @@ public sealed class NightZeroCheck : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         photos++;
         File.WriteAllBytes(Path.Combine(folder, name + ".jpg"), shot.EncodeToJPG(88));
         Destroy(shot);

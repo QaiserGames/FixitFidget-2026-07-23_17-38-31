@@ -34,13 +34,15 @@ public sealed class CounterRepairView : MonoBehaviour
     public bool IsOpen => display != null;
     public bool OwnsInput => IsOpen || closedFrame == Time.frameCount;
     public string HoverName => hovered ? model.Switch.DisplayName : "";
+    // The buttons are icons (19 Oct 2026, ControlHints): on a pad A or RT (Cross or R2) flips the switch; with a mouse, the
+    // left button.
     public string HoverAction => !hovered ? ""
-        : PadInput.UsingPad ? $"{ControlHints.Interact} or {ControlHints.Use} to turn sound on" : "Left-click to turn sound on";
+        : PadInput.UsingPad ? $"{ControlHints.Interact} or {ControlHints.Use} to turn sound on" : $"{ControlHints.Use} to turn sound on";
     // The phone has a single control, so a controller needs no cursor here:
     // the switch is always the target and A or RT flips it.
     private static string ControlsLine => PadInput.UsingPad
-        ? $"{ControlHints.Interact} / {ControlHints.Use} switch · {ControlHints.Cancel} put down"
-        : "Click switch · Right-click or Esc put down";
+        ? $"{ControlHints.Interact} / {ControlHints.Use}  switch      {ControlHints.Cancel}  put down"
+        : $"{ControlHints.Use}  switch      {ControlHints.Cancel} / {ControlHints.Back}  put down";
 
     public bool Open(CustomerBrain owner)
     {
@@ -96,14 +98,18 @@ public sealed class CounterRepairView : MonoBehaviour
         // A separate canvas keeps the caption upright while the phone moves.
         overlay = RepairOverlayUI.Canvas("Counter repair caption", null, 55);
         overlayScaler = overlay.GetComponent<CanvasScaler>();
-        Image panelImage = RepairOverlayUI.Panel("Caption", overlay.transform, Vector2.zero, new Vector2(480, 74), RepairOverlayUI.Background);
+        // 19 Oct 2026: the caption 24 px bold, the controls 20 px with their icons (rich text on: RepairOverlayUI turns it off).
+        Image panelImage = RepairOverlayUI.Panel("Caption", overlay.transform, Vector2.zero, new Vector2(560, 84), RepairOverlayUI.Background);
         UiSkin.Round(panelImage, UiSkin.Radius);
         var panel = panelImage.rectTransform;
         panel.anchorMin = panel.anchorMax = new Vector2(.5f, 0); panel.pivot = new Vector2(.5f, 0);
         panel.anchoredPosition = new Vector2(0, 88);
-        caption = RepairOverlayUI.Text("Customer", panel, new Vector2(18, -5), new Vector2(444, 28), 23, Color.white);
+        caption = RepairOverlayUI.Text("Customer", panel, new Vector2(18, -6), new Vector2(524, 30), 24, Color.white);
+        caption.fontStyle = FontStyles.Bold;
         caption.text = owner.CustomerName + " · phone";
-        instruction = RepairOverlayUI.Text("Action", panel, new Vector2(18, -37), new Vector2(444, 26), 19, RepairOverlayUI.Muted);
+        instruction = RepairOverlayUI.Text("Action", panel, new Vector2(18, -42), new Vector2(524, 32), 20, RepairOverlayUI.Muted);
+        instruction.richText = true;
+        instruction.fontStyle = UiSkin.SemiBold;
         instruction.text = ControlsLine;
     }
 

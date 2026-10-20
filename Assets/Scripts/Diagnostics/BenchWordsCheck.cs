@@ -45,6 +45,12 @@ using UnityEditor;
 // Run it twice: with the Game view at 1920 x 1080, then at 2560 x 1600 (his Mac's 16:10). Fixit Fidget › Bench › Bench 6 -
 // Words on the bench screen (lab, a check). Photos and report.txt go to Logs/BenchWords/check-<time>/. Nothing is saved in
 // the scene; the lab's own save only. Its timings are generous (guesses until the Mac runs them).
+//
+// 19 OCT 2026 (playtest 7). The pad's words are measured with a virtual pad plugged in: the lab used to flip PadInput's flag
+// alone, and with no pad connected the game put it straight back (PadInput.Track), so S1's "pad" photo showed the mouse's
+// words. Buttons are icons now (sprite tags, builder T's contract), so a key is looked for in a card's rich text with the
+// same helper the card uses (ControlHints), never as a bracketed word; the plain word count leaves icons out, as a reader
+// does. And the bench's own cards are checked for her ("it's just so tiny"): nothing on them under 22 px, the verb 28.
 // ---------------------------------------------------------------------------
 public sealed class BenchWordsCheck : PlayLab
 {
@@ -205,12 +211,27 @@ public sealed class BenchWordsCheck : PlayLab
             $"S1: the cloth glows in its stand (glowing: {(BenchGlow.GlowingTool != null ? BenchGlow.GlowingTool.displayName : "no tool")}; the card's icon \"{BenchCards.CurrentIcon}\", verb \"{BenchCards.CurrentVerb}\")");
         bool hovered = HoverOnLens(camera);
         yield return Frames(6);
+        string mouseCard = "";
         foreach (bool pad in new[] { false, true })
         {
             SetPad(pad);
             yield return Seconds(.4f);
             string input = pad ? "pad" : "mouse";
             Check(BenchCards.ControlsShowing && !BenchCards.ControlsHeld, $"S1, {input}: the first repair's controls card is up: \"{BenchCards.Plain(BenchCards.ControlsText)}\"");
+            // 19 Oct: the card follows the device in hand (the pad's card names its stick and its use button, the mouse's a
+            // drag), with the keys as icons, never bracketed words.
+            string rich = BenchCards.ControlsText ?? "";
+            if (pad)
+                Check(PadInput.UsingPad && rich != mouseCard && rich.Contains(ControlHints.BenchHandStick) && rich.Contains(PadInput.Label(PadButton.South)),
+                    $"S1, pad: the controls card follows the pad (the game sees it in hand: {PadInput.UsingPad}; the stick {(rich.Contains(ControlHints.BenchHandStick) ? "named" : "MISSING")}, " +
+                    $"the use button {(rich.Contains(PadInput.Label(PadButton.South)) ? "named" : "MISSING")}; differs from the mouse's: {rich != mouseCard})");
+            else
+            {
+                mouseCard = rich;
+                Check(rich.Contains(ControlHints.Use) && rich.Contains(ControlHints.Cancel) && rich.Contains(ControlHints.BenchHelp),
+                    "S1, mouse: the controls card carries the mouse's use, step-back and help keys through ControlHints");
+            }
+            Check(!rich.Contains("[") && !rich.Contains("]"), $"S1, {input}: no bracket round a key (icons need none)");
             Measure($"S1 first repair, {input}", WordBudget.BenchFirstRepair, camera, !hovered);
             yield return Photo($"S1-first-repair-{input}");
         }
@@ -361,8 +382,8 @@ public sealed class BenchWordsCheck : PlayLab
             yield break;
         }
         yield return Seconds(1.2f);   // the checks hold 0.6 s, then the row folds
-        Check(BenchCards.FinishedShowing && BenchCards.FinishedText.Contains("[" + ControlHints.TakeFromBench + "]"),
-            $"S4: the card folds into its way out: \"{BenchCards.FinishedText}\"");
+        Check(BenchCards.FinishedShowing && BenchCards.FinishedRich.Contains(ControlHints.TakeFromBench) && BenchCards.FinishedText.Contains("Take it to"),
+            $"S4: the card folds into its way out, its key an icon: \"{BenchCards.FinishedText}\"");
         Check(BenchGlow.Count == 0, $"S4: nothing glows at \"Fixed!\" ({BenchGlow.Count})");
         Measure("S4 finished, mouse", WordBudget.BenchSteady, camera, true);
         yield return Photo("S4-finished");
@@ -423,10 +444,10 @@ public sealed class BenchWordsCheck : PlayLab
         yield return Await(() => guide.ImpatienceShowing, 4f);
         if (guide.ImpatienceShowing)
         {
-            string text = BenchCards.Plain(guide.CardText);
+            string raw = guide.CardText ?? "", text = BenchCards.Plain(raw);
             int words = WordBudget.Words(text);
-            Check(words <= WordBudget.BenchAlert && text.Contains("[" + ControlHints.Cancel + "]") && guide.CardAtBench,
-                $"S6: the bench's impatience card alone: \"{text}\" ({WordBudget.Report(text, WordBudget.BenchAlert)})");
+            Check(words <= WordBudget.BenchAlert && raw.Contains(ControlHints.Cancel) && text.Contains("Step back") && guide.CardAtBench,
+                $"S6: the bench's impatience card alone, its step-back key through ControlHints: \"{text}\" ({WordBudget.Report(text, WordBudget.BenchAlert)})");
             InZone(guide.CardOnScreen, BenchStageContract.Zone.U6, "S6: the impatience card");
             yield return Photo("S6-impatient-at-the-bench");
         }
@@ -452,6 +473,15 @@ public sealed class BenchWordsCheck : PlayLab
         List<Shown> small = shown.Where(s => s.size < 15.5f).ToList();
         Check(small.Count == 0, $"{state}: every text is at least 16 px at 1080p" +
                                 (small.Count > 0 ? " (smaller: " + string.Join("; ", small.Select(s => $"\"{Short(s.text)}\" {s.size:0} px")) + ")" : ""));
+        // 19 Oct (her "it's just so tiny"): the bench's own cards (the job card, the controls card, the hint) at 22 px or more,
+        // and the verb under the current icon at 28, bold.
+        List<Shown> bench = shown.Where(s => s.path.Contains("Bench cards")).ToList();
+        List<Shown> smallBench = bench.Where(s => s.size < 21.5f).ToList();
+        Check(smallBench.Count == 0, $"{state}: the bench's cards read at 22 px or more ({bench.Count} texts)" +
+                                     (smallBench.Count > 0 ? " (smaller: " + string.Join("; ", smallBench.Select(s => $"\"{Short(s.text)}\" {s.size:0} px")) + ")" : ""));
+        Shown verb = bench.FirstOrDefault(s => s.path.EndsWith("The verb"));
+        if (!string.IsNullOrEmpty(verb.path))
+            Check(verb.size >= 27.5f, $"{state}: the verb under the current icon is 28 px (\"{Short(verb.text)}\" at {verb.size:0} px)");
         Vector2 cursor = GamePointer.Position;
         List<Shown> under = shown.Where(s => s.rect.Contains(cursor)).ToList();
         Check(under.Count == 0, $"{state}: no words under the cursor's point ({cursor.x:0}, {cursor.y:0})" +
@@ -684,7 +714,13 @@ public sealed class BenchWordsCheck : PlayLab
 
     // ------------------------------------------------------------------ helpers
 
-    void SetPad(bool pad) => setPad?.Invoke(null, new object[] { pad });
+    // The pad in hand, or not: a virtual pad is plugged in first (with none connected PadInput.Track puts the flag back to the
+    // mouse on the next frame: S1's pad photo of 15 Oct showed the mouse's words), then the flag is set.
+    void SetPad(bool pad)
+    {
+        if (pad) PlugInPad("Bench words lab pad");
+        setPad?.Invoke(null, new object[] { pad });
+    }
 
     static CustomerBrain FindRegular(string id)
     {
