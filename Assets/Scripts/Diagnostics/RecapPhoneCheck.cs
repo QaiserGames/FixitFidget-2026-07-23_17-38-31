@@ -45,6 +45,13 @@ using UnityEngine.UI;
 // so the phone is still checked. A photo of every app and report.txt go to the check's folder. Nothing is
 // saved in the scene; the lab save is the only file written (by the game), and the playtest save is checked
 // to be untouched.
+// 23 Oct 2026 (the phone moves; his note: "I want there to be a feeling, I want there to feel good"): every read of where
+// something is on the phone, how big it is or what colour, and every photo, first waits for the phone to be still
+// (RecapPhone.Settled, up to a second), so nothing is read on its way somewhere; the report counts those reads, and a check at
+// the end fails if any was made while the phone still moved. New checks: an app switch has settled within 0.25 s; a press during
+// a switch acts on the first press (a tab clicked mid-slide, a card's button mid-arrival); the pad's gold ring ends exactly on
+// its button; and one photo is taken mid-motion for him to see it (05b-shop-sliding-in: the motion slowed sixteen times for the
+// shot, so the frame is the one a player sees about 0.04 s into the switch, whatever the frame rate).
 // ---------------------------------------------------------------------------
 public sealed class RecapPhoneCheck : MonoBehaviour
 {
@@ -69,6 +76,10 @@ public sealed class RecapPhoneCheck : MonoBehaviour
     RecapUI recap;
     Gamepad pad;
     static readonly Vector3[] corners = new Vector3[4];
+    // 23 Oct 2026: the reads of the phone's look (positions, sizes, colours, photos), and any made while it still moved.
+    int looks;
+    readonly List<string> lookedMoving = new List<string>();
+    bool shotMoving;   // the mid-motion photo caught the phone moving
 
 #if UNITY_EDITOR
     // Asked for by the editor (RecapPhoneSteps) for this lab Play session: start once the scene is up.
@@ -157,6 +168,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(phone.CloseLabel.text == RecapUI.NightLabel, $"its button reads \"{RecapUI.NightLabel}\" (it reads \"{phone.CloseLabel.text}\")");
         Check(HudHidden(), "the HUD hides behind it (money, clock, stock, prompt)");
         Check(Time.timeScale == 0f, "the world holds still");
+        yield return Settle();   // 23 Oct: the phone rises as it comes out; where it is is read once it has
         string over = DrawnOverThePhone();
         Check(over.Length == 0, "nothing else draws over the phone" + (over.Length == 0 ? "" : $" ({over} does)"));
         Check(phone.Current == RecapPhone.App.Tonight, "it opens on Tonight");
@@ -174,8 +186,10 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         else Note("the takings had already landed when the check first looked (a slow first frame): the count and the split's wait aren't checked");
         yield return Until(() => phone.ContentText().Contains("$" + DayClock.Instance.Earned), 3f, "the takings count up to the day's figure");
         if (guestsPaid > 0) yield return Until(() => phone.TonightSplitShown, 2f, "...and as they land, the split comes up under them");
+        yield return Settle();
         string tonight = phone.ContentText();
         Check(!phone.Tab(RecapPhone.App.Reviews).gameObject.activeInHierarchy, "no tab bar on Tonight");
+        Looking("Tonight's scroll range");
         Check(phone.ScrollRange <= .5f, $"nothing to scroll ({phone.ScrollRange:0} over)");
         Check(WithinBudget(out string budget), "within the budget: " + budget);
         Check(tonight.Contains(Weekdays.Label(day).ToUpperInvariant()) && tonight.Contains("$" + DayClock.Instance.Earned) && tonight.Contains("earned today"),
@@ -226,6 +240,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         clock.RestoreRecap(none);
         phone.RebuildNow();
         yield return null;
+        yield return Settle();
         string noGuests = phone.ContentText();
         Check(phone.TonightSplit.Length == 0 && TextNamed("Takings split") == null && !noGuests.Contains("from café guests") && !noGuests.Contains("from your work"),
             $"an evening the café's guests paid nothing (${none.earned}, all of it Ace's own work): no split line");
@@ -234,6 +249,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(phone.TonightWords <= WordBudget.ClosingScreen && (own.patronIncome <= 0 || phone.TonightWords == wordsOwn - SplitWords),
             $"...{phone.TonightWords} words: within the rule's {WordBudget.ClosingScreen}, no room added" +
             (own.patronIncome > 0 ? $" (exactly {SplitWords} fewer than with the split)" : ""));
+        Looking("the made-up evening's scroll range");
         Check(phone.ScrollRange <= .5f && Fits(), "...still one screen, every line fitting");
         yield return Photo("01c-tonight-no-guests");
         // 2. Every dollar from the guests, nobody served (the first hour's Day 1 read "$65 earned today").
@@ -246,6 +262,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         clock.RestoreRecap(allGuests);
         phone.RebuildNow();
         yield return null;
+        yield return Settle();
         string zero = RecapPhone.TakingsSplit(65, 65);
         Check(zero == "$0 from your work · $65 from café guests" && phone.TonightSplit == zero && phone.ContentText().Contains(zero)
               && phone.ContentText().Contains("$65") && phone.TonightSplitShown,
@@ -253,12 +270,14 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(SplitPlaced(out string placedZero), "...in its place: " + placedZero);
         Check(WithinBudget(out string budgetZero) && phone.TonightWords == wordsOwn + (own.patronIncome > 0 ? 0 : SplitWords),
             "...within the budget: " + budgetZero);
+        Looking("the made-up evening's scroll range");
         Check(phone.ScrollRange <= .5f && Fits(), "...still one screen, every line fitting");
         yield return Photo("01d-tonight-all-from-the-guests");
         // The evening's own again.
         clock.RestoreRecap(own);
         phone.RebuildNow();
         yield return null;
+        yield return Settle();
         Check(clock.Earned == own.earned && clock.PatronIncome == own.patronIncome && phone.TonightSplit == splitLine
               && phone.ContentText().Contains("$" + own.earned) && phone.TonightWords == wordsOwn,
             $"...and the evening's own again (${own.earned}, ${own.patronIncome} of it from the guests)");
@@ -309,6 +328,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             "a regular is tagged, and a walk-in signs \"a walk-in\"");
         Check(reviews.IndexOf("average", StringComparison.OrdinalIgnoreCase) < 0, "no average anywhere");
         Check(reviews.Contains(Weekdays.Label(day).ToUpperInvariant()) && reviews.Contains("$" + DayClock.Instance.Earned), "the takings card: the day (its weekday too), and what it earned");
+        yield return Settle();   // Reviews slid in and its rows arrived: the lines' places are read where they come to rest
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("02-reviews");
 
@@ -343,6 +363,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
               && franchise.Contains("no scandal") && franchise.Contains("franchise offer"), "HQ's requests: the next star, no scandal, the offer at five");
         string lesson = ReputationRecap.Lesson(rep.Cards);
         Check(franchise.Contains("WHAT CHANGED TODAY") && lesson.Length > 0 && franchise.Contains(lesson), $"what changed today, and its line (\"{lesson}\")");
+        yield return Settle();
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("04-franchise");
 
@@ -358,8 +379,12 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         int rows = phone.ContentButtons.Count(b => b != null && phone.ContentButton("upgrade:" + UpgradeName(b)) == b);
         int catalogue = upgrades.Catalogue.Count(d => d != null);
         Check(rows == catalogue, $"a row for every upgrade ({rows} of {catalogue})");
+        yield return Settle();
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("05-shop");
+
+        // ---------- the motion (23 Oct 2026): a switch's timing, a photo mid-motion, a press during a switch ----------
+        yield return TheMotion();
 
         // ---------- clicking a tab; Notes as a list ----------
         Check(Clickable(phone.Tab(RecapPhone.App.Notes)), "the Notes tab can be clicked");
@@ -374,6 +399,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         Check(phone.OpenPerson == "" && Count(notes, ">NEW<") == 0 && notes.Contains(" new"), "nobody is open yet: what's new today is a count, not the facts");
         int sentences = people.Sum(p => p.facts.Count(f => notes.Contains(NotebookRecap.Sentence(f.text))));
         Check(sentences == people.Count, $"one fact a person on the list, not every fact ({sentences} for {people.Count}; the notebook has {saves.Notebook.Count})");
+        yield return Settle();
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("06-notes-list");
         NotebookPerson guessed = people.FirstOrDefault(p => p.facts.Any(f => f.sure == Notebook.Sureness.Hunch)) ?? people[0];
@@ -393,6 +419,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         }
         Check(open.Contains("(hunch)"), "a guess says so (\"hunch\")");
         Check(Count(open, ">NEW<") == guessed.LearnedOn(day), $"their facts from today are marked NEW ({Count(open, ">NEW<")} of {guessed.LearnedOn(day)})");
+        yield return Settle();   // the tapped card squishes and springs back
         Check(Fits(), "every line fits the phone's width");
         yield return Photo("07-notes-open");
         Click(phone.ContentButton("person:" + guessed.who));
@@ -408,6 +435,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         DateTime labBefore = File.Exists(labSave) ? File.GetLastWriteTimeUtc(labSave) : DateTime.MinValue;
         int cups = stock.Cups, beans = stock.Beans, money = till.Money, adds = stock.RestockAdds, restockCost = stock.RestockCost;
         Button restock = phone.ContentButton("restock");
+        yield return Settle();   // Shop slid in: its button is clicked where it comes to rest
         Check(restock != null && restock.interactable && Clickable(restock), $"the restock can be bought (${restockCost}, and nothing covers its button)");
         Click(restock);
         yield return null;
@@ -427,6 +455,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             // as a player would scroll to it (the phone's own RevealKey).
             phone.RevealKey("upgrade:" + cheapest.name);
             yield return null;
+            yield return Settle();
             Button buy = phone.ContentButton("upgrade:" + cheapest.name);
             Check(buy != null && buy.interactable && Clickable(buy), $"{cheapest.upgradeName}'s button can be pressed (${cost})");
             labBefore = labAfter;
@@ -445,15 +474,21 @@ public sealed class RecapPhoneCheck : MonoBehaviour
 
         // ---------- scrolling with W and S, on Reviews (five cards: longer than the window) ----------
         yield return PressKey(Key.Digit2, RecapPhone.App.Reviews, "2 jumps to Reviews");
+        yield return Settle();
+        Looking("Reviews' scroll range and place");
         Check(phone.ScrollRange > 1f, $"Reviews is longer than the phone's window ({phone.ScrollRange:0} to scroll)");
         float top = phone.ScrollOffset;
         yield return Hold(Key.S, .35f);
+        yield return Settle();   // 23 Oct: the keys' scroll eases to a stop; read where it stops
+        Looking("the scroll after S");
         float down = phone.ScrollOffset;
         if (down > top + 1f)
         {
             Check(true, $"S scrolls down ({top:0} to {down:0})");
             yield return Photo("09-reviews-scrolled");
             yield return Hold(Key.W, .6f);
+            yield return Settle();
+            Looking("the scroll after W");
             Check(phone.ScrollOffset < down && phone.ScrollOffset <= .5f, $"W scrolls back up to the top ({phone.ScrollOffset:0})");
         }
         else Note("S didn't reach the game (the Game view didn't have the keyboard?): scrolling by key not checked.");
@@ -464,6 +499,8 @@ public sealed class RecapPhoneCheck : MonoBehaviour
 
         // ---------- Close up, from Tonight ----------
         yield return PressKey(Key.Digit1, RecapPhone.App.Tonight, "1 goes back to Tonight");
+        yield return Settle();
+        Looking("Tonight's scroll range, again");
         Check(phone.Root.activeInHierarchy && phone.Current == RecapPhone.App.Tonight && !phone.Tab(RecapPhone.App.Reviews).gameObject.activeInHierarchy
               && phone.ScrollRange <= .5f, "Tonight again: the phone up, no tab bar, nothing to scroll");
         Check(Clickable(phone.CloseButton), $"Close up can be clicked (nothing covers it; on top: {LastHit})");
@@ -473,8 +510,95 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         yield return Seconds(1.6f);
         Check(!HudHidden(), "the HUD is back");
         yield return Photo("12-night-begins");
+        // 23 Oct: every read above of the phone's look waited for it to be still (the one photo meant to be mid-motion aside).
+        Check(looks > 0 && lookedMoving.Count == 0,
+            $"nothing read a mid-motion position: {looks} reads of the phone's places, sizes, colours and photos, " +
+            (lookedMoving.Count == 0 ? "all with the phone still" : $"{lookedMoving.Count} while it moved ({string.Join("; ", lookedMoving)})"));
         report.AppendLine();
         report.AppendLine(phone.Describe());
+    }
+
+    // ---------- the motion (23 Oct 2026; his note: "I want there to be a feeling, I want there to feel good") ----------
+
+    // An app switch has settled within 0.25 s (its motion as the phone times it, and as seen here, three frames' grace for the
+    // frame rate); one photo mid-motion for him (05b, the motion slowed sixteen times so the frame is the one a player sees early in
+    // Shop's slide, its rows still arriving); and a press during a switch acts on the first press (a tab clicked mid-slide, a
+    // card's button while its row arrives). Nothing is bought: the till's money is the later checks'. Ends on Shop, still.
+    IEnumerator TheMotion()
+    {
+        phone.Open(RecapPhone.App.Franchise);   // the app left of Shop
+        yield return Settle();
+
+        // E's way (Step): Shop slides in from the right as its rows arrive. The phone times its own motion (all of it begins this
+        // frame); seen from here, it reads still within three frames of its end: its clock moves a frame at a time, this reads it
+        // before the frame's last step, and the frame after Shop is built counts at most a 60th of a second of the motion
+        // (RecapPhone.Now). So the grace is the three longest frames seen.
+        phone.Step(1);
+        float scheduled = phone.MotionLeft, began = Time.realtimeSinceStartup, longest = 0f;
+        bool moved = !phone.Settled;
+        while (!phone.Settled && Time.realtimeSinceStartup - began < 1f)
+        {
+            yield return null;
+            longest = Mathf.Max(longest, Time.unscaledDeltaTime);
+        }
+        float took = Time.realtimeSinceStartup - began;
+        Check(phone.Current == RecapPhone.App.Shop && moved && scheduled <= .25f + .001f && phone.Settled && took <= .25f + 3f * longest + .001f,
+            $"an app switch settles within 0.25 s: Shop's slide and its rows take {scheduled:0.000} s, and the phone read still " +
+            $"{took:0.000} s after the press (frames here up to {longest * 1000f:0} ms){(moved ? "" : "; it didn't move at all")}");
+
+        // The photo: Franchise again, then Shop slowed sixteen times, photographed about 0.035-0.04 s into its motion (at 60 fps or
+        // at 15: the half second waited here, and the photo's own frames): the app still sliding in from the right, its top rows
+        // fading in and rising, the tab's pill on its way between Franchise and Shop.
+        phone.Step(-1);
+        yield return Settle();
+        phone.MotionScale = 1f / 16f;
+        phone.Step(1);
+        yield return Seconds(.5f);
+        yield return Photo("05b-shop-sliding-in", moving: true);
+        Check(shotMoving && phone.Current == RecapPhone.App.Shop,
+            $"05b-shop-sliding-in: Shop photographed mid-motion (slowed sixteen times for the shot; {phone.MotionLeft:0.0} s of the slowed motion still to run)");
+
+        // Still slowed, so the switches below are surely under way when pressed. A click on a tab mid-slide opens that app there
+        // and then (the slide finishes at once).
+        phone.Step(-1);
+        yield return null;
+        bool sliding = !phone.Settled;
+        Click(phone.Tab(RecapPhone.App.Notes));
+        Check(sliding && phone.Current == RecapPhone.App.Notes && phone.ContentText().Contains("Press a name for everything"),
+            "a press during a transition acts on the first press: Notes' tab clicked while Franchise slid in opens Notes at once");
+        // A card's button while its row arrives: Reviews' Details opens on the first click, and closes on the second.
+        Click(phone.Tab(RecapPhone.App.Reviews));
+        yield return null;
+        bool arriving = !phone.Settled;
+        Button details = phone.ContentButton("details");
+        Click(details);
+        bool shown = phone.DetailsOpen && phone.ContentText().Contains("Closing till");
+        Click(phone.ContentButton("details"));
+        Check(arriving && details != null && shown && !phone.DetailsOpen,
+            "...and a press on a card's button while its row arrives acts at once too (Details opens; a second press closes it)");
+
+        phone.MotionScale = 1f;
+        phone.Open(RecapPhone.App.Shop);
+        yield return Settle();
+        Check(phone.Settled && phone.Current == RecapPhone.App.Shop, "...and back on Shop at full speed, the phone still within a second");
+    }
+
+    // 23 Oct: the pad's ring sits exactly on its button once the phone is still: its middle on the button's middle, and 9 canvas
+    // units bigger (RecapPhone's RingPad, half either side), each within half a pixel. What it found goes in what, either way.
+    bool RingOn(GameObject target, out string what)
+    {
+        Looking("the ring around " + Name(target));
+        RectTransform ring = phone.FocusRing;
+        if (target == null || ring == null || !ring.gameObject.activeInHierarchy)
+        {
+            what = $"no ring on screen, or nothing selected ({Name(target)})";
+            return false;
+        }
+        Rect r = ScreenRect(ring), b = ScreenRect((RectTransform)target.transform);
+        float pad = 9f * phone.Root.transform.lossyScale.x;
+        float off = Vector2.Distance(r.center, b.center), dw = r.width - b.width - pad, dh = r.height - b.height - pad;
+        what = $"{off:0.0} px from its middle, its margin {dw:+0.0;-0.0;0} px wide and {dh:+0.0;-0.0;0} px tall of {pad:0.0} px";
+        return off <= .5f && Mathf.Abs(dw) <= .5f && Mathf.Abs(dh) <= .5f;
     }
 
     // A virtual pad, added for these steps and removed after: LB/RB switch apps, the pad's hint, the gold
@@ -504,7 +628,11 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         yield return Frames(2);
         GameObject selected = Selected();
         Check(selected == phone.CloseButton.gameObject, $"a pad starts on Close up (on {Name(selected)})");
+        yield return Settle();
+        Looking("the ring's showing, on Close up");
         Check(phone.FocusRingShowing, "a gold ring shows where the pad is");
+        // 23 Oct: the ring glides now; still, it is exactly where it always was.
+        Check(RingOn(Selected(), out string ringOnClose), "the gold ring sits exactly on the pad's button (Close up): " + ringOnClose);
         yield return Photo("10-pad-close-up");
 
         // Up from Close up: the app's last button that can be pressed. With the upgrades out of reach now, that's the restock.
@@ -533,7 +661,11 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             pad = null;
             yield break;
         }
+        yield return Settle();   // 23 Oct: the app glides to it and the ring glides after it; read once both have landed
+        Looking("the restock in view, with the ring");
         Check(phone.IsFullyVisible((RectTransform)restock.transform) && phone.FocusRingShowing, "…scrolled into view, with the ring on it");
+        Check(RingOn(restock.gameObject, out string ringOnRestock),
+            "the gold ring glided up from Close up and ends exactly on the restock: " + ringOnRestock);
         yield return Photo("11-pad-on-the-restock");
         int cups = stock.Cups, money = till.Money;
         yield return PadPress(GamepadButton.South);
@@ -565,17 +697,23 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         if (phone.Current != RecapPhone.App.Franchise) Note("the pad's steps, frame by frame: " + padTrace);
 
         yield return PadPress(GamepadButton.LeftShoulder);   // to Reviews, longer than the window
+        yield return Settle();
+        Looking("Reviews' place before the stick");
         float before = phone.ScrollOffset;
         InputSystem.QueueStateEvent(pad, new GamepadState { rightStick = new Vector2(0f, -1f) });
         yield return Seconds(.3f);
         InputSystem.QueueStateEvent(pad, new GamepadState());
         yield return Frames(2);
+        yield return Settle();   // the stick's scroll eases to a stop
+        Looking("Reviews' place after the stick");
         Check(phone.Current == RecapPhone.App.Reviews && phone.ScrollOffset > before + 1f,
             $"LB to Reviews, and the right stick scrolls it (from {before:0} to {phone.ScrollOffset:0})");
 
         InputSystem.RemoveDevice(pad);
         pad = null;
         yield return Frames(2);
+        yield return Settle();
+        Looking("the ring, with the pad gone");
         if (Gamepad.all.Count == 0) Check(!PadInput.UsingPad && !phone.FocusRingShowing, "with the pad gone, the ring goes too");
         else Note("another pad is connected, so the phone still reads as on a pad");
     }
@@ -672,8 +810,9 @@ public sealed class RecapPhoneCheck : MonoBehaviour
     // True when a click at the middle of target would land on it: the topmost thing there is it (or its label). What was
     // on top instead is kept for the message (LastHit).
     static string LastHit = "";
-    static bool Clickable(Selectable target)
+    bool Clickable(Selectable target)
     {
+        Looking("a click at " + (target != null ? target.name : "nothing"));
         EventSystem events = EventSystem.current;
         if (target == null || events == null) { LastHit = "no target or event system"; return false; }
         var hits = new List<RaycastResult>();
@@ -721,6 +860,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
     // marked DontSave, left over from an earlier Play session), which is what this is for.
     string DrawnOverThePhone()
     {
+        Looking("the phone's place on the screen");
         Rect phoneRect = ScreenRect(phone.PhoneRect);
         foreach (Graphic graphic in Resources.FindObjectsOfTypeAll<Graphic>())
         {
@@ -746,6 +886,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
     // Every line of the current app sits inside the phone's window, side to side.
     bool Fits()
     {
+        Looking("the lines' widths on " + phone.Current);
         RectTransform window = phone.Viewport;
         float width = window.rect.width;
         foreach (TMP_Text text in window.GetComponentsInChildren<TMP_Text>(false))
@@ -778,6 +919,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
     // quiet colour ("earned today"'s), no bigger than "earned today". The reason goes in what, either way.
     bool SplitPlaced(out string what)
     {
+        Looking("the split's place");
         TMP_Text split = TextNamed("Takings split"), earned = TextSaying("earned today");
         Transform card = TonightCardBox();
         var rule = card != null ? card.Find("Rule") as RectTransform : null;
@@ -806,6 +948,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
 
     float CardHeight(string name)
     {
+        Looking("the height of " + name);
         Transform box = phone.Viewport.GetComponentsInChildren<Transform>(false).FirstOrDefault(t => t.name == name);
         return box is RectTransform rect ? rect.sizeDelta.y : 0f;
     }
@@ -875,8 +1018,27 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         for (int i = 0; i < count; i++) yield return null;
     }
 
-    IEnumerator Photo(string name)
+    // 23 Oct 2026: waits until nothing on the phone moves (RecapPhone.Settled), up to a second of real time, so what's read next
+    // is where things come to rest, not where they are on the way (a slide, rows arriving, a squish, the ring's glide).
+    IEnumerator Settle()
     {
+        float until = Time.realtimeSinceStartup + 1f;
+        while (phone != null && !phone.Settled && Time.realtimeSinceStartup < until) yield return null;
+    }
+
+    // A read of the phone's look (a place, a size, a colour, a photo): counted, and kept if the phone was still moving, for the
+    // check at the end ("nothing read a mid-motion position").
+    void Looking(string what)
+    {
+        looks++;
+        if (phone != null && !phone.Settled) lookedMoving.Add(what);
+    }
+
+    // A photo, once the phone is still (23 Oct); moving: the one taken mid-motion on purpose (05b), which isn't waited for, isn't
+    // counted as a read, and isn't word-checked (Review 2 would read its fading words as faint: a moment, not a screen).
+    IEnumerator Photo(string name, bool moving = false)
+    {
+        if (!moving) yield return Settle();
 #if UNITY_EDITOR
         // The editor draws a shader it is still compiling in plain cyan (the first time the phone's screen is
         // drawn on a machine, say): wait for it, then one more frame drawn with the real thing.
@@ -885,8 +1047,10 @@ public sealed class RecapPhoneCheck : MonoBehaviour
         yield return null;
 #endif
         yield return new WaitForEndOfFrame();
+        if (moving) shotMoving = phone != null && !phone.Settled;
+        else Looking("photo " + name);
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
-        ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
+        if (!moving) ReviewScreen.Scan(shot, folder, name);   // Review 2: the words in this photo, measured (reads the shot only; never throws)
         photos++;
         File.WriteAllBytes(Path.Combine(folder, name + ".jpg"), shot.EncodeToJPG(90));
         Destroy(shot);
@@ -913,6 +1077,7 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             InputSystem.RemoveDevice(pad);
             pad = null;
         }
+        if (phone != null) phone.MotionScale = 1f;   // whatever stopped the check, the phone moves at its own speed again
         report.AppendLine();
         report.AppendLine($"{checks} checks, {failures} failed; {photos} photos; {Time.realtimeSinceStartup - started:0} s.");
         string text = report.ToString();

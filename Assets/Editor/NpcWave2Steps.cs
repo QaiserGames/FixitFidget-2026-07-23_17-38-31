@@ -1000,7 +1000,9 @@ public static class NpcWave2Steps
             Check(w.headLowest >= w.seatedHead - .03f, $"{who}'s head never sinks below its seated height by more than the clip's lean while sitting (lowest {w.headLowest:0.000}, seated {w.seatedHead:0.000} m; 3 cm allowed, the clip's own is 1.9)");
     }
 
-    // Customers sent in one at a time until one with a bench repair is at the counter; anyone else is turned away.
+    // Customers sent in one at a time until one with a bench repair who waits at the repair bar is at the counter (23 Oct
+    // 2026: a bench job whose character wants comfort more sits elsewhere, CustomerBrain.StaysAtTheBar); anyone else is
+    // turned away.
     // `meanwhile` runs every frame of the wait (the stools' sitters kept patient: 15 Oct, a 146 s wait for the fourth ran the
     // first one's patience out, and the fourth took the stool he'd left).
     static IEnumerator ABenchCustomer(CafeLabDirector lab, Action<CustomerBrain> found, Action meanwhile = null)
@@ -1015,11 +1017,11 @@ public static class NpcWave2Steps
             float until = Time.realtimeSinceStartup + 45f;
             while (Time.realtimeSinceStartup < until && fresh != null && !fresh.CanHearIntake && !fresh.IsLeaving) { meanwhile?.Invoke(); yield return null; }
             if (fresh == null || !fresh.CanHearIntake) continue;
-            if (fresh.GoesToTheBench) { found(fresh); yield break; }
+            if (fresh.GoesToTheBench && fresh.StaysAtTheBar) { found(fresh); yield break; }
             fresh.HearIntake();
             yield return Frames(2);
             fresh.RefuseJob();
-            Note($"turned away {fresh.CustomerName} (not a bench repair) to wait for one");
+            Note($"turned away {fresh.CustomerName} ({(fresh.GoesToTheBench ? "a bench repair who'd rather sit somewhere softer" : "not a bench repair")}) to wait for one");
         }
     }
 

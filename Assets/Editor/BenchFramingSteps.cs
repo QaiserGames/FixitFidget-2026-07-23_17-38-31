@@ -14,6 +14,8 @@ using Object = UnityEngine.Object;
 //
 //   Fixit Fidget > Bench > Bench 9 - Frame each device (prefabs)
 //   Fixit Fidget > Bench > Bench 9b - Frame the watch closer (its cups and the rest only; when the clumsy hand asks)
+//   Fixit Fidget > Bench > Bench 9 - Undo the near-edge rule: put back each device's framing from before it (prefabs)
+//     (23 Oct 2026)
 //
 // At real size a framing that shows the job's compartments and the tool rest, clear of UI/UX's zones, holds the phone at
 // about 38 % of the frame's height, the camera 40 %, the watch 19 % (TD §5.1; Art found the same): the wheel or D-pad up
@@ -41,6 +43,33 @@ using Object = UnityEngine.Object;
 // or under a card (the back plate's well, the new mainspring's pad, the scrap tray: T13's risk). Run it only if the clumsy
 // hand says the watch is too small; Bench 9 puts the everything-in-view framing back.
 //
+// THE MAT'S NEAR EDGE (23 Oct 2026; his note of 22 Oct 2026: "the tray on the right and the bottom of the mat kind of look
+// off"). The search above makes the device tallest; nothing said where the frame's bottom edge lands on the mat, and for the
+// phone it landed in the near ruler (Art's printed strip along the mat's near edge, from its flat top's edge at y -178.5,
+// inside the 1.5 mm chamfer of the mat's edge at -180, to its inner line at y -166; the centimetre numbers at y -173..-170):
+// the bottom of the screen cut the numbers in half, a strip that "reads like a mistake". The rules, strictest first:
+//   1. the near ruler whole with the mat's edge in view under it (the frame's bottom 3 mm past the edge: the ruler reads as
+//      the mat's border), or no ruler at all (3 mm inside its inner line: the grid runs off the bottom like the sides);
+//   2. the ruler's numbers whole (the frame's bottom 1.5 mm under their feet: the ticks may run off it, as Grace's camera,
+//      the Day 1 repair, had them on 20 Oct 2026), or no ruler at all.
+// The plain search's layout view stands when its bottom already keeps rule 1 or rule 2, so only a true half ruler is
+// re-framed (the smallest fix for his note: Grace's camera keeps its framing). Else each rule is searched in turn, and the
+// first framing that keeps every feel-target bar the plain one keeps, with a margin, is written: T9 at zoom 0 and at the
+// limit half a point of the frame's height over its bar, T8 at zoom 0 and one notch in 0.3 px over its bar, so what ships
+// doesn't hang on a hair of this step's model. Failing both, the plain search's framing (from today's inputs) is written,
+// with a FAIL row naming the bar each rule would cost; the ruler's own fix is then a Blender change to the mat's print
+// (bench_stage_textures.py / bench_stage.py: the near ruler moved in from the edge, or the near strip printed plain).
+// The rule is for the layout view (zoom 0). Zooming in moves the frame's bottom up the mat (the narrower lens outweighs the
+// few millimetres the aim drifts toward the close aim), so a frame that shows the edge passes over the ruler on the way in;
+// the report gives the bottom's place one notch in and at the limit. A mat with no printed ruler (the stand-in) is left to
+// the plain search; Art's mat (BM_RepairMat) with no BM_Print renderer is a FAIL row, as the rule couldn't run. Bench 9b
+// leaves the rule out: it is the watch's closest default (the Producer's call 4), not a layout view.
+// The undo puts back values, it doesn't search again. Just before its first change to a prefab, Bench 9 saves every
+// device's four fields (cameraAim, cameraDistance, closeAim, fovClose) to Logs/Bench/framing-before-near-edge.json, once:
+// the file is never written over (delete it to save afresh). "Bench 9 - Undo the near-edge rule" writes those values back,
+// says so plainly when the file isn't there, and prints for each device whether today's plain search gives the stored
+// framing (a NO means its inputs changed since: the zones, a device's meshes, the rest or the tray).
+//
 // Writes only on a real-size prefab (DeviceDefinition.realSize, set by Devices 2); on any other it is a dry run (numbers and
 // photos, nothing written). One Undo group per prefab. The café scene isn't changed (the photos are a preview scene).
 //
@@ -56,6 +85,8 @@ internal static class BenchFramingSteps
     const string Title9b = "Bench 9b - Frame the watch closer (its cups and the rest only; when the clumsy hand asks)";
     const string Menu9 = "Fixit Fidget/Bench/" + Title9;
     const string Menu9b = "Fixit Fidget/Bench/" + Title9b;
+    const string Title9Undo = "Bench 9 - Undo the near-edge rule: put back each device's framing from before it (prefabs)";
+    const string Menu9Undo = "Fixit Fidget/Bench/" + Title9Undo;
 
     const float Pitch = 58f, LayoutFov = 40f;
     const float MarginAt1080 = 20f;      // px from the frame's edges and from the zones (TD §6.6)
@@ -74,14 +105,63 @@ internal static class BenchFramingSteps
     static readonly Quaternion Look = Quaternion.Euler(Pitch, 0f, 0f);
     static readonly Quaternion Unlook = Quaternion.Inverse(Quaternion.Euler(Pitch, 0f, 0f));
 
+    // The mat's near edge and its printed ruler (Art's A1: Tools/Blender/bench_stage.py, D = 360; bench_stage_textures.py: the
+    // strip from the top's edge at y -178.5 to its inner line at -166, ticks rising 2.5 and 4.5 mm from the edge, the numbers
+    // 3 mm tall standing 1 mm over the long ticks, so their feet at -173 and their tops at -170). If the ruler moves in
+    // Blender, these follow.
+    const float MatNearEdgeMm = -180f, NearRulerInnerMm = -166f, NumbersFootMm = -173f, NumbersTopMm = -170f;
+    const float EdgeClearMm = 3f;          // the frame's bottom 3 mm past the edge, or 3 mm inside the inner line (about 12 px)
+    const float NumbersClearMm = 1.5f;     // the second choice: 1.5 mm under the numbers' feet (the long ticks' tips may show)
+    const string RulerMaterial = "BM_Print";   // the rulers' material on Art's mat (bench_stage.py BM_MATERIALS)
+    const string ArtsMatName = "BM_RepairMat"; // Art's mat as Bench 7 names it (its stand-in has a suffix and no print)
+    // A framing under a rule is taken only this far over each bar the plain one meets (23 Oct 2026: the phone's rule 1 framing
+    // was 12.05 px against T8's 12 in a model of this search, too fine a line to decide what ships). 0.2 px, not the review's
+    // 0.3, after the first run on his Mac (23 Oct 2026): the phone's rule 2 framing (the ruler's numbers whole, his "the bottom
+    // of the mat kind of look off") came out at 15.22 px one notch in against T8's 15, refused at 0.3; rule 1 (12.12 px against
+    // 12) is still refused at 0.2. Bench 5 measures the phone's real screws, which read above this search's number.
+    const float RuleMarginFill = .005f, RuleMarginPx = .2f;
+
+    // The framings as they were before the near-edge rule first changed a prefab (23 Oct 2026), for its undo to put back.
+    // Saved once, never written over; per prefab path, the four fields Write writes.
+    static string BeforePath => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "Bench", "framing-before-near-edge.json"));
+    [Serializable] sealed class StoredFraming { public string prefab; public Vector2 cameraAim; public float cameraDistance; public Vector2 closeAim; public float fovClose; }
+    [Serializable] sealed class StoredFramings { public string saved, why; public List<StoredFraming> devices = new List<StoredFraming>(); }
+
+    // Where the frame's bottom may meet the mat's top: at or nearer than nearTo (mat y, mm), or at or further than farFrom.
+    sealed class NearEdge
+    {
+        public string name;
+        public float nearTo, farFrom;
+        public bool Keeps(float cut) => cut <= nearTo || cut >= farFrom;
+    }
+
+    static readonly NearEdge Strict = new NearEdge
+    {
+        name = "the near ruler whole with the mat's edge under it, or no ruler at all",
+        nearTo = MatNearEdgeMm - EdgeClearMm, farFrom = NearRulerInnerMm + EdgeClearMm,
+    };
+    static readonly NearEdge NumbersWhole = new NearEdge
+    {
+        name = "the ruler's numbers whole (their ticks may run off the bottom), or no ruler at all",
+        nearTo = NumbersFootMm - NumbersClearMm, farFrom = NearRulerInnerMm + EdgeClearMm,
+    };
+
     [MenuItem(Menu9)]
     static void FrameEach() => Frame(false);
 
+    // 9b without the near-edge rule (23 Oct 2026): it is the watch's closest default, not a layout view to push back.
     [MenuItem(Menu9b)]
-    static void FrameWatchCloser() => Frame(true);
+    static void FrameWatchCloser() => Frame(true, false);
+
+    // The near-edge rule's undo (23 Oct 2026): the framings saved just before the rule's first change, written back as they
+    // were (not searched again: today's inputs may differ). Unity's own Undo covers the session ("Bench 9 - frame the
+    // phone"); this covers after it.
+    [MenuItem(Menu9Undo)]
+    static void PutBackTheFramings() => Frame(false, false, true);
 
     [MenuItem(Menu9, true)]
     [MenuItem(Menu9b, true)]
+    [MenuItem(Menu9Undo, true)]
     static bool CanRun() => !EditorApplication.isPlayingOrWillChangePlaymode;
 
     // ======================================================================= what the search works on
@@ -93,6 +173,7 @@ internal static class BenchFramingSteps
         public Matrix4x4 toMat;
         public Vector3 origin, ex, ey;
         public float top;
+        public bool ruler;                   // Art's printed rulers are on it (a stand-in mat has none)
         public Vector3 Point(Vector2 mm) => origin + ex * (mm.x / 1000f) + ey * (mm.y / 1000f);
         public Vector3 In(Vector3 world) => toMat.MultiplyPoint3x4(world);
     }
@@ -160,10 +241,13 @@ internal static class BenchFramingSteps
 
     // ======================================================================= the run
 
-    static void Frame(bool closer)
+    // closer: Bench 9b (the watch, its cups and the rest only). nearEdge: the near-edge rule (Bench 9 itself). restore: the
+    // rule's undo, which writes back the framings saved before its first change (the plain search only runs to compare).
+    static void Frame(bool closer, bool nearEdge = true, bool restore = false)
     {
-        var run = new BenchScale.Run(closer ? Title9b : Title9, closer ? "framing-watch-closer" : "framing");
+        var run = new BenchScale.Run(restore ? Title9Undo : closer ? Title9b : Title9, restore ? "framing-put-back" : closer ? "framing-watch-closer" : "framing");
         bool error = false;
+        string nothingToPutBack = null;      // the undo with no saved framings: said in the Console's own line, as an error
         try
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Stop Play mode first.");
@@ -174,16 +258,56 @@ internal static class BenchFramingSteps
             if (stage.matFrame == null) throw new InvalidOperationException("BenchStage.matFrame isn't set: run Bench 7 (the forgiving stage) first.");
 
             Mat mat = MakeMat(stage, run);
+            bool theRule = nearEdge && !closer && !restore;
+            // 23 Oct 2026: on Art's own mat a missing print would switch the rule off with only an info line, and the phone would
+            // keep its half ruler under an all-PASS report. A FAIL row instead.
+            if (theRule && !mat.ruler && stage.matFrame.name == ArtsMatName)
+                run.Check(false, $"Art's mat has no {RulerMaterial} renderer: the near-edge rule couldn't run (the near ruler is printed in {RulerMaterial}; is the mat's import missing a material?)");
+            if (!theRule && !restore && mat.ruler)
+            {
+                mat.ruler = false;
+                run.Info("the near-edge rule is left out for this run (Bench 9b: the watch's closest default, as the Producer's call 4 has it)");
+            }
             View[] views = Aspects.Select(a => MakeView(a.x, a.y)).ToArray();
             var rest = Gather("the tool rest", stage.toolRest, ToolRestRoots(stage), mat, new Vector3(.110f, .030f, .230f));
             var tray = Gather("the scrap tray", stage.scrapTray, new[] { stage.scrapTray }, mat, new Vector3(.160f, .022f, .090f));
             run.Info($"{rest.name}: {(rest.standIn ? "nothing drawn: Art's 110 × 230 × 30 mm box stands in" : rest.looks.Count + " meshes")}; {tray.name}: {(tray.standIn ? "nothing drawn: Art's 160 × 90 × 22 mm box stands in" : tray.looks.Count + " meshes")}");
 
-            foreach (BenchScale.Device d in BenchScale.Devices)
+            // The undo: the framings saved before the rule's first change, or a plain "nothing to put back".
+            StoredFramings stored = null;
+            if (restore)
             {
-                if (closer && d.label != "watch") continue;
-                FrameDevice(d, mat, views, rest, tray, closer, run);
+                bool there = File.Exists(BeforePath);
+                stored = there ? JsonUtility.FromJson<StoredFramings>(File.ReadAllText(BeforePath)) : null;
+                if (stored == null || stored.devices == null || stored.devices.Count == 0)
+                {
+                    stored = null;
+                    nothingToPutBack = $"NOTHING TO PUT BACK: {BeforePath} {(there ? "holds no framings" : "isn't there")}. Bench 9 writes it once, just before the near-edge " +
+                                       "rule's first change to a prefab; without it there is nothing to go back to. Nothing was changed.";
+                    run.Check(false, nothingToPutBack);
+                }
+                else run.Info($"the framings from before the near-edge rule: {BeforePath} (saved {stored.saved}, {stored.devices.Count} prefab(s)); each is written back as it was");
             }
+            // Bench 9 itself: every prefab's framing as it is now, saved to that file just before the first change (once ever).
+            Action beforeFirstChange = null;
+            if (theRule)
+            {
+                StoredFramings now = CurrentFramings();
+                bool saved = false;
+                beforeFirstChange = () =>
+                {
+                    if (saved) return;
+                    saved = true;
+                    SaveBefore(now, run);
+                };
+            }
+
+            if (!restore || stored != null)
+                foreach (BenchScale.Device d in BenchScale.Devices)
+                {
+                    if (closer && d.label != "watch") continue;
+                    FrameDevice(d, mat, views, rest, tray, closer, run, stored, beforeFirstChange);
+                }
         }
         catch (Exception e)
         {
@@ -192,7 +316,8 @@ internal static class BenchFramingSteps
             run.Info(e.ToString());
         }
         run.Finish(error ? "ERROR: stopped (see above). Nothing was written after the error."
-                         : $"{run.Changes} prefab(s) framed, {run.Passes} PASS, {run.Fails} FAIL (a FAIL row names the bar it misses).", error);
+                         : nothingToPutBack ?? $"{run.Changes} prefab(s) framed, {run.Passes} PASS, {run.Fails} FAIL (a FAIL row names the bar it misses).",
+                   error || nothingToPutBack != null);
     }
 
     static Mat MakeMat(BenchStage stage, BenchScale.Run run)
@@ -217,6 +342,9 @@ internal static class BenchFramingSteps
         }
         mat.top = top > float.MinValue && top - mat.origin.y < .02f ? Mathf.Max(top, mat.origin.y) : mat.origin.y;
         run.Info($"the mat's frame: {stage.matFrame.name}; MatToWorld(0, 0) sits {1000f * (mat.origin.y - mat.top):+0.0;-0.0} mm against the mat's top; a device's lowest corner lies on the top");
+        mat.ruler = frame.GetComponentsInChildren<Renderer>(true).Any(r => r.sharedMaterials.Any(m => m != null && m.name == RulerMaterial));
+        run.Info(mat.ruler ? $"its printed rulers ({RulerMaterial}) are on it: Bench 9 frames each layout view under the near-edge rule (the header)"
+                           : $"no printed ruler on it ({RulerMaterial}): the near-edge rule can't apply");
         return mat;
     }
 
@@ -531,10 +659,106 @@ internal static class BenchFramingSteps
         return new Vector2((b.x / b.z - a.x / a.z) * focal, (b.y / b.z - a.y / a.z) * focal).magnitude;
     }
 
+    // ======================================================================= the mat's near edge (23 Oct 2026)
+
+    // Where the frame's bottom edge meets the mat's printed top (mat y, mm; the rulers are printed on its flat top, BenchStage.
+    // MatTop over its origin) for the camera at this aim and distance with this lens: the bottom edge looks down at Pitch +
+    // fov / 2 in the mat's frame (the camera only pitches there, as ItemInspector places it). The same for every aspect: the
+    // lens's angle is the frame's height.
+    static float NearCut(Mat mat, Vector2 aimMm, float distance, float fov)
+    {
+        Vector3 cam = CameraAt(mat, aimMm, distance);
+        Vector3 down = Quaternion.Euler(Pitch + fov * .5f, 0f, 0f) * Vector3.forward;
+        float printed = mat.origin.y + BenchStage.MatTop;
+        if (down.y > -1e-4f || cam.y <= printed) return float.NegativeInfinity;
+        Vector3 hit = cam + down * ((printed - cam.y) / down.y);
+        return Vector3.Dot(hit - mat.origin, mat.ey) / mat.ey.sqrMagnitude * 1000f;
+    }
+
+    // The distance at this aim, from the targets' own nearest `d`, that keeps the rule: `d` when its bottom edge already falls
+    // where the rule allows; else just far enough back that it passes the rule's near limit (it moves toward Ace in a straight
+    // line with the distance). NaN when no distance up to the search's farthest does.
+    static float WithRule(Mat mat, Vector2 aim, float d, NearEdge rule)
+    {
+        float cut = NearCut(mat, aim, d, LayoutFov);
+        if (rule.Keeps(cut)) return d;
+        float perTenth = NearCut(mat, aim, d + .1f, LayoutFov) - cut;          // mm the bottom moves per 10 cm further back
+        if (!(perTenth < -1e-3f)) return float.NaN;
+        float need = d + .1f * (rule.nearTo - cut) / perTenth;
+        need = Mathf.Ceil(need * 1000f - 1e-3f) / 1000f;                         // whole millimetres, on the side that keeps it
+        return need <= DistanceMax ? need : float.NaN;
+    }
+
+    // What the frame's bottom shows of the near ruler, in the report's words. The first three keep a rule; the last three don't.
+    static string EdgeWords(float cut)
+    {
+        if (cut >= NearRulerInnerMm + EdgeClearMm) return $"cleanly cut: grid only, the frame's bottom {cut - NearRulerInnerMm:0.0} mm inside the near ruler";
+        if (cut <= MatNearEdgeMm - EdgeClearMm) return $"the near ruler whole, the mat's edge in view with {MatNearEdgeMm - cut:0.0} mm of bench under it";
+        if (cut <= NumbersFootMm - NumbersClearMm) return "the ruler's numbers whole, its ticks running off the frame's bottom";
+        if (cut > NearRulerInnerMm) return $"grid only, but the near ruler's inner line just {cut - NearRulerInnerMm:0.0} mm under the frame's bottom (the rules want {EdgeClearMm:0})";
+        if (cut > NumbersTopMm) return "the near ruler's inner line and its plain strip at the frame's bottom, its numbers just out of view";
+        return "A HALF RULER: the frame's bottom crosses the near ruler's numbers, or runs within 1.5 mm under them";
+    }
+
+    // One framing: the layout view found under a near-edge rule (null: the plain search), the zoom limit at its distance, and
+    // the feel targets' numbers (FrameDevice's own, worked out the same way).
+    sealed class Framed
+    {
+        public NearEdge rule;
+        public Vector2 aim, closeAim;
+        public float distance, fill, head, fovClose = -1f, fill1, headNotch, notchFov, cut;
+        public bool t9, t8, t9Close, t8Notch;
+        public bool HasClose => fovClose > 0f;
+        /// <summary>Every bar <paramref name="plain"/> meets, this meets too.</summary>
+        public bool Keeps(Framed plain) => (t9 || !plain.t9) && (t8 || !plain.t8) && (t9Close || !plain.t9Close) && (t8Notch || !plain.t8Notch);
+    }
+
+    static Framed Solve(Mat mat, View[] views, Framing job, NearEdge rule, Vector2 bar, bool screws)
+    {
+        if (!SearchLayout(mat, views, job, rule, out Vector2 aim, out float distance, out float fill)) return null;
+        var f = new Framed { rule = rule, aim = aim, distance = distance, fill = fill };
+        Vector3 top = TopOf(job);
+        f.head = PxPerMm(top, CamQ(mat, aim, distance), LayoutFov) * BenchScale.ScrewHead * 1000f;
+        f.cut = NearCut(mat, aim, distance, LayoutFov);
+        if (SearchClose(mat, views, job, distance, out Vector2 closeAim, out float fovClose, out float fill1))
+        {
+            f.closeAim = closeAim;
+            f.fovClose = fovClose;
+            f.fill1 = fill1;
+            float m = Mathf.Tan(LayoutFov * .5f * Mathf.Deg2Rad) / Mathf.Tan(fovClose * .5f * Mathf.Deg2Rad);
+            f.notchFov = 2f * Mathf.Atan(Mathf.Tan(LayoutFov * .5f * Mathf.Deg2Rad) / Mathf.Pow(m, .25f)) * Mathf.Rad2Deg;
+            f.headNotch = PxPerMm(top, CamQ(mat, Vector2.Lerp(aim, closeAim, .25f), distance), f.notchFov) * BenchScale.ScrewHead * 1000f;
+        }
+        // Under a rule, each bar with a margin (23 Oct 2026): a rule's framing is taken only if it clears the bar by more than a
+        // hair of this step's model (the plain one is checked at the bar itself, as before).
+        float s = rule != null ? 1f : 0f;
+        f.t9 = fill >= bar.x + RuleMarginFill * s;
+        f.t8 = !screws || f.head >= 12f + RuleMarginPx * s;
+        f.t9Close = f.HasClose && f.fill1 >= bar.y + RuleMarginFill * s;
+        f.t8Notch = !screws || f.HasClose && f.headNotch >= 15f + RuleMarginPx * s;
+        return f;
+    }
+
+    // The point T8 is measured at: the device's top, over its rest point.
+    static Vector3 TopOf(Framing job) => new Vector3(job.rest.x, job.open.pts.Max(p => p.y), job.rest.z);
+
+    // The bars a framing under a rule would lose against the plain one, in words (with what a rule's framing needs: the bar
+    // and its margin).
+    static string Lost(Framed f, Framed plain, Vector2 bar)
+    {
+        var lost = new List<string>();
+        if (plain.t9 && !f.t9) lost.Add($"T9 at zoom 0 ({f.fill * 100f:0.0} %; a rule's framing needs {(bar.x + RuleMarginFill) * 100f:0.0})");
+        if (plain.t8 && !f.t8) lost.Add($"T8 at zoom 0 ({f.head:0.00} px; it needs {12f + RuleMarginPx:0.0})");
+        if (plain.t9Close && !f.t9Close) lost.Add(f.HasClose ? $"T9 at zoom 1 ({f.fill1 * 100f:0.0} %; it needs {(bar.y + RuleMarginFill) * 100f:0.0})" : "the zoom limit");
+        if (plain.t8Notch && !f.t8Notch) lost.Add(f.HasClose ? $"T8 one notch in ({f.headNotch:0.00} px; it needs {15f + RuleMarginPx:0.0})" : "T8 one notch in");
+        return lost.Count > 0 ? string.Join(", ", lost) : "nothing";
+    }
+
     // ======================================================================= the searches
 
-    // Zoom 0: the aim and distance that make the device tallest (TD §6.6), every pose and compartment clear.
-    static bool SearchLayout(Mat mat, View[] views, Framing job, out Vector2 aim, out float distance, out float fill)
+    // Zoom 0: the aim and distance that make the device tallest (TD §6.6), every pose and compartment clear; under a near-edge
+    // rule (23 Oct 2026; null for none), the frame's bottom where the rule allows too.
+    static bool SearchLayout(Mat mat, View[] views, Framing job, NearEdge rule, out Vector2 aim, out float distance, out float fill)
     {
         Vector2 bestAim = default;
         float bestD = 0f, bestFill = -1f;
@@ -549,6 +773,19 @@ internal static class BenchFramingSteps
             }
             float d = Mathf.Ceil(hi * 1000f - 1e-3f) / 1000f;      // whole millimetres, on the side that fits
             for (int i = 0; i < 4 && !Fits(CamQ(mat, a, d), LayoutFov, job, views, true); i++) d += .001f;
+            if (rule != null)
+            {
+                // The nearest distance the targets allow, unless the frame's bottom then falls where the rule doesn't: then just
+                // far enough back that it passes the rule's near limit (further back, the bottom edge comes toward Ace).
+                float e = WithRule(mat, a, d, rule);
+                if (float.IsNaN(e)) return;
+                if (e > d)
+                {
+                    d = e;
+                    for (int i = 0; i < 4 && !Fits(CamQ(mat, a, d), LayoutFov, job, views, true); i++) d += .001f;
+                    if (!Fits(CamQ(mat, a, d), LayoutFov, job, views, true) || !rule.Keeps(NearCut(mat, a, d, LayoutFov))) return;
+                }
+            }
             float f = Fill(CamQ(mat, a, d), LayoutFov, job);
             if (f > bestFill + 1e-5f || Mathf.Abs(f - bestFill) <= 1e-5f && a.sqrMagnitude < bestAim.sqrMagnitude) { bestAim = a; bestD = d; bestFill = f; }
         }
@@ -601,7 +838,10 @@ internal static class BenchFramingSteps
 
     // ======================================================================= one device
 
-    static void FrameDevice(BenchScale.Device d, Mat mat, View[] views, Group rest, Group tray, bool closer, BenchScale.Run run)
+    // stored: the near-edge rule's undo (its saved framings are written back instead of a search's). beforeFirstChange: Bench
+    // 9 itself, called by Write just before it changes a prefab (the framings as they were are saved then, once).
+    static void FrameDevice(BenchScale.Device d, Mat mat, View[] views, Group rest, Group tray, bool closer, BenchScale.Run run,
+                            StoredFramings stored = null, Action beforeFirstChange = null)
     {
         run.Section($"{d.label}: {d.prefab}");
         GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(d.prefab);
@@ -627,19 +867,33 @@ internal static class BenchFramingSteps
         Framing job = MakeJob(d, def, mat, rest, tray, closer, run);
         Vector2 bar = Bars[d.label];
 
-        // ---- zoom 0 ----
-        if (!SearchLayout(mat, views, job, out Vector2 aim, out float distance, out float fill))
+        // ---- the plain search, then (on Art's mat) the near-edge rule: the framing written is the one chosen here (23 Oct 2026) ----
+        bool screws = d.label != "camera";
+        Framed plain = Solve(mat, views, job, null, bar, screws);
+        if (stored != null)
+        {
+            PutBack(d, asset, def, real, mat, views, job, rest, tray, plain, stored, run);
+            return;
+        }
+        if (plain == null)
         {
             run.Check(false, $"a layout view exists: no aim and distance up to {DistanceMax} m keeps everything in frame and clear (at {DistanceMax} m: {Why(CamQ(mat, layout.cameraAim, DistanceMax), LayoutFov, job, views, job.targets)})");
             return;
         }
+        Framed chosen = NearEdgeFraming(mat, views, job, bar, screws, plain, run);
+        Vector2 aim = chosen.aim;
+        float distance = chosen.distance, fill = chosen.fill, head = chosen.head;
+
+        // ---- zoom 0 ----
         Vector3 camQ = CamQ(mat, aim, distance);
-        Vector3 top = new Vector3(job.rest.x, job.open.pts.Max(p => p.y), job.rest.z);
-        float pxmm = PxPerMm(top, camQ, LayoutFov), head = pxmm * BenchScale.ScrewHead * 1000f;
+        Vector3 top = TopOf(job);
+        float pxmm = PxPerMm(top, camQ, LayoutFov);
         run.Info($"zoom 0 (the layout view): aim ({aim.x:0}, {aim.y:0}) mm, {distance:0.000} m, FOV {LayoutFov:0}: {fill * 100f:0.0} % of the frame's height; {pxmm:0.00} px/mm at its top (1080p)");
-        run.Info($"  what binds it 2 mm closer: {Why(CamQ(mat, aim, distance - .002f), LayoutFov, job, views, job.targets)}");
+        string binds = Why(CamQ(mat, aim, distance - .002f), LayoutFov, job, views, job.targets);
+        if (binds == "nothing" && chosen.rule != null && !chosen.rule.Keeps(NearCut(mat, aim, distance - .002f, LayoutFov))) binds = $"the near-edge rule ({chosen.rule.name})";
+        run.Info($"  what binds it 2 mm closer: {binds}");
         run.Check(fill >= bar.x, $"T9 at zoom 0: {fill * 100f:0.0} % ≥ {bar.x * 100f:0} %{(closer ? "" : " with every compartment it uses and the tool rest in view")}");
-        if (d.label != "camera") run.Check(head >= 12f, $"T8: a {BenchScale.ScrewHead * 1000f:0.0} mm screw head is {head:0.0} px at 1080p at zoom 0 (≥ 12)");
+        if (screws) run.Check(head >= 12f, $"T8: a {BenchScale.ScrewHead * 1000f:0.0} mm screw head is {head:0.0} px at 1080p at zoom 0 (≥ 12)");
         foreach (Cloud t in job.allTargets)
         {
             Box2 b = Project(t.q, camQ, Focal(1080f, LayoutFov), 1920f, 1080f);
@@ -649,32 +903,144 @@ internal static class BenchFramingSteps
             else run.Check(false, "LEFT OUT by the closer framing (T13's risk: a piece flown there is out of sight at zoom 0): " + where);
         }
 
-        // ---- zoom 1 ----
-        if (!SearchClose(mat, views, job, distance, out Vector2 closeAim, out float fovClose, out float fill1))
+        // ---- zoom 1 (searched at the chosen distance by Solve) ----
+        if (!chosen.HasClose)
         {
             run.Check(false, "a zoom limit exists: the device alone doesn't fit even at FOV 40 from the layout distance");
             return;
         }
+        Vector2 closeAim = chosen.closeAim;
+        float fovClose = chosen.fovClose, fill1 = chosen.fill1, notchFov = chosen.notchFov, headNotch = chosen.headNotch;
         Vector3 camQ1 = CamQ(mat, closeAim, distance);
         float pxmm1 = PxPerMm(top, camQ1, fovClose);
         float m = Mathf.Tan(LayoutFov * .5f * Mathf.Deg2Rad) / Mathf.Tan(fovClose * .5f * Mathf.Deg2Rad);
-        float notchFov = 2f * Mathf.Atan(Mathf.Tan(LayoutFov * .5f * Mathf.Deg2Rad) / Mathf.Pow(m, .25f)) * Mathf.Rad2Deg;
-        Vector3 camQn = CamQ(mat, Vector2.Lerp(aim, closeAim, .25f), distance);
-        float headNotch = PxPerMm(top, camQn, notchFov) * BenchScale.ScrewHead * 1000f;
         run.Info($"zoom 1 (the limit): aim ({closeAim.x:0}, {closeAim.y:0}) mm at the same {distance:0.000} m, FOV {fovClose:0.0}: {fill1 * 100f:0.0} %; {pxmm1:0.00} px/mm; magnification {m:0.00}");
         run.Info($"  what binds it 0.5° narrower: {Why(camQ1, fovClose - .5f, job, views, Array.Empty<Cloud>())}");
         run.Info($"  one wheel notch (z 0.25): FOV {notchFov:0.0}, a screw head {headNotch:0.0} px");
         run.Check(fill1 >= bar.y, $"T9 at zoom 1: {fill1 * 100f:0.0} % ≥ {bar.y * 100f:0} %");
-        if (d.label != "camera") run.Check(headNotch >= 15f, $"T8: one notch in, a screw head is {headNotch:0.0} px (≥ 15)");
+        if (screws) run.Check(headNotch >= 15f, $"T8: one notch in, a screw head is {headNotch:0.0} px (≥ 15)");
+        if (mat.ruler)
+            run.Info($"  the frame's bottom on the mat: y {chosen.cut:0.0} mm at zoom 0, {NearCut(mat, Vector2.Lerp(aim, closeAim, .25f), distance, notchFov):0.0} one notch in, " +
+                     $"{NearCut(mat, closeAim, distance, fovClose):0.0} at the limit (the near ruler's inner line is y {NearRulerInnerMm:0}, the mat's edge {MatNearEdgeMm:0})");
 
         // ---- write (one Undo group per prefab; nothing when it is already so) ----
         if (!real) run.Info("NOT WRITTEN: the prefab isn't real size yet (Devices 2).");
-        else Write(asset, def, aim, distance, closeAim, fovClose, d.label, run);
+        else Write(asset, def, aim, distance, closeAim, fovClose, d.label, run, beforeFirstChange);
 
         Photos(d, asset, mat, views, job, rest, tray, aim, distance, closeAim, fovClose, run);
     }
 
-    static void Write(GameObject asset, DeviceDefinition def, Vector2 aim, float distance, Vector2 closeAim, float fovClose, string label, BenchScale.Run run)
+    // The near edge (23 Oct 2026): the plain search's framing is kept when its bottom edge already keeps rule 1 or rule 2 (or
+    // the mat has no printed ruler), so only a true half ruler is re-framed; else the first rule, strictest first, whose
+    // framing keeps every bar the plain one keeps, with the margin; else the plain one, with a FAIL row that names what each
+    // rule would cost (the ruler's own fix is then a Blender change).
+    static Framed NearEdgeFraming(Mat mat, View[] views, Framing job, Vector2 bar, bool screws, Framed plain, BenchScale.Run run)
+    {
+        if (!mat.ruler) return plain;
+        run.Info($"the near edge: the plain search puts the frame's bottom at mat y {plain.cut:0.0} mm: {EdgeWords(plain.cut)}");
+        // A bottom that already reads stays as it is: Grace's camera (the Day 1 repair) has the numbers whole, and its framing is
+        // the one the spec held up as the set the phone's should match.
+        if (Strict.Keeps(plain.cut) || NumbersWhole.Keeps(plain.cut))
+        {
+            run.Check(true, $"the near edge reads at zoom 0: {EdgeWords(plain.cut)}");
+            return plain;
+        }
+        foreach (NearEdge rule in new[] { Strict, NumbersWhole })
+        {
+            Framed f = Solve(mat, views, job, rule, bar, screws);
+            if (f != null && f.Keeps(plain))
+            {
+                run.Info($"  under the rule \"{rule.name}\": aim ({f.aim.x:0}, {f.aim.y:0}) mm, {f.distance:0.000} m, {f.fill * 100f:0.0} % (plain {plain.fill * 100f:0.0} %), " +
+                         $"a screw head {f.head:0.0} px (plain {plain.head:0.0}): every bar the plain framing meets, still met. Taken.");
+                run.Check(true, $"the near edge reads at zoom 0: {EdgeWords(f.cut)} (y {f.cut:0.0} mm)");
+                return f;
+            }
+            run.Info($"  under the rule \"{rule.name}\": " + (f == null ? "no layout view keeps it"
+                     : $"aim ({f.aim.x:0}, {f.aim.y:0}) mm, {f.distance:0.000} m, {f.fill * 100f:0.0} % would cost {Lost(f, plain, bar)}: not taken"));
+        }
+        run.Check(false, $"the near edge reads at zoom 0: left as the plain search frames it from today's inputs ({EdgeWords(plain.cut)}), since each rule costs a feel-target bar " +
+                         "for this device (with its margin); the ruler's own fix is then a Blender change to the mat's print (bench_stage_textures.py / bench_stage.py: the near ruler " +
+                         "moved in from the edge, or the near strip printed plain)");
+        return plain;
+    }
+
+    // ======================================================================= the near-edge rule's undo (23 Oct 2026)
+
+    // Every device's framing on its prefab as it is now (the four fields Write writes), to save before the first change.
+    static StoredFramings CurrentFramings()
+    {
+        var all = new StoredFramings
+        {
+            saved = DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+            why = "the devices' close-up framings just before Bench 9's near-edge rule (23 Oct 2026) first changed a prefab; " +
+                  "Fixit Fidget > Bench > " + Title9Undo + " writes them back",
+        };
+        foreach (BenchScale.Device d in BenchScale.Devices)
+        {
+            GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(d.prefab);
+            DeviceDefinition def = asset != null ? asset.GetComponent<DeviceDefinition>() : null;
+            if (def == null || def.benchLayout == null) continue;
+            BenchLayout l = def.benchLayout;
+            all.devices.Add(new StoredFraming { prefab = d.prefab, cameraAim = l.cameraAim, cameraDistance = l.cameraDistance, closeAim = l.closeAim, fovClose = l.fovClose });
+        }
+        return all;
+    }
+
+    // Saved once, ever: a file that is there already holds the framings from before the rule, and is kept as it is.
+    static void SaveBefore(StoredFramings before, BenchScale.Run run)
+    {
+        string path = BeforePath;
+        if (File.Exists(path))
+        {
+            run.Info($"the framings from before the near-edge rule stay as first saved: {path} (written once; delete it to save today's instead)");
+            return;
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        File.WriteAllText(path, JsonUtility.ToJson(before, true));
+        run.Info($"saved the framings as they were, before the first change: {path} ({before.devices.Count} prefab(s)); \"{Title9Undo}\" writes them back");
+    }
+
+    // The undo for one device: today's plain search compared with the stored framing (so the report says whether the undo
+    // equals what the plain search would give now), then the stored framing written back as it was, and its photos.
+    static void PutBack(BenchScale.Device d, GameObject asset, DeviceDefinition def, bool real, Mat mat, View[] views, Framing job, Group rest, Group tray,
+                        Framed plain, StoredFramings stored, BenchScale.Run run)
+    {
+        StoredFraming s = stored.devices.FirstOrDefault(x => x != null && x.prefab == d.prefab);
+        if (s == null)
+        {
+            run.Check(false, $"a framing stored for {d.prefab} in {BeforePath}: none, so nothing is put back for it");
+            return;
+        }
+        string storedWords = FramingWords(s.cameraAim, s.cameraDistance, s.closeAim, s.fovClose);
+        bool same = plain != null && plain.HasClose && SameFraming(plain.aim, plain.distance, plain.closeAim, plain.fovClose, s.cameraAim, s.cameraDistance, s.closeAim, s.fovClose);
+        run.Info("the plain search gives the stored framing: " + (same ? $"yes ({storedWords})"
+                 : $"NO: stored {storedWords}; today's plain search gives " +
+                   (plain == null ? "no layout view" : plain.HasClose ? FramingWords(plain.aim, plain.distance, plain.closeAim, plain.fovClose) : "no zoom limit") +
+                   " (its inputs changed since, or the stored one was Bench 9b's: the stored framing is the one written back)"));
+        if (mat.ruler && s.cameraDistance > 0f)
+        {
+            float cut = NearCut(mat, s.cameraAim, s.cameraDistance, LayoutFov);
+            run.Info($"  the stored framing's bottom on the mat: y {cut:0.0} mm: {EdgeWords(cut)}");
+        }
+        if (!real)
+        {
+            run.Info("NOT WRITTEN: the prefab isn't real size yet (Devices 2).");
+            return;
+        }
+        Write(asset, def, s.cameraAim, s.cameraDistance, s.closeAim, s.fovClose, d.label, run);
+        if (s.cameraDistance > 0f && s.fovClose > 0f) Photos(d, asset, mat, views, job, rest, tray, s.cameraAim, s.cameraDistance, s.closeAim, s.fovClose, run);
+    }
+
+    // Write's own tolerances (half a millimetre, half a millimetre of distance, a twentieth of a degree).
+    static bool SameFraming(Vector2 aim, float distance, Vector2 closeAim, float fovClose, Vector2 aim2, float distance2, Vector2 closeAim2, float fovClose2) =>
+        (aim - aim2).magnitude <= .5f && Mathf.Abs(distance - distance2) <= .0005f && (closeAim - closeAim2).magnitude <= .5f && Mathf.Abs(fovClose - fovClose2) <= .05f;
+
+    static string FramingWords(Vector2 aim, float distance, Vector2 closeAim, float fovClose) =>
+        $"aim ({aim.x:0}, {aim.y:0}) at {distance:0.000} m, close ({closeAim.x:0}, {closeAim.y:0}) at FOV {fovClose:0.0}";
+
+    // beforeFirstChange: called once something will change, before the change (Bench 9 saves the framings as they were then).
+    static void Write(GameObject asset, DeviceDefinition def, Vector2 aim, float distance, Vector2 closeAim, float fovClose, string label, BenchScale.Run run,
+                      Action beforeFirstChange = null)
     {
         var so = new SerializedObject(def);
         SerializedProperty a = so.FindProperty("benchLayout.cameraAim"), dist = so.FindProperty("benchLayout.cameraDistance");
@@ -686,6 +1052,7 @@ internal static class BenchFramingSteps
             return;
         }
         string was = $"aim ({a.vector2Value.x:0}, {a.vector2Value.y:0}) at {dist.floatValue:0.000} m, close ({c.vector2Value.x:0}, {c.vector2Value.y:0}) at FOV {f.floatValue:0.0}";
+        beforeFirstChange?.Invoke();
         Undo.IncrementCurrentGroup();
         int group = Undo.GetCurrentGroup();
         Undo.SetCurrentGroupName("Bench 9 - frame the " + label);

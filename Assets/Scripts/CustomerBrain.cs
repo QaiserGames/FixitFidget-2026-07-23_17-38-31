@@ -1631,10 +1631,12 @@ public class CustomerBrain : MonoBehaviour
 
         // The repair bar first (14 Oct 2026, NPC wave 2; his girlfriend: "people wouldn't sit down on the bar stools that
         // are infront of the repair station"): someone whose repair goes to the bench takes the free stool nearest it,
-        // across the counter from the mat, where Ace reassures and hands back without a step. Everyone else, and anyone
-        // who finds the three taken, takes the nearest seat as before.
+        // across the counter from the mat, where Ace reassures and hands back without a step. Since 23 Oct (his note:
+        // repair customers "only sit on the right next to the bar stool... I want that to be more spread out") not someone
+        // whose character wants comfort more than the bar (StaysAtTheBar): they, everyone else, and anyone who finds the
+        // three taken take the best seat for them (WaitingArea.Claim, SeatChoice), and Ace carries their device to them.
         WaitingSpot spot = null;
-        if (preferred == WaitingSpot.SpotKind.Seat && GoesToTheBench && BenchPoint(out Vector3 bench))
+        if (preferred == WaitingSpot.SpotKind.Seat && GoesToTheBench && StaysAtTheBar && BenchPoint(out Vector3 bench))
             spot = WaitingArea.Instance.ClaimRepairBar(this, bench);
         if (spot == null) spot = WaitingArea.Instance.Claim(this, preferred);
         if (spot == null) return false;
@@ -1728,6 +1730,19 @@ public class CustomerBrain : MonoBehaviour
 
     /// <summary>A repair that is worked at the bench: every repair but the Human fault, which is done at the counter (IsCounterRepair).</summary>
     public bool GoesToTheBench => record != null && record.kind == JobKind.Repair && !IsCounterRepair;
+
+    /// <summary>
+    /// A bench job who waits at the repair bar (23 Oct 2026). Most do (her playtest 5 note; Ace reassures and hands back over
+    /// the counter from the bench); someone whose character wants comfort more than the bar (a Sentimental person, a Relaxed
+    /// one with a part to swap or a call on hold who isn't the watching sort) takes a seat elsewhere, and Ace carries the
+    /// device to them. Regulars stay.
+    /// The same all visit: who they are and what they brought (SeatChoice.StaysAtTheBar). False for anyone else.
+    /// </summary>
+    public bool StaysAtTheBar => GoesToTheBench && SeatChoice.StaysAtTheBar(SeatChoice.PersonOf(this));
+
+    /// <summary>Where they went to wait once their job was taken (a seat, a standing spot), or null: read by the Day labs and
+    /// by Day 1's guide (the impatience card says "at the counter" only to someone on a repair-bar stool).</summary>
+    public WaitingSpot ClaimedSpot => waitingSpot;
 
     /// <summary>Their device is on the bench (StationInteractable.BenchHolds) or in Ace's hands there (the close-up): what they watch.</summary>
     public bool BeingRepaired => activeJob != null && (StationInteractable.BenchHolds(activeJob)

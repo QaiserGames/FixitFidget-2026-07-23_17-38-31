@@ -20,6 +20,15 @@ using Object = UnityEngine.Object;
 // Leaves nothing behind: the notebook is put back exactly as it was, the test
 // identities are destroyed, and the playtest save is never written (checked).
 // Report: <project>/Logs/Night/notebook-check-<time>.txt.
+//
+// 23 Oct 2026 (his note: the night's notes were "word vomit"; the page is pictures
+// first now): when these checks are done it starts the night's page check
+// (NotebookPageCheck), which takes a few seconds: it draws the real page from
+// notebooks made up for it (the save's are never touched), photographs it, and
+// checks the pictures, the order (tonight's errand on top), the first screen (at
+// most six entries), the 8-word lines, the press and each photo's word check. Its
+// report and photos: Logs/Night/notebook-page-<time>/; its last Console line is
+// "[Notebook page] All N checks passed." or "... N of M checks FAILED. <folder>".
 // ---------------------------------------------------------------------------
 public static class NotebookPlayCheck
 {
@@ -57,6 +66,12 @@ public static class NotebookPlayCheck
         Check(playtestAfter == playtestBefore, "The playtest save was not written");
         if (save != null) Check(save.Notebook.Count == (before?.Length ?? 0), $"The notebook is back as it was ({save.Notebook.Count} facts)");
         Finish();
+        // The night's page, with pictures: over the next few seconds (it photographs), in this same lab session.
+        if (CafeLab.Active)
+        {
+            NotebookPageCheck page = NotebookPageCheck.Begin();
+            Debug.Log("[Notebook check] Now the night's page with pictures: hands off for a few seconds. " + page.folder);
+        }
     }
 
     [MenuItem(Menu, true)]

@@ -706,6 +706,13 @@ public class DayOneGuideUI : MonoBehaviour
     public static string ReassureWords(string name) => $"{name} is getting impatient. At the counter, {E} Reassure.";
 
     /// <summary>
+    /// The impatience card for someone waiting away from the repair bar (23 Oct 2026: seats are chosen by their reasons, so
+    /// drink customers, and now and then a repair customer, wait across the room): E reaches them only beside them, so it
+    /// says to walk over, as the card did before 13 Oct. PLACEHOLDER COPY.
+    /// </summary>
+    public static string WalkOverReassureWords(string name) => $"{name} is getting impatient. Walk over, {E} Reassure.";
+
+    /// <summary>
     /// The impatience card at the bench (checklist v2 §5.6): at the bench E takes the device away and A uses the tool, so it
     /// says to step back first, in the bench's keys (as icons): "Grace is getting impatient. [Circle] Step back, then [Cross]."
     /// 8 words with the icons (they aren't words), the alert's budget is 12 (WordBudget.BenchAlert). PLACEHOLDER COPY.
@@ -865,7 +872,8 @@ public class DayOneGuideUI : MonoBehaviour
             impatient = c;
             impatientUntil = now + ImpatienceSeconds;
             impatienceDay = hintDay;
-            impatientText = ReassureWords(c.CustomerName);
+            // At a repair-bar stool E reaches them over the counter from the bench; anywhere else it's a walk over (23 Oct).
+            impatientText = c.ClaimedSpot is TableSeat stool && stool.RepairBar ? ReassureWords(c.CustomerName) : WalkOverReassureWords(c.CustomerName);
             return true;
         }
         return false;

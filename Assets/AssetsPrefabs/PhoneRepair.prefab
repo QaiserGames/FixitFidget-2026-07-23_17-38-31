@@ -1224,10 +1224,10 @@ MonoBehaviour:
     toolRestCentreX: -135
     toolRestCentreY: 0
     scrapTray: {x: 6, y: 133}
-    cameraAim: {x: 18, y: -9}
-    cameraDistance: 0.462
+    cameraAim: {x: 14, y: -10}
+    cameraDistance: 0.468
     closeAim: {x: -10, y: -17}
-    fovClose: 18.6
+    fovClose: 18.4
 --- !u!114 &5572665461124608915
 MonoBehaviour:
   m_ObjectHideFlags: 0

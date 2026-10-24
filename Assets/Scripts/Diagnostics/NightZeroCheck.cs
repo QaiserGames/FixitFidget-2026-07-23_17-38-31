@@ -23,8 +23,9 @@ using UnityEngine.UI;
 //   3. "Bin it": the near lid lifts, the bag goes in, the lid drops; the lamp stutters, the view pushes in, the far
 //      lid lifts and he stands up out of the dumpster;
 //   4. the deal: two replies (1 and 2 on the keyboard when the Game view has it, as a player would), his warmth
-//      nudged by each (+1, then 0), the notebook's first pages his (in italics, first on its page), the deal made,
-//      the clock running, Night 0 over;
+//      nudged by each (+1, then 0), the notebook's first pages his (in his hand; on the night's page, since 23 Oct 2026,
+//      Barnaby on top and the man at the bins first of the people, his pages behind him), the deal made, the clock
+//      running, Night 0 over;
 //   5. the errand: Barnaby taken from Grace's step goes into Ace's hand (not onto the shelf), and in first person he sits
 //      low on the right of the view, looking back at Ace (photo 09b: his hat the right way out, 6 Oct 2026); back at the
 //      bins he pops up as Ace comes (he ducked back in after the deal), and "Give him Barnaby": the return (one reply,
@@ -43,6 +44,11 @@ using UnityEngine.UI;
 // bag out the back door, the bag in the bins, hidden through the deal, Barnaby on Grace's step at 12 West Street, Barnaby to
 // the man, home; the reveal camera stays on through the deal; the replies are taken the day's way (down moves the highlight,
 // E says it); the note after the deal names her number and street and is waited for (notes queue now, never cut short).
+//
+// His own playtest (22 Oct 2026): at the back door, V into first person and back: the night's "You" stays off in first
+// person while its seconds run (it had bobbed at the screen's edge), and is there again back in the view from above (photo
+// 02b in first person): four checks more (the two V waits, and those two), 122 where it was 118. And settled in first
+// person (after the 0.75 s blend) it isn't drawn at all, the photo taken then: one more, 123 (23 Oct 2026, its first run).
 // ---------------------------------------------------------------------------
 public sealed class NightZeroCheck : MonoBehaviour
 {
@@ -185,6 +191,39 @@ public sealed class NightZeroCheck : MonoBehaviour
             "\"You\" is pinned over Ace for the night's first seconds");
         yield return Photo("02-night-0-at-the-back-door");
 
+        // His own playtest (22 Oct 2026): in first person that "You" bobbed at the screen's edge ("it's looking for it in the
+        // isometric view"). It's for finding Ace from above: in first person it stays off while its seconds run (UiPins).
+        bool selfSecondsLeft = UiPins.Instance != null && UiPins.Instance.SelfAtNight;
+        view.SetFirstPerson(true);
+        yield return Until(() => view.FirstPersonSelected, 2f, "V: first person at the back door");
+        yield return null;
+        yield return null;
+        Check(selfSecondsLeft && UiPins.Instance != null && UiPins.Instance.SelfAtNight && !UiPins.Instance.SelfShowing,
+            selfSecondsLeft
+                ? "in first person the night's \"You\" stays off while its seconds run (his 22 Oct note: it bobbed at the screen's edge)"
+                : "in first person the night's \"You\" stays off: NOT PROVEN, its seconds were up before the lab got here (check it earlier)");
+        // Once the view has finished its blend into first person (0.75 s), "You" isn't drawn at all: nothing left to bob at the
+        // screen's edge. The photo is taken then, so it shows first person itself (23 Oct 2026: two frames in, it caught the
+        // blend from above with "You" half faded).
+        yield return Seconds(.9f);
+        float selfAlpha = UiPins.Instance != null ? UiPins.Instance.SelfAlpha : 1f;
+        Check(selfSecondsLeft && UiPins.Instance != null && UiPins.Instance.SelfAtNight && selfAlpha < .02f,
+            selfSecondsLeft
+                ? $"settled in first person, the night's \"You\" isn't drawn at all (alpha {selfAlpha:0.00}) while its seconds run"
+                : "settled in first person, \"You\": NOT PROVEN, its seconds were up before the lab got here (check it earlier)");
+        yield return Photo("02b-night-0-in-first-person");
+        view.SetFirstPerson(false);
+        Camera doorEye = Camera.main;
+        yield return Until(() => !view.FirstPersonSelected && doorEye != null
+                                 && Vector3.Distance(doorEye.transform.position, movement.transform.position) > 5f, 3f,
+            "V again: back to the view from above at the back door");
+        yield return Seconds(.4f);   // its fade in
+        bool stillItsSeconds = UiPins.Instance != null && UiPins.Instance.SelfAtNight;
+        Check(stillItsSeconds && UiPins.Instance.SelfShowing,
+            stillItsSeconds
+                ? "back in the view from above inside its seconds, \"You\" is there again"
+                : "back in the view from above, \"You\": NOT PROVEN, its seconds were up before the lab got here (check it earlier)");
+
         // ---------- any door (playtest 3): out the front with the bag, the dumpster would take it; back in, the back door offers the way ----------
         Vector3 insideBefore = movement.transform.position;
         MoveAce(new Vector3(.12f, 0f, -2.2f));   // on the street in front of the café's door
@@ -298,9 +337,15 @@ public sealed class NightZeroCheck : MonoBehaviour
             $"his pages are in the notebook ({pages.Count}), in his hand; the parking page waits for the cones");
         foreach (NotebookFactData p in pages)
             Check(!WordBudget.Over(p.text, WordBudget.Page), $"\"{p.text}\" keeps to the budget ({WordBudget.Report(p.text, WordBudget.Page)})");
-        string page = NotebookRecap.Page(saves.Notebook);
-        Check(page.StartsWith("<b>" + LodgerStory.PagesName + "</b>", StringComparison.Ordinal) && page.Contains("<i>"),
-            "the notebook's page opens with his pages, in italics");
+        // The night's page (pictures first since 23 Oct 2026; NoteSubjects lays it out, read here without opening it, so the
+        // Now line's "notes" nudge below still shows): Barnaby on top, the man at the bins first of the people, his pages
+        // behind him.
+        var onPage = NoteSubjects.Entries(saves.Notebook, ledger, NoteStage.ToTake, LodgerStory.Errand(ledger));
+        NoteEntry him = onPage.FirstOrDefault(e => e.key == NoteSubjects.Lodger);
+        Check(onPage.Count > 1 && onPage[0].key == NoteSubjects.Barnaby && onPage[0].now && him != null && him.group == NoteGroup.People
+              && onPage.FindIndex(e => e.group == NoteGroup.People) == onPage.IndexOf(him)
+              && him.facts.Count(f => f.source == Notebook.Sources.Inherited) == pages.Count,
+            $"the notebook's page: Barnaby on top, then the man at the bins, first of the people, with his {pages.Count} pages behind him");
         Check(LodgerStory.Errand(ledger) == barnaby.id, "his errand: Grace's gnome");
         // Ace's line, then the night's note: it waits for the notebook note's time (notes queue now), so it is waited for.
         yield return Until(() => NoteShowing().Contains("Grace's step"), 14f, "the note says where the gnome is: Grace's step");

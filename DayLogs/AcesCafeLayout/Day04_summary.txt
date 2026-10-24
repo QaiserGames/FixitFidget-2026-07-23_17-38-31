@@ -1,40 +1,40 @@
 ﻿===== DAY 4 =====
 
-Arrived                8
-Accepted               4
-People helped          1    <- received service; may still leave unhappy
-Left satisfied         1
+Arrived                12
+Accepted               9
+People helped          9    <- received service; may still leave unhappy
+Left satisfied         9
 Helped but unhappy     0    <- also included in departures below
-Orders completed       1   (0 repairs, 1 drinks)
+Orders completed       10   (4 repairs, 6 drinks)
 
 WHY PEOPLE LEFT UNSATISFIED (includes partial service)
-  Stormed out (queue)  4    <- never even heard them
-  Stormed out (wait)   3    <- an obligation was still pending
+  Stormed out (queue)  3    <- never even heard them
+  Stormed out (wait)   0    <- an obligation was still pending
   Still here at close  0
   You declined         0    <- a choice, not a failure
   Out of stock         0
   Shelf was full       0
 
 GRADES
-  Perfect              0
+  Perfect              4
   Good                 0
   Passable             0
 
 REVIEWS                (reputation-spec.md)
-  Loved it             1
-  Liked it             0
+  Loved it             8
+  Liked it             1
   Fine                 0
-  Let down             4
-  Never again          3
-  Reputation today     -8
-  Café reputation      4 (1 of 5 stars)
+  Let down             3
+  Never again          0
+  Reputation today     +14
+  Café reputation      33 (2 of 5 stars)
 
 MONEY
-  Earned               $78   ($3 of it tips)
-  of which cafe walk-ins $70
+  Earned               $627   ($121 of it tips)
+  of which cafe walk-ins $165
 
-Average helped visit   51.3s
-Lowest helped patience 89% (includes unhappy exits)
+Average helped visit   56.8s
+Lowest helped patience 20% (includes unhappy exits)
 
 Per-customer detail is in the CSV beside this file.
 service_s measures acceptance to departure, including waiting; it is not hands-on repair time.

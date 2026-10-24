@@ -1,0 +1,2097 @@
+[
+  {
+    "id": "a01",
+    "severity": "S1",
+    "title": "A second person inside each customer",
+    "where": "At the till and the repair bar, every customer, first person",
+    "wrong": "A blonde woman in a red coat is drawn inside every customer you serve. Her hair and red sleeve stick out, and one guest showed two faces.",
+    "recommend": "fix",
+    "fix": "In Unity, play a day, select a served customer and switch off the extra body drawn inside them.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a01-1.jpg",
+      "a01-2.jpg"
+    ],
+    "caption": "Blonde hair and a red coat stick out behind Valerie; Beatriz has a second face under hers."
+  },
+  {
+    "id": "a02",
+    "severity": "S1",
+    "title": "The cloth in Ace's hand",
+    "where": "The bench close-up, centre screen, whenever Ace wipes a phone",
+    "wrong": "The cloth is a smooth yellow cone that looks like a rubber duck. The folded cloth in its tray, and the Wipe icon, look right.",
+    "recommend": "replace",
+    "fix": "In Unity, hold the folded tray cloth flat on the screen and wipe in circles; R3 would rather have a new Blender cloth over a fingertip.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R1",
+      "R3"
+    ],
+    "images": [
+      "a02-1.jpg",
+      "a02-2.jpg"
+    ],
+    "caption": "The yellow cone on the phone is the cloth; second picture: it beside the folded cloth."
+  },
+  {
+    "id": "a03",
+    "severity": "S1",
+    "title": "The support-call phone is a grey block",
+    "where": "From Day 4: at the counter, in the tray, in Ace's hand",
+    "wrong": "The phone for support calls is a plain grey box. The detailed phone model already in the game isn't used for it.",
+    "recommend": "replace",
+    "fix": "In Unity, give the support-call phone the detailed phone's parts, then rerun Bench 7's layout and check it fits the intake tray.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a03-1.jpg",
+      "a03-2.jpg"
+    ],
+    "caption": "The support-call phone today is a grey slab; second picture: the detailed phone it should use."
+  },
+  {
+    "id": "a04",
+    "severity": "S1",
+    "title": "Seated customers lose their heads",
+    "where": "Seated guests seen from about 2 m, walking in first person",
+    "wrong": "From some angles a seated customer's head, hair and hat vanish while the body still shows. You see through the open collar.",
+    "recommend": "fix",
+    "fix": "In Unity, tick 'Update When Offscreen' on each customer's head, hair and hat, then check again with the NpcSit lab.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a04-1.jpg",
+      "a04-2.jpg"
+    ],
+    "caption": "From the side the hard-hat man has no head; from the front he has it."
+  },
+  {
+    "id": "a05",
+    "severity": "S1",
+    "title": "The black lid behind the bins man",
+    "where": "At the bins, every talk with the man, Nights 0 and 2",
+    "wrong": "When his dumpster lid is open, its underside is a flat pure-black slab right behind his head. In the story's key scene it looks like a hole.",
+    "recommend": "fix",
+    "fix": "In Unity, paint the lid's underside the same green as its top in the Night 0 step, or open it less (about 75°) so it doesn't face the camera.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3",
+      "R4"
+    ],
+    "images": [
+      "a05-1.jpg",
+      "a05-2.jpg"
+    ],
+    "caption": "The black slab behind his head is the open lid's underside; second picture: the lid lifting."
+  },
+  {
+    "id": "a06",
+    "severity": "S1",
+    "title": "West Street's two ball trees",
+    "where": "West Street, by the brick corner shop: night and morning intro",
+    "wrong": "Each tree is three smooth green balls on an orange pipe. Next to the street's other trees they look like stand-ins.",
+    "recommend": "replace",
+    "fix": "In Unity, switch off the two ball trees and put Kenney oak or small trees in their place, as was done for the courtyard.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a06-1.jpg",
+      "a06-2.jpg"
+    ],
+    "caption": "Smooth green balls on an orange pipe, beside the street's real trees."
+  },
+  {
+    "id": "a07",
+    "severity": "S1",
+    "title": "The patio's flower in a vase",
+    "where": "The patio table; a close-up in the Day 4 and 5 intros",
+    "wrong": "The flower is a yellow ball on a red tube. Filmed up close in the intro, it reads as a chess pawn, not a flower.",
+    "recommend": "replace",
+    "fix": "In Unity, swap the ball and tube for the Kenney yellow flower in a small pot, or cut the flower shot from the intro.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a07-1.jpg"
+    ],
+    "caption": "A yellow ball on a red tube stands in for the flower."
+  },
+  {
+    "id": "a08",
+    "severity": "S2",
+    "title": "The coffee in the cup",
+    "where": "In Ace's hand at the drinks machine, every drink",
+    "wrong": "A finished coffee is a flat near-white disc, like milk; another came out grey-beige, like dishwater. Neither looks like coffee.",
+    "recommend": "fix",
+    "fix": "In Unity, colour coffee, espresso and americano a dark roast brown with a lighter ring (latte tan, cocoa brown, tea amber), and find why two coffees differ.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a08-1.jpg",
+      "a08-2.jpg"
+    ],
+    "caption": "Two finished coffees: one milk-white, one grey-beige."
+  },
+  {
+    "id": "a09",
+    "severity": "S2",
+    "title": "The black cup and lid station",
+    "where": "The back bar beside the drinks machine, at eye level, every drink",
+    "wrong": "From where Ace stands, the cup station is three all-black tubes on a black board. It's the darkest thing on the cream tiles.",
+    "recommend": "fix",
+    "fix": "In Unity, make the tubes brushed steel with the green sticker band, and the board walnut.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a09-1.jpg",
+      "a09-2.jpg"
+    ],
+    "caption": "From Ace's spot it reads as black boards; head-on (second picture) you see the cups."
+  },
+  {
+    "id": "a10",
+    "severity": "S2",
+    "title": "The drinks machine's button words",
+    "where": "Head-on at the drinks machine, every drink",
+    "wrong": "Each word is sized to fit its own button, so TEA and LATTE are huge and AMERICANO is tiny. Six sizes in one row look unfinished.",
+    "recommend": "fix",
+    "fix": "In Unity, turn off auto-size on the six labels and give them all the size AMERICANO needs, with HOT CHOCOLATE on two lines.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a10-1.jpg",
+      "a10-2.jpg"
+    ],
+    "caption": "TEA and LATTE stand about 2.5 times taller than AMERICANO."
+  },
+  {
+    "id": "a11",
+    "severity": "S2",
+    "title": "The milky glass on the bench screen",
+    "where": "First person at the bench; also the water station and grinder",
+    "wrong": "The clear screen lays a pale haze over the room behind it. The same glass makes the water glasses solid white and the grinder look full of flour.",
+    "recommend": "fix",
+    "fix": "In Unity, make the café glass much less shiny (smoothness about 0.5) in the kit's own settings so a re-run keeps it, and make the water more see-through.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a11-1.jpg",
+      "a11-2.jpg"
+    ],
+    "caption": "Below the screen's top edge the room turns pale; second picture: the glasses and hopper read white."
+  },
+  {
+    "id": "a12",
+    "severity": "S2",
+    "title": "The phone's insides",
+    "where": "The bench close-up, once the phone's back cover is off",
+    "wrong": "Inside are flat cut-outs on a brown plate: no circuit board, chips, screws or cables. Next to the detailed back cover it looks like a stand-in.",
+    "recommend": "fix",
+    "fix": "In Blender, add a green circuit board with a few chips, a labelled battery, two ribbon cables and a copper charging coil, in the same footprint.",
+    "work": "Blender",
+    "size": "a session",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a12-1.jpg"
+    ],
+    "caption": "A cream bar, a peach ring and two discs stand in for the phone's insides."
+  },
+  {
+    "id": "a13",
+    "severity": "S2",
+    "title": "The photo-plaster boards by the windows",
+    "where": "The café's east wall behind the notice board, seen from the bench",
+    "wrong": "Tall beige boards with a grainy photo pattern stand in front of the windows, like boards leaning on the glass. Nothing else in the room has a photo pattern.",
+    "recommend": "fix",
+    "fix": "In Unity, give that one wall part the back wall's flat 'Oat plaster' and leave the street's copies alone; a Blender pillar that meets the window frames can come later.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a13-1.jpg",
+      "a13-2.jpg"
+    ],
+    "caption": "Grainy beige boards stand in front of the glass, the notice board on one."
+  },
+  {
+    "id": "a14",
+    "severity": "S2",
+    "title": "The patio A-frame only half stands",
+    "where": "The pavement right of the café door, from above and the street",
+    "wrong": "Only the chalkboard side stands up. The plain back leans behind it with its foot off the ground, and the two never meet at the top.",
+    "recommend": "fix",
+    "fix": "In Blender, rebuild it as a true A: both sides leaning from one hinge, both feet down, a chalk face on each side.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a14-1.jpg",
+      "a14-2.jpg"
+    ],
+    "caption": "From the side the two boards don't meet; from the street the back one leans loose."
+  },
+  {
+    "id": "a15",
+    "severity": "S2",
+    "title": "Twin walkers in red coats",
+    "where": "West Street's pavement in the morning intro, from its first frame",
+    "wrong": "Two identical blonde women in the same red coat walk in step. It looks like a copy bug.",
+    "recommend": "fix",
+    "fix": "In Unity, give the walkers different Synty looks and start them at different points on their route.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a15-1.jpg",
+      "a15-2.jpg"
+    ],
+    "caption": "Two identical women in red coats, in step."
+  },
+  {
+    "id": "a16",
+    "severity": "S2",
+    "title": "The bare uphill road at the edge",
+    "where": "The intro's first street shot, pull-outs and titles; West Street at night",
+    "wrong": "The streets go on as long empty ramps into haze, with nothing either side. It sits where the eye goes in the game's first shot.",
+    "recommend": "fix",
+    "fix": "In Unity, aim the intro's street shot and pull-outs so the ramp leaves the frame, or line its first 30 m with the hill's Synty buildings.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a16-1.jpg",
+      "a16-2.jpg"
+    ],
+    "caption": "The road runs on as an empty ramp into haze; second picture: the same in the Day 1 title."
+  },
+  {
+    "id": "a17",
+    "severity": "S2",
+    "title": "Grace's yellow house looks brown",
+    "where": "12 West Street, at night and in the Day 2 intro",
+    "wrong": "The night's directions say 'the yellow house', but it reads dark brown at night and dull ochre by day. Only the curtains are yellow.",
+    "recommend": "fix",
+    "fix": "In Unity, give her house its own clear warm yellow paint (about #E9B43C), keep the plaster only for its bumps, and check it under the porch light.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a17-1.jpg",
+      "a17-2.jpg"
+    ],
+    "caption": "Her house reads brown at night; by day (second picture) it's dull ochre with yellow curtains."
+  },
+  {
+    "id": "a18",
+    "severity": "S2",
+    "title": "Grace's porch lamp is a bare ball",
+    "where": "Her front door, from her step and across the street",
+    "wrong": "Her porch light is a glowing ball with no lamp around it. Up close it looks like a small ghost.",
+    "recommend": "fix",
+    "fix": "In Unity, put the glow inside a small lantern, like the lamp by the bins, and shrink the ball to bulb size.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a18-1.jpg"
+    ],
+    "caption": "The glowing ball over her door has no lamp around it."
+  },
+  {
+    "id": "a19",
+    "severity": "S2",
+    "title": "Blank orange walls in the pull-outs",
+    "where": "The tilted pull-outs and titles of the Day 3 to 6 intros",
+    "wrong": "The biggest things on screen are two flat orange building sides with no windows. In normal play they barely show.",
+    "recommend": "fix",
+    "fix": "In Unity, re-aim those pull-outs, or turn the two blocks so a side with windows shows.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a19-1.jpg"
+    ],
+    "caption": "Two windowless orange slabs fill the Day 3 pull-out."
+  },
+  {
+    "id": "a20",
+    "severity": "S2",
+    "title": "The coat and scarf on Grace's stand",
+    "where": "Grace's front room, the corner by the TV, on night break-ins",
+    "wrong": "The coat is one long capsule with no shoulders, collar or sleeves, and the scarf is two stiff red bars. It's the café coats' 'squares and rectangles' again.",
+    "recommend": "remove",
+    "fix": "In Blender, delete the coat and the two scarf bars, keep the hat and stand, and re-export (about 5 minutes).",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a20-1.jpg"
+    ],
+    "caption": "A capsule coat and two red bars for a scarf; the hat and stand are fine."
+  },
+  {
+    "id": "a21",
+    "severity": "S2",
+    "title": "Grace's floor lamp shade from below",
+    "where": "Her front room by her armchair, crouched in first person",
+    "wrong": "The shade is drawn on one side only, so from below its inside is missing and the lit shade vanishes. From above it looks fine.",
+    "recommend": "fix",
+    "fix": "In Unity, set the lampshade material to draw both sides; that also fixes her bedside lamp and the house kit pendant.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a21-1.jpg",
+      "a21-2.jpg"
+    ],
+    "caption": "From below, the red part is the shade's inside, which isn't drawn; from above it looks fine."
+  },
+  {
+    "id": "a22",
+    "severity": "S2",
+    "title": "Grace asleep has no head",
+    "where": "Her bedroom, when the player sneaks upstairs past her bed",
+    "wrong": "Asleep, Grace is only this quilt: a stiff tray with a long mound and nothing on the pillow. It reads as an empty bed with a bump.",
+    "recommend": "fix",
+    "fix": "In Blender, add the back of a head in her hair colour on the left pillow, soften the quilt's sides, and re-export.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a22-1.jpg"
+    ],
+    "caption": "The quilt's mound runs up to an empty pillow."
+  },
+  {
+    "id": "a23",
+    "severity": "S3",
+    "title": "The brush's bristles",
+    "where": "On the tool rest, in every bench close-up",
+    "wrong": "The bristles are 6 to 8 separate orange rods splayed like a fork. It reads more like a rake than a brush.",
+    "recommend": "fix",
+    "fix": "In Blender, make the bristles one tapered block with a few grooves; R1 counted the brush among the good tools.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a23-1.jpg"
+    ],
+    "caption": "Separate orange rods fan out like a rake."
+  },
+  {
+    "id": "a24",
+    "severity": "S3",
+    "title": "Lamp shadows like stains on the bench",
+    "where": "The bench close-up, on the wood and the mat",
+    "wrong": "The magnifier lamp throws a soft dark ring on the wood and a dark band across the mat. They read as stains.",
+    "recommend": "fix",
+    "fix": "In Unity, stop the magnifier lamp casting shadows into the close-up.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a24-1.jpg",
+      "a24-2.jpg"
+    ],
+    "caption": "The dark ring on the wood (top left) is a shadow; the band on the mat (second picture) is faint."
+  },
+  {
+    "id": "a25",
+    "severity": "S3",
+    "title": "The help outline breaks into dashes",
+    "where": "The bench close-up, on the opened phone",
+    "wrong": "The amber help line breaks into dashes along the frame's edge and floats in pieces over the middle. Two surfaces fight at the same depth.",
+    "recommend": "fix",
+    "fix": "In Unity, push the outline a little further out, or draw it on top of everything.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a25-1.jpg"
+    ],
+    "caption": "Ringed: the help line breaks into dashes down the right edge and floats in the middle."
+  },
+  {
+    "id": "a26",
+    "severity": "S3",
+    "title": "The leftover smudge on the dirty phone",
+    "where": "The bench close-up, after wiping the gunked phone",
+    "wrong": "One leftover smudge is a flat white cloud with a fuzzy edge. It looks like a sticker, while the rest of the dirt looks real.",
+    "recommend": "fix",
+    "fix": "In Unity, make that smudge a see-through grey-brown.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a26-1.jpg"
+    ],
+    "caption": "The white cloud on the screen is the leftover smudge."
+  },
+  {
+    "id": "a27",
+    "severity": "S3",
+    "title": "The watch's small seconds hand",
+    "where": "The bench close-up and the counter, whenever the pocket watch comes",
+    "wrong": "The small seconds hand turns over bare dial, with no little ring or ticks under it. Up close it reads as a stray scratch.",
+    "recommend": "fix",
+    "fix": "In the dial texture, add a small ring with 12 ticks under that hand.",
+    "work": "Texture",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a27-1.jpg"
+    ],
+    "caption": "Just left of the 6, the tiny hand sits on bare dial."
+  },
+  {
+    "id": "a28",
+    "severity": "S3",
+    "title": "The grey sheet on Grace's camera",
+    "where": "The bench close-up, over the camera's gear block",
+    "wrong": "A grey sheet over the gear block reads as crumpled paper. It's not clear what it is on an otherwise excellent camera.",
+    "recommend": "keep",
+    "fix": "Keep it, unless it's meant to be something; check the model in Blender.",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a28-1.jpg"
+    ],
+    "caption": "The crumpled grey sheet sits over the brass gears."
+  },
+  {
+    "id": "a29",
+    "severity": "S3",
+    "title": "The bare ruler on Ace's desk mat",
+    "where": "First person at the bench, lower left of the screen",
+    "wrong": "The steel ruler is a bare light-grey bar with no marks. It reads as a stray strip.",
+    "recommend": "fix",
+    "fix": "In Unity, give the ruler a texture with marks and numbers.",
+    "work": "Texture",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a29-1.jpg",
+      "a29-2.jpg"
+    ],
+    "caption": "Ringed: the plain grey bar on the dark mat is meant to be a steel ruler."
+  },
+  {
+    "id": "a30",
+    "severity": "S3",
+    "title": "The loud colours on Ace's desk",
+    "where": "First person at the bench, beside the blue repair mat",
+    "wrong": "The wire spools are pure red and green, the mug bright green and the meter pure yellow. They're the loudest colours in the café.",
+    "recommend": "fix",
+    "fix": "In Unity, tone the spools, mug and meter toward the kit's sage, brick and mustard.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a30-1.jpg"
+    ],
+    "caption": "Pure red and green spools, a bright green mug and a yellow meter."
+  },
+  {
+    "id": "a31",
+    "severity": "S3",
+    "title": "The magnifier lamp's flat springs",
+    "where": "First person at the bench, right edge of the screen",
+    "wrong": "The lamp's springs are flat black wavy ribbons lying on the arm and the post. They read as scribbles or tape, not coils.",
+    "recommend": "fix",
+    "fix": "In Blender, make them round coil tubes, or delete the two springs.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a31-1.jpg"
+    ],
+    "caption": "Ringed: the flat black wavy strips on the arm and post are the springs."
+  },
+  {
+    "id": "a32",
+    "severity": "S3",
+    "title": "White squares under the bench top",
+    "where": "Under the bench top's front edge, whenever Ace stands there",
+    "wrong": "A black bar of grey and white squares, one pure white, runs under the bench top. It reads as a stray strip or blank labels.",
+    "recommend": "fix",
+    "fix": "In Unity, select it in the Scene view and fix or switch it off; R4 thinks it's a power strip that can stay.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3",
+      "R4"
+    ],
+    "images": [
+      "a32-1.jpg",
+      "a32-2.jpg"
+    ],
+    "caption": "The black bar of white squares under the bench edge; R4 reads it as a power strip."
+  },
+  {
+    "id": "a33",
+    "severity": "S3",
+    "title": "The donor parts box under the bench",
+    "where": "Under the bench, looking down or walking past",
+    "wrong": "A plain red box on a plain blue box sits beside a grey box with a scribbled card. The old phones, remote, router and cable it should hold don't come across.",
+    "recommend": "remove",
+    "fix": "In Unity, switch it off; a Blender tangle of cable and two face-down phones only if you want it back.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a33-1.jpg"
+    ],
+    "caption": "Plain red, blue and grey boxes stand in for a box of old parts."
+  },
+  {
+    "id": "a34",
+    "severity": "S3",
+    "title": "The till's blank keys and screen",
+    "where": "First person at the till, and in the talk camera",
+    "wrong": "The keys are blank white and the screen is an empty green panel, on an otherwise good till.",
+    "recommend": "fix",
+    "fix": "In Unity, add a texture with the key labels, and a price on the screen.",
+    "work": "Texture",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a34-1.jpg",
+      "a34-2.jpg"
+    ],
+    "caption": "Blank white keys and an empty green screen."
+  },
+  {
+    "id": "a35",
+    "severity": "S3",
+    "title": "The blocky bulb in the counter lamp",
+    "where": "First person at the till, top left of the screen",
+    "wrong": "Inside the smooth lamp shade hangs a blocky egg for a bulb.",
+    "recommend": "fix",
+    "fix": "In Unity, swap in a smooth sphere for the bulb, or smooth it in Blender.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a35-1.jpg"
+    ],
+    "caption": "Ringed: the bulb is a blocky egg inside a smooth shade."
+  },
+  {
+    "id": "a36",
+    "severity": "S3",
+    "title": "Ace's head fills the talk camera",
+    "where": "Talking to Grace at the counter, left side of the screen",
+    "wrong": "Ace's blocky hair and flat ear fill the left fifth of the screen. Nothing else that close is so coarse.",
+    "recommend": "fix",
+    "fix": "In Unity, move the conversation camera about 20 cm further from his shoulder.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a36-1.jpg"
+    ],
+    "caption": "Ringed: Ace's blocky hair and ear fill the left of the shot."
+  },
+  {
+    "id": "a37",
+    "severity": "S3",
+    "title": "The condiment tray's plain blocks",
+    "where": "The counter's lowered end, on the customer side",
+    "wrong": "The tray holds a cup of stirrers, then a white block, a black box, a brown brick and a black pot. The blocks read as blocks.",
+    "recommend": "fix",
+    "fix": "In Blender, make sugar packets in a caddy, a stack of lids and a labelled shaker.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a37-1.jpg"
+    ],
+    "caption": "Plain blocks on the tray stand in for sugar, lids and shakers."
+  },
+  {
+    "id": "a38",
+    "severity": "S3",
+    "title": "Two stray rods by the cup stack",
+    "where": "First person at the drinks machine, beside the cup stack",
+    "wrong": "Two thin dark rods stand loose at the corners of the cup base, touching nothing. They read as stray sticks.",
+    "recommend": "fix",
+    "fix": "In Unity, switch off the two 'Cup caddy rail' parts in the machine's prefab; or, in Blender, join their tops with a ring.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R1",
+      "R3"
+    ],
+    "images": [
+      "a38-1.jpg"
+    ],
+    "caption": "Ringed: the two loose rods beside the paper cups."
+  },
+  {
+    "id": "a39",
+    "severity": "S3",
+    "title": "The drinks machine's blank top panel",
+    "where": "Head-on at the drinks machine",
+    "wrong": "The cream band across the top is plain. It's the biggest blank surface on the main machine.",
+    "recommend": "fix",
+    "fix": "In Unity, add a small enamel ACE'S badge in the middle.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a39-1.jpg"
+    ],
+    "caption": "Ringed: the plain cream band over the buttons."
+  },
+  {
+    "id": "a40",
+    "severity": "S3",
+    "title": "Noisy labels on the syrup bottles",
+    "where": "The syrup rack, left of the drinks machine",
+    "wrong": "The white label bands carry a grey cloudy noise. Nothing else on the flat bottles is noisy.",
+    "recommend": "fix",
+    "fix": "In Unity, give the labels a flat colour.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a40-1.jpg"
+    ],
+    "caption": "Grey cloudy noise on the bottles' white labels."
+  },
+  {
+    "id": "a41",
+    "severity": "S3",
+    "title": "The wrapped repairs on the pickup row",
+    "where": "The back bar under the parts drawers, behind the counter",
+    "wrong": "The lamp wrapped in paper looks like a giant crayon or a baguette. The paper bags are crisp boxes with one flat flap.",
+    "recommend": "fix",
+    "fix": "In Blender, twist the lamp's paper shut with its shade and base showing, and crumple the bag tops; R2 would wait for the next Blender pass, and R3 thinks the bags read fine.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R2",
+      "R3"
+    ],
+    "images": [
+      "a41-1.jpg",
+      "a41-2.jpg"
+    ],
+    "caption": "Right ring: the paper-wrapped lamp; left ring: the two paper bags."
+  },
+  {
+    "id": "a42",
+    "severity": "S3",
+    "title": "The game controller in its bag",
+    "where": "The pickup row on the back bar, in the background",
+    "wrong": "The game controller in its zip bag is so small it looks like a tiny dark gun on a card.",
+    "recommend": "fix",
+    "fix": "In Blender, make the controller bigger in its bag.",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a42-1.jpg"
+    ],
+    "caption": "Ringed: the small dark controller on its card."
+  },
+  {
+    "id": "a43",
+    "severity": "S3",
+    "title": "Customers' knees inside the repair bar",
+    "where": "Guests on the repair-bar stools, seen from the bench or floor",
+    "wrong": "Seated guests' knees and shins go inside the bar's front panel. The stools sit too close to the bar for the pose.",
+    "recommend": "fix",
+    "fix": "In Unity, move the stools and their sit points about 10 cm back.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a43-1.jpg"
+    ],
+    "caption": "Ringed: her knee and shin pass into the bar's front."
+  },
+  {
+    "id": "a44",
+    "severity": "S3",
+    "title": "Plain grey box seen from the stools",
+    "where": "From a repair-bar stool, looking across at Ace's desk",
+    "wrong": "A plain grey box sits at a seated guest's eye level. It's the blank back of Ace's small-parts drawers.",
+    "recommend": "fix",
+    "fix": "In Blender, give the drawers a back panel with a rim and a label, so they read as a cabinet from the stools.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a44-1.jpg",
+      "a44-2.jpg"
+    ],
+    "caption": "The grey box beside the spools is the drawers' blank back; second picture: the desk from behind."
+  },
+  {
+    "id": "a45",
+    "severity": "S3",
+    "title": "Jagged window shadows on the floor",
+    "where": "Every daytime overhead, and at floor level by the windows",
+    "wrong": "The window shadows have stair-step edges. It looks like a rendering fault.",
+    "recommend": "fix",
+    "fix": "In Unity's URP settings, turn on soft shadows, or raise the sun's shadow resolution, or shorten the shadow distance.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a45-1.jpg",
+      "a45-2.jpg"
+    ],
+    "caption": "The window frames' shadows have stair-step edges."
+  },
+  {
+    "id": "a46",
+    "severity": "S3",
+    "title": "Many guests in one red jacket",
+    "where": "The café from above in busy hours",
+    "wrong": "About half the guests wear the same red jacket with a green or red cap or hair, as if one outfit were copied.",
+    "recommend": "fix",
+    "fix": "In Unity, add more colour versions for each guest who arrives.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a46-1.jpg",
+      "a46-2.jpg"
+    ],
+    "caption": "Red jackets and caps repeat across the room."
+  },
+  {
+    "id": "a47",
+    "severity": "S3",
+    "title": "Every customer looks cross",
+    "where": "Close up in talks, at the counter and at tables",
+    "wrong": "Every face has heavy black brows angled down and a flat mouth, so up close all the guests look cross. That works against 'chaos with a hint of cozy'.",
+    "recommend": "fix",
+    "fix": "In Unity, make a softer brow and eye version of the shared face texture.",
+    "work": "Texture",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a47-1.jpg",
+      "a47-2.jpg"
+    ],
+    "caption": "Heavy angled brows and a flat mouth on two different guests."
+  },
+  {
+    "id": "a48",
+    "severity": "S3",
+    "title": "The plain napkin boxes on tables",
+    "where": "On every table, in first person and in talks",
+    "wrong": "Each napkin holder is a plain light-grey cube with a white slot, bigger than the cups. From the counter they read as white cups.",
+    "recommend": "fix",
+    "fix": "In Blender, round the edges, give it a chrome or wood body and make it about 20% smaller (or, in Unity, just a chrome material).",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a48-1.jpg",
+      "a48-2.jpg"
+    ],
+    "caption": "A plain grey cube, bigger than the paper cups beside it."
+  },
+  {
+    "id": "a49",
+    "severity": "S3",
+    "title": "The stiff tote bags on the floor",
+    "where": "At the stools' feet by the long table",
+    "wrong": "The tote is a stiff blocky bag; side-on it's a pale egg-shaped rock with two sticks. Once the coats go, it's the last soft thing built as a solid.",
+    "recommend": "fix",
+    "fix": "In Blender, make a slumped canvas bag with an opening and a fold; R2 judged the model soft enough already.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a49-1.jpg",
+      "a49-2.jpg"
+    ],
+    "caption": "A stiff bag on the floor; second picture: the model from the front and the side."
+  },
+  {
+    "id": "a50",
+    "severity": "S3",
+    "title": "The laptop screens look dead",
+    "where": "The laptop workers at the long table",
+    "wrong": "The open laptop's screen is a flat light-blue panel. It reads as a dead screen.",
+    "recommend": "fix",
+    "fix": "In Unity, put a two-tone screen texture on it: a dark title bar over a page.",
+    "work": "Texture",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a50-1.jpg"
+    ],
+    "caption": "Ringed: the flat blue screen."
+  },
+  {
+    "id": "a51",
+    "severity": "S3",
+    "title": "The pale lounge rug",
+    "where": "The window lounge, from the overhead camera",
+    "wrong": "From above, the rug reads as a pale sheet of paper on the grey floor, barely wider than the table. Its stripes hide under the chairs.",
+    "recommend": "fix",
+    "fix": "In Unity, tint the rug deeper (rust or teal, or toward #C49A6C) and/or scale it up so the chairs' front feet stand on it.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a51-1.jpg",
+      "a51-2.jpg"
+    ],
+    "caption": "Ringed: the pale rug under the low table; second picture: the rug itself."
+  },
+  {
+    "id": "a52",
+    "severity": "S3",
+    "title": "The glowing window ledge",
+    "where": "Along the bottom of the east windows, in first person",
+    "wrong": "The ledge is a long pale-yellow plank, brighter than anything else in shadow. It looks unlit or glowing.",
+    "recommend": "fix",
+    "fix": "In Unity, give the café side the counter's oak or the sage joinery colour.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a52-1.jpg",
+      "a52-2.jpg"
+    ],
+    "caption": "Ringed: the pale yellow plank along the windows."
+  },
+  {
+    "id": "a53",
+    "severity": "S3",
+    "title": "The spiky olive trees by the door",
+    "where": "Inside the door: the first thing a walking player passes",
+    "wrong": "The tree tops are blocky balls bristling with leaf shards like spikes. At eye level they read as a cactus or thorny pods, not soft olive leaves.",
+    "recommend": "fix",
+    "fix": "In Blender, delete the spiky leaf cards so the soft balls read as a trimmed tree; or, in Unity, put a second fig there instead.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1",
+      "R3"
+    ],
+    "images": [
+      "a53-1.jpg",
+      "a53-2.jpg"
+    ],
+    "caption": "Blocky balls with spiky leaf cards, at eye level."
+  },
+  {
+    "id": "a54",
+    "severity": "S3",
+    "title": "Black mats on the staff floor",
+    "where": "Behind the counter, from the overhead camera",
+    "wrong": "From above, the rubber mats are plain black shapes that read as holes in the floor. At eye level they read as mats.",
+    "recommend": "fix",
+    "fix": "In Unity, give them the till mat's rubber texture, or a dark brown rubber.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a54-1.jpg",
+      "a54-2.jpg"
+    ],
+    "caption": "Ringed: a plain black shape on the staff floor."
+  },
+  {
+    "id": "a55",
+    "severity": "S3",
+    "title": "A shading seam on the back door",
+    "where": "First person at the back door, every night",
+    "wrong": "The frame's inner face shows a lighter triangle, a shading seam where it should look flat.",
+    "recommend": "fix",
+    "fix": "In Blender, mark the frame's edges sharp, or set its smoothing angle to 0 in Unity's import settings.",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a55-1.jpg"
+    ],
+    "caption": "Ringed: the lighter wedge on the door frame's inner face."
+  },
+  {
+    "id": "a56",
+    "severity": "S3",
+    "title": "The banquette's missing back",
+    "where": "The west-wall banquette, from the sidewalk through the glass",
+    "wrong": "The padded backrest has no back, so from behind only the top rail floats over the seat. It matters more if it ever becomes furniture you can place.",
+    "recommend": "fix",
+    "fix": "In Blender, close the back with one plain panel, or in Unity put a thin dark box behind it.",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a56-1.jpg"
+    ],
+    "caption": "From behind only the rails show; red on the right is the back the game doesn't draw."
+  },
+  {
+    "id": "a57",
+    "severity": "S3",
+    "title": "The child's drawing on the notice board",
+    "where": "The café's notice board",
+    "wrong": "The model check flagged it as see-through, but that's only its back, which lies against the cork. On the board it reads fine.",
+    "recommend": "keep",
+    "fix": "Nothing to do: it's a false alarm.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a57-1.jpg",
+      "a57-2.jpg"
+    ],
+    "caption": "On the board the drawing reads well; the flag picture shows only its back."
+  },
+  {
+    "id": "a58",
+    "severity": "S3",
+    "title": "The patio table's glowing white top",
+    "where": "The table outside the café door, in every overhead",
+    "wrong": "Its 'marble' is one flat near-white with no veins, so it glows like a white blob. It's still the brightest thing outside at 8 pm.",
+    "recommend": "fix",
+    "fix": "In Unity, tint it to the counter's warm grey or use the café's own round table; give all Tier 2 tables a veined marble before the shop sells them.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2",
+      "R3"
+    ],
+    "images": [
+      "a58-1.jpg",
+      "a58-2.jpg"
+    ],
+    "caption": "A white blob with a halo by day; still glowing at 8 pm."
+  },
+  {
+    "id": "a59",
+    "severity": "S3",
+    "title": "Boulder plants in the door planters",
+    "where": "Either side of the café door, from above and the pavement",
+    "wrong": "Each trough holds three big blocky green boulders, a metre from the café's own leafy plants. From above they read as gems or cabbages.",
+    "recommend": "replace",
+    "fix": "In Unity, put the café's rubber plant, or the Kenney bushes already on the street, in the troughs.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R3"
+    ],
+    "images": [
+      "a59-1.jpg",
+      "a59-2.jpg"
+    ],
+    "caption": "Blocky green boulders in the trough; second picture: both troughs from above."
+  },
+  {
+    "id": "a60",
+    "severity": "S3",
+    "title": "The Tier 2 brass looks like paint",
+    "where": "The patio table's base; all Tier 2 shop pieces later",
+    "wrong": "The Tier 2 brass has no shine, so it reads as mustard paint, as the furniture catalogue warned.",
+    "recommend": "fix",
+    "fix": "In Unity, make the brass a little paler and softer in colour.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a60-1.jpg"
+    ],
+    "caption": "The mustard-yellow base under the patio table's white top."
+  },
+  {
+    "id": "a61",
+    "severity": "S3",
+    "title": "The chunky patio chairs",
+    "where": "The patio table outside the door; the intro's flower close-up",
+    "wrong": "The Kenney chairs are heavy and toy-like next to the café's slim chairs inside. From above they're fine.",
+    "recommend": "fix",
+    "fix": "In Unity, swap them for the café's own chairs; R4 would keep them unless the intro keeps its patio close-up.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R3",
+      "R4"
+    ],
+    "images": [
+      "a61-1.jpg"
+    ],
+    "caption": "Ringed: the chunky arched-back chair at eye level."
+  },
+  {
+    "id": "a62",
+    "severity": "S3",
+    "title": "The A-frame's dim chalk",
+    "where": "The A-frame on the pavement, seen from the street",
+    "wrong": "The chalk is dim grey on charcoal (about 1.9 to 1), so the good words fade from across the street. Up close by day you can read it.",
+    "recommend": "fix",
+    "fix": "Repaint the chalk near-white (#E8E4DA) with one amber or green line; R3 counted the A-frame sign as good, so look first.",
+    "work": "Texture",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a62-1.jpg",
+      "a62-2.jpg"
+    ],
+    "caption": "The chalk words are grey, not white; readable up close, dim from farther away."
+  },
+  {
+    "id": "a63",
+    "severity": "S3",
+    "title": "West Street's cube lanterns",
+    "where": "West Street in first person, and the intro's café-sign shot",
+    "wrong": "Each lamp is a plain glowing or cream cube on a pole. Fine from above, a plain box up close.",
+    "recommend": "keep",
+    "fix": "Keep, or swap them for the Synty lamp posts the other streets use.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a63-1.jpg",
+      "a63-2.jpg"
+    ],
+    "caption": "A plain glowing cube on a pole at night; a cream cube by day."
+  },
+  {
+    "id": "a64",
+    "severity": "S3",
+    "title": "The bins man's face in close-up",
+    "where": "The bins talk camera; also two walkers in the intro",
+    "wrong": "His flat pale face has a black bar across the eyes, like a censor bar. It may be meant, for a man who hides.",
+    "recommend": "keep",
+    "fix": "Keep (they're Synty sunglasses); if it bothers you, swap in a hat or other glasses.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a64-1.jpg",
+      "a64-2.jpg"
+    ],
+    "caption": "A black bar across his eyes; an intro walker has the same."
+  },
+  {
+    "id": "a65",
+    "severity": "S3",
+    "title": "The car park's ball bushes",
+    "where": "Across the front street from the café, only ever small",
+    "wrong": "The planted island is five smooth sage balls round a tree, the same ball plants as the sidewalk trees.",
+    "recommend": "replace",
+    "fix": "In Unity, once the sidewalk trees are done, swap the balls for the Kenney bushes the planted pockets use.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a65-1.jpg"
+    ],
+    "caption": "Ringed: smooth sage balls at the tree's foot."
+  },
+  {
+    "id": "a66",
+    "severity": "S3",
+    "title": "The window-box shrubs at night",
+    "where": "The café door, in first person at night",
+    "wrong": "At night the window-box shrubs read as crumpled dark paper. By day they're fine.",
+    "recommend": "keep",
+    "fix": "Nothing to do.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a66-1.jpg"
+    ],
+    "caption": "Dark crumpled shapes in the window box at night."
+  },
+  {
+    "id": "a67",
+    "severity": "S3",
+    "title": "The white tiled tower behind the sign",
+    "where": "The intro's shot of the café front",
+    "wrong": "A plain white grid tower above ACE'S CAFÉ reads like bathroom tiles.",
+    "recommend": "keep",
+    "fix": "Keep (it's a background Synty office); tilt the shot if it bothers you.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a67-1.jpg"
+    ],
+    "caption": "The plain white grid box above the café's name."
+  },
+  {
+    "id": "a68",
+    "severity": "S3",
+    "title": "Barcode lit windows at night",
+    "where": "The big brick block west of Grace's, from above at night",
+    "wrong": "Lit windows show as bars in threes and fours, like a barcode.",
+    "recommend": "keep",
+    "fix": "Keep: they're Synty's lit blinds, as made.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a68-1.jpg"
+    ],
+    "caption": "Lit blinds drawn as bars in threes and fours."
+  },
+  {
+    "id": "a69",
+    "severity": "S3",
+    "title": "A traffic light over Grace's door",
+    "where": "The Day 2 intro's shot of Grace's house",
+    "wrong": "A traffic signal post stands across her door and window, in the middle of the shot.",
+    "recommend": "fix",
+    "fix": "In Unity, move that shot's camera about 1 m along the pavement.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a69-1.jpg"
+    ],
+    "caption": "Ringed: the signal post across her door."
+  },
+  {
+    "id": "a70",
+    "severity": "S3",
+    "title": "The cardboard-looking panel on Grace's door",
+    "where": "Her door in first person and in her intro shot",
+    "wrong": "A flat tan rectangle on her dark green door looks like cardboard taped on.",
+    "recommend": "fix",
+    "fix": "In Unity, paint the door panel in the door's own dark colour, a shade lighter, so it reads as a sunk panel.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a70-1.jpg",
+      "a70-2.jpg"
+    ],
+    "caption": "Ringed: the flat tan panel on the green door."
+  },
+  {
+    "id": "a71",
+    "severity": "S3",
+    "title": "The blank side wall of Grace's house",
+    "where": "Coming up the cross street in first person",
+    "wrong": "The house's open side is a flat brown slab; the timber strips run along the front only.",
+    "recommend": "fix",
+    "fix": "In Unity, run the same timber strips down the house's side (low priority).",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a71-1.jpg"
+    ],
+    "caption": "Ringed: the flat brown side of her corner house."
+  },
+  {
+    "id": "a72",
+    "severity": "S3",
+    "title": "Grace's empty photo frames",
+    "where": "Grace's front room, stairs and bedroom, on night break-ins",
+    "wrong": "Every photo is the same flat sepia colour, so every frame looks empty. Her story is a reunion, yet there are no faces on her walls.",
+    "recommend": "fix",
+    "fix": "In Unity, put one small painted snapshot (a sky and two or three people) on the photo material; a picture per frame can come later as 2D art.",
+    "work": "Texture",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a72-1.jpg"
+    ],
+    "caption": "The photos in two of her frames are flat blank colour."
+  },
+  {
+    "id": "a73",
+    "severity": "S3",
+    "title": "The reunion cups look like a tube",
+    "where": "Grace's worktop on Night 2, then Ace's trophy shelf",
+    "wrong": "The sleeve of twelve paper cups reads as a smooth rolled tube or a scroll. The cup rims barely show.",
+    "recommend": "fix",
+    "fix": "In Blender, give the sleeve 13 rings and a 0.85 narrow radius (not 7 and 0.94) and re-export; the cup box's sleeves improve too.",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a73-1.jpg"
+    ],
+    "caption": "A smooth tube where stacked cup rims should show."
+  },
+  {
+    "id": "a74",
+    "severity": "S3",
+    "title": "Grace's doors look like flat slabs",
+    "where": "The doors inside Grace's house, on night break-ins",
+    "wrong": "Face-on, the four panels vanish and each door reads as a flat slab with a knob. The panels show only as hairlines at an angle.",
+    "recommend": "fix",
+    "fix": "In Blender, sink the panels about 8 mm, or add a darker inner line.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a74-1.jpg"
+    ],
+    "caption": "Face-on (left) the door is a blank slab; at an angle the panels show as hairlines."
+  },
+  {
+    "id": "a75",
+    "severity": "S3",
+    "title": "A black block at Grace's stairs",
+    "where": "Inside Grace's house at night, front left of the stairs",
+    "wrong": "A black block sits at the foot of her stairs. The dark upstairs is meant; this may be the unlit cupboard under the stairs.",
+    "recommend": "keep",
+    "fix": "Keep for now, but check what the black block is.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": false,
+    "confidence": "low",
+    "sources": [
+      "R4"
+    ],
+    "images": [
+      "a75-1.jpg",
+      "a75-2.jpg"
+    ],
+    "caption": "Ringed: the black block at the foot of her stairs."
+  },
+  {
+    "id": "a76",
+    "severity": "S1",
+    "title": "The black frame round the phone's cover",
+    "where": "The bench close-up with the phone, and the intro's bench shot",
+    "wrong": "Four dark steel walls of the old parts tray were left on with no floor. They make a thick black frame that runs off the mat and over the new screen's pad.",
+    "recommend": "remove",
+    "fix": "Builder C is switching off the whole old tray this session (Bench 7b and Bench 7).",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": true,
+    "confidence": "high",
+    "sources": [
+      "R1",
+      "R3",
+      "R4"
+    ],
+    "images": [
+      "a76-1.jpg",
+      "a76-2.jpg"
+    ],
+    "caption": "The thick black frame on the right is the old tray's walls."
+  },
+  {
+    "id": "a77",
+    "severity": "S1",
+    "title": "The mat's ruler cut in half",
+    "where": "The bench close-up with the phone, bottom of the screen",
+    "wrong": "The bottom of the screen cuts the mat's ruler numbers in half, so the strip reads like a mistake.",
+    "recommend": "fix",
+    "fix": "Builder C's new Bench 9 framing rule fixes it this session: the ruler shows whole, or just its numbers with the ticks running off.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": true,
+    "confidence": "high",
+    "sources": [
+      "R1",
+      "R3"
+    ],
+    "images": [
+      "a77-1.jpg"
+    ],
+    "caption": "Ringed: the ruler's numbers cut in half by the screen's bottom edge."
+  },
+  {
+    "id": "a78",
+    "severity": "S1",
+    "title": "The coats on the banquette chairs",
+    "where": "Two chairs on the café's west wall, overhead and in first person",
+    "wrong": "Each coat is one flat slab bent over the chair, with stiff tube sleeves and no folds, in a cold grey. They're your 'squares and rectangles'.",
+    "recommend": "remove",
+    "fix": "Builder C is switching both off this session (Art tidy 1) and stops Lived in 2 putting them back; a draped Blender coat only if you want coats back.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": true,
+    "alreadyInHand": true,
+    "confidence": "high",
+    "sources": [
+      "R2",
+      "R3",
+      "R4"
+    ],
+    "images": [
+      "a78-1.jpg",
+      "a78-2.jpg"
+    ],
+    "caption": "The coats from behind; second picture: the two dark slabs on the chairs from above."
+  },
+  {
+    "id": "a79",
+    "severity": "S3",
+    "title": "The coat stand's box scarf and tote",
+    "where": "The café's waiting nook; switched off since 9 Oct",
+    "wrong": "The scarf and Ace's tote on the café's coat stand are plain boxes. The stand has been off since 9 Oct, so players don't see them now.",
+    "recommend": "remove",
+    "fix": "Builder C is switching the scarf and tote off this session and keeping the stand and its hat.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": true,
+    "confidence": "high",
+    "sources": [
+      "R3",
+      "R4"
+    ],
+    "images": [
+      "a79-1.jpg"
+    ],
+    "caption": "No photo shows it (off since 9 Oct); this is the waiting nook today."
+  },
+  {
+    "id": "a80",
+    "severity": "S3",
+    "title": "Tier 1 shop furniture comes in flat",
+    "where": "Not seen today; once you buy and place furniture",
+    "wrong": "The shop's Tier 1 chairs, bench and tub chair carry flat wood colour, while the café's own furniture has grain. A piece placed while playing would come in flat.",
+    "recommend": "fix",
+    "fix": "In Unity, give these models the café's grain materials as the café kit does, or have the furniture shop apply the same swap when it places a piece.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a80-1.jpg"
+    ],
+    "caption": "Left: the shop's chair in flat colour; right: the café's own chair with wood grain."
+  },
+  {
+    "id": "a81",
+    "severity": "S3",
+    "title": "House kit pendant: see-through from below",
+    "where": "Not placed yet; meant for a house ceiling, seen from below",
+    "wrong": "The shade is drawn on one side only, so from below you see the bulb and ceiling through it. Hung as it is, it would look broken.",
+    "recommend": "fix",
+    "fix": "In Unity, set the lampshade material to draw both sides; the same change fixes Grace's floor lamp.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R1",
+      "R2"
+    ],
+    "images": [
+      "a81-1.jpg"
+    ],
+    "caption": "From below, red shows the shade's inside, which isn't drawn."
+  },
+  {
+    "id": "a82",
+    "severity": "S3",
+    "title": "House kit pendant: a closed top",
+    "where": "Not placed yet; meant for a house ceiling",
+    "wrong": "The shade's top is closed, so it reads as a hat rather than a drum shade.",
+    "recommend": "fix",
+    "fix": "In Blender, give the shade a real wall thickness and an open top.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a82-1.jpg"
+    ],
+    "caption": "The pendant from above and the side: a closed cap, like a hat."
+  },
+  {
+    "id": "a83",
+    "severity": "S3",
+    "title": "House kit paintings show the wrong part",
+    "where": "Not placed yet; meant for Grace's walls at night",
+    "wrong": "Each canvas shows the wrong slice of its picture: a sail cut off, a hard seam, a portrait with no head.",
+    "recommend": "fix",
+    "fix": "In Unity, set each painting material's tiling and offset to R2's numbers (check one first), or unwrap each canvas to fit in Blender.",
+    "work": "Unity",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a83-1.jpg",
+      "a83-2.jpg"
+    ],
+    "caption": "Harbour, Portrait, Hills and Still: a cut sail, a blank field, a seam, a blob."
+  },
+  {
+    "id": "a84",
+    "severity": "S3",
+    "title": "House kit door: glass buried inside",
+    "where": "Not placed yet; meant as a street door, seen at night",
+    "wrong": "The glass sits inside the solid door, so the window reads as four painted panels and a cross pokes out the back. The back has no panels or knob.",
+    "recommend": "fix",
+    "fix": "In Blender, cut the window opening out of the door so a lit hall shows through; back panels and a knob only if a hall is seen.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a84-1.jpg"
+    ],
+    "caption": "The window reads as painted panels; the back (right) is a bare board."
+  },
+  {
+    "id": "a85",
+    "severity": "S3",
+    "title": "House kit mug has no floor",
+    "where": "Not placed yet; meant for a table or a counter",
+    "wrong": "The mug's inside floor is missing, so from above you look straight through it.",
+    "recommend": "fix",
+    "fix": "In Blender, close the mug's inside floor (one setting, cap_top=True, on that spin).",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a85-1.jpg",
+      "a85-2.jpg"
+    ],
+    "caption": "From above, the mug's inside is a hole (red: not drawn)."
+  },
+  {
+    "id": "a86",
+    "severity": "S3",
+    "title": "House kit coat on the hook",
+    "where": "Not placed yet; meant for Grace's hall, seen up close",
+    "wrong": "The coat is a tapered column with two tube sleeves beside it and no shoulders, lapels or folds. The red scarf is buried in its front.",
+    "recommend": "replace",
+    "fix": "In Blender, make a coat hanging from its loop with folds, sleeves joined at the shoulder and the scarf over the hook; or never place it.",
+    "work": "Blender",
+    "size": "a session",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a86-1.jpg"
+    ],
+    "caption": "A column with tube sleeves; from the side, a plank."
+  },
+  {
+    "id": "a87",
+    "severity": "S3",
+    "title": "House kit shoes and slippers",
+    "where": "Not placed yet; meant for Grace's hall floor",
+    "wrong": "Each shoe is a blocky lump on a flat board bigger than it, with no opening or toe shape. The slippers are pink soap bars on the same boards.",
+    "recommend": "replace",
+    "fix": "In Blender, make a sole with a shoe's outline and an upper that hugs it with an opening, before placing them.",
+    "work": "Blender",
+    "size": "a session",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a87-1.jpg"
+    ],
+    "caption": "Shoes like loaves on boards; slippers like pink soap bars."
+  },
+  {
+    "id": "a88",
+    "severity": "S3",
+    "title": "House kit cushion is a slab",
+    "where": "Not placed yet; meant for a sofa or an armchair",
+    "wrong": "The cushion is a bevelled mustard slab with a flat top and straight sides, like a block of butter.",
+    "recommend": "fix",
+    "fix": "In Blender, dome both big faces 30 to 40 mm and pinch the corners.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a88-1.jpg"
+    ],
+    "caption": "A flat mustard slab with straight sides."
+  },
+  {
+    "id": "a89",
+    "severity": "S3",
+    "title": "House kit open book is blank",
+    "where": "Not placed yet; meant for a table",
+    "wrong": "The pages are two flat blank slabs with a gap at the spine. Half the cover's underside is also inside out, seen only from below.",
+    "recommend": "fix",
+    "fix": "In Blender, curve the pages up from the spine, add a few grey text bars and flip that half of the cover.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a89-1.jpg"
+    ],
+    "caption": "Two flat cream slabs with a gap at the spine."
+  },
+  {
+    "id": "a90",
+    "severity": "S3",
+    "title": "House kit radiator is a blank board",
+    "where": "Not placed yet; meant for a wall at eye height",
+    "wrong": "Its fins sit between two flat panels, so from the front and back it's a blank cream board on two feet.",
+    "recommend": "fix",
+    "fix": "In Blender, cut 12 to 14 upright grooves in the front panel, or make it a column radiator.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a90-1.jpg"
+    ],
+    "caption": "A blank board from the front; the fins show only from below."
+  },
+  {
+    "id": "a91",
+    "severity": "S3",
+    "title": "House kit newspaper looks like a grid",
+    "where": "Not placed yet; meant for a table",
+    "wrong": "The print is three solid ink slabs cut by a raised fold, so from above it's a dark six-pane grid, more tray than paper.",
+    "recommend": "fix",
+    "fix": "In Blender, make each column 6 to 8 thin ink lines and one grey photo block, with a crease for the fold, or use a printed texture.",
+    "work": "Blender",
+    "size": "an hour",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a91-1.jpg"
+    ],
+    "caption": "Solid dark blocks read as a grid, not print."
+  },
+  {
+    "id": "a92",
+    "severity": "S3",
+    "title": "House kit round rug is a target",
+    "where": "Not placed yet; meant for a floor, seen from above",
+    "wrong": "A cream border, a teal field, a thin cream ring and a rust dot make an archery target.",
+    "recommend": "fix",
+    "fix": "In Blender, swap the dot and inner ring for a medallion or a star, or use a texture.",
+    "work": "Blender",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a92-1.jpg"
+    ],
+    "caption": "Rings and a centre dot, like an archery target."
+  },
+  {
+    "id": "a93",
+    "severity": "S3",
+    "title": "The old counter and espresso machine",
+    "where": "Not seen: both are switched off in the 20 Oct scene",
+    "wrong": "Two boxy early pieces, a shiny plastic-looking counter and a flat-backed machine, are left in the scene switched off.",
+    "recommend": "remove",
+    "fix": "In Unity, delete both from the scene so a later step can't switch them back on.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a93-1.jpg"
+    ],
+    "caption": "The old counter's shiny plastic top and the old boxy machine."
+  },
+  {
+    "id": "a94",
+    "severity": "S3",
+    "title": "The old 'Little plant'",
+    "where": "Not seen: its window-lounge copy is switched off",
+    "wrong": "Two blocky green balls on a pot, far below the café's own leafy plants: a gem among leaves.",
+    "recommend": "replace",
+    "fix": "If a small plant is wanted there or in the shop, use the house kit plant or the café's pothos, and leave this one off.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a94-1.jpg"
+    ],
+    "caption": "Left: the blocky 'Little plant'; right: the café's own pothos."
+  },
+  {
+    "id": "a95",
+    "severity": "S3",
+    "title": "The old mug with a solid top",
+    "where": "Not seen: its window-ledge copy is switched off",
+    "wrong": "A solid cylinder with a handle: no opening, no rim and no coffee.",
+    "recommend": "replace",
+    "fix": "In Unity, use the bar mat's mugs or the Synty mug on the counter instead.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "high",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a95-1.jpg"
+    ],
+    "caption": "The top is a closed flat disc, with no opening."
+  },
+  {
+    "id": "a96",
+    "severity": "S3",
+    "title": "The old grey drink cup",
+    "where": "Not seen: every cup comes dressed from the machine's cup stack",
+    "wrong": "A plain default-grey cylinder, thinner than the machine's paper cups. It stays hidden because every cup is dressed as a paper cup.",
+    "recommend": "keep",
+    "fix": "Leave it hidden; any old cup path that comes back must dress its cup the same way.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R1"
+    ],
+    "images": [
+      "a96-1.jpg"
+    ],
+    "caption": "Left: the plain grey cup; right: the machine whose cup stack dresses every cup."
+  },
+  {
+    "id": "a97",
+    "severity": "S3",
+    "title": "The patron's default beach body",
+    "where": "Not seen: every seated patron is re-dressed on arrival",
+    "wrong": "The default patron is a man in a tank top, board shorts and flip-flops: beachwear in a San Francisco café. It shows only if both re-dress systems fail.",
+    "recommend": "keep",
+    "fix": "Nothing to do while the re-dress systems work.",
+    "work": "Unity",
+    "size": "minutes",
+    "inGameNow": false,
+    "alreadyInHand": false,
+    "confidence": "med",
+    "sources": [
+      "R2"
+    ],
+    "images": [
+      "a97-1.jpg"
+    ],
+    "caption": "The default body: tank top, red board shorts, flip-flops."
+  }
+]

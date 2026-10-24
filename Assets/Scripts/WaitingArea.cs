@@ -11,24 +11,42 @@ using UnityEngine.AI;
 // TableSeat can live under its table where it belongs instead of being forced
 // under this object. Everything else about the API is unchanged, which is why
 // CustomerBrain needed no edits at all for seating to start working.
+//
+// 23 OCT 2026 — SEATS CHOSEN THE WAY PEOPLE CHOOSE THEM. Claim no longer gives
+// the nearest free spot: it gives the one with the best score for the person
+// asking (SeatChoice, in SeatTags.cs: their character's leanings for the seat's
+// tags, a regular's favourite, strangers close by, then the walk). The API is
+// the same, so every caller works as it did. A spot placed at run time (a
+// table the player buys) needs nothing more: it registers itself, and its
+// tags come from the seat and the room (SeatTags).
 public class WaitingArea : MonoBehaviour
 {
     public static WaitingArea Instance { get; private set; }
 
     private static readonly List<WaitingSpot> registry = new List<WaitingSpot>();
     private static readonly List<WaitingSpot> scratch = new List<WaitingSpot>();
-    private static readonly List<float> distances = new List<float>();
     private static readonly Vector3[] corners = new Vector3[32];
     private static NavMeshPath route;
 
-    [Tooltip("People take the nearest free spot (by walking distance). Spots within this many metres of the " +
-             "nearest count as equally near and are chosen between at random, so two people arriving together " +
-             "don't both head for the same chair.")]
+    // PickBest's working lists, kept so a claim allocates nothing after the first.
+    private static readonly List<Vector3> others = new List<Vector3>();
+    private static readonly List<float> reasons = new List<float>();
+    private static readonly List<float> atMost = new List<float>();
+    private static readonly List<int> order = new List<int>();
+    private static readonly List<int> weighed = new List<int>();
+    private static readonly List<float> scores = new List<float>();
+    private static readonly List<int> nearlyBest = new List<int>();
+
+    // 23 Oct 2026: points of a seat's score now (SeatChoice; a point is about 3 m of walking for someone in no hurry), not
+    // metres; the scene's 0.6 carries over as 0.6 points, two metres of an ordinary walk.
+    [Tooltip("Seats within this many points of the best seat's score (SeatChoice: a point is about 3 m of walking for " +
+             "someone in no hurry) are near-equals, and one of them is chosen at random, so two people with the same " +
+             "reasons don't both head for the same chair.")]
     [SerializeField, Range(0f, 3f)] private float nearlyAsNear = 0.6f;
 
     [Tooltip("Metres added to a spot's walking distance for each other person still on their way to a spot at the " +
-             "same table (within 2 m). Someone arriving alone takes the nearest seat; a group arriving together " +
-             "spreads over the room instead of all converging on the table by the door.")]
+             "same table (within 2 m), so a group arriving together doesn't converge on one table as they walk. " +
+             "Strangers already there count as well, as personal space (SeatChoice.Crowding).")]
     [SerializeField, Range(0f, 6f)] private float onTheirWayPenalty = 2.5f;
 
     [Tooltip("Optional. Leave empty — spots register themselves now, wherever " +
@@ -44,6 +62,7 @@ public class WaitingArea : MonoBehaviour
     {
         registry.Clear();
         scratch.Clear();
+        others.Clear();
         Instance = null;
     }
 
@@ -95,21 +114,23 @@ public class WaitingArea : MonoBehaviour
     // requirement: when every seat is taken (or dirty), a customer who wanted
     // to sit falls through to a loiter spot and starts draining at 1.15x
     // instead of 0.6x. That difference is the entire pressure model.
+    // Each pass takes the best spot for this person (PickBest, 23 Oct 2026).
     public WaitingSpot Claim(Component occupant, WaitingSpot.SpotKind preferred)
     {
-        WaitingSpot chosen = PickNearest(occupant, preferred, true);
-        if (chosen == null) chosen = PickNearest(occupant, preferred, false);
+        WaitingSpot chosen = PickBest(occupant, preferred, true);
+        if (chosen == null) chosen = PickBest(occupant, preferred, false);
         return chosen;
     }
 
     // THE REPAIR BAR FIRST (14 Oct 2026, NPC wave 2). His girlfriend, playtest 5: "people wouldn't sit down on the bar
-    // stools that are infront of the repair station". The nearest-seat rule below measures from the counter place the
+    // stools that are infront of the repair station". The nearest-seat rule of the time measured from the counter place the
     // customer stands at, and from the place everyone alone uses (x +1.6) the bistro's chair was as near as the east stool
     // and the middle and west stools never won: two of the three were never used. The repair bar exists for the person
     // whose thing is on the mat (since playtest 4 Ace reassures and hands back over the counter without a step), so a
     // customer whose repair goes to the bench takes the free stool whose seat is nearest the bench, the middle one first;
     // two within 0.1 m of each other go to the one nearer the customer (east, from the counter). Null when all three are
-    // taken: the caller then uses Claim, the nearest seat, as before. Drinks, the Human fault and patrons never ask.
+    // taken: the caller then uses Claim, the best seat for them. Drinks, the Human fault and patrons never ask, and since
+    // 23 Oct nor does a bench job whose character wants comfort more than the bar (CustomerBrain.StaysAtTheBar).
     public const float RepairBarTie = .1f;
 
     public WaitingSpot ClaimRepairBar(Component occupant, Vector3 benchPoint)
@@ -135,15 +156,25 @@ public class WaitingArea : MonoBehaviour
         return pick != null && pick.Claim(occupant) ? pick : null;
     }
 
-    // THE NEAREST FREE SPOT (pass 2b, 27 Sept 2026). This used to be a random
-    // free spot anywhere in the room ("so the room doesn't fill left to right"),
-    // which had people walking past empty chairs to one across the café - it
-    // read as automated. People take the nearest free seat to where they are
-    // (the counter after ordering, the door when they come in), by walking
-    // distance along the NavMesh. Spots nearly as near as the nearest are
-    // shared at random. The room still fills naturally: from the door for
-    // walk-ins, from the counter for customers.
-    private WaitingSpot PickNearest(Component occupant, WaitingSpot.SpotKind kind, bool matchKind)
+    // THE BEST SPOT FOR THIS PERSON (23 Oct 2026; SeatChoice, in SeatTags.cs). His note: drink customers "only sit to the
+    // left of the couch", repair customers "only... next to the bar stool": "I want that to be more spread out and diverse...
+    // a feel for the player to like kind of look for the customer that did the order".
+    //
+    // Before, people took the nearest free seat (pass 2b, 27 Sept 2026), which had replaced a random free spot anywhere in
+    // the room: people walking past empty chairs to one across the café, which read as automated. The nearest seat from the
+    // till is the same seat every time, so a day used three or four. Now each free spot is scored for the person asking:
+    // their character's leanings for its tags, a regular's favourite, a repair-bar stool kept for repairs, a seat nobody sits
+    // on (waited at standing: overflow only), the strangers near it (personal space), and the walk there along the NavMesh
+    // (counted less than the reasons, so it breaks ties). Spots within Nearly As Near points of the best are shared at
+    // random. Nobody walks past a seat as good without a reason; a quiet café spreads out, a busy one fills in. A spot no
+    // route reaches scores minus infinity (WalkingDistance): CustomerBrain hands back a spot it can't reach, and with its
+    // reasons such a spot would otherwise be picked again on every retry while reachable seats stood free.
+    //
+    // The walk is the dear part (a route each), so it is measured best-first: a spot's score can only be lower than its
+    // reasons less a straight-line walk, so once that falls short of the best real score by more than the margin, neither
+    // it nor anything after it can be a near-equal. Exact for anyone standing on the NavMesh (SeatChoice.StraightSlack), and
+    // usually a handful of routes (it was always the nearest 8).
+    private WaitingSpot PickBest(Component occupant, WaitingSpot.SpotKind kind, bool matchKind)
     {
         scratch.Clear();
 
@@ -158,27 +189,61 @@ public class WaitingArea : MonoBehaviour
         if (scratch.Count == 0) return null;
 
         Vector3 from = occupant != null ? occupant.transform.position : transform.position;
-        // Straight-line order first; only the closest few need a real route.
-        scratch.Sort((a, b) => Flat(a.StandPoint.position - from).sqrMagnitude.CompareTo(Flat(b.StandPoint.position - from).sqrMagnitude));
-        int evaluate = Mathf.Min(scratch.Count, 8);
-        distances.Clear();
-        float nearest = float.PositiveInfinity;
-        for (int i = 0; i < evaluate; i++)
+        SeatChoice.Person who = SeatChoice.PersonOf(occupant);
+
+        // Everyone who already has a place, sitting, standing at it or on their way there: their places, for personal space.
+        others.Clear();
+        for (int i = 0; i < registry.Count; i++)
         {
-            float d = WalkingDistance(from, scratch[i].StandPoint.position)
-                      + onTheirWayPenalty * OnTheirWayNear(scratch[i], occupant);
-            distances.Add(d);
-            nearest = Mathf.Min(nearest, d);
+            WaitingSpot s = registry[i];
+            if (s == null || !s.IsOccupied || s.Occupant == occupant) continue;
+            others.Add(PlaceOf(s));
         }
-        int ties = 0;
-        for (int i = 0; i < evaluate; i++) if (distances[i] <= nearest + nearlyAsNear) ties++;
-        int chosen = Random.Range(0, ties);
-        WaitingSpot pick = null;
-        for (int i = 0; i < evaluate && pick == null; i++)
-            if (distances[i] <= nearest + nearlyAsNear && chosen-- == 0) pick = scratch[i];
-        if (pick == null) pick = scratch[0];
+
+        // Everything but the walk, and the most each spot could score (no walk is shorter than the straight line).
+        reasons.Clear();
+        atMost.Clear();
+        order.Clear();
+        for (int i = 0; i < scratch.Count; i++)
+        {
+            WaitingSpot s = scratch[i];
+            TableSeat seat = s as TableSeat;
+            var place = new SeatChoice.Seat(PlaceOf(s), seat != null ? seat.Tags : SeatTag.None, seat != null && seat.RepairBar,
+                                            standing: seat != null && !seat.SnapToSeat);
+            float r = SeatChoice.Reasons(who, place) - SeatChoice.Crowding(who, place.at, others);
+            float straight = Mathf.Max(0f, Flat(s.StandPoint.position - from).magnitude - SeatChoice.StraightSlack);
+            reasons.Add(r);
+            atMost.Add(r - SeatChoice.WalkCost(who, straight));
+            order.Add(i);
+        }
+        order.Sort(ByMost);
+
+        float margin = Mathf.Max(0f, nearlyAsNear);
+        float best = float.NegativeInfinity;
+        weighed.Clear();
+        scores.Clear();
+        for (int k = 0; k < order.Count; k++)
+        {
+            int i = order[k];
+            if (atMost[i] < best - margin) break;
+            float walk = WalkingDistance(from, scratch[i].StandPoint.position)
+                         + onTheirWayPenalty * OnTheirWayNear(scratch[i], occupant);
+            float score = reasons[i] - SeatChoice.WalkCost(who, walk);
+            weighed.Add(i);
+            scores.Add(score);
+            if (score > best) best = score;
+        }
+
+        SeatChoice.NearlyBest(scores, margin, nearlyBest);
+        WaitingSpot pick = nearlyBest.Count > 0 ? scratch[weighed[nearlyBest[Random.Range(0, nearlyBest.Count)]]] : scratch[order[0]];
         return pick.Claim(occupant) ? pick : null;
     }
+
+    // Most first (a cached delegate, so no closure; List.Sort still wraps it in one small comparer a claim, never a frame).
+    private static readonly System.Comparison<int> ByMost = (a, b) => atMost[b].CompareTo(atMost[a]);
+
+    // Where someone at this spot is: a seat's sit point, a standing spot's stand point (as OnTheirWayNear measures).
+    private static Vector3 PlaceOf(WaitingSpot spot) => spot is TableSeat seat ? seat.SeatPose.position : spot.StandPoint.position;
 
     // People who have claimed a spot at the same table but are not sitting in
     // it yet (still walking over): heading there too would converge on them.
@@ -191,6 +256,8 @@ public class WaitingArea : MonoBehaviour
     // put the second stool (4.2 and 2.6 m) behind the nearest floor seat (the bistro's west chair at 5.0 m, the
     // communal table's at 4.9 m), which is where the recordings show people going. Someone standing on their stand
     // point has arrived, chair or no chair.
+    // (23 Oct 2026: still added to the walk in PickBest, metres as before; who is near a seat at all, arrived or not, is
+    // personal space now: SeatChoice.Crowding. The Waiting space check reads this method by name.)
     private static int OnTheirWayNear(WaitingSpot candidate, Component asker)
     {
         Vector3 here = candidate is TableSeat c ? c.SeatPose.position : candidate.StandPoint.position;
@@ -224,18 +291,23 @@ public class WaitingArea : MonoBehaviour
         return Flat(spot.Occupant.transform.position - spot.StandPoint.position).sqrMagnitude <= ArrivedWithin * ArrivedWithin;
     }
 
-    // Metres along the floor, or a pessimistic straight line when there is no route.
+    // Metres along the floor. With a NavMesh under the claimer and no complete route there, infinite (23 Oct 2026): the spot
+    // then scores minus infinity, so it is never the best while any spot can be reached (CustomerBrain.CanReach hands back a
+    // spot it can't walk to, and the retry a second later would pick the same one again). With no NavMesh near the claimer
+    // at all (Edit Mode with none loaded, a check's preview scene), the pessimistic straight line, as before.
     private static float WalkingDistance(Vector3 from, Vector3 to)
     {
         if (route == null) route = new NavMeshPath();
-        if (NavMesh.SamplePosition(from, out NavMeshHit start, 1.5f, NavMesh.AllAreas)
-            && NavMesh.CalculatePath(start.position, to, NavMesh.AllAreas, route)
-            && route.status == NavMeshPathStatus.PathComplete)
+        if (NavMesh.SamplePosition(from, out NavMeshHit start, 1.5f, NavMesh.AllAreas))
         {
-            int count = route.GetCornersNonAlloc(corners);
-            float length = 0f;
-            for (int i = 1; i < count; i++) length += Vector3.Distance(corners[i - 1], corners[i]);
-            return length;
+            if (NavMesh.CalculatePath(start.position, to, NavMesh.AllAreas, route) && route.status == NavMeshPathStatus.PathComplete)
+            {
+                int count = route.GetCornersNonAlloc(corners);
+                float length = 0f;
+                for (int i = 1; i < count; i++) length += Vector3.Distance(corners[i - 1], corners[i]);
+                return length;
+            }
+            return float.PositiveInfinity;
         }
         return Flat(to - from).magnitude * 1.5f + 2f;
     }

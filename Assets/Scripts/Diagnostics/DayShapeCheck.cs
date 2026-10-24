@@ -55,6 +55,35 @@ using UnityEngine;
 //   walk-in repairs        only "Gunked up"           only "Gunked up"  only the listed three, in order
 // Each run adds a line to Logs/CafeLife/days-1-3-runs.csv; the report gives that day's medians over every run so far (the
 // spec asks for 20 runs a day: one Play session each).
+//
+// SEAT VARIETY (23 Oct 2026; his note: drink customers "only sit to the left of the couch", repair customers "only sit on
+// the right next to the bar stool": "I want that to be more spread out and diverse"). People choose seats by their reasons
+// now (SeatChoice, in SeatTags.cs). The check records every seat a customer claims (CustomerBrain.ClaimedSpot; a patron's
+// too, reported) with its zone (TableSeat.Zone).
+//   * Each run on Days 1-3 Checks only what can't be chance: the room's seat areas are laid (Fixit Fidget > Cafe redesign >
+//     Seat tags 1: without them nobody finds a window, and a zone is a seat's group, so the banquette's three 2-tops would
+//     count as three zones), and the day's customers sat down at all.
+//   * It notes four numbers and adds them to the runs file's row, after the result: the different seats used; the zones;
+//     the busiest share of the seats the scorer chose (a bench job at the repair bar is left out: ClaimRepairBar gives it the
+//     middle stool whenever that's free, by design, so two or three of them would break any share alone); the zones the
+//     drink customers sat in (left out with fewer than two of them).
+//   * From the third run of a day on, the medians of that day's last 3 runs (Seat Runs For Median) are Checked, as Day 3's
+//     storm-outs are: at least 4 seats and 3 zones, a busiest chosen share of at most 50 %, the drinks in at least 2 zones.
+//     In a café with fewer than 10 seats in 4 zones (Room At Least: the furniture spec's half-finished Day 1) they are
+//     reported instead: there the room, not the choosing, limits a day. Today's café has 28 seats in 7 zones.
+// Why medians: one Day 1 brings about seven sittings, too few to judge alone. Two models of a day disagree on the numbers,
+// so here is what each assumed. Mine (23 Oct, after the review's fixes): Grace at 9 s with her camera, the Officer at
+// 95 s, five walk-ins from 156 s 25-90 s apart, eight in ten for a drink, Cheerful or Chatty with a rolled way of moving,
+// drinks staying 20-40 s and repairs 45-90, patrons from the door every 5-19 s, straight walks plus 12 % and 0.4 m, every
+// customer from the till: a good build passed all four on 89 % of single runs and on 98 % of medians of three, the old
+// nearest rule on none of either. With six sittings 83 % and 95 %; with ten, closer together, 98 % and 99.9 % (the old rule
+// 3 % and 0.5 %). The reviewer's (23 Oct; the Officer, Grace, Cheerful and Chatty walk-ins, 55 % drinks, one pair of hands,
+// patrons from the door, straight walks; before the standing-wait fix): all four on 98 % of runs at twelve sittings, 85 %
+// at eight, 72 % at six, and the old rule on 59 %, 34 % and 23 % (busier days spread even the nearest rule, as seats fill).
+// Neither model is the game, so the medians are what is judged, and the deterministic proof is in Edit Mode: Fixit Fidget >
+// Checks > Seat choice rules, section 7, on the open café's own seats and walks.
+// Also reported: the bench jobs who sat away from the repair bar (none expected on Day 1: its walk-ins' short cleans keep
+// them there) and where the patrons sat. On Day 5's shape everything is reported, not judged.
 // ---------------------------------------------------------------------------
 public sealed class DayShapeCheck : PlayLab
 {
@@ -138,6 +167,34 @@ public sealed class DayShapeCheck : PlayLab
     float closedAt = -1f, endedAt = -1f;
     bool firstPhoto;
     int lostAtEnd = -1;   // the day's storm-outs (DayClock.Lost) when it ended
+
+    // ---------- seat variety (23 Oct 2026; the header) ----------
+
+    /// <summary>What the medians of a day's last Seat Runs For Median runs must show (DaysBars judges them; one run only notes).</summary>
+    public const int SeatsAtLeast = 4, ZonesAtLeast = 3, DrinkZonesAtLeast = 2;
+    /// <summary>The most of the sittings the scorer chose that one seat may take, in the median (bench jobs at the repair bar left out).</summary>
+    public const float OneSeatAtMost = .5f;
+    public const int SeatRunsForMedian = 3;
+    /// <summary>The room it takes to judge a day's seat variety (below this the room decides it: reported only).</summary>
+    public const int RoomAtLeast = 10, RoomZonesAtLeast = 4;
+    const string DrinkKind = "a drink";
+
+    // This run's four numbers, for the runs file (-1: nothing to count), and whether the room was big enough to judge them.
+    int runSeats = -1, runZones = -1, runDrinkZones = -1;
+    float runShare = -1f;
+    bool seatRoomy;
+
+    sealed class Sitting
+    {
+        public string who = "", seat = "", zone = "", kind = "";
+        public bool regular, benchJob, awayFromTheBar;
+        public float at;
+    }
+
+    // The seat each person last claimed (a new claim, a new sitting), and every sitting: the customers', the patrons'.
+    readonly Dictionary<Component, WaitingSpot> seatOf = new Dictionary<Component, WaitingSpot>();
+    readonly List<Sitting> sittings = new List<Sitting>();
+    readonly List<Sitting> patronSittings = new List<Sitting>();
 
     protected override IEnumerator Run()
     {
@@ -273,6 +330,7 @@ public sealed class DayShapeCheck : PlayLab
                 if (a.returnedAt < 0f && RepairReturnedField != null && RepairReturnedField.GetValue(c) is bool returned && returned) a.returnedAt = now;
                 if (a.job.Length == 0 && c.Record != null)
                     a.job = c.Record.kind == JobKind.Repair ? $"{c.Record.deviceName}: {c.Record.faultDescription}" : "a drink";
+                NoteSeat(c, c.ClaimedSpot, now);   // seat variety (23 Oct)
             }
             if (!a.counted && c.ReachedCounterAt >= 0f)
             {
@@ -288,6 +346,9 @@ public sealed class DayShapeCheck : PlayLab
                 }
             }
         }
+        // Seat variety (23 Oct): where the patrons sit as well (reported, not judged).
+        foreach (PatronBrain p in FindObjectsByType<PatronBrain>(FindObjectsInactive.Exclude))
+            if (p != null && p.isActiveAndEnabled) NoteSeat(p, p.Seat, now);
     }
 
     Arrival Known(CustomerBrain c, float now)
@@ -338,6 +399,9 @@ public sealed class DayShapeCheck : PlayLab
 
         // Last orders (12 Oct).
         LastOrders(day, spawner);
+
+        // Seat variety (23 Oct): this run's sittings and numbers (two Checks on Days 1-3); their medians in DaysBars.
+        SeatVariety();
 
         // Days 1-3 (14 Oct): the day's own bars, not Day 5's rushes and lull.
         if (dayNumber >= 1 && dayNumber <= 3)
@@ -411,6 +475,98 @@ public sealed class DayShapeCheck : PlayLab
 
     static string Slug(string name) => string.IsNullOrEmpty(name) ? "phase" : name.ToLowerInvariant().Replace(' ', '-');
 
+    // ---------- seat variety (23 Oct 2026; the header) ----------
+
+    // Every seat someone claims, once per claim (someone who gives up on a seat and takes another counts twice).
+    void NoteSeat(Component who, WaitingSpot spot, float now)
+    {
+        if (who == null || !(spot is TableSeat seat)) return;
+        if (seatOf.TryGetValue(who, out WaitingSpot was) && was == seat) return;
+        seatOf[who] = seat;
+        var s = new Sitting { seat = seat.name, zone = seat.Zone, at = now };
+        if (who is CustomerBrain customer)
+        {
+            s.who = customer.CustomerName;
+            s.regular = customer.Identity != null && customer.Identity.IsRegular;
+            s.benchJob = customer.GoesToTheBench;
+            s.kind = customer.Record == null ? "a visit" : customer.Record.kind == JobKind.Drink ? DrinkKind
+                : customer.GoesToTheBench ? "a repair at the bench" : "a repair at the counter";
+            s.awayFromTheBar = customer.GoesToTheBench && !seat.RepairBar;
+            sittings.Add(s);
+        }
+        else if (who is PatronBrain patron)
+        {
+            s.who = patron.SettledGuest ? "a settled guest" : patron.IsLaptopPatron ? "a laptop patron" : patron.Companion != null ? "one of a pair" : "a patron";
+            s.kind = "a patron";
+            patronSittings.Add(s);
+        }
+    }
+
+    void SeatVariety()
+    {
+        report.AppendLine();
+        report.AppendLine("Seat variety (23 Oct 2026; his note: drink customers \"only sit to the left of the couch\", repair customers " +
+                          "\"only sit on the right next to the bar stool\"; SeatChoice):");
+        foreach (Sitting s in sittings)
+            report.AppendLine($"   {Clock(s.at),5}  {s.who}{(s.regular ? " (a regular)" : "")}, {s.kind}: {s.seat} ({s.zone})" +
+                              (s.awayFromTheBar ? "  - away from the repair bar" : ""));
+        bool days13 = dayNumber >= 1 && dayNumber <= 3;
+        // The room: today's café has 28 seats in 7 zones. A café still being furnished (the furniture spec's half-finished
+        // Day 1) has its medians reported, not judged, until it has Room At Least seats in Room Zones At Least zones: there
+        // the room, not the choosing, decides how varied a day can be.
+        List<TableSeat> live = FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude).Where(t => t != null && t.isActiveAndEnabled).ToList();
+        int liveZones = live.Select(t => t.Zone).Distinct().Count();
+        seatRoomy = live.Count >= RoomAtLeast && liveZones >= RoomZonesAtLeast;
+        if (days13 && !seatRoomy)
+            Note($"The café has {live.Count} seats in {liveZones} zones: below {RoomAtLeast} seats in {RoomZonesAtLeast} zones the seat medians are reported, not judged.");
+
+        // Per run, only what can't be chance. The room's areas (Seat tags 1): without them a seat knows only its own shape
+        // (nobody finds a window), and a zone is its group's name, so the banquette's three 2-tops would pass as three zones.
+        int areas = SeatTags.AreaCount;
+        string areasLine = $"the room's seat areas are laid ({areas}): without them a seat knows only its own shape and its zone is " +
+                           "its group's name (Fixit Fidget > Cafe redesign > Seat tags 1, then save the scene)";
+        if (days13) Check(areas > 0, areasLine);
+        else if (areas == 0) Note(areasLine);
+        if (days13) Check(sittings.Count > 0, $"the day's customers sat down ({sittings.Count} sitting(s))");
+        if (sittings.Count == 0)
+        {
+            if (!days13) Note("No customer sat down all day.");
+            return;
+        }
+
+        // The four numbers, noted with what their medians must show: one day's handful of sittings is too few to judge on its
+        // own (a good build missed them by chance on about one Day 1 run in nine in the 23 Oct model), so DaysBars judges the
+        // medians of the day's last runs from the runs file, where these four go.
+        runSeats = sittings.Select(s => s.seat).Distinct().Count();
+        var zonesUsed = sittings.Select(s => s.zone).Distinct().ToList();
+        runZones = zonesUsed.Count;
+        // The busiest of the seats the scorer chose: a bench job at the repair bar was given its stool by ClaimRepairBar (the
+        // middle one whenever it's free, by design), not chosen, so two or three of them would break any share by themselves.
+        var chosen = sittings.Where(s => !(s.benchJob && !s.awayFromTheBar)).ToList();
+        var busiest = chosen.GroupBy(s => s.seat).OrderByDescending(g => g.Count()).FirstOrDefault();
+        runShare = busiest != null ? busiest.Count() / (float)chosen.Count : -1f;
+        var drinks = sittings.Where(s => s.kind == DrinkKind).ToList();
+        var drinkZones = drinks.GroupBy(s => s.zone).OrderByDescending(g => g.Count()).ToList();
+        runDrinkZones = drinks.Count >= 2 ? drinkZones.Count : -1;
+
+        Note($"Seats this run: {runSeats} different seats across {runZones} zones ({sittings.Count} sittings: {string.Join(", ", zonesUsed)}). " +
+             $"The median of the day's last {SeatRunsForMedian} runs must be at least {SeatsAtLeast} seats and {ZonesAtLeast} zones.");
+        Note(busiest != null
+            ? $"The busiest seat the scorer chose this run: {busiest.Key}, {busiest.Count()} of {chosen.Count} ({runShare:P0}; bench jobs at the repair bar left out). " +
+              $"The median must be at most {OneSeatAtMost:P0}."
+            : "The scorer chose no seat this run: every sitting was a bench job at the repair bar (left out of the median).");
+        Note(drinks.Count >= 2
+            ? $"The drink customers this run: {drinks.Count} in {drinkZones.Count} zone(s) ({string.Join(", ", drinkZones.Select(g => $"{g.Key} {g.Count()}"))}). " +
+              $"The median must be at least {DrinkZonesAtLeast}."
+            : $"The drink customers this run: only {drinks.Count} sat down, nothing to spread (left out of the median).");
+        var bench = sittings.Where(s => s.benchJob).ToList();
+        Note($"Bench jobs: {bench.Count} sat down, {bench.Count(s => s.awayFromTheBar)} of them away from the repair bar " +
+             "(their character wanting comfort more: CustomerBrain.StaysAtTheBar; none expected on a Day 1 of short cleans, about one in three later on).");
+        if (patronSittings.Count > 0)
+            Note($"Patrons: {patronSittings.Count} sittings at {patronSittings.Select(s => s.seat).Distinct().Count()} seats across " +
+                 $"{patronSittings.Select(s => s.zone).Distinct().Count()} zones ({string.Join(", ", patronSittings.GroupBy(s => s.zone).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} {g.Count()}"))}).");
+    }
+
     // ---------- Days 1-3 (14 Oct 2026; specs/days-1-3.md §10, T19) ----------
 
     // The bars, by day (index 1-3): the first walk-in at the till no sooner than, Grace handed back (Day 3: her latte served)
@@ -463,22 +619,98 @@ public sealed class DayShapeCheck : PlayLab
             $"the walk-ins brought [{string.Join(", ", brought)}] (only the day's list, in order: [{string.Join(", ", listed)}]); " +
             $"{walkIns.Count(a => a.job == "a drink")} came for a drink; the spawner handed out {(spawner != null ? spawner.WalkInRepairsUsed : 0)}");
 
-        // This run, then every run of this day so far: the medians the spec's 20 runs a day are judged on.
+        // This run, then every run of this day so far: the medians the spec's 20 runs a day are judged on. Since 23 Oct the row
+        // ends with the seat variety's four numbers (SeatVariety), after the result, so every older read of it still works.
         string row = string.Join(",", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), d, day.ToString("0"), Num(firstWalkIn), Num(graceDone),
-            stormOuts, Num(endedAt), "\"" + string.Join(" | ", brought) + "\"", failures == 0 ? "pass" : "fail");
+            stormOuts, Num(endedAt), "\"" + string.Join(" | ", brought) + "\"", failures == 0 ? "pass" : "fail",
+            CsvWhole(runSeats), CsvWhole(runZones), CsvShare(runShare), CsvWhole(runDrinkZones));
         string file = Path.Combine(Path.GetDirectoryName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? folder, RunsFile);
         try
         {
-            if (!File.Exists(file)) File.WriteAllText(file, "when,day,length,first walk-in at till,grace done,storm-outs,day ended,walk-in repairs,result\n");
+            if (!File.Exists(file)) File.WriteAllText(file, RunsHeaderWithSeats + "\n");
+            else
+            {
+                // A file from before 23 Oct: its header gains the four seat columns (its old rows simply have none).
+                string[] lines = File.ReadAllLines(file);
+                if (lines.Length > 0 && lines[0] == RunsHeader)
+                {
+                    lines[0] = RunsHeaderWithSeats;
+                    File.WriteAllLines(file, lines);
+                }
+            }
             File.AppendAllText(file, row + "\n");
             var runs = File.ReadAllLines(file).Skip(1).Select(l => l.Split(',')).Where(c => c.Length >= 7 && c[1] == d.ToString()).ToList();
             Note($"Day {d}: {runs.Count} run(s) recorded in {file} (the spec asks for 20). Medians: first walk-in at the till {Clock(Median(runs, 3))}, " +
                  $"{graceWhat} {Clock(Median(runs, 4))}, storm-outs {Median(runs, 5):0.#}, the day ended {Clock(Median(runs, 6))}.");
             if (d == 3 && runs.Count >= 3)
                 Check(Median(runs, 5) <= 1f, $"Day 3: the median run loses at most one ({Median(runs, 5):0.#} over {runs.Count} runs)");
+            SeatMedians(d, runs, file);
         }
         catch (Exception e) { Note("couldn't keep the runs file: " + e.Message); }
     }
+
+    // SEAT VARIETY, JUDGED OVER RUNS (23 Oct 2026; the header). The medians of the day's last Seat Runs For Median runs that
+    // carry the seat columns, once there are that many, as Day 3's storm-outs are judged: one run's seven or so sittings
+    // can miss by chance, three in a row hardly (a good build failed the medians on about 2 Day 1s in 100 in the 23 Oct
+    // model, the old nearest rule on all of them). Reported, not judged, in a café without the room for it (SeatVariety).
+    void SeatMedians(int d, List<string[]> runs, string file)
+    {
+        List<string[]> seatRuns = runs.Where(IsSeatRow).ToList();
+        if (seatRuns.Count < SeatRunsForMedian)
+        {
+            Note($"Seat variety: {seatRuns.Count} of the {SeatRunsForMedian} runs of Day {d} its medians need are in {file}; they are judged " +
+                 $"from run {SeatRunsForMedian} on (the numbers of this run are above).");
+            return;
+        }
+        List<string[]> lastRuns = seatRuns.Skip(seatRuns.Count - SeatRunsForMedian).ToList();
+        float seatsMedian = MedianFromEnd(lastRuns, 4), zonesMedian = MedianFromEnd(lastRuns, 3);
+        float shareMedian = MedianFromEnd(lastRuns, 2), drinkMedian = MedianFromEnd(lastRuns, 1);
+        string over = $"the median of Day {d}'s last {SeatRunsForMedian} runs";
+        string seatsLine = $"seat variety, {over}: {seatsMedian:0} different seats across {zonesMedian:0} zones (at least {SeatsAtLeast} and {ZonesAtLeast})";
+        string shareLine = shareMedian < 0f
+            ? $"seat variety, {over}: the scorer chose no seat in them (every sitting a bench job at the repair bar): no share to judge"
+            : $"seat variety, {over}: the busiest seat the scorer chose took {shareMedian:P0} of its sittings (at most {OneSeatAtMost:P0})";
+        string drinkLine = drinkMedian < 0f
+            ? $"seat variety, {over}: fewer than two drink customers sat down in each: nothing to spread"
+            : $"seat variety, {over}: the drink customers sat in {drinkMedian:0} zones (at least {DrinkZonesAtLeast})";
+        if (!seatRoomy)
+        {
+            Note(seatsLine + " (reported: the room is too small to judge)");
+            Note(shareLine);
+            Note(drinkLine);
+            return;
+        }
+        Check(seatsMedian >= SeatsAtLeast && zonesMedian >= ZonesAtLeast, seatsLine);
+        if (shareMedian < 0f) Note(shareLine);
+        else Check(shareMedian <= OneSeatAtMost + .001f, shareLine);
+        if (drinkMedian < 0f) Note(drinkLine);
+        else Check(drinkMedian >= DrinkZonesAtLeast, drinkLine);
+    }
+
+    const string RunsHeader = "when,day,length,first walk-in at till,grace done,storm-outs,day ended,walk-in repairs,result";
+    const string RunsHeaderWithSeats = RunsHeader + ",seats used,zones used,busiest chosen seat share,drink zones";
+
+    // A row written since 23 Oct: the four seat numbers follow its result. They are read from the end, because the quoted
+    // list of the walk-ins' repairs can hold commas ("Gunked up, won't charge") and the file is split on every comma.
+    static bool IsSeatRow(string[] cells) =>
+        cells.Length >= 13 && (cells[cells.Length - 5] == "pass" || cells[cells.Length - 5] == "fail")
+        && cells[cells.Length - 1] != "pass" && cells[cells.Length - 1] != "fail";
+
+    static float MedianFromEnd(List<string[]> runs, int fromEnd)
+    {
+        var values = new List<float>();
+        foreach (string[] cells in runs)
+            if (cells.Length >= fromEnd && float.TryParse(cells[cells.Length - fromEnd], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float v))
+                values.Add(v);
+        if (values.Count == 0) return -1f;
+        values.Sort();
+        return values[values.Count / 2];
+    }
+
+    static string CsvWhole(int n) => n < 0 ? "" : n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    static string CsvShare(float share) => share < 0f ? "" : share.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
 
     static string Num(float seconds) => seconds < 0f ? "" : seconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 

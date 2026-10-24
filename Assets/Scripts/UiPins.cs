@@ -46,6 +46,12 @@ using UnityEngine.UI;
 // Playtest 7 (19 Oct 2026): the night allows one pin, "You" over Ace for the night's first seconds (ShowSelfAtNight, asked
 // for by NightCycle as the night begins): the reviewers could not find Ace, a 25 px figure in an unlit doorway, on the
 // night's first frame. The bars, the name and the guide's pin stay off all night, as before.
+//
+// His own playtest (22 Oct 2026): in first person at night that "You" bobbed at the screen's edge ("it's looking for it in
+// the isometric view"): nothing asked which view was on the screen, so a pin meant for finding Ace from above was clamped
+// to the edge with Ace's head behind the camera. "You" now shows only while the overhead view is on the screen
+// (CafeViewMode.OverheadShown), by night as by day (Day 1's has only ever been asked for then: DayOneGuideUI). The night's
+// seconds still run meanwhile: back to the overhead view inside them, it's there again.
 // ---------------------------------------------------------------------------
 public sealed class UiPins : MonoBehaviour
 {
@@ -204,6 +210,8 @@ public sealed class UiPins : MonoBehaviour
     public bool FocusShowing => Showing(focus);
     public bool GuideShowing => Showing(guide);
     public bool SelfShowing => Showing(self);
+    /// <summary>How much of "You" is drawn now: 0 when it's off or has faded out, 1 when it's all there.</summary>
+    public float SelfAlpha => self != null && self.root.gameObject.activeSelf ? self.group.alpha : 0f;
     public string FocusText => focus != null ? focus.text : "";
     public string GuideText => guide != null ? guide.text : "";
     public string SelfText => self != null ? self.text : "";
@@ -437,7 +445,25 @@ public sealed class UiPins : MonoBehaviour
         PlaceBars(scale, night);
         PlacePin(focus, scale, dt, night);
         PlacePin(guide, scale, dt, night || SameAsFocus() || OnFocusOnScreen(scale));
-        PlacePin(self, scale, dt, false);
+        PlacePin(self, scale, dt, !OverheadOnScreen());
+    }
+
+    // "You" is for finding Ace from above. In first person (or anywhere the overhead view isn't the one on the screen) Ace's
+    // head is at or behind the camera and the pin would sit clamped at the screen's edge, bobbing (his note, 22 Oct 2026).
+    // No view found (a scene without one): as before, nothing covers it.
+    CafeViewMode view;
+    bool OverheadOnScreen()
+    {
+        if (view == null)
+        {
+            if (player == null)
+            {
+                PlayerCarry carry = PlayerCarry.Instance;
+                if (carry != null) player = carry.GetComponent<PlayerInteractor>();
+            }
+            if (player != null) view = player.GetComponent<CafeViewMode>();
+        }
+        return view == null || view.OverheadShown;
     }
 
     // The morning's intro (12-13 Oct, the Cinematics lead's DayIntro, whose static Playing says it has the screen): nothing is
@@ -553,6 +579,9 @@ public sealed class UiPins : MonoBehaviour
             Vector3 world = pin.who != null ? Barks.HeadPointOf(pin.who) : pin.point;
             s = cam.WorldToScreenPoint(world);
             want = s.z > 0f;
+            // "You" points at Ace: off the screen it waits rather than sitting at the edge (23 Oct 2026, the review of the night's
+            // first-person fix: coming back from first person, the camera's blend still has Ace's head off the screen for a moment).
+            if (pin == self) want &= s.x >= 0f && s.x <= Screen.width && s.y >= 0f && s.y <= Screen.height;
         }
         // New words go up where the pin is placed now, or once it has faded out: never on a pin fading out where it was.
         if (pin.relabel && (want || pin.group.alpha <= .01f)) Relabel(pin);

@@ -1,0 +1,146 @@
+{
+    "version": 1,
+    "made": "2026-10-23 21:37",
+    "photos": [
+        {
+            "key": "grace",
+            "file": "grace",
+            "how": "Grace: her stand-in look (Regular_Grace) on the café people's rig (Character_BusinessWoman)",
+            "made": "5347e6819aa5bdc0",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "lodger",
+            "file": "lodger",
+            "how": "the man at the bins: the bins' look (NightZeroSet.look) on the rig (Character_BusinessMan_Suit)",
+            "made": "b0a01f394eeb008b",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "officer",
+            "file": "officer",
+            "how": "the Officer: his stand-in look (Regular_Officer) on the rig (Character_Male_Police)",
+            "made": "fd052729f59c489d",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "neighbours",
+            "file": "neighbours",
+            "how": "the neighbours: the first night neighbour's house (NightWalk), from its street (2 - Dusty rose bay-window house)",
+            "made": "683f2b3137ddcec4",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "gracehouse",
+            "file": "gracehouse",
+            "how": "12 West Street: Grace's house (her HomeDoor's house), from her street (1 - Saffron bay-window house)",
+            "made": "c3b7d60fd11724f3",
+            "kept": false,
+            "hasSpot": true,
+            "x": -17.260000228881837,
+            "z": -3.5999999046325685
+        },
+        {
+            "key": "backdoor",
+            "file": "backdoor",
+            "how": "the back door, from Back Street (the bins' set)",
+            "made": "8740363d31934f26",
+            "kept": false,
+            "hasSpot": true,
+            "x": 6.630000114440918,
+            "z": 19.020000457763673
+        },
+        {
+            "key": "alley",
+            "file": "alley",
+            "how": "the bins: the dumpster and the trash can, from the street (the bins' view)",
+            "made": "519a942575ebfdb9",
+            "kept": false,
+            "hasSpot": true,
+            "x": 4.420000076293945,
+            "z": 18.93000030517578
+        },
+        {
+            "key": "corner",
+            "file": "corner",
+            "how": "his corner: the trash can with Barnaby on its lid, and his crate",
+            "made": "8269b0ed29a4c084",
+            "kept": false,
+            "hasSpot": true,
+            "x": 2.6500000953674318,
+            "z": 18.889999389648439
+        },
+        {
+            "key": "cafe",
+            "file": "cafe",
+            "how": "Ace's café: its sign (SignAcesCafe), from the front (stood up: a Z-up export; Assets/Art/Models/SignAcesCafe.fbx from +Z (if it shows its back, give its line in Shots a yaw of 180))",
+            "made": "f00cae4f6c5c967c",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "barnaby",
+            "file": "barnaby",
+            "how": "Barnaby: the gnome on Grace's step (the night's trophy grace.gnome) (Barnaby the garden gnome)",
+            "made": "4f98a6d48df20e46",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "cups",
+            "file": "cups",
+            "how": "the reunion cups: the sleeve on her worktop (the night's trophy grace.cups) (A sleeve of reunion cups)",
+            "made": "47cc0d9350dca966",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "crate",
+            "file": "crate",
+            "how": "his crate: the box by the bins (NightZeroSet.crate)",
+            "made": "925d477ee0ac5544",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "cones",
+            "file": "cones",
+            "how": "the cones: the road works' cones on West Street (scene objects named *cone*) (SM_Prop_Cone_01)",
+            "made": "62e10360bd42a65a",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        },
+        {
+            "key": "someone",
+            "file": "",
+            "how": "drawn: no photo for it (a drawing of person)",
+            "made": "",
+            "kept": false,
+            "hasSpot": false,
+            "x": 0.0,
+            "z": 0.0
+        }
+    ]
+}

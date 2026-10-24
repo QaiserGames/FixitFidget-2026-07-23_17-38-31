@@ -25,13 +25,18 @@ using UnityEngine.SceneManagement;
 // places that put the second stool behind the nearest floor seat. Now someone standing on their stand point has arrived
 // (WaitingArea.HasArrived). Checked here on synthetic spots (arrived / still walking), and in the café scene: the three
 // stools' stand points are far enough apart to be claimed together, and with the east stool held by someone standing at
-// it, a customer claiming from the counter's west place is given the middle stool (before: the banquette's chair).
+// it, the middle stool carries no on-the-way count (before: 1 for the whole wait). Since 23 Oct 2026 seats are chosen by
+// their reasons (SeatChoice): a claim from someone with no repair on the bench is given a floor seat while one is free
+// (the stools are kept for repairs, and the middle one is beside a stranger); bench jobs reach the stools through
+// ClaimRepairBar, checked below.
 //
 // THE REPAIR BAR FIRST (14 Oct 2026, NPC wave 2; his girlfriend: "people wouldn't sit down on the bar stools that are
 // infront of the repair station"). The stools are found by TableSeat.RepairBar now (they sit, so Snap To Seat no longer
 // tells them apart), and three more rules are checked: the three are flagged; from every counter place, three bench jobs in
 // turn take the middle, east and west stools (WaitingArea.ClaimRepairBar), and a fourth gets nothing from the bar (the
-// nearest seat then, as before); a drink claim from place 0 still gets one of the nearest seats.
+// best seat for them then, WaitingArea.Claim); a drink claim from place 0 gets one of the best seats for someone with no
+// leanings (23 Oct 2026: the walk alone, the stools kept for repairs, a seat nobody sits on waited at standing), never a
+// repair-bar stool nor a standing wait.
 public static class WaitingSpaceChecks
 {
     const float SeatDrain = .6f;
@@ -175,7 +180,7 @@ public static class WaitingSpaceChecks
         }
 
         // The stools nobody used (12 Oct): they can be claimed together (their stand points clear each other's footprint), and
-        // with the east one held by someone standing at it, the claim from the counter's west place is the middle one.
+        // with the east one held by someone standing at it, the middle one carries no on-the-way count.
         if (barStools.Count >= 2)
         {
             for (int i = 0; i < barStools.Count; i++)
@@ -200,10 +205,12 @@ public static class WaitingSpaceChecks
     }
 
     // A customer at the counter claims a seat with the east stool held by someone STANDING at it (a bar stool is waited at
-    // standing). The scene's own WaitingArea does the choosing (the walking distance along the NavMesh, or its straight-line
-    // fallback when the NavMesh isn't loaded in Edit Mode: from the place nearest the stools the answer is the same either
-    // way: the middle stool is 2.6 m off and the nearest floor seat 4.7). The café's spots are registered for the test (Edit
-    // Mode sends no OnEnable), the two stand-in bodies live in a preview scene, and everything is released after it.
+    // standing). The scene's own WaitingArea does the choosing. 23 Oct 2026: the stand-in has no repair on the bench, so the
+    // stools are kept for repairs (SeatChoice.KeptForRepairs) and the middle one is beside a stranger: from the place nearest
+    // the stools it is given a floor seat (the middle stool starts 4.5 points under any floor seat, before the walks). What
+    // 12 Oct fixed is read directly: the middle stool's on-the-way count is 0 for a stander who has arrived. The café's spots
+    // are registered for the test (Edit Mode sends no OnEnable), the two stand-in bodies live in a preview scene, and
+    // everything is released after it.
     private static void TheSecondStool(List<TableSeat> barStools, Action<bool, string> expect)
     {
         WaitingArea area = UnityEngine.Object.FindAnyObjectByType<WaitingArea>(FindObjectsInactive.Exclude);
@@ -249,8 +256,16 @@ public static class WaitingSpaceChecks
                 float toMiddle = Flat(middle.StandPoint.position - slot.position).magnitude;
                 string line = $"from the counter's place {i} at ({slot.position.x:0.0}, {slot.position.z:0.0}) with the east stool held, the claim gives " +
                               $"{(given != null ? given.name : "nothing")} (the middle stool is {toMiddle:0.00} m away, straight)";
-                if (i == nearest) expect(given == middle, line + ": the middle stool (before 12 Oct the banquette's chair: the stool carried 2.5 m for a stander who had arrived)");
-                else expect(true, line + " (reported, not required: from here a floor seat can be as near)");
+                if (i == nearest)
+                {
+                    TableSeat givenSeat = given as TableSeat;
+                    expect(given != null && (givenSeat == null || !givenSeat.RepairBar),
+                        line + ": a floor seat (23 Oct: no repair on the bench, so the stools are kept for repairs, and the middle one is beside a stranger)");
+                    MethodInfo onTheirWay = typeof(WaitingArea).GetMethod("OnTheirWayNear", Hidden);
+                    int counted = onTheirWay != null ? (int)onTheirWay.Invoke(null, new object[] { middle, customer.transform }) : -1;
+                    expect(counted == 0, $"the middle stool beside the stander carries no on-the-way count (counted {counted}; before 12 Oct it was 1 for the whole wait)");
+                }
+                else expect(true, line + " (reported, not required)");
                 if (given != null) given.Release(customer.transform);
             }
         }
@@ -265,9 +280,10 @@ public static class WaitingSpaceChecks
 
     // THE REPAIR BAR FIRST (14 Oct 2026). From every counter place, three bench jobs in turn (three stand-in bodies there)
     // take the middle stool, then the east, then the west (the seat nearest the bench first; the east and west tie and go to
-    // the one nearer the customer); a fourth gets nothing from the bar. Then a drink claim from place 0: one of the seats the
-    // nearest-seat rule weighs as nearest (within its Nearly As Near of the nearest, by the area's own walking distance), never
-    // steered to the bar. Registered and released as TheSecondStool does.
+    // the one nearer the customer); a fourth gets nothing from the bar. Then a drink claim from place 0 by a stand-in with no
+    // leanings: one of the seats SeatChoice scores best for them (23 Oct 2026: the walk alone, by the area's own walking
+    // distance, the stools kept for repairs and a seat nobody sits on waited at standing; within its Nearly As Near, in
+    // points), never a repair-bar stool nor a standing wait. Registered and released as TheSecondStool does.
     private static void TheRepairBarFirst(StationInteractable bench, List<TableSeat> barStools, Action<bool, string> expect)
     {
         WaitingArea area = UnityEngine.Object.FindAnyObjectByType<WaitingArea>(FindObjectsInactive.Exclude);
@@ -318,33 +334,38 @@ public static class WaitingSpaceChecks
                                                    $"{string.Join(", then ", given)} (the middle, east and west stools wanted)");
                 Transform fourth = Person($"a fourth bench job at place {i}", slot.position).transform;
                 WaitingSpot none = area.ClaimRepairBar(fourth, benchPoint);
-                expect(none == null, $"from place {i}, with the three taken the bar gives a fourth bench job {(none != null ? none.name : "nothing")} (nothing wanted: the nearest seat then)");
+                expect(none == null, $"from place {i}, with the three taken the bar gives a fourth bench job {(none != null ? none.name : "nothing")} (nothing wanted: the best seat for them then)");
                 if (none != null) none.Release(fourth);
                 foreach (var c in claimed) c.spot.Release(c.who);
             }
 
-            // A drink customer at place 0 (anyone alone at the counter): the nearest-seat rule, as before.
+            // A drink customer at place 0 (anyone alone at the counter), a stand-in with no leanings: the seats SeatChoice scores
+            // best for them (23 Oct 2026), which for them is the walk alone, the stools kept for repairs, and the seats nobody sits
+            // on (the window counter's, until they sit) waited at standing: scored exactly as WaitingArea.PickBest scores them.
             Transform zero = queue.SlotPoint(0);
             if (zero == null) return;
             Transform drinker = Person("a drink order at place 0", zero.position).transform;
             MethodInfo walking = typeof(WaitingArea).GetMethod("WalkingDistance", Hidden);
             SerializedProperty tieProp = new SerializedObject(area).FindProperty("nearlyAsNear");
-            float tie = tieProp != null ? tieProp.floatValue : .6f;
-            var weighed = new List<(WaitingSpot seat, float d)>();
+            float tie = tieProp != null ? tieProp.floatValue : .6f;          // points (SeatChoice), since 23 Oct
+            SeatChoice.Person nobody = SeatChoice.Make();
+            var weighed = new List<(WaitingSpot seat, float score)>();
             if (walking != null)
-            {
-                List<TableSeat> candidates = UnityEngine.Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude)
-                    .Where(t => t.isActiveAndEnabled && t.IsAvailable && WaitingArea.HasClaimClearance(t, drinker))
-                    .OrderBy(t => Flat(t.StandPoint.position - zero.position).sqrMagnitude).Take(8).ToList();
-                foreach (TableSeat candidate in candidates)
-                    weighed.Add((candidate, (float)walking.Invoke(null, new object[] { zero.position, candidate.StandPoint.position })));
-            }
-            float nearest = weighed.Count > 0 ? weighed.Min(w => w.d) : float.PositiveInfinity;
-            var nearestSet = weighed.Where(w => w.d <= nearest + tie).Select(w => w.seat).ToList();
+                foreach (TableSeat candidate in UnityEngine.Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude)
+                             .Where(t => t.isActiveAndEnabled && t.IsAvailable && WaitingArea.HasClaimClearance(t, drinker)))
+                {
+                    float walk = (float)walking.Invoke(null, new object[] { zero.position, candidate.StandPoint.position });
+                    var place = new SeatChoice.Seat(candidate.SeatPose.position, candidate.Tags, candidate.RepairBar, standing: !candidate.SnapToSeat);
+                    weighed.Add((candidate, SeatChoice.Score(nobody, place, null, walk)));
+                }
+            float best = weighed.Count > 0 ? weighed.Max(w => w.score) : float.NegativeInfinity;
+            var bestSet = weighed.Where(w => w.score >= best - tie).Select(w => w.seat).ToList();
             WaitingSpot drinkSeat = area.Claim(drinker, WaitingSpot.SpotKind.Seat);
-            expect(drinkSeat != null && (walking == null || nearestSet.Contains(drinkSeat)),
-                $"a drink claim from place 0 gets {(drinkSeat != null ? drinkSeat.name : "nothing")}: one of the nearest seats " +
-                $"({string.Join(", ", nearestSet.Select(s => s.name))}; within {tie:0.0} m of the nearest walk, {nearest:0.00} m), not steered to the bar");
+            TableSeat drinkStool = drinkSeat as TableSeat;
+            expect(drinkSeat != null && (walking == null || bestSet.Contains(drinkSeat)) && (drinkStool == null || (!drinkStool.RepairBar && drinkStool.SnapToSeat)),
+                $"a drink claim from place 0 gets {(drinkSeat != null ? drinkSeat.name : "nothing")}: one of the best seats for someone with no leanings " +
+                $"({string.Join(", ", bestSet.Select(s => s.name))}; within {tie:0.0} points, {tie / SeatChoice.WalkWeight:0.0} m of walking, of the best), " +
+                "never a repair-bar stool nor a seat waited at standing");
             if (drinkSeat != null) drinkSeat.Release(drinker);
         }
         finally

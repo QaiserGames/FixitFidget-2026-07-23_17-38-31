@@ -231,7 +231,7 @@ public class PatronBrain : MonoBehaviour
 
         if (at == null || WaitingArea.Instance == null || !(at.Occupant == this || at.Claim(this)))
         {
-            TryTakeSeat();   // their seat went (nobody should hold it at the open): the nearest free one, as a patron would
+            TryTakeSeat();   // their seat went (nobody should hold it at the open): the best free one for them, as a patron would
             return false;
         }
         seat = at;

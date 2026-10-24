@@ -38,6 +38,13 @@ using UnityEngine.UI;
 // last orders the dial warms and the hud.lastorders chime is asked for, and there is no screen tint any more; at closing the
 // sign turns to CLOSED without ever showing OPEN on the way (the reviewers saw "OPEN · COME IN" at 8:00 PM), the sign's flap
 // (intro.sign) is asked for, and the sun sets below the dial with the moon up.
+//
+// 23 Oct 2026 (the phone moves; his note: "I want there to be a feeling, I want there to feel good"): the phone rises as it comes
+// out and drops away as it goes. The game is given back at once, so that is checked straight away, as ever (the phone may still
+// be dropping); that the phone has gone is checked once it has dropped. Every read of the phone's look (a switch's or a pill's colour, the ring) and every photo
+// first waits for the phone to be still (RecapPhone.Settled, up to a second), the report counts those reads, and a check at the
+// end fails if any was made while it still moved. New: it rises and settles within 0.25 s; switching to Settings settles within
+// 0.25 s; the pad's ring ends exactly on the morning's Short.
 // ---------------------------------------------------------------------------
 public sealed class PauseCheck : PlayLab
 {
@@ -81,6 +88,9 @@ public sealed class PauseCheck : PlayLab
     bool swapWas, swapTouched;
     DayIntroMode introWas;
     bool introTouched;
+    // 23 Oct 2026: the reads of the phone's look (colours, the ring, photos), and any made while it still moved.
+    int looks;
+    readonly System.Collections.Generic.List<string> lookedMoving = new System.Collections.Generic.List<string>();
 
     protected override IEnumerator Run()
     {
@@ -135,7 +145,7 @@ public sealed class PauseCheck : PlayLab
             $"({cashOn.xMin:0}-{cashOn.xMax:0} x {cashOn.yMin:0}-{cashOn.yMax:0}) of {Screen.width} x {Screen.height}");
         Check(corners.TopRightBottom > HudCorners.ColumnTop + 300f && corners.TopRightBottom < 420f && !corners.BenchStrip,
             $"the column's bottom edge, for whatever sits under it, is {corners.TopRightBottom:0} px down (reference pixels; not folded for the bench)");
-        yield return Photo("01-the-corners-by-day");
+        yield return Shot("01-the-corners-by-day");
 
         // A payment: the stack and the figure.
         int before = clock.Earned;
@@ -143,7 +153,7 @@ public sealed class PauseCheck : PlayLab
         clock.RecordServed(30, 0, false);   // a customer's payment (patrons pay quietly since playtest 4)
         yield return Seconds(.15f);
         Check(corners.TakingsPunch > 1.01f || corners.TakingsShown != "$" + before, $"a payment punches the figure ({corners.TakingsPunch:0.00}x, {corners.TakingsShown})");
-        yield return Photo("02-paid");
+        yield return Shot("02-paid");
         yield return Seconds(1f);
         Check(corners.TakingsShown == "$" + clock.Earned && corners.BillShowing && corners.EdgesShown == Mathf.Min(10, clock.Earned / 24),
             $"...and lands on today's ${clock.Earned}, a bill on the stack and {corners.EdgesShown} edge(s) under it");
@@ -163,7 +173,7 @@ public sealed class PauseCheck : PlayLab
                 $"...and it says when to buy, in {WordBudget.Report(corners.ChipsText, WordBudget.BenchAlert)}");
             Rect chipsOn = OnScreen(corners.ChipsRect);
             Check(chipsOn.xMax > Screen.width * .8f && chipsOn.yMin < Screen.height * .3f, "...in the bottom right corner");
-            yield return Photo("03-low-on-cups");
+            yield return Shot("03-low-on-cups");
             stock.SetStock(cupsWas, beansWas);
             yield return Seconds(.3f);
             Check(!corners.CupsChipShowing, "restocked, the chip goes");
@@ -193,7 +203,7 @@ public sealed class PauseCheck : PlayLab
         Check(Sfx.Requested("hud.lastorders") > chimesBefore, "...with the soft chime (hud.lastorders asked for)");
         // 19 Oct: no screen tint any more (his: the orange tint "doesnt fit the overall cozy aesthetic"); the dial warms instead.
         Check(corners.DialWarmth > .2f, $"...and the dial has warmed toward honey ({corners.DialWarmth:0.00}; no screen tint)");
-        yield return Photo("20-last-orders");
+        yield return Shot("20-last-orders");
         yield return Moment("last orders", pressEsc: false, closeWith: "pad");
 
         // ---------- closing ----------
@@ -209,7 +219,7 @@ public sealed class PauseCheck : PlayLab
             string facing = corners.FaceShowing;
             if (facing == "OPEN") sawOpen = true;
             if (facing == "LAST ORDERS") sawLastOrders = true;
-            if (!photographed && UiClock.Now - turnStarted >= .35f) { photographed = true; yield return Photo("30-the-sign-flips"); }
+            if (!photographed && UiClock.Now - turnStarted >= .35f) { photographed = true; yield return Shot("30-the-sign-flips"); }
             yield return null;
         }
         Check(!sawOpen && sawLastOrders, $"...the turn shows LAST ORDERS, then CLOSED, never OPEN ({(sawOpen ? "OPEN was seen" : "no OPEN")}; {(sawLastOrders ? "LAST ORDERS on the way" : "LAST ORDERS not seen")})");
@@ -217,12 +227,16 @@ public sealed class PauseCheck : PlayLab
         Check(corners.SignWord == "CLOSED" && corners.FaceShowing == "CLOSED", $"...it reads \"{corners.SignWord}\" once it has turned");
         Check(Sfx.Requested("intro.sign") > flapsBefore, "...with the sign's own wooden flap (intro.sign asked for; the day's bell is DayClock's)");
         Check(corners.SunSet && corners.MoonShowing, "...the sun has set below the dial's right end and the moon is up");
-        yield return Photo("31-closed");
+        yield return Shot("31-closed");
         bool up = pause.Open();
         Check(up, "the phone still comes up while the café finishes up (it isn't the recap yet)");
         yield return Frames(2);
-        if (up) yield return Photo("32-phone-after-closing");
+        if (up) yield return Shot("32-phone-after-closing");
         if (PausePhone.Paused) { pause.Resume(); yield return Frames(2); }
+        // 23 Oct: every read above of the phone's look waited for it to be still.
+        Check(looks > 0 && lookedMoving.Count == 0,
+            $"nothing read a mid-motion position: {looks} reads of the phone's colours, its ring and the photos, " +
+            (lookedMoving.Count == 0 ? "all with the phone still" : $"{lookedMoving.Count} while it moved ({string.Join("; ", lookedMoving)})"));
     }
 
     // ---------- a moment: something running out, the phone up, nothing moves, the phone away, the day goes on ----------
@@ -278,7 +292,7 @@ public sealed class PauseCheck : PlayLab
         string split = RecapPhone.TakingsSplit(clock.Earned, clock.PatronIncome);
         Check(split.Length == 0 ? !today.Contains("from café guests") : today.Contains(split),
             split.Length == 0 ? $"{when}: no guests have paid: no split line" : $"{when}: \"{split}\"");
-        yield return Photo($"1{(when == "early" ? 0 : when == "midday" ? 1 : 2)}-phone-{when.Replace(' ', '-')}");
+        yield return Shot($"1{(when == "early" ? 0 : when == "midday" ? 1 : 2)}-phone-{when.Replace(' ', '-')}");
 
         yield return Seconds(3f);
         Check(Mathf.Abs(clock.CurrentHour - hour) < .0001f && Mathf.Abs(clock.TimeRemaining - left) < .0001f,
@@ -305,8 +319,13 @@ public sealed class PauseCheck : PlayLab
             pause.Resume();
             yield return Frames(2);
         }
-        Check(!PausePhone.Paused && Time.timeScale > 0f && !UiClock.Held && !phone.Root.activeInHierarchy,
-            $"{when}: {closeWith} puts it away and gives the game back");
+        // 23 Oct: the game is given back at once (checked now, as ever); the phone drops away over a moment, and has gone once it
+        // has (checked when it's still).
+        Check(!PausePhone.Paused && Time.timeScale > 0f && !UiClock.Held,
+            $"{when}: {closeWith} gives the game back at once (the phone {(phone.Closing ? "dropping away as it goes" : "already gone")})");
+        yield return Settle();
+        Looking("the phone put away");
+        Check(!phone.Root.activeInHierarchy, $"{when}: {closeWith} puts it away (dropped out of sight, and off)");
         yield return Seconds(2.6f);
         Check(clock.CurrentHour > hour + .0001f, $"{when}: the day carries on ({ShopUI.FormatHour(hour)} to {ShopUI.FormatHour(clock.CurrentHour)})");
         // 20 Oct (builder N): a note stays at least NightCycle.NoteSeconds (2.5 s and 0.45 s a word, a slow reader's time),
@@ -321,20 +340,37 @@ public sealed class PauseCheck : PlayLab
     IEnumerator TheApps()
     {
         if (!pause.Open()) { Check(false, "the phone comes up for the apps"); yield break; }
-        yield return Frames(2);
         RecapPhone phone = pause.Phone;
+        // 23 Oct: it rises out of the pocket, under way the frame it comes up, and is still within 0.25 s (its first app's rows
+        // arrive in the same time). Seen from here it reads still within three frames of its end: its clock moves a frame at a time,
+        // this reads it before the frame's last step, and the frame after its first app is built counts at most a 60th of a second
+        // of the motion (RecapPhone.Now). So the grace is the three longest frames seen.
+        bool rising = !phone.Settled;
+        float began = Time.realtimeSinceStartup, longest = 0f;
+        while (!phone.Settled && Time.realtimeSinceStartup - began < 1f)
+        {
+            yield return null;
+            longest = Mathf.Max(longest, Time.unscaledDeltaTime);
+        }
+        float took = Time.realtimeSinceStartup - began;
+        Check(rising && phone.Settled && took <= .25f + 3f * longest + .001f,
+            $"the phone rises as it comes up and reads still {took:0.000} s later: within 0.25 s (frames here up to {longest * 1000f:0} ms)");
+        yield return Frames(2);
         yield return Key(UnityEngine.InputSystem.Key.E);
         if (phone.Current != RecapPhone.App.Notes) { Note("E didn't reach the game; Notes opened directly."); phone.Open(RecapPhone.App.Notes); }
         yield return Frames(2);
         Check(phone.Current == RecapPhone.App.Notes && phone.ContentText().Contains("Notes"), "E opens Notes");
-        yield return Photo("13-phone-notes");
+        yield return Shot("13-phone-notes");
         phone.Open(RecapPhone.App.Settings);
+        // 23 Oct: the switch's whole motion (the slide, the pill, the rows arriving) begins this frame; it's over within 0.25 s.
+        float switchLeft = phone.MotionLeft;
+        Check(!phone.Settled && switchLeft <= .25f + .001f, $"switching to Settings slides it in and settles within 0.25 s ({switchLeft:0.000} s of motion)");
         yield return Frames(2);
         string settings = phone.ContentText();
         int mornings = settings.IndexOf("MORNINGS", StringComparison.Ordinal), picture = settings.IndexOf("PICTURE", StringComparison.Ordinal);
         Check(settings.Contains("SOUND") && settings.Contains("CONTROLS") && mornings >= 0 && picture > mornings && settings.Contains("Quit"),
             "Settings: sound, controls, the morning (above the picture), the picture, and Quit");
-        yield return Photo("14-phone-settings");
+        yield return Shot("14-phone-settings");
 
         Slider master = phone.ContentSlider("master");
         Check(master != null && Mathf.Abs(master.value - GameSettings.Master) < .001f, $"the master volume's slider reads the setting ({GameSettings.Master:0.00})");
@@ -376,7 +412,7 @@ public sealed class PauseCheck : PlayLab
             Check(phone.QuitArmed && phone.ContentText().Contains("Press again to quit"), "a first press of Quit asks again, in red");
             phone.RevealKey("quit");   // scrolled to it, for the photo
             yield return Frames(2);
-            yield return Photo("15-quit-asks-again");
+            yield return Shot("15-quit-asks-again");
             phone.Open(RecapPhone.App.Reviews);
             yield return Frames(2);
             Check(!phone.QuitArmed, "opening another app takes the question back");
@@ -396,6 +432,7 @@ public sealed class PauseCheck : PlayLab
         if (swap == null) yield break;
         swapWas = GameSettings.SwapBenchSticks;
         swapTouched = true;
+        yield return Settle();   // 23 Oct: a switch's colour is read once nothing moves (invert's knob may still be sliding back)
         Check(SwitchOn(phone, SwapKey) == swapWas, $"...the switch shows the setting as it stands ({(swapWas ? "on" : "off")})");
         swap.onClick.Invoke();
         yield return Frames(2);
@@ -403,10 +440,11 @@ public sealed class PauseCheck : PlayLab
         int kept = PlayerPrefs.GetInt(GameSettings.SwapBenchSticksKey, -1);
         Check(now != swapWas && kept == (now ? 1 : 0), $"its switch turns it {(now ? "on" : "off")}, kept at once ({GameSettings.SwapBenchSticksKey} = {kept})");
         GameSettings.Reload();
+        yield return Settle();   // its knob slides across as its colour turns: the colour is read where it ends
         Check(GameSettings.SwapBenchSticks == now && SwitchOn(phone, SwapKey) == now, "...read back as kept, and the switch shows it");
         phone.RevealKey(SwapKey);
         yield return Frames(2);
-        yield return Photo("14a-settings-swap-the-sticks");
+        yield return Shot("14a-settings-swap-the-sticks");
         Button back = phone.ContentButton(SwapKey);
         if (back != null) back.onClick.Invoke();
         yield return Frames(2);
@@ -426,6 +464,7 @@ public sealed class PauseCheck : PlayLab
             "MORNINGS: \"The morning\", with its line");
         introWas = GameSettings.DayIntro;
         introTouched = true;
+        yield return Settle();   // 23 Oct: the pills' colours are read once nothing moves
         Check(OnlyPillOn(phone, introWas), $"...three pills, Full / Short / Off, the one in force ({introWas}) in green");
         foreach (DayIntroMode mode in new[] { DayIntroMode.Short, DayIntroMode.Off, DayIntroMode.Full })
         {
@@ -435,18 +474,20 @@ public sealed class PauseCheck : PlayLab
             yield return Frames(2);
             int kept = PlayerPrefs.GetInt(GameSettings.DayIntroKey, -1);
             GameSettings.Reload();
+            yield return Settle();   // the pressed pill squishes and springs back
             Check(GameSettings.DayIntro == mode && kept == (int)mode && OnlyPillOn(phone, mode),
                 $"\"{mode}\" sets the morning to {mode}: kept as {kept}, read back as {GameSettings.DayIntro}, its pill in green");
             if (mode != DayIntroMode.Short) continue;
             phone.RevealKey("morning:Short");
             yield return Frames(2);
-            yield return Photo("14b-settings-the-morning");
+            yield return Shot("14b-settings-the-morning");
         }
         yield return PadToTheMorning(phone);
         GameSettings.DayIntro = introWas;
         phone.RebuildNow();
         yield return Frames(2);
         GameSettings.Reload();
+        yield return Settle();
         Check(GameSettings.DayIntro == introWas && PlayerPrefs.GetInt(GameSettings.DayIntroKey, -1) == (int)introWas && OnlyPillOn(phone, introWas),
             $"and back to {introWas}");
         // introTouched stays up: Restore puts it back once more at the end.
@@ -511,20 +552,76 @@ public sealed class PauseCheck : PlayLab
         yield return Frames(2);
         GameSettings.Reload();
         Button shortAfter = phone.ContentButton("morning:Short");
+        yield return Settle();   // 23 Oct: the pill's squish, and the ring that glided along the row
         Check(GameSettings.DayIntro == DayIntroMode.Short && OnlyPillOn(phone, DayIntroMode.Short) && shortAfter != null && Selected() == shortAfter.gameObject,
             $"...and A sets the morning to Short ({GameSettings.DayIntro}), the pad staying on it as the phone builds again (on {Name(Selected())})");
-        yield return Photo("14c-settings-the-morning-on-a-pad");
+        Check(RingOn(phone, shortAfter != null ? shortAfter.gameObject : null, out string ringWhat),
+            "the pad's gold ring glided along the row and ends exactly on Short: " + ringWhat);
+        yield return Shot("14c-settings-the-morning-on-a-pad");
         InputSystem.RemoveDevice(pad);
         pad = null;
         yield return Frames(2);
     }
 
-    // A switch row's switch is green when it's on (RecapPhone.SwitchRow paints its track the brand's green).
-    static bool SwitchOn(RecapPhone phone, string key) => Green(phone.ContentButton(key));
+    // A switch row's switch is green when it's on (RecapPhone.SwitchRow paints its track the brand's green). A read of the phone's
+    // look (23 Oct: its colour turns as its knob slides across), so it's counted (Looking).
+    bool SwitchOn(RecapPhone phone, string key)
+    {
+        Looking("the switch " + key);
+        return Green(phone.ContentButton(key));
+    }
 
-    // The morning's pill for this mode is green, and the other two aren't (RecapPhone.ChoiceRow).
-    static bool OnlyPillOn(RecapPhone phone, DayIntroMode mode) =>
-        Mornings.All(m => Green(phone.ContentButton("morning:" + m)) == (m == mode));
+    // The morning's pill for this mode is green, and the other two aren't (RecapPhone.ChoiceRow). Counted as a read too.
+    bool OnlyPillOn(RecapPhone phone, DayIntroMode mode)
+    {
+        Looking("the morning's pills");
+        return Mornings.All(m => Green(phone.ContentButton("morning:" + m)) == (m == mode));
+    }
+
+    // 23 Oct 2026: waits until nothing on the phone moves (RecapPhone.Settled: no rise or drop, slide, rows arriving, squish, knob,
+    // or the ring's glide), up to a second of real time, so what's read next is where things come to rest.
+    IEnumerator Settle()
+    {
+        RecapPhone phone = pause != null ? pause.Phone : null;
+        float until = Time.realtimeSinceStartup + 1f;
+        while (phone != null && !phone.Settled && Time.realtimeSinceStartup < until) yield return null;
+    }
+
+    // A read of the phone's look (a colour, the ring, a photo): counted, and kept if the phone was still moving (the check at the
+    // end: "nothing read a mid-motion position").
+    void Looking(string what)
+    {
+        looks++;
+        RecapPhone phone = pause != null ? pause.Phone : null;
+        if (phone != null && !phone.Settled) lookedMoving.Add(what);
+    }
+
+    // A photo once the phone is still (23 Oct): PlayLab's own (its words checked as ever), after the phone's motion has ended.
+    // With the phone away (the HUD's photos) nothing waits.
+    IEnumerator Shot(string name)
+    {
+        yield return Settle();
+        Looking("photo " + name);
+        yield return Photo(name);
+    }
+
+    // The pad's gold ring sits exactly on its button once the phone is still: its middle on the button's middle and 9 canvas
+    // units bigger (RecapPhone's RingPad, half either side), each within half a pixel (23 Oct: it glides there now).
+    bool RingOn(RecapPhone phone, GameObject target, out string what)
+    {
+        Looking("the ring around " + Name(target));
+        RectTransform ring = phone.FocusRing;
+        if (target == null || ring == null || !ring.gameObject.activeInHierarchy)
+        {
+            what = $"no ring on screen, or nothing selected ({Name(target)})";
+            return false;
+        }
+        Rect r = OnScreen(ring), b = OnScreen((RectTransform)target.transform);
+        float margin = 9f * phone.Root.transform.lossyScale.x;
+        float off = Vector2.Distance(r.center, b.center), dw = r.width - b.width - margin, dh = r.height - b.height - margin;
+        what = $"{off:0.0} px from its middle, its margin {dw:+0.0;-0.0;0} px wide and {dh:+0.0;-0.0;0} px tall of {margin:0.0} px";
+        return off <= .5f && Mathf.Abs(dw) <= .5f && Mathf.Abs(dh) <= .5f;
+    }
 
     static bool Green(Button button)
     {

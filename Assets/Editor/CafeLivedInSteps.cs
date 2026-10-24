@@ -67,9 +67,11 @@ using Shared = CafeRedesignShared;
 //     gets its laptop when the bar stools get a perch. The NPC lead's code finds them by name prefix and distance (a
 //     laptop within 0.9 m of a seat's cup spot, a bag within 1.1 m of its sit point): each is placed where its own seat
 //     finds it, with as few other seats in reach as the table allows.
-//   * COATS, on: LI_Coat_OnChair over the backs of the two banquette café chairs people reach last (from the door and
-//     from the counter), at the manifest's own fit (the Blender lead built the coat on CK_Chair_Cafe's top rail),
-//     children of their chairs, named for their seats.
+//   * COATS, off (23 Oct 2026): LI_Coat_OnChair over the backs of the two banquette café chairs people reach last (from the
+//     door and from the counter), at the manifest's own fit (the Blender lead built the coat on CK_Chair_Cafe's top rail),
+//     children of their chairs, named for their seats, and placed switched off. His note of 22 Oct 2026: "clothes on the
+//     on chairs in the cafe that just look like squares and rectangles together"; Art tidy 1 (ArtTidySteps) took the placed
+//     ones out, and placing them off means a redo of this step never brings them back.
 //   * THE KID'S DRAWING on the notice board, a child of the board (so the overhead view fades it with the board), where it
 //     covers the least of the four flyers with its pin in bare cork (the flyers measured off the board's own mesh).
 //   * LEFT CUPS, off: LI_LeftCup on three seats' cup spots, children of their seats, named "LI_LeftCup (table <words>)".
@@ -1814,7 +1816,7 @@ internal static class CafeLivedInSteps
                          "The NPC lead's choice: seat laptop patrons where Snap To Seat is on, or leave this laptop as decor that stays off.");
         }
 
-        // ---- coats: on, over the backs of the two banquette café chairs people reach last ----
+        // ---- coats: off (23 Oct 2026), over the backs of the two banquette café chairs people reach last ----
         Piece coat = p.pieces[Coat];
         Vector3 door = run.Scene.GetRootGameObjects().Where(g => g.name == "SpawnPoint").Select(g => g.transform.position).DefaultIfEmpty(new Vector3(0f, 0f, -1.2f)).First();
         StationInteractable till = Shared.InScene<StationInteractable>(run, false).FirstOrDefault(st => st.name == "Counter");
@@ -1843,9 +1845,14 @@ internal static class CafeLivedInSteps
             x.parent = chair;
             x.seat = s;
             x.partner = chair;
+            // 23 Oct 2026, his note of 22 Oct 2026: "clothes on the on chairs in the cafe that just look like squares and
+            // rectangles together". Art tidy 1 switched the placed coats off; this keeps a redo from bringing them back (placed,
+            // fitted and checked as before, but off). A real draped coat is a Blender job, only if he wants coats back.
+            x.active = false;
         }
-        run.Info("Coats on the two banquette chairs farthest to walk to: a coat reads as a taken seat, so they go where people sit least; children of their chairs " +
-                 "(named for the seat), so they can follow who sits there later by the same name rule as the laptops.");
+        run.Info("Coats on the two banquette chairs farthest to walk to (a coat reads as a taken seat, so they go where people sit least), placed OFF " +
+                 "(his note of 22 Oct: they read as squares and rectangles; Art tidy 1): children of their chairs (named for the seat), fitted and checked as " +
+                 "before, so a better coat can take the same places.");
 
         // ---- left cups: off, on three seats' cup spots, children of their seats ----
         Piece cup = p.pieces[LeftCup];
@@ -2439,7 +2446,7 @@ internal static class CafeLivedInSteps
 
         Physics.SyncTransforms();
         Shared.Note(run, $"Lived in: the reading corner (two seats: the guard's places {p.placesBefore} -> {p.placesBefore + p.seats.Count}), {p.places.Count} pieces placed " +
-                         $"({p.Off.Count()} off until people use them); the old lounge's tub chair, low table and floor lamp switched back on and moved; the entry rug " +
+                         $"({p.Off.Count(x => x.piece.name != Coat)} off until people use them, and the coats off: his note of 22 Oct); the old lounge's tub chair, low table and floor lamp switched back on and moved; the entry rug " +
                          $"{(p.entryRug ? "placed" : "not placed: " + p.entryWhy)}.");
 
         // 5. The checks.
@@ -2724,8 +2731,9 @@ internal static class CafeLivedInSteps
         Shared.Photo(run, "11-plan-from-above", new Vector3(0f, 17f, 6.6f), new Vector3(0f, 0f, 6.61f), 50f, true);
         Shared.GameCameraPhoto(run, "12-game-camera");
         if (run.Phase != "2-after" || p == null) return;
-        // In use, for the photo only: the laptops, bags and left cups switched on (they are off in the scene), then off again.
-        var shown = p.Off.Where(x => x.placed != null && !x.placed.activeSelf && x.piece.name != LaptopClosed).Select(x => x.placed).ToList();
+        // In use, for the photo only: the laptops, bags and left cups switched on (they are off in the scene), then off again. Not
+        // the coats (off since 23 Oct 2026: nobody uses them).
+        var shown = p.Off.Where(x => x.placed != null && !x.placed.activeSelf && x.piece.name != LaptopClosed && x.piece.name != Coat).Select(x => x.placed).ToList();
         try
         {
             foreach (GameObject go in shown) go.SetActive(true);

@@ -189,8 +189,10 @@ public class ShopUI : MonoBehaviour
         if (viewHintText != null)
         {
             // In a close-up (a conversation, the drinks, an item at the bench, the counter phone) the close-up's own
-            // controls are on screen: the strip steps aside, plate and all.
-            bool closeUp = interactor != null && (interactor.InCloseUp || interactor.UsingDrinks);
+            // controls are on screen: the strip steps aside, plate and all. 23 Oct 2026: also while the drinks line stays its
+            // half second after the crosshair slips off the machine (BeverageStation.LineUp), so the strip doesn't flash up
+            // between the machine's controls.
+            bool closeUp = interactor != null && (interactor.InCloseUp || interactor.UsingDrinks) || BeverageStation.LineUp;
             bool stripOn = !recapOpen && !closeUp && viewMode != null && viewMode.CanChangeView;
             viewHintText.gameObject.SetActive(stripOn);
             if (stripPlate != null && stripPlate.gameObject.activeSelf != (stripOn && !string.IsNullOrEmpty(shownHint)))
@@ -291,7 +293,11 @@ public class ShopUI : MonoBehaviour
         // The dispenser (its close-up from above, or its controls under the crosshair in first person) has a small
         // centre reticle and its own concise action caption (BeverageStation). Suppress the shared large prompt line
         // while keeping the aimed controls clear.
-        if (interactor.UsingDrinks)
+        // 23 Oct 2026: and while the drinks line stays its half second after the crosshair slips off the machine onto nothing
+        // (BeverageStation.LineUp, as of the last frame). With no focus UsingDrinks is false, and with anything in hand this
+        // line would say "In hand ...": the drinks line would give way, drop out and come back at every gap between the
+        // machine's controls and at every press. One line at a time.
+        if (interactor.UsingDrinks || BeverageStation.LineUp)
         {
             ClearPrompt();
             if (crosshair != null)

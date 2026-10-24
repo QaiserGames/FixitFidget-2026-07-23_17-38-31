@@ -16,6 +16,12 @@ using UnityEngine;
 // CustomerBrain needed ZERO changes for this. DrainRate already reads
 // waitingSpot.DrainMultiplier, and CustomerIdentity.PreferredWaitKind already
 // defaults to Seat — so people start sitting down the moment seats exist.
+//
+// 23 Oct 2026: a seat also says what it is (Tags: window, soft, a bar stool, the
+// communal table, a quiet corner, by the door), for the way people choose seats
+// (SeatChoice, in SeatTags.cs). The tags are not kept here: they come from a
+// SeatTags on the seat or its furniture, else the seat's own shape, plus the
+// room's areas it stands in, so a seat placed anywhere needs no setting up.
 public class TableSeat : WaitingSpot
 {
     /// <summary>
@@ -37,7 +43,8 @@ public class TableSeat : WaitingSpot
     [Tooltip("ON: customers and patrons with an NpcSeating component sit down " +
              "on this chair (sit-down, seated idle, stand-up clips baked by " +
              "Fixit Fidget > NPC > Sit 1). OFF: they stand at the Stand Point " +
-             "beside the chair facing the table, as in the grey-box.")]
+             "beside the chair facing the table, as in the grey-box, so a seat " +
+             "chooser counts it as a standing wait, overflow only (SeatChoice.StandingWait).")]
     [SerializeField] private bool snapToSeat = false;
 
     [Tooltip("The chair's seat surface, at its centre. The sitting NPC's hips " +
@@ -62,11 +69,13 @@ public class TableSeat : WaitingSpot
     // the 0.45 m chairs, and NpcSeating lifted a body at most 0.12 m), and the nearest-seat rule almost never reached the
     // middle or west stool. Now a customer whose repair goes to the bench takes the free stool nearest the bench first
     // (WaitingArea.ClaimRepairBar), and sits on it: the stool and its counter are a café chair and table raised 0.30 m
-    // together, so the chair clips fit once the body is lifted with them. All three default to "as before".
+    // together, so the chair clips fit once the body is lifted with them. All three default to "as before". (23 Oct: a bench
+    // job whose character wants comfort more than the bar sits elsewhere, CustomerBrain.StaysAtTheBar, and everyone else
+    // treats these stools as kept for repairs: SeatChoice.KeptForRepairs.)
     [Header("The repair bar (NPC wave 2)")]
 
     [Tooltip("A repair-bar stool: a customer whose repair goes to the bench takes the free one nearest the bench first " +
-             "(WaitingArea.ClaimRepairBar). Off: an ordinary seat, chosen by the nearest-seat rule.")]
+             "(WaitingArea.ClaimRepairBar). Off: an ordinary seat, chosen like any other (SeatChoice).")]
     [SerializeField] private bool repairBar;
 
     [Tooltip("How far the body may rise (or drop) to meet this seat, metres. 0 = NpcSeating's own limit (0.12 m, the " +
@@ -97,6 +106,15 @@ public class TableSeat : WaitingSpot
     public float MaxLift => maxLift;
     /// <summary>How far beside the seat the way in and out passes, metres; 0 = NpcSeating's default.</summary>
     public float ApproachSide => approachSide;
+
+    /// <summary>
+    /// What this seat is and where it stands (23 Oct 2026): a SeatTags on it or a parent, else its own shape (a raised seat is
+    /// at a bar, a bench seat is soft), plus every room area its sit point is in (SeatTags.Of). Read by SeatChoice.
+    /// </summary>
+    public SeatTag Tags => SeatTags.Of(this);
+
+    /// <summary>The zone it belongs to, for the labs and the reports only (never for choosing): its SeatTags' zone, else its parent's name.</summary>
+    public string Zone => SeatTags.ZoneOf(this);
 
     public bool IsDirty => dirtyCup != null;
 

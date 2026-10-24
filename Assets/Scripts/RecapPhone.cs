@@ -86,6 +86,31 @@ using Object = UnityEngine.Object;
 //
 // At night it opens on Notes, with Settings. Its bottom button is "Back to work" ("Back to the night"), and Esc, Start
 // or B put it away too (PausePhone). It draws over everything but the pad's cursor (95).
+//
+// THE PHONE MOVES (23 Oct 2026; his note of 22 Oct: "I also would like more juice to happen on the settings or on the phone, like
+// when transitioning on, when moving to different like buttons or moving down to a different category on the phone. Like, I want
+// there to be like juice, I want there to be a feeling, I want there to feel good, you know."). Every motion is quick (none over
+// 0.2 s), runs on the phone's own unscaled clock (the phone pauses the game) through UiTween, and never stands in the way: a press
+// during a motion finishes it at once and then acts.
+//   * Out and away: the phone rises from the bottom with a slight overshoot as it comes out, its dim fading in (a game resumed
+//     at closing shows it at once: it never came out of a pocket); the pause phone drops away as it is put away, while the game
+//     already has its input back (PausePhone gives it back that frame). The closing recap still goes at once when Close up is
+//     pressed: RecapUI switches it off itself, and the night's fade follows.
+//   * Another app: it slides in from the side it was asked for (Q/LB from the left, E/RB from the right, a tab or a key by its
+//     order), a third of the screen's width, as its rows (a card and its shadow, a heading) rise 12 units into place and fade in
+//     a beat apart. Only the rows in the window move, and the last starts by 0.1 s: everything has settled in a quarter second.
+//   * The tab bar: a soft pill behind the open tab's icon slides to the new tab, the two tabs' colours cross over, and the new
+//     icon pops (1 to 1.15 and back).
+//   * The pad: the gold ring glides from button to button, resizing on the way (hugging the part of a button inside the window
+//     while it scrolls in, and keeping its place until some of it shows), and the app scrolls after it in a glide; LB/RB and A
+//     give a short, light rumble (Settings' Vibration).
+//   * A press: the button squishes to 0.94 and springs back past 1.03, with the tap. A price out of reach shakes a little when
+//     clicked, and makes no sound (the bank has nothing that says "no" softly yet; Audio's to name).
+//   * Scrolling: the wheel glides to where it used to jump; the keys and the stick ease in and out of their speed.
+//   * Settings: a slider's knob follows its value in a glide (dragged by the mouse, it stays under the pointer); a switch's knob
+//     slides across as its colour turns, with the tap.
+// Settled says that nothing on the phone moves (the takings' count-up and the split's landing keep their own flags): the labs wait
+// for it before they read a position, a size or a colour, or take a photo. MotionScale slows it all down for a lab's photo.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class RecapPhone : MonoBehaviour
@@ -170,6 +195,26 @@ public sealed class RecapPhone : MonoBehaviour
     const int RoundPixels = 96;
     const float RoundRadius = 40f;
 
+    // ------------------------------------------------------------------ the motion (23 Oct 2026), in seconds and canvas units
+    //
+    // His note asked for a feeling, and Bible §4 for a phone that never slows him: so every motion is 0.2 s or less (the
+    // target 0.12-0.18), an arrival eases out (quint for what must land precisely, a gentle back for what may settle), an exit
+    // eases in, and the whole of an app switch is over within 0.25 s (RecapPhoneCheck holds it to that). Each is one number here.
+
+    const float PhoneY = 14f;                                   // the phone's rest, a little above the screen's middle
+    const float RiseSeconds = .18f, RiseDistance = 240f, RiseFade = .09f;      // out of the pocket: from below, a slight overshoot
+    const float DropSeconds = .14f, DropDistance = 200f;                       // put away: down and out, faster as it goes
+    const float SlideSeconds = .16f, SlideShare = 1f / 3f;                     // another app: in from a third of the width
+    const float RowSeconds = .14f, RowStagger = .025f, RowLastStart = .10f, RowRise = 12f;   // its rows, a beat apart
+    const float PillSeconds = .18f, PopSeconds = .16f, TabColourSeconds = .14f, PopScale = 1.15f;
+    const float PillWidth = 58f, PillHeight = 30f;              // the open tab's pill, behind its 26-unit icon
+    const float RingSeconds = .12f, RingPad = 9f, RingLeast = 8f;   // the pad's ring: its glide, its margin, the least of a button it hugs
+    const float ScrollGlideSeconds = .14f, WheelStep = 18f;     // a wheel notch (the scroll rect's old sensitivity), now a glide
+    const float StickEase = .04f, StickRest = 20f;              // the keys' and stick's speed eases in and out (units a second)
+    const float SquishSeconds = .18f, ShakeSeconds = .18f, ShakeWidth = 5f;
+    const float KnobSeconds = .14f, SliderSeconds = .10f;       // a switch's knob across; a slider's knob after its value
+    const float BuzzSeconds = .05f, BuzzLow = .10f, BuzzHigh = .18f;   // a pad's press: the bench's lightest pulse (a tool picked up)
+
     // ------------------------------------------------------------------ what the rest of the game uses
 
     /// <summary>What opens and closes (RecapUI's panel): the dim over the café, the phone, the hint.</summary>
@@ -201,6 +246,38 @@ public sealed class RecapPhone : MonoBehaviour
     public bool TonightSplitShown => tonightSplit != null && tonightSplit.gameObject.activeInHierarchy && tonightSplit.alpha >= .99f;
     /// <summary>Today's takings are still counting up (or about to, a quarter of a second after the evening's phone opens).</summary>
     public bool TakingsCounting => countSince >= 0f;
+
+    /// <summary>Nothing on the phone is moving: no rise or drop, slide, rows arriving, tab pill, squish, shake, ring glide, scroll
+    /// glide or easing, slider or switch knob (23 Oct). The labs wait for it before they read a position, a size or a colour, or
+    /// take a photo. (The takings' count-up and the split's landing are words, with their own flags: TakingsCounting,
+    /// TonightSplitShown.)</summary>
+    public bool Settled => !motions.Running && !ringGliding && !scrollGliding && Mathf.Abs(scrollVelocity) < StickRest && !closing
+                           && !KnobsGliding && (scroll == null || scroll.velocity.sqrMagnitude < 1f);
+
+    /// <summary>Seconds until the motion running now has ended (0 when nothing moves; the keys' and stick's easing aside), as the
+    /// phone schedules it: real time, but for the frame after a build, which counts at most a 60th of a second (Now). An app
+    /// switch's, read the frame it begins, is the whole of it (RecapPhoneCheck: within 0.25 s).</summary>
+    public float MotionLeft
+    {
+        get
+        {
+            float now = Now(), left = motions.Left(now);
+            if (ringGliding) left = Mathf.Max(left, ringSince + RingSeconds - now);
+            if (scrollGliding) left = Mathf.Max(left, scrollSince + ScrollGlideSeconds - now);
+            for (int i = 0; i < knobs.Count; i++) if (knobs[i].gliding) left = Mathf.Max(left, knobs[i].since + SliderSeconds - now);
+            if (closing) left = Mathf.Max(left, closeAt - now);
+            return Mathf.Max(0f, left) / Mathf.Max(.001f, MotionScale);
+        }
+    }
+
+    /// <summary>Labs only: how fast the phone's motion runs (1 in play; a lab slows it to photograph a motion on its way).</summary>
+    public float MotionScale { get; set; } = 1f;
+
+    /// <summary>The pad's gold ring (labs: once the phone is still, it sits exactly on the selected button).</summary>
+    public RectTransform FocusRing => focusRing;
+
+    /// <summary>The pause phone is dropping away: the game has its input back already, and nothing on the phone takes any.</summary>
+    public bool Closing => closing;
 
     TMP_FontAsset font;
     RectTransform phoneBody, viewport, content, focusRing, tabBar, closeRect;
@@ -237,6 +314,42 @@ public sealed class RecapPhone : MonoBehaviour
     ReputationLedger preview;   // a made-up day (Fixit Fidget > Reputation > Preview), until the phone closes
     Sprite rounded, ring, focusRingSprite, circle, star, house, bag, note, tick, cupBody, cupLid, bean, beanCrease, moon, gear;
 
+    // The motion (23 Oct 2026; UiTween). Its clock is the phone's own: unscaled time (the phone pauses the game), times MotionScale,
+    // moved on once a frame by the first thing that asks (Now), so a motion begun anywhere in a frame starts from that frame.
+    readonly UiTween.Set motions = new UiTween.Set(96);
+    float motionNow;
+    int motionFrame = -1, madeFrame = -1;
+    int builtFrame = -10;             // the frame an app was last built (Rebuild): the next one counts at most a 60th of a second (Now)
+    CanvasGroup rootGroup;            // the dim, the phone, the ring and the hint: they fade in and out together
+    RectTransform tabPill;            // the soft pill behind the open tab's icon
+    bool closing;                     // the pause phone dropping away (PutAway); Root goes off at closeAt
+    float closeAt;
+    bool cascadeDue;                  // the next build's rows arrive one after another (an app opened, the phone came out)
+    int cascadeFrame = -1;            // ...and a second build in the same frame does it again
+    int slideFrom;                    // the side the next app comes in from (Step: -1 the left, 1 the right; 0: by its order)
+    // The pad's ring: where it's drawn (the screen's units), what it's around, and its glide from the last button.
+    bool ringOn, ringGliding;
+    GameObject ringFor;
+    Vector2 ringCentre, ringSize, ringFromCentre, ringFromSize;
+    float ringSince;
+    // The scroll: a glide to a place (the wheel, the pad's ring), or the keys' and stick's speed easing in and out.
+    bool scrollGliding;
+    float scrollFrom, scrollTo, scrollSince, scrollVelocity, scrollWritten;
+    // The last press (a button's key, and when): its squish and a switch's knob carry on into the app built again after it.
+    string pressKey;
+    float pressAt = -10f;
+    float buzzUntil = -1f;            // a pad press's rumble stops then (real time)
+    // Each slider's knob, following its value (SliderRow adds them; a build clears them).
+    struct Knob
+    {
+        public Slider slider;
+        public RectTransform handle, fill;
+        public KnobDrag drag;         // the mouse dragging it: then the knob stays under the pointer (KnobFollows)
+        public float from, to, since, shown;
+        public bool gliding;
+    }
+    readonly List<Knob> knobs = new List<Knob>();
+
     // ------------------------------------------------------------------ making it
 
     /// <summary>Builds the phone on a canvas of its own, closed. RecapUI calls this once, in Start.</summary>
@@ -271,8 +384,10 @@ public sealed class RecapPhone : MonoBehaviour
         Root = screen.gameObject;
         var dim = Root.AddComponent<Image>();
         dim.color = new Color(0f, 0f, 0f, .55f);   // it catches clicks, so none reach the café behind
+        // The whole of it fades in as the phone comes out and out as it drops away (23 Oct); while it drops, clicks pass through.
+        rootGroup = Root.AddComponent<CanvasGroup>();
 
-        RectTransform body = Anchored("Phone", screen, new Vector2(.5f, .5f), new Vector2(0f, 14f), new Vector2(PhoneWidth, PhoneHeight));
+        RectTransform body = Anchored("Phone", screen, new Vector2(.5f, .5f), new Vector2(0f, PhoneY), new Vector2(PhoneWidth, PhoneHeight));
         phoneBody = body;
         Paint(body, Bezel, 60f);
         RectTransform display = Anchored("Display", body, new Vector2(.5f, .5f), Vector2.zero, new Vector2(DisplayWidth, DisplayHeight));
@@ -304,6 +419,11 @@ public sealed class RecapPhone : MonoBehaviour
 
         UpdateTabs();
         Root.SetActive(false);
+        // Added while it's off, so they wake when it first comes on (23 Oct): RecapUI switches the recap's phone on and off itself
+        // (its panel is Root), and the phone hears it here; the wheel over the apps glides.
+        Root.AddComponent<RootWatch>().phone = this;
+        viewport.gameObject.AddComponent<WheelGlide>().phone = this;
+        madeFrame = Time.frameCount;
     }
 
     void BuildStatusBar(RectTransform display)
@@ -334,7 +454,9 @@ public sealed class RecapPhone : MonoBehaviour
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.inertia = true;
-        scroll.scrollSensitivity = 18f;
+        // The wheel is the phone's own now (23 Oct: WheelGlide, the same 18 units a notch, as a glide instead of a jump); a drag
+        // and its fling stay the scroll rect's.
+        scroll.scrollSensitivity = 0f;
     }
 
     void BuildCloseButton(RectTransform display)
@@ -354,6 +476,12 @@ public sealed class RecapPhone : MonoBehaviour
         tabBar = bar;
         Paint(bar, Color.white, 0f);
         Paint(Box("Top line", bar, 0f, 0f, DisplayWidth, 1f), Line, 0f);
+        // The open tab's pill (23 Oct): a soft patch behind its icon, under the tabs so the icon draws over it; it slides to the
+        // next tab as the app changes (OpenTabMoves). Its pivot is its middle, so its x is the middle of its tab; its middle is the
+        // icon's (24 down the bar: the tab's top 1, the icon's 10 in it, half its 26).
+        tabPill = Box("Open tab", bar, 0f, 24f - PillHeight / 2f, PillWidth, PillHeight);
+        Paint(tabPill, AccentSoft, PillHeight / 2f);
+        CentrePivot(tabPill);
         float cell = DisplayWidth / Visible.Length;
         Sprite[] icons = { moon, star, house, bag, note, gear };
         Color[] badgeColours = { Accent, Accent, Gold, Red, Accent, Accent };
@@ -368,6 +496,7 @@ public sealed class RecapPhone : MonoBehaviour
             button.onClick.AddListener(() => Tap((App)app));
             tabs[i] = button;
             tabIcons[i] = Picture(tab, icons[i], TabOff, cell / 2f - 13f, 10f, 26f, 26f);
+            CentrePivot(tabIcons[i].rectTransform);   // it pops about its middle (Place keeps its corner where it was)
             tabLabels[i] = Words(tab, AppNames[i], 0f, 40f, cell, 16f, Soft, TextAlignmentOptions.Top, style: FontStyles.Bold, rich: false);
 
             RectTransform badge = Box("Badge", tab, cell / 2f + 7f, 3f, 22f, 22f);
@@ -443,15 +572,36 @@ public sealed class RecapPhone : MonoBehaviour
         Layout();
     }
 
-    /// <summary>Opens one of the apps, at its top.</summary>
+    /// <summary>Opens one of the apps, at its top. While the phone is up, another app slides in from the side it was asked for and
+    /// its rows arrive; the app already open glides back to its top (23 Oct). Whatever was moving finishes first.</summary>
     public void Open(App app)
     {
+        FinishMotion();   // a press during a motion: the motion ends at once, then the press acts
+        App was = Current;
+        bool barWas = tabBar != null && tabBar.gameObject.activeSelf;
+        float pillWas = tabPill != null ? tabPill.anchoredPosition.x : 0f;
+        int side = slideFrom != 0 ? slideFrom : Math.Sign(Order(app) - Order(was));
+        slideFrom = 0;
+        bool moving = Root != null && Root.activeInHierarchy && !closing;
+        float offset = ScrollOffset;
         Current = app;
         quitArmed = false;   // anything else opened takes Quit's question back
-        scrollToTop = true;
+        scrollToTop = !moving || app != was;
         UpdateTabs();
         Layout();
+        if (moving && app != was) cascadeDue = true;
         RebuildNow();
+        if (!moving) return;
+        float now = Now();
+        if (app == was)
+        {
+            // Its own tab again: back to its top in a glide (it was built where it stood).
+            if (offset > .5f) GlideScrollTo(0f);
+            PopTab(app, now);
+            return;
+        }
+        if (side != 0) motions.MoveX(content, side * DisplayWidth * SlideShare, 0f, now, SlideSeconds, UiTween.Ease.OutQuint);
+        OpenTabMoves(was, app, barWas, pillWas, now);
     }
 
     /// <summary>Opens Notes on one person's facts (the closing screen's notebook line).</summary>
@@ -461,11 +611,13 @@ public sealed class RecapPhone : MonoBehaviour
         Open(App.Notes);
     }
 
-    /// <summary>The next app to the right (1) or the left (-1) along the tab bar, wrapping round.</summary>
+    /// <summary>The next app to the right (1) or the left (-1) along the tab bar, wrapping round. It slides in from that side, even
+    /// when it wraps (the press says which way, not the order).</summary>
     public void Step(int by)
     {
         App[] shown = Visible;
         int at = Mathf.Max(0, Array.IndexOf(shown, Current));
+        slideFrom = by > 0 ? 1 : by < 0 ? -1 : 0;
         Tap(shown[((at + by) % shown.Length + shown.Length) % shown.Length]);
     }
 
@@ -493,24 +645,48 @@ public sealed class RecapPhone : MonoBehaviour
         PlaceTabs();
         UpdateTabs();
         Layout();
+        // It rises out of the pocket (RootWatch hears it come on); taken out again while it was still dropping away, it rises
+        // from where it had got to.
+        bool wasOn = Root.activeSelf;
         Root.SetActive(true);
+        if (wasOn) BeginRise();
     }
 
-    /// <summary>Puts the pause phone away.</summary>
+    /// <summary>Puts the pause phone away: it drops out of sight (PutAway) while the game already has its input back.</summary>
     public void ClosePause()
     {
         quitArmed = false;
-        if (Root != null) Root.SetActive(false);
+        PutAway();
     }
 
-    /// <summary>Scrolls the current app just far enough to show the button or slider with this key (checks' photos).</summary>
+    /// <summary>
+    /// Puts the phone away: it drops and fades over DropSeconds (0.14 s) and then goes off (Root). On the way down clicks pass
+    /// through it and it takes no keys or pad (23 Oct); Settled is false until it has gone. Taken out again before then, it rises
+    /// from where it got to. (The pause phone's way out; RecapUI still switches the closing recap off at once.)
+    /// </summary>
+    public void PutAway()
+    {
+        if (Root == null || !Root.activeSelf || closing) return;
+        // Whatever else is moving (the squish of "Back to work", a slide) carries on as it drops: the drop takes over the rise.
+        float now = Now();
+        closing = true;
+        closeAt = now + DropSeconds;
+        rootGroup.blocksRaycasts = false;   // the mouse's clicks reach the café again,
+        rootGroup.interactable = false;     // and A or the D-pad on a button or slider still selected does nothing on the way down
+        motions.MoveY(phoneBody, phoneBody.anchoredPosition.y, PhoneY - DropDistance, now, DropSeconds, UiTween.Ease.InCubic);
+        motions.Alpha(rootGroup, rootGroup.alpha, 0f, now, DropSeconds, UiTween.Ease.InQuad);
+    }
+
+    /// <summary>Scrolls the current app just far enough to show the button or slider with this key (checks' photos). At once, not
+    /// in a glide: a check reads what it scrolled to straight after.</summary>
     public bool RevealKey(string key)
     {
         Selectable target = ContentButton(key);
         if (target == null) target = ContentSlider(key);
         if (target == null) return false;
+        FinishMotion();   // measured where the rows come to rest, not where they are on the way
         Canvas.ForceUpdateCanvases();
-        Reveal((RectTransform)target.transform);
+        Reveal((RectTransform)target.transform, false);
         return true;
     }
 
@@ -534,8 +710,7 @@ public sealed class RecapPhone : MonoBehaviour
 
     public void ToggleDetails()
     {
-        DetailsOpen = !DetailsOpen;
-        Sfx.Play2D("phone.tap");
+        DetailsOpen = !DetailsOpen;   // its button's press has tapped already (Pressed)
         RebuildNow();
     }
 
@@ -563,7 +738,7 @@ public sealed class RecapPhone : MonoBehaviour
     public string HintText => hintText != null ? hintText.text : "";
 
     /// <summary>A button in the current app by its key: "details", "restock", "upgrade:&lt;asset name&gt;", "more", "notebook",
-    /// "stock", "person:&lt;who&gt;"; in Settings "invert", "aimhelp", "movehelp", "swapsticks", "morning:&lt;Full|Short|Off&gt;",
+    /// "stock", "person:&lt;who&gt;"; in Settings "invert", "aimhelp:&lt;Light|Strong|Off&gt;", "movehelp", "swapsticks", "morning:&lt;Full|Short|Off&gt;",
     /// "quality:&lt;Low|Medium|High&gt;", "quit". Null if it isn't there.</summary>
     public Button ContentButton(string key)
     {
@@ -596,22 +771,31 @@ public sealed class RecapPhone : MonoBehaviour
     {
         if (Root == null) return "Recap phone: not built.";
         return $"{(Kind == Mode.Recap ? "Recap" : Kind == Mode.Pause ? "Pause (day)" : "Pause (night)")} phone: " +
-               $"{(Root.activeInHierarchy ? "open" : "closed")} on {LabelOf(Current)}, built {Builds} times; " +
+               $"{(Root.activeInHierarchy ? closing ? "dropping away" : "open" : "closed")} on {LabelOf(Current)}, built {Builds} times; " +
                $"{ReviewCardsShown} review cards when Reviews was last built; badges: Franchise {(FranchiseDot ? "dot" : "none")}, " +
                $"Shop {(ShopAlert ? "!" : "none")}, Notes {NotesNew}; the app is {content.rect.height:0} tall in a {viewport.rect.height:0} window, " +
-               $"scrolled {ScrollOffset:0}.";
+               $"scrolled {ScrollOffset:0}; {(Settled ? "still" : $"moving ({motions.Count} motions, {MotionLeft:0.00} s left)")}.";
     }
 
     // ------------------------------------------------------------------ every frame, while it's up
 
     void Update()
     {
+        Now();               // the motion's clock moves on every frame, up or not (23 Oct)
+        StopBuzz(false);
         if (Root == null) return;
         if (!Root.activeInHierarchy)
         {
             preview = null;
+            // Nothing moves on a phone that's away (a slider set from outside while it was off lands at once), so Settled holds.
+            if (motions.Running || KnobsGliding)
+            {
+                motions.Finish();
+                FinishKnobs();
+            }
             return;
         }
+        if (closing) return;   // dropping away: the game has its input back, and the phone takes none
         HandleInput();
         TrackSelection();
         UpdateHint();
@@ -651,11 +835,22 @@ public sealed class RecapPhone : MonoBehaviour
         tonightSplit.alpha = Mathf.MoveTowards(tonightSplit.alpha, want, Time.unscaledDeltaTime / SplitFade);
     }
 
+    // After everything that builds or moves the phone this frame, before it's drawn: the app built if it must be, every motion a
+    // step on (a motion begun this frame draws its start), then the ring placed on where its button now is.
     void LateUpdate()
     {
         if (Root == null || !Root.activeInHierarchy) return;
         if (dirty) Rebuild();
-        PlaceFocusRing();
+        float now = Now();
+        motions.Step(now);
+        StepKnobs(now);
+        StepScroll(now);
+        if (closing && now >= closeAt)
+        {
+            EndClose();
+            return;
+        }
+        PlaceFocusRing(now);
     }
 
     void HandleInput()
@@ -689,7 +884,17 @@ public sealed class RecapPhone : MonoBehaviour
             if (keys.wKey.isPressed || keys.upArrowKey.isPressed) move -= 1f;
         }
         move -= PadInput.Curved(PadInput.RightStick).y;
-        if (Mathf.Abs(move) > .001f) ScrollBy(move * ScrollSpeed * Time.unscaledDeltaTime);
+        // The keys and the stick set a speed the scroll eases toward (StickEase, 0.04 s), so it starts and stops in a glide rather
+        // than a step, coasting to rest within 0.2 s of a release (23 Oct); at an end it stops at once. Closed form in the frame's
+        // time, so 15 fps and 60 agree.
+        float dt = Time.unscaledDeltaTime, want = Mathf.Abs(move) > .001f ? move * ScrollSpeed : 0f;
+        scrollVelocity += (want - scrollVelocity) * (1f - Mathf.Exp(-dt / StickEase));
+        if (want == 0f && Mathf.Abs(scrollVelocity) < StickRest) scrollVelocity = 0f;
+        if (scrollVelocity == 0f) return;
+        scrollGliding = false;   // the keys or the stick have the scroll now
+        float before = ScrollOffset;
+        ScrollBy(scrollVelocity * dt);
+        if (Mathf.Abs(ScrollOffset - before) < .01f && Mathf.Abs(scrollVelocity * dt) > .01f) scrollVelocity = 0f;   // at an end
     }
 
     // A pad player's selection is kept in view (the D-pad can move it to a button scrolled out of sight).
@@ -712,20 +917,83 @@ public sealed class RecapPhone : MonoBehaviour
         if (selected.transform.IsChildOf(content)) Reveal((RectTransform)selected.transform);
     }
 
-    void PlaceFocusRing()
+    // The pad's ring, every frame: around the selected button, wherever it is now (rising with the phone, sliding in with its app,
+    // scrolling into view). A new button: the ring glides there from where it was, resizing on the way (23 Oct; it used to jump),
+    // and lands exactly on it. A button in an app is hugged only where it shows in the window (the scroll brings the rest in).
+    // One the D-pad has just moved to while none of it shows yet (the scroll or its app's slide is bringing it in): the ring keeps
+    // its last place and glides to it once some of it shows, rather than blinking out and back (the review's finding 1). Any other
+    // time none of its button shows (a stick scrolled it away), the ring goes; the first time it shows, it is simply there.
+    void PlaceFocusRing(float now)
     {
         EventSystem events = EventSystem.current;
         GameObject selected = events != null ? events.currentSelectedGameObject : null;
         RectTransform target = selected != null ? selected.transform as RectTransform : null;
-        bool show = PadInput.UsingPad && target != null && selected.activeInHierarchy && target.IsChildOf(Root.transform)
-                    && (!target.IsChildOf(content) || IsFullyVisible(target));
+        Vector2 centre = Vector2.zero, size = Vector2.zero;
+        bool candidate = !closing && PadInput.UsingPad && target != null && selected.activeInHierarchy && target.IsChildOf(Root.transform);
+        bool inView = candidate && RingAround(target, out centre, out size);
+        bool waiting = candidate && !inView && ringOn && selected != ringFor
+                       && (scrollGliding || selected != lastRevealed || motions.Has(content, UiTween.Kind.MoveX));
+        bool show = inView || waiting;
         if (focusRing.gameObject.activeSelf != show) focusRing.gameObject.SetActive(show);
-        if (!show) return;
-        target.GetWorldCorners(corners);
+        if (!show)
+        {
+            ringOn = ringGliding = false;
+            ringFor = null;
+            return;
+        }
+        if (waiting)
+        {
+            ringGliding = false;   // drawn where it last was; its glide starts when some of the button shows
+            return;
+        }
+        if (!ringOn)
+        {
+            ringOn = true;
+            ringGliding = false;
+            ringFor = selected;
+        }
+        else if (selected != ringFor)
+        {
+            ringFor = selected;
+            ringGliding = true;
+            ringSince = now;
+            ringFromCentre = ringCentre;
+            ringFromSize = ringSize;
+        }
+        float t = ringGliding ? (now - ringSince) / RingSeconds : 1f;
+        if (t >= 1f)
+        {
+            ringGliding = false;
+            ringCentre = centre;
+            ringSize = size;
+        }
+        else
+        {
+            float e = UiTween.Eased(UiTween.Ease.OutQuint, t);
+            ringCentre = Vector2.LerpUnclamped(ringFromCentre, centre, e);
+            ringSize = Vector2.LerpUnclamped(ringFromSize, size, e);
+        }
+        focusRing.anchoredPosition = ringCentre;
+        focusRing.sizeDelta = ringSize;
+    }
+
+    // Where the ring goes around target, in the screen's own units: the button's box (for one in an app, the part of it inside the
+    // window) and RingPad more, half either side; as before, so a still ring sits exactly where it always did. False when none of
+    // an app's button is in the window.
+    bool RingAround(RectTransform target, out Vector2 centre, out Vector2 size)
+    {
         var screen = (RectTransform)Root.transform;
+        target.GetWorldCorners(corners);
         Vector2 low = screen.InverseTransformPoint(corners[0]), high = screen.InverseTransformPoint(corners[2]);
-        focusRing.anchoredPosition = (low + high) / 2f;
-        focusRing.sizeDelta = high - low + new Vector2(9f, 9f);
+        if (target.IsChildOf(content))
+        {
+            viewport.GetWorldCorners(corners);
+            low = Vector2.Max(low, screen.InverseTransformPoint(corners[0]));
+            high = Vector2.Min(high, screen.InverseTransformPoint(corners[2]));
+        }
+        centre = (low + high) / 2f;
+        size = high - low + new Vector2(RingPad, RingPad);
+        return high.x - low.x >= RingLeast && high.y - low.y >= RingLeast;
     }
 
     void UpdateHint()
@@ -756,7 +1024,9 @@ public sealed class RecapPhone : MonoBehaviour
 
     void Tap(App app)
     {
+        FinishMotion();
         Sfx.Play2D("phone.tap");
+        Buzz();   // a pad's press (LB/RB, A on a tab): a light rumble; nothing on the keys or the mouse
         quitArmed = false;
         Open(app);
     }
@@ -771,17 +1041,422 @@ public sealed class RecapPhone : MonoBehaviour
     {
         float range = Mathf.Max(0f, content.rect.height - viewport.rect.height);
         content.anchoredPosition = new Vector2(content.anchoredPosition.x, Mathf.Clamp(offset, 0f, range));
+        scrollWritten = content.anchoredPosition.y;   // where the phone itself last put it (StepScroll: a drag since takes over)
     }
 
-    // Scrolls just far enough to show the whole of target, with a little room around it.
-    void Reveal(RectTransform target)
+    // Scrolls just far enough to show the whole of target, with a little room around it: in a glide (the pad's ring moving to a
+    // button out of sight, 23 Oct), or at once (a check's RevealKey). Measured from where a glide under way is going.
+    void Reveal(RectTransform target, bool glide = true)
     {
         target.GetWorldCorners(corners);
         float top = -content.InverseTransformPoint(corners[1]).y, bottom = -content.InverseTransformPoint(corners[0]).y;
-        float offset = content.anchoredPosition.y, window = viewport.rect.height;
+        float offset = scrollGliding ? scrollTo : content.anchoredPosition.y, window = viewport.rect.height;
         const float room = 14f;
-        if (top - room < offset) SetScroll(top - room);
-        else if (bottom + room > offset + window) SetScroll(bottom + room - window);
+        float to;
+        if (top - room < offset) to = top - room;
+        else if (bottom + room > offset + window) to = bottom + room - window;
+        else return;
+        if (glide) GlideScrollTo(to);
+        else
+        {
+            scrollGliding = false;
+            SetScroll(to);
+        }
+    }
+
+    // A glide to a scroll offset (clamped to the app), from wherever the scroll is now: ScrollGlideSeconds, easing out.
+    void GlideScrollTo(float offset)
+    {
+        float range = Mathf.Max(0f, content.rect.height - viewport.rect.height);
+        offset = Mathf.Clamp(offset, 0f, range);
+        scroll.StopMovement();
+        scrollVelocity = 0f;
+        if (Mathf.Abs(offset - ScrollOffset) < .5f)
+        {
+            scrollGliding = false;
+            SetScroll(offset);
+            return;
+        }
+        scrollFrom = ScrollOffset;
+        scrollTo = offset;
+        scrollSince = Now();
+        scrollGliding = true;
+        scrollWritten = ScrollOffset;
+    }
+
+    // One frame of the scroll's glide. A drag (or its fling) moves the app itself: then the glide gives way to it.
+    void StepScroll(float now)
+    {
+        if (!scrollGliding) return;
+        if (Mathf.Abs(content.anchoredPosition.y - scrollWritten) > .01f)
+        {
+            scrollGliding = false;
+            return;
+        }
+        float t = (now - scrollSince) / ScrollGlideSeconds;
+        if (t >= 1f) scrollGliding = false;
+        SetScroll(t >= 1f ? scrollTo : Mathf.LerpUnclamped(scrollFrom, scrollTo, UiTween.Eased(UiTween.Ease.OutCubic, t)));
+    }
+
+    // The wheel or a trackpad over the apps (WheelGlide): as far as the scroll rect used to jump for it (WheelStep a notch, the
+    // same reading of the notch), as a glide; notches in a row add up.
+    void WheelScroll(Vector2 delta)
+    {
+        if (closing || content == null || Root == null || !Root.activeInHierarchy) return;
+        float d = Mathf.Abs(delta.x) > Mathf.Abs(delta.y) ? delta.x : -delta.y;   // the scroll rect's own reading, vertical only
+        if (Mathf.Abs(d) < 1e-4f) return;
+        GlideScrollTo((scrollGliding ? scrollTo : ScrollOffset) + d * WheelStep);
+    }
+
+    // ------------------------------------------------------------------ the motion (23 Oct 2026; see the header and UiTween)
+
+    // The motion's clock: unscaled time (the phone pauses the game) times MotionScale, moved on once a frame by whatever asks first,
+    // so anything begun in a frame, wherever in it, starts from that frame's time. The frame after an app is built counts at most a
+    // 60th of a second (the review's finding 2): building it (dozens of texts measured) makes the frame it's built in long, and on
+    // his Mac, at 15-20 fps, the whole of that time would go on the motion, so the first frame anyone saw would show the rise or the
+    // slide nearly over: a pop, not a rise. (The motion runs that much behind real time; the labs' grace allows a frame for it.)
+    float Now()
+    {
+        if (motionFrame != Time.frameCount)
+        {
+            motionFrame = Time.frameCount;
+            float dt = Time.unscaledDeltaTime;
+            if (Time.frameCount == builtFrame + 1) dt = Mathf.Min(dt, 1f / 60f);
+            motionNow += dt * Mathf.Max(0f, MotionScale);
+        }
+        return motionNow;
+    }
+
+    // A press during a motion: everything that moves is put where it was going, at once, and then the press acts (never a wait).
+    // The pause phone dropping away is put away for good.
+    void FinishMotion()
+    {
+        if (closing)
+        {
+            EndClose();
+            return;
+        }
+        motions.Finish();
+        FinishKnobs();
+        if (scrollGliding)
+        {
+            scrollGliding = false;
+            SetScroll(scrollTo);
+        }
+        scrollVelocity = 0f;
+        ringGliding = false;   // the ring lands on its button this frame (PlaceFocusRing)
+    }
+
+    // RootWatch: Root has come on (RecapUI's recap at closing, OpenPause's pause phone) or gone off (Close up, the drop's end). On
+    // in the very frame it was made (RecapUI's Start: a game resumed at closing, from a save or a lab's), it is simply there: it
+    // never came out of a pocket, and the labs that photograph it as they open on a recap see it whole.
+    void RootShown()
+    {
+        if (Time.frameCount == madeFrame) return;
+        BeginRise();
+    }
+
+    void RootHidden()
+    {
+        closing = false;
+        cascadeDue = false;   // rows arrive only on a phone that's up (BeginRise asks again when it next comes out)
+        motions.Finish();
+        FinishKnobs();
+        scrollGliding = false;
+        scrollVelocity = 0f;
+        ringOn = ringGliding = false;
+        ringFor = null;
+        if (phoneBody != null) phoneBody.anchoredPosition = new Vector2(phoneBody.anchoredPosition.x, PhoneY);
+        if (rootGroup != null)
+        {
+            rootGroup.alpha = 1f;
+            rootGroup.blocksRaycasts = rootGroup.interactable = true;
+        }
+        // A press's rumble plays out its 0.05 s (Close up's A is felt as the recap goes): Update stops it on time, phone up or not.
+    }
+
+    // Out of the pocket: the phone rises from below the screen's foot with a slight overshoot and settles, everything on it fading
+    // in, and the first build's rows arrive. Taken out again while it was still dropping away, it rises from where it got to.
+    void BeginRise()
+    {
+        if (phoneBody == null || rootGroup == null) return;
+        float now = Now();
+        bool fromDrop = closing;
+        float y = fromDrop ? phoneBody.anchoredPosition.y : PhoneY - RiseDistance, alpha = fromDrop ? rootGroup.alpha : 0f;
+        closing = false;
+        motions.Finish();
+        FinishKnobs();
+        scrollGliding = false;
+        scrollVelocity = 0f;
+        ringOn = ringGliding = false;
+        rootGroup.blocksRaycasts = rootGroup.interactable = true;   // a press during the rise acts (it finishes the rise first)
+        motions.MoveY(phoneBody, y, PhoneY, now, RiseSeconds, UiTween.Ease.OutBack);
+        motions.Alpha(rootGroup, alpha, 1f, now, RiseFade, UiTween.Ease.OutCubic);
+        cascadeDue = true;
+    }
+
+    // The drop has ended: Root goes off (RootHidden puts everything back in place for the next time it comes out).
+    void EndClose()
+    {
+        closing = false;
+        if (Root != null && Root.activeSelf) Root.SetActive(false);
+        else RootHidden();
+    }
+
+    // Where an app sits along the tab bar now (-1: not on it, as Tonight isn't by day); a loop, not Array.IndexOf on an enum.
+    int Order(App app)
+    {
+        App[] shown = Visible;
+        for (int i = 0; i < shown.Length; i++) if (shown[i] == app) return i;
+        return -1;
+    }
+
+    // The middle of the tab at this place along the bar (PlaceTabs' cells).
+    float TabMiddle(int at) => DisplayWidth / Visible.Length * (at + .5f);
+
+    // The tab bar as the app changes: the pill slides from the old tab to the new one (settling with a touch of overshoot), the
+    // two tabs' colours cross over, and the new tab's icon pops. On a bar that has just come up (from Tonight) the pill is simply
+    // there; the pop still plays.
+    void OpenTabMoves(App was, App now, bool barWas, float pillWas, float t0)
+    {
+        if (tabBar == null || !tabBar.gameObject.activeSelf || Order(now) < 0) return;
+        PopTab(now, t0);
+        if (!barWas || Order(was) < 0) return;
+        motions.MoveX(tabPill, pillWas, tabPill.anchoredPosition.x, t0, PillSeconds, UiTween.Ease.OutBack);
+        int a = (int)was, b = (int)now;
+        motions.Colour(tabIcons[a], Accent, TabOff, t0, TabColourSeconds, UiTween.Ease.OutCubic);
+        motions.Colour(tabLabels[a], Accent, TabOff, t0, TabColourSeconds, UiTween.Ease.OutCubic);
+        motions.Colour(tabIcons[b], TabOff, Accent, t0, TabColourSeconds, UiTween.Ease.OutCubic);
+        motions.Colour(tabLabels[b], TabOff, Accent, t0, TabColourSeconds, UiTween.Ease.OutCubic);
+    }
+
+    // A tab's icon pops (1 to PopScale and back, about its middle).
+    void PopTab(App app, float t0)
+    {
+        if (tabBar == null || !tabBar.gameObject.activeSelf || Order(app) < 0) return;
+        motions.Scale(tabIcons[(int)app].rectTransform, 1f, PopScale, t0, PopSeconds, UiTween.Ease.Pop);
+    }
+
+    // Rows arriving: an app just opened (or the phone just out) has its rows rise into place one after another. A row is what
+    // sits side by side in the app (a card and its shadow, a heading's icon and its words): the app's own pieces, in the order they
+    // were built, top to bottom. Each rises RowRise units and fades in over RowSeconds, RowStagger after the row above, the last
+    // starting by RowLastStart, so all of it is over within a quarter of a second however much the app holds. Only the rows in
+    // the window move; the rest are out of sight and stay put. A piece fades with a canvas group of its own, which never stops a
+    // press (a press finishes it all first anyway).
+    void RowsArrive()
+    {
+        float windowTop = ScrollOffset, windowBottom = windowTop + viewport.rect.height, now = Now();
+        int count = content.childCount, rows = 0;
+        // Twice over the pieces: first to count the rows in the window (the beat between them shrinks if there are many), then to
+        // set each one going.
+        for (int pass = 0; pass < 2; pass++)
+        {
+            float stagger = rows > 1 ? Mathf.Min(RowStagger, RowLastStart / (rows - 1)) : 0f;
+            int row = -1;
+            float bottom = float.NegativeInfinity;
+            for (int i = 0; i < count; i++)
+            {
+                var piece = content.GetChild(i) as RectTransform;
+                if (piece == null || !piece.gameObject.activeSelf) continue;   // the last build's, on its way out
+                float top = TopOf(piece), height = piece.rect.height;
+                if (top >= windowBottom) break;                                 // below the window, and so is the rest
+                if (top + height <= windowTop) continue;                        // above it (scrolled past)
+                if (top >= bottom - 1f) row++;
+                bottom = Mathf.Max(bottom, top + height);
+                if (pass == 0) continue;
+                float start = now + row * stagger, y = piece.anchoredPosition.y;
+                motions.MoveY(piece, y - RowRise, y, start, RowSeconds, UiTween.Ease.OutCubic);
+                if (!piece.TryGetComponent(out CanvasGroup group)) group = piece.gameObject.AddComponent<CanvasGroup>();
+                motions.Alpha(group, 0f, 1f, start, RowSeconds, UiTween.Ease.OutQuad);
+            }
+            if (pass == 0) rows = row + 1;
+            if (rows == 0) return;
+        }
+    }
+
+    // How far down the app a piece's top is (its pivot may be its middle, once pressed).
+    static float TopOf(RectTransform piece) => -piece.anchoredPosition.y - (1f - piece.pivot.y) * piece.rect.height;
+
+    // Every button on the phone, pressed (the first of its listeners): what was moving finishes at once, then the button squishes and
+    // springs back with the tap (Close up has its own sounds: RecapUI's and PausePhone's) and, on a pad, a light rumble. What the
+    // button does comes next; if that builds the app again, the squish carries on on its new self (SquishAgain).
+    void Pressed(Button button)
+    {
+        FinishMotion();
+        float now = Now();
+        pressKey = buttonKeys.TryGetValue(button, out string key) ? key : null;
+        pressAt = now;
+        Squish((RectTransform)button.transform, now);
+        if (button != CloseButton) Sfx.Play2D("phone.tap");
+        Buzz();
+    }
+
+    // The squish: down to 0.94 and back up past 1.03, about the button's middle (UiTween.Ease.Squish). A card that is a button (a
+    // person, the notebook line) takes its shadow with it (FinishCard puts the shadow just before it), so no grey edge shows.
+    void Squish(RectTransform box, float start)
+    {
+        if (box == null) return;
+        CentrePivot(box);
+        motions.Scale(box, 1f, UiTween.SquishLow, start, SquishSeconds, UiTween.Ease.Squish);
+        int at = box.parent == content ? box.GetSiblingIndex() : 0;
+        if (at <= 0) return;
+        var shadow = content.GetChild(at - 1) as RectTransform;
+        if (shadow == null || shadow.name != "Shadow") return;
+        CentrePivot(shadow);
+        motions.Scale(shadow, 1f, UiTween.SquishLow, start, SquishSeconds, UiTween.Ease.Squish);
+    }
+
+    // The app built again just after a press (a switch flipped, a person opened, a purchase): the same key's new button carries on
+    // its squish from where it was. (Not on a row that's arriving: the press finished that, and a new app's keys aren't the old's.)
+    void SquishAgain()
+    {
+        if (pressKey == null || Now() - pressAt >= SquishSeconds) return;
+        Button again = ContentButton(pressKey);
+        if (again == null) return;
+        var box = (RectTransform)again.transform;
+        if (motions.Has(box, UiTween.Kind.Scale) || motions.Has(box, UiTween.Kind.MoveY)) return;
+        Squish(box, pressAt);
+    }
+
+    // A click on a button that can't be pressed now (Nudge): a tiny shake, side to side, and no sound (nothing in the bank says "no"
+    // softly yet). Whatever was moving finishes first, as for any press.
+    void Refuse(RectTransform box)
+    {
+        if (closing || box == null) return;
+        FinishMotion();
+        float x = box.anchoredPosition.x;
+        motions.MoveX(box, x, x + ShakeWidth, Now(), ShakeSeconds, UiTween.Ease.Shake);
+    }
+
+    // A pad's press: the bench's lightest pulse, BuzzSeconds long, only with Settings' Vibration on and the pad in hand (the keys
+    // and the mouse feel nothing). Stopped by StopBuzz on real time, not the motion's clock (a lab's slow motion doesn't stretch it).
+    void Buzz()
+    {
+        if (!PadInput.UsingPad || !GameSettings.Vibration || !Application.isFocused) return;
+        PadInput.Rumble(BuzzLow, BuzzHigh);
+        buzzUntil = Time.unscaledTime + BuzzSeconds;
+    }
+
+    // The rumble off: once its time is up (every frame), or at once (the phone gone).
+    void StopBuzz(bool atOnce)
+    {
+        if (buzzUntil < 0f || (!atOnce && Time.unscaledTime < buzzUntil)) return;
+        buzzUntil = -1f;
+        PadInput.StopRumble();
+    }
+
+    // A slider's value has changed: after a D-pad step or a click along it, its knob glides there from where it's drawn; while the
+    // mouse drags it (KnobDrag), it is simply there.
+    void KnobFollows(Slider slider)
+    {
+        for (int i = 0; i < knobs.Count; i++)
+        {
+            Knob k = knobs[i];
+            if (k.slider != slider) continue;
+            if (k.drag != null && k.drag.dragging)
+            {
+                // Dragged by the mouse: the knob stays under the pointer (the slider has put it at its value; a glide would trail
+                // the hand by a tenth of a second).
+                k.shown = k.to = slider.normalizedValue;
+                k.gliding = false;
+                if (k.handle != null && k.fill != null) DrawKnob(in k);
+            }
+            else
+            {
+                k.from = k.shown;
+                k.to = slider.normalizedValue;
+                k.since = Now();
+                k.gliding = true;
+            }
+            knobs[i] = k;
+            return;
+        }
+    }
+
+    // One frame of the sliders' knobs: each drawn where its glide has got to (the slider put it at its value; this goes over that,
+    // the handle and the fill together, until the glide ends at the value itself).
+    void StepKnobs(float now)
+    {
+        for (int i = 0; i < knobs.Count; i++)
+        {
+            Knob k = knobs[i];
+            if (!k.gliding) continue;
+            if (k.slider == null || k.handle == null || k.fill == null) { k.gliding = false; knobs[i] = k; continue; }
+            float t = (now - k.since) / SliderSeconds;
+            if (t >= 1f) k.gliding = false;
+            k.shown = t >= 1f ? k.to : Mathf.LerpUnclamped(k.from, k.to, UiTween.Eased(UiTween.Ease.OutCubic, t));
+            DrawKnob(in k);
+            knobs[i] = k;
+        }
+    }
+
+    void FinishKnobs()
+    {
+        for (int i = 0; i < knobs.Count; i++)
+        {
+            Knob k = knobs[i];
+            if (!k.gliding) continue;
+            k.gliding = false;
+            k.shown = k.to;
+            if (k.slider != null && k.handle != null && k.fill != null) DrawKnob(in k);
+            knobs[i] = k;
+        }
+    }
+
+    bool KnobsGliding
+    {
+        get
+        {
+            for (int i = 0; i < knobs.Count; i++) if (knobs[i].gliding) return true;
+            return false;
+        }
+    }
+
+    // The knob and the fill at a share of the way along (as Unity's slider places them: the knob's anchors at the share, the fill's
+    // right edge there).
+    static void DrawKnob(in Knob k)
+    {
+        k.handle.anchorMin = new Vector2(k.shown, 0f);
+        k.handle.anchorMax = new Vector2(k.shown, 1f);
+        k.fill.anchorMax = new Vector2(k.shown, 1f);
+    }
+
+    // The phone's own little helpers, made in code with it (nothing in the scene changes). Unity calls them; they hand over.
+
+    // On the screen (Root): RecapUI switches the recap's phone on and off itself (its panel is Root), so the phone hears it here.
+    sealed class RootWatch : MonoBehaviour
+    {
+        internal RecapPhone phone;
+        void OnEnable() { if (phone != null) phone.RootShown(); }
+        void OnDisable() { if (phone != null) phone.RootHidden(); }
+    }
+
+    // On the apps' window: the wheel (or two fingers on a trackpad) scrolls in a glide. The scroll rect still has the drag.
+    sealed class WheelGlide : MonoBehaviour, IScrollHandler
+    {
+        internal RecapPhone phone;
+        public void OnScroll(PointerEventData data) { if (phone != null) phone.WheelScroll(data.scrollDelta); }
+    }
+
+    // On a button that can't be pressed now (a price out of reach): Unity sends it no press, but this hears the click.
+    sealed class Nudge : MonoBehaviour, IPointerClickHandler
+    {
+        internal RecapPhone phone;
+        public void OnPointerClick(PointerEventData data)
+        {
+            if (phone == null || data.button != PointerEventData.InputButton.Left) return;
+            if (TryGetComponent(out Button button) && !button.IsInteractable()) phone.Refuse((RectTransform)transform);
+        }
+    }
+
+    // On a slider: the mouse dragging it (Unity sends the slider's drag to everything on it that listens), so its knob stays under
+    // the pointer while it's dragged, and glides only after a D-pad step or a click along it (KnobFollows).
+    sealed class KnobDrag : MonoBehaviour, IBeginDragHandler, IEndDragHandler
+    {
+        internal bool dragging;
+        public void OnBeginDrag(PointerEventData data) => dragging = true;
+        public void OnEndDrag(PointerEventData data) => dragging = false;
+        void OnDisable() => dragging = false;   // put away or built again mid-drag: no end comes
     }
 
     // ------------------------------------------------------------------ building the current app
@@ -794,11 +1469,19 @@ public sealed class RecapPhone : MonoBehaviour
     {
         dirty = false;
         Builds++;
+        builtFrame = Time.frameCount;   // this frame is long: the motion's clock won't count it all (Now)
         // A pad player keeps their place across a rebuild (after buying, say): the same button, as far down.
         string keep = SelectedKey();
-        float offset = scrollToTop ? 0f : content.anchoredPosition.y;
+        bool top = scrollToTop;
+        float offset = top ? 0f : content.anchoredPosition.y;
         scrollToTop = false;
         scroll.StopMovement();
+        if (top)
+        {
+            scrollGliding = false;        // a new app starts still, at its top (a glide under way carries on through a rebuild)
+            scrollVelocity = 0f;
+        }
+        knobs.Clear();                    // the sliders are new (SliderRow adds them again)
 
         contentButtons.Clear();
         buttonKeys.Clear();
@@ -845,6 +1528,16 @@ public sealed class RecapPhone : MonoBehaviour
             if (again != null && again.interactable) events.SetSelectedGameObject(again.gameObject);
         }
         lastRevealed = null;
+
+        // The motion (23 Oct): an app just opened, or the phone just out, has its rows arrive (a second build in the same frame
+        // too); a press's squish carries on, on the same button in the app built again.
+        if (cascadeDue || cascadeFrame == Time.frameCount)
+        {
+            cascadeDue = false;
+            cascadeFrame = Time.frameCount;
+            RowsArrive();
+        }
+        SquishAgain();
     }
 
     string SelectedKey()
@@ -911,6 +1604,8 @@ public sealed class RecapPhone : MonoBehaviour
             };
     }
 
+    // The open tab in the accent, the others grey, and the pill behind the open tab's icon (none on Tonight's, which has no
+    // bar). At once: an app switch's motion runs over these (OpenTabMoves) and draws its own values until it ends.
     void UpdateTabs()
     {
         for (int i = 0; i < Apps; i++)
@@ -919,6 +1614,10 @@ public sealed class RecapPhone : MonoBehaviour
             if (tabIcons[i] != null) tabIcons[i].color = colour;
             if (tabLabels[i] != null) tabLabels[i].color = colour;
         }
+        if (tabPill == null) return;
+        int at = Order(Current);
+        if (tabPill.gameObject.activeSelf != at >= 0) tabPill.gameObject.SetActive(at >= 0);
+        if (at >= 0) tabPill.anchoredPosition = new Vector2(TabMiddle(at), tabPill.anchoredPosition.y);
     }
 
     void UpdateBadges()
@@ -1085,9 +1784,8 @@ public sealed class RecapPhone : MonoBehaviour
     float NotebookLine(float y, NotebookFactData fact)
     {
         RectTransform card = CardBox("Notebook line", y);
-        RectTransform square = Box("Icon", card, CardPadX, 11f, 32f, 32f);
-        Paint(square, Hex(0xece7f5), 9f);
-        Picture(square, note, Hex(0x6b5aa0), 7f, 7f, 18f, 18f);
+        // What the fact is about, as a picture (23 Oct 2026, NotePhotos), where the purple note square was.
+        NotePhotos.Thumb(card, NoteSubjects.KeyOf(fact), CardPadX, 11f, 32f);
         float x = CardPadX + 44f, width = ContentWidth - x - CardPadX;
         bool his = fact.source == Notebook.Sources.Inherited;
         string whose = string.IsNullOrWhiteSpace(fact.name) ? fact.who ?? "" : fact.name;
@@ -1107,7 +1805,7 @@ public sealed class RecapPhone : MonoBehaviour
         Image face = Paint(box, AccentSoft, 12f);
         TMP_Text words = Counted(Words(box, $"Low on {what}. Restock in Shop.", 12f, 9f, ContentWidth - 24f, 18f, AccentText, rich: false));
         box.sizeDelta = new Vector2(ContentWidth, Bottom(words.rectTransform) + 9f);
-        Pressable(box, face, "stock", () => Tap(App.Shop), dark: false);
+        Pressable(box, face, "stock", () => Open(App.Shop), dark: false);   // its press taps and rumbles (Pressed), so not Tap
         return y + box.sizeDelta.y + CardGap;
     }
 
@@ -1122,7 +1820,7 @@ public sealed class RecapPhone : MonoBehaviour
         TMP_Text words = Counted(Words(rect, label, 0f, 0f, ContentWidth, 18f, Soft, TextAlignmentOptions.Center, wrap: false,
             style: FontStyles.Bold, rich: false));
         Place(words.rectTransform, 0f, 0f, ContentWidth, 44f);
-        Pressable(rect, face, "more", () => Tap(App.Reviews), dark: false);
+        Pressable(rect, face, "more", () => Open(App.Reviews), dark: false);   // its press taps and rumbles (Pressed), so not Tap
         return y + 2f + 44f + CardGap;
     }
 
@@ -1615,8 +2313,7 @@ public sealed class RecapPhone : MonoBehaviour
 
     void TogglePerson(string who)
     {
-        OpenPerson = OpenPerson == who ? "" : who ?? "";
-        Sfx.Play2D("phone.tap");
+        OpenPerson = OpenPerson == who ? "" : who ?? "";   // the row's press has tapped already (Pressed)
         RebuildNow();
     }
 
@@ -1625,7 +2322,11 @@ public sealed class RecapPhone : MonoBehaviour
     float PersonRow(float y, NotebookPerson person, int day)
     {
         RectTransform card = CardBox("Person", y);
-        Avatar(card, CardPadX, 12f, 36f, person.name);
+        // Who it is, as a picture (23 Oct 2026, the notebook's pictures, NotePhotos): Grace, the Officer, the man at the bins;
+        // other regulars keep their lettered disc.
+        string pictureKey = NoteSubjects.KeyOfPerson(person.who);
+        if (pictureKey != NoteSubjects.Someone) NotePhotos.Thumb(card, pictureKey, CardPadX, 12f, 36f);
+        else Avatar(card, CardPadX, 12f, 36f, person.name);
         float x = CardPadX + 48f, width = ContentWidth - x - CardPadX - 18f;
         TMP_Text name = Words(card, person.name, x, 11f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         int fresh = person.LearnedOn(day);
@@ -1652,7 +2353,9 @@ public sealed class RecapPhone : MonoBehaviour
     float PersonCard(float y, NotebookPerson person, int day)
     {
         RectTransform card = CardBox("Person", y);
-        Avatar(card, CardPadX, 14f, 40f, person.name);
+        string pictureKey = NoteSubjects.KeyOfPerson(person.who);   // as on the row (23 Oct 2026)
+        if (pictureKey != NoteSubjects.Someone) NotePhotos.Thumb(card, pictureKey, CardPadX, 14f, 40f);
+        else Avatar(card, CardPadX, 14f, 40f, person.name);
         float x = CardPadX + 52f;
         TMP_Text name = Words(card, person.name, x, 0f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         Vector2 nameSize = name.rectTransform.sizeDelta;
@@ -1663,7 +2366,10 @@ public sealed class RecapPhone : MonoBehaviour
         Place(chevron.rectTransform, ContentWidth - CardPadX - chevron.rectTransform.sizeDelta.x + 2f, 34f - chevron.rectTransform.sizeDelta.y / 2f + 4f,
             chevron.rectTransform.sizeDelta.x, chevron.rectTransform.sizeDelta.y);
         float cy = 14f + 40f + 4f;
-        float textX = CardPadX + 16f, width = ContentWidth - textX - CardPadX;
+        // A fact about something other than the person carries that thing's picture where the dot was (23 Oct 2026): Barnaby,
+        // Grace's house, the cups. The rest keep the dot.
+        const float factPicture = 28f;
+        float textX = CardPadX + factPicture + 10f, width = ContentWidth - textX - CardPadX;
         for (int i = 0; i < person.facts.Count; i++)
         {
             NotebookFactData fact = person.facts[i];
@@ -1674,8 +2380,10 @@ public sealed class RecapPhone : MonoBehaviour
             if (fact.day == day) text += $"  <color={AccentHex}><size=78%><b>NEW</b></size></color>";
             TMP_Text line = Words(card, text, textX, cy, width, 18f, Ink,
                 style: fact.source == Notebook.Sources.Inherited ? FontStyles.Italic : FontStyles.Normal);
-            Picture(card, circle, Accent, CardPadX + 1f, cy + 7.5f, 7f, 7f);
-            cy = Bottom(line.rectTransform) + 10f;
+            string about = NoteSubjects.KeyOf(fact);
+            if (about != pictureKey && about != NoteSubjects.Someone) NotePhotos.Thumb(card, about, CardPadX, cy, factPicture);
+            else Picture(card, circle, Accent, CardPadX + (factPicture - 7f) / 2f, cy + 7.5f, 7f, 7f);
+            cy = Mathf.Max(Bottom(line.rectTransform), cy + factPicture) + 10f;
         }
         string who = person.who;
         Pressable(card, card.GetComponent<Image>(), "person:" + who, () => TogglePerson(who), dark: false);
@@ -1773,8 +2481,10 @@ public sealed class RecapPhone : MonoBehaviour
         cy = SwitchRow(controls, cy, "Invert Y", "Looking up and down, turned over.", GameSettings.InvertY,
             () => Flip(() => GameSettings.InvertY = !GameSettings.InvertY), "invert");
         cy = Rule(controls, cy);
-        cy = SwitchRow(controls, cy, "Aim help", "On a pad: the view slows and settles on things.", GameSettings.AimHelp,
-            () => Flip(() => GameSettings.AimHelp = !GameSettings.AimHelp), "aimhelp");
+        // Light, Strong or Off (23 Oct 2026, his note: "helpful, but not so overpowering that it's like fighting me"): Light is the
+        // default and what "on" was before; Strong the 7 Oct numbers without the fighting (AimAssist). PLACEHOLDER COPY.
+        cy = ChoiceRow(controls, cy, "Aim help", "On a pad: the view slows and settles on things. Strong pulls harder.",
+            AimHelpWords, GameSettings.AimLevel.ToString(), "aimhelp", word => GameSettings.AimLevel = AimLevelOf(word));
         cy = Rule(controls, cy);
         cy = SwitchRow(controls, cy, "Movement help", "On a pad: walking straightens along the café.", GameSettings.MovementHelp,
             () => Flip(() => GameSettings.MovementHelp = !GameSettings.MovementHelp), "movehelp");
@@ -1783,9 +2493,10 @@ public sealed class RecapPhone : MonoBehaviour
         cy = Rule(controls, cy);
         cy = SwitchRow(controls, cy, "Swap the sticks at the bench", "Left stick moves your hand, right stick turns the device.",
             GameSettings.SwapBenchSticks, () => Flip(() => GameSettings.SwapBenchSticks = !GameSettings.SwapBenchSticks), "swapsticks");
-        // Pad rumble at the bench (14 Oct, Systems' decision 13: "feel the impact"); on by default. PLACEHOLDER COPY.
+        // Pad rumble at the bench (14 Oct, Systems' decision 13: "feel the impact"); on by default. Since 23 Oct the phone's presses
+        // rumble too (Pressed), and its line says so (the integrator's yes to builder J's question). PLACEHOLDER COPY.
         cy = Rule(controls, cy);
-        cy = SwitchRow(controls, cy, "Vibration", "On a pad: the bench's tools rumble as they work.", GameSettings.Vibration,
+        cy = SwitchRow(controls, cy, "Vibration", "On a pad: the bench's tools and the phone's buttons rumble.", GameSettings.Vibration,
             () => Flip(() => GameSettings.Vibration = !GameSettings.Vibration), "vibration");
         y = FinishCard(controls, cy + 2f, y);
 
@@ -1816,14 +2527,23 @@ public sealed class RecapPhone : MonoBehaviour
         return at >= 0 ? Mornings[at] : DayIntroMode.Full;
     }
 
+    // The aim help's three settings in the row's order (23 Oct 2026), and their words on the pills: Light, Strong, Off.
+    static readonly AimHelpLevel[] AimLevels = { AimHelpLevel.Light, AimHelpLevel.Strong, AimHelpLevel.Off };
+    static readonly string[] AimHelpWords = Array.ConvertAll(AimLevels, level => level.ToString());
+
+    static AimHelpLevel AimLevelOf(string word)
+    {
+        int at = Array.IndexOf(AimHelpWords, word);
+        return at >= 0 ? AimLevels[at] : AimHelpLevel.Light;
+    }
+
     static string Percent(float v) => Mathf.RoundToInt(v * 100f) + "%";
     static string Times(float v) => v.ToString("0.0") + "x";
 
     void Flip(Action change)
     {
         change();
-        quitArmed = false;
-        Sfx.Play2D("phone.tap");
+        quitArmed = false;   // the press has tapped already (Pressed)
         RebuildNow();
     }
 
@@ -1882,6 +2602,7 @@ public sealed class RecapPhone : MonoBehaviour
         colours.highlightedColor = new Color(.94f, .94f, .94f, 1f);
         colours.pressedColor = new Color(.86f, .86f, .86f, 1f);
         colours.selectedColor = Color.white;   // the gold ring shows a pad's selection
+        colours.disabledColor = Color.white;   // as the buttons': the knob doesn't grey as the phone drops away (PutAway, 23 Oct)
         colours.colorMultiplier = 1f;
         colours.fadeDuration = .06f;
         slider.colors = colours;
@@ -1891,8 +2612,11 @@ public sealed class RecapPhone : MonoBehaviour
             set(v);
             quitArmed = false;
             shown.text = format(v);
+            KnobFollows(slider);   // the knob glides after the value (23 Oct): a D-pad step, a click along it; not a mouse drag
         });
         sliderKeys[slider] = key;
+        knobs.Add(new Knob { slider = slider, handle = handle, fill = fill, drag = rect.gameObject.AddComponent<KnobDrag>(),
+                             shown = slider.normalizedValue });
         AddNav(slider);
         return top + height + 10f;
     }
@@ -1915,6 +2639,14 @@ public sealed class RecapPhone : MonoBehaviour
         lift.effectColor = new Color(0f, 0f, 0f, .25f);
         lift.effectDistance = new Vector2(0f, -1.5f);
         Pressable(toggle, track, key, flip, dark: on);
+        // Just flipped (23 Oct): the knob slides across from the side it was on as the track's colour turns (the press's tap is the
+        // click). Timed from the press, so a second build straight after carries on where it was.
+        if (key == pressKey && Now() - pressAt < KnobSeconds)
+        {
+            float there = on ? w - h + 3f : 3f, was = on ? 3f : w - h + 3f;
+            motions.MoveX(knob, was, there, pressAt, KnobSeconds, UiTween.Ease.OutBack);
+            motions.Colour(track, on ? ButtonOff : Green, on ? Green : ButtonOff, pressAt, KnobSeconds, UiTween.Ease.OutCubic);
+        }
         return Mathf.Max(bottom, mid + h / 2f) + 10f;
     }
 
@@ -1974,7 +2706,7 @@ public sealed class RecapPhone : MonoBehaviour
 
     void PressQuit()
     {
-        Sfx.Play2D("phone.tap");
+        // The press has tapped already (Pressed).
         if (!quitArmed)
         {
             quitArmed = true;
@@ -2104,6 +2836,8 @@ public sealed class RecapPhone : MonoBehaviour
         Place(words.rectTransform, 0f, 0f, width, height);
         Button button = Pressable(rect, face, key, press, dark: back.grayscale < .3f);
         button.interactable = enabled;
+        // Out of reach (a price too dear): a click shakes it a little instead of doing nothing (23 Oct). A pad never lands on it.
+        if (!enabled) rect.gameObject.AddComponent<Nudge>().phone = this;
         return button;
     }
 
@@ -2123,6 +2857,9 @@ public sealed class RecapPhone : MonoBehaviour
         colours.fadeDuration = .06f;
         button.colors = colours;
         button.navigation = new Navigation { mode = Navigation.Mode.None };   // wired after each build
+        // First, before what the button does (23 Oct): whatever was moving finishes, the button squishes and springs back, the tap,
+        // and on a pad a light rumble (Pressed). Close up's own listeners (RecapUI's, PausePhone's) come after this one.
+        button.onClick.AddListener(() => Pressed(button));
         if (press != null) button.onClick.AddListener(press);
         if (key != null)
         {
@@ -2197,13 +2934,26 @@ public sealed class RecapPhone : MonoBehaviour
         return rect;
     }
 
+    // (x, y) is the box's top-left corner, whatever its pivot: a box that squishes or pops (23 Oct) turns about its middle, and
+    // Place still puts its corner where it says. For the usual top-left pivot this is the box's anchored position, as it always was.
     static void Place(RectTransform rect, float x, float y, float width, float height)
     {
-        rect.anchoredPosition = new Vector2(x, -y);
+        Vector2 pivot = rect.pivot;
+        rect.anchoredPosition = new Vector2(x + pivot.x * width, -y - (1f - pivot.y) * height);
         rect.sizeDelta = new Vector2(width, height);
     }
 
-    static float Bottom(RectTransform rect) => -rect.anchoredPosition.y + rect.sizeDelta.y;
+    static float Bottom(RectTransform rect) => -rect.anchoredPosition.y + rect.pivot.y * rect.sizeDelta.y;
+
+    // Turns a box about its middle from now on, without moving it (a squish or a pop shrinks toward its middle, not its corner).
+    static void CentrePivot(RectTransform rect)
+    {
+        Vector2 middle = new Vector2(.5f, .5f), was = rect.pivot;
+        if (was == middle) return;
+        Vector2 size = rect.rect.size;
+        rect.pivot = middle;
+        rect.anchoredPosition += Vector2.Scale(middle - was, size);
+    }
 
     static RectTransform Anchored(string name, Transform parent, Vector2 anchor, Vector2 position, Vector2 size)
     {
@@ -2462,8 +3212,13 @@ public sealed class RecapPhone : MonoBehaviour
         return left.ToArray();
     }
 
+    // Switched off, its Update (which stops a press's rumble on time) no longer runs: the rumble stops now (23 Oct).
+    void OnDisable() => StopBuzz(true);
+
     void OnDestroy()
     {
+        StopBuzz(true);   // a press's rumble never outlives the phone
+        motions.Clear();
         foreach (Object thing in made) if (thing != null) Destroy(thing);
         made.Clear();
     }

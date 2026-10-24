@@ -12242,6 +12242,7 @@ GameObject:
   m_Component:
   - component: {fileID: 65408211}
   - component: {fileID: 65408212}
+  - component: {fileID: 65408213}
   m_Layer: 0
   m_Name: Seat (banquette 2-top, south, chair)
   m_TagString: Untagged
@@ -12291,6 +12292,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &65408213
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 65408210}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 0
+  zone: west banquette
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &65463603 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: cd2538dd7ccd80843b3a4bf291152ef6, type: 3}
@@ -18347,6 +18363,7 @@ GameObject:
   m_Component:
   - component: {fileID: 108431921}
   - component: {fileID: 108431922}
+  - component: {fileID: 108431923}
   m_Layer: 0
   m_Name: Seat (communal table, west 2)
   m_TagString: Untagged
@@ -18397,6 +18414,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &108431923
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 108431920}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!23 &108622417 stripped
 MeshRenderer:
   m_CorrespondingSourceObject: {fileID: 7243893709762761859, guid: fec4d2da1bd3bdd4cbed1f7e858eb959, type: 3}
@@ -35693,6 +35725,7 @@ GameObject:
   m_Component:
   - component: {fileID: 228661081}
   - component: {fileID: 228661082}
+  - component: {fileID: 228661083}
   m_Layer: 0
   m_Name: Seat (lounge, tub chair A)
   m_TagString: Untagged
@@ -35742,6 +35775,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &228661083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 228661080}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 2
+  zone: lounge
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &229025307
 GameObject:
   m_ObjectHideFlags: 0
@@ -41552,6 +41600,53 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 270171325}
   m_Mesh: {fileID: -1559241826080686867, guid: ab36ef4a9b00cc84aadc5f134e433c0d, type: 2}
+--- !u!1 &271175558
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 271175559}
+  - component: {fileID: 271175560}
+  m_Layer: 0
+  m_Name: Seat area - by the front window, west of the door
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &271175559
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 271175558}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -4.45, y: 1, z: 0.95000005}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1585287255}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &271175560
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 271175558}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 1
+  zone: 
+  area: {x: 6.5, y: 3, z: 2.5}
 --- !u!1 &271356464
 GameObject:
   m_ObjectHideFlags: 0
@@ -50881,6 +50976,7 @@ GameObject:
   m_Component:
   - component: {fileID: 337555018}
   - component: {fileID: 337555019}
+  - component: {fileID: 337555020}
   m_Layer: 0
   m_Name: Seat (banquette 2-top, north, on the banquette)
   m_TagString: Untagged
@@ -50930,6 +51026,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &337555020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 337555017}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 2
+  zone: west banquette
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &337881526
 GameObject:
   m_ObjectHideFlags: 0
@@ -54340,6 +54451,7 @@ GameObject:
   m_Component:
   - component: {fileID: 356472863}
   - component: {fileID: 356472864}
+  - component: {fileID: 356472865}
   m_Layer: 0
   m_Name: Seat (communal table, west 3)
   m_TagString: Untagged
@@ -54389,6 +54501,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &356472865
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 356472862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &356640036
 GameObject:
   m_ObjectHideFlags: 0
@@ -71491,6 +71618,7 @@ GameObject:
   m_Component:
   - component: {fileID: 464658771}
   - component: {fileID: 464658772}
+  - component: {fileID: 464658773}
   m_Layer: 0
   m_Name: Seat (communal table, west 1)
   m_TagString: Untagged
@@ -71540,6 +71668,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &464658773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 464658770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &464990565
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -96022,6 +96165,7 @@ GameObject:
   m_Component:
   - component: {fileID: 626538832}
   - component: {fileID: 626538833}
+  - component: {fileID: 626538834}
   m_Layer: 0
   m_Name: Seat (communal table, east 4)
   m_TagString: Untagged
@@ -96071,6 +96215,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &626538834
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 626538831}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &626561486
 GameObject:
   m_ObjectHideFlags: 0
@@ -96957,6 +97116,7 @@ GameObject:
   m_Component:
   - component: {fileID: 631824011}
   - component: {fileID: 631824012}
+  - component: {fileID: 631824013}
   m_Layer: 0
   m_Name: Seat (bistro 2-top, south, west)
   m_TagString: Untagged
@@ -97007,6 +97167,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &631824013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 631824010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 0
+  zone: bistro
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &632129056
 GameObject:
   m_ObjectHideFlags: 0
@@ -97182,6 +97357,7 @@ GameObject:
   m_Component:
   - component: {fileID: 633205151}
   - component: {fileID: 633205152}
+  - component: {fileID: 633205153}
   m_Layer: 0
   m_Name: Seat (bistro 2-top, north, west)
   m_TagString: Untagged
@@ -97231,6 +97407,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &633205153
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 633205150}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 0
+  zone: bistro
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &634230985
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -97547,6 +97738,7 @@ GameObject:
   m_Component:
   - component: {fileID: 638289843}
   - component: {fileID: 638289844}
+  - component: {fileID: 638289845}
   m_Layer: 0
   m_Name: Seat (banquette 2-top, north, chair)
   m_TagString: Untagged
@@ -97596,6 +97788,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &638289845
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 638289842}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 0
+  zone: west banquette
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &639028577
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -107534,7 +107741,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &705732709
 Transform:
   m_ObjectHideFlags: 0
@@ -127104,6 +127311,53 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 836184810}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &836200523
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 836200524}
+  - component: {fileID: 836200525}
+  m_Layer: 0
+  m_Name: Seat area - by the front window, east of the door
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &836200524
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 836200523}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 4.45, y: 1, z: 0.95000005}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1585287255}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &836200525
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 836200523}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 1
+  zone: 
+  area: {x: 6.5, y: 3, z: 2.5}
 --- !u!1001 &836611535
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -148859,6 +149113,8 @@ GameObject:
   - component: {fileID: 991522322}
   - component: {fileID: 991522321}
   - component: {fileID: 991522320}
+  - component: {fileID: 991522323}
+  - component: {fileID: 991522324}
   m_Layer: 0
   m_Name: ACE'S CAFE - layout study 02
   m_TagString: Untagged
@@ -150537,6 +150793,114 @@ MonoBehaviour:
     1.15), CK_RubberPlant (touch 2) at (-3.55, 1.25). The biggest bare zones measured
     before: a free disc of r 2.2 m at (4.4, 11.0); a free disc of r 1.7 m at (-2.7,
     2.1); a free disc of r 1.6 m at (3.8, 2.0)."
+--- !u!114 &991522323
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991522307}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bad0b9ff09fdf472f9834b50c36b1a61, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CafeRedesignRecord
+  step: Art tidy 1 - The coats out
+  when: 2026-10-23 21:14
+  order: 13
+  switchedOff:
+  - target: {fileID: 1122315963}
+    why: 'his note (22 Oct): "clothes on the on chairs in the cafe that just look
+      like squares and rectangles together": Lived in 2''s coat over the back of
+      CK_Chair_Cafe (banquette 2-top, south)'
+  - target: {fileID: 1160028622}
+    why: 'his note (22 Oct): "clothes on the on chairs in the cafe that just look
+      like squares and rectangles together": Lived in 2''s coat over the back of
+      CK_Chair_Cafe (banquette 2-top, middle)'
+  - target: {fileID: 1979487965}
+    why: 'the coat stand''s scarf, built of plain boxes (his playtest 3 note: "a
+      coat rack with two squares"; his note (22 Oct): "clothes on the on chairs in
+      the cafe that just look like squares and rectangles together")'
+  - target: {fileID: 1730868425}
+    why: 'the coat stand''s tote bag, built of plain boxes (his playtest 3 note:
+      "a coat rack with two squares"; his note (22 Oct): "clothes on the on chairs
+      in the cafe that just look like squares and rectangles together")'
+  made: []
+  addedComponents: []
+  moved: []
+  repainted: []
+  lights: []
+  boxes: []
+  shapes: []
+  toggled: []
+  listed: []
+  notes:
+  - 'Art tidy 1: 2 coat(s) off the chairs and the coat stand''s scarf and tote bag
+    off (switched off, not deleted); the chairs, the stand and its hat as they were.
+    Lived in 2 places its coats off from now on.'
+--- !u!114 &991522324
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991522307}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bad0b9ff09fdf472f9834b50c36b1a61, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CafeRedesignRecord
+  step: Seat tags 1 - Tag the seats and the room
+  when: 2026-10-23 21:15
+  order: 14
+  switchedOff: []
+  made:
+  - {fileID: 1585287254}
+  - {fileID: 1415720865}
+  - {fileID: 1006903042}
+  - {fileID: 271175558}
+  - {fileID: 836200523}
+  - {fileID: 2076338586}
+  - {fileID: 1444893634}
+  addedComponents:
+  - {fileID: 1939355093}
+  - {fileID: 2041197125}
+  - {fileID: 638289845}
+  - {fileID: 337555020}
+  - {fileID: 65408213}
+  - {fileID: 1651217924}
+  - {fileID: 1487604582}
+  - {fileID: 633205153}
+  - {fileID: 1384736366}
+  - {fileID: 631824013}
+  - {fileID: 1948416099}
+  - {fileID: 1900648890}
+  - {fileID: 1979749597}
+  - {fileID: 626538834}
+  - {fileID: 464658773}
+  - {fileID: 108431923}
+  - {fileID: 356472865}
+  - {fileID: 1872956798}
+  - {fileID: 228661083}
+  - {fileID: 1899456645}
+  - {fileID: 2145282677}
+  - {fileID: 1377869325}
+  - {fileID: 1357842750}
+  - {fileID: 2021591369}
+  - {fileID: 1263278602}
+  - {fileID: 1296515221}
+  - {fileID: 1873021883}
+  - {fileID: 1433683031}
+  moved: []
+  repainted: []
+  lights: []
+  boxes: []
+  shapes: []
+  toggled: []
+  listed: []
+  notes:
+  - 'Seat tags 1: 28 seats tagged, 6 areas laid. Seats per tag: Window 11, Lounge
+    7, Bar 6, Communal 8, Quiet 2, NearDoor 4.'
 --- !u!1 &991540894
 GameObject:
   m_ObjectHideFlags: 0
@@ -153168,6 +153532,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 378416598}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1006903042
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1006903043}
+  - component: {fileID: 1006903044}
+  m_Layer: 0
+  m_Name: Seat area - by the east (courtyard) window
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1006903043
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1006903042}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 6.8, y: 1, z: 6.1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1585287255}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1006903044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1006903042}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 1
+  zone: 
+  area: {x: 1.7999997, y: 3, z: 12.8}
 --- !u!1 &1006909897
 GameObject:
   m_ObjectHideFlags: 0
@@ -168735,6 +169146,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: LI_Coat_OnChair (seat banquette 2-top, south, chair)
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: c34eede2a68ca436db3aa66b2e08b2ca, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -169036,6 +169451,7 @@ Transform:
   - {fileID: 1509734558}
   - {fileID: 13013840}
   - {fileID: 1268919098}
+  - {fileID: 1585287255}
   m_Father: {fileID: 991522308}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1126414682
@@ -175880,6 +176296,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: c34eede2a68ca436db3aa66b2e08b2ca, type: 3}
       propertyPath: m_Name
       value: LI_Coat_OnChair (seat banquette 2-top, middle, chair)
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: c34eede2a68ca436db3aa66b2e08b2ca, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -190231,6 +190651,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1263278600}
   - component: {fileID: 1263278601}
+  - component: {fileID: 1263278602}
   m_Layer: 0
   m_Name: Seat (repair bar, west)
   m_TagString: Untagged
@@ -190281,6 +190702,21 @@ MonoBehaviour:
   repairBar: 1
   maxLift: 0.32
   approachSide: 0.5
+--- !u!114 &1263278602
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1263278599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 4
+  zone: repair bar
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &1263415917
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -196197,6 +196633,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1296515219}
   - component: {fileID: 1296515220}
+  - component: {fileID: 1296515221}
   m_Layer: 0
   m_Name: Seat (window counter, middle)
   m_TagString: Untagged
@@ -196246,6 +196683,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1296515221
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1296515218}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 4
+  zone: window counter
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1296593732
 GameObject:
   m_ObjectHideFlags: 0
@@ -205222,6 +205674,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1357842748}
   - component: {fileID: 1357842749}
+  - component: {fileID: 1357842750}
   m_Layer: 0
   m_Name: Seat (repair bar, east)
   m_TagString: Untagged
@@ -205272,6 +205725,21 @@ MonoBehaviour:
   repairBar: 1
   maxLift: 0.32
   approachSide: 0.5
+--- !u!114 &1357842750
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1357842747}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 4
+  zone: repair bar
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &1358359789
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -208184,6 +208652,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1377869323}
   - component: {fileID: 1377869324}
+  - component: {fileID: 1377869325}
   m_Layer: 0
   m_Name: Seat (reading corner, south tub chair)
   m_TagString: Untagged
@@ -208233,6 +208702,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1377869325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1377869322}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 2
+  zone: reading corner
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1380523056
 GameObject:
   m_ObjectHideFlags: 0
@@ -209072,6 +209556,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1384736364}
   - component: {fileID: 1384736365}
+  - component: {fileID: 1384736366}
   m_Layer: 0
   m_Name: Seat (bistro 2-top, south, east)
   m_TagString: Untagged
@@ -209121,6 +209606,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1384736366
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1384736363}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 0
+  zone: bistro
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &1386129804
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -213892,6 +214392,53 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1413655768}
   m_Mesh: {fileID: 1825367947683729426, guid: ab36ef4a9b00cc84aadc5f134e433c0d, type: 2}
+--- !u!1 &1415720865
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1415720866}
+  - component: {fileID: 1415720867}
+  m_Layer: 0
+  m_Name: Seat area - by the west (street) window
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1415720866
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1415720865}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -6.35, y: 1, z: 5.35}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1585287255}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1415720867
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1415720865}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 1
+  zone: 
+  area: {x: 2.6999998, y: 3, z: 11.3}
 --- !u!1 &1416023753
 GameObject:
   m_ObjectHideFlags: 0
@@ -216420,6 +216967,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1433683029}
   - component: {fileID: 1433683030}
+  - component: {fileID: 1433683031}
   m_Layer: 0
   m_Name: Seat (window counter, south)
   m_TagString: Untagged
@@ -216469,6 +217017,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1433683031
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1433683028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 4
+  zone: window counter
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1433703137
 GameObject:
   m_ObjectHideFlags: 0
@@ -217601,6 +218164,53 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5854996767449828879, guid: a7616862d0c3da441a90358e84aa1fd6, type: 3}
   m_PrefabInstance: {fileID: 429464716}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1444893634
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1444893635}
+  - component: {fileID: 1444893636}
+  m_Layer: 0
+  m_Name: Seat area - the quiet corner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1444893635
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444893634}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -6.05, y: 1, z: 1.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1585287255}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1444893636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444893634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 16
+  zone: 
+  area: {x: 3.2999997, y: 3, z: 3.6}
 --- !u!1 &1445187402
 GameObject:
   m_ObjectHideFlags: 0
@@ -223483,6 +224093,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1487604580}
   - component: {fileID: 1487604581}
+  - component: {fileID: 1487604582}
   m_Layer: 0
   m_Name: Seat (bistro 2-top, north, east)
   m_TagString: Untagged
@@ -223532,6 +224143,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1487604582
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1487604579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 0
+  zone: bistro
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1488022511
 GameObject:
   m_ObjectHideFlags: 0
@@ -238519,6 +239145,43 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1583730960}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1585287254
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1585287255}
+  m_Layer: 0
+  m_Name: Seat tags 1 - the room's areas
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1585287255
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1585287254}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1415720866}
+  - {fileID: 1006903043}
+  - {fileID: 271175559}
+  - {fileID: 836200524}
+  - {fileID: 2076338587}
+  - {fileID: 1444893635}
+  m_Father: {fileID: 1126061536}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1585310908
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -248483,6 +249146,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1651217922}
   - component: {fileID: 1651217923}
+  - component: {fileID: 1651217924}
   m_Layer: 0
   m_Name: Seat (banquette 2-top, south, on the banquette)
   m_TagString: Untagged
@@ -248532,6 +249196,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1651217924
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1651217921}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 2
+  zone: west banquette
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1651427487
 GameObject:
   m_ObjectHideFlags: 0
@@ -260891,7 +261570,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1730868426
 Transform:
   m_ObjectHideFlags: 0
@@ -282719,6 +283398,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1872956796}
   - component: {fileID: 1872956797}
+  - component: {fileID: 1872956798}
   m_Layer: 0
   m_Name: Seat (communal table, west 4)
   m_TagString: Untagged
@@ -282771,6 +283451,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1872956798
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1872956795}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1873021880
 GameObject:
   m_ObjectHideFlags: 0
@@ -282781,6 +283476,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1873021882}
   - component: {fileID: 1873021881}
+  - component: {fileID: 1873021883}
   m_Layer: 0
   m_Name: Seat (window counter, north)
   m_TagString: Untagged
@@ -282830,6 +283526,21 @@ Transform:
   - {fileID: 684334667}
   m_Father: {fileID: 1974028018}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1873021883
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873021880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 4
+  zone: window counter
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1873153072
 GameObject:
   m_ObjectHideFlags: 0
@@ -287364,6 +288075,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1899456643}
   - component: {fileID: 1899456644}
+  - component: {fileID: 1899456645}
   m_Layer: 0
   m_Name: Seat (lounge, tub chair B)
   m_TagString: Untagged
@@ -287413,6 +288125,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1899456645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899456642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 2
+  zone: lounge
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1899472783
 GameObject:
   m_ObjectHideFlags: 0
@@ -287768,6 +288495,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1900648888}
   - component: {fileID: 1900648889}
+  - component: {fileID: 1900648890}
   m_Layer: 0
   m_Name: Seat (communal table, east 2)
   m_TagString: Untagged
@@ -287817,6 +288545,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1900648890
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900648887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1900864902
 GameObject:
   m_ObjectHideFlags: 0
@@ -294097,6 +294840,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1939355091}
   - component: {fileID: 1939355092}
+  - component: {fileID: 1939355093}
   m_Layer: 0
   m_Name: Seat (banquette 2-top, middle, chair)
   m_TagString: Untagged
@@ -294147,6 +294891,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1939355093
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1939355090}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 0
+  zone: west banquette
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &1939806485
 GameObject:
   m_ObjectHideFlags: 0
@@ -295419,6 +296178,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1948416097}
   - component: {fileID: 1948416098}
+  - component: {fileID: 1948416099}
   m_Layer: 0
   m_Name: Seat (communal table, east 1)
   m_TagString: Untagged
@@ -295471,6 +296231,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1948416099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1948416096}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &1948433990
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -300263,7 +301038,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1979487966
 Transform:
   m_ObjectHideFlags: 0
@@ -300292,6 +301067,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1979749595}
   - component: {fileID: 1979749596}
+  - component: {fileID: 1979749597}
   m_Layer: 0
   m_Name: Seat (communal table, east 3)
   m_TagString: Untagged
@@ -300341,6 +301117,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &1979749597
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1979749594}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 8
+  zone: communal table
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &1980892414
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -307685,6 +308476,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2021591367}
   - component: {fileID: 2021591368}
+  - component: {fileID: 2021591369}
   m_Layer: 0
   m_Name: Seat (repair bar, middle)
   m_TagString: Untagged
@@ -307735,6 +308527,21 @@ MonoBehaviour:
   repairBar: 1
   maxLift: 0.32
   approachSide: 0.5
+--- !u!114 &2021591369
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2021591366}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 4
+  zone: repair bar
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &2022394734
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -311070,6 +311877,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2041197123}
   - component: {fileID: 2041197124}
+  - component: {fileID: 2041197125}
   m_Layer: 0
   m_Name: Seat (banquette 2-top, middle, on the banquette)
   m_TagString: Untagged
@@ -311119,6 +311927,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &2041197125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2041197122}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 2
+  zone: west banquette
+  area: {x: 0, y: 0, z: 0}
 --- !u!1 &2041636538
 GameObject:
   m_ObjectHideFlags: 0
@@ -316722,6 +317545,53 @@ Transform:
   - {fileID: 203249573}
   m_Father: {fileID: 1953742013}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2076338586
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2076338587}
+  - component: {fileID: 2076338588}
+  m_Layer: 0
+  m_Name: Seat area - by the door
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2076338587
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2076338586}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 1, z: 2.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1585287255}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2076338588
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2076338586}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 32
+  zone: 
+  area: {x: 8.4, y: 3, z: 5.6000004}
 --- !u!1 &2076605044
 GameObject:
   m_ObjectHideFlags: 0
@@ -327138,6 +328008,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2145282675}
   - component: {fileID: 2145282676}
+  - component: {fileID: 2145282677}
   m_Layer: 0
   m_Name: Seat (reading corner, north tub chair)
   m_TagString: Untagged
@@ -327187,6 +328058,21 @@ MonoBehaviour:
   repairBar: 0
   maxLift: 0
   approachSide: 0
+--- !u!114 &2145282677
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2145282674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6afe890f94204ce7bb8726b7745d76a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SeatTags
+  tags: 2
+  zone: reading corner
+  area: {x: 0, y: 0, z: 0}
 --- !u!1001 &2145961263
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -14,12 +14,14 @@ using System.Text;
 // listed after the new ones ("(likely now)"). Street names are filled in as
 // the block is built (StreetNames), so a renamed street reads renamed.
 //
-// The recap phone's Notes app (playtest 2, step 2) lays the same notebook out
-// person by person from People, the grouping the night's page (Page) uses too.
+// The recap phone's Notes app (playtest 2, step 2) lays the same notebook out person by person from People.
+// The night's page is laid out by subject since 23 Oct 2026 (NoteSubjects.Entries, NightNotebook); Page is the
+// notebook as one page of text, kept for the checks.
 //
 // The man at the bins' pages (6 Oct 2026; the inherited source, LodgerStory) come first wherever the
-// notebook is laid out: they are the notebook's first pages, in his hand, so the page shows them in
-// italics under his heading. What Ace learned sits under them.
+// notebook is laid out: they are the notebook's first pages, in his hand, so Page and the phone show them in italics
+// under his heading (the night's page puts them behind "The man at the bins", with his square bullet, since 23 Oct
+// 2026). What Ace learned sits under them.
 //
 // No Unity types: Tests/NotebookRules and Tests/HomeRules compile this file.
 // ---------------------------------------------------------------------------
@@ -79,7 +81,7 @@ public static class NotebookRecap
     }
 
     /// <summary>
-    /// The whole notebook as one page (the night walk opens it with a key; NightNotebook):
+    /// The whole notebook as one page of text (the night's page until 23 Oct 2026; now the checks read it):
     /// person by person, in the order Ace first learned about them, where they live first,
     /// then everything else in the order it was learned. Guesses say so, as in the recap.
     /// Empty when there is nothing yet.
@@ -103,8 +105,8 @@ public static class NotebookRecap
     }
 
     /// <summary>
-    /// The notebook person by person, in the order Ace first learned about them (the recap
-    /// phone's Notes, and the night's page). Each person's facts: where they live first, since
+    /// The notebook person by person, in the order Ace first learned about them (the recap phone's Notes; the night's
+    /// page until 23 Oct 2026). Each person's facts: where they live first, since
     /// that is what the night is for, then everything else in the order it was learned. Empty
     /// for no notebook or an empty one.
     /// </summary>

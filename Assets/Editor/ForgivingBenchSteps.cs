@@ -19,11 +19,12 @@ using Object = UnityEngine.Object;
 //       tool rest (BT_ToolRest, the five tools moved onto its seats) and the old-parts tray (BT_ScrapTray), from the files the
 //       importers bring in (contracts §8). A file not there yet gets a stand-in with the same empties at Art's coordinates
 //       (bench_stage.json, bench_tools.json), so nothing waits on Blender; run it again once the files land and the stand-ins
-//       are swapped for the models. The v2 slab, parts tray and caddy are switched off, not deleted. BenchStage is wired; the
-//       inspect point goes to the mat's top; the bench's three device slots move off the mat to the bench in front of it (the
-//       TD's §6.9: mat y -265, out of every close-up frame), so a device waiting never covers a compartment; the close-up's
-//       mouse settle widens to 45° (faceSnapWithin: a spin always lands square, Systems' decision 12); the three devices'
-//       prefabs get their layouts (DeviceDefinition.benchLayout's rest, tool rest and tray; the camera's fields are Bench 9's).
+//       are swapped for the models. The v2 slab, parts tray (the whole group, its walls too: 23 Oct 2026) and caddy are
+//       switched off, not deleted. BenchStage is wired; the inspect point goes to the mat's top; the bench's three device
+//       slots move off the mat to the bench in front of it (the TD's §6.9: mat y -265, out of every close-up frame), so a
+//       device waiting never covers a compartment; the close-up's mouse settle widens to 45° (faceSnapWithin: a spin always
+//       lands square, Systems' decision 12); the three devices' prefabs get their layouts (DeviceDefinition.benchLayout's
+//       rest, tool rest and tray; the camera's fields are Bench 9's).
 //       One Undo for the scene; photos before and after; the scene saved; a report in Logs/Bench/forgiving-stage-<time>/.
 //       A second run says "already done" and changes nothing (unless a stand-in can now be swapped for its model).
 //   Fixit Fidget > Bench > Bench 8 - The clumsy hand (lab, drives itself), and its full run (three seeds each)
@@ -182,8 +183,13 @@ static class ForgivingBenchSteps
         string held = HeldCloth(stageRoot, report);
 
         // ---- the v2 pieces off (not deleted) ----
+        // 23 Oct 2026: the v2 parts tray is a group (Bench 2: its floor, four dark walls and the magnet zone) and BenchStage keeps
+        // only its floor as the legacy tray, so switching that off left the four walls standing on the new mat, a thick dark frame
+        // round the cover well, over the mat's right edge and across the new-part pad (his note, 22 Oct 2026: "the tray on the
+        // right ... kind of look off"). The whole group goes off. Bench 7b does the same in a scene this step has already built.
+        Transform v2Tray = BenchStageTidySteps.OldTray(stage, stageRoot) ?? stage.LegacyTray;
         int off = 0;
-        foreach (Transform old in new[] { stage.LegacyMat, stage.LegacyTray, stage.LegacyCaddy })
+        foreach (Transform old in new[] { stage.LegacyMat, v2Tray, stage.LegacyCaddy })
         {
             if (old == null || !old.gameObject.activeSelf) continue;
             Undo.RecordObject(old.gameObject, "v2 piece off");

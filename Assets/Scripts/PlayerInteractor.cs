@@ -1035,8 +1035,8 @@ public class PlayerInteractor : MonoBehaviour
 
     /// <summary>
     /// What the view may draw the crosshair to right now (the aim help): in first person, what's in reach and in sight by
-    /// the crosshair's own rules; in the drinks close-up, the dispenser's controls and the cups in its pads. Empty
-    /// anywhere else. Returns how many.
+    /// the crosshair's own rules; in the drinks close-up, the dispenser's controls and the cups in its pads. Never what Ace
+    /// holds (Carried). Empty anywhere else. Returns how many. Each target names its Interactable (AimAssist.Target.thing).
     /// </summary>
     public int AimTargets(List<AimAssist.Target> into)
     {
@@ -1054,7 +1054,8 @@ public class PlayerInteractor : MonoBehaviour
                 Interactable it = c.GetComponentInParent<Interactable>();
                 if (it == null || it is StationInteractable || !it.IsAvailable || !IsDrinksThing(it) || SeenThings.Contains(it)) continue;
                 SeenThings.Add(it);
-                into.Add(TargetOf(it, c));
+                if (Carried(it)) continue;
+                into.Add(TargetOf(it, c, eye));
             }
             return into.Count;
         }
@@ -1072,18 +1073,48 @@ public class PlayerInteractor : MonoBehaviour
             if (c == null || c.transform.IsChildOf(transform)) continue;
             Interactable it = c.GetComponentInParent<Interactable>();
             if (it == null || SeenThings.Contains(it) || !it.IsAvailable) continue;
-            AimAssist.Target t = TargetOf(it, c);
+            AimAssist.Target t = TargetOf(it, c, eye);
             float distance = Vector3.Distance(eye, c.bounds.ClosestPoint(eye));
             if (!Reachable(it, distance, counter, staff, slack)) continue;
             if (!InSight(eye, t.point, it)) continue;
             SeenThings.Add(it);
+            if (Carried(it)) continue;
             into.Add(t);
         }
         return into.Count;
     }
 
+    // NEVER WHAT ACE HOLDS (23 Oct 2026). His note: "I grab the cup and I go to the espresso machine, I'm like locked to the
+    // cup". The cup in hand was never found here (PlayerCarry.TryPickUp turns off every collider of what it picks up, and the
+    // targets are found by their colliders), nor counted by its slot (BeverageSlot.Cup forgets a cup in hand, and TryPickUp
+    // releases it from every slot), so what held him was the help pulling back to what he was leaving (AimAssist). But the
+    // help mustn't rest on a collider staying off: anything that belongs to a job in Ace's hands is never a target, by name.
+    // Hand by hand, not PlayerCarry.Contains (a lambda that captures: garbage on every frame the stick moves).
+    private bool Carried(Interactable it)
+    {
+        if (carry == null) carry = GetComponent<PlayerCarry>();
+        if (carry == null || carry.Count == 0) return false;
+        JobBase job = it.GetComponentInParent<JobBase>();
+        if (job == null) return false;
+        for (int h = 0; h < carry.Count; h++)
+            if (carry.GetItem(h) == job) return true;
+        return false;
+    }
+
     // Where to aim at a thing, and half its smallest width: a person at their chest (aiming at their middle would aim
     // into the counter), anything else at the middle of the collider that was found.
+    //
+    // AS THE EYE SEES IT, AT THE DRINKS MACHINE (23 Oct 2026). Anything but a person was half the smallest of its box's three
+    // widths (3 cm at least), and for a flat thing facing Ace that is its depth: the drinks machine's paddles (9.3 cm wide,
+    // 3.8 cm deep) counted 1.9° from middle to edge in the close-up beside their nozzle areas' 4.6°, so the help took the
+    // nozzle area for the nearer target until the crosshair was within about 3.5° of the paddle's edge, and settled back down
+    // onto it when he looked up to press the paddle ("hard for me to even look to press the nozzle"). The drinks machine's
+    // things (IsDrinksThing) are now half the box's smaller width across the line of sight (SeenHalfWidth): a paddle is 3° from
+    // middle to edge, as it looks. Everything else keeps the old measure for now, because no lab looks at first-person aiming at
+    // the bench, the counter's trays or the night. The next step, his call once he has tried it there:
+    //     return new AimAssist.Target(b.center, Mathf.Max(.03f, SeenHalfWidth(b, eye)), it);   // for every thing but a person
+    // (a flat thing seen at an angle then counts its real width: a 40 x 30 cm tray 1.5 m away grows from about 1.2° to 3-4°,
+    // and its friction and settle grow with it).
     //
     // SEATED (19 Oct 2026, playtest 7). Her, aiming at a man at a table: "I keep looking at his top left head. And it just
     // gets stuck there? ... Oh, maybe it's when they're sitting down." The look target is a standing-height transform on the
@@ -1091,7 +1122,7 @@ public class PlayerInteractor : MonoBehaviour
     // stayed about 1.4 m up over a seated chest at about 1.05 m. The same drop NpcSeating applies to its overheads (the
     // standing hips to the seated hips, less a city body's seated lift) is applied here, so the help lands on the chest.
     // The conversation camera frames the look target itself and conversations happen at the counter, standing: unchanged.
-    private static AimAssist.Target TargetOf(Interactable it, Collider c)
+    private static AimAssist.Target TargetOf(Interactable it, Collider c, Vector3 eye)
     {
         Bounds b = c.bounds;
         if (it is CustomerInteractable)
@@ -1101,10 +1132,27 @@ public class PlayerInteractor : MonoBehaviour
                 ? brain.LookTarget.position - Vector3.up * .2f
                 : b.center + Vector3.up * b.extents.y * .5f;
             chest -= Vector3.up * SeatedDrop(it);
-            return new AimAssist.Target(chest, Mathf.Min(b.extents.x, b.extents.z));
+            return new AimAssist.Target(chest, Mathf.Min(b.extents.x, b.extents.z), it);
         }
-        float size = Mathf.Min(b.extents.x, Mathf.Min(b.extents.y, b.extents.z));
-        return new AimAssist.Target(b.center, Mathf.Max(.03f, size));
+        float size = IsDrinksThing(it) ? SeenHalfWidth(b, eye) : Mathf.Min(b.extents.x, Mathf.Min(b.extents.y, b.extents.z));
+        return new AimAssist.Target(b.center, Mathf.Max(.03f, size), it);
+    }
+
+    // Half the box's smaller width as the eye sees it: its extents measured across the line of sight, sideways and up (the
+    // box's shadow on a plane facing the eye). Straight above or below it, its footprint's smaller half-width.
+    private static float SeenHalfWidth(Bounds b, Vector3 eye)
+    {
+        Vector3 e = b.extents;
+        Vector3 line = b.center - eye;
+        if (line.sqrMagnitude < 1e-6f) return Mathf.Min(e.x, Mathf.Min(e.y, e.z));
+        line.Normalize();
+        Vector3 side = Vector3.Cross(Vector3.up, line);
+        if (side.sqrMagnitude < 1e-6f) return Mathf.Min(e.x, e.z);
+        side.Normalize();
+        Vector3 up = Vector3.Cross(line, side);
+        float across = Mathf.Abs(side.x) * e.x + Mathf.Abs(side.y) * e.y + Mathf.Abs(side.z) * e.z;
+        float tall = Mathf.Abs(up.x) * e.x + Mathf.Abs(up.y) * e.y + Mathf.Abs(up.z) * e.z;
+        return Mathf.Min(across, tall);
     }
 
     // How far a seated customer's head and chest are below where they stand (world metres; 0 when standing): NpcSeating's

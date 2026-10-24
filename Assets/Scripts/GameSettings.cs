@@ -11,13 +11,14 @@ using UnityEngine;
 //              the mixer's own exposed volumes; scaling in code does the same for the player without editing the
 //              mixer asset, so nothing in the project changes.)
 //   Controls   Look sensitivity (the mouse, a multiplier on the view's own), pad look speed (the right stick, the same),
-//              invert Y (mouse and stick alike), aim help (AimAssist, its own saved switch), movement help (the walk's
-//              assist on a pad, PlayerMovement's own saved switch), and swapping the sticks at the bench (below).
+//              invert Y (mouse and stick alike), aim help (AimAssist's own saved switch and, since 23 Oct 2026, its strength:
+//              Off, Light or Strong, AimLevel), movement help (the walk's assist on a pad, PlayerMovement's own saved
+//              switch), and swapping the sticks at the bench (below).
 //   Mornings   The day intro: Full, Short or Off (below).
 //   Picture    The quality preset (QualityPreset: Low, Medium, High).
 //
 // Defaults are the game as it played before there were settings: every multiplier 1, the volumes full but music at
-// four-fifths, nothing inverted, both helps on.
+// four-fifths, nothing inverted, both helps on (the aim help at Light since 23 Oct 2026: AimLevel).
 //
 // 12-13 OCT 2026 (the big session after his controller playtest; claude/playtest-4-findings-and-proposals.md §1b and §6).
 // Two settings the other leads read, by these names (the Producer's contract; the UI lead owns them, nobody else writes
@@ -70,19 +71,22 @@ public static class GameSettings
 
     /// <summary>
     /// Forgets what was read, so each setting is read again from where it's kept (PlayerPrefs) the next time it's asked
-    /// for. A new Play session does this by itself; the checks call it to see a setting read back as it was kept.
+    /// for (the aim help's switch and strength too: AimAssist keeps its own). A new Play session does this by itself; the
+    /// checks call it to see a setting read back as it was kept.
     /// </summary>
     public static void Reload()
     {
         master = music = effects = look = padLook = null;
         invert = swapSticks = vibration = null;
         dayIntro = null;
+        AimAssist.Reload();
     }
 
     /// <summary>
     /// Set once per machine when the aim help was put back on (19 Oct 2026). A lab interrupted on 15 Oct left his Mac's
     /// aim help off, and his girlfriend's playtest ran without it until he turned it on ("Better? Yeah."). On the first
-    /// launch after this the help goes on and the key is written; a player who turns it off afterwards keeps it off.
+    /// launch after this the help goes on (at its kept strength: Light unless Strong was chosen) and the key is written; a
+    /// player who turns it off afterwards keeps it off.
     /// </summary>
     public const string AimHelpResetKey = "FixitFidget.AimHelp.Reset19Oct";
 
@@ -181,11 +185,24 @@ public static class GameSettings
     /// <summary>1, or -1 when Y is inverted: what a look's up-and-down is multiplied by.</summary>
     public static float YSign => InvertY ? -1f : 1f;
 
-    /// <summary>The aim help on a pad (AimAssist's own saved switch; on by default, and put back on once on 19 Oct: AimHelpResetKey).</summary>
+    /// <summary>The aim help on a pad (AimAssist's own saved switch; on by default, and put back on once on 19 Oct: AimHelpResetKey).
+    /// On is the strength AimLevel shows; turning it on here brings back the strength it had.</summary>
     public static bool AimHelp
     {
         get => AimAssist.Enabled;
         set => AimAssist.Enabled = value;
+    }
+
+    /// <summary>
+    /// The aim help as the phone's row offers it (23 Oct 2026, his note: "helpful, but not so overpowering that it's like fighting
+    /// me"): Off, Light (the default, and what "on" was before) or Strong (the 7 Oct numbers, without the fighting). Kept by
+    /// AimAssist: the switch under its old key, whose meaning stays (on is Light for every machine that had it on), and the
+    /// strength under AimAssist.StrengthKey. Off keeps the strength, so turning the help on again brings it back.
+    /// </summary>
+    public static AimHelpLevel AimLevel
+    {
+        get => AimAssist.Level;
+        set => AimAssist.Level = value;
     }
 
     /// <summary>The walk's help on a pad (PlayerMovement's own saved switch; on when there's no Ace to ask).</summary>
@@ -268,6 +285,6 @@ public static class GameSettings
     /// <summary>Everything as it stands (reports).</summary>
     public static string Describe() =>
         $"Settings: master {Master:0.00}, music {Music:0.00}, effects {Effects:0.00}; look x{LookScale:0.00}, pad look x{PadLookScale:0.00}, " +
-        $"invert Y {(InvertY ? "on" : "off")}, aim help {(AimHelp ? "on" : "off")}, movement help {(MovementHelp ? "on" : "off")}, " +
+        $"invert Y {(InvertY ? "on" : "off")}, aim help {AimLevel}, movement help {(MovementHelp ? "on" : "off")}, " +
         $"swap the sticks at the bench {(SwapBenchSticks ? "on" : "off")}, vibration {(Vibration ? "on" : "off")}; the morning {DayIntro}; quality {Quality}.";
 }

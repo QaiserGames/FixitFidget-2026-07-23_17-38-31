@@ -18,7 +18,9 @@ using UnityEngine.InputSystem.LowLevel;
 //
 //   1. the drink: behind the counter, A talks to them (the prompt says their name; no station first); A, A takes the
 //      order; at the dispenser a cup (LB, the left hand), under the nozzle (A), the paddle (A), the poured drink (A);
-//      from above the dispenser is a close-up first (A at it; walking out leaves it); then A serves them;
+//      from above the dispenser is a close-up first (A at it; walking out leaves it); then A serves them. The machine's own
+//      line (BeverageStation, 23 Oct 2026: the café prompt's look) is checked at three moments: "(A) Take a cup" with the
+//      two hands on the stack, "Pouring ..." with its ring, and who the drink in hand is for;
 //   2. the repair: the same at the counter; A picks the device up off the intake shelf, A sets it down on the bench;
 //      in first person RT works on it, from above A does; the lab's hand does the repair (the bench's own feel is
 //      session 4); X picks it up and steps back in one press (12 Oct: in the close-up A uses, as RT does; before, A took
@@ -370,6 +372,15 @@ public sealed class StationsCheck : PlayLab
         yield return AimAt(Point(stack));
         yield return Until(() => interactor.Focused == stack, 2f, "the crosshair is on the cup stack");
         yield return Photo($"{customer}-2-at-the-dispenser");
+        // 23 Oct 2026, the drinks line in the café prompt's look (BeverageStation): on the stack with both hands free, the action
+        // with its button, the two hands under it, and Step back only in the close-up from above (in first person there is
+        // nothing to leave).
+        BeverageStation drinksLine = drinks.GetComponent<BeverageStation>();
+        if (drinksLine != null)
+            Check(drinksLine.ActionText == ControlHints.Interact + "  Take a cup" && drinksLine.HandsShowing
+                  && drinksLine.StepBackShowing != firstPerson,
+                $"the drinks line: \"{RecapPhone.Plain(drinksLine.ActionText)}\", the two hands {(drinksLine.HandsShowing ? "under it" : "MISSING")}, " +
+                $"Step back {(drinksLine.StepBackShowing ? "shown" : "not shown")} ({(firstPerson ? "first person: nothing to leave" : "the close-up")})");
         yield return Press(GamepadButton.LeftShoulder, "take a cup in the left hand");
         yield return Until(() => carry.GetHandItem(0) is DrinkJob, 2f, "LB takes a cup in the left hand");
         DrinkJob cup = carry.GetHandItem(0) as DrinkJob;
@@ -383,6 +394,13 @@ public sealed class StationsCheck : PlayLab
         yield return Until(() => interactor.Focused == paddle, 2f, $"the crosshair is on the {drink.drinkName} paddle");
         yield return Press(GamepadButton.South, "pour");
         yield return Until(() => slot.IsPouring, 2f, "A on the paddle starts the pour");
+        if (drinksLine != null)
+        {
+            // While it pours: "Pouring Latte" with the gold ring beside it, no number, no hands (23 Oct 2026).
+            yield return Frames(2);
+            Check(drinksLine.RingShowing && drinksLine.ActionText == "Pouring " + drink.drinkName && !drinksLine.HandsShowing,
+                $"pouring: \"{drinksLine.ActionText}\", the gold ring beside it ({drinksLine.RingFill:P0}), no hands");
+        }
         yield return Until(() => !slot.IsPouring && cup != null && !cup.IsEmpty, (drink != null ? drink.brewSeconds : 5f) * 1.6f + 6f,
             "the drink is poured");
 
@@ -391,6 +409,10 @@ public sealed class StationsCheck : PlayLab
         yield return Press(GamepadButton.South, "take the drink");
         yield return Until(() => carry.Contains(cup), 2f, "A takes the poured drink");
         yield return Photo($"{customer}-3-the-drink-made");
+        // With the drink in hand: who it is for (its picture first), no hands (23 Oct 2026).
+        if (drinksLine != null)
+            Check(RecapPhone.Plain(drinksLine.ActionText).Contains($"Take the {drink.drinkName} to ") && !drinksLine.HandsShowing,
+                $"the drink in hand, who it is for: \"{RecapPhone.Plain(drinksLine.ActionText)}\"");
 
         if (!firstPerson)
         {
