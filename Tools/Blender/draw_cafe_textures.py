@@ -970,7 +970,8 @@ def draw_aframe(out_dir):
     img = mix(img, rgb(CHALK), np.clip(gh + smear, 0, 1))
     m = sh.mask()
     set_line(m, sh, 'ACE’S CAFÉ', 'lg', 0.088, W / 2, 0.165, 'center', track=0.14)
-    d = ImageDraw.Draw(m)
+    rule = sh.mask()                                 # the double rule under the name: the one amber line (a62)
+    d = ImageDraw.Draw(rule)
     d.line([sh.p(0.115), sh.p(0.192), sh.p(W - 0.115), sh.p(0.192)], fill=255, width=int(sh.p(0.004)))
     d.line([sh.p(0.165), sh.p(0.203), sh.p(W - 0.165), sh.p(0.203)], fill=255, width=int(sh.p(0.0025)))
     set_line(m, sh, 'Coffee & repairs', 'lg', 0.050, W / 2, 0.285, 'center', track=0.06)
@@ -981,10 +982,17 @@ def draw_aframe(out_dir):
     bm = sh.mask()                                   # the border a chalk artist rules first
     ImageDraw.Draw(bm).rounded_rectangle([sh.p(0.030), sh.p(0.030), sh.p(W - 0.030), sh.p(H - 0.030)], radius=sh.p(0.02),
                                          outline=255, width=int(sh.p(0.003)))
-    a = chalk(np.maximum(arr(m), wobble(arr(bm), sh, 0.8, 40, 703)), sh, 704)
-    dust = ndimage.gaussian_filter(a, sh.p(0.003)) * 0.12
+    # 24 Oct 2026, art audit a62 ("The chalk is dim grey on charcoal (about 1.9 to 1), so the good words fade from across
+    # the street"; the fix: "near-white (#E8E4DA) with one amber or green line"): the chalk laid on heavily, nearly
+    # every grain of the board's tooth taken (0.97, was 0.86) and at full strength (was 0.92 of 0.97 of the chalk), the
+    # rule under the name in amber. cafe_art_fix_textures.chalk_up_aframe makes the same from the old picture where these
+    # fonts aren't installed.
+    a = chalk(np.maximum(arr(m), wobble(arr(bm), sh, 0.8, 40, 703)), sh, 704, coverage=0.97)
+    ar = chalk(arr(rule), sh, 705, coverage=0.97)
+    dust = ndimage.gaussian_filter(np.maximum(a, ar), sh.p(0.003)) * 0.12
     img = mix(img, rgb(CHALK), np.clip(dust, 0, 1))
-    img = mix(img, rgb(CHALK) * 0.97, a * 0.92)
+    img = mix(img, rgb('#E8E4DA'), a)
+    img = mix(img, rgb('#E2A33E'), ar)
     sh.save(img, os.path.join(out_dir, 'CF_AFrame.png'))
 
 

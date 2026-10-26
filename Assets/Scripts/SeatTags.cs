@@ -47,6 +47,15 @@ using UnityEngine;
 // (FocusNameUI). Regulars stay at the bar while their own thing is on the bench: Grace tells her stories while she waits
 // (CustomerStoryteller never spends a line off screen), and the bar keeps her beside where Ace works.
 //
+// 24 OCT 2026 (Days; the 23 Oct run, his c11 kept: "From Day 2, about 2 in 5 repair customers sit away from the bar; never on
+// Day 1"). In six Day 2-3 runs only 1 of 11 walk-in bench jobs left the bar: only a Sentimental person, or a Relaxed one with a
+// long repair, ever did, and those days' walk-ins were Cheerful, Chatty and Impatient. Now, from Day 2, each walk-in bench job
+// rolls once a visit (AwayChance, on dice of its own: the game's random sequence is left alone) whether to sit away from the
+// bar, about two in five over Days 2-3's people, biased by character: the watchers (Impatient, Rushed) less, the comfort-seekers
+// (Sentimental, Relaxed, a long repair) more. Never on Day 1, and regulars stay. StaysAtTheBar(Person) is still the character's
+// own leaning, which the roll's bias is made of. And the stool itself (WaitingArea.ClaimRepairBar) is chosen like any seat now:
+// personal space and near-equals at random, so the middle stool is no longer everyone's.
+//
 // Every number is here, in one place: Tuning, Leanings, Favourites. Tune here.
 //
 // THE TAGS. A seat's tags come from a SeatTags on the seat or on any parent of it (a piece of furniture tags all its
@@ -417,9 +426,10 @@ public static class SeatChoice
     }
 
     /// <summary>
-    /// A bench job waits at the repair bar (WaitingArea.ClaimRepairBar first) unless comfort means more to them than the bar:
-    /// their soft-seat leaning (a long repair adds to it) over Repair Bar plus their own wish to watch. Regulars stay at the
-    /// bar with their own thing on the bench (they talk to Ace while he works). Anyone without a bench job: false.
+    /// A bench job's own leaning: they'd wait at the repair bar unless comfort means more to them than the bar: their soft-seat
+    /// leaning (a long repair adds to it) over Repair Bar plus their own wish to watch. Regulars stay at the bar with their own
+    /// thing on the bench (they talk to Ace while he works). Anyone without a bench job: false. (24 Oct 2026: where they wait on
+    /// a day is StaysAtTheBar(who, day, dice), c11's roll, biased by this same character.)
     /// </summary>
     public static bool StaysAtTheBar(Person who)
     {
@@ -428,10 +438,80 @@ public static class SeatChoice
         return who.lounge <= RepairBar + who.watches;
     }
 
+    // ================================================================== c11: who sits away from the bar (24 Oct 2026)
+
+    /// <summary>c11, kept by him: from Day 2 about this share of walk-in bench jobs sit away from the bar ("about 2 in 5").</summary>
+    public const float AwayShare = .4f;
+    /// <summary>The roll's base, and what each point of comfort (the soft-seat leaning: Sentimental 2.5, Relaxed 1.5, a long
+    /// repair 2) adds and each point of wanting to watch (Impatient, Rushed: 2) takes off; then held within Away Least..Most.
+    /// Over Days 2-3's walk-ins (Cheerful, Chatty, Sentimental, Impatient by the five ways of moving, Day 3's repairs mostly
+    /// long) it comes to about 0.4 (SeatChoiceRules simulates it): a Cheerful walk-in with a short repair 0.36, a Sentimental,
+    /// Relaxed one with a long repair 0.60, an Impatient one with a short repair 0.20.</summary>
+    public const float AwayBase = .36f, AwayPerComfort = .04f, AwayPerWatch = .08f, AwayLeast = .12f, AwayMost = .7f;
+    /// <summary>The first day anyone sits away from the bar (c11: "never on Day 1": the tutorial's reassure over the counter).</summary>
+    public const int AwayFromDay = 2;
+
+    /// <summary>
+    /// The chance this bench job sits away from the bar on <paramref name="day"/> (c11): 0 for anyone without a bench job, a
+    /// regular, or before Day 2; else the base, more for comfort, less for wanting to watch.
+    /// </summary>
+    public static float AwayChance(Person who, int day)
+    {
+        if (!who.benchJob || who.IsRegular || day < AwayFromDay) return 0f;
+        return Mathf.Clamp(AwayBase + AwayPerComfort * who.lounge - AwayPerWatch * who.watches, AwayLeast, AwayMost);
+    }
+
+    /// <summary>
+    /// Where a bench job waits on <paramref name="day"/> (24 Oct 2026): at the repair bar, unless their roll this visit
+    /// (<paramref name="dice"/>, 0..1, the same all visit) falls under AwayChance. Day 1 and regulars: always the bar. Anyone
+    /// without a bench job: false.
+    /// </summary>
+    public static bool StaysAtTheBar(Person who, int day, float dice)
+    {
+        if (!who.benchJob) return false;
+        return dice >= AwayChance(who, day);
+    }
+
+    /// <summary>
+    /// 0..1 from a person (their identity this visit) and a salt: the same answer however often it is asked, and the game's
+    /// random sequence untouched (PlacementJitter's way: the walk-ins' rolls and the first customer's walk keep theirs).
+    /// </summary>
+    public static float Dice(object who, int salt)
+    {
+        if (who == null) return .5f;
+        unchecked
+        {
+            uint h = (uint)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(who) * 2654435761u;
+            h ^= (uint)salt * 2246822519u + 0x9E3779B9u;
+            h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; h *= 3266489917u; h ^= h >> 16;
+            return (h & 0xFFFFFF) / (float)0x1000000;
+        }
+    }
+
+    /// <summary>One of <paramref name="count"/> near-equals for this person (Dice): the same pick however often it is asked.</summary>
+    public static int DiceIndex(object who, int salt, int count) =>
+        count <= 1 ? 0 : Mathf.Clamp(Mathf.FloorToInt(Dice(who, salt) * count), 0, count - 1);
+
     // ================================================================== a seat, and the score
 
     /// <summary>A place to wait, as the score sees it: where one sits there, its tags, whether it is a repair-bar stool, and
     /// whether it is waited at standing (a seat nobody sits on: TableSeat.SnapToSeat off).</summary>
+    /// <summary>
+    /// Where a seat is, in the Now line's words (24 Oct 2026; Designer P's §2.1, from these tags): "by the window", "in the
+    /// lounge", "at the bar", "at the long table", "in the quiet corner", "by the door"; "" for an untagged seat. A seat with
+    /// several tags is called by the first of these (what a player sees first). Pure: the Downtime rules check it.
+    /// </summary>
+    public static string PlaceWords(SeatTag tags)
+    {
+        if ((tags & SeatTag.Window) != 0) return "by the window";
+        if ((tags & SeatTag.Lounge) != 0) return "in the lounge";
+        if ((tags & SeatTag.Bar) != 0) return "at the bar";
+        if ((tags & SeatTag.Communal) != 0) return "at the long table";
+        if ((tags & SeatTag.Quiet) != 0) return "in the quiet corner";
+        if ((tags & SeatTag.NearDoor) != 0) return "by the door";
+        return "";
+    }
+
     public struct Seat
     {
         public Vector3 at;

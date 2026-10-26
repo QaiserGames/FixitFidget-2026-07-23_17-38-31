@@ -36,6 +36,16 @@ using Run = Playtest4Shared.Run;
 // "already" for every item and writes nothing). The day assets and the prefab are saved when the step passes; step A (and the
 // all-in-one) saves the café scene too, which must be open and saved before it starts, so the step's changes are its own.
 // Reports: Logs/Days/<step>-<time>.txt and <step>-last.txt, and the Console.
+//
+// 24 Oct 2026 (Days): Designer P's pacing pass (Docs/Studio/sessions/2026-10-23/designs/pacing-downtime-spec.md §1.5, §6.1),
+// approved by him. Fixit Fidget > Days > G - The pacing pass (PacingSteps) writes the new numbers; these steps write and check
+// the same ones (PacingSteps' constants), never the 14 Oct ones, so running either never undoes the other. Moved: Day 1's
+// drink-only share (.70 → .55); Day 2's phases, patience (x1.4 → x1.8), drink-only share (.70 → .45) and walk-in (the
+// gunked phone → the watch's grit); Day 3's phases, drink-only share (.45 → .35) and walk-ins (the screen, the seized
+// watch, the gunked phone, and the support call once its phone is real: his answer p4); Days 4-5 (F) from the stopgap to
+// the ramp (phases, x1.45 and x1.3, three at once). The check's "only taught verbs" rule (days spec §10): Day 2 teaches
+// the screwdriver and the pry too (the watch's four screws), the support call is Day 3's (p4), and a thrift find may use
+// tomorrow's verb, because it is nobody's job.
 // ---------------------------------------------------------------------------
 public static class DaysOneToThreeSteps
 {
@@ -82,10 +92,11 @@ public static class DaysOneToThreeSteps
 
     static readonly Phase[] Day1Was = { P("Calm", 0f, 26f), P("Build", .30f, 20f), P("Rush", .55f, 16f), P("Recover", .80f, 24f) };
     static readonly Phase[] Day1Now = { P("Calm", 0f, 75f), P("Build", .25f, 30f), P("Rush", .55f, 24f), P("Recover", .80f, 30f) };
-    static readonly Phase[] Day2Was = { P("Calm", 0f, 22f), P("Build", .25f, 15f), P("Rush", .50f, 11f), P("Recover", .75f, 20f) };
-    static readonly Phase[] Day2Now = { P("Calm", 0f, 60f), P("Build", .25f, 24f), P("Rush", .50f, 18f), P("Recover", .80f, 26f) };
-    static readonly Phase[] Day3Was = { P("Calm", 0f, 20f), P("Build", .22f, 13f), P("Rush", .45f, 8f), P("Recover", .72f, 18f) };
-    static readonly Phase[] Day3Now = { P("Calm", 0f, 35f), P("Build", .20f, 22f), P("Rush", .45f, 18f), P("Recover", .72f, 26f) };
+    // 24 Oct 2026 (Days): Days 2 and 3 move to the pacing pass's rhythm (PacingSteps, P's §1.5); "was" is now the 14 Oct one.
+    static readonly Phase[] Day2Was = Of(PacingSteps.Day2PhasesWas);
+    static readonly Phase[] Day2Now = Of(PacingSteps.Day2Phases);
+    static readonly Phase[] Day3Was = Of(PacingSteps.Day3PhasesWas);
+    static readonly Phase[] Day3Now = Of(PacingSteps.Day3Phases);
     // The Producer's call 14: a stopgap so Day 4 isn't a cliff at 420 s. Days 4-5's gaps x 420/180 (to 0.1 s), patience x1.0.
     // Proper tuning waits for the scope freeze to lift.
     static readonly Phase[] Day4Was = { P("Calm", 0f, 18f), P("Build", .20f, 12f), P("Rush", .42f, 7f), P("Recover", .75f, 16f) };
@@ -93,6 +104,13 @@ public static class DaysOneToThreeSteps
         { P("Opening", 0f, 16f), P("Morning rush", .15f, 7f), P("Lull", .38f, 26f), P("Lunch rush", .58f, 6f), P("Last orders", .82f, 15f) };
     static Phase[] Scaled(Phase[] was) =>
         was.Select(p => P(p.name, p.at, Mathf.Round(p.gap * DayLength / OldDayLength * 10f) / 10f)).ToArray();
+    // 24 Oct 2026 (Days): the pacing pass's rows (PacingSteps) in this file's own shape.
+    static Phase[] Of(PacingSteps.PhaseRow[] rows) => rows.Select(r => P(r.name, r.at, r.gap)).ToArray();
+    static readonly Phase[] Day4Now = Of(PacingSteps.Day4Phases), Day5Now = Of(PacingSteps.Day5Phases);
+    static (GameObject prefab, int fault)[] Entries((string prefab, int fault)[] list) =>
+        list.Select(e => (AssetDatabase.LoadAssetAtPath<GameObject>(e.prefab), e.fault)).ToArray();
+    static bool CallIsReal() =>
+        AssetDatabase.LoadAssetAtPath<GameObject>(PacingSteps.CallPath) is GameObject call && SupportCallSteps.HasRealModel(call);
 
     // ---------- the menu ----------
 
@@ -509,7 +527,7 @@ public static class DaysOneToThreeSteps
         change = run =>
         {
             SetPhases(run, day1, Day1Was, Day1Now, "5", false);
-            Float(run, day1, "drinkOnlyChance", .55f, .70f, "6. drinkOnlyChance (the walk-ins who come for a drink)");
+            Float(run, day1, "drinkOnlyChance", PacingSteps.Day1DrinkOnlyWas, PacingSteps.Day1DrinkOnly, "6. drinkOnlyChance (the walk-ins who come for a drink; 24 Oct: .55, the pacing pass)");
             Bool(run, day1, "suppressRepairDrinkWishes", true, "7. suppressRepairDrinkWishes (call 7: no latte for Grace on Day 1, the lock's words)");
             Float(run, day1, "storyVisits.Array.data[0].arrivesAt", .35f, .25f, "8. storyVisits[0].arrivesAt (the Officer's first coffee, ≈ 1:52)");
             run.Info($"9. featuredRepair: unchanged ({FeaturedWords(day1)}): fault 0 is now the clean");
@@ -519,7 +537,7 @@ public static class DaysOneToThreeSteps
         checks = run =>
         {
             CheckPhases(run, day1, Day1Now);
-            run.Check(Near(day1.drinkOnlyChance, .70f), $"Day 1: {day1.drinkOnlyChance:0.##} of walk-ins come for a drink (.70)");
+            run.Check(Near(day1.drinkOnlyChance, PacingSteps.Day1DrinkOnly), $"Day 1: {day1.drinkOnlyChance:0.##} of walk-ins come for a drink ({PacingSteps.Day1DrinkOnly:0.##}, the pacing pass)");
             run.Check(day1.SuppressesRepairDrinksOn(1) && !day1.SuppressesRepairDrinksOn(2), "Day 1: no drink wishes from repair customers (Grace's latte waits for Day 2), on Day 1 only");
             run.Check(Near(day1.storyVisits[0].arrivesAt, .25f), $"Day 1: the Officer at {day1.storyVisits[0].arrivesAt:0.##} of the day (.25)");
             run.Check(day1.useFeaturedRepair && day1.featuredRepair != null && day1.featuredRepair.devicePrefab == cameraPrefab
@@ -549,10 +567,10 @@ public static class DaysOneToThreeSteps
             ObjectRef(run, day2, "featuredRepair.devicePrefab", cameraPrefab, "12. featuredRepair.devicePrefab");
             Int(run, day2, "featuredRepair.faultIndex", 1, "12. featuredRepair.faultIndex (fault 1, the shutter)");
             Text(run, day2, "featuredRepair.storyEpisodeId", GraceCameraEpisode.EpisodeId, "12. featuredRepair.storyEpisodeId");
-            Float(run, day2, "patienceMultiplier", 1.2f, 1.4f, "13. patienceMultiplier (no regular leaves \"Never again\" on Days 1-3)");
+            Float(run, day2, "patienceMultiplier", PacingSteps.Day2PatienceWas, PacingSteps.Day2Patience, "13. patienceMultiplier (no regular leaves \"Never again\" on Days 1-3; 24 Oct: x1.8, the pacing pass)");
             SetPhases(run, day2, Day2Was, Day2Now, "14", false);
-            Float(run, day2, "drinkOnlyChance", .40f, .70f, "15. drinkOnlyChance");
-            SetWalkIns(run, day2, new[] { (phonePrefab, PhoneGunked) }, "16");
+            Float(run, day2, "drinkOnlyChance", PacingSteps.Day2DrinkOnlyWas, PacingSteps.Day2DrinkOnly, "15. drinkOnlyChance (24 Oct: .45)");
+            SetWalkIns(run, day2, Entries(PacingSteps.Day2WalkIns), "16");
             Text(run, day2, "intent", Day2Intent, "17. intent");
         },
         checks = run =>
@@ -562,10 +580,10 @@ public static class DaysOneToThreeSteps
                       && Near(day2.featuredRegularArrivesAt, 0f) && day2.GuidesFeaturedVisitOn(2),
                 $"Day 2: Grace first, with her camera's fault 1 (the shutter) and her visit's hints ({FeaturedWords(day2)})");
             run.Check(!day2.SuppressesRepairDrinksOn(2), "Day 2: drink wishes on (her latte is the juggle)");
-            run.Check(Near(day2.patienceMultiplier, 1.4f), $"Day 2: patience x{day2.patienceMultiplier:0.##} (1.4)");
+            run.Check(Near(day2.patienceMultiplier, PacingSteps.Day2Patience), $"Day 2: patience x{day2.patienceMultiplier:0.##} ({PacingSteps.Day2Patience:0.#})");
             CheckPhases(run, day2, Day2Now);
-            run.Check(Near(day2.drinkOnlyChance, .70f), $"Day 2: {day2.drinkOnlyChance:0.##} of walk-ins come for a drink (.70)");
-            CheckWalkIns(run, day2, new[] { (phonePrefab, PhoneGunked) });
+            run.Check(Near(day2.drinkOnlyChance, PacingSteps.Day2DrinkOnly), $"Day 2: {day2.drinkOnlyChance:0.##} of walk-ins come for a drink ({PacingSteps.Day2DrinkOnly:0.##})");
+            CheckWalkIns(run, day2, Entries(PacingSteps.Day2WalkIns));
         }
     };
 
@@ -589,9 +607,9 @@ public static class DaysOneToThreeSteps
             Float(run, day3, "patienceMultiplier", 1f, 1.6f, "19. patienceMultiplier");
             Int(run, day3, "maxCustomers", 2, "20. maxCustomers (walk-ins at once; was 5)");
             SetPhases(run, day3, Day3Was, Day3Now, "21", false);
-            Float(run, day3, "drinkOnlyChance", .30f, .45f, "22. drinkOnlyChance");
+            Float(run, day3, "drinkOnlyChance", PacingSteps.Day3DrinkOnlyWas, PacingSteps.Day3DrinkOnly, "22. drinkOnlyChance (24 Oct: .35)");
             SetDevices(run, day3, new[] { watchPrefab }, "23. devices (read only by the fallback)");
-            SetWalkIns(run, day3, new[] { (watchPrefab, WatchDebris), (phonePrefab, PhoneScreen), (watchPrefab, WatchSeized) }, "24");
+            SetWalkIns(run, day3, Entries(PacingSteps.Day3WalkIns(CallIsReal())), "24");
             Text(run, day3, "intent", Day3Intent, "25. intent");
         },
         checks = run =>
@@ -601,9 +619,9 @@ public static class DaysOneToThreeSteps
             run.Check(!day3.SuppressesRepairDrinksOn(3), "Day 3: drink wishes on (DayOneOnboardingChecks requires it)");
             run.Check(Near(day3.patienceMultiplier, 1.6f) && day3.maxCustomers == 2, $"Day 3: patience x{day3.patienceMultiplier:0.##} (1.6), {day3.maxCustomers} walk-ins at once (2)");
             CheckPhases(run, day3, Day3Now);
-            run.Check(Near(day3.drinkOnlyChance, .45f), $"Day 3: {day3.drinkOnlyChance:0.##} of walk-ins come for a drink (.45)");
+            run.Check(Near(day3.drinkOnlyChance, PacingSteps.Day3DrinkOnly), $"Day 3: {day3.drinkOnlyChance:0.##} of walk-ins come for a drink ({PacingSteps.Day3DrinkOnly:0.##})");
             run.Check(day3.devices != null && day3.devices.Length == 1 && day3.devices[0] == watchPrefab, "Day 3: the fallback's devices are the watch alone");
-            CheckWalkIns(run, day3, new[] { (watchPrefab, WatchDebris), (phonePrefab, PhoneScreen), (watchPrefab, WatchSeized) });
+            CheckWalkIns(run, day3, Entries(PacingSteps.Day3WalkIns(CallIsReal())));
             run.Check(day3.StoryVisitsOn(3).Any(v => v != null && v.who == officer && v.arrivesAt <= .3f), "Day 3: the Officer's question still comes (story visit, at .25)");
         }
     };
@@ -612,7 +630,7 @@ public static class DaysOneToThreeSteps
 
     static Group DaysFourAndFive() => new Group
     {
-        name = "F. " + Day4Path + ", " + Day5Path + " (the stopgap: gaps x 420/180, patience x1.0)",
+        name = "F. " + Day4Path + ", " + Day5Path + " (24 Oct 2026: the pacing pass's ramp, was the stopgap: gaps x 420/180, patience x1.0)",
         survey = run =>
         {
             day4 = LoadDay(run, Day4Path, 4);
@@ -622,18 +640,22 @@ public static class DaysOneToThreeSteps
         },
         change = run =>
         {
-            // Only from the 180 s day's own numbers: a gap that is neither is left alone (never scaled twice).
-            SetPhases(run, day4, Day4Was, Scaled(Day4Was), "26", true);
-            Float(run, day4, "patienceMultiplier", .95f, 1f, "26. Day 4 patienceMultiplier");
-            SetPhases(run, day5, Day5Was, Scaled(Day5Was), "27", true);
-            Float(run, day5, "patienceMultiplier", .9f, 1f, "27. Day 5 patienceMultiplier");
+            // 24 Oct 2026 (Days): the pacing pass's ramp (P's §1.5), from the stopgap (or the 180 s day's numbers: a NOTE).
+            SetPhases(run, day4, Scaled(Day4Was), Day4Now, "26", false);
+            Float(run, day4, "patienceMultiplier", PacingSteps.Day4PatienceWas, PacingSteps.Day4Patience, "26. Day 4 patienceMultiplier");
+            Int(run, day4, "maxCustomers", PacingSteps.Day4AtOnce, "26. Day 4 maxCustomers (was 6)");
+            SetPhases(run, day5, Scaled(Day5Was), Day5Now, "27", false);
+            Float(run, day5, "patienceMultiplier", PacingSteps.Day5PatienceWas, PacingSteps.Day5Patience, "27. Day 5 patienceMultiplier");
+            Int(run, day5, "maxCustomers", PacingSteps.Day5AtOnce, "27. Day 5 maxCustomers (was 6)");
         },
         checks = run =>
         {
-            CheckPhases(run, day4, Scaled(Day4Was));
-            CheckPhases(run, day5, Scaled(Day5Was));
-            run.Check(Near(day4.patienceMultiplier, 1f) && Near(day5.patienceMultiplier, 1f),
-                $"Days 4-5: patience x{day4.patienceMultiplier:0.##} and x{day5.patienceMultiplier:0.##} (1.0; were 0.95 and 0.9)");
+            CheckPhases(run, day4, Day4Now);
+            CheckPhases(run, day5, Day5Now);
+            run.Check(Near(day4.patienceMultiplier, PacingSteps.Day4Patience) && Near(day5.patienceMultiplier, PacingSteps.Day5Patience)
+                      && day4.maxCustomers == PacingSteps.Day4AtOnce && day5.maxCustomers == PacingSteps.Day5AtOnce,
+                $"Days 4-5: patience x{day4.patienceMultiplier:0.##} and x{day5.patienceMultiplier:0.##}, {day4.maxCustomers} and {day5.maxCustomers} at once " +
+                $"(x{PacingSteps.Day4Patience:0.##} and x{PacingSteps.Day5Patience:0.#}, three at once: the pacing pass; were x1.0 and six)");
         }
     };
 
@@ -820,13 +842,20 @@ public static class DaysOneToThreeSteps
 
     // The verbs each day has taught by the time it plays (one new job type a day, §6): Day 1 cleaning (cloth, brush), Day 2
     // the swap (tweezers), Day 3 opening up (screwdriver, pry). The hand (a cover back on, a fresh part placed) is free.
+    // 24 Oct 2026 (Days, the pacing pass §6.1): Day 2's walk-in is the watch's grit, four screws and a back to pry, so Day 2
+    // teaches the screwdriver and the pry too; Day 4 is the first day past the intro (anything the bench has).
     static readonly ToolType[][] Taught =
     {
         new ToolType[0],
         new[] { ToolType.Cloth, ToolType.Brush },
-        new[] { ToolType.Cloth, ToolType.Brush, ToolType.Tweezers },
+        new[] { ToolType.Cloth, ToolType.Brush, ToolType.Tweezers, ToolType.Screwdriver, ToolType.Pry },
+        new[] { ToolType.Cloth, ToolType.Brush, ToolType.Tweezers, ToolType.Screwdriver, ToolType.Pry },
         new[] { ToolType.Cloth, ToolType.Brush, ToolType.Tweezers, ToolType.Screwdriver, ToolType.Pry },
     };
+
+    // What isn't bench work, by the first day it may come (24 Oct 2026: the support call on Day 3, his answer p4; the circuit
+    // and the counter fault on Day 4).
+    static int FirstDayOf(string other) => other == "a support call" ? 3 : 4;
 
     [MenuItem(CheckMenu, false, 60)]
     public static void RunCheck()
@@ -845,6 +874,7 @@ public static class DaysOneToThreeSteps
                     if (days[d] != null) CheckWalkInRule(lint, days[d], drinks);
             CheckWords(lint);
             CheckStopgap(lint);
+            CheckFinds(lint, days);
         }
         catch (Exception e)
         {
@@ -995,8 +1025,8 @@ public static class DaysOneToThreeSteps
                 break;
             case 2:
                 lint.Check(day.useFeaturedRepair && day.featuredRepair.faultIndex == 1 && day.featuredRepair.storyEpisodeId == GraceCameraEpisode.EpisodeId
-                           && !day.SuppressesRepairDrinksOn(2) && Near(day.patienceMultiplier, 1.4f),
-                    "Day 2: Grace first with fault 1 (the shutter), her latte on, patience x1.4");
+                           && !day.SuppressesRepairDrinksOn(2) && Near(day.patienceMultiplier, PacingSteps.Day2Patience),
+                    $"Day 2: Grace first with fault 1 (the shutter), her latte on, patience x{PacingSteps.Day2Patience:0.#} (the pacing pass)");
                 break;
             case 3:
                 lint.Check(day.featuredRegular != null && day.featuredRegular.PersistentId == GraceCameraEpisode.ProfileId && Near(day.featuredRegularArrivesAt, 0f)
@@ -1007,7 +1037,8 @@ public static class DaysOneToThreeSteps
     }
 
     // No job uses a verb its day hasn't taught: RepairChecklist's tools for the device at that fault (§10), and the faults
-    // that aren't bench work at all (the circuit, the counter, a support call) wait for Day 4.
+    // that aren't bench work at all wait for their day (the support call Day 3, the circuit and the counter Day 4).
+    // 24 Oct 2026 (Days): a thrift find is judged against the next day's verbs (Verbs(..., day + 1, ...)): it is nobody's job.
     static void Verbs(Lint lint, GameObject prefab, int fault, int day, string what)
     {
         Scene preview = EditorSceneManager.NewPreviewScene();
@@ -1035,11 +1066,14 @@ public static class DaysOneToThreeSteps
             if (device.GetComponentsInChildren<CircuitPuzzle>().Length > 0) other.Add("the circuit");
             if (device.GetComponentsInChildren<HumanFault>().Length > 0) other.Add("the counter fault");
             if (device.GetComponent<HoldCallJob>() != null) other.Add("a support call");
-            ToolType[] untaught = tools.Where(t => Array.IndexOf(Taught[day], t) < 0).ToArray();
-            lint.Check(untaught.Length == 0 && other.Count == 0,
-                $"Day {day}, {what} ({EntryWords(prefab, fault)}): needs {(tools.Count == 0 ? "no tool" : string.Join(", ", tools))} " +
-                $"(by {how}); taught by Day {day}: {string.Join(", ", Taught[day])}" +
-                (untaught.Length > 0 ? $"; NOT TAUGHT YET: {string.Join(", ", untaught)}" : "") + (other.Count > 0 ? $"; waits for Day 4: {string.Join(", ", other)}" : ""));
+            int taughtDay = Mathf.Clamp(day, 0, Taught.Length - 1);
+            ToolType[] untaught = tools.Where(t => Array.IndexOf(Taught[taughtDay], t) < 0).ToArray();
+            string[] early = other.Where(o => day < FirstDayOf(o)).ToArray();
+            lint.Check(untaught.Length == 0 && early.Length == 0,
+                $"Day {day}, {what} ({EntryWords(prefab, fault)}): needs {(tools.Count == 0 ? "no tool" : string.Join(", ", tools))}{(other.Count > 0 ? " and " + string.Join(", ", other) : "")} " +
+                $"(by {how}); taught by Day {day}: {string.Join(", ", Taught[taughtDay])}" +
+                (untaught.Length > 0 ? $"; NOT TAUGHT YET: {string.Join(", ", untaught)}" : "") +
+                (early.Length > 0 ? $"; too early: {string.Join(", ", early.Select(o => o + " waits for Day " + FirstDayOf(o)))}" : ""));
         }
         finally { EditorSceneManager.ClosePreviewScene(preview); }
     }
@@ -1102,12 +1136,37 @@ public static class DaysOneToThreeSteps
 
     static void CheckStopgap(Lint lint)
     {
-        lint.Section("Days 4-5: the stopgap (call 14)");
+        // 24 Oct 2026 (Days): the stopgap's place is taken by the pacing pass's ramp (P's §1.5).
+        lint.Section("Days 4-5: the ramp (the pacing pass; was call 14's stopgap)");
         var d4 = AssetDatabase.LoadAssetAtPath<DayDefinition>(Day4Path);
         var d5 = AssetDatabase.LoadAssetAtPath<DayDefinition>(Day5Path);
         if (!lint.Check(d4 != null && d5 != null, "Days 4 and 5 exist")) return;
-        lint.Check(Same(Read(d4), Scaled(Day4Was)) && Near(d4.patienceMultiplier, 1f), $"Day 4: {Words(Read(d4))}, patience x{d4.patienceMultiplier:0.##}");
-        lint.Check(Same(Read(d5), Scaled(Day5Was)) && Near(d5.patienceMultiplier, 1f), $"Day 5: {Words(Read(d5))}, patience x{d5.patienceMultiplier:0.##}");
+        lint.Check(Same(Read(d4), Day4Now) && Near(d4.patienceMultiplier, PacingSteps.Day4Patience) && d4.maxCustomers == PacingSteps.Day4AtOnce,
+            $"Day 4: {Words(Read(d4))}, patience x{d4.patienceMultiplier:0.##}, {d4.maxCustomers} at once");
+        lint.Check(Same(Read(d5), Day5Now) && Near(d5.patienceMultiplier, PacingSteps.Day5Patience) && d5.maxCustomers == PacingSteps.Day5AtOnce,
+            $"Day 5: {Words(Read(d5))}, patience x{d5.patienceMultiplier:0.##}, {d5.maxCustomers} at once");
+    }
+
+    // 24 Oct 2026 (Days): each day's thrift find (P's §2.2, his answers p1 and p2) makes a job with nobody waiting, uses only
+    // the next day's verbs (Day 1's only Day 1's: his p1, "a cleaning job, so Day 1 brings no new tool"), and is never one of
+    // the day's walk-ins.
+    static void CheckFinds(Lint lint, DayDefinition[] days)
+    {
+        lint.Section("The thrift finds (the side project)");
+        for (int d = 1; d <= 3; d++)
+        {
+            DayDefinition day = days[d];
+            if (day == null) continue;
+            FeaturedRepairRequest find = day.ThriftFindOn(d);
+            string error = "none authored (Fixit Fidget › Days › G)";
+            bool made = find != null && find.TryCreateJob(out Job job, out error);
+            if (!lint.Check(made && string.IsNullOrEmpty(find.storyEpisodeId),
+                    $"Day {d}: the find {(find != null ? EntryWords(find.devicePrefab, find.faultIndex) : "")} makes a job with no episode id{(made ? "" : ": " + error)}")) continue;
+            Verbs(lint, find.devicePrefab, find.faultIndex, d == 1 ? 1 : d + 1, d == 1 ? "the thrift find (Day 1's tools only, p1)" : "the thrift find (tomorrow's verbs)");
+            lint.Check(!day.WalkInRepairsOn(d).Any(e => e != null && e.devicePrefab == find.devicePrefab && e.faultIndex == find.faultIndex),
+                $"Day {d}: the find isn't one of the day's walk-ins");
+            lint.Check(d != 1 || day.thriftBuy == 0, $"Day {d}: the find costs ${day.thriftBuy} ({(d == 1 ? "free: it is on the shelf at the open" : "bought at the closing before")}), sells for ${day.thriftSale}");
+        }
     }
 }
 #endif

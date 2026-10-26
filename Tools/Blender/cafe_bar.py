@@ -765,9 +765,12 @@ def bench_lamp():
             p.add(name + ' rod', rod(a + n * off + side * shift, b + n * off + side * shift, 0.0055, sides=6), steel)
         s0 = a + (b - a) * spring_from + side * (spring_side * 0.018)
         s1 = a + (b - a) * spring_to + side * (spring_side * 0.018)
-        p.add(name + ' spring', ribbed(s0, s1, 0.0068, 0.0046, 6, sides=5), dark)
+        # a round coil (24 Oct 2026, art audit a31: "The lamp's springs are flat black wavy ribbons lying on the arm and
+        # the post. They read as scribbles or tape, not coils"; the fix: "round coil tubes"): eight sides, not five, and
+        # a ridge every 8 mm only 1.2 mm deep, where six 2.2 mm waves on a pentagon read as a ribbon seen edge-on
+        p.add(name + ' spring', ribbed(s0, s1, 0.0062, 0.0050, max(6, round((s1 - s0).length / 0.008)), sides=8), dark)
         for s in (s0, s1):
-            p.add(name + ' spring anchor', rod(s, s - side * (spring_side * 0.020), 0.0035, sides=3), dark)
+            p.add(name + ' spring anchor', rod(s, s - side * (spring_side * 0.020), 0.0035, sides=6), dark)
         return n
 
     arm(p0, elbow, 'lower arm', 1, 0.10, 0.55)

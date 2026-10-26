@@ -985,7 +985,9 @@ public sealed class DayIntro : MonoBehaviour
     {
         switch (day)
         {
-            case 1: return "Fix what they bring. Pour what they order. Make the rent.";   // Learn the Shop
+            // 24 Oct 2026 (Furniture): the cart lives in the intro and nowhere else (his choice of 23 Oct; furniture-spec.md §1.1).
+            // Was "Fix what they bring. Pour what they order. Make the rent." (the hook: the recap could carry it, P's call).
+            case 1: return "Years at a coffee cart bought this place. Now make it a café.";   // Learn the Shop
             case 2: return "Grace comes in early. The coffee won't wait for the bench.";   // Juggle
             case 3: return "Full house today. Some of them are in a hurry.";              // The Real Game
             case 4: return "Everyone at once. Breathe when you can.";                     // Pressure
@@ -1915,7 +1917,7 @@ public sealed class DayIntro : MonoBehaviour
             cup.transform.SetParent(intro.Props, false);
             cup.transform.SetPositionAndRotation(slot.cupPoint.position, Quaternion.identity);
             shellMaterial = DrinkLiquidVisual.MakeMaterial("Day intro cup (while playing)", DrinkLiquidVisual.PaperColour, .08f);
-            liquidMaterial = DrinkLiquidVisual.MakeMaterial("Day intro drink (while playing)", colour, .68f);
+            liquidMaterial = DrinkLiquidVisual.MakeMaterial("Day intro drink (while playing)", colour, DrinkLiquidVisual.LiquidSmoothness);   // 26 Oct 2026 (Art fixes) a08: matt enough to show its colour
             MeshObject("Shell", cup.transform, DrinkLiquidVisual.BuildShell(), shellMaterial);
             liquid = MeshObject("Drink", cup.transform, DrinkLiquidVisual.BuildDisc(), liquidMaterial).transform;
             SetFill(0f);
@@ -2191,7 +2193,11 @@ public sealed class DayIntro : MonoBehaviour
         public override Framing Framing => Framing.Wide;
         public override Tie Tie => Tie.Regular;
         public override bool IsGrace => true;
-        static readonly Vector3 From = new Vector3(-8.6f, 1.6f, -2.5f), Look = new Vector3(-17.4f, 2.3f, -2.2f);
+        // 26 Oct 2026 (Art fixes) a69: "a traffic signal post stands across her door and window, in the middle of the shot" (the art
+        // audit, 23 Oct). The junction's signal (V4 - through traffic, at x -15.45, z -2.8) stood half a metre off the line from the
+        // camera to her door. The shot moves 1 m north along West Street's pavement, its aim with it: the post is 1.5 m off the
+        // line now, out from in front of her door, and the house is framed as before.
+        static readonly Vector3 From = new Vector3(-8.6f, 1.6f, -1.5f), Look = new Vector3(-17.4f, 2.3f, -1.2f);
         Transform door;
 
         public override bool Prepare(SceneThings things)

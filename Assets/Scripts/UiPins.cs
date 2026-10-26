@@ -143,6 +143,7 @@ public sealed class UiPins : MonoBehaviour
         public Transform aboutWho;
         public Vector3 aboutPoint;
         public string text = "";
+        public string icon = "";       // 26 Oct 2026 (Icons on notes): a note chip before the words (NoteIcons), or ""
         public bool relabel;           // the label still shows the words before text (they change where it's drawn next)
         public Rect onScreen;          // where it was last drawn (screen pixels from the bottom left)
     }
@@ -185,6 +186,10 @@ public sealed class UiPins : MonoBehaviour
 
     /// <summary>Day 1's pin over the thing the guide's card names.</summary>
     public void ShowGuide(string text, Transform who, Vector3 point) => Want(guide, text, who, point);
+    /// <summary>26 Oct 2026 (Icons on notes): the same, wearing the Now line's chip (a NoteIcons name; "" for none) before its word.</summary>
+    public void ShowGuide(string text, Transform who, Vector3 point, string icon) => Want(guide, text, who, point, icon);
+    /// <summary>26 Oct 2026 (Icons on notes): the chip the guide pin wears (a NoteIcons name), or "". GuideText stays the word.</summary>
+    public string GuideIcon => guide != null && guide.wanted ? guide.icon : "";
     public void HideGuide() { if (guide != null) guide.wanted = false; }
 
     /// <summary>"You" over Ace, for the first seconds of his first day.</summary>
@@ -383,7 +388,7 @@ public sealed class UiPins : MonoBehaviour
         return v;
     }
 
-    void Want(Pin pin, string text, Transform who, Vector3 point)
+    void Want(Pin pin, string text, Transform who, Vector3 point, string icon = "")
     {
         if (pin == null) return;
         pin.wanted = !string.IsNullOrEmpty(text);
@@ -391,8 +396,10 @@ public sealed class UiPins : MonoBehaviour
         pin.point = point;
         pin.aboutWho = who;
         pin.aboutPoint = point;
-        if (text == pin.text) return;
+        icon = icon ?? "";   // 26 Oct 2026 (Icons on notes)
+        if (text == pin.text && icon == pin.icon) return;
         pin.text = text ?? "";
+        pin.icon = icon;
         pin.relabel = true;
         // Not on screen: the new words now. On screen: where it's drawn next (PlacePin), so a pin fading out where it was
         // keeps its old words.
@@ -403,9 +410,11 @@ public sealed class UiPins : MonoBehaviour
     static void Relabel(Pin pin)
     {
         pin.relabel = false;
-        pin.label.text = pin.text;
-        Vector2 words = pin.label.GetPreferredValues(pin.text, 999f, 999f);
-        pin.chip.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 18f, pin.label.fontSize + 10f);
+        // 26 Oct 2026 (Icons on notes): the note chip before the word, the plate as tall as the chip needs.
+        string tag = NoteIcons.Tag(pin.icon), shown = tag.Length > 0 ? tag + " " + pin.text : pin.text;
+        pin.label.text = shown;
+        Vector2 words = pin.label.GetPreferredValues(shown, 999f, 999f);
+        pin.chip.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 18f, tag.Length > 0 ? Mathf.Max(pin.label.fontSize + 10f, Mathf.Ceil(words.y) + 4f) : pin.label.fontSize + 10f);
         float height = pin.chip.sizeDelta.y + (pin.pointerRect != null ? PointerHeight - 1f : 0f);
         pin.root.sizeDelta = new Vector2(pin.chip.sizeDelta.x, height);
         UiSkin.Follow(pin.shadow.rectTransform, pin.chip, 6f, 2f);
@@ -418,6 +427,7 @@ public sealed class UiPins : MonoBehaviour
     // Whether everything is put away: the recap, a conversation, a close-up, the morning's intro (the night: Night()).
     bool Hidden()
     {
+        if (TitleScreen.Up) return true;   // 26 Oct 2026 (his Mac): no "You" or guide pin over the start screen (Place runs after its hider)
         if (IntroPlaying()) return true;
         if (RecapUI.Showing) return true;
         if (ConversationController.AnyOpen) return true;

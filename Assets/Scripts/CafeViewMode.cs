@@ -233,9 +233,12 @@ public sealed class CafeViewMode : MonoBehaviour
     bool AtStation => interactor != null && interactor.IsAtStation;
     // The day intro (12 Oct 2026, Cinematics) owns the screen for its 6-8 s: the view takes no input meanwhile (no V, no look),
     // and the first delta after it is dropped as after any blend, so the player's own view comes back exactly where it was.
-    bool OverlayOwnsInput => Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.RecapOwnsInput
+    // 24 Oct 2026 (Furniture): except while the café is arranged at closing (ArrangeMode): the world holds still (time scale 0)
+    // and the recap is up, but the overhead orbits and zooms as by day.
+    bool OverlayOwnsInput => !ArrangeMode.Active && (Time.timeScale <= 0 || DayClock.Instance != null && DayClock.Instance.RecapOwnsInput
         || conversation != null && conversation.InConversation || inspector != null && inspector.IsHoldingItem
-        || counterRepair != null && counterRepair.OwnsInput || DayIntro.Playing;
+        || counterRepair != null && counterRepair.OwnsInput || DayIntro.Playing
+        || TitleScreen.Up);   // 26 Oct 2026 (Start screen): the title's own camera has the screen; no V, no look, no locked pointer
     // Pausing or opening the end-of-day recap does not change the camera's
     // presentation. Keep the cutaway consistent until a close-up owns it. The day intro's shots are
     // close-ups too (the storefront seen from the street wants its walls solid and its pendants hung).
@@ -338,7 +341,8 @@ public sealed class CafeViewMode : MonoBehaviour
         var mouse = Mouse.current;
         if (!Application.isFocused || !CanChangeView) { acceptingLook = false; aim.Reset(); return; }
         // V, or the controller's View / Share / Minus button.
-        if ((keyboard != null && keyboard.vKey.wasPressedThisFrame || PadInput.Pressed(PadButton.Select)) && !AceSetAside)
+        // 24 Oct 2026 (Furniture): no first person while arranging the café (it's placed from the overhead).
+        if ((keyboard != null && keyboard.vKey.wasPressedThisFrame || PadInput.Pressed(PadButton.Select)) && !AceSetAside && !ArrangeMode.Active)
         {
             SetFirstPerson(!firstPerson);
             return;

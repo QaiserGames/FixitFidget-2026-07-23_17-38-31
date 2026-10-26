@@ -186,6 +186,13 @@ public class FocusNameUI : MonoBehaviour
             point = StationTop(drop.gameObject) + Above;
             return spot != null && spot.Kind == DropSpot.SpotKind.Counter ? TrayName : BenchName;
         }
+        // 24 Oct 2026 (Days): the thrift shelf by the bench, with today's find on it: "Thrift watch".
+        if (thing is ThriftShelf shelf && shelf.Find != null)
+        {
+            point = TopOf(shelf.Find.gameObject) + Vector3.up * .12f;
+            SideProject marker = SideProject.Of(shelf.Find);
+            return marker != null ? marker.PinWords : "Thrift find";
+        }
         if (thing is ItemInteractable item && item.Job != null)
         {
             point = TopOf(item.Job.gameObject) + Vector3.up * .12f;
@@ -194,6 +201,9 @@ public class FocusNameUI : MonoBehaviour
             string subject = item.Job.Record != null ? item.Job.Record.Subject : "";
             if (string.IsNullOrWhiteSpace(subject)) subject = "Device";
             CustomerBrain owner = item.Job.Owner;
+            // 24 Oct 2026 (Days, the side project): a thrift find is nobody's: "Thrift watch".
+            SideProject find = owner == null ? SideProject.Of(item.Job) : null;
+            if (find != null) return find.PinWords;
             return owner != null ? $"{owner.CustomerName}'s {ReputationRules.InSentence(subject)}" : subject;
         }
         return "";

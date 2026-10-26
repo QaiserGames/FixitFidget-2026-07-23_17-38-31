@@ -9,8 +9,9 @@ The bench's tools, v3 (9 Oct 2026): the five tools of the close-up, built from m
                    heel, diverging and tapering slowly to needle points 4 mm apart, bright ground tips on a black
                    coated body, a hairline serration band on the outer faces. Three meshes (the heel the root at the
                    points, Leaf_L / Leaf_R with their origin at the heel) as ToolPickup needs.
-  BT_Brush         a soft flat dusting brush, 140 mm: seven clumps of golden bristle cut to a chisel, a crimped tinned
-                   ferrule with two grooves, a raw beech handle that flattens toward the butt.
+  BT_Brush         a soft flat dusting brush, 140 mm: one block of golden bristle with five grooves a face, cut to a chisel
+                   (24 Oct 2026, art audit a23: the seven clumps it had read as a rake), a crimped tinned ferrule with two
+                   grooves, a raw beech handle that flattens toward the butt.
   BT_PryTool       the repair shop's pry tool (a "jimmy"): a 0.8 x 8 mm steel blade in a black over-moulded handle
                    15 x 8.5 mm with green grip inlays and a steel bolster, 125 mm (no hang hole: nothing to hang it on).
   BT_Cloth         a microfibre lens cloth, 15 x 18 cm, folded in quarters: 75 x 90 mm, four layers, two rounded fold
@@ -166,21 +167,75 @@ def tweezers():
     return root_ob, leaves
 
 
+BRISTLE_TUFTS = 6           # the bristle block's tufts across its width: five grooves on each broad face
+
+
+def _bristle_ring(z, sx, sy, groove, tip_z=None, rc=.0012, tufts=BRISTLE_TUFTS):
+    """
+    One section of the bristle block (24 Oct 2026, art audit a23): a rounded rectangle sx across X and sy through Y whose two
+    broad faces dip `groove` deep between the tufts, so the block reads as bristle gathered in bundles. Every ring has the
+    same points in the same order (tube() lofts them). tip_z(x), when given, sets each point's height (the chisel's uneven
+    end); otherwise the ring is flat at z.
+    """
+    rc = min(rc, .45 * min(sx, sy))
+    hx, hy = sx / 2 - rc, sy / 2
+    w = 2 * hx / tufts
+    xs = []
+    for k in range(tufts):
+        x0 = -hx + k * w
+        xs += [x0, x0 + .25 * w, x0 + .5 * w, x0 + .75 * w]
+    xs.append(hx)
+
+    def dip(i):                       # a groove at each inner tuft boundary, its shoulders a third as deep, the tuft's middle full
+        if i == 0 or i == len(xs) - 1:
+            return 0.0
+        return (1.0, .30, 0.0, .30)[i % 4] * groove
+
+    def zz(x):
+        return z if tip_z is None else tip_z(x)
+
+    pts = [(x, -(hy - dip(i)), zz(x)) for i, x in enumerate(xs)]                     # the front face (-Y), toward +X
+    for k in range(1, 3):                                                            # the right edge, rounded
+        a = math.radians(-90 + 60 * k)
+        pts.append((hx + rc * math.cos(a), hy * math.sin(a), zz(hx + rc * math.cos(a))))
+    pts += [(x, hy - dip(i), zz(x)) for i, x in reversed(list(enumerate(xs)))]       # the back face (+Y), toward -X
+    for k in range(1, 3):                                                            # the left edge, rounded
+        a = math.radians(90 + 60 * k)
+        pts.append((-hx + rc * math.cos(a), hy * math.sin(a), zz(-hx + rc * math.cos(a))))
+    return pts
+
+
 def brush():
     p = Faceted('BT_Brush')
     bristle, steel, wood = M('BT_Bristle'), M('BT_Steel'), M('BT_Wood')
-    # seven clumps of bristle, 28 mm exposed, cut to a chisel with a little unevenness (the ends are the origin, so the
-    # unevenness is a few tenths above z = 0, never below), splaying a touch toward the tips
-    ends = (.0012, .0002, .0008, 0.0, .0006, .0001, .0010)
-    for k in range(7):
-        x = (k - 3) * .0030
-        e = ends[k]
-        loops = [ring_rrect(x * 1.16, 0, e, .0029, .0064, .0010, per_corner=2),
-                 ring_rrect(x * 1.11, 0, e + .0040, .0031, .0068, .0012, per_corner=2),
-                 ring_rrect(x * 1.04, 0, .0160, .0031, .0056, .0012, per_corner=2),
-                 ring_rrect(x, 0, .0260, .0029, .0046, .0010, per_corner=2),
-                 ring_rrect(x, 0, .0330, .0028, .0044, .0010, per_corner=2)]
-        p.add('bristle clump', tube(loops), bristle, smooth=True)
+    # the bristles (24 Oct 2026, art audit a23): ONE tapered block, 25.5 mm exposed, with five grooves down each broad face
+    # (six tufts), flaring a little in width toward the end and thinning to a chisel 3 mm through, cut with a little
+    # unevenness (the end is the origin, so the unevenness is a few tenths above z = 0, never below). It was seven separate
+    # clumps splaying like a fork, and in the close-up they read as a rake (R3; R1 counted the brush among the good tools;
+    # his answer to a23 was "Yes, do that"). The block still runs up inside the ferrule to 33 mm, and its rings are close
+    # enough below the mouth (BRUSH_MOUTH) for the Bend key to curve it smoothly.
+    def tip(x):
+        # each tuft cut a few tenths longer or shorter than its neighbours, and nicked where two tufts meet, so the chisel's
+        # edge reads as bristle rather than one cut solid; the longest tuft's end is z = 0
+        half = .0232 / 2 - .0012                      # the end ring's straight half-width (sx / 2 - rc)
+        u = min(max((x + half) / (2 * half / BRISTLE_TUFTS), 0.0), BRISTLE_TUFTS - 1e-6)
+        k, f = int(u), u - int(u)
+        nick = max(0.0, 1.0 - min(f, 1.0 - f) * 5.0)
+        return (.00055, .00010, .00035, 0.0, .00045, .00015)[k] + .00035 * nick
+    rows = [  # (z, width, thickness, groove depth); None: the uneven end
+        (None, .0232, .0030, .00050),
+        (.0010, .0238, .0040, .00070),
+        (.0045, .0237, .0049, .00085),
+        (.0085, .0233, .0055, .00090),
+        (.0130, .0228, .0058, .00085),
+        (.0175, .0224, .0059, .00070),
+        (.0215, .0221, .0057, .00055),
+        (.0255, .0218, .0053, .00040),
+        (.0290, .0212, .0049, .0),
+        (.0330, .0204, .0044, .0),
+    ]
+    loops = [_bristle_ring(0.0 if z is None else z, sx, sy, g, tip_z=tip if z is None else None) for z, sx, sy, g in rows]
+    p.add('bristle block', tube(loops), bristle, smooth=True)
     # the ferrule: tinned steel, crimped flat at the mouth (24 x 6) and tapering over 22 mm to round (9) at the handle, a
     # flat crimp at the mouth and two crimp grooves near the handle
     ferrule = [ring_rrect(0, 0, .0255, .0236, .0058, .0026, per_corner=3), ring_rrect(0, 0, .0262, .0244, .0066, .0030, per_corner=3),
@@ -543,91 +598,141 @@ def scrap_tray():
 
 # ----------------------------------------------------------------------------- the cloth in the hand, the brush's bend
 
-HELD_N = 36                                          # around the wad
-HELD_RINGS = [   # (fraction of the pad's half-sizes, z m): the flat pad, its soft edge rolling up, the gathered tail
-    (.22, 0.0), (.44, 0.0), (.64, 0.0), (.80, 0.0), (.92, .00015), (1.00, .0009), (1.06, .0026), (1.08, .0050),
-    (1.02, .0078), (.86, .0110), (.64, .0150), (.46, .0200), (.34, .0260), (.30, .0320), (.31, .0370), (.24, .0405)]
-HELD_TIP = .0420
-HELD_A, HELD_B = .0200, .0225                        # the working pad's half-sizes: 40 x 45 mm
-PRESS_RINGS = [   # the pressed wad: the pad 50 x 52 mm, the rolled edge lower, the tail 5 mm down
-    (.22, 0.0), (.44, 0.0), (.64, 0.0), (.80, 0.0), (.92, 0.0), (1.00, .0004), (1.05, .0014), (1.08, .0032),
-    (1.05, .0056), (.90, .0082), (.68, .0112), (.49, .0152), (.36, .0210), (.31, .0270), (.32, .0320), (.25, .0355)]
-PRESS_TIP = .0370
-PRESS_SCALE = (1.25, 1.155)                          # 40 x 45 -> 50 x 52
-FOLD_AMP = [0, 0, 0, 0, 0, 0, .020, .035, .050, .070, .100, .130, .150, .130, .100, .080]   # per ring: folds grow toward the fist
-TAIL_LEAN = 24.0                                     # degrees toward the player (Blender +Y): the hand is there
+# BT_ClothHeld v2 (26 Oct 2026; art audit a02, S1: "The cloth is a smooth yellow cone that looks like a rubber duck. The
+# folded cloth in its tray, and the Wipe icon, look right". His words, 26 Oct: "it was an issue i brought up to you before,
+# i would want it to look less like a glob, more like someone is grabbing a cloth and cleaning an item in a sense"; and
+# playtest 7, his girlfriend: "it looks like a glob"). The cone's tall smooth tail read as a duck's neck, and so does any
+# gathered neck of cloth while the fist round it is out of sight (three tries on 26 Oct: a ruffled wad with hanging
+# corners read as popcorn with fangs, a pleated knot as a paper lantern, a gathered tail as a bow tie). What reads as a
+# cloth is the tray's own folded cloth, so this is that cloth, grabbed: two layers on the glass with soft rounded lips,
+# turned a little off the stroke as it came to hand, its edges never quite straight, and pinched up near its middle where
+# the unseen fingers hold it, into a soft peak that draws the cloth in round it, with folds running down from the pinch
+# toward the corners and the corner nearest Ace lifting off the glass. Its wiping face is the flat cloth all round the
+# pinch. Smooth (the hero rule for soft things), its thin edges left sharp so the cloth's thinness shows. One sheet with
+# thickness: a grid across (u) and along (v, from the far edge toward Ace), its top and its underside, and a rim round it.
+HELD_NU, HELD_NV = 19, 21                            # the grid: across, along
+HELD_HALF = .026                                     # half the cloth's width: 52 mm across
+HELD_FAR, HELD_LEN = -.028, .056                     # its far edge (up the screen, at the cursor while wiping); its length
+HELD_T = .0026                                       # two layers of the folded cloth
+PINCH = (0.0, .007)                                  # where the fingers have hold of it: near the middle, toward Ace
+PINCH_H, PINCH_R = .0220, .0125                      # the peak rises 22 mm over the cloth; how far round it it lifts
+# the folds running down from the pinch: (direction round it, radians from Blender +X; spread; depth)
+PINCH_FOLDS = [(.35, .30, 1.0), (1.35, .38, -.7), (2.15, .26, .9), (2.95, .42, .6), (3.90, .30, -.8), (4.60, .36, 1.0), (5.55, .28, .7)]
+PRESS_SPREAD = 1.08                                  # pressed, the cloth spreads a little and the pinch sinks
+HELD_TURN = 26.0                                     # the cloth turned this far off the stroke (degrees), as it came to hand
 
 
-def _held_positions(rings, tip, scale=(1.0, 1.0), bunch=0.0):
-    """The wad's vertices: the centre point, the rings (HELD_N each), the tip. bunch 1 = the stroke at full speed."""
+def _held_point(t, s, press=0.0, bunch=0.0):
+    """
+    The cloth's top surface and its thickness at (t across, -1..1; s along, 0 at the far edge, 1 at the near end), for a
+    press and a bunch (0..1). Returns (x, y, z_top, thickness).
+    """
+    a = abs(t)
+    spread = 1.0 + (PRESS_SPREAD - 1.0) * press
+    # laid out: its corners rounded (nobody folds a cloth to a sharp corner), its edges never quite straight, and the
+    # whole cloth turned HELD_TURN off the stroke, held as it came to hand
+    corner = smoothstep((a - .55) / .45) * max(1.0 - smoothstep(s / .12), smoothstep((s - .88) / .12))
+    wave = 1.0 + .035 * math.sin(7.0 * t + 3.0 * s + 1.0) * smoothstep((max(a, abs(2 * s - 1)) - .8) / .2)
+    fx = t * HELD_HALF * (1.0 - .16 * corner) * wave
+    fy = (HELD_FAR + s * HELD_LEN) * wave
+    c, sn = math.cos(math.radians(HELD_TURN)), math.sin(math.radians(HELD_TURN))
+    x, y = (fx * c - fy * sn) * spread, (fx * sn + fy * c) * spread
+    # the pinch: the cloth lifted to a soft peak where it is held, drawn in round it, the folds running down from it to
+    # the corners; on a stroke the peak leans back against it (the stroke runs along Unity +x = Blender -x)
+    px, py = PINCH[0] + .0060 * bunch, PINCH[1]
+    dx, dy = x - px, y - py
+    d = math.hypot(dx, dy)
+    lift = math.exp(-(d / PINCH_R) ** 1.4)
+    x -= dx * .24 * lift ** .7
+    y -= dy * .24 * lift ** .7
+    z = HELD_T + PINCH_H * (1.0 - .15 * press) * lift
+    theta = math.atan2(dy, dx)
+    ridge = 0.0
+    for cdir, w, depth in PINCH_FOLDS:
+        dt = (theta - cdir + math.pi) % (2 * math.pi) - math.pi
+        ridge += depth * math.exp(-(dt / w) ** 2)
+    z += .0060 * ridge * 4.0 * lift * (1.0 - lift)
+    y += .0040 * lift ** 2                                           # the peak leans toward the hand
+    # the corner nearest Ace (the turned layout's +Y) lifts off the glass toward the grip; the others lie flat
+    z += .0080 * (1.0 - .35 * press) * corner ** 1.5 * smoothstep(((fx * sn + fy * c) - .010) / .015)
+    # the lips: the cloth's own rounded edge, all round
+    edge = min((1.0 - a) * HELD_HALF, s * HELD_LEN, (1.0 - s) * HELD_LEN)
+    lip = .45 + .55 * math.sqrt(max(0.0, 1.0 - (1.0 - min(1.0, edge / .0016)) ** 2))
+    z = HELD_T * lip + (z - HELD_T)
+    # four old creases across it, away from the pinch
+    for k, (ct, cs, cw, depth) in enumerate(((.9, 3.0, .22, .00045), (.6, -2.2, .18, .00035), (-.4, 1.4, .16, .00030), (1.2, .8, .20, .00030))):
+        dd = abs(t * ct + (s - (.30, .50, .70, .20)[k]) * cs - (0.0, .35, -.2, .5)[k])
+        z -= depth * math.exp(-(dd / cw) ** 2) * (1.0 - lift)
+    # the stroke: the leading side (Blender -x) of the cloth rolls up off the glass, the trailing side drags behind
+    if bunch:
+        lead = smoothstep((-x / HELD_HALF - .55) / .45)
+        z += bunch * .0035 * lead * (1.0 - lift)
+        x += bunch * .0080 * smoothstep((x / HELD_HALF - .2) / .8) * (1.0 - lift)
+    return x, y, max(z, .0006 + .6 * HELD_T * lift), HELD_T
+
+
+def _held_positions(press=0.0, bunch=0.0):
+    """
+    Every vertex of the held cloth in one fixed order for any press and bunch (0..1), so the Basis and both keys share one
+    topology: the top grid (u across, then v along), then the underside grid. bunch 1 = the stroke at full speed, along
+    Unity +X (Blender -X).
+    """
     from mathutils import Vector as V
-    pts = [V((0.0, 0.0, 0.0))]
-    for j, (f, z) in enumerate(rings):
-        a = HELD_A * f * scale[0]
-        b = HELD_B * f * scale[1]
-        twist = math.radians(80.0) * min(1.0, z / .040)
-        lean_y = z * math.tan(math.radians(TAIL_LEAN)) * smoothstep(z / .014)       # the tail leans toward the player (+Y)
-        lean_x = z * math.tan(math.radians(12.0)) * smoothstep((z - .006) / .012) * bunch   # and against the stroke
-        for i in range(HELD_N):
-            phi = 2 * math.pi * i / HELD_N
-            # irregular folds radiating up into the fist: two harmonics, not a star
-            fold = .62 * math.cos(5 * phi + twist + .7) + .38 * math.cos(3 * phi - .5 * twist + 2.1)
-            k = 1.0 + FOLD_AMP[j] * fold + (.025 * math.cos(4 * phi + 1.3) if 4 <= j <= 7 else 0.0)
-            x, y = a * k * math.cos(phi), b * k * math.sin(phi)
-            zz = z
-            if bunch and j <= 9:
-                # the stroke runs along Unity +x = Blender -x: the leading edge (Blender -x) rolls up into folds, the
-                # trailing edge (Blender +x) stretches flat and drags behind
-                lead = max(0.0, -math.cos(phi)) ** 1.5
-                trail = max(0.0, math.cos(phi)) ** 1.5
-                crest = {3: .0006, 4: .0024, 5: .0012, 6: .0042, 7: .0028, 8: .0045, 9: .0032}.get(j, 0.0)
-                zz += bunch * lead * crest
-                x += bunch * lead * .0040 * min(1.0, f)
-                x += bunch * trail * .0100 * min(1.0, f / .8)
-                zz -= bunch * trail * .7 * max(0.0, z)
-            pts.append(V((x + lean_x, y + lean_y, zz)))
-    lean_y = tip * math.tan(math.radians(TAIL_LEAN))
-    lean_x = tip * math.tan(math.radians(12.0)) * bunch
-    pts.append(V((lean_x, lean_y, tip)))
-    return pts
+    top, under = [], []
+    for jv in range(HELD_NV):
+        s = jv / (HELD_NV - 1)
+        for iu in range(HELD_NU):
+            t = -1.0 + 2.0 * iu / (HELD_NU - 1)
+            x, y, z, thick = _held_point(t, s, press, bunch)
+            top.append(V((x, y, z)))
+            under.append(V((x, y, max(0.0, z - thick))))
+    return top + under
 
 
 def cloth_held():
     """
-    BT_ClothHeld (Art's A4.2-3): the lens cloth folded once and gathered in an unseen fist. A working pad about 40 x 45 mm
-    lies on the glass (its contact face is the origin, z = 0) with soft edges and six radial folds; the gathered excess
-    rises behind it into a twisted tail 42 mm high, leaning 24 degrees toward the player (Blender +Y = Unity -Z) where the
-    hand is; the folds are irregular (two harmonics), not a star.
-    From the close-up camera: a rounded yellow wad about 45 x 55 mm. Smooth (the hero rule for soft things).
-    Shape keys (one topology): Press (the pad spreads to 50 x 52 mm, the rolled edge flattens, the tail drops 5 mm) and
-    Bunch (for a stroke along the model's Unity +X: the leading edge rolls up into three folds up to 4 mm high, the
-    trailing edge stretches flat and drags 9 mm behind, the tail leans 12 degrees against the stroke). Systems turns the
-    cloth so Unity +X points along the stroke, sets Bunch from the stroke's speed and Press from the press.
-    Returns the object (the keys on it).
+    BT_ClothHeld (Art's A4.2-3; v2 26 Oct 2026, art audit a02: see HELD_NU): the lens cloth, folded and grabbed. It lies
+    on the glass (its underside is the origin's plane, z = 0, the cloth centred on the origin): 52 x 56 mm laid out, two
+    layers (2.6 mm) with rounded lips, turned 26 degrees off the stroke, pinched up 7 mm toward the player (Blender +Y =
+    Unity -Z, where the hand is) into a peak 25 mm over the glass, seven folds running down from it, the near corner lifted
+    8 mm. One material, BT_Cloth, the folded cloth's own (the colour of the tray's cloth and the Wipe icon). From the
+    close-up camera: a soft yellow cloth pinched up in the middle, held by a hand just out of sight.
+    Shape keys (one topology): Press (the cloth spreads 8 %, the peak sinks 15 %, the corner lies lower) and Bunch (for a
+    stroke along the model's Unity +X: the leading side rolls up 3.5 mm off the glass, the trailing side drags 8 mm, the
+    peak leans 6 mm back against the stroke). Systems turns the cloth so Unity +X points along the stroke, sets Bunch from
+    the stroke's speed and Press from the press (ToolPickup: Press 1 on the device, 0.55 in the air, Bunch up to 0.45),
+    and leads with its far edge (here its far corner) from its vertices and keys each frame, so the new shape needs no
+    code. Returns the object (the keys on it).
     """
     from mathutils import Vector as V
-    base = _held_positions(HELD_RINGS, HELD_TIP)
+    base = _held_positions()
     bm = bmesh.new()
     vs = [bm.verts.new(p) for p in base]
-    n, rings = HELD_N, len(HELD_RINGS)
+    nu, nv = HELD_NU, HELD_NV
+    grid = nu * nv
 
-    def ring(j):
-        return vs[1 + j * n: 1 + (j + 1) * n]
-    r0 = ring(0)
-    for i in range(n):
-        bm.faces.new([vs[0], r0[(i + 1) % n], r0[i]])               # the pad's centre, facing down onto the glass
-    for j in range(rings - 1):
-        lo, hi = ring(j), ring(j + 1)
-        for i in range(n):
-            k = (i + 1) % n
-            bm.faces.new([lo[i], lo[k], hi[k], hi[i]])
-    last, tipv = ring(rings - 1), vs[-1]
-    for i in range(n):
-        bm.faces.new([last[i], last[(i + 1) % n], tipv])
+    def top(iu, jv):
+        return vs[jv * nu + iu]
+
+    def under(iu, jv):
+        return vs[grid + jv * nu + iu]
+    for jv in range(nv - 1):
+        for iu in range(nu - 1):
+            bm.faces.new([top(iu, jv), top(iu + 1, jv), top(iu + 1, jv + 1), top(iu, jv + 1)])
+            bm.faces.new([under(iu, jv + 1), under(iu + 1, jv + 1), under(iu + 1, jv), under(iu, jv)])
+    rim = []                                                      # the cloth's thin edges, left sharp
+    for jv in range(nv - 1):
+        for iu in (0, nu - 1):
+            rim.append(bm.faces.new([top(iu, jv), under(iu, jv), under(iu, jv + 1), top(iu, jv + 1)]))
+    for jv in (0, nv - 1):
+        for iu in range(nu - 1):
+            rim.append(bm.faces.new([top(iu, jv), top(iu + 1, jv), under(iu + 1, jv), under(iu, jv)]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     fb.orient_shells(bm)
     for f in bm.faces:
         f.smooth = True
+    for f in rim:
+        f.smooth = False
     fb.box_uvs(bm)
     me = bpy.data.meshes.new('BT_ClothHeld')
     bm.to_mesh(me)
@@ -636,8 +741,7 @@ def cloth_held():
     ob = bpy.data.objects.new('BT_ClothHeld', me)
     bpy.context.scene.collection.objects.link(ob)
     ob.shape_key_add(name='Basis', from_mix=False)
-    for key_name, pts in (('Press', _held_positions(PRESS_RINGS, PRESS_TIP, scale=PRESS_SCALE)),
-                          ('Bunch', _held_positions(HELD_RINGS, HELD_TIP, bunch=1.0))):
+    for key_name, pts in (('Press', _held_positions(press=1.0)), ('Bunch', _held_positions(bunch=1.0))):
         key = ob.shape_key_add(name=key_name, from_mix=False)
         for i, p in enumerate(pts):
             key.data[i].co = V(p)
@@ -650,11 +754,12 @@ BRUSH_BEND_DEG = 25.0
 
 def brush_bend(ob):
     """
-    The Bend shape key on BT_Brush (Art's A5): the seven clumps bend from the ferrule's mouth like a loaded cantilever,
-    their ends 25 degrees off the handle's line and 7.4 mm aside, toward the model's Unity -X (Blender +X: against a
-    stroke along Unity +X), the tips staying on the working plane (z 0: the origin contract holds bent), and the tips
-    splay 2 mm (the outer clumps 1 mm outward each, the bundle 2 mm thicker). No new triangles. Systems turns the brush
-    so Unity +X points along the stroke and sets Bend from the stroke's speed and the press.
+    The Bend shape key on BT_Brush (Art's A5): the bristles bend from the ferrule's mouth like a loaded cantilever,
+    their end 25 degrees off the handle's line and 7.4 mm aside, toward the model's Unity -X (Blender +X: against a
+    stroke along Unity +X), the tips staying on the working plane (z 0: the origin contract holds bent), and the end
+    splays 2 mm (each edge 1 mm outward, the block 2 mm thicker). No new triangles. Systems turns the brush
+    so Unity +X points along the stroke and sets Bend from the stroke's speed and the press. (24 Oct 2026: the same key on
+    the one grooved bristle block that replaced the seven clumps, art audit a23.)
     """
     from mathutils import Vector as V
     me = ob.data
@@ -693,7 +798,8 @@ TOOLS = [
     (brush, 'Brush', "brush: the bristles' ends are the origin; strokes along the surface"),
     (pry_tool, 'Pry', "pry tool: the blade's edge is the origin; the lever goes in flat along -Y"),
     (cloth, 'Cloth', "cloth, folded (on the rest): its face on the glass is the origin; wiped in circles"),
-    (cloth_held, 'Cloth', "cloth in the hand: a wad, the pad's face on the glass the origin; keys Press and Bunch (stroke along +X)"),
+    (cloth_held, 'Cloth', "cloth in the hand: gathered in the grip, loose corners hanging, the pad's face on the glass the "
+                          "origin; keys Press and Bunch (stroke along +X)"),
     (tool_rest, '', "tool rest: the five tools' seats (Seat_*) as children, its origin the bottom centre; no turn in the rig"),
     (scrap_tray, '', "old-parts tray: its origin the bottom centre; it stands on the mat's far band behind the device"),
 ]

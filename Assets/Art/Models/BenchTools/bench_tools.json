@@ -63,7 +63,7 @@
    "name": "BT_Brush",
    "tool": "Brush",
    "what": "brush: the bristles' ends are the origin; strokes along the surface",
-   "tris": 1540,
+   "tris": 1804,
    "meshes": 1,
    "children": [],
    "size": [
@@ -77,7 +77,7 @@
     "BT_Steel",
     "BT_Wood"
    ],
-   "islands": 9,
+   "islands": 3,
    "blend_shapes_order": [
     "Bend"
    ],
@@ -87,7 +87,7 @@
     0
    ],
    "blend_shapes": {
-    "Bend": "0..1 from the stroke's speed and the press: the clumps bend from the ferrule's mouth, their ends 25 degrees off and 7.4 mm toward -X (they trail a stroke along +X); the tips stay on y 0 (the origin contract holds bent) and splay 2 mm"
+    "Bend": "0..1 from the stroke's speed and the press: the bristle block bends from the ferrule's mouth, its end 25 degrees off and 7.4 mm toward -X (it trails a stroke along +X); the tips stay on y 0 (the origin contract holds bent) and splay 2 mm"
    }
   },
   {
@@ -133,14 +133,14 @@
   {
    "name": "BT_ClothHeld",
    "tool": "Cloth",
-   "what": "cloth in the hand: a wad, the pad's face on the glass the origin; keys Press and Bunch (stroke along +X)",
-   "tris": 1152,
+   "what": "cloth in the hand: gathered in the grip, loose corners hanging, the pad's face on the glass the origin; keys Press and Bunch (stroke along +X)",
+   "tris": 1592,
    "meshes": 1,
    "children": [],
    "size": [
-    0.044,
-    0.042,
-    0.049
+    0.067,
+    0.024,
+    0.068
    ],
    "bottom": 0.0,
    "materials": [
@@ -152,15 +152,15 @@
     "Bunch"
    ],
    "place": "a second model under Tool_Cloth (the ToolPickup), shown while the cloth is in the hand: the folded BT_Cloth is hidden and BT_ClothHeld shown at the cursor's contact point (the swap is hidden by the pick-up motion)",
-   "rests": "its pad's face on the glass (origin, y 0); the tail rises +Y and leans toward Unity -Z (the player)",
+   "rests": "its underside on the glass (origin, y 0): the folded cloth, pinched up toward Unity -Z (the player) into a peak 25 mm high, the near corner lifted",
    "stroke_axis_unity": [
     1,
     0,
     0
    ],
    "blend_shapes": {
-    "Press": "0..1 from the press: the pad 40 x 45 -> 50 x 52 mm, the tail 5 mm lower",
-    "Bunch": "0..1 from the stroke's speed (Audio's reference px/s): the leading edge (+X) rolls up 4 mm in three folds, the trailing edge (-X) drags 9 mm, the tail leans 12 degrees toward -X"
+    "Press": "0..1 from the press: the cloth spreads 8 %, its peak sinks 15 %, the corner lies lower",
+    "Bunch": "0..1 from the stroke's speed (Audio's reference px/s): the leading side (+X) rolls up 3.5 mm off the glass, the trailing side (-X) drags 8 mm, the peak leans 6 mm toward -X"
    }
   },
   {
@@ -314,7 +314,7 @@
     "Seat_Brush": [
      0.0,
      0.0,
-     5.36
+     6.5
     ]
    }
   },

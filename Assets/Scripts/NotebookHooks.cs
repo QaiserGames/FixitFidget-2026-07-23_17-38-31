@@ -4,7 +4,8 @@
 //   * a regular's intake: Grace's camera request (Day 1's clean visit only, since 14 Oct), or any other regular's repair;
 //   * Grace's thanks when Ace takes the camera (the rest of her story, since the dialogue pass; Day 1's only);
 //   * Grace's return, once her job is accepted and she leaves the print;
-//   * something Ace asked about (a topic in the reply list), or heard while they waited.
+//   * something Ace asked about (a topic in the reply list), or heard while they waited;
+//   * since 24 Oct 2026 (Days), a seated guest's gossip (GuestGossip, Designer P's §2.4): overheard, filed under who it's about.
 // And, since night step 3, one thing Ace has seen: a regular coming out of or
 // going into their own front door (claude/night-homes-spec.md).
 // Walk-ins are anonymous by design and never get entries. Without a
@@ -152,6 +153,18 @@ public static class NotebookHooks
             foreach (NotebookFactData fact in notebook.Facts)
                 if (fact.who == who && !string.IsNullOrWhiteSpace(fact.name)) return fact.name;
         return who == NotebookEntries.GraceId ? NotebookEntries.GraceName : who;
+    }
+
+    /// <summary>
+    /// 24 Oct 2026 (Days): a seated guest has just told Ace a line of gossip (GuestGossip; NotebookEntries' gossip table): the
+    /// fact, overheard and likely, under the person it's about (never the guest: walk-ins and patrons never get entries).
+    /// True when it's new to the notebook.
+    /// </summary>
+    public static bool HeardGossip(string id)
+    {
+        Notebook notebook = SaveManager.Instance != null ? SaveManager.Instance.Notebook : null;
+        NotebookFactData fact = NotebookEntries.Overheard(NotebookEntries.GossipFor(id));
+        return notebook != null && fact != null && notebook.Learn(fact, Today);
     }
 
     /// <summary>Grace's return has been accepted and her photo outcome settled.</summary>

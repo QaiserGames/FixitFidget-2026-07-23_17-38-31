@@ -86,6 +86,23 @@ public class CustomerSpawner : MonoBehaviour
              "rules; whoever is inside is served. The LAST ORDERS sign is its own, earlier warning.")]
     [SerializeField, Min(0f)] private float lastOrdersLeadSeconds = 45f;   // 55 in the first draft; 45 keeps more of a 180 s day hectic (QA, 13 Oct), the longest walk raises it
 
+    // 24 Oct 2026 (Days): LAST ORDERS FOR REPAIRS COME EARLIER. On 23 Oct "the day ended by 7:30" failed 3 times in 9 Day-lab runs,
+    // each time someone who set off just before last orders: Nina's drink (7:57), then Alishba's repair twice (8:06, 7:36). A
+    // repair takes about 90 s at human speed after the walk and the intake, a drink a fraction of that, so walk-ins who set off in
+    // the last stretch before drinks' last orders come for a drink: a repair setting off then would still be on the bench long
+    // after closing. Named visits keep their own rules; the authored walk-in list keeps its place for another day.
+    [Tooltip("Last orders for walk-in REPAIRS come this much earlier than for drinks, seconds: about a repair's length at human " +
+             "speed (90 s). A walk-in who sets off later than that brings a drink order instead. 0: repairs and drinks alike.")]
+    [SerializeField, Min(0f)] private float repairLastOrdersExtraSeconds = 90f;
+
+    // 24 Oct 2026 (Days, P's spec §3.1 part 2): THE QUIET NUDGE. When nobody needs Ace, nobody is walking in, and it has been so
+    // this long, the next arrival sets off now. Within today's limit and before last orders, and never before today's featured
+    // visit is over (Day 1 protects its first repair: the days spec of 14 Oct, call 4). It only acts with nothing left for Ace to
+    // do, so a player who is behind never gets an extra customer from it (P's slow-player runs: no change beyond the noise).
+    [Tooltip("The quiet nudge: with nobody needing Ace and nobody walking in for this long, the next arrival sets off now " +
+             "(within today's limit, before last orders, never before today's featured visit is over). Seconds; 0 = off.")]
+    [SerializeField, Min(0f)] private float quietNudgeSeconds = 5f;
+
     [Tooltip("Radius around the spawn point that arrivals appear within.")]
     [SerializeField] private float spawnScatter = 1.2f;
 
@@ -179,6 +196,22 @@ public class CustomerSpawner : MonoBehaviour
     // around may go past the day's own cap (the walk-ins' cap), never past this.
     private const int MostCustomersEver = 6;
 
+    // 24 Oct 2026 (Days): the quiet nudge's stretch (Time.time it began, -1 none); last orders for repairs (seconds into the day,
+    // -1 until called); the roll in hand is drinks only (repairs closed: RollJob reads it, its signature unchanged for the
+    // checks that call it by reflection).
+    private float quietSince = -1f;
+    private float repairLastOrdersCalledAt = -1f;
+    private bool rollDrinksOnly;
+    // The cap's hold, measured for the Day labs' bar (§6.8: "a walk-in held back by the cap > 2 s while Ace had <= 1 job: 0"):
+    // a walk-in was due and the day's limit held them; when a place frees with Ace nearly free, how long until the next one sets
+    // off. Reset each morning.
+    private bool capHoldPending;
+    private float capFreedAt = -1f;
+    private float capCheckAt;
+    private int capWaitsOver2s;
+    private float longestCapWait;
+    private int quietNudges;
+
     private readonly DayOneOpening opening = new();
     private CustomerBrain openingCustomer;
     private CustomerBrain featuredCustomer;
@@ -266,8 +299,86 @@ public class CustomerSpawner : MonoBehaviour
     /// <summary>When today's last orders for walk-ins were called, seconds into the day; -1 until they are (reports).</summary>
     public float LastOrdersCalledAt => lastOrdersCalledAt;
 
+    /// <summary>
+    /// Last orders for walk-in REPAIRS (24 Oct 2026): how long before closing the last walk-in who brings a device may set off,
+    /// seconds: drinks' lead plus a repair's length at human speed.
+    /// </summary>
+    public float RepairLastOrdersLead => LastOrdersLead + repairLastOrdersExtraSeconds;
+
+    /// <summary>True once no walk-in may set off with a repair any more today (they come for a drink instead).</summary>
+    public bool LastOrdersForRepairs => DayClock.Instance != null && DayClock.Instance.TimeRemaining <= RepairLastOrdersLead;
+
+    /// <summary>When today's last orders for repairs were called, seconds into the day; -1 until they are (reports).</summary>
+    public float RepairLastOrdersCalledAt => repairLastOrdersCalledAt;
+
+    /// <summary>
+    /// Today's featured visit is over (24 Oct 2026; the quiet nudge and the thrift find wait for it): the day has none, the
+    /// regular can't visit today, or they came in and have left (or are leaving).
+    /// </summary>
+    public bool FeaturedVisitOver
+    {
+        get
+        {
+            if (today == null || today.featuredRegular == null) return true;
+            if (!featuredRegularSpawned) return !roster.CanVisit(today.featuredRegular.PersistentId);
+            return featuredCustomer == null || featuredCustomer.IsLeaving;
+        }
+    }
+
+    /// <summary>The day's cap held a walk-in back and, with Ace nearly free once a place freed, the next set off this many times
+    /// more than 2 s later, and the longest such wait (seconds; the Day labs' bar, §6.8). Reset each morning.</summary>
+    public int CapWaitsOver2s => capWaitsOver2s;
+    public float LongestCapWait => longestCapWait;
+
+    /// <summary>How many times today the quiet nudge set the next arrival off early (reports).</summary>
+    public int QuietNudges => quietNudges;
+
+    // Awake (24 Oct 2026): the downtime meter rides on the spawner (no scene change), and so does the gossip at the tables.
+    private void Awake()
+    {
+        if (GetComponent<DowntimeMeter>() == null) gameObject.AddComponent<DowntimeMeter>();
+        if (GetComponent<GuestGossip>() == null) gameObject.AddComponent<GuestGossip>();
+    }
+
+    // 24 Oct 2026 (Days): at closing the café is tidied: the cups guests left on the tables go (the man's mess keeps its own
+    // morning, LodgerDay), so a new day never opens on yesterday's guests' cups.
+    private DayClock closingClock;
+
+    private void Start()
+    {
+        closingClock = DayClock.Instance;
+        if (closingClock != null) closingClock.OnDayEnded += TidyAtClosing;
+    }
+
+    private void OnDestroy()
+    {
+        if (closingClock != null) closingClock.OnDayEnded -= TidyAtClosing;
+    }
+
+    private static void TidyAtClosing()
+    {
+        DirtyCup.PutAwayGuestsCups();
+        // A crate of cups and beans still in hand goes back too (the stock never left the shelf: StockCrate).
+        foreach (StockCrate crate in FindObjectsByType<StockCrate>(FindObjectsInactive.Exclude)) Destroy(crate.gameObject);
+    }
+
     /// <summary>Today's authored day, or null (reports and the day-shape check).</summary>
     public DayDefinition Today => today;
+
+    /// <summary>The days as authored, in the schedule's order (24 Oct 2026: the thrift shelf looks its finds up here).</summary>
+    public IReadOnlyList<DayDefinition> Schedule => schedule;
+
+    /// <summary>The walk-ins' devices (24 Oct 2026: the thrift shelf finds its devices here by name).</summary>
+    public IReadOnlyList<GameObject> DevicePool => devicePrefabs;
+
+    /// <summary>The day asset authored for exactly this day number, or null (a repeated last day has no find of its own:
+    /// 24 Oct 2026, the thrift shelf's tomorrow).</summary>
+    public DayDefinition AuthoredDay(int dayNumber)
+    {
+        if (schedule == null) return null;
+        foreach (DayDefinition d in schedule) if (d != null && d.dayNumber == dayNumber) return d;
+        return null;
+    }
 
     // The authored day for this day number, or the last one repeated with a
     // compounding squeeze. You'll author five or eight days; the arc runs to
@@ -334,6 +445,14 @@ public class CustomerSpawner : MonoBehaviour
             lastPhase = "";
             walkingIn.Clear();
             lastOrdersCalledAt = -1f;
+            // 24 Oct 2026 (Days): the day's own measures start again.
+            repairLastOrdersCalledAt = -1f;
+            quietSince = -1f;
+            capHoldPending = false;
+            capFreedAt = -1f;
+            capWaitsOver2s = 0;
+            longestCapWait = 0f;
+            quietNudges = 0;
             // Playtest 4: the day's first arrival is already on the street when the café opens (TryArriveNearTheDoor),
             // so the till sees them about 12 s in instead of 40. Without the arrivals system they would appear at the
             // door in view, and the guided Day 1 lesson paces itself: both keep the old quiet opening.
@@ -369,6 +488,17 @@ public class CustomerSpawner : MonoBehaviour
         // arrival's countdown waits for them to reach the door (the Night 1 slice).
         if (firstThing != null && !firstThing.enabled && Time.time < firstThingUntil) return;
         firstThing = null;
+
+        // 24 Oct 2026 (Days, P's spec §3.1): a place the cap was holding frees with Ace nearly free (at most one customer step
+        // left): the held walk-in comes in Blocked Retry Interval, not a whole gap later. With two or more steps left it waits as
+        // it always did. Looked at four times a second while a hold is pending (a scene count).
+        WatchTheCap();
+        // The quiet nudge (part 2 of the rule): nobody needs Ace and nobody is on the way: the next arrival sets off now.
+        if (QuietNudgeDue() && timer > 0f)
+        {
+            timer = 0f;
+            quietNudges++;
+        }
 
         timer -= Time.deltaTime;
         if (opening.VisitInProgress) return;
@@ -427,6 +557,13 @@ public class CustomerSpawner : MonoBehaviour
         if (living >= cap)
         {
             if (opening.IsActive) timer = blockedRetryInterval;
+            // 24 Oct 2026 (Days, P's spec §3.1 part 1; CustomerSpawner used to lose a whole gap here): the cap held a walk-in
+            // back. With Ace nearly free, look again soon; WatchTheCap brings them in once a place frees.
+            else
+            {
+                if (RetrySoon(Downtime.CustomerSteps())) timer = blockedRetryInterval;
+                if (!capHoldPending) { capHoldPending = true; capFreedAt = -1f; }
+            }
             return;
         }
 
@@ -453,9 +590,74 @@ public class CustomerSpawner : MonoBehaviour
         Spawn();
     }
 
+    // 24 Oct 2026 (Days, P's spec §3.1 part 1): while the cap is holding a walk-in back, watch for a place to free. When one does
+    // and Ace has at most one customer step left, the held walk-in sets off within Blocked Retry Interval (the moment is kept for
+    // the Day labs' measure, ended in Spawn). With two or more steps left, the countdown runs on as it always did.
+    private void WatchTheCap()
+    {
+        if (!capHoldPending || opening.IsActive) return;
+        if (Time.time < capCheckAt) return;
+        capCheckAt = Time.time + .25f;
+        int cap = today != null ? today.maxCustomers : maxCustomers;
+        int living = FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude).Length;
+        if (living >= cap) { capFreedAt = -1f; return; }
+        if (capFreedAt >= 0f) return;                     // already freed and timed
+        if (RetrySoon(Downtime.CustomerSteps()))
+        {
+            capFreedAt = Time.time;
+            timer = Mathf.Min(timer, blockedRetryInterval);
+        }
+        else capHoldPending = false;                      // freed while Ace is busy: the old rule, and nothing to measure
+    }
+
+    // 24 Oct 2026 (Days, P's spec §3.1 part 2): the quiet nudge is due (once a quiet stretch): nobody needs Ace and nobody is
+    // walking in, for Quiet Nudge Seconds; never during the guided opening, before today's featured visit is over, or once last
+    // orders for walk-ins are called. The cap still applies when the arrival is due (Update), as for any arrival.
+    private bool QuietNudgeDue()
+    {
+        if (quietNudgeSeconds <= 0f || !NudgeAllowed(opening.IsActive, opening.VisitInProgress, FeaturedVisitOver, LastOrdersForWalkIns))
+        {
+            quietSince = -1f;
+            return false;
+        }
+        bool quiet = Downtime.NobodyNeedsAce && Downtime.WalkingIn == 0;
+        if (!quiet) { quietSince = -1f; return false; }
+        if (quietSince < 0f) { quietSince = Time.time; return false; }
+        if (Time.time - quietSince < quietNudgeSeconds) return false;
+        quietSince = -1f;
+        return true;
+    }
+
+    /// <summary>The cap's retry (P's §3.1 part 1) acts only while Ace has at most this many customer steps left.</summary>
+    public const int RetryWhileStepsAtMost = 1;
+
+    /// <summary>24 Oct 2026 (Days): whether the cap's retry acts with this many customer steps left (pure: the Downtime rules check it).</summary>
+    public static bool RetrySoon(int customerSteps) => customerSteps <= RetryWhileStepsAtMost;
+
+    /// <summary>
+    /// 24 Oct 2026 (Days): whether the quiet nudge may act at all (P's §3.1 part 2): never in the guided opening or its visit,
+    /// never before today's featured visit is over (Day 1 protects the first repair), never after last orders (pure: the
+    /// Downtime rules check it).
+    /// </summary>
+    public static bool NudgeAllowed(bool openingActive, bool visitInProgress, bool featuredVisitOver, bool lastOrders) =>
+        !openingActive && !visitInProgress && featuredVisitOver && !lastOrders;
+
     private void Spawn()
     {
         if (devicePrefabs == null || devicePrefabs.Length == 0) return;
+
+        // 24 Oct 2026 (Days): the cap's hold ends here; how long the walk-in waited once a place freed (the Day labs' bar).
+        if (capHoldPending)
+        {
+            if (capFreedAt >= 0f)
+            {
+                float waited = Time.time - capFreedAt;
+                longestCapWait = Mathf.Max(longestCapWait, waited);
+                if (waited > 2f) capWaitsOver2s++;
+            }
+            capHoldPending = false;
+            capFreedAt = -1f;
+        }
 
         GameObject go = Instantiate(customerPrefab, ScatteredSpawn(), spawnPoint.rotation);
 
@@ -492,7 +694,9 @@ public class CustomerSpawner : MonoBehaviour
             profile = today.StoryVisitsOn(lastSeenDay)[storyDue].who;
             storySpawned[storyDue] = true;
         }
-        else if (!opening.IsActive)
+        // 24 Oct 2026 (Days): after last orders for repairs, a walk-in comes for a drink (rollDrinksOnly, below), so no random
+        // regular either: their own reasons for a visit can be a repair.
+        else if (!opening.IsActive && !LastOrdersForRepairs)
         {
             float regChance = today != null ? today.regularChance : regularChance;
             bool isRegular = regulars != null
@@ -526,7 +730,18 @@ public class CustomerSpawner : MonoBehaviour
             if (today.featuredRepair == null || !today.featuredRepair.TryCreateJob(out job, out error))
                 Debug.LogWarning($"{today.name}: featured repair is invalid ({error}). Using the regular's normal job.", today);
         }
+        // 24 Oct 2026 (Days): last orders for walk-in repairs (a repair takes about 90 s at human speed): a walk-in setting off
+        // now comes for a drink. Named visits and the guided opening keep their own reasons.
+        bool named = featuredDue || morningDue || wordDue || storyDue >= 0;
+        rollDrinksOnly = !named && !opening.IsActive && profile == null && LastOrdersForRepairs;
+        if (rollDrinksOnly && repairLastOrdersCalledAt < 0f)
+        {
+            repairLastOrdersCalledAt = SecondsNow;
+            Debug.Log($"[Day {lastSeenDay}] last orders for walk-in repairs: {(DayClock.Instance != null ? DayClock.Instance.TimeRemaining : 0f):0} s " +
+                      $"before closing (a repair takes about {repairLastOrdersExtraSeconds:0} s after the walk); walk-ins come for drinks from here.");
+        }
         if (job == null) job = RollJob(profile, forcedKind);
+        rollDrinksOnly = false;
 
         // And would they like something while they wait? Rolled here, kept
         // quiet by CustomerBrain until they've sat down.
@@ -820,6 +1035,8 @@ public class CustomerSpawner : MonoBehaviour
             : hasDrinks && Random.value < dChance;
 
         if (forcedKind.HasValue) wantsDrink = forcedKind.Value == JobKind.Drink;
+        // 24 Oct 2026 (Days): last orders for walk-in repairs (Spawn sets this for the one roll): a drink, whatever the day's mix.
+        else if (rollDrinksOnly && profile == null && hasDrinks) wantsDrink = true;
 
         // DAYS 1-3 (14 Oct 2026, specs/days-1-3.md §6; the Producer's call 8). On a day with authored walk-in repairs a
         // walk-in who brings a device brings the next one in order, so nobody walks in with a job the game hasn't taught yet

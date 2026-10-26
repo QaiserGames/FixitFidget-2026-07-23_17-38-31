@@ -153,6 +153,9 @@ public class SaveManager : MonoBehaviour
         // DayClock.EndDay settles first; this is only a safety net, and
         // settling is once per day, so later saves never count it twice.
         if (clock.DayOver) SettleReputation(clock.Day);
+        // 24 Oct 2026 (Days): the thrift find sells by itself at closing, before the till is read below; once a day, like the
+        // reviews (ThriftShelf.SettleAtClosing).
+        if (clock.DayOver) ThriftShelf.SettleAtClosing(clock.Day);
 
         SaveData data = new SaveData
         {
@@ -163,6 +166,13 @@ public class SaveManager : MonoBehaviour
             cups = ShopInventory.Instance != null ? ShopInventory.Instance.Cups : 20,
             beans = ShopInventory.Instance != null ? ShopInventory.Instance.Beans : 20
         };
+        // 24 Oct 2026 (Days): restock by hand. cups / beans above stay the whole stock; this is the machine's share of it (the
+        // rest is on the back shelf). No stock in the scene: -1, the machine fills from the stock at load.
+        if (ShopInventory.Instance != null)
+        {
+            data.machineCups = ShopInventory.Instance.MachineCups;
+            data.machineBeans = ShopInventory.Instance.MachineBeans;
+        }
 
         if (UpgradeManager.Instance != null && UpgradeManager.Instance.Catalogue != null)
         {
@@ -183,7 +193,14 @@ public class SaveManager : MonoBehaviour
             data.upgradeLevels = levels.ToArray();
         }
 
+        // 24 Oct 2026 (Days): the thrift find (which, for which day, fixed or not; never its screws). A scene without the shelf
+        // keeps what was loaded.
+        data.thrift = ThriftShelf.Instance != null ? ThriftShelf.Instance.Snapshot()
+            : Loaded != null && Loaded.thrift != null ? Loaded.thrift.Copy() : new ThriftSaveData();
         data.regularMemories = SnapshotRegularMemory();
+        // 24 Oct 2026 (Furniture): the café's furniture (CafeLayout). A scene without it carries the loaded layout forward, so a
+        // save made there never drops the café's.
+        data.cafe = CafeLayout.Instance != null ? CafeLayout.Instance.Snapshot() : Loaded != null && Loaded.cafe != null ? Loaded.cafe : new CafeLayoutData();
         data.notebook = notebook.Snapshot();
         data.night = night.Snapshot();
         data.reputation = reputation.Reputation;
@@ -195,6 +212,9 @@ public class SaveManager : MonoBehaviour
     private bool Commit(SaveData data)
     {
         if (writesBlocked) return FailSave(LastSaveError);
+        // 26 Oct 2026 (Start screen): the title never writes or changes a save. While it is up nothing reaches the disk (it
+        // leaves by reloading the scene, so nothing it did is ever in a save either).
+        if (TitleScreen.Up) return FailSave("Nothing is saved while the start screen is up.");
 
         try
         {
@@ -397,6 +417,65 @@ public class SaveManager : MonoBehaviour
             foreach (char c in name ?? "") h = (h ^ c) * 16777619u;
             h = (h ^ (uint)position) * 16777619u;
             return (int)(h % (uint)count);
+        }
+    }
+
+    // ---------- 26 Oct 2026 (Start screen): New Game over a save keeps a copy first ----------
+
+    public const string BackupsFolderName = "backups";
+
+    /// <summary>
+    /// The start screen's New Game over a save (confirmed on its card): the save is copied to
+    /// &lt;its folder&gt;/backups/&lt;file&gt;.&lt;yyyy-MM-dd_HHmmss&gt;.bak and the copy proved byte for byte, exactly as the editor's
+    /// "Fresh game 1" keeps his save (FreshGameMenu.BackUp), and then the save is taken away, so the scene's next boot is a real
+    /// new game (no file: the half-finished café, Day 1). Nothing is written over anything. False, with nothing changed, if
+    /// the copy can't be made or proved. True with <paramref name="kept"/> null when there was no file to keep.
+    /// </summary>
+    public bool StartNewGameKeepingACopy(out string kept, out string problem)
+    {
+        kept = null;
+        problem = null;
+        string path = PathToFile;
+        if (!File.Exists(path)) return true;
+        kept = KeepACopy(path, out problem);
+        if (kept == null) return false;
+        try { File.Delete(path); }
+        catch (Exception e)
+        {
+            problem = $"Kept a copy at {kept}, but couldn't take the save away ({e.Message}). Your save is as it was.";
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>Copies <paramref name="path"/> to backups/&lt;file&gt;.&lt;stamp&gt;.bak beside it (always a new name, never over an
+    /// older copy) and proves the copy byte for byte. The copy's path, or null with <paramref name="problem"/> said.</summary>
+    public static string KeepACopy(string path, out string problem)
+    {
+        problem = null;
+        try
+        {
+            string folder = Path.Combine(Path.GetDirectoryName(path) ?? "", BackupsFolderName);
+            Directory.CreateDirectory(folder);
+            string name = Path.GetFileName(path);
+            string stamp = DateTime.Now.ToString("yyyy-MM-dd_HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+            string target = Path.Combine(folder, $"{name}.{stamp}.bak");
+            for (int n = 2; File.Exists(target); n++) target = Path.Combine(folder, $"{name}.{stamp}-{n}.bak");
+            File.Copy(path, target, false);
+            byte[] a = File.ReadAllBytes(path), b = File.ReadAllBytes(target);
+            bool same = a.Length == b.Length;
+            for (int i = 0; same && i < a.Length; i++) same = a[i] == b[i];
+            if (!same)
+            {
+                problem = $"The copy at {target} doesn't match {path} byte for byte. Nothing else was done.";
+                return null;
+            }
+            return target;
+        }
+        catch (Exception e)
+        {
+            problem = $"Couldn't copy {path} into its backups folder: {e.Message}. Nothing else was done.";
+            return null;
         }
     }
 

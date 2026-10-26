@@ -26,9 +26,11 @@ public sealed class FeaturedRepairRequest
             error = "The selected device has no fault at that index.";
             return false;
         }
-        if (devicePrefab.GetComponent<RepairJob>() == null)
+        // 24 Oct 2026 (Days): a support call (PhoneJob.prefab: a HoldCallJob, no RepairJob) can be a day's walk-in too (his
+        // answer p4: "the support call on Day 3, once it has its real phone model"). Everything else still needs a RepairJob.
+        if (devicePrefab.GetComponent<RepairJob>() == null && devicePrefab.GetComponent<HoldCallJob>() == null)
         {
-            error = "The device needs a RepairJob on its root.";
+            error = "The device needs a RepairJob (or a support call's HoldCallJob) on its root.";
             return false;
         }
         DeviceFault fault = definition.faults[faultIndex];

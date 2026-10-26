@@ -1,4 +1,8 @@
 """
+v3.7 (24 Oct 2026, art audit a27): the sub-seconds' ring and twelve ticks stand on the dial's face (they had been built under
+it, so the small seconds hand turned over bare enamel), and the 6 is left off, as railroad dials do, because the seconds
+bit's ring now shows where it stood. Nothing else moved: the same pieces, names, places and sizes.
+
 The hero pocket watch, v3.6 (14 Oct 2026): AUTHORED AT 3x, EXPORTED REAL (TD one-scale §6.1: build() scales every mesh and
 child place by 1 / AUTHORED_SCALE through hero_lib.scale_build, so the FBX is a 50 mm watch); the four case screws real:
 3.8 mm blued pan heads (11.4 at this file's 3x; feel-targets call 3), their heads on the back plate's dome. On v3 (9 Oct 2026): PocketWatch.prefab's pieces (a 15 cm cylinder for the case, a cylinder back
@@ -199,6 +203,8 @@ def case():
     # player runs from -Y toward -X, i.e. DECREASING angle. v3 to v3.4 had twelve at +Y (six at the pendant) and the
     # glyphs upright for someone on the far side of the bench.
     for k in range(1, 13):
+        if k == 6:
+            continue     # v3.7: the seconds bit takes the six's place, as on a railroad dial (its ring would cross the 6)
         a = math.radians(-90 - 30 * k)
         txt = hl.text_mesh(str(k), .0135, .00025)
         if txt is None:
@@ -222,18 +228,23 @@ def case():
         moved(txt, -(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0)
         fb.turn(txt, 180.0, 'Z')
         p.add('dial lettering', moved(txt, 0, y, DIAL_Z), ink)
-    # the sub-seconds at 6 (+Y, toward the player): a sunk disc with its own ring and twelve ticks, and a slim needle
+    # the sub-seconds at 6 (+Y, toward the player): its own ring and twelve ticks printed on the enamel like the minute
+    # track, and a slim needle over them. (24 Oct 2026, art audit a27: "the small seconds hand turns over bare dial ... it
+    # reads as a stray scratch". The ring and ticks were there, but built on a sunk disc 0.1-0.3 mm UNDER the dial's face,
+    # inside the dial's own solid, so they never showed. Now they stand on the face (DIAL_Z to +0.2, the track's height),
+    # the ring a little bolder and the four quarter ticks longer, as a real sub-seconds is printed; the buried disc is gone.)
     sx, sy = 0.0, .0330
-    p.add('seconds dial', moved(revolve([(DIAL_Z - .0016, .0125), (DIAL_Z - .0003, .0125)], sides=32), sx, sy, 0), dial_m)
-    p.add('seconds ring', moved(ring_wall(DIAL_Z - .0003, DIAL_Z - .0001, .0112, .0118, sides=32), sx, sy, 0), ink)
+    p.add('seconds ring', moved(ring_wall(DIAL_Z, DIAL_Z + .0002, .0111, .0119, sides=32), sx, sy, 0), ink)
     for k in range(12):
-        tick = fb.zbox(-.0003, .0003, .0095, .0112, DIAL_Z - .0003, DIAL_Z - .0001)
+        quarter = k % 3 == 0
+        tick = fb.zbox(-.0004 if quarter else -.0003, .0004 if quarter else .0003, .0088 if quarter else .0097, .0112,
+                       DIAL_Z, DIAL_Z + .0002)
         fb.turn(tick, 30.0 * k, 'Z')
         p.add('seconds tick', moved(tick, sx, sy, 0), ink)
-    needle = prism([(-.0004, -.0030), (.0004, -.0030), (.0002, .0095), (-.0002, .0095)], DIAL_Z - .0001, DIAL_Z + .0003)
+    needle = prism([(-.0004, -.0030), (.0004, -.0030), (.0002, .0095), (-.0002, .0095)], DIAL_Z + .00025, DIAL_Z + .00065)
     fb.turn(needle, -140.0, 'Z')
     p.add('seconds hand', moved(needle, sx, sy, 0), blue)
-    p.add('seconds boss', disc(sx, sy, DIAL_Z - .0001, DIAL_Z + .0004, .0010, sides=8), steel)
+    p.add('seconds boss', disc(sx, sy, DIAL_Z - .0001, DIAL_Z + .0007, .0010, sides=8), steel)
     # the hands: blued steel spades at ten past ten, on a gold cannon
     hour = hand(.0330, .0028, .0200, .0080, .0100, DIAL_Z + .0004, DIAL_Z + .0010)
     fb.turn(hour, 240.0, 'Z')                # ten o'clock (twelve is at -Y)

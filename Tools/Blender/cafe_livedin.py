@@ -18,15 +18,16 @@ hero_lib.py and cafe_props.py's helpers, the house way:
   LI_Rug_Corner        a flatweave for the reading corner, 1.60 x 1.10 x 0.010, the pattern in LI_RugCorner.png
   LI_Rug_Entry         a plain coir mat on a PVC back, 1.20 x 0.70 x 0.017 (LI_CoirMat.png)
   LI_TillMat           the till's black anti-fatigue mat, 36 x 24 x 1/2 in, bevelled all round (LI_RubberMat.png)
-  LI_NapkinDispenser   a brushed-steel two-faced tabletop dispenser, the napkin stack in its windows
-  LI_CondimentStation  the pickup end's self-serve tray: napkins, lids, sleeves, a sugar caddy, a cup of stirrers, a
+  LI_NapkinDispenser   a chrome two-faced tabletop dispenser, rounded, the napkin stack in its windows (24 Oct: a48)
+  LI_CondimentStation  the pickup end's self-serve tray (24 Oct, a37: every stack made of its things, and a labelled
+                       cinnamon shaker): napkins, lids, sleeves, a sugar caddy, a cup of stirrers, a
                        small milk jug, on chestnut
   LI_BinStation        San Francisco's three streams in one slim body: blue RECYCLING, green COMPOST, black LANDFILL,
                        three openings, three labels (LI_BinLabels.png)
   LI_StreetBin         the city's green round litter can: grillwork bars round a dark liner, a dome lid, a hooded mouth
-  LI_Laptop_Open       a plain 14 in laptop, no brand, the screen at 110 degrees and on
+  LI_Laptop_Open       a plain 14 in laptop, no brand, the screen at 110 degrees and on (24 Oct, a50: LI_Screen.png)
   LI_Laptop_Closed     the same laptop shut
-  LI_ToteBag           a canvas tote, slumped, its handles flopped
+  LI_ToteBag           a canvas tote, slumped, its handles flopped (24 Oct, a49: soft, a flat base, the mouth folding)
   LI_Coat_OnChair      a coat hung by its shoulders over a café chair's top rail (fits both CK_Chair_Cafe and
                        CK_Chair_Spindle: origin = the chair's origin)
   LI_KidsDrawing       a child's crayon thank-you drawing of the café on US letter, pinned (LI_KidsDrawing.png)
@@ -78,9 +79,13 @@ LI_MATERIALS = {   # new, LI_ prefix (the lived-in kit's), each with its reason
     'LI_CompostGreen': ('#4F8F3A', 0.35, 'NEW: the compost stream\'s green, a grass green kept well apart from Ace\'s teal #2E7D5B', None),
     'LI_StreetGreen': ('#2E4636', 0.35, 'NEW: the city litter can\'s dark green powder coat (darker and greyer than Ace\'s green)', None),
     'LI_CupPaper':    ('#E8D9B3', 0.08, 'NEW: the café\'s paper cup, the exact colour the game draws it in (DrinkLiquidVisual.PaperColour 0.91, 0.85, 0.70, "Warm ivory paper", smoothness 0.08); also the birch stirrers', None),
-    'LI_Screen':      ('#20272D', 0.85, 'NEW: the laptop\'s screen, glass, on (a dim cool glow: emission 28343D)', None),
+    'LI_Screen':      ('#FFFFFF', 0.55, 'NEW, textured: the laptop\'s screen, on: a dark title bar over a light page (24 Oct 2026, '
+                                        'art audit a50: the flat dark-glass panel at smoothness 0.85 mirrored the room as a pale '
+                                        'blue slab and read as a dead screen; the picture is cafe_art_fix_textures.py\'s)', 'LI_Screen.png'),
+    'LI_Chrome':      ('#CBC8C1', 0.80, 'NEW (24 Oct 2026, art audit a48): the napkin holder\'s polished body, a bright glossy '
+                                        'steel (metallic 0, the house rule), so it reads as the diner chrome it is and not a grey box', None),
 }
-EMISSION = {'LI_Screen': '28343D'}
+EMISSION = {'LI_Screen': '1C2126'}       # a faint glow over the picture (Lived in 1 adds it flat, x 1.6)
 TEXTURED = {name: TEX + v[3] for name, v in LI_MATERIALS.items() if v[3]}
 
 
@@ -426,27 +431,38 @@ def till_mat():
 
 def napkin_dispenser():
     """
-    LI_NapkinDispenser: a brushed-steel tabletop dispenser that loads and dispenses from both faces (Palmer Fixture's
-    ND0055: brushed steel, two-sided; folded napkins 6 1/2 x 5 in, as Dixie's 51602 takes), 0.165 x 0.100 x 0.150. The
+    LI_NapkinDispenser: a tabletop dispenser that loads and dispenses from both faces (Palmer Fixture's ND0055: two-sided;
+    folded napkins 6 1/2 x 5 in, as Dixie's 51602 takes), since 24 Oct 2026 at 0.80 of its 0.165 x 0.100 x 0.150, chrome. The
     body is one steel sleeve, its faces framing a window on each side where the napkin stack shows 4 mm in (you pull the
     front one); two black rubber feet. Cut: the spring and the follower plate inside (never seen), a maker's plate.
     """
+    # 24 Oct 2026, art audit a48: "a plain light-grey cube with a white slot, bigger than the cups. From the counter they
+    # read as white cups." His answer: "Yes, do that": rounded edges, a chrome body, about 20 % smaller. So the same
+    # two-faced dispenser at 0.80 (0.132 x 0.080 x 0.120, the size of the smaller diner holders), its corners rounded on a
+    # 22 mm radius and its front and back edges rolled, in LI_Chrome; the napkins and the feet as they were, scaled.
     p = LivedPiece('LI_NapkinDispenser')
-    steel, paper, black = M('DC_Steel'), M('DC_Chalk'), M('CF_Black')
-    hx, z0, z1, c = 0.0825, 0.0035, 0.150, 0.010
-    wx, wz0, wz1 = 0.0680, 0.024, 0.130                 # the window: a 14.5 mm frame, as thin as sheet steel reads
-    yf, ch = 0.050, 0.002
+    chrome, paper, black = M('LI_Chrome'), M('DC_Chalk'), M('CF_Black')
+    hx, z0, z1, rr = 0.066, 0.0035, 0.120, 0.022
+    wx, wz0, wz1 = 0.0545, 0.0195, 0.1040              # the window, scaled with the body: a 11.5 mm frame
+    yf = 0.040
 
     def outer(y, inset):
-        """The body's outline in XZ at depth y, counter-clockwise seen from the front (x right, z up)."""
-        a, b0, b1, cc = hx - inset, z0 + inset, z1 - inset, c
-        return [(a - cc, y, b0), (a, y, b0 + cc), (a, y, b1 - cc), (a - cc, y, b1), (-a + cc, y, b1), (-a, y, b1 - cc),
-                (-a, y, b0 + cc), (-a + cc, y, b0)]
+        """The body's outline in XZ at depth y, counter-clockwise seen from the front (x right, z up): a rounded
+        rectangle, three segments a corner."""
+        a, b0, b1, r = hx - inset, z0 + inset, z1 - inset, rr - inset
+        pts = []
+        for (cx, cz, a0) in ((a - r, b0 + r, -90.0), (a - r, b1 - r, 0.0), (-a + r, b1 - r, 90.0), (-a + r, b0 + r, 180.0)):
+            for k in range(4):
+                t = math.radians(a0 + 30.0 * k)
+                pts.append((cx + r * math.cos(t), y, cz + r * math.sin(t)))
+        return pts
     bm = bmesh.new()
-    L = [[bm.verts.new(q) for q in outer(y, ins)] for y, ins in ((-yf, ch), (-yf + ch, 0.0), (yf - ch, 0.0), (yf, ch))]
+    rings = ((-yf, 0.0030), (-yf + 0.0012, 0.0009), (-yf + 0.0030, 0.0), (yf - 0.0030, 0.0), (yf - 0.0012, 0.0009), (yf, 0.0030))
+    L = [[bm.verts.new(q) for q in outer(y, ins)] for y, ins in rings]
+    n = len(L[0])
     for lo, hi in zip(L, L[1:]):
-        for i in range(8):
-            j = (i + 1) % 8
+        for i in range(n):
+            j = (i + 1) % n
             bm.faces.new([lo[i], lo[j], hi[j], hi[i]])
     win = [[bm.verts.new((x, y, z)) for x, z in ((wx, wz0), (wx, wz1), (-wx, wz1), (-wx, wz0))] for y in (-yf, yf)]
     for i in range(4):
@@ -454,16 +470,16 @@ def napkin_dispenser():
         bm.faces.new([win[0][i], win[0][j], win[1][j], win[1][i]])
     centre = (0.0, (wz0 + wz1) / 2)
     bridge(bm, L[0], win[0], centre, axes=(0, 2))
-    bridge(bm, L[3], win[1], centre, axes=(0, 2))
+    bridge(bm, L[-1], win[1], centre, axes=(0, 2))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
-    p.add('steel sleeve, a window each face (1, 3)', bm, steel)
+    p.add('chrome sleeve, a window each face (1, 3)', bm, chrome)
     p.add('napkin stack (1: you pull the front one)', fb.zbox(-wx + 0.002, wx - 0.002, -yf + 0.004, yf - 0.004, wz0 + 0.002, wz1 - 0.002), paper)
     # the front napkin's lower half, half pulled: it folds out of the window from its middle (what you reach for)
-    tab = fb.zbox(-0.042, 0.042, -0.0009, 0.0009, 0.0, 0.048)
+    tab = fb.zbox(-0.034, 0.034, -0.0009, 0.0009, 0.0, 0.038)
     fb.turn(tab, 148.0, 'X')                               # hinged at its top, swung out and down toward the reader
     p.add('napkin, half pulled (1, 2: how it dispenses)', hl.moved(tab, 0.0, -yf + 0.0035, (wz0 + wz1) / 2 + 0.004), paper)
-    for y in (-0.032, 0.032):
-        p.add('rubber foot (2)', fb.zbox(-0.070, 0.070, y - 0.006, y + 0.006, 0.0, 0.004), black)
+    for y in (-0.026, 0.026):
+        p.add('rubber foot (2)', fb.zbox(-0.054, 0.054, y - 0.005, y + 0.005, 0.0, 0.004), black)
     return p
 
 
@@ -499,15 +515,29 @@ def condiment_station():
                     rect_loop(0, 0, fl, W - 2 * wall, D - 2 * wall)])
     p.add('tray, chestnut (3)', tray, wood)
     z0 = fl                                              # everything stands on the tray's floor
-    # napkins: a flat stack, back middle
-    p.add('napkins (1)', fb.zbox(-0.125, 0.002, 0.004, 0.131, z0 - 0.001, z0 + 0.050), paper)
-    # the sugar caddy and its packets, front middle
+    # 24 Oct 2026, art audit a37 ("a white block, a black box, a brown brick and a black pot. The blocks read as blocks"):
+    # every stack is now made of the things it is a stack of. The napkins: six, fanned a few degrees each, back middle
+    for k, (ang, ox, oy) in enumerate(((0.0, 0.0, 0.0), (4.0, 0.0015, -0.001), (-3.0, -0.001, 0.0015), (6.0, 0.002, 0.001),
+                                       (-5.0, -0.0015, -0.001), (2.5, 0.001, 0.002))):
+        nap = fb.zbox(-0.0625, 0.0625, -0.0625, 0.0625, 0.0, 0.0083)
+        fb.turn(nap, ang, 'Z')
+        p.add('napkin (1)', hl.moved(nap, -0.0615 + ox, 0.0675 + oy, z0 - 0.001 + 0.0085 * k), paper)
+    # the sugar caddy and its packets, front middle: two rows of nine packets standing on edge, white and raw, each its own
+    # height and lean (they are taken from the front), so it reads as packets in a caddy and not two bricks in a box
     cx, cy = -0.060, -0.075
     caddy = hl.tube([rect_loop(cx, cy, z0 - 0.001, 0.100, 0.068), rect_loop(cx, cy, z0 + 0.048, 0.100, 0.068),
                      rect_loop(cx, cy, z0 + 0.048, 0.088, 0.056), rect_loop(cx, cy, z0 + 0.006, 0.088, 0.056)])
     p.add('sugar caddy (1)', caddy, black)
-    p.add('white sugar packets (1)', fb.zbox(cx - 0.042, cx - 0.002, cy - 0.026, cy + 0.026, z0 + 0.0055, z0 + 0.066), paper)
-    p.add('raw sugar packets (1)', fb.zbox(cx + 0.002, cx + 0.042, cy - 0.026, cy + 0.026, z0 + 0.0055, z0 + 0.061), kraft)
+    tops = (0.0, 0.004, -0.003, 0.002, -0.001, 0.005, -0.004, 0.001, 0.003)
+    leans = (-6.0, -3.0, 2.0, -1.0, 4.0, -2.0, 3.0, 5.0, -4.0)
+    for side, mat, height in ((-1, paper, 0.060), (1, kraft, 0.056)):
+        for k in range(9):
+            y = cy - 0.0235 + k * 0.0059
+            pk = fb.zbox(-0.0185, 0.0185, -0.0019, 0.0019, 0.0, height + tops[(k + (side > 0) * 4) % 9])
+            fb.turn(pk, leans[(k + (side > 0) * 3) % 9], 'X')
+            fb.turn(pk, (k % 3 - 1) * 1.5 * side, 'Z')
+            p.add('white sugar packet (1)' if side < 0 else 'raw sugar packet (1)',
+                  hl.moved(pk, cx + side * (0.0215 + 0.0004 * (k % 2)), y, z0 + 0.0055), mat)
     # the cup of stirrers, front left: the café's own cup (its inside to a floor 12 mm up)
     sx, sy = -0.215, -0.078
     prof = [(r, z + z0 - 0.0005) for r, z in [(0.030, 0.0), (0.0425, 0.112)]] + \
@@ -518,25 +548,30 @@ def condiment_station():
         fb.turn(st, lean, 'Y')
         fb.turn(st, 35 + 70 * k, 'Z')
         p.add('birch stirrer (1)', hl.moved(st, sx + ax, sy + ay, z0 + 0.0125), cup_paper)
-    # the lids: a short nested stack of 90 mm sip lids (fifteen, 3 mm apart), the top one's recess and dome showing,
-    # back right (a tall stack reads as a black canister; a short one reads as lids)
+    # the lids: a short nested stack of 90 mm sip lids, back right: each lid's rolled rim a ridge round the stack (nine
+    # showing, 5 mm apart), the top one's recess and dome, so it reads as lids and not a pot (a37)
     lx, ly = 0.075, 0.060
-    p.add('lid stack (1)', hl.moved(cp.spin([(0.0, z0 - 0.0005), (0.0435, z0 - 0.0005), (0.0458, z0 + 0.044),
-                                             (0.0400, z0 + 0.047), (0.0310, z0 + 0.058), (0.0, z0 + 0.058)], sides=10),
-                                    lx, ly, 0), black)
-    # the sleeves: flat kraft sleeves, a stack (each a cone flattened: wider at its top edge), front right
+    prof = [(0.0, z0 - 0.0005), (0.0438, z0 - 0.0005)]
+    for k in range(9):
+        zb_ = z0 + 0.0040 + 0.0050 * k
+        prof += [(0.0438, zb_ - 0.0020), (0.0462, zb_ - 0.0006), (0.0462, zb_ + 0.0004), (0.0438, zb_ + 0.0014)]
+    prof += [(0.0440, z0 + 0.0465), (0.0400, z0 + 0.0490), (0.0310, z0 + 0.0590), (0.0, z0 + 0.0590)]
+    p.add('lid stack (1)', hl.moved(cp.spin(prof, sides=12), lx, ly, 0), black)
+    # the sleeves: flat kraft sleeves (each a cone flattened: wider at its top edge), front right: four, fanned a little
     vx, vy = 0.080, -0.072
-    sleeve = bmesh.new()
-    base = [(vx - 0.056, vy - 0.031), (vx + 0.056, vy - 0.031), (vx + 0.062, vy + 0.031), (vx - 0.062, vy + 0.031)]
-    lo = [sleeve.verts.new((x, y, z0 - 0.0005)) for x, y in base]
-    hi = [sleeve.verts.new((x, y, z0 + 0.032)) for x, y in base]
-    for i in range(4):
-        j = (i + 1) % 4
-        sleeve.faces.new([lo[i], lo[j], hi[j], hi[i]])
-    sleeve.faces.new(list(reversed(lo)))
-    sleeve.faces.new(hi)
-    bmesh.ops.recalc_face_normals(sleeve, faces=sleeve.faces[:])
-    p.add('kraft sleeves (1)', sleeve, kraft)
+    for k, (ang, ox, oy) in enumerate(((0.0, 0.0, 0.0), (-4.0, 0.002, 0.002), (5.0, -0.002, 0.001), (-2.0, 0.001, -0.002))):
+        sleeve = bmesh.new()
+        base = [(-0.056, -0.031), (0.056, -0.031), (0.062, 0.031), (-0.062, 0.031)]
+        lo = [sleeve.verts.new((x, y, 0.0)) for x, y in base]
+        hi = [sleeve.verts.new((x, y, 0.0078)) for x, y in base]
+        for i in range(4):
+            j = (i + 1) % 4
+            sleeve.faces.new([lo[i], lo[j], hi[j], hi[i]])
+        sleeve.faces.new(list(reversed(lo)))
+        sleeve.faces.new(hi)
+        bmesh.ops.recalc_face_normals(sleeve, faces=sleeve.faces[:])
+        fb.turn(sleeve, ang, 'Z')
+        p.add('kraft sleeve (1)', hl.moved(sleeve, vx + ox, vy + oy, z0 - 0.0005 + 0.0080 * k), kraft)
     # the milk jug, back left: a stainless creamer, the milk inside, its lip pulled into a spout to the right and its
     # handle to the left, so the customer sees a jug side on (handle, belly, spout)
     jx, jy = -0.205, 0.052
@@ -552,6 +587,45 @@ def condiment_station():
     handle = [(jx - 0.029, jy, z0 + 0.078), (jx - 0.056, jy, z0 + 0.074), (jx - 0.060, jy, z0 + 0.040),
               (jx - 0.034, jy, z0 + 0.022)]
     p.add('jug handle (1)', cp.sweep_var(handle, [0.0042, 0.0042, 0.0042, 0.0042], sides=4), steel)
+    # a37's third ask, "a labelled shaker": a cinnamon shaker at the back of the clear patch (the front right stays free
+    # for a cup), a glass jar the colour of what's in it, a steel cap with seven holes, and a white label round its front
+    # that says CINNAMON to the customers. Added last, so the tray's material slots keep their order.
+    hx_, hy_, R = 0.200, 0.068, 0.024
+    jar = cp.spin([(0.0, z0 - 0.0005), (R - 0.002, z0 - 0.0005), (R, z0 + 0.003), (R, z0 + 0.074), (R - 0.004, z0 + 0.080),
+                   (0.0, z0 + 0.080)], sides=12)
+    p.add('cinnamon shaker, the jar (1)', hl.moved(jar, hx_, hy_, 0), kraft)
+    cap = cp.spin([(0.0, z0 + 0.0785), (R - 0.0035, z0 + 0.0785), (R - 0.0035, z0 + 0.0960), (R - 0.0080, z0 + 0.1010),
+                   (0.0, z0 + 0.1010)], sides=12)
+    p.add('cinnamon shaker, its cap (1)', hl.moved(cap, hx_, hy_, 0), steel)
+    for (a, r) in [(0.0, 0.0)] + [(60.0 * k, 0.0075) for k in range(6)]:
+        p.add('cap hole (2: how it shakes)', hl.disc(hx_ + r * math.cos(math.radians(a)), hy_ + r * math.sin(math.radians(a)),
+                                                     z0 + 0.0995, z0 + 0.1016, 0.0016, sides=8), black)
+    # the label: a band of paper round the jar's front 150 degrees (toward the customers, -Y), 0.6 mm proud
+    band = bmesh.new()
+    a0, a1, n = math.radians(-165.0), math.radians(-15.0), 10
+    rings = []
+    for (rr, zz) in ((R + 0.0006, z0 + 0.024), (R + 0.0006, z0 + 0.058), (R - 0.0004, z0 + 0.058), (R - 0.0004, z0 + 0.024)):
+        rings.append([band.verts.new((hx_ + rr * math.cos(a0 + (a1 - a0) * i / n), hy_ + rr * math.sin(a0 + (a1 - a0) * i / n), zz))
+                      for i in range(n + 1)])
+    for a_, b_ in zip(rings, rings[1:] + rings[:1]):
+        for i in range(n):
+            band.faces.new([a_[i], a_[i + 1], b_[i + 1], b_[i]])
+    for i0 in (0, n):
+        band.faces.new([rings[k][i0] for k in (range(4) if i0 == 0 else reversed(range(4)))])
+    bmesh.ops.recalc_face_normals(band, faces=band.faces[:])
+    p.add('shaker label (1)', band, paper)
+    word = hl.text_mesh('CINNAMON', 0.0078, 0.0005)
+    if word is not None:
+        bmesh.ops.triangulate(word, faces=word.faces[:])
+        fb.turn(word, 90.0, 'X')                          # face -Y, up +Z, reading +X for the customers
+        zs = [v.co.z for v in word.verts]
+        rl = R + 0.0006                                   # wrapped round the label's face: x becomes an angle
+        for v in word.verts:
+            ang = math.radians(-90.0) + v.co.x / rl
+            rr = rl - v.co.y                              # its depth (y from 0 to -0.5 mm) stands it off the label
+            v.co.x, v.co.y = hx_ + rr * math.cos(ang), hy_ + rr * math.sin(ang)
+            v.co.z += z0 + 0.041 - (min(zs) + max(zs)) / 2
+        p.add('label word (1)', word, black)
     return p
 
 
@@ -728,12 +802,21 @@ def _laptop(name, opened):
     if opened:
         p.add('keyboard (1)', fb.zbox(-0.136, 0.136, -0.012, 0.097, tb - 0.0003, tb + 0.0002), black)
         p.add('trackpad (1)', fb.zbox(-0.055, 0.055, -0.100, -0.032, tb - 0.0003, tb + 0.0001), M('DC_SteelDark'))
-        # the screen on the lid's inner face (down when shut): the hinge end is its chin
-        parts.append(('screen, on (1)', fb.zbox(-0.1480, 0.1480, -D / 2 + 0.0065, D / 2 - 0.0225, tb + 0.00005,
-                                               tb + 0.0004), M('LI_Screen')))
         for nm, bm, mat in parts:
             fb.turn(bm, -LAP['open_deg'], 'X', pivot=(0.0, hinge_y, hinge_z))
             p.add(nm, bm, mat)
+        # the screen on the lid's inner face (down when shut): the hinge end is its chin. 24 Oct 2026, art audit a50 ("a
+        # flat light-blue panel. It reads as a dead screen"): its face now carries LI_Screen.png, a dark title bar over a
+        # light page, mapped 0..1 across the glass (u to the reader's right, v up the open lid); its edges take the bar's
+        # dark texel
+        scr = fb.zbox(-0.1480, 0.1480, -D / 2 + 0.0065, D / 2 - 0.0225, tb + 0.00005, tb + 0.0004)
+        fb.turn(scr, -LAP['open_deg'], 'X', pivot=(0.0, hinge_y, hinge_z))
+        turn = Matrix.Rotation(math.radians(-LAP['open_deg']), 3, 'X')
+        pivot = Vector((0.0, hinge_y, hinge_z))
+        origin = pivot + turn @ (Vector((-0.1480, D / 2 - 0.0225, tb + 0.00005)) - pivot)    # the glass's bottom left, open
+        up = turn @ Vector((0.0, -1.0, 0.0))
+        p.textured('screen, on (1)', scr, M('LI_Screen'), origin=tuple(origin), u_axis=(1.0, 0.0, 0.0), v_axis=tuple(up),
+                   w=0.2960, h=D - 0.0290, edge=(0.01, 0.99), min_dot=0.5)
     else:
         for nm, bm, mat in parts:
             p.add(nm, bm, mat)
@@ -753,34 +836,53 @@ def laptop_closed():
 def tote_bag():
     """
     LI_ToteBag: a natural canvas tote set down at a chair's foot (12 oz canvas, 14 W x 15 H x 4 in gusset, cotton web
-    handles), slumped: its contents bulge it to 0.37 x 0.14 at the middle, it leans back and sags to 0.31, the mouth
-    half open with a jumper showing, one handle flopped forward over its face, the other back. 0.38 x 0.15 x 0.32.
+    handles), slumped: its contents bulge it to 0.37 x 0.14 at the middle, it leans back and sags to 0.29 (the right end
+    of its top 6 cm lower), the mouth half open with a jumper showing, one handle flopped forward over its face, the other
+    back. 0.39 x 0.18 x 0.29.
     Cut: a print (a plain bag; a print would be a brand), the inside below the jumper.
     """
     p = LivedPiece('LI_ToteBag')
     canvas, web = M('DC_Chalk'), M('DC_Fabric')
-    # (z, width, depth, y offset, bulge of the faces' middles, sag of the mouth's edge at the middle): the contents push
-    # the faces out, the upper body leans back, the empty top slumps and its edge dips between the handles
-    R = [(0.000, 0.330, 0.080, 0.000, 0.000, 0.0), (0.010, 0.352, 0.098, 0.000, 0.006, 0.0),
-         (0.085, 0.366, 0.118, 0.004, 0.024, 0.0), (0.180, 0.368, 0.110, 0.012, 0.026, 0.0),
-         (0.255, 0.356, 0.078, 0.024, 0.016, 0.006), (0.316, 0.346, 0.050, 0.034, 0.006, 0.030),
-         (0.311, 0.334, 0.036, 0.034, 0.004, 0.030), (0.262, 0.320, 0.050, 0.030, 0.000, 0.010)]
+    # 24 Oct 2026, art audit a49 ("a stiff blocky bag; side-on it's a pale egg-shaped rock with two sticks ... the last
+    # soft thing built as a solid"; R2 judged it soft enough; his answer: "Yes, do that"): canvas, shaded soft (it was
+    # faceted); a flat base as wide as its gusset, so side-on it is a wedge narrowing to the mouth, not an egg; finer
+    # sections; the empty top slumping further to one side; and the front of the mouth folding forward and down between
+    # the handles, the fold canvas makes when nothing holds it up. The handles are as they were.
+    # (z, width, depth, y offset, bulge of the faces' middles, sag of the mouth's edge at the middle, the fold's forward
+    # reach at the front's middle): the contents push the faces out, the upper body leans back, the top slumps
+    # 26 Oct 2026, a second pass (my own look at the render: it still stood up square): the mouth's long edges sag
+    # between the handles (sag 4 cm, was 3), its front folds forward and down further (4.5 cm, was 2.4), the upper body
+    # leans a little more, and the right half of the top has given way, 6 cm lower than the left (SLUMP): a bag set
+    # down half full, not a box. The mouth stays open, the jumper 5 cm down inside it.
+    R = [(0.000, 0.330, 0.110, 0.000, 0.000, 0.0, 0.0), (0.010, 0.350, 0.118, 0.000, 0.006, 0.0, 0.0),
+         (0.085, 0.364, 0.126, 0.004, 0.024, 0.0, 0.0), (0.170, 0.368, 0.112, 0.012, 0.026, 0.0, 0.0),
+         (0.236, 0.358, 0.078, 0.024, 0.016, 0.010, 0.010), (0.286, 0.348, 0.054, 0.034, 0.006, 0.040, 0.045),
+         (0.281, 0.336, 0.040, 0.034, 0.004, 0.040, 0.043), (0.234, 0.322, 0.052, 0.030, 0.000, 0.012, 0.006)]
     RC = 0.020
-    lean = 0.0035                                          # x drift a metre up: the bag sits a little crooked
+    lean = 0.060                                           # x drift a metre up: the empty top slumps toward +x
+    SLUMP = 0.060                                          # the top's right end this much lower than its left
 
-    def ring(z, w, d, yo, bulge, sag):
-        pts = [list(q) for q in hl.ring_rrect(lean * z / 0.3, yo, z, w, d, RC, per_corner=1, per_side=1)]
-        # the side's middles: 2 (right), 5 (back), 8 (left), 11 (front)
-        pts[5][1] += bulge
-        pts[11][1] -= bulge
-        pts[2][0] += bulge * 0.3
-        pts[8][0] -= bulge * 0.3
-        pts[5][2] -= sag
-        pts[11][2] -= sag
+    def slump(x, z):
+        return SLUMP * max(0.0, x / 0.17) ** 1.5 * hl.smoothstep((z - 0.15) / 0.11)
+
+    def ring(z, w, d, yo, bulge, sag, fold):
+        pts = [list(q) for q in hl.ring_rrect(lean * z, yo, z, w, d, RC, per_corner=1, per_side=3)]
+        # 20 points: per corner 2, per side 3 (middles at 3 right, 8 back, 13 left, 18 front; their neighbours carry 0.6)
+        for mid, axis, sgn in ((8, 1, 1.0), (18, 1, -1.0), (3, 0, 0.3), (13, 0, -0.3)):
+            for k, wgt in ((-1, 0.6), (0, 1.0), (1, 0.6)):
+                pts[mid + k][axis] += sgn * bulge * wgt
+                if mid in (8, 18):
+                    pts[mid + k][2] -= sag * wgt
+        for k, wgt in ((-3, 0.25), (-2, 0.25), (-1, 0.6), (0, 1.0), (1, 0.6), (2, 0.25)):   # the front's fold
+            q = pts[(18 + k) % 20]
+            q[1] -= fold * wgt
+            q[2] -= 0.55 * fold * wgt
+        for q in pts:                                      # the right half of the top given way
+            q[2] -= slump(q[0] - lean * z, z)
         return [tuple(q) for q in pts]
     body = hl.tube([ring(*r) for r in R], cap_bottom=True, cap_top=True)
     p.add_split('canvas body, the jumper inside (3, 4)', body, canvas, web,
-                lambda f: f.normal.z > 0.9 and f.calc_center_median().z > 0.22)
+                lambda f: f.normal.z > 0.9 and f.calc_center_median().z > 0.22, smooth=True)
     flat = R[0][1] / 2 - RC
 
     def face_y(x, z, side):
@@ -793,7 +895,7 @@ def tote_bag():
         return R[5][3] + side * R[5][2] / 2
 
     def mouth_z(x):
-        return R[5][0] - R[5][5] * max(0.0, 1.0 - abs(x) / flat)
+        return R[5][0] - R[5][5] * max(0.0, 1.0 - abs(x) / flat) - slump(x, R[5][0])
     # the handles, cotton webbing: each a U from its two ends at the mouth, one flopped over the front, one the back
     for side, drop in ((-1, 0.150), (1, 0.190)):
         pts, nrm = [], []
@@ -802,7 +904,7 @@ def tote_bag():
             x = -0.080 * math.cos(math.pi * s)
             z = mouth_z(x) - 0.004 - drop * math.sin(math.pi * s) ** 1.2
             y = face_y(x, z, side) + side * 0.0042
-            pts.append((x + lean * z / 0.3, y, z))
+            pts.append((x + lean * z, y, z))
             nrm.append((0.0, side, 0.0))
         p.add('web handle (1, 3)', flat_strap(pts, nrm, 0.025, 0.003), web)
     return p
@@ -943,10 +1045,10 @@ PIECES = [
     (till_mat, 'Floor', 'black anti-fatigue mat 0.914 x 0.610 x 0.0127 (36 x 24 x 1/2 in), bevelled, drainage holes (texture)',
      "behind the till where Ace stands: CounterStandPoint is at (-0.26, 0, 14.54); about (-0.20, 0, 14.62), long side along "
      "x, on the floor where the bench and drink mats lie (their y is 0.0165)", 'bottom centre', None),
-    (napkin_dispenser, 'Tables', 'brushed-steel napkin dispenser, two-faced, 0.165 x 0.100 x 0.150, the stack in its windows',
+    (napkin_dispenser, 'Tables', 'chrome napkin dispenser, two-faced, rounded, 0.132 x 0.080 x 0.120, the stack in its windows',
      "one per table, on the top (the 2-tops and the communal table are 0.75 high): at the table's middle or its wall end, "
      "clear of every seat's cup spot (TableSeat.CupSpot); either face may face a seat", 'bottom centre (on the table top)',
-     (-0.0825, 0.0825, -0.050, 0.050, 0.0, 0.150)),     # the steel sleeve: the half-pulled napkin is paper, not solid
+     (-0.066, 0.066, -0.040, 0.040, 0.0, 0.120)),       # the chrome sleeve (24 Oct: 0.80): the half-pulled napkin is paper, not solid
     (condiment_station, 'Counter', 'self-serve condiment tray 0.60 x 0.30: napkins, lids, sleeves, sugar caddy, stirrers, milk jug',
      "on the front counter's stone top at the pickup end, between the intake shelf (its last tray ends at x 1.74) and the "
      "pastry case (x 3.2), about (2.85, 1.095, 13.50), turned 180 degrees so its front faces the customers (the water "
@@ -966,7 +1068,7 @@ PIECES = [
      'box'),
     (laptop_closed, 'People', 'the same laptop, shut', "on a table (a patron arriving or packing up), or on a seat",
      'bottom centre of the base', 'box'),
-    (tote_bag, 'People', 'natural canvas tote 0.38 x 0.15 x 0.32, slumped, its handles flopped',
+    (tote_bag, 'People', 'natural canvas tote 0.39 x 0.18 x 0.29, slumped, its handles flopped',
      "at a seated patron's chair foot, on the floor, leaning: e.g. 0.30 m to the side of the chair's centre, turned to taste",
      'bottom centre', None),
     (coat_on_chair, 'People', 'slate-blue chore coat hung over a chair back by its shoulders, corduroy collar',

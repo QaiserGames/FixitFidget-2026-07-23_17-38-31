@@ -227,6 +227,13 @@ public sealed class SoundBank : ScriptableObject
 
         // The HUD and the phone by day (playtest 3, session 3, 7 Oct): named in the code, silent until the Sonniss files.
         C("hud.lastorders", SoundBus.UI, false, .3f, "The HUD's hanging sign turns to LAST ORDERS, an hour before closing: a soft two-note chime (a warning, never an alarm).", 1.5f, 12f, 2f, 1),
+        // 26 Oct 2026 (HUD 3): the money's jar (HudMoney). Named in the code, silent until files are chosen.
+        C("hud.money.land", SoundBus.UI, false, .3f, "His bill drops into the HUD's jar: a soft paper-and-coins settle, a small bright note (no cha-ching).", 1.5f, 12f, .15f, 2),
+        C("hud.money.tick", SoundBus.UI, false, .12f, "The figure counting up, one tick a step: short, each a semitone above the last (Peggle's climb) if the files allow.", 1.5f, 12f, .04f, 1),
+        C("hud.money.print", SoundBus.UI, false, .2f, "The receipt printing from the money board's foot: a small three-step \"zzt\".", 1.5f, 12f, .1f, 1),
+        C("hud.money.tear", SoundBus.UI, false, .15f, "The receipt tearing off: very soft paper.", 1.5f, 12f, .3f, 1),
+        C("hud.money.spend", SoundBus.UI, false, .25f, "Spending: a bill slides out of the jar, a falling fourth (never the landing's note).", 1.5f, 12f, .3f, 1),
+        C("hud.star.land", SoundBus.UI, false, .35f, "A star lands in its pip and the little café front lights up: a warm rising chime.", 1.5f, 12f, 1f, 1),
         C("phone.open", SoundBus.UI, false, .25f, "Ace takes the phone out (the pause, by day or at night): a soft slide and a tap.", 1.5f, 12f, .2f, 1),
         C("phone.close", SoundBus.UI, false, .2f, "The phone put away: the same, softer and back the other way.", 1.5f, 12f, .2f, 1),
 

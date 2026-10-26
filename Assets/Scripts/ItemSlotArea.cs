@@ -11,6 +11,21 @@ public class ItemSlotArea : MonoBehaviour
     [Tooltip("Slots available before upgrades. Extra slots unlock from the source below.")]
     [SerializeField] private int baseSlots = 2;
 
+    // 24 Oct 2026 (Days; Designer P's spec §2.2 and §6.3, the side project): the bench's own corner for the thrift find. Outside
+    // the slots, never counted in UsableSlots, never a customer's: a customer's device always has the bench's main place, and
+    // Bigger Bench still adds a second CUSTOMER slot. Only a find (SideProject) claims it, and a find never takes a customer's
+    // slot (nor the intake shelf's: it has no corner). Set by Fixit Fidget > Days > Props 1.
+    [Tooltip("The bench's own corner for the thrift find (SideProject): outside the slots above, never counted, never a " +
+             "customer's. Empty: no corner here (the intake shelf).")]
+    [SerializeField] private Transform sideSlot;
+    private JobBase sideOccupant;
+
+    /// <summary>The thrift find's corner on this surface, or null (24 Oct 2026).</summary>
+    public Transform SideSlot => sideSlot;
+
+    /// <summary>The corner is free for <paramref name="item"/> (empty, or already its).</summary>
+    public bool SideSlotFree(JobBase item) => sideSlot != null && (sideOccupant == null || sideOccupant == item);
+
     [Tooltip("Bench = grows with bench capacity. Shelf = grows with shelf capacity. " +
              "Fixed = never grows.")]
     [SerializeField] private CapacitySource capacitySource = CapacitySource.Bench;
@@ -70,6 +85,7 @@ public class ItemSlotArea : MonoBehaviour
 
     public bool Holds(JobBase item)
     {
+        if (item != null && item == sideOccupant) return true;
         foreach (JobBase o in Occupants)
             if (o == item) return true;
         return false;
@@ -77,6 +93,16 @@ public class ItemSlotArea : MonoBehaviour
 
     public Transform ClaimSlot(JobBase item)
     {
+        // 24 Oct 2026 (Days): a crate of cups and beans is never set down here (StockCrate), and a find has the corner, and only
+        // the corner; nobody else ever gets it.
+        if (item is StockCrate) return null;
+        if (SideProject.IsSideProject(item))
+        {
+            if (!SideSlotFree(item)) return null;
+            sideOccupant = item;
+            return sideSlot;
+        }
+
         JobBase[] o = Occupants;
 
         for (int i = 0; i < UsableSlots; i++)
@@ -95,6 +121,7 @@ public class ItemSlotArea : MonoBehaviour
 
     public void ReleaseSlot(JobBase item)
     {
+        if (item != null && item == sideOccupant) sideOccupant = null;
         JobBase[] o = Occupants;
         for (int i = 0; i < o.Length; i++)
             if (o[i] == item) o[i] = null;

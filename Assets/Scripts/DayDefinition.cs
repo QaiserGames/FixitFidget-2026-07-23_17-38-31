@@ -195,6 +195,43 @@ public class DayDefinition : ScriptableObject
     public FeaturedRepairRequest[] WalkInRepairsOn(int day) =>
         day == dayNumber && walkInRepairs != null ? walkInRepairs : System.Array.Empty<FeaturedRepairRequest>();
 
+    // DAYS 1-3 THAT TEACH (24 Oct 2026; Designer P's spec, Docs/Studio/sessions/2026-10-23/designs/pacing-downtime-spec.md §6.1,
+    // approved by him with his answers of 24 Oct). His words: "day one and two should really teach mostly but what i mean about
+    // dead air is really the things you could be doing when waiting for a customer to approach the counter." Authoring data like
+    // the walk-in list, no save field: which find is on the shelf is ThriftShelf's to save (SaveData.thrift).
+
+    [Header("Your side project: the thrift find (24 Oct 2026)")]
+    [Tooltip("The find on the thrift shelf by the bench on this day: a device and a fault, with nobody waiting (leave the episode " +
+             "ID empty). Day 1's is on the shelf at the open, free; each later day's is bought at the closing before, in the " +
+             "phone's Shop, and sells by itself at this day's closing. Empty: the Shop offers one from the jobs already taught " +
+             "(ThriftShelf). Only on this asset's own day (a repeated day rotates).")]
+    public FeaturedRepairRequest thriftFind = new FeaturedRepairRequest();
+
+    [Tooltip("What the find costs in the Shop at the closing before, dollars (Day 1's is free: it is on the shelf at the open).")]
+    [Min(0)] public int thriftBuy;
+
+    [Tooltip("What the find sells for at this day's closing when it is Perfect, dollars (Good x0.8, Passable x0.48: JobBase's " +
+             "own ratios over Perfect's). About 55-60 % of what a customer pays for the same job: a customer is always worth more.")]
+    [Min(0)] public int thriftSale;
+
+    /// <summary>This day's find, authored: only on this asset's own day (never when it repeats); null when none is authored.</summary>
+    public FeaturedRepairRequest ThriftFindOn(int day) =>
+        day == dayNumber && thriftFind != null && thriftFind.devicePrefab != null ? thriftFind : null;
+
+    [Header("Chat with seated guests: gossip (24 Oct 2026)")]
+    [Tooltip("Today's gossip, by id (GuestGossip's table): one seated guest per line has something to say (a '...' over them), " +
+             "and a chat puts its fact in the notebook. Empty: nobody has gossip today. Only on this asset's own day.")]
+    public string[] gossip = new string[0];
+
+    /// <summary>Today's gossip ids: only on this asset's own day (never when it repeats).</summary>
+    public string[] GossipOn(int day) =>
+        day == dayNumber && gossip != null ? gossip : System.Array.Empty<string>();
+
+    [Header("The recap's \"Tomorrow:\" line (24 Oct 2026)")]
+    [Tooltip("What the closing before this day says about it on the phone's Tonight, after \"Tomorrow:\" (at most 8 words). " +
+             "PLACEHOLDER COPY for his sister. Empty: no line.")]
+    public string previewLine = "";
+
     // ---------- lookups ----------
 
     /// <summary>Seconds between arrivals at this point in the day.</summary>

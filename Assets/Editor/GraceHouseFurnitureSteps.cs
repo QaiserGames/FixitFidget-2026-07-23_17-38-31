@@ -43,7 +43,7 @@ internal static class GraceHouseFurnitureSteps
         ("GH_Plastic_Dark", "2B2926", 0.35f),
         ("GH_TV_Screen", "1D2A2F", 0.8f),
         ("GH_Lampshade", "E7D5B0", 0.1f),
-        ("GH_Photo", "BFA88A", 0.25f),
+        ("GH_Photo", "FFFFFF", 0.25f),   // 24 Oct 2026 (art audit a72): white under GH_Photo.png
         ("GH_Kitchen_Cream", "E6DCC3", 0.35f),
         ("GH_Fridge_Mint", "BCD6C4", 0.55f),
         ("GH_Enamel_Red", "B13A2F", 0.55f),
@@ -57,6 +57,7 @@ internal static class GraceHouseFurnitureSteps
         // layout v2
         ("GH_Quilt", "8A9DC0", 0.1f),
         ("GH_Mirror", "C9D6DE", 0.95f),
+        ("GH_Hair", "C9A15A", 0.25f),   // 24 Oct 2026 (art audit a22): her head on the pillow
     };
 
     // The pieces as built in Blender: name, what it is, triangles, size in Unity's axes (x, y up, z).
@@ -79,20 +80,20 @@ internal static class GraceHouseFurnitureSteps
         ("GH_Fridge", "fridge", 388, new Vector3(0.62f, 1.62f, 0.69f)),
         ("GH_Kettle", "kettle (on the hob)", 408, new Vector3(0.294f, 0.238f, 0.21f)),
         ("GH_Teapot", "teapot", 440, new Vector3(0.286f, 0.159f, 0.173f)),
-        ("GH_CoatStand", "coat stand with her coat", 600, new Vector3(0.531f, 1.89f, 0.438f)),
+        ("GH_CoatStand", "coat stand with her hat", 456, new Vector3(0.47f, 1.89f, 0.412f)),
         ("GH_Stairs", "the stairs, with the cupboard under them", 1156, new Vector3(1.043f, 3.505f, 2.763f)),
         ("GH_UnderStairsDoor", "the cupboard door under the stairs", 168, new Vector3(0.05f, 1.144f, 0.644f)),
         ("GH_InteriorDoor_Frame", "doorway (the landing door)", 312, new Vector3(0.976f, 2.108f, 0.178f)),
-        ("GH_InteriorDoor_Leaf", "door", 404, new Vector3(0.804f, 2.01f, 0.164f)),
-        ("GH_CupBox", "the reunion cups: a box of three sleeves (the stash)", 528, new Vector3(0.644f, 0.175f, 0.587f)),
-        ("GH_CupSleeve", "one sleeve of twelve cups", 164, new Vector3(0.382f, 0.094f, 0.096f)),
+        ("GH_InteriorDoor_Leaf", "door", 564, new Vector3(0.804f, 2.01f, 0.164f)),
+        ("GH_CupBox", "the reunion cups: a box of three sleeves (the stash)", 816, new Vector3(0.644f, 0.175f, 0.587f)),
+        ("GH_CupSleeve", "one sleeve of twelve cups", 260, new Vector3(0.382f, 0.094f, 0.096f)),
         // layout v2 (29 Sept): for a 1.0 m wide Ace, and her bedroom
         ("GH_Stairs_L", "the quarter-turn stairs, 1.40 m flights, the cupboard under them", 1180, new Vector3(2.66f, 3.405f, 2.68f)),
         ("GH_BedroomDoor_Frame", "the bedroom's doorway, 1.40 x 2.20", 312, new Vector3(1.556f, 2.278f, 0.138f)),
-        ("GH_BedroomDoor_Leaf", "one of the bedroom's pair of doors (0.70 m)", 416, new Vector3(0.699f, 2.19f, 0.164f)),
+        ("GH_BedroomDoor_Leaf", "one of the bedroom's pair of doors (0.70 m)", 576, new Vector3(0.699f, 2.19f, 0.164f)),
         ("GH_Bed", "her bed, 1.35 x 1.90, mattress at 0.55", 848, new Vector3(1.464f, 1.108f, 2.014f)),
         ("GH_Quilt_Made", "the quilt, made (it sits on the bed: its bottom is 0.30 up)", 268, new Vector3(1.41f, 0.298f, 1.4f)),
-        ("GH_Quilt_Asleep", "the quilt with her asleep under it (0.30 up, like the other)", 408, new Vector3(1.41f, 0.395f, 1.52f)),
+        ("GH_Quilt_Asleep", "the quilt with her asleep under it (0.30 up, like the other)", 940, new Vector3(1.462f, 0.515f, 1.708f)),
         ("GH_BedsideTable", "bedside table", 260, new Vector3(0.43f, 0.55f, 0.388f)),
         ("GH_BedsideLamp", "bedside lamp", 330, new Vector3(0.26f, 0.42f, 0.26f)),
         ("GH_Wardrobe", "the wardrobe (a place to hide)", 276, new Vector3(0.99f, 1.98f, 0.635f)),

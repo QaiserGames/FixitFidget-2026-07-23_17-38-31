@@ -337,9 +337,14 @@ public class PatronSpawner : MonoBehaviour
         {
             if (guest == null || day < guest.firstDay || day > guest.lastDay) continue;
             TableSeat[] seats = SeatsFor(guest);
+            // 24 Oct 2026 (Furniture): seats the café's layout has switched off (a new game's half-finished café, a piece sold)
+            // are no fault, so no warning: the guest takes a free placed seat of the same kind instead (StandInSeats), or
+            // quietly stays away when there's none.
+            bool switchedOff = SeatsSwitchedOff(guest);
+            if (seats == null && switchedOff) seats = StandInSeats(guest, today, people);
             if (seats == null)
             {
-                Debug.LogWarning($"[Settled guests] {guest.label}: none of their seats is free this morning, so they aren't in today.", this);
+                if (!switchedOff) Debug.LogWarning($"[Settled guests] {guest.label}: none of their seats is free this morning, so they aren't in today.", this);
                 continue;
             }
             today.Add((guest, seats));
@@ -364,6 +369,78 @@ public class PatronSpawner : MonoBehaviour
         if (AllFree(first)) return first;
         if (hasAlternative && AllFree(second)) return second;
         return null;
+    }
+
+    // ------------------------------------------------------------ 24 Oct 2026 (Furniture): settled guests at placed seats
+    //
+    // Their seats are named (NpcWave2Steps); in the half-finished café (a new game) or after a sale they may be switched off.
+    // Then they take a free seat of the same kind on the furniture that is on, by what the seat is (S's tags, the seat's own
+    // SeatTags or its shape: never the room's areas): the reader a soft one, the laptop worker a communal one, the pair two
+    // seats of a two-seat piece (furniture-spec.md §1.4, §4.8). Never a repair-bar stool, always a seat they sit on. Only while
+    // the free seats, less them, stay above the ones kept for customers, as for any guest (the valve).
+
+    // Neither of the guest's sets of seats is all switched on: the layout took them away.
+    private static bool SeatsSwitchedOff(OpeningGuest guest) => !AllOn(guest.seats) && !AllOn(guest.alternative);
+
+    private static bool AllOn(TableSeat[] seats)
+    {
+        if (seats == null || seats.Length == 0) return false;
+        foreach (TableSeat seat in seats) if (seat == null || !seat.isActiveAndEnabled) return false;
+        return true;
+    }
+
+    private TableSeat[] StandInSeats(OpeningGuest guest, System.Collections.Generic.List<(OpeningGuest guest, TableSeat[] seats)> taken, int people)
+    {
+        TableSeat model = null;
+        if (guest.seats != null) foreach (TableSeat s in guest.seats) if (s != null) { model = s; break; }
+        int count = guest.seats != null && guest.seats.Length > 1 ? 2 : 1;
+        if (WaitingArea.FreeSeats - people - count <= reserveSeatsForCustomers) return null;
+        var chosen = new System.Collections.Generic.HashSet<TableSeat>();
+        foreach (var t in taken) foreach (TableSeat s in t.seats) if (s != null) chosen.Add(s);
+        // 26 Oct 2026 (review fix): never a later guest's own named seats (they aren't claimed until SeatGuest, so SeatsFor would
+        // hand the same seats to that guest too: two guests in one seat after a sale).
+        int day = DayClock.Instance != null ? DayClock.Instance.Day : 1;
+        foreach (OpeningGuest other in openingGuests)
+        {
+            if (other == null || other == guest || day < other.firstDay || day > other.lastDay) continue;
+            if (other.seats != null) foreach (TableSeat s in other.seats) if (s != null) chosen.Add(s);
+            if (other.alternative != null) foreach (TableSeat s in other.alternative) if (s != null) chosen.Add(s);
+        }
+        var free = new System.Collections.Generic.List<TableSeat>();
+        foreach (TableSeat s in FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude))
+            if (s != null && s.isActiveAndEnabled && s.SnapToSeat && !s.RepairBar && s.IsAvailable && !chosen.Contains(s)
+                && WaitingArea.HasClaimClearance(s, null)) free.Add(s);
+        if (count == 1)
+        {
+            // What the seat is: its own SeatTags or its shape (a tub chair is soft, a communal stool communal).
+            SeatTag wanted = model != null ? WhatItIs(model) & (SeatTag.Lounge | SeatTag.Communal | SeatTag.Bar) : SeatTag.None;
+            var fits = free.FindAll(s => wanted == SeatTag.None ? true : (WhatItIs(s) & wanted) != 0);
+            if (guest.laptop) fits = fits.FindAll(s => (WhatItIs(s) & SeatTag.Communal) != 0);
+            return fits.Count > 0 ? new[] { fits[Random.Range(0, fits.Count)] } : null;
+        }
+        // A pair: both seats of one two-seat piece (a bistro, a square table, a bay), never a soft corner's (the reader's).
+        var tables = new System.Collections.Generic.List<TableSeat[]>();
+        var byPiece = new System.Collections.Generic.Dictionary<Component, System.Collections.Generic.List<TableSeat>>();
+        foreach (TableSeat s in free)
+        {
+            PlacedPiece piece = s.GetComponentInParent<PlacedPiece>();
+            if (piece == null || piece.SeatCount != 2) continue;
+            if (!byPiece.TryGetValue(piece, out var list)) byPiece[piece] = list = new System.Collections.Generic.List<TableSeat>();
+            list.Add(s);
+        }
+        foreach (var pair in byPiece)
+        {
+            if (pair.Value.Count != 2) continue;
+            bool soft = (WhatItIs(pair.Value[0]) & SeatTag.Lounge) != 0 && (WhatItIs(pair.Value[1]) & SeatTag.Lounge) != 0;
+            if (!soft) tables.Add(pair.Value.ToArray());
+        }
+        return tables.Count > 0 ? tables[Random.Range(0, tables.Count)] : null;
+    }
+
+    private static SeatTag WhatItIs(TableSeat seat)
+    {
+        SeatTags own = SeatTags.On(seat);
+        return own != null ? own.Tags : SeatTags.DefaultFor(seat);
     }
 
     private static bool AllFree(TableSeat[] seats)

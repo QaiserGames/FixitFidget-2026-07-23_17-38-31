@@ -20,16 +20,16 @@ MonoBehaviour:
     spawnInterval: 35
   - phaseName: Build
     startsAt: 0.2
-    spawnInterval: 22
+    spawnInterval: 20
   - phaseName: Rush
     startsAt: 0.45
-    spawnInterval: 18
+    spawnInterval: 16
   - phaseName: Recover
-    startsAt: 0.72
-    spawnInterval: 26
+    startsAt: 0.75
+    spawnInterval: 24
   patienceMultiplier: 1.6
   maxCustomers: 2
-  drinkOnlyChance: 0.45
+  drinkOnlyChance: 0.35
   guidedOpening: 0
   openingDrink: {fileID: 0}
   openingHintDuration: 6
@@ -54,12 +54,25 @@ MonoBehaviour:
   - who: {fileID: 11400000, guid: 11b2eb1e8c94a444c8ba4851ad187011, type: 2}
     arrivesAt: 0.25
   walkInRepairs:
-  - devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
-    faultIndex: 0
-    storyEpisodeId: 
   - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
     faultIndex: 0
     storyEpisodeId: 
   - devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
     faultIndex: 1
     storyEpisodeId: 
+  - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+    faultIndex: 1
+    storyEpisodeId: 
+  - devicePrefab: {fileID: 1740192461705439849, guid: 60b9162c3bde0f546876c3dbe1c1c83c, type: 3}
+    faultIndex: 0
+    storyEpisodeId: 
+  thriftFind:
+    devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+    faultIndex: 2
+    storyEpisodeId: 
+  thriftBuy: 10
+  thriftSale: 32
+  gossip:
+  - gossip.officer.asking
+  - gossip.lodger.before
+  previewLine: a full house, and a cracked screen.

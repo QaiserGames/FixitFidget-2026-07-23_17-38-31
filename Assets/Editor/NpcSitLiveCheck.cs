@@ -34,9 +34,11 @@ using Object = UnityEngine.Object;
 // Seat on, the body raised 0.30 m inside the sit clips, turned 45 degrees by their Face Towards point: CafeSeatsSteps.cs,
 // 'THE REPAIR BAR'S STOOLS SIT'), so they count as seats people sit on, hips within the same 5 cm; on a raised seat the
 // feet rest on the stool's foot ring, so they are measured from where the body stands (its root), not the floor, and
-// every seat's facing is judged against the way it is meant to face (its Face Towards point, else its cup). The window
-// counter's three still have Snap To Seat off: a customer waits standing beside one, is not expected to sit, and the
-// report names them in a NOTE.
+// every seat's facing is judged against the way it is meant to face (its Face Towards point, else its cup).
+// 24 Oct 2026 (Furniture; his answer c12): the window counter's three stools sit too since Furniture 1 (Snap To Seat on,
+// Max Lift 0.32, Approach Side 0.60: FurnitureSteps.cs), so a customer who takes one is expected to sit on it like any seat,
+// feet on its foot ring. A stool left with Snap To Seat off (none now) is waited at standing, and the report names it in
+// a NOTE.
 //
 // PLAYTEST 4 (10 Oct 2026): the Impatient and Rushed walk-ins stood by choice (a standing spot drains x1.15, a seat
 // x0.6) and 17 of 18 standing waiters were lost; every archetype now waits in a seat (Playtest 4 > Systems > 1). Two
@@ -486,8 +488,8 @@ public static class NpcSitLiveCheck
             var toSeats = watches.Where(w => w.customer && w.waitKind == WaitingSpot.SpotKind.Seat && !w.standsAtSeat).ToList();
             int atStools = watches.Count(w => w.customer && w.standsAtSeat);
             if (atStools > 0)
-                report.AppendLine($"NOTE  {atStools} customer(s) waited standing beside a window-counter stool (Snap To Seat off on its three by " +
-                                  "design; the repair bar's three sit since NPC wave 2), so they aren't expected to sit.");
+                report.AppendLine($"NOTE  {atStools} customer(s) waited standing beside a stool with Snap To Seat off (none expected: the repair " +
+                                  "bar's three sit since NPC wave 2, the window counter's three since Furniture 1), so they aren't expected to sit.");   // 24 Oct 2026 (Furniture)
             int atBar = watches.Count(w => w.customer && w.seat != null && w.seat.RepairBar && w.seatedAt >= 0f);
             if (atBar > 0) report.AppendLine($"NOTE  {atBar} customer(s) sat on a repair-bar stool (raised inside the clips, turned 45 degrees).");
             if (toSeats.Count > 0)

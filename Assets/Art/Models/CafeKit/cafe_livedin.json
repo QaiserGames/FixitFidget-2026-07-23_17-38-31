@@ -108,18 +108,18 @@
   {
    "name": "LI_NapkinDispenser",
    "group": "Tables",
-   "what": "brushed-steel napkin dispenser, two-faced, 0.165 x 0.100 x 0.150, the stack in its windows",
+   "what": "chrome napkin dispenser, two-faced, rounded, 0.132 x 0.080 x 0.120, the stack in its windows",
    "stretch": false,
-   "tris": 128,
+   "tris": 256,
    "size": [
-    0.165,
-    0.15,
-    0.123
+    0.132,
+    0.12,
+    0.097
    ],
    "bottom": 0.0,
-   "back": 0.05,
+   "back": 0.04,
    "materials": [
-    "DC_Steel",
+    "LI_Chrome",
     "DC_Chalk",
     "CF_Black"
    ],
@@ -129,13 +129,13 @@
    "collider": {
     "centre": [
      -0.0,
-     0.075,
+     0.06,
      -0.0
     ],
     "size": [
-     0.165,
-     0.15,
-     0.1
+     0.132,
+     0.12,
+     0.08
     ]
    },
    "references": [
@@ -148,7 +148,7 @@
    "group": "Counter",
    "what": "self-serve condiment tray 0.60 x 0.30: napkins, lids, sleeves, sugar caddy, stirrers, milk jug",
    "stretch": false,
-   "tris": 442,
+   "tris": 2474,
    "size": [
     0.6,
     0.162,
@@ -164,7 +164,7 @@
     "LI_CupPaper",
     "DC_Steel"
    ],
-   "islands": 13,
+   "islands": 55,
    "origin": "bottom centre of the tray",
    "place": "on the front counter's stone top at the pickup end, between the intake shelf (its last tray ends at x 1.74) and the pastry case (x 3.2), about (2.85, 1.095, 13.50), turned 180 degrees so its front faces the customers (the water station's way)",
    "collider": {
@@ -312,7 +312,16 @@
    },
    "references": [
     "https://www.dell.com/en-ie/shop/laptop-computers-2-in-1-pcs/dell-14-laptop/spd/dell-dc14255-laptop"
-   ]
+   ],
+   "label": {
+    "material": "LI_Screen",
+    "faces": 1,
+    "size_m": [
+     0.296,
+     0.197
+    ],
+    "uv": "0..1 over the glass's face, u to the reader's right, v up the open lid (the title bar at the top); the glass's edges one dark texel of the bar (24 Oct 2026, art audit a50)"
+   }
   },
   {
    "name": "LI_Laptop_Closed",
@@ -353,16 +362,16 @@
   {
    "name": "LI_ToteBag",
    "group": "People",
-   "what": "natural canvas tote 0.38 x 0.15 x 0.32, slumped, its handles flopped",
+   "what": "natural canvas tote 0.39 x 0.18 x 0.29, slumped, its handles flopped",
    "stretch": false,
-   "tris": 292,
+   "tris": 420,
    "size": [
-    0.384,
-    0.316,
-    0.173
+    0.386,
+    0.286,
+    0.182
    ],
    "bottom": 0.0,
-   "back": 0.093,
+   "back": 0.094,
    "materials": [
     "DC_Chalk",
     "DC_Fabric"
@@ -550,11 +559,18 @@
    "why": "NEW: the caf\u00e9's paper cup, the exact colour the game draws it in (DrinkLiquidVisual.PaperColour 0.91, 0.85, 0.70, \"Warm ivory paper\", smoothness 0.08); also the birch stirrers"
   },
   "LI_Screen": {
-   "hex": "20272D",
-   "smoothness": 0.85,
+   "hex": "FFFFFF",
+   "smoothness": 0.55,
    "metallic": 0.0,
-   "why": "NEW: the laptop's screen, glass, on (a dim cool glow: emission 28343D)",
-   "emission": "28343D"
+   "why": "NEW, textured: the laptop's screen, on: a dark title bar over a light page (24 Oct 2026, art audit a50: the flat dark-glass panel at smoothness 0.85 mirrored the room as a pale blue slab and read as a dead screen; the picture is cafe_art_fix_textures.py's)",
+   "texture": "Assets/Art/Textures/Cafe/LI_Screen.png",
+   "emission": "1C2126"
+  },
+  "LI_Chrome": {
+   "hex": "CBC8C1",
+   "smoothness": 0.8,
+   "metallic": 0.0,
+   "why": "NEW (24 Oct 2026, art audit a48): the napkin holder's polished body, a bright glossy steel (metallic 0, the house rule), so it reads as the diner chrome it is and not a grey box"
   }
  },
  "existing_materials": {

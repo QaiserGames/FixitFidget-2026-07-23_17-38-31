@@ -327,6 +327,10 @@ public static class UpgradeEconomyChecks
         public float queuePatience = 40f, servicePatience = 45f, maxTipFraction = .6f, serveBump = .08f, orderTopUp = .1f, handbackBump = .08f;
         public float drinkingSeconds = 20f, drinkingDrain = .5f, satisfiedDrain = .8f, conversationDrain = .1f, seatDrain = .6f;
         public int patronPay = 5, maxPatrons = 14;
+        // 24 Oct 2026 (Days; P's §6.7): the seats a patron needs (the café's active seats; Day 1's half-finished café has 10, his
+        // r1): patrons are limited by the free seats, counting the patrons and the waiting customers alive.
+        public int seats = 26;
+        public const int DayOneSeats = 10;
         public float patronInterval = 12f, patronJitter = .35f, patronGraceMin = 3f, patronGraceMax = 8f;
         // A patron's stay (PatronBrain: seated minStay-maxStay, at most maxLifetime in all) and the walk to a seat and out.
         // 14 Oct (specs/days-1-3.md §7): maxPatrons is how many are in the café AT ONCE; counting it as a day's total
@@ -436,6 +440,9 @@ public static class UpgradeEconomyChecks
         CounterQueue queue = Object.FindAnyObjectByType<CounterQueue>();
         if (queue != null && queue.SlotCount > 0) w.counterSlots = queue.SlotCount;
 
+        // 24 Oct 2026 (Days): the seats the patrons and the waiting customers share (the scene's, as the spawner finds them).
+        int seatsInScene = Object.FindObjectsByType<TableSeat>(FindObjectsInactive.Exclude).Length;
+        if (seatsInScene > 0) w.seats = seatsInScene;
         PatronSpawner patrons = Object.FindAnyObjectByType<PatronSpawner>();
         if (patrons != null)
         {
@@ -595,6 +602,7 @@ public static class UpgradeEconomyChecks
     private sealed class Result
     {
         public int arrived, served, lost, turned, work, tips, patrons, total;
+        public int finds;   // 24 Oct 2026 (Days): the thrift find's sale at closing, less what it cost the night before
     }
 
     private sealed class Person
@@ -641,6 +649,10 @@ public static class UpgradeEconomyChecks
             List<float> patronsLeaveAt = new();       // the patrons in the café now, by when each leaves (14 Oct: alive, not a day's total)
             float suppressWish = day.SuppressesRepairDrinksOn(dayNumber) ? 1f : 0f;
             int walkInRepairsUsed = 0;                // Days 1-3: today's authored walk-in repairs handed out (CustomerSpawner)
+            // 24 Oct 2026 (Days): the seats open today (Day 1's half-finished café: 10), and the hands' idle seconds while open (the
+            // find is done in them: a bench job's worth sells it at closing).
+            int seatsToday = dayNumber <= 1 ? Mathf.Min(w.seats, World.DayOneSeats) : w.seats;
+            float idle = 0f;
 
             for (float t = 0f; t < StopAt; t += Dt)
             {
@@ -663,7 +675,10 @@ public static class UpgradeEconomyChecks
                     {
                         patronTimer = w.patronInterval * Range(rng, 1f - w.patronJitter, 1f + w.patronJitter);
                         patronsLeaveAt.RemoveAll(leave => leave <= t);
-                        if (patronsLeaveAt.Count < w.maxPatrons)
+                        // 24 Oct 2026 (Days): and a free seat: the patrons alive and the customers waiting seated share them.
+                        int waitingSeated = 0;
+                        foreach (Person q in people) if (!q.gone && q.heard >= 0f) waitingSeated++;
+                        if (patronsLeaveAt.Count < w.maxPatrons && patronsLeaveAt.Count + waitingSeated < seatsToday)
                         {
                             patronsLeaveAt.Add(t + Mathf.Min(w.patronLifetime, w.patronWalk + Range(rng, w.patronStayMin, w.patronStayMax)));
                             patronMoney += w.patronPay;
@@ -689,7 +704,8 @@ public static class UpgradeEconomyChecks
                                 if (!storySpawned[i] && stories[i] != null && stories[i].who != null && fraction >= stories[i].arrivesAt) { storyDue = i; break; }
                         int cap = openingActive ? 1 : day.maxCustomers;
                         if (featuredDue || storyDue >= 0) cap = Mathf.Max(cap, World.MostEver);
-                        if (living >= cap) { if (openingActive) timer = 1.5f; }
+                        // 24 Oct 2026 (Days; P's §3.1 part 1): the cap's retry in 1.5 s while Ace has one step left or none.
+                        if (living >= cap) { if (openingActive || CustomerSpawner.RetrySoon(StepsLeft(people))) timer = 1.5f; }
                         else if (w.counterSlots - atCounterUnheard <= onTheWay) timer = 1.5f;
                         else
                         {
@@ -773,7 +789,7 @@ public static class UpgradeEconomyChecks
                             }
                         }
                     }
-                    else { current = null; currentKind = null; }
+                    else { current = null; currentKind = null; if (open) idle += Dt; }   // 24 Oct 2026 (Days): free hands
                 }
                 else if (current != null && t + Dt >= busyUntil)
                 {
@@ -827,6 +843,10 @@ public static class UpgradeEconomyChecks
             }
 
             Result r = new() { patrons = patronMoney };
+            // 24 Oct 2026 (Days; P's §5.2, his p2): today's find sells at closing when a bench job's worth of free hands went to it
+            // (Perfect, as the sim's repairs are); it was bought the night before (Day 1's is free).
+            if (day.ThriftFindOn(dayNumber) != null)
+                r.finds = (idle >= pace.bench ? Mathf.RoundToInt(day.thriftSale * SideProject.SaleShare(JobGrade.Perfect)) : 0) - day.thriftBuy;
             foreach (Person p in people)
             {
                 if (p.atCounter >= 0f) r.arrived++;
@@ -836,8 +856,20 @@ public static class UpgradeEconomyChecks
                 r.work += p.paidBase + p.paidTip;
                 r.tips += p.paidTip;
             }
-            r.total = r.work + r.patrons;
+            r.total = r.work + r.patrons + r.finds;
             return r;
+        }
+
+        // 24 Oct 2026 (Days): the customer steps Ace has left (CustomerSpawner's Downtime.CustomerSteps, as the sim sees it).
+        private static int StepsLeft(List<Person> people)
+        {
+            int n = 0;
+            foreach (Person p in people)
+            {
+                if (p.gone || p.atCounter < 0f) continue;
+                if (p.heard < 0f || p.WantsDrink && !p.drinkDone || p.hasRepair && !p.repairDone) n++;
+            }
+            return n;
         }
 
         private static float Range(System.Random rng, float min, float max) => min + (float)rng.NextDouble() * (max - min);

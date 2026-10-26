@@ -4,53 +4,43 @@ using UnityEngine;
 using UnityEngine.UI;
 
 // ---------------------------------------------------------------------------
-// THE HUD'S CORNERS: ONE COLUMN TOP RIGHT, THE STOCK CHIPS BOTTOM RIGHT (19 Oct 2026, after his girlfriend's playtest 7;
-// first built 7 Oct 2026 for playtest 3, session 3: claude/hud-spec.md, claude/playtest-3-sessions-2-6-plan.md §3.2-3.3)
+// THE HUD'S CORNERS: THE SHOP WINDOW TOP CENTRE, ONE HUNG COLUMN TOP RIGHT, THE STOCK CHIPS BOTTOM RIGHT
+// (26 Oct 2026 (HUD 3): his design A built in the engine; first built 7 Oct 2026 for playtest 3, remade 19 Oct after her
+// playtest 7; the HUD spec claude/hud-spec.md, M2's round 2 review24/designs/M2/README.md)
 //
-// Her playtest (dyslexic, her first time, a PlayStation pad): "what day, what time? Oh, this is way too small." "The UI
-// looks like the closed bar being on the bottom left rather than the top right." "open and then the amount." His answers
-// (19 Oct): "the getting ready to close orange tint and the closing red tint, doesnt fit the overall cozy aesthetic";
-// "the cash icon is spaced so far away from the number and both the closed and open sign should be on the top right corner
-// with the cash underneath the sign, and the day green meter bar is ugly." On the franchise goal, her: "You have no idea,
-// right? No."
+// Her playtest (dyslexic, her first time, a PlayStation pad): "what day, what time? Oh, this is way too small." His answers,
+// 24 Oct: design A, "the Shop window"; the time top centre by day and by night; "today" gone; "Franchise at 5 stars" gone
+// (Day 1's card, a 6 s hint, the star toasts and the phone say the goal); San Francisco unmistakable in the window, as the
+// city the café is in, "so we can always change the hud to match the cafe ... during the franchising"; the cash redone after
+// studying how other games make money feel; "one more level above". 26 Oct: the till was "the only good option given": a
+// better one; one money object everywhere; keep the receipt; Seattle stays the placeholder next city.
 //
-// So, one column in the top right corner (28 px from the right edge, 24 from the top, 296 wide), top to bottom:
+// So, by day:
+//   THE WINDOW         top centre: an arched painted window (HudWindow) whose glass holds the living sky and the café's
+//                      city (HudCity: San Francisco; one swappable layer), the time in gilt on its sill (32 px bold) and the
+//                      day in mint (22 px). The sun rises behind the houses at opening, sets behind the Golden Gate at
+//                      closing, the moon comes up, the city's windows light; nothing else on the HUD tells the hour.
+//   THE COLUMN         top right, hung from a brass bracket, top to bottom:
+//     the sign         kept: the painted board with OPEN ("Come in"), LAST ORDERS on honey ("Closing at 8 PM", the
+//                      hud.lastorders chime, a quicker sway), CLOSED on plum ("See you tomorrow", the sign's flap, a bounce);
+//                      never red; a card with two faces dressed before it turns. It hangs on two brass chains now.
+//     the money        ACE'S JAR on its small painted board (HudMoney), hung from the sign on two rings: today's takings in
+//                      40 px cream with a gilt "$"; the jar fills a step for every $24; a payment flies in from the pay pop
+//                      over the customer and lands with a beat, a count and a receipt; spending is the same jar, quieter.
+//     the stars        five pips, a dotted road and a tiny Ace's at its end (the goal with no words). A star lands with a
+//                      drop, a glint down the road and the café front jumping and lighting up; a toast says "New star! ·
+//                      4 more stars to franchise" for 4 s; on Day 1 a 6 s hint says "Five stars to franchise".
+//   STOCK CHIPS        bottom right, only when cups or beans run low (as since 19 Oct).
+// At night only the window shows (top centre), with the night's hour and "Monday night"; the night's old top-right clock is
+// gone (ShopUI). AT THE BENCH the column folds into a strip in zone U2 (24-110 px down): a small window, the time at 30 px
+// and the jar small beside a 30 px figure; at last orders or after closing a honey or plum chip with the sign's word takes
+// the small window's place. Everything times itself on UiClock, so it holds while the phone pauses the game. Hidden while
+// the recap has the screen and under the day intro. Made by ShopUI while playing, on a canvas of its own drawn under every
+// other screen (2): nothing in the scene changes.
 //
-//   THE HANGING SIGN   kept from the bottom left with its strings, its sway and its flip. OPEN on paper in the brand green
-//                      ("Come in"); LAST ORDERS on a honey-amber face for the café's last hour ("Closing at 8 PM", the
-//                      hud.lastorders chime, a quicker sway); CLOSED on a warm brick-plum face ("See you tomorrow"), with
-//                      the sign's own wooden flap (intro.sign) and a small bounce. Never red. The sign is a card with two
-//                      faces: the face that is hidden is dressed with the new words BEFORE the card turns, so a turn never
-//                      shows a stale face (the reviewers saw "OPEN · COME IN" at 8:00 PM, mid-turn to CLOSED).
-//   THE SHELF          a dark plate (UiSkin.Band) under the sign, so the numbers read over any background (the reviewers:
-//                      "$0 TODAY" white on a white tile wall; the clock white on the counter). On it:
-//     the day row      a SUN DIAL in place of the green bar: a paper half-arc, a gold sun travelling from its left end
-//                      (opening) to its right end (closing); in the last hour the arc warms from pale gold to honey and the
-//                      sun with it; at closing the sun sets below the right end and a small moon comes up. Beside it the time
-//                      (30 px bold), under them the day ("Monday · Day 1", 22 px).
-//     the takings      the cash stack (a bill, an edge under it for every $24, ten at most) 8 px from the figure ("$142",
-//                      40 px bold; "today" under it). A payment: the figure counts up and punches, the stack jolts, the bill
-//                      drops and settles, a green glow blooms, and "+$6" pops up just under the figure and rises into it as
-//                      it fades. A patron's coffee counts up quietly (playtest 4).
-//     the stars        the café's five stars (ReputationLedger.StarsEarned, gold once earned) and "Franchise at 5 stars":
-//                      the goal, on screen from Day 1.
-//   STOCK CHIPS        bottom right, only when cups or beans run low: "Low on cups · 7 left" over "Restock at closing" (her:
-//                      "Low on beans... How do you know? ... You buy it up through your phone. Oh, I wouldn't know.").
-//
-// NO SCREEN TINT: the amber pulse at last orders and the red bloom at closing are gone. The last hour is told by the sign,
-// the dial and the café's own light (CafeDaylight keeps its last hour golden a little longer).
-//
-// AT THE BENCH the column folds into a strip 24-110 px down (the takings' zone, U2 of BenchStageContract, so the job card
-// keeps its place under it and the mat stays clear): the sign, the day, "today" and the stars fade out over 0.2 s; the dial
-// shrinks beside the time, the figure goes under them; at last orders and after closing a small honey or plum chip with the
-// sign's word takes the dial's place, the time steps down beside the figure and the stack steps aside (a 30 px time and the
-// chip can't share one row). The clock runs at the bench (the lock) and the takings stay, as before.
-//
-// The sway and the flip are separate pieces (both turn the sign; on one piece one undoes the other). Everything times
-// itself on UiClock, so it all stands still while the phone pauses the game. Hidden while the recap has the screen and at
-// night (the café is closed: the night has its own clock, top right). The chips step aside while a conversation or the
-// counter phone has the bottom of the screen. Made by ShopUI while playing, on a canvas of its own drawn under every other
-// screen (2): nothing in the scene changes.
+// Material and light ("one level above", M2 §5): painted deep green with gilt lines and brass fittings for the café's own
+// pieces (the window, the money, the strip), enamel on a board for the sign, paper for the receipt, the ink band for words
+// over the world; the light from the top left, one soft shadow down and right; at rest only the sign and the window move.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class HudCorners : MonoBehaviour
@@ -65,46 +55,38 @@ public sealed class HudCorners : MonoBehaviour
     // ---- the column (reference pixels, 1920 x 1080; measured from the screen's top right corner) ----
     public const float ColumnRight = 28f, ColumnTop = 24f, ColumnWidth = 296f;
     const float Pad = 12f;
-    // The sign.
+    // The sign on its chains.
     const float StringLength = 16f, SignWidth = 280f, SignHeight = 112f, Border = 3f, SignRadius = 14f;
-    // The shelf under it, in the café: the day row, the takings, the stars.
-    const float ShelfTop = StringLength + SignHeight + 8f;   // 136
-    const float ShelfPad = 8f, RowGap = 6f;
-    const float DialWidth = 96f, DialHeight = 48f, DialRadius = 44f, DialStroke = 4f, SunSize = 18f, HaloSize = 44f, MoonSize = 14f;
-    const float TimeSize = 30f, TimeBox = 34f, DaySize = 22f, DaySizeMin = 20f, DayBox = 26f;
-    const float FigureSize = 40f, FigureBox = 46f, TodaySize = 20f, TodayBox = 22f;
-    const float StarSize = 22f, StarGap = 4f, StarsBox = 24f, LineSize = 20f, LineBox = 22f;
-    const float DayRowTop = ShelfTop + ShelfPad;                      // 144
-    const float DayTop = DayRowTop + DialHeight + 4f;                 // 196
-    const float FigureTop = DayTop + DayBox + RowGap;                 // 228
-    const float TodayTop = FigureTop + FigureBox;                     // 274
-    const float StarsTop = TodayTop + TodayBox + RowGap;              // 302
-    const float LineTop = StarsTop + StarsBox + 2f;                   // 328
-    const float ShelfBottom = LineTop + LineBox + ShelfPad;           // 358: the column's bottom in the café
-    // The strip at the bench (zone U2: 18-110 px down).
-    const float StripHeight = 86f, StripRow = 34f, StripPad = 8f, StripFigureSize = 30f, BenchStackScale = .7f;
-    const float BenchDialScale = 28f / DialHeight;
-    const float ChipWordSize = 20f, ChipPadX = 12f;
-    // The cash stack (the icon against the figure).
-    const float BillWidth = 60f, BillHeight = 27f, EdgeWidth = 56f, EdgeHeight = 4f, EdgeStep = 3f, StackGap = 8f;
-    const int DollarsPerEdge = 24, MostEdges = 10;
+    const float SignBottom = StringLength + SignHeight;                   // 128: the sign's foot, from the column's top
+    // The money board under it, on two rings.
+    const float RingGap = 20f, BoardTop = SignBottom + RingGap;           // 148: the board's top (172 px down the screen)
+    // The stars' row under the board.
+    const float StarsTop = BoardTop + HudMoney.BoardH + 26f;              // 238 (262 down the screen)
+    const float StarSize = 22f, StarGap = 4f, RoadGap = 8f, FrontW = 26f, FrontH = 24f;
+    const float ColumnBottom = StarsTop + FrontH + 4f;                    // 266: the column's bottom in the café (290 down the screen)
+    // The window, top centre.
+    const float WindowTop = 4f;
+    // The strip at the bench (zone U2: 18-110 px down, 324 wide from the right edge).
+    const float StripHeight = 86f, StripPad = 8f, StripTimeSize = 30f, MiniWindowScale = .36f;
+    const float ChipWordSize = 22f, ChipPadX = 12f, ChipRow = 34f;
     // The stock chips.
     const float StockHeight = 62f, StockPitch = 70f, StockTitleSize = 22f, StockLineSize = 20f;
     const float LabNudge = 92f;   // the café lab's banner sits in the bottom right corner (labs only)
+    // The toast under the column.
+    const float ToastTitleSize = 24f, ToastLineSize = 22f, ToastWidth = 300f, ToastSeconds = 4f, HintSeconds = 6f;
 
     // ---- the sign's faces (never red: his words, 19 Oct) ----
     static readonly Color Honey = new Color(.941f, .710f, .298f);       // #F0B54C: the LAST ORDERS face
     static readonly Color Plum = new Color(.490f, .227f, .267f);        // #7D3A44: the CLOSED face, warm brick-plum
     static readonly Color PlumRim = new Color(.318f, .149f, .188f);     // #512630
+    static readonly Color Brass = HudArt.Hex(0xC9A24A), BrassDark = HudArt.Hex(0x8C6A24), BrassLight = HudArt.Hex(0xF0D48A);
 
     // ---- timing (seconds of UiClock) ----
-    const float CountSeconds = .55f, PunchSeconds = .3f, JoltSeconds = .26f, DropSeconds = .44f, FlashSeconds = .5f, PopSeconds = 1.05f;
-    const float PopRise = 26f;   // how far the paid chip climbs into the figure
-    const float FlipSeconds = .72f, ChipInSeconds = .4f, FadeRate = 8f, SignPunchSeconds = .5f, SunSetSeconds = .8f;
+    const float FlipSeconds = .72f, ChipInSeconds = .4f, FadeRate = 8f, SignPunchSeconds = .5f;
 
     Canvas canvas;
-    RectTransform root, column;
-    CanvasGroup top, bottom;
+    RectTransform root, column, flights;
+    CanvasGroup top, bottom, columnGroup;
 
     // The sign.
     RectTransform sign, sway, flipper;
@@ -113,7 +95,7 @@ public sealed class HudCorners : MonoBehaviour
     sealed class Face
     {
         public RectTransform rect;
-        public Image border, face, cup;
+        public Image border, face, cup, lipTop, lipLeft;
         public TextMeshProUGUI word, sub;
         public State state;
     }
@@ -126,32 +108,40 @@ public sealed class HudCorners : MonoBehaviour
     float angle, flipFrom, flipTo, flipSince = -10f, swayPhase, closedAt = -10f;
     int shownClosingHour = int.MinValue;
 
-    // The shelf: the day row, the takings, the stars.
-    RectTransform shelf, dayRow, dial, sunRect, haloRect, cash, stack, billRect, flash, pop, stars;
-    Image shelfShadow, dialTrack, sun, halo, moon, bill, billShadow, flashImage, popChip;
-    TextMeshProUGUI clockLine, dayLine, figure, figureLabel, popText, franchiseLine;
-    CanvasGroup dayGroup, todayGroup, starsGroup;
+    // The window, the money, the stars.
+    HudWindow window, miniWindow;
+    RectTransform miniWindowRect;
+    CanvasGroup miniGroup, windowGroup;
+    TextMeshProUGUI stripTime;
+    HudMoney money;
+    RectTransform stars;
+    CanvasGroup starsGroup, moneyGroup;
     readonly Image[] starImages = new Image[ReputationRules.MaxStars];
-    readonly List<RectTransform> edges = new List<RectTransform>();
-    int shownMoney = int.MinValue, targetMoney, fromMoney, edgesShown = -1;
-    int patronIncomeSeen;   // Playtest 4 (Systems S7): today's patron money already counted, quietly (DayClock.PatronIncome)
-    float countSince = -10f, paidAt = -10f, figureWidth, laidOutFigureSize = -1f;
-    string laidOutFigure;
-    TMP_FontAsset laidOutFigureFont;
-    int shownDay = int.MinValue, shownMinute = int.MinValue, shownStars = -1;
-    float starPopAt = -10f;
-    string laidOutDay;
-    TMP_FontAsset laidOutFont;
-    float clockGap;
-    float sunProgress, sunDrop, moonUp, dialWarmth;
-    // The bench strip's state chip (LAST ORDERS, CLOSED), in the dial's place.
+    readonly Image[] starGlows = new Image[ReputationRules.MaxStars];
+    Image frontLit, frontGlow, glint;
+    RectTransform frontRect;
+    int shownStars = -1;
+    float starLandAt = -10f;
+    // The toast under the column: "New star! · 4 more stars to franchise", or Day 1's hint "Five stars to franchise".
+    RectTransform toast;
+    CanvasGroup toastGroup;
+    TextMeshProUGUI toastText;
+    float toastShownAt = -10f, toastLife;
+    bool hintShown;
+    // Today's takings as the money object tracks them.
+    int targetMoney = int.MinValue, patronIncomeSeen, tipsSeen;
+    struct Pop { public Transform who; public int amount, tip; public float at; }
+    readonly List<Pop> pops = new List<Pop>();
+    // The clock.
+    int shownDay = int.MinValue, shownMinute = int.MinValue;
+    bool shownNight;
+    // The bench strip's state chip (LAST ORDERS, CLOSED), in the small window's place.
     RectTransform stateChip;
     Image stateChipFace;
     TextMeshProUGUI stateChipText;
     CanvasGroup stateChipGroup;
     State chipState = State.Open;
     float chipShown, laidOutFold = -1f, laidOutChip = -1f;
-    CanvasGroup stackGroup;
 
     // The stock chips.
     RectTransform chips;
@@ -171,52 +161,63 @@ public sealed class HudCorners : MonoBehaviour
     CounterRepairView counterPhone;
     bool wasShown;
 
-    // QUIET AT THE BENCH (checklist v2, 14 Oct 2026; his playtest 5: "the checklist is terrible", the First Hour's count of
-    // about 120 words on the first repair's screen). While the close-up is up the column folds into its strip over 0.2 s (see
-    // the header): the sign, the day line, "today" and the stars fade out; the dial, the time and the takings stay.
+    // QUIET AT THE BENCH (checklist v2, 14 Oct 2026; his playtest 5: "the checklist is terrible"). While the close-up is up the
+    // column folds into its strip over 0.2 s: the sign, the money's board, the stars and the window fade; the strip's small
+    // window, the time and the small jar take over.
     const float QuietSeconds = .2f;
     float quietAlpha = 1f;
     /// <summary>The column's quiet words as they show now: 1 in the café, 0 at the bench (labs).</summary>
     public float QuietAlpha => quietAlpha;
 
+    // ---- the labs' hooks (the HUD lab: photos at hours and in forms the lab can't reach by play) ----
+    float labHour = float.NaN;
+    bool labNight, labFold;
+
     // ------------------------------------------------------------------ what checks read
 
-    /// <summary>True while the column is on screen (by day, nothing else owning the screen).</summary>
+    /// <summary>True while the HUD is on screen (by day the column and the window; by night the window alone).</summary>
     public bool Showing => canvas != null && canvas.enabled && top != null && top.alpha > .5f;
+    /// <summary>True while the window shows the night (the night's hour, "Monday night"), the column hidden.</summary>
+    public bool ShowsNight => Showing && shownNight;
     /// <summary>Whether the bottom corner (the stock chips' group) is up: it steps aside for a conversation or the counter phone.</summary>
     public bool BottomShowing => Showing && bottom != null && bottom.alpha > .5f;
     /// <summary>Today's takings as the figure reads now ("$142"), and what it's counting toward.</summary>
-    public string TakingsShown => figure != null ? figure.text : "";
-    public int TakingsTarget => targetMoney;
-    /// <summary>The figure's size now (1: at rest; more during a punch).</summary>
-    public float TakingsPunch => figure != null ? figure.rectTransform.localScale.x : 1f;
-    /// <summary>The edges under the bill (one for every $24 taken today, ten at most).</summary>
-    public int EdgesShown => Mathf.Max(0, edgesShown);
-    public bool BillShowing => bill != null && bill.enabled;
+    public string TakingsShown => money != null ? money.Figure : "";
+    public int TakingsTarget => money != null ? money.Target : 0;
+    /// <summary>The figure's size now (1: at rest; more during a kick).</summary>
+    public float TakingsPunch => money != null ? money.Punch : 1f;
+    /// <summary>The jar's fill in steps (one for every $24 taken today, ten at most): what the old stack's edges counted.</summary>
+    public int EdgesShown => money != null ? Mathf.Max(0, money.FillSteps) : 0;
+    /// <summary>True once there's money in the jar today.</summary>
+    public bool BillShowing => money != null && money.BillShowing;
+    /// <summary>The money object itself (the jar, the figure, the receipt, the flights): the labs read its state.</summary>
+    public HudMoney Money => money;
     /// <summary>The sign's word for the state it is in: OPEN, LAST ORDERS or CLOSED (its card may still be turning: FaceShowing).</summary>
     public string SignWord => WordOf(state);
     /// <summary>The words on the face that faces the screen right now (during a turn, the old face until the card is edge-on).</summary>
     public string FaceShowing => FaceFacing() != null ? FaceFacing().word.text : "";
     public bool LastOrders => state == State.LastOrders;
     public bool SignClosed => state == State.Closed;
-    /// <summary>The day and the time as the day row reads them ("Monday · Day 1   9:30 AM"): the day under the time, beside the dial.</summary>
-    public string ClockLine => dayLine != null ? dayLine.text + "   " + clockLine.text : "";
-    /// <summary>The room the day row has to spare: the day line across the shelf, the time beside the dial, the time at its widest (reference pixels).</summary>
-    public float ClockGap => clockGap;
+    /// <summary>The day and the time as the window's sill reads them ("Monday · Day 1   9:30 AM"; "Monday night   11:05 PM").</summary>
+    public string ClockLine => window != null ? window.DayText.text + "   " + window.TimeText.text : "";
+    /// <summary>The sill's room to spare between the day and the time, the time at its widest (reference pixels).</summary>
+    public float ClockGap => window != null ? window.Gap : 0f;
     /// <summary>The day line's size now (22 px; 20 px for a long weekday and day number, never less).</summary>
-    public float ClockLineSize => dayLine != null ? dayLine.fontSize : 0f;
-    /// <summary>The sun's place along the dial's arc, 0 at the left end (opening) to 1 at the right end (closing).</summary>
-    public float SunProgress => sunProgress;
-    /// <summary>True once the sun has set below the dial's right end (after closing).</summary>
-    public bool SunSet => sunDrop > .5f;
-    /// <summary>True while the small moon is up on the dial (after closing).</summary>
-    public bool MoonShowing => moonUp > .5f;
-    /// <summary>How far the dial has warmed toward honey: 0 until the last hour, 1 at closing.</summary>
-    public float DialWarmth => dialWarmth;
+    public float ClockLineSize => window != null ? window.DaySizeNow : 0f;
+    /// <summary>How far the sun is through its day, 0 at opening to 1 at closing (the day's clock; the window draws it).</summary>
+    public float SunProgress { get; private set; }
+    /// <summary>True once the sun has gone down behind the city (after closing).</summary>
+    public bool SunSet => window != null && window.SunSet;
+    /// <summary>True while the moon is up in the window (from closing).</summary>
+    public bool MoonShowing => window != null && window.MoonShowing;
+    /// <summary>How far the sky has warmed toward golden hour: 0 until the last hour, 1 at closing.</summary>
+    public float DialWarmth => window != null ? window.Warmth : 0f;
     /// <summary>The café's stars as the column draws them (0-5).</summary>
     public int StarsShown => Mathf.Max(0, shownStars);
-    /// <summary>The line under the stars ("Franchise at 5 stars").</summary>
-    public string FranchiseLine => franchiseLine != null ? franchiseLine.text : "";
+    /// <summary>The goal's words as the HUD says them now: the toast or Day 1's hint while one is up ("Five stars to franchise"), else "".</summary>
+    public string FranchiseLine => toastGroup != null && toastGroup.alpha > .5f ? toastText.text.Replace("\n", " · ") : "";
+    /// <summary>True while the tiny café front sits at the end of the stars' road (the goal, with no words).</summary>
+    public bool CafeFrontShowing => frontRect != null && frontRect.gameObject.activeInHierarchy && starsGroup != null && starsGroup.alpha > .5f;
     /// <summary>True while the column is folded into its strip at the bench.</summary>
     public bool BenchStrip => quietAlpha < .5f;
     /// <summary>The strip's state chip at the bench ("LAST ORDERS", "CLOSED"), or "" (in the café, or while the café is open).</summary>
@@ -225,16 +226,20 @@ public sealed class HudCorners : MonoBehaviour
     public bool BeansChipShowing => beansChip != null && beansChip.showing;
     /// <summary>The chips' words as they read, each chip's two lines joined ("Low on cups · 7 left · Restock at closing | ...").</summary>
     public string ChipsText => (cupsChip != null && cupsChip.showing ? ChipWords(cupsChip) : "") + (beansChip != null && beansChip.showing ? " | " + ChipWords(beansChip) : "");
-    /// <summary>The takings row (the stack and the figure) in the column.</summary>
-    public RectTransform CashRect => cash;
-    /// <summary>The sign (its strings, its swing and its card), top right.</summary>
+    /// <summary>The money (the jar and the figure on their board) in the column.</summary>
+    public RectTransform CashRect => money != null ? money.Root : null;
+    /// <summary>The sign (its chains, its swing and its card), top right.</summary>
     public RectTransform SignRect => sign;
     public RectTransform ChipsRect => chips;
+    /// <summary>The window piece (the time), top centre.</summary>
+    public RectTransform WindowRect => window != null ? window.Rect : null;
+    /// <summary>The city the window draws now.</summary>
+    public string CityShown => window != null && window.City != null ? window.City.Name : "";
     /// <summary>
     /// The column's bottom edge in reference pixels from the top of the screen, as it stands now: the whole column in the
-    /// café (382), the strip at the bench (110). Whatever sits under the column (the bench's job card) starts below this.
+    /// café (290), the strip at the bench (110). Whatever sits under the column (the bench's job card) starts below this.
     /// </summary>
-    public float TopRightBottom => ColumnTop + Mathf.Lerp(ShelfBottom, StripHeight, Fold(1f - quietAlpha));
+    public float TopRightBottom => ColumnTop + Mathf.Lerp(ColumnBottom, StripHeight, Fold(1f - quietAlpha));
 
     // ------------------------------------------------------------------ making it
 
@@ -242,13 +247,14 @@ public sealed class HudCorners : MonoBehaviour
     {
         Instance = this;
         Build();
+        Juice.Paid += OnPaid;
     }
 
     void OnDestroy()
     {
+        Juice.Paid -= OnPaid;
         if (Instance == this) Instance = null;
         if (canvas != null) Destroy(canvas.gameObject);
-        foreach (Object made in drawn) if (made != null) Destroy(made);
     }
 
     void Build()
@@ -256,14 +262,26 @@ public sealed class HudCorners : MonoBehaviour
         canvas = UiSkin.ScreenCanvas("HUD corners (while playing)", null, SortingOrder);
         root = (RectTransform)canvas.transform;
 
-        top = Stretch("Top right (the column)", root).gameObject.AddComponent<CanvasGroup>();
+        top = Stretch("Top (the window and the column)", root).gameObject.AddComponent<CanvasGroup>();
         bottom = Stretch("Bottom right (the chips)", root).gameObject.AddComponent<CanvasGroup>();
         foreach (CanvasGroup g in new[] { top, bottom }) { g.blocksRaycasts = false; g.interactable = false; }
 
-        column = Box("The column", top.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-ColumnRight, -ColumnTop), new Vector2(ColumnWidth, ShelfBottom));
-        BuildShelf(column);
-        BuildSign(column);   // after the shelf, so the sign and its shadow draw over the shelf's top edge
+        // The window, top centre.
+        window = new HudWindow();
+        window.Build("The window", (RectTransform)top.transform, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(0f, -WindowTop), 1f, true);
+        windowGroup = Quiet(window.Rect);
+
+        // The column, top right; the flights over everything.
+        column = Box("The column", top.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-ColumnRight, -ColumnTop), new Vector2(ColumnWidth, ColumnBottom));
+        columnGroup = Quiet(column);
+        flights = Stretch("Flights (bills, coins, sparkles)", top.transform);
+        BuildStrip(column);
+        BuildMoney(column);
+        BuildStars(column);
+        BuildSign(column);   // after the money, so the sign and its shadow draw over the board's rings
+        BuildToast((RectTransform)top.transform);
         BuildChips((RectTransform)bottom.transform);
+        flights.SetAsLastSibling();
         Layout(0f);
     }
 
@@ -276,24 +294,41 @@ public sealed class HudCorners : MonoBehaviour
         return g;
     }
 
-    // The sign: two strings, then the swing (the sway), the card's turn (the flip), the two faces.
+    // The sign: a brass bracket along the top, two chains, then the swing (the sway), the card's turn (the flip), the two faces.
     void BuildSign(RectTransform parent)
     {
         sign = Box("The sign", parent, new Vector2(.5f, 1f), new Vector2(.5f, 1f), Vector2.zero, new Vector2(SignWidth, StringLength + SignHeight));
         signGroup = Quiet(sign);
 
+        // The bracket: a brass bar across the column's top from a post at the right edge, a scroll at its end.
+        RectTransform bar = Box("Bracket", sign, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(11f, 2f), new Vector2(ColumnWidth - 22f, 5f));
+        UiSkin.Paint(bar, Brass, 2.5f);
+        RectTransform barLight = Box("Bracket light", bar, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(2f, 0f), new Vector2(ColumnWidth - 26f, 1.5f));
+        UiSkin.Paint(barLight, BrassLight, .7f);
+        RectTransform post = Box("Post", sign, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(ColumnWidth * .5f - SignWidth * .5f, 10f), new Vector2(7f, 30f));
+        UiSkin.Paint(post, Brass, 3f);
+        RectTransform postDark = Box("Post shade", post, new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, new Vector2(2.5f, 30f));
+        UiSkin.Paint(postDark, BrassDark, 1f);
+        RectTransform scroll = Box("Scroll", sign, new Vector2(0f, 1f), new Vector2(.5f, .5f), new Vector2(-ColumnWidth * .5f + SignWidth * .5f + 22f, -2f), new Vector2(22f, 22f));
+        Image scrollImage = scroll.gameObject.AddComponent<Image>();
+        scrollImage.sprite = HudArt.Scroll();
+        scrollImage.color = Brass;
+        scrollImage.raycastTarget = false;
         foreach (float x in new[] { -.23f, .23f })
         {
-            RectTransform cord = Box("String", sign, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(SignWidth * x, 0f), new Vector2(2f, StringLength + 6f));
-            Image c = cord.gameObject.AddComponent<Image>();
-            c.color = new Color(UiSkin.BandText.r, UiSkin.BandText.g, UiSkin.BandText.b, .75f);
-            c.raycastTarget = false;
+            RectTransform chain = Box("String", sign, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(SignWidth * x, -3f), new Vector2(3.5f, StringLength + 6f));
+            UiSkin.Paint(chain, BrassDark, 1.5f);
+            RectTransform link = Box("Link", sign, new Vector2(.5f, 1f), new Vector2(.5f, .5f), new Vector2(SignWidth * x, -StringLength + 1f), new Vector2(9f, 9f));
+            Image linkImage = link.gameObject.AddComponent<Image>();
+            linkImage.sprite = HudArt.Ring(16, 2.2f);
+            linkImage.color = Brass;
+            linkImage.raycastTarget = false;
         }
 
-        // The swing hangs from the strings' ends; the flip turns the card about its middle. ("Swing" by name: the pause lab reads it.)
+        // The swing hangs from the chains' ends; the flip turns the card about its middle. ("Swing" by name: the pause lab reads it.)
         sway = Box("Swing", sign, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(0f, -StringLength), new Vector2(SignWidth, SignHeight));
         flipper = Box("Turn", sway, new Vector2(.5f, .5f), new Vector2(.5f, .5f), Vector2.zero, new Vector2(SignWidth, SignHeight));
-        signShadow = UiSkin.DropShadow(flipper, 9f, 4f, .38f);
+        signShadow = UiSkin.DropShadow(flipper, 9f, 5f, .4f);
         faceA = MakeFace("Face A", flipper);
         faceB = MakeFace("Face B", flipper);
         faceB.rect.gameObject.SetActive(false);
@@ -309,146 +344,133 @@ public sealed class HudCorners : MonoBehaviour
         RectTransform inner = Box("Face", f.rect, new Vector2(.5f, .5f), new Vector2(.5f, .5f), Vector2.zero,
             new Vector2(SignWidth - 2f * Border, SignHeight - 2f * Border));
         f.face = UiSkin.Paint(inner, UiSkin.Paper, SignRadius - Border);
+        // The enamel's lit lip: the light from the top left catches the paint's top and left edges.
+        RectTransform lipTop = Box("Lip", inner, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(0f, -1.5f), new Vector2(SignWidth - 2f * Border - 2f * SignRadius, 2f));
+        f.lipTop = UiSkin.Paint(lipTop, Color.white, 1f);
+        RectTransform lipLeft = Box("Lip", inner, new Vector2(0f, .5f), new Vector2(0f, .5f), new Vector2(1.5f, 0f), new Vector2(2f, SignHeight - 2f * Border - 2f * SignRadius));
+        f.lipLeft = UiSkin.Paint(lipLeft, Color.white, 1f);
         RectTransform cupRect = Box("Cup", f.rect, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(0f, -8f), new Vector2(26f, 22f));
         f.cup = cupRect.gameObject.AddComponent<Image>();
-        f.cup.sprite = cupSprite != null ? cupSprite : cupSprite = MakeSprite(CupMark(), 0f);
+        f.cup.sprite = HudArt.CupMark();
         f.cup.raycastTarget = false;
         f.word = UiSkin.Text("Word", f.rect, 40f, UiSkin.Brand, TextAlignmentOptions.Center, FontStyles.Bold);
         Place(f.word.rectTransform, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0f, 1f), new Vector2(SignWidth - 16f, 46f));
-        // The line under the word, 20 px in sentence case (her: "your text needs to be bolder"; the 12.5 px spaced caps are gone).
-        f.sub = UiSkin.Text("Under", f.rect, 20f, UiSkin.Brand, TextAlignmentOptions.Center, FontStyles.Normal);
-        Place(f.sub.rectTransform, new Vector2(.5f, 0f), new Vector2(.5f, 0f), new Vector2(0f, 8f), new Vector2(SignWidth - 16f, 24f));
+        // The line under the word, 22 px in sentence case (her: "your text needs to be bolder"; 26 Oct: up from 20, the HUD's floor).
+        f.sub = UiSkin.Text("Under", f.rect, 22f, UiSkin.Brand, TextAlignmentOptions.Center, FontStyles.Normal);
+        Place(f.sub.rectTransform, new Vector2(.5f, 0f), new Vector2(.5f, 0f), new Vector2(0f, 8f), new Vector2(SignWidth - 16f, 26f));
         return f;
     }
 
-    Sprite cupSprite, glowSprite;
-
-    Sprite GlowSprite() => glowSprite != null ? glowSprite : glowSprite = MakeSprite(Glow(), 0f);
-
-    // The shelf: the dark plate, and on it the day row (the dial, the time, the day), the takings and the stars; the bench
-    // strip's state chip too (hidden in the café).
-    void BuildShelf(RectTransform parent)
+    // The money: the jar on its board, hung from the sign on two brass rings.
+    void BuildMoney(RectTransform parent)
     {
-        shelf = Box("The shelf", parent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0f, -ShelfTop), new Vector2(ColumnWidth, ShelfBottom - ShelfTop));
-        UiSkin.Paint(shelf, UiSkin.Band, UiSkin.Radius);
-        shelfShadow = UiSkin.DropShadow(shelf, 10f, 4f, .3f);
-
-        // The day row: the dial at the left, the time at the right, the day under them.
-        dayRow = Box("The day", shelf, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0f, -ShelfPad), new Vector2(ColumnWidth, DialHeight));
-        dial = Box("Sun dial", dayRow, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(Pad, 0f), new Vector2(DialWidth, DialHeight));
-        RectTransform trackRect = Box("Arc", dial, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(DialWidth, DialHeight));
-        dialTrack = trackRect.gameObject.AddComponent<Image>();
-        dialTrack.sprite = MakeSprite(Arc(), 0f);
-        dialTrack.color = new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .55f);
-        dialTrack.raycastTarget = false;
-        haloRect = Box("Halo", dial, Vector2.zero, new Vector2(.5f, .5f), Vector2.zero, new Vector2(HaloSize, HaloSize));
-        halo = haloRect.gameObject.AddComponent<Image>();
-        halo.sprite = GlowSprite();
-        halo.color = new Color(UiSkin.Gold.r, UiSkin.Gold.g, UiSkin.Gold.b, .3f);
-        halo.raycastTarget = false;
-        sunRect = Box("Sun", dial, Vector2.zero, new Vector2(.5f, .5f), Vector2.zero, new Vector2(SunSize, SunSize));
-        sun = sunRect.gameObject.AddComponent<Image>();
-        sun.sprite = UiSkin.Circle;
-        sun.color = UiSkin.Gold;
-        sun.raycastTarget = false;
-        // Inside the dome, up and to the left of where the sun goes down.
-        RectTransform moonRect = Box("Moon", dial, Vector2.zero, new Vector2(.5f, .5f), new Vector2(DialWidth * .5f + 12f, 28f), new Vector2(MoonSize, MoonSize));
-        moon = moonRect.gameObject.AddComponent<Image>();
-        moon.sprite = MakeSprite(Moon(), 0f);
-        moon.color = new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, 0f);
-        moon.raycastTarget = false;
-
-        clockLine = UiSkin.Text("Time", dayRow, TimeSize, UiSkin.BandText, TextAlignmentOptions.MidlineRight, FontStyles.Bold);
-        Place(clockLine.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-Pad, -(DialHeight - TimeBox) * .5f),
-            new Vector2(ColumnWidth - 2f * Pad - DialWidth - 10f, TimeBox));
-        dayLine = UiSkin.Text("Day", shelf, DaySize, UiSkin.BandFaint, TextAlignmentOptions.MidlineRight, FontStyles.Normal);
-        Place(dayLine.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-Pad, -(DayTop - ShelfTop)), new Vector2(ColumnWidth - 2f * Pad, DayBox));
-        dayGroup = Quiet(dayLine);
-
-        // The bench strip's state chip, in the dial's place (hidden in the café, and while the café is open).
-        stateChip = Box("State chip (the bench)", shelf, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(10f, -StripPad), new Vector2(150f, StripRow));
-        stateChipFace = UiSkin.Paint(stateChip, Honey, StripRow * .5f);
-        stateChipText = UiSkin.Text("Word", stateChip, ChipWordSize, UiSkin.Ink, TextAlignmentOptions.Center, FontStyles.Bold);
-        StretchInside(stateChipText.rectTransform, 0f);
-        stateChipGroup = Quiet(stateChip);
-        stateChipGroup.alpha = 0f;
-
-        BuildCash(shelf);
-        BuildStars(shelf);
-    }
-
-    // The takings: the figure at the right, the stack against it; the glow and the pop behind and under the stack.
-    void BuildCash(RectTransform parent)
-    {
-        cash = Box("Today's takings", parent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0f, -(FigureTop - ShelfTop)), new Vector2(ColumnWidth, FigureBox + TodayBox));
-
-        figure = UiSkin.Text("Figure", cash, FigureSize, UiSkin.Paper, TextAlignmentOptions.MidlineRight, FontStyles.Bold);
-        // Pivoted at its right middle, so a punch grows it out from the column's edge.
-        Place(figure.rectTransform, new Vector2(1f, 1f), new Vector2(1f, .5f), new Vector2(-Pad, -FigureBox * .5f), new Vector2(ColumnWidth - 2f * Pad, FigureBox));
-        figureLabel = UiSkin.Text("Label", cash, TodaySize, UiSkin.BandFaint, TextAlignmentOptions.TopRight, FontStyles.Normal);
-        figureLabel.text = "today";
-        Place(figureLabel.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-Pad, -FigureBox), new Vector2(ColumnWidth - 2f * Pad, TodayBox));
-        todayGroup = Quiet(figureLabel);
-
-        // The stack hangs from its top right corner, 8 px left of the figure (placed every frame: the figure's width changes).
-        stack = Box("Stack", cash, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-Pad - 90f - StackGap, -4f), new Vector2(BillWidth, BillHeight));
-        stackGroup = Quiet(stack);   // it steps aside at the bench while the state chip has the strip's first row
-        flash = Box("Glow", stack, new Vector2(.5f, 1f), new Vector2(.5f, .5f), new Vector2(0f, -BillHeight * .5f - 6f), new Vector2(120f, 120f));
-        flashImage = flash.gameObject.AddComponent<Image>();
-        flashImage.sprite = GlowSprite();
-        flashImage.color = new Color(UiSkin.BrandBright.r, UiSkin.BrandBright.g, UiSkin.BrandBright.b, 0f);
-        flashImage.raycastTarget = false;
-
-        for (int i = 0; i < MostEdges; i++)
+        // Hung from its top middle (it swings a beat behind the sign at last orders).
+        RectTransform hanger = Box("Money", parent, new Vector2(1f, 1f), new Vector2(.5f, 1f), new Vector2(-HudMoney.BoardW * .5f, -BoardTop), new Vector2(HudMoney.BoardW, HudMoney.BoardH));
+        moneyGroup = Quiet(hanger);
+        foreach (float x in new[] { 34f, HudMoney.BoardW - 34f })
         {
-            RectTransform edge = Box("Edge " + (i + 1), stack, new Vector2(.5f, 1f), new Vector2(.5f, 1f),
-                new Vector2(i % 2 == 0 ? -1.5f : 1.5f, -BillHeight + 2f - i * EdgeStep), new Vector2(EdgeWidth, EdgeHeight));
-            edge.localRotation = Quaternion.Euler(0f, 0f, i % 2 == 0 ? -.6f : .6f);
-            Image e = edge.gameObject.AddComponent<Image>();
-            UiSkin.Round(e, 2f);
-            e.color = Color.Lerp(UiSkin.Brand, UiSkin.BrandDeep, i % 2 == 0 ? .15f : .45f);
-            e.raycastTarget = false;
-            edge.gameObject.SetActive(false);
-            edges.Add(edge);
+            RectTransform ring = Box("Ring", hanger, new Vector2(0f, 1f), new Vector2(.5f, .5f), new Vector2(x, RingGap * .5f + 1f), new Vector2(14f, 14f));
+            Image r = ring.gameObject.AddComponent<Image>();
+            r.sprite = HudArt.Ring(16, 2.4f);
+            r.color = Brass;
+            r.raycastTarget = false;
         }
-        // The bill last, so it lies on the edges.
-        billRect = Box("Bill", stack, new Vector2(.5f, 1f), new Vector2(.5f, 1f), Vector2.zero, new Vector2(BillWidth, BillHeight));
-        bill = billRect.gameObject.AddComponent<Image>();
-        bill.sprite = MakeSprite(Bill(), 0f);
-        bill.raycastTarget = false;
-        billShadow = UiSkin.DropShadow(billRect, 4f, 2f, .35f);
-        bill.enabled = false;
-        billShadow.enabled = false;
-
-        // "+$6" pops up just under the figure and rises into it as it fades (UpdateCash); "today" steps aside while it's up.
-        pop = Box("Paid", cash, new Vector2(1f, 1f), new Vector2(.5f, 1f), new Vector2(-Pad - 40f, -FigureBox + 4f), new Vector2(80f, 32f));
-        popChip = pop.gameObject.AddComponent<Image>();
-        UiSkin.Round(popChip, 16f);
-        popChip.color = UiSkin.Brand;
-        popChip.raycastTarget = false;
-        popText = UiSkin.Text("Amount", pop, 22f, UiSkin.Paper, TextAlignmentOptions.Center, FontStyles.Bold);
-        StretchInside(popText.rectTransform, 0f);
-        pop.gameObject.SetActive(false);
+        money = new HudMoney();
+        money.Build("The jar and the figure", hanger, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, flights);
     }
 
-    // The café's stars, and the goal under them.
+    // The café's stars: five pips, a dotted road, the tiny café front at its end; the glint that runs the road when a star lands.
     void BuildStars(RectTransform parent)
     {
-        stars = Box("The stars", parent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0f, -(StarsTop - ShelfTop)), new Vector2(ColumnWidth, StarsBox + 2f + LineBox));
+        stars = Box("The stars", parent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0f, -StarsTop), new Vector2(ColumnWidth, FrontH));
         starsGroup = Quiet(stars);
-        Sprite star = MakeSprite(Star(), 0f);
-        for (int i = 0; i < starImages.Length; i++)
+        Sprite star = HudArt.Star(), glowSprite = HudArt.Glow();
+        float x = -Pad - FrontW - RoadGap - 3f * 7f;   // the front, the road, then the stars leftward
+        for (int i = starImages.Length - 1; i >= 0; i--)
         {
-            RectTransform r = Box("Star " + (i + 1), stars, new Vector2(1f, 1f), new Vector2(.5f, .5f),
-                new Vector2(-Pad - StarSize * .5f - (starImages.Length - 1 - i) * (StarSize + StarGap), -StarsBox * .5f), new Vector2(StarSize, StarSize));
+            x -= StarSize * .5f;
+            RectTransform g = Box("Star glow " + (i + 1), stars, new Vector2(1f, 1f), new Vector2(.5f, .5f), new Vector2(x, -FrontH * .5f), new Vector2(StarSize * 2.6f, StarSize * 2.6f));
+            starGlows[i] = g.gameObject.AddComponent<Image>();
+            starGlows[i].sprite = glowSprite;
+            starGlows[i].color = HudArt.With(UiSkin.Gold, 0f);
+            starGlows[i].raycastTarget = false;
+            RectTransform r = Box("Star " + (i + 1), stars, new Vector2(1f, 1f), new Vector2(.5f, .5f), new Vector2(x, -FrontH * .5f), new Vector2(StarSize, StarSize));
             starImages[i] = r.gameObject.AddComponent<Image>();
             starImages[i].sprite = star;
             starImages[i].raycastTarget = false;
             starImages[i].color = new Color(UiSkin.BandFaint.r, UiSkin.BandFaint.g, UiSkin.BandFaint.b, .3f);
+            x -= StarSize * .5f + StarGap;
         }
-        franchiseLine = UiSkin.Text("Franchise", stars, LineSize, UiSkin.BandText, TextAlignmentOptions.MidlineRight, FontStyles.Normal);
-        franchiseLine.text = "Franchise at 5 stars";
-        Place(franchiseLine.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-Pad, -StarsBox - 2f), new Vector2(ColumnWidth - 2f * Pad, LineBox));
+        for (int d = 0; d < 3; d++)
+        {
+            RectTransform dot = Box("Road dot", stars, new Vector2(1f, 1f), new Vector2(.5f, .5f), new Vector2(-Pad - FrontW - RoadGap - 3.5f - d * 7f, -FrontH * .5f), new Vector2(3f, 3f));
+            Image di = dot.gameObject.AddComponent<Image>();
+            di.sprite = UiSkin.Circle;
+            di.color = new Color(UiSkin.BandFaint.r, UiSkin.BandFaint.g, UiSkin.BandFaint.b, .55f);
+            di.raycastTarget = false;
+        }
+        RectTransform frontGlowRect = Box("Front glow", stars, new Vector2(1f, 1f), new Vector2(.5f, .5f), new Vector2(-Pad - FrontW * .5f, -FrontH * .5f), new Vector2(FrontW * 3f, FrontH * 3f));
+        frontGlow = frontGlowRect.gameObject.AddComponent<Image>();
+        frontGlow.sprite = glowSprite;
+        frontGlow.color = HudArt.With(UiSkin.Gold, 0f);
+        frontGlow.raycastTarget = false;
+        frontRect = Box("Cafe front", stars, new Vector2(1f, 1f), new Vector2(.5f, 0f), new Vector2(-Pad - FrontW * .5f, -FrontH), new Vector2(FrontW, FrontH));
+        Picture("Dark", frontRect, HudArt.CafeFront(false));
+        frontLit = Picture("Lit", frontRect, HudArt.CafeFront(true));
+        frontLit.color = new Color(1f, 1f, 1f, 0f);
+        RectTransform glintRect = Box("Glint", stars, new Vector2(1f, 1f), new Vector2(.5f, .5f), Vector2.zero, new Vector2(12f, 12f));
+        glint = glintRect.gameObject.AddComponent<Image>();
+        glint.sprite = HudArt.Sparkle();
+        glint.color = HudArt.With(UiSkin.Gold, 0f);
+        glint.raycastTarget = false;
+    }
+
+    static Image Picture(string name, RectTransform parent, Sprite sprite)
+    {
+        RectTransform r = Box(name, parent, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
+        var i = r.gameObject.AddComponent<Image>();
+        i.sprite = sprite;
+        i.raycastTarget = false;
+        return i;
+    }
+
+    // The toast under the column, in the Now line's family: the ink band with a gold bar; the title in amber over a cream line.
+    void BuildToast(RectTransform parent)
+    {
+        toast = Box("Toast (the goal)", parent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-ColumnRight, -(ColumnTop + ColumnBottom + 10f)), new Vector2(ToastWidth, 64f));
+        UiSkin.Paint(toast, UiSkin.Band, UiSkin.Radius);
+        var shadow = toast.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, .35f);
+        shadow.effectDistance = new Vector2(0f, -3f);
+        RectTransform edge = Box("Edge", toast, new Vector2(0f, .5f), new Vector2(0f, .5f), new Vector2(8f, 0f), new Vector2(5f, 46f));
+        UiSkin.Paint(edge, UiSkin.Gold, 3f);
+        toastText = UiSkin.Text("Words", toast, ToastLineSize, UiSkin.BandText, TextAlignmentOptions.MidlineLeft, FontStyles.Bold, true);
+        toastText.rectTransform.anchorMin = Vector2.zero; toastText.rectTransform.anchorMax = Vector2.one;
+        toastText.rectTransform.offsetMin = new Vector2(24f, 8f); toastText.rectTransform.offsetMax = new Vector2(-16f, -8f);
+        toastGroup = Quiet(toast);
+        toastGroup.alpha = 0f;
+        toast.gameObject.SetActive(false);
+    }
+
+    // The bench strip: the small window (or the state chip in its place), the time, and the money small; laid out by Layout.
+    void BuildStrip(RectTransform parent)
+    {
+        miniWindow = new HudWindow();
+        miniWindow.Build("Small window", parent, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(StripPad, -StripPad - 2f), MiniWindowScale, false);
+        miniWindowRect = miniWindow.Rect;
+        miniGroup = Quiet(miniWindowRect);
+        miniGroup.alpha = 0f;
+        stripTime = UiSkin.Text("Strip time", parent, StripTimeSize, HudWindow.Gilt, TextAlignmentOptions.MidlineRight, FontStyles.Bold);
+        Place(stripTime.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-Pad, -StripPad), new Vector2(ColumnWidth - 2f * Pad - 130f, ChipRow));
+        UiSkin.Shadowed(stripTime);
+        stripTime.alpha = 0f;
+        stateChip = Box("State chip (the bench)", parent, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(StripPad + 2f, -StripPad - 16f), new Vector2(150f, ChipRow));
+        stateChipFace = UiSkin.Paint(stateChip, Honey, ChipRow * .5f);
+        stateChipText = UiSkin.Text("Word", stateChip, ChipWordSize, UiSkin.Ink, TextAlignmentOptions.Center, FontStyles.Bold);
+        StretchInside(stateChipText.rectTransform, 0f);
+        stateChipGroup = Quiet(stateChip);
+        stateChipGroup.alpha = 0f;
     }
 
     void BuildChips(RectTransform parent)
@@ -484,8 +506,11 @@ public sealed class HudCorners : MonoBehaviour
         if (canvas == null) return;
         DayClock clock = DayClock.Instance;
         bool night = NightWalk.Instance != null && NightWalk.Instance.Active;
+        bool blocked = RecapUI.Showing || UiPins.DayIntroPlaying;
         // The day intro (13 Oct 2026, Cinematics): the corners wait while it plays (UiPins reads DayIntro.Playing by name).
-        bool show = clock != null && !clock.DayOver && !night && !RecapUI.Showing && !UiPins.DayIntroPlaying;
+        bool day = clock != null && !clock.DayOver && !night && !blocked;
+        // By night the window alone, with the night's hour (his answer, 24 Oct: the time stays top centre).
+        bool show = day || (night && !blocked && clock != null) || labNight;
         if (canvas.enabled != show) canvas.enabled = show;
         if (!show)
         {
@@ -502,20 +527,29 @@ public sealed class HudCorners : MonoBehaviour
         }
         float dt = UiClock.Delta, now = UiClock.Now;
         top.alpha = 1f;
-        bool busy = BottomBusy();
+        bool nightLook = labNight || (night && !day);
+        columnGroup.alpha = nightLook ? 0f : 1f;
+        bool busy = nightLook || BottomBusy();
         bottom.alpha = wasShown ? Mathf.MoveTowards(bottom.alpha, busy ? 0f : 1f, dt * FadeRate) : busy ? 0f : 1f;
         wasShown = true;
         // At the bench the column folds into its strip (see QuietSeconds); its state chip comes and goes at the same pace.
-        quietAlpha = Mathf.MoveTowards(quietAlpha, ItemInspector.Working ? 0f : 1f, dt / QuietSeconds);
+        bool folded = ItemInspector.Working || labFold;
+        quietAlpha = Mathf.MoveTowards(quietAlpha, folded ? 0f : 1f, dt / QuietSeconds);
         chipShown = Mathf.MoveTowards(chipShown, chipState == State.Open ? 0f : 1f, dt / QuietSeconds);
 
-        UpdateSign(clock, now, dt);
-        UpdateDial(clock, now, dt);
-        UpdateClockLines(clock);
-        UpdateCash(clock, now);
-        UpdateStars(now);
+        UpdateClock(clock, night, nightLook);
+        if (!nightLook)
+        {
+            UpdateSign(clock, now, dt);
+            UpdateCash(clock, now);
+            UpdateStars(clock, now);
+            UpdateToast(clock, now);
+        }
+        window.Tick(now);
+        miniWindow.Tick(now);
+        money.Tick(now, dt);
         Layout(1f - quietAlpha);
-        UpdateChips(now);
+        if (!nightLook) UpdateChips(now);
     }
 
     // A conversation or the counter phone has the bottom of the screen.
@@ -536,195 +570,204 @@ public sealed class HudCorners : MonoBehaviour
     // 0 in the café, 1 at the bench, eased.
     static float Fold(float q) => q * q * (3f - 2f * Mathf.Clamp01(q));
 
-    // Where everything sits, between the café's column (fold 0) and the bench's strip (fold 1). Run every frame: the figure's
-    // width and the fold both move; it does nothing when neither has changed.
+    // Where everything sits, between the café's column (fold 0) and the bench's strip (fold 1). Run every frame; it does
+    // nothing when neither the fold nor the chip has changed.
     void Layout(float q)
     {
         float e = Fold(Mathf.Clamp01(q));
-        float figureSize = Mathf.Lerp(FigureSize, StripFigureSize, e);
-        if (!Mathf.Approximately(figure.fontSize, figureSize)) figure.fontSize = figureSize;
-        if (figure.text != laidOutFigure || !Mathf.Approximately(figure.fontSize, laidOutFigureSize) || figure.font != laidOutFigureFont)
-        {
-            laidOutFigure = figure.text;
-            laidOutFigureSize = figure.fontSize;
-            laidOutFigureFont = figure.font;
-            figureWidth = Mathf.Ceil(figure.GetPreferredValues(figure.text, 999f, 999f).x);
-        }
-        float punch = figure.rectTransform.localScale.x;
-        float jolt = stackJolt;
         // The state chip's share of the strip: only at the bench, only at last orders and after closing.
         float k = e * chipShown;
-
-        if (!Mathf.Approximately(e, laidOutFold) || !Mathf.Approximately(k, laidOutChip))
-        {
-            laidOutFold = e;
-            laidOutChip = k;
-            // The shelf: from under the sign to the top of the column, and to the strip's height.
-            float shelfTop = Mathf.Lerp(ShelfTop, 0f, e), shelfHeight = Mathf.Lerp(ShelfBottom - ShelfTop, StripHeight, e);
-            shelf.anchoredPosition = new Vector2(0f, -shelfTop);
-            shelf.sizeDelta = new Vector2(ColumnWidth, shelfHeight);
-            UiSkin.Follow(shelfShadow.rectTransform, shelf, 10f, 4f);
-            // The day row: the dial shrinks to the strip's first row; the time keeps its size and moves with the row. While
-            // the state chip has the first row (it is too wide to share it with a 30 px time), the time goes to the second
-            // row's left, reading from the left, and the stack steps aside to leave the figure its room.
-            float rowHeight = Mathf.Lerp(DialHeight, StripRow, e);
-            dayRow.anchoredPosition = new Vector2(0f, -Mathf.Lerp(ShelfPad, StripPad, e));
-            dayRow.sizeDelta = new Vector2(ColumnWidth, rowHeight);
-            float dialScale = Mathf.Lerp(1f, BenchDialScale, e);
-            dial.localScale = new Vector3(dialScale, dialScale, 1f);
-            dial.anchoredPosition = new Vector2(Mathf.Lerp(Pad, 10f, e), -(rowHeight - DialHeight * dialScale) * .5f);
-            Vector2 timeInRow = new Vector2(-Pad, -(rowHeight - TimeBox) * .5f);
-            Vector2 timeBelow = new Vector2(-(ColumnWidth - 10f - TimeRoom), -(StripRow + 2f));
-            clockLine.rectTransform.anchoredPosition = Vector2.Lerp(timeInRow, timeBelow, k);
-            TextAlignmentOptions timeAlign = k > .5f ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.MidlineRight;
-            if (clockLine.alignment != timeAlign) clockLine.alignment = timeAlign;
-            // The takings: under the day line in the café, the strip's second row at the bench.
-            cash.anchoredPosition = new Vector2(0f, -Mathf.Lerp(FigureTop - ShelfTop, StripPad + StripRow + 2f, e));
-            float figureBox = Mathf.Lerp(FigureBox, StripRow, e);
-            figure.rectTransform.sizeDelta = new Vector2(ColumnWidth - 2f * Pad, figureBox);
-            figure.rectTransform.anchoredPosition = new Vector2(-Pad, -figureBox * .5f);
-            figureLabel.rectTransform.anchoredPosition = new Vector2(-Pad, -figureBox);
-            float stackScale = Mathf.Lerp(1f, BenchStackScale, e);
-            stack.localScale = new Vector3(stackScale, stackScale, 1f);
-            stackGroup.alpha = 1f - k;
-            // The quiet words: the sign, the day, "today", the stars go with the café's form; the state chip with the bench's.
-            float cafe = 1f - e;
-            signGroup.alpha = cafe;
-            dayGroup.alpha = cafe;
-            starsGroup.alpha = cafe;
-            stateChipGroup.alpha = k;
-            // At the bench the state chip takes the dial's place.
-            bool dialOn = k < .5f;
-            if (dial.gameObject.activeSelf != dialOn) dial.gameObject.SetActive(dialOn);
-        }
-        todayGroup.alpha = (1f - e) * (pop.gameObject.activeSelf ? 1f - popChip.color.a : 1f);
-
-        // The stack against the figure (8 px, however many digits), jolted by a payment; the glow behind it.
-        float figureBoxNow = figure.rectTransform.sizeDelta.y;
-        stack.anchoredPosition = new Vector2(-Pad - figureWidth * punch - StackGap, -(figureBoxNow - BillHeight * stack.localScale.y) * .5f + 2f + jolt);
-        // "+$6" under the figure's middle.
-        pop.anchoredPosition = new Vector2(-Pad - figureWidth * .5f, -figureBoxNow + 6f + popRise);
+        if (Mathf.Approximately(e, laidOutFold) && Mathf.Approximately(k, laidOutChip)) return;
+        laidOutFold = e;
+        laidOutChip = k;
+        float cafe = 1f - e;
+        // The column's pieces fade with the café's form; the strip's with the bench's.
+        signGroup.alpha = cafe;
+        starsGroup.alpha = cafe;
+        miniGroup.alpha = e * (1f - k);
+        stripTime.alpha = e;
+        stateChipGroup.alpha = k;
+        window.Rect.localScale = Vector3.one * Mathf.Lerp(1f, .96f, e);
+        windowGroup.alpha = cafe;
+        bool miniOn = e > .01f;
+        if (miniWindowRect.gameObject.activeSelf != miniOn) miniWindowRect.gameObject.SetActive(miniOn);
+        if (stateChip.gameObject.activeSelf != k > .01f) stateChip.gameObject.SetActive(k > .01f);
+        // The money: on its board under the sign in the café; small in the strip's second row at the bench.
+        money.SetCompact(e);
+        RectTransform hanger = (RectTransform)money.Root.parent;
+        float hangerWidth = Mathf.Lerp(HudMoney.BoardW, ColumnWidth - 150f, e);
+        hanger.sizeDelta = new Vector2(hangerWidth, HudMoney.BoardH);
+        hanger.anchoredPosition = new Vector2(-hangerWidth * .5f, -Mathf.Lerp(BoardTop, StripPad + ChipRow - 8f, e));
+        money.Root.sizeDelta = hanger.sizeDelta;
+        moneyGroup.alpha = 1f;
+        foreach (Transform child in hanger) if (child.name == "Ring") child.gameObject.SetActive(cafe > .5f);
     }
 
     // ------------------------------------------------------------------ the takings
 
-    float stackJolt, popRise;
+    void OnPaid(Transform who, int amount, int tip, float delay)
+    {
+        pops.Add(new Pop { who = who, amount = amount, tip = tip, at = UiClock.Now + Mathf.Max(0f, delay) });
+        if (pops.Count > 6) pops.RemoveAt(0);
+    }
 
     void UpdateCash(DayClock clock, float now)
     {
-        int money = Mathf.Max(0, clock.Earned);
+        int earned = Mathf.Max(0, clock.Earned);
         int patrons = Mathf.Max(0, clock.PatronIncome);
-        if (shownMoney == int.MinValue || money < targetMoney)
+        int tips = Mathf.Max(0, clock.Tips);
+        if (targetMoney == int.MinValue || earned < targetMoney)
         {
-            // The first look, or a new morning (the stack empties): as it is, no counting.
-            shownMoney = targetMoney = fromMoney = money;
-            countSince = -10f;
-            figure.text = "$" + money;
-            SetEdges(money);
+            // The first look, or a new morning (the jar empties): as it is, no counting.
+            targetMoney = earned;
+            money.Show(earned);
+            patronIncomeSeen = patrons;
+            tipsSeen = tips;
+            pops.Clear();
         }
-        else if (money > targetMoney)
+        else if (earned > targetMoney)
         {
-            // Paid: the pop, the jolt, the drop, the glow, and the figure counting up. A patron's coffee counts up in
-            // the figure with no pop, jolt or drop: those are the player's own pay (playtest 4: "+$5" pops with nobody served).
-            int quiet = Mathf.Clamp(patrons - patronIncomeSeen, 0, money - targetMoney);
-            if (money - targetMoney - quiet > 0) Paid(money - targetMoney - quiet, now);
-            fromMoney = shownMoney;
-            targetMoney = money;
-            countSince = now;
-            SetEdges(money);
+            // Paid: the bill flies in from the pay pop over the customer and lands with a beat; a café guest's coffee
+            // counts up quietly instead (playtest 4: "+$5" pops with nobody served).
+            int quiet = Mathf.Clamp(patrons - patronIncomeSeen, 0, earned - targetMoney);
+            int paid = earned - targetMoney - quiet;
+            int tip = Mathf.Clamp(tips - tipsSeen, 0, paid);
+            if (paid > 0)
+            {
+                Vector2? from = null;
+                float popAt = now;
+                for (int i = pops.Count - 1; i >= 0; i--)
+                {
+                    Pop p = pops[i];
+                    if (p.at < now - 1.5f) { pops.RemoveAt(i); continue; }
+                    if (p.amount + p.tip != paid) continue;
+                    from = PopScreenPoint(p.who);
+                    popAt = p.at;
+                    pops.RemoveAt(i);
+                    break;
+                }
+                money.Pay(earned, paid - tip, tip, from, popAt, now);
+            }
+            else money.Quiet(earned, now);
+            targetMoney = earned;
         }
         patronIncomeSeen = patrons;
-
-        if (countSince > -5f)
-        {
-            float t = Mathf.Clamp01((now - countSince) / CountSeconds);
-            int value = Mathf.RoundToInt(Mathf.Lerp(fromMoney, targetMoney, 1f - (1f - t) * (1f - t)));
-            if (value != shownMoney)
-            {
-                shownMoney = value;
-                figure.text = "$" + value;
-            }
-            if (t >= 1f) countSince = -10f;
-        }
-
-        // The punch (from the payment), the jolt and the drop, the glow, the pop: all from paidAt.
-        float since = now - paidAt;
-        float punch = since < PunchSeconds ? 1f + .22f * Mathf.Sin(Mathf.Clamp01(since / PunchSeconds) * Mathf.PI) : 1f;
-        figure.rectTransform.localScale = new Vector3(punch, punch, 1f);
-        stackJolt = since < JoltSeconds ? -3f * Mathf.Sin(Mathf.Clamp01(since / JoltSeconds) * Mathf.PI) : 0f;
-        if (since < DropSeconds)
-        {
-            float k = Mathf.Clamp01(since / DropSeconds);
-            // From above and tilted, past its place a little and back (a settle).
-            float y = k < .74f ? Mathf.Lerp(40f, -3f, Ease(k / .74f)) : k < .88f ? Mathf.Lerp(-3f, 3f, (k - .74f) / .14f) : Mathf.Lerp(3f, 0f, (k - .88f) / .12f);
-            float tilt = k < .74f ? Mathf.Lerp(-15f, -2f, k / .74f) : k < .88f ? Mathf.Lerp(-2f, 1f, (k - .74f) / .14f) : Mathf.Lerp(1f, 0f, (k - .88f) / .12f);
-            billRect.anchoredPosition = new Vector2(0f, y);
-            billRect.localRotation = Quaternion.Euler(0f, 0f, tilt);
-            bill.color = new Color(1f, 1f, 1f, Mathf.Clamp01(k / .5f));
-        }
-        else
-        {
-            billRect.anchoredPosition = Vector2.zero;
-            billRect.localRotation = Quaternion.identity;
-            bill.color = Color.white;
-        }
-        billShadow.enabled = bill.enabled;
-        if (bill.enabled) UiSkin.Follow(billShadow.rectTransform, billRect, 4f, 2f);
-        float glow = since < FlashSeconds ? 1f - since / FlashSeconds : 0f;
-        flashImage.color = new Color(UiSkin.BrandBright.r, UiSkin.BrandBright.g, UiSkin.BrandBright.b, .85f * glow);
-        flash.localScale = Vector3.one * Mathf.Lerp(.45f, 1.35f, 1f - glow);
-        if (since < PopSeconds)
-        {
-            float k = since / PopSeconds;
-            float scale = k < .25f ? Mathf.Lerp(.7f, 1.18f, k / .25f) : k < .45f ? Mathf.Lerp(1.18f, 1f, (k - .25f) / .2f) : 1f;
-            // In from a little lower, a settle, then up into the figure as it fades: the money goes onto the pile.
-            popRise = k < .25f ? Mathf.Lerp(-10f, 0f, k / .25f) : k < .45f ? Mathf.Lerp(0f, 3f, (k - .25f) / .2f) : Mathf.Lerp(3f, PopRise, (k - .45f) / .55f);
-            pop.localScale = new Vector3(scale, scale, 1f);
-            popChip.color = new Color(UiSkin.Brand.r, UiSkin.Brand.g, UiSkin.Brand.b, k < .25f ? k / .25f : k > .7f ? (1f - k) / .3f : 1f);
-            popText.alpha = popChip.color.a;
-            if (!pop.gameObject.activeSelf) pop.gameObject.SetActive(true);
-        }
-        else if (pop.gameObject.activeSelf) pop.gameObject.SetActive(false);
+        tipsSeen = tips;
     }
 
-    void Paid(int amount, float now)
+    // Where the pay pop sits over someone's head (Juice: the head point, 84 px right and 34 up), in screen pixels; off
+    // screen or behind the camera, the screen's edge nearest them, 40 px inside.
+    static Vector2? PopScreenPoint(Transform who)
     {
-        paidAt = now;
-        popText.text = "+$" + amount;
-        float width = Mathf.Ceil(popText.GetPreferredValues(popText.text, 999f, 32f).x) + 26f;
-        pop.sizeDelta = new Vector2(Mathf.Max(58f, width), 32f);
-        // No sound of its own: the customer's payment already rings (money.paid, money.tip).
+        Camera cam = Camera.main;
+        if (cam == null) return null;
+        Vector3 head = who != null ? Barks.HeadPointOf(who) : cam.transform.position + cam.transform.forward * 5f;
+        Vector3 screen = cam.WorldToScreenPoint(head);
+        float scale = Mathf.Min(Screen.width / 1920f, Screen.height / 1080f);
+        Vector2 p = new Vector2(screen.x + 84f * scale, screen.y + 34f * scale);
+        if (screen.z < 0f) p = new Vector2(Screen.width - p.x, Screen.height - p.y);
+        p.x = Mathf.Clamp(p.x, 40f * scale, Screen.width - 40f * scale);
+        p.y = Mathf.Clamp(p.y, 40f * scale, Screen.height - 40f * scale);
+        return p;
     }
-
-    void SetEdges(int money)
-    {
-        int n = money <= 0 ? 0 : Mathf.Min(MostEdges, money / DollarsPerEdge);
-        bill.enabled = money > 0;
-        if (n == edgesShown) return;
-        edgesShown = n;
-        for (int i = 0; i < edges.Count; i++) edges[i].gameObject.SetActive(i < n);
-    }
-
-    static float Ease(float t) => 1f - (1f - t) * (1f - t);
 
     // ------------------------------------------------------------------ the stars
 
-    // The café's stars as the ledger holds them; a star earned while the column is up pops once.
-    void UpdateStars(float now)
+    // The café's stars as the ledger holds them; a star earned while the column is up lands: it drops into its pip, a glint
+    // runs the road, and the café front jumps and lights up (M2 §5).
+    void UpdateStars(DayClock clock, float now)
     {
         ReputationLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Reputation : null;
         int earned = ledger != null ? Mathf.Clamp(ledger.StarsEarned, 0, ReputationRules.MaxStars) : 0;
         if (earned != shownStars)
         {
-            if (shownStars >= 0 && earned > shownStars) starPopAt = now;
+            bool landing = shownStars >= 0 && earned > shownStars;
             shownStars = earned;
             for (int i = 0; i < starImages.Length; i++)
                 starImages[i].color = i < earned ? UiSkin.Gold : new Color(UiSkin.BandFaint.r, UiSkin.BandFaint.g, UiSkin.BandFaint.b, .3f);
-            franchiseLine.text = earned >= ReputationRules.MaxStars ? "Five stars · the franchise offer is coming" : "Franchise at 5 stars";
+            if (landing)
+            {
+                starLandAt = now;
+                Sfx.Play2D("hud.star.land");
+                int left = ReputationRules.MaxStars - earned;
+                Toast(now, "<color=" + UiSkin.HexOf(UiSkin.Gold) + "><size=" + ToastTitleSize + ">New star!</size></color>\n"
+                    + (left > 0 ? left + " more star" + (left == 1 ? "" : "s") + " to franchise" : "Five stars: the franchise offer is coming"), ToastSeconds, .75f);
+            }
         }
-        float k = now - starPopAt < .45f ? Mathf.Sin(Mathf.Clamp01((now - starPopAt) / .45f) * Mathf.PI) : 0f;
-        int popping = Mathf.Clamp(shownStars - 1, 0, starImages.Length - 1);
-        starImages[popping].rectTransform.localScale = Vector3.one * (1f + .5f * k);
+        float t = now - starLandAt;
+        int pip = Mathf.Clamp(shownStars - 1, 0, starImages.Length - 1);
+        if (starLandAt > -5f && t < 1.3f)
+        {
+            // The drop: from 46 px above, 1.9x to 1x (OutQuad 245 ms); one overshoot to 1.26 at 131 ms after, settled by 700 ms.
+            RectTransform r = starImages[pip].rectTransform;
+            float drop = Mathf.Clamp01(t / .245f);
+            float e = UiTween.Eased(UiTween.Ease.OutQuad, drop);
+            float scale = Mathf.Lerp(1.9f, 1f, e);
+            if (t > .245f) { float tau = t - .245f; scale = 1f + .26f * Mathf.Exp(-6f * tau) * Mathf.Sin(tau * 12f); }
+            r.localScale = new Vector3(scale, scale, 1f);
+            r.anchoredPosition = new Vector2(r.anchoredPosition.x, -FrontH * .5f + 46f * (1f - e));
+            float bloom = t < .7f ? Mathf.Sin(Mathf.Clamp01((t - .2f) / .5f) * Mathf.PI) : 0f;
+            starGlows[pip].color = HudArt.With(UiSkin.Gold, .7f * bloom);
+            // The glint runs the road (450-850 ms), then the café front jumps and lights up.
+            float run = Mathf.Clamp01((t - .45f) / .4f);
+            if (t >= .45f && t < .9f)
+            {
+                Vector2 a = starImages[pip].rectTransform.anchoredPosition, b = new Vector2(-Pad - FrontW * .5f, -FrontH * .5f);
+                glint.rectTransform.anchoredPosition = Vector2.Lerp(a, b, run);
+                glint.color = HudArt.With(UiSkin.Gold, Mathf.Sin(run * Mathf.PI));
+            }
+            else glint.color = HudArt.With(UiSkin.Gold, 0f);
+            if (t >= .85f)
+            {
+                float tau = t - .85f;
+                float kick = 1f + .55f * Mathf.Exp(-8f * tau) * Mathf.Sin(22f * tau);
+                frontRect.localScale = new Vector3(kick, kick, 1f);
+                frontLit.color = new Color(1f, 1f, 1f, Mathf.Clamp01(tau / .25f));
+                frontGlow.color = HudArt.With(UiSkin.Gold, .8f * (1f - Mathf.Clamp01(tau / 1f)));
+            }
+        }
+        else
+        {
+            starImages[pip].rectTransform.localScale = Vector3.one;
+            starImages[pip].rectTransform.anchoredPosition = new Vector2(starImages[pip].rectTransform.anchoredPosition.x, -FrontH * .5f);
+            starGlows[pip].color = HudArt.With(UiSkin.Gold, 0f);
+            glint.color = HudArt.With(UiSkin.Gold, 0f);
+            frontRect.localScale = Vector3.one;
+            frontGlow.color = HudArt.With(UiSkin.Gold, 0f);
+            // The front stays lit once the café has a star.
+            frontLit.color = new Color(1f, 1f, 1f, shownStars > 0 ? 1f : 0f);
+        }
+    }
+
+    // ------------------------------------------------------------------ the toast
+
+    void Toast(float now, string words, float seconds, float delay)
+    {
+        toastText.text = words;
+        toastShownAt = now + delay;
+        toastLife = seconds;
+        Vector2 size = toastText.GetPreferredValues(words, ToastWidth - 40f, 0f);
+        toast.sizeDelta = new Vector2(Mathf.Min(ToastWidth, Mathf.Ceil(size.x) + 42f), Mathf.Max(46f, Mathf.Ceil(size.y) + 18f));
+    }
+
+    void UpdateToast(DayClock clock, float now)
+    {
+        // Day 1's hint, once: the goal said once, for 6 s, as the column first shows (his chosen set: Day 1's card, a 6 s
+        // hint, the star toasts, the phone).
+        if (!hintShown && clock.Day == 1 && clock.IsOpen)
+        {
+            hintShown = true;
+            Toast(now, "Five stars to franchise", HintSeconds, .6f);
+        }
+        if (toastShownAt < -5f) return;
+        float t = now - toastShownAt;
+        if (t < 0f) return;
+        if (!toast.gameObject.activeSelf) toast.gameObject.SetActive(true);
+        float rise = UiTween.Eased(UiTween.Ease.OutBack, Mathf.Clamp01(t / .25f));
+        float fade = t > toastLife - .3f ? Mathf.Clamp01((toastLife - t) / .3f) : 1f;
+        toastGroup.alpha = Mathf.Min(rise, fade) * quietAlpha;
+        toast.anchoredPosition = new Vector2(-ColumnRight, -(ColumnTop + ColumnBottom + 10f) + 10f * (1f - rise));
+        if (t >= toastLife) { toastShownAt = -10f; toast.gameObject.SetActive(false); toastGroup.alpha = 0f; }
     }
 
     // ------------------------------------------------------------------ the sign
@@ -763,7 +806,7 @@ public sealed class HudCorners : MonoBehaviour
         if (faceA.rect.gameObject.activeSelf != aShowing) faceA.rect.gameObject.SetActive(aShowing);
         if (faceB.rect.gameObject.activeSelf == aShowing) faceB.rect.gameObject.SetActive(!aShowing);
         flipper.localScale = new Vector3(Mathf.Max(.02f, Mathf.Abs(face)), 1f, 1f);
-        UiSkin.Follow(signShadow.rectTransform, flipper, 9f, 4f);
+        UiSkin.Follow(signShadow.rectTransform, flipper, 9f, 5f);
 
         // The sway, on the swing: gentle when open, quicker and wider at last orders, still once closed.
         float amplitude = state == State.Open ? 1f : state == State.LastOrders ? 2.8f : 0f;
@@ -772,7 +815,13 @@ public sealed class HudCorners : MonoBehaviour
         float wanted = amplitude * Mathf.Sin(swayPhase);
         float current = sway.localEulerAngles.z > 180f ? sway.localEulerAngles.z - 360f : sway.localEulerAngles.z;
         sway.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(current, wanted, 1f - Mathf.Exp(-10f * dt)));
-        // The bounce at closing: the card grows from its strings and settles, half a second.
+        // The money's board swings a beat (90 ms) behind the sign at last orders: hung from it, it follows.
+        if (money != null && money.Root != null && money.Root.parent != null)
+        {
+            float lag = amplitude * .35f * Mathf.Sin(swayPhase - .09f * Mathf.PI * 2f / period);
+            ((RectTransform)money.Root.parent).localRotation = Quaternion.Euler(0f, 0f, lag);
+        }
+        // The bounce at closing: the card grows from its chains and settles, half a second.
         float bounce = now - closedAt < SignPunchSeconds ? 1f + .08f * Mathf.Sin(Mathf.Clamp01((now - closedAt) / SignPunchSeconds) * Mathf.PI) : 1f;
         sway.localScale = new Vector3(bounce, bounce, 1f);
 
@@ -813,9 +862,9 @@ public sealed class HudCorners : MonoBehaviour
             stateChipText.text = WordOf(s);
             stateChipText.color = s == State.Closed ? UiSkin.Paper : UiSkin.Ink;
             stateChipFace.color = s == State.Closed ? Plum : Honey;
-            float width = Mathf.Ceil(stateChipText.GetPreferredValues(stateChipText.text, 999f, StripRow).x) + 2f * ChipPadX;
-            stateChip.sizeDelta = new Vector2(width, StripRow);
-            // Its coming and going is chipShown (LateUpdate), eased in Layout, so the dial and the time make way smoothly.
+            float width = Mathf.Ceil(stateChipText.GetPreferredValues(stateChipText.text, 999f, ChipRow).x) + 2f * ChipPadX;
+            stateChip.sizeDelta = new Vector2(width, ChipRow);
+            // Its coming and going is chipShown (LateUpdate), eased in Layout, so the small window makes way smoothly.
         }
     }
 
@@ -865,6 +914,10 @@ public sealed class HudCorners : MonoBehaviour
                 f.word.rectTransform.anchoredPosition = new Vector2(0f, 1f);
                 break;
         }
+        // The lit lip on the paint: white at a touch over the paper, warmer over the honey and the plum.
+        Color lip = Color.Lerp(f.face.color, Color.white, .55f);
+        f.lipTop.color = new Color(lip.r, lip.g, lip.b, .7f);
+        f.lipLeft.color = new Color(lip.r, lip.g, lip.b, .45f);
     }
 
     static string WordOf(State s) => s == State.Closed ? "CLOSED" : s == State.LastOrders ? "LAST ORDERS" : "OPEN";
@@ -885,116 +938,45 @@ public sealed class HudCorners : MonoBehaviour
         return t * t * ((s + 1f) * t + s) + 1f;
     }
 
-    // ------------------------------------------------------------------ the sun dial
-
-    // The sun travels the arc with the day's clock; the arc and the sun warm through the last hour; at closing the sun
-    // drops below the right end and the moon comes up (and the next morning the sun comes up again at the left end).
-    void UpdateDial(DayClock clock, float now, float dt)
-    {
-        sunProgress = Mathf.Clamp01(clock.NormalizedDay);
-        float lastHour = Mathf.Max(0f, clock.ClosingHour - 1f);
-        float warmthWanted = state == State.Closed ? 1f : state == State.LastOrders ? Mathf.Clamp01((clock.CurrentHour - lastHour) / Mathf.Max(.01f, clock.ClosingHour - lastHour)) : 0f;
-        dialWarmth = Mathf.MoveTowards(dialWarmth, warmthWanted, dt * 2f);
-        bool closed = state == State.Closed;
-        sunDrop = Mathf.MoveTowards(sunDrop, closed ? 1f : 0f, dt / SunSetSeconds);
-        moonUp = Mathf.MoveTowards(moonUp, closed && sunDrop > .35f ? 1f : 0f, dt / SunSetSeconds);
-
-        float theta = Mathf.PI * (1f - sunProgress);
-        Vector2 centre = new Vector2(DialWidth * .5f + DialRadius * Mathf.Cos(theta), 2f + DialRadius * Mathf.Sin(theta));
-        float drop = Ease(sunDrop) * (SunSize + 2f);
-        Vector2 at = centre + new Vector2(0f, -drop);
-        sunRect.anchoredPosition = at;
-        haloRect.anchoredPosition = at;
-        float sunAlpha = 1f - Ease(sunDrop);
-        Color sunColour = Color.Lerp(UiSkin.Gold, UiSkin.Accent, dialWarmth * .7f);
-        sun.color = new Color(sunColour.r, sunColour.g, sunColour.b, sunAlpha);
-        halo.color = new Color(sunColour.r, sunColour.g, sunColour.b, (.3f + .3f * dialWarmth) * sunAlpha);
-        float haloScale = 1f + .25f * dialWarmth;
-        haloRect.localScale = new Vector3(haloScale, haloScale, 1f);
-        moon.color = new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .9f * Ease(moonUp));
-
-        // The track: paper by day; pale gold to honey through the last hour.
-        Color trackWanted = state == State.Open
-            ? new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .55f)
-            : Color.Lerp(new Color(UiSkin.GoldSoft.r, UiSkin.GoldSoft.g, UiSkin.GoldSoft.b, .95f), new Color(UiSkin.Accent.r, UiSkin.Accent.g, UiSkin.Accent.b, .95f), dialWarmth);
-        dialTrack.color = Color.Lerp(dialTrack.color, trackWanted, 1f - Mathf.Exp(-6f * dt));
-    }
-
     // ------------------------------------------------------------------ the day and the time
 
-    void UpdateClockLines(DayClock clock)
+    // THE DAY AND THE TIME on the window's sill (her playtest 7: "what day, what time? Oh, this is way too small."): the time 32
+    // px bold in gilt at the sill's left, the day 22 px in mint at its right (20 px only when a long weekday and day number
+    // wouldn't leave the gap, never less); both measured, the time at its widest, and the room to spare is what the pause lab
+    // checks. By night the night's hour and "Monday night". Built only when the minute changes.
+    void UpdateClock(DayClock clock, bool night, bool nightLook)
     {
-        // Built only when the minute changes.
-        int minute = Mathf.FloorToInt(Mathf.Clamp(clock.CurrentHour, 0f, 24f) * 60f + .001f);
-        if (clock.Day != shownDay || minute != shownMinute)
+        float hour;
+        string label;
+        if (!float.IsNaN(labHour)) { hour = labHour; label = labNight ? NightLabel(clock) : Weekdays.Label(clock != null ? clock.Day : 1); }
+        else if (night && NightWalk.Instance != null) { hour = NightWalk.Instance.ClockHour; label = NightLabel(clock); }
+        else { hour = clock != null ? clock.CurrentHour : 9f; label = Weekdays.Label(clock != null ? clock.Day : 0); }
+        int minute = Mathf.FloorToInt(Mathf.Clamp(hour, 0f, 24f) * 60f + .001f);
+        int day = clock != null ? clock.Day : 0;
+        if (day != shownDay || minute != shownMinute || nightLook != shownNight)
         {
-            shownDay = clock.Day;
+            shownDay = day;
             shownMinute = minute;
-            dayLine.text = Weekdays.Label(clock.Day);
-            clockLine.text = ShopUI.FormatHour(clock.CurrentHour);
+            shownNight = nightLook;
+            string time = ShopUI.FormatHour(hour);
+            window.SetTime(time);
+            if (stripTime.text != time) stripTime.text = time;
         }
-        if (dayLine.text != laidOutDay || dayLine.font != laidOutFont) LayoutClockLine(dayLine.text);
+        window.Set(hour, label, nightLook);
+        miniWindow.Set(hour, label, nightLook);
+        SunProgress = clock != null ? Mathf.Clamp01(clock.NormalizedDay) : 0f;
     }
 
-    // THE DAY AND THE TIME (playtest 4: "Wednesday · Day 3 9:09 AM" ran together at 16 px; her playtest 7: "what day, what
-    // time? Oh, this is way too small."). The time is 30 px bold beside the dial; the day line is 22 px across the shelf
-    // under them, 20 px only when a long weekday and day number wouldn't fit, never less. Both are measured, the time at its
-    // widest, and the room to spare is what the pause lab checks. Laid out again only when the day's words (or the font) change.
-    const float DayRoom = ColumnWidth - 2f * Pad;                     // the day line, across the shelf
-    const float TimeRoom = ColumnWidth - 2f * Pad - DialWidth - 10f;  // the time, beside the dial
-    const float LineGap = 10f;
-    static readonly string[] WidestTimes = { "12:00 PM", "10:00 AM", "10:00 PM" };
-
-    void LayoutClockLine(string dayLabel)
+    // "Thursday night" (the night after Thursday's day: Day 1 is a Monday), or "Night" before the first day.
+    static string NightLabel(DayClock clock)
     {
-        laidOutDay = dayLabel;
-        laidOutFont = dayLine.font;
-        dayLine.fontSize = SizeFor(dayLabel);
-        clockGap = Mathf.Min(DayRoom - Measure(dayLine, dayLabel), TimeRoom - WidestTime());
+        string name = Weekdays.Name(clock != null ? clock.Day : 0);
+        return name.Length > 0 ? name + " night" : "Night";
     }
 
-    // 22 px when the day line leaves the gap at 22; else the largest size in half pixels down to 20; 20 when none does.
-    float SizeFor(string dayLabel)
-    {
-        for (float size = DaySize; size > DaySizeMin; size -= .5f)
-        {
-            dayLine.fontSize = size;
-            if (DayRoom - Measure(dayLine, dayLabel) >= LineGap) return size;
-        }
-        return DaySizeMin;
-    }
-
-    float WidestTime()
-    {
-        float most = 0f;
-        foreach (string time in WidestTimes) most = Mathf.Max(most, Measure(clockLine, time));
-        return most;
-    }
-
-    // A text's width for some words at its size now. TextMesh Pro measures a text's own words (measuring other words leaves
-    // them in its buffers): other words are set in for the measure and put back, within the frame, so they're never drawn.
-    static float Measure(TMP_Text text, string words)
-    {
-        string was = text.text;
-        if (was == words) return text.GetPreferredValues(999f, 999f).x;
-        text.text = words;
-        float width = text.GetPreferredValues(999f, 999f).x;
-        text.text = was;
-        return width;
-    }
-
-    /// <summary>The room the day row would have to spare with <paramref name="dayLabel"/> on the day line and <paramref name="time"/>
-    /// beside the dial (checks: every weekday). The lines on screen are left as they are.</summary>
-    public float GapFor(string dayLabel, string time)
-    {
-        if (dayLine == null || clockLine == null) return 0f;
-        float was = dayLine.fontSize;
-        float size = SizeFor(dayLabel);
-        dayLine.fontSize = size;
-        float gap = Mathf.Min(DayRoom - Measure(dayLine, dayLabel), TimeRoom - Measure(clockLine, time));
-        dayLine.fontSize = was;
-        return gap;
-    }
+    /// <summary>The room the sill would have to spare with <paramref name="dayLabel"/> on the day line and <paramref name="time"/>
+    /// beside it (checks: every weekday). The lines on screen are left as they are.</summary>
+    public float GapFor(string dayLabel, string time) => window != null ? window.GapForDay(dayLabel, time) : 0f;
 
     // ------------------------------------------------------------------ the stock chips
 
@@ -1004,13 +986,16 @@ public sealed class HudCorners : MonoBehaviour
         bool lab = CafeLab.Active;
         chips.anchoredPosition = new Vector2(-UiSkin.Margin, 26f + (lab ? LabNudge : 0f));
         int row = 0;
-        ChipFor(cupsChip, stock != null && stock.CupsLow, stock != null ? stock.Cups : 0, "cups", now, ref row);
-        ChipFor(beansChip, stock != null && stock.BeansLow, stock != null ? stock.Beans : 0, "beans", now, ref row);
+        // 24 Oct 2026 (Days; restock by hand, P's §2.5): the machine at 3 or fewer with stock on the back shelf says so.
+        bool cupsMachine = stock != null && !stock.CupsLow && stock.MachineCups <= Downtime.RefillAt && stock.ShelfCups > 0;
+        bool beansMachine = stock != null && !stock.BeansLow && stock.MachineBeans <= Downtime.RefillAt && stock.ShelfBeans > 0;
+        ChipFor(cupsChip, stock != null && (stock.CupsLow || cupsMachine), stock == null ? 0 : cupsMachine ? stock.MachineCups : stock.Cups, "cups", cupsMachine, now, ref row);
+        ChipFor(beansChip, stock != null && (stock.BeansLow || beansMachine), stock == null ? 0 : beansMachine ? stock.MachineBeans : stock.Beans, "beans", beansMachine, now, ref row);
     }
 
     // What's low and how many are left, and under it when to buy (the Shop is on the phone at closing: her "Oh, I wouldn't
     // know"). Within WordBudget.BenchAlert (12 words), both lines together.
-    void ChipFor(Chip chip, bool low, int count, string what, float now, ref int row)
+    void ChipFor(Chip chip, bool low, int count, string what, bool atMachine, float now, ref int row)
     {
         if (low != chip.showing)
         {
@@ -1021,11 +1006,13 @@ public sealed class HudCorners : MonoBehaviour
             chip.shownCount = int.MinValue;
         }
         if (!low) return;
-        if (count != chip.shownCount)
+        int shownNow = atMachine ? -1000 - count : count;   // the machine's count and the whole stock's never read as the same
+        if (shownNow != chip.shownCount)
         {
-            chip.shownCount = count;
-            chip.title.text = count <= 0 ? $"Out of {what}" : $"Low on {what} · {count} left";
-            chip.face.color = count <= 0 ? Plum : UiSkin.Accent;
+            chip.shownCount = shownNow;
+            chip.title.text = atMachine ? $"Low at the machine · {count} {what}" : count <= 0 ? $"Out of {what}" : $"Low on {what} · {count} left";
+            chip.line.text = atMachine ? "Refill from the back shelf" : "Restock at closing";
+            chip.face.color = !atMachine && count <= 0 ? Plum : UiSkin.Accent;
             float width = Mathf.Max(Mathf.Ceil(chip.title.GetPreferredValues(chip.title.text, 999f, 26f).x),
                                     Mathf.Ceil(chip.line.GetPreferredValues(chip.line.text, 999f, 24f).x)) + 32f;
             chip.rect.sizeDelta = new Vector2(width, StockHeight);
@@ -1047,6 +1034,34 @@ public sealed class HudCorners : MonoBehaviour
     }
 
     static string ChipWords(Chip chip) => chip.title.text + " · " + chip.line.text;
+
+    // ------------------------------------------------------------------ the labs' hooks
+
+    /// <summary>The HUD lab: the window at an hour (and by night) for a photo; float.NaN gives the clock back.</summary>
+    public void LabPreview(float hour, bool night)
+    {
+        labHour = hour;
+        labNight = night;
+        shownMinute = int.MinValue;
+    }
+
+    /// <summary>The HUD lab: the column folded into its bench strip (or not), without the bench.</summary>
+    public void LabFold(bool folded) => labFold = folded;
+
+    /// <summary>The HUD lab: the next frame lands the café's newest star again (the drop, the glint, the café front).</summary>
+    public void LabStarLands()
+    {
+        if (shownStars > 0) shownStars--;
+    }
+
+    /// <summary>The HUD lab: the window's city swapped (San Francisco, Seattle: HudCity.CityName).</summary>
+    public void LabCity(string city)
+    {
+        HudCity.CityName = city;
+        window.SwapCity(city);
+        miniWindow.SwapCity(city);
+        shownMinute = int.MinValue;
+    }
 
     // ------------------------------------------------------------------ boxes
 
@@ -1081,181 +1096,5 @@ public sealed class HudCorners : MonoBehaviour
         rect.pivot = new Vector2(.5f, .5f);
         rect.offsetMin = new Vector2(inset, inset);
         rect.offsetMax = new Vector2(-inset, -inset);
-    }
-
-    // ------------------------------------------------------------------ the pictures, drawn in code once
-
-    readonly List<Object> drawn = new List<Object>();
-
-    Sprite MakeSprite(Texture2D texture, float border)
-    {
-        drawn.Add(texture);
-        Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(.5f, .5f), 100f, 0,
-            SpriteMeshType.FullRect, new Vector4(border, border, border, border));
-        sprite.name = texture.name;
-        sprite.hideFlags = HideFlags.DontSave;
-        drawn.Add(sprite);
-        return sprite;
-    }
-
-    delegate Color Painter(float x, float y);
-
-    // Two by two samples a pixel, so every edge is smooth.
-    static Texture2D Draw(string name, int width, int height, Painter paint)
-    {
-        var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
-        {
-            name = "HUD - " + name, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave,
-        };
-        var pixels = new Color[width * height];
-        for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                Color sum = Color.clear;
-                for (int sy = 0; sy < 2; sy++)
-                    for (int sx = 0; sx < 2; sx++)
-                    {
-                        Color c = paint(x + .25f + sx * .5f, y + .25f + sy * .5f);
-                        sum += new Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a);
-                    }
-                sum /= 4f;
-                pixels[y * width + x] = sum.a > 0f ? new Color(sum.r / sum.a, sum.g / sum.a, sum.b / sum.a, sum.a) : Color.clear;
-            }
-        texture.SetPixels(pixels);
-        texture.Apply(false, true);
-        return texture;
-    }
-
-    static Color Over(Color under, Color over)
-    {
-        float a = over.a + under.a * (1f - over.a);
-        if (a <= 0f) return Color.clear;
-        Color c = (over * over.a + under * under.a * (1f - over.a)) / a;
-        c.a = a;
-        return c;
-    }
-
-    // Signed distance to a rounded box centred at (cx, cy) with half sizes (hx, hy) and corner radius r (negative inside).
-    static float RoundBox(float x, float y, float cx, float cy, float hx, float hy, float r)
-    {
-        float qx = Mathf.Abs(x - cx) - hx + r, qy = Mathf.Abs(y - cy) - hy + r;
-        return new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude + Mathf.Min(Mathf.Max(qx, qy), 0f) - r;
-    }
-
-    static float Ellipse(float x, float y, float cx, float cy, float rx, float ry) =>
-        (new Vector2((x - cx) / rx, (y - cy) / ry).magnitude - 1f) * Mathf.Min(rx, ry);
-
-    // Signed distance to a five-pointed star centred at (cx, cy), its points r out, its inner corners at rf of that
-    // (negative inside; Inigo Quilez's sdStar5).
-    static float StarShape(float x, float y, float cx, float cy, float r, float rf)
-    {
-        const float k1x = .809016994f, k1y = -.587785252f, k2x = -k1x, k2y = k1y;
-        float px = Mathf.Abs(x - cx), py = y - cy;
-        float d1 = Mathf.Max(k1x * px + k1y * py, 0f);
-        px -= 2f * d1 * k1x; py -= 2f * d1 * k1y;
-        float d2 = Mathf.Max(k2x * px + k2y * py, 0f);
-        px -= 2f * d2 * k2x; py -= 2f * d2 * k2y;
-        px = Mathf.Abs(px);
-        py -= r;
-        float bax = rf * -k1y, bay = rf * k1x - 1f;
-        float h = Mathf.Clamp((px * bax + py * bay) / (bax * bax + bay * bay), 0f, r);
-        float dx = px - bax * h, dy = py - bay * h;
-        return Mathf.Sqrt(dx * dx + dy * dy) * Mathf.Sign(py * bax - px * bay);
-    }
-
-    static float Inside(float d) => Mathf.Clamp01(.5f - d);
-    static float Line(float d, float half) => Mathf.Clamp01(.5f - (Mathf.Abs(d) - half));
-
-    // A banknote in the brand's green: a dark edge, a light frame inside it, an oval with a portrait's shape in the middle.
-    static Texture2D Bill()
-    {
-        const int w = 140, h = 62;
-        Color paper = Color.Lerp(UiSkin.Brand, Color.white, .28f), edge = UiSkin.BrandDeep;
-        Color frame = new Color(1f, 1f, 1f, .38f), oval = new Color(1f, 1f, 1f, .2f), ring = new Color(1f, 1f, 1f, .55f);
-        Color face = new Color(UiSkin.BrandDeep.r, UiSkin.BrandDeep.g, UiSkin.BrandDeep.b, .42f);
-        return Draw("Bill", w, h, (x, y) =>
-        {
-            float outer = RoundBox(x, y, w / 2f, h / 2f, w / 2f - 1f, h / 2f - 1f, 6f);
-            if (outer > 1f) return Color.clear;
-            Color c = new Color(edge.r, edge.g, edge.b, Inside(outer));
-            c = Over(c, new Color(paper.r, paper.g, paper.b, Inside(outer + 3f)));
-            c = Over(c, new Color(frame.r, frame.g, frame.b, frame.a * Line(RoundBox(x, y, w / 2f, h / 2f, w / 2f - 9f, h / 2f - 9f, 3f), .9f)));
-            float o = Ellipse(x, y, w / 2f, h / 2f, 19f, 17f);
-            c = Over(c, new Color(oval.r, oval.g, oval.b, oval.a * Inside(o)));
-            c = Over(c, new Color(ring.r, ring.g, ring.b, ring.a * Line(o, .9f)));
-            // A head and shoulders in the oval.
-            c = Over(c, new Color(face.r, face.g, face.b, face.a * Inside(Ellipse(x, y, w / 2f, h / 2f + 4f, 5.5f, 6f))));
-            c = Over(c, new Color(face.r, face.g, face.b, face.a * Inside(Mathf.Max(Ellipse(x, y, w / 2f, h / 2f - 11f, 10f, 7f), (h / 2f - 9f) - y))));
-            // The corners' marks.
-            foreach (Vector2 m in new[] { new Vector2(17f, h - 17f), new Vector2(w - 17f, 17f) })
-                c = Over(c, new Color(1f, 1f, 1f, .5f * Inside(Ellipse(x, y, m.x, m.y, 6f, 6f))));
-            return c;
-        });
-    }
-
-    // The sign's cup: a cup and its handle, three wisps of steam over it (white; the Image tints it).
-    static Texture2D CupMark()
-    {
-        const int w = 60, h = 52;
-        return Draw("Cup mark", w, h, (x, y) =>
-        {
-            float body = Mathf.Abs(RoundBox(x, y, 25f, 16f, 15f, 12f, 6f)) - 2.2f;
-            float handle = Mathf.Abs(Ellipse(x, y, 42f, 17f, 6f, 6f)) - 2.2f;
-            if (x < 39f) handle = Mathf.Max(handle, 2.5f);
-            float d = Mathf.Min(body, handle);
-            for (int i = -1; i <= 1; i++)
-            {
-                float sx = 25f + i * 8f;
-                float wave = Mathf.Abs(x - (sx + 2f * Mathf.Sin((y - 32f) * .35f))) - 1.6f;
-                if (y > 32f && y < 48f) d = Mathf.Min(d, wave);
-            }
-            return new Color(1f, 1f, 1f, Inside(d));
-        });
-    }
-
-    // The dial's track: a half-arc with round ends, drawn at twice the dial's size (white; the Image tints it).
-    static Texture2D Arc()
-    {
-        const int w = (int)DialWidth * 2, h = (int)DialHeight * 2;
-        const float cx = DialWidth, cy = 4f, r = DialRadius * 2f, half = DialStroke;   // the dial's units, doubled
-        return Draw("Arc", w, h, (x, y) =>
-        {
-            float dx = x - cx, dy = y - cy;
-            float d = dy >= 0f
-                ? Mathf.Abs(Mathf.Sqrt(dx * dx + dy * dy) - r) - half
-                : Mathf.Min(new Vector2(x - (cx - r), dy).magnitude, new Vector2(x - (cx + r), dy).magnitude) - half;
-            return new Color(1f, 1f, 1f, Inside(d));
-        });
-    }
-
-    // A crescent: a disc with another disc taken out of its right side (white; the Image tints it).
-    static Texture2D Moon()
-    {
-        const int s = 40;
-        return Draw("Moon", s, s, (x, y) =>
-        {
-            float disc = Ellipse(x, y, 18f, 20f, 15f, 15f);
-            float bite = Ellipse(x, y, 27f, 23f, 13f, 13f);
-            return new Color(1f, 1f, 1f, Inside(Mathf.Max(disc, -bite)));
-        });
-    }
-
-    // A five-pointed star (white; the Image tints it: gold once earned, a ghost of paper before).
-    static Texture2D Star()
-    {
-        const int s = 64;
-        return Draw("Star", s, s, (x, y) => new Color(1f, 1f, 1f, Inside(StarShape(x, y, s / 2f, s / 2f - 2f, 29f, .48f))));
-    }
-
-    // A soft round glow, bright in the middle.
-    static Texture2D Glow()
-    {
-        const int s = 96;
-        return Draw("Glow", s, s, (x, y) =>
-        {
-            float d = new Vector2(x - s / 2f, y - s / 2f).magnitude / (s / 2f);
-            float a = Mathf.Clamp01(1f - d);
-            return new Color(1f, 1f, 1f, a * a);
-        });
     }
 }

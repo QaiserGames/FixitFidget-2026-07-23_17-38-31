@@ -32,8 +32,10 @@ island proud of anything (about 2 mm). So, in Unity millimetres through the phon
              border ring inside it (2.5 mm wide, from the chassis up to the rail's edge); the chassis (black) filling
              the ring from -1.5 to +2.7; the side button (right), the ring switch and two volumes (left), antenna
              lines; the bottom edge with the USB-C port, two pentalobe screws and the 3 + 6 holes; on the chassis's
-             back face the inside a back-glass removal shows: the battery with its label and charging coil, the
-             camera module under the island, the board shield.
+             back face the inside a back-glass removal shows (v3.8, 24 Oct 2026, art audit a12): the green logic
+             board with its chips and small parts, the battery with its printed label and barcode, the charging coil
+             as a six-turn copper spiral, the camera module under the island, and two amber ribbon cables (the
+             battery's, the port's) with their connectors.
   Screen     the display glass, 62.8 x 132.8 x 1.2, sitting in the border ring with a 0.1 mm reveal, its top flush at
              +3.9; the Screen object moves from +5 to +3.3. The FRESH part (it keeps M_FreshGlass; one material, so
              the border has to be the body's).
@@ -79,14 +81,16 @@ HD_MATERIALS = {
     'HD_PhoneSteel':  ('#B9B5AD', 0.45, 0.0),   # board shields, Taptic engine, lens rings, the pentalobe screws
     'HD_PhoneCopper': ('#B07A4A', 0.40, 0.0),   # the charging coil
     'HD_Lens':        ('#141414', 0.80, 0.0),   # camera glass
-    'HD_Flash':       ('#E8E2CF', 0.50, 0.0),   # the flash window
+    'HD_Flash':       ('#E8E2CF', 0.50, 0.0),   # the flash window; v3.8: the battery's label too
     'HD_ScrewBlack':  ('#2B2724', 0.45, 0.0),   # v3.7: the case screws, black oxide (Art A8: steel would vanish on the sage back)
     'HD_ScrewRecess': ('#121110', 0.20, 0.0),   # v3.7: the cross recess, darker than the head so the cross can read
     'HD_Glass':       ('#20355A', 0.70, 0.0),   # the screen in the FBX only: the prefab keeps M_BrokenGlass / M_FreshGlass
     'HD_Crack':       ('#E9ECEF', 0.35, 0.0),   # the cracks: scattered light, white-grey on the dark glass
     'HD_FilmTab':     ('#E07A3F', 0.20, 0.0),   # the peel tab on the fresh screen's protective film
-    'HD_Flex':        ('#2C2622', 0.30, 0.0),   # the battery's flex cable (black polyimide)
+    'HD_Flex':        ('#2C2622', 0.30, 0.0),   # black polyimide: v3.8 the ribbons' stiffener and the coil's pad
     'HD_PhoneLogo':   ('#D6E2D2', 0.65, 0.0),   # the maker's leaf on the back: polished, a shade lighter than the glass
+    'HD_Board':       ('#2F6A48', 0.45, 0.0),   # v3.8 (art audit a12): the logic board's green solder mask
+    'HD_FlexAmber':   ('#C08A44', 0.35, 0.0),   # v3.8: the two ribbon cables, amber polyimide (black vanished on the battery)
 }
 
 MAKER = 'Pome'            # the phone's maker (his pick, 9 Oct): a pome is the fruit family apples belong to. The mark is a
@@ -177,37 +181,118 @@ def body():
         fb.turn(h, -90.0, 'X')
         p.add('hole', moved(h, x, .0699, 0), black)
     # the INSIDE, in relief on the chassis's back face (-1.5), toward the back glass (whose inner face is at -2.7;
-    # the cover's lip is 1.2 mm wide, so everything sits inside a 65 x 135 field and nothing reaches past -2.6)
+    # the cover's lip is 1.2 mm wide, so everything sits inside a 65 x 135 field and nothing reaches past -2.62)
     zb = CHASSIS_BACK
     flex = M('HD_Flex')
+    # v3.8 (24 Oct 2026, art audit a12): "Inside are flat cut-outs on a brown plate: no circuit board, chips, screws or
+    # cables. Next to the detailed back cover it looks like a stand-in" (R3: a cream bar, a peach ring and two discs). So,
+    # in the same footprint: a green logic board with its chips and their small parts, a battery with a printed label,
+    # two ribbon cables in amber polyimide with their connectors, and the charging coil as a flat copper spiral you can
+    # count the turns of. The old slots keep their order (copper and flex are claimed before the new ones), and the new
+    # materials (HD_Board, HD_Flash on the label, HD_FlexAmber) come after them: Devices 1 makes them, Devices 2 puts them
+    # on the prefab's Body.
+    p.slot(copper)
+    p.slot(flex)
+    board_m, label_m, amber = M('HD_Board'), M('HD_Flash'), M('HD_FlexAmber')
     # as the real one is laid out, seen from the back (where Blender +X is the viewer's right): the logic board runs
     # down the LEFT side under the cameras (Blender -X, the island's side), the battery fills the right two thirds, and
     # the battery's flex cable plugs into the board's edge: the first thing a repair unplugs (v3.4, the details pass)
     bat_x, bat_w, bat_l = .0060, .0400, .0860
     p.add('battery', moved(chamfered_slab(bat_w, bat_l, .0010, .0020, .0003, per_corner=2, centre_z=zb - .0005), bat_x, .0040, 0), black)
-    p.add('battery label', fb.zbox(bat_x - .0150, bat_x + .0110, -.0040, .0300, zb - .00105, zb - .00100), back)
-    p.add('charging coil', moved(ring_wall(zb - .00112, zb - .00100, .0060, .0175, sides=24), bat_x, .0040, 0), copper)
-    p.add('coil ring', moved(ring_wall(zb - .00108, zb - .00100, .0175, .0190, sides=24), bat_x, .0040, 0), steel)
+    # the battery's label on its lower third (cream, 32 x 25 mm) with its print, read from the back with the phone's top up
+    p.add('battery label', fb.zbox(bat_x - .0160, bat_x + .0160, .0175, .0420, zb - .00105, zb - .00100), label_m)
+    for text, size, y in (('Li-ion', .0036, .0232), ('3.87 V  3349 mAh', .0021, .0300), ('12.98 Wh   ' + MAKER, .0021, .0352)):
+        print_ = hl.text_mesh(text, size, .00003)
+        if print_ is None:
+            continue
+        fb.turn(print_, 180.0, 'X')                      # face -Z (the back), up -Y (the phone's top), reading along +X
+        p.add('label print', moved(print_, bat_x, y, zb - .00105), black)
+    x_ = bat_x - .0105                                   # a barcode under the print
+    for k, w_ in enumerate((3, 1, 1, 2, 1, 3, 1, 1, 2, 2, 1, 3, 1, 2, 1, 1, 3, 1, 2, 1, 1, 2, 3, 1)):
+        if k % 2 == 0:
+            p.add('label barcode', fb.zbox(x_, x_ + w_ * .00028, .0372, .0402, zb - .00108, zb - .00105), black)
+        x_ += w_ * .00028 + .00022
+    # the charging coil: a flat copper spiral, six turns from Ø 11.6 to Ø 34.4, 1.2 mm wire with the battery's black
+    # between the turns, on the battery's back face, and its tail running off toward the board
+    cx_, cy_ = bat_x, -.0040
+    p.add('charging coil', moved(_flat_spiral(.0058, .0172, 6, .0012, zb - .00112, zb - .00100), cx_, cy_, 0), copper)
+    p.add('coil tail', fb.zbox(cx_ - .0172 - .0040, cx_ - .0165, cy_ - .0011, cy_ + .0011, zb - .00112, zb - .00100), copper)
+    p.add('coil pad', fb.zbox(cx_ - .0172 - .0062, cx_ - .0172 - .0034, cy_ - .0017, cy_ + .0017, zb - .00110, zb - .00100), flex)
     cam = chamfered_slab(.0300, .0300, .0010, .0030, .0003, per_corner=2, centre_z=zb - .0005)
     p.add('camera module', moved(cam, ISLAND[0], ISLAND[1], 0), black)
     for (cx, cy) in ((ISLAND[0] - .0070, ISLAND[1] - .0068), (ISLAND[0] + .0070, ISLAND[1] + .0068)):
         p.add('camera barrel', disc(cx, cy, zb - .0011, zb - .0010, .0050, sides=16), steel)
-    shield = chamfered_slab(.0160, .0740, .0008, .0010, .0003, per_corner=1, centre_z=zb - .0004)
-    p.add('board shield', moved(shield, -.0230, .0060, 0), steel)
+        p.add('camera barrel eye', disc(cx, cy, zb - .00114, zb - .00108, .0028, sides=16), black)   # v3.8: the lens's dark back
+    # the logic board: green solder mask, 17 x 76 mm, 0.6 mm thick, down the left under the cameras, where the steel board
+    # shield stood. On it: the processor (11 mm, its maker's mark), the memory, three smaller chips and a scatter of
+    # the small parts (0.5 x 1 mm, steel ends) that make a board read as a board at arm's length
+    p.add('logic board', moved(chamfered_slab(.0170, .0760, .0006, .0015, .0001, per_corner=2, centre_z=zb - .0003), -.0237, .0060, 0), board_m)
+    top = zb - .0006                                     # the board's face
+    chips = [((-.0237, -.0060), (.0105, .0105), .0004), ((-.0237, .0090), (.0090, .0065), .0003),
+             ((-.0275, .0230), (.0045, .0045), .00025), ((-.0200, .0235), (.0040, .0055), .00025),
+             ((-.0240, .0345), (.0060, .0040), .00025)]
+    for (x, y), (sx, sy), h in chips:
+        p.add('chip', moved(chamfered_slab(sx, sy, h + .0001, .0004, .0001, per_corner=1, centre_z=top - (h - .0001) / 2), x, y, 0), black)
+    soc_mark = hl.text_mesh('P17', .0024, .00003)
+    if soc_mark is not None:
+        fb.turn(soc_mark, 180.0, 'X')
+        p.add('chip mark', moved(soc_mark, -.0237, -.0052, top - .0004), steel)
+    for (x, y, along_y) in _BOARD_PARTS:
+        w_, l_ = (.0005, .0010) if along_y else (.0010, .0005)
+        p.add('small part', fb.zbox(x - w_ / 2, x + w_ / 2, y - l_ / 2, y + l_ / 2, top - .0003, top + .00005), steel)
     # the battery connector: a flat flex off the battery's board-side edge, its copper contacts, into a connector on the
     # board. All of it INSIDE, behind the back glass (v3.6, 9 Oct night): v3.4 put the flex and its contacts at -4.0 to
     # -4.16 mm, outside the glass's outer face (-3.9), so a dark plate with copper pads sat on the phone's back and read
     # as a SIM card (Mansoor: "a phone that shows i think a sim card on the back"). Now, from the chassis outward: the
-    # connector stands on the board (-1.5 to -2.4, 0.1 mm proud of the shield), its latch on it (to -2.45); the flex lies
-    # on the battery's back face (-2.5 to -2.56) and bridges to the connector; its contacts sit on its end (to -2.59).
-    # Nothing past -2.6, the rule above.
-    p.add('battery flex', fb.zbox(-.0190, bat_x - .0120, -.0260, -.0170, zb - .00106, zb - .00100), flex)
-    p.add('flex contacts', fb.zbox(-.0190, -.0160, -.0255, -.0175, zb - .00109, zb - .00106), copper)
+    # connector stands on the board (-1.5 to -2.4), its latch on it (to -2.45); the flex lies on the battery's back face
+    # (-2.5 to -2.56) and bridges to the connector; its contacts sit on its end (to -2.585). Nothing past -2.62, the rule
+    # above. v3.8: the flex is amber polyimide (black vanished on the black battery).
+    p.add('battery flex', fb.zbox(-.0190, bat_x - .0120, -.0260, -.0170, zb - .00106, zb - .00100), amber)
+    p.add('flex contacts', fb.zbox(-.0190, -.0160, -.0255, -.0175, zb - .001085, zb - .00106), copper)
     p.add('battery connector', moved(chamfered_slab(.0090, .0040, .0009, .0005, .0002, per_corner=1, centre_z=zb - .00045), -.0225, -.0215, 0), steel)
     p.add('connector latch', fb.zbox(-.0270, -.0180, -.0245, -.0185, zb - .00095, zb - .00090), black)
-    # (no speaker, Taptic engine, port assembly or board screws: the battery, the coil, the camera module, the board
-    # shield and the battery connector are what say "a phone's inside"; the rest was clutter at 50 cm)
+    # the second ribbon (v3.8): the port flex, from a connector at the board's foot down the side and across to the port
+    # assembly over the USB-C, an L of amber 9 mm wide lying at the board's height
+    p.add('port connector', moved(chamfered_slab(.0080, .0035, .0006, .0005, .0002, per_corner=1, centre_z=top - .0002), -.0237, .0405, 0), steel)
+    p.add('port flex', fb.zbox(-.0282, -.0192, .0405, .0598, top - .00012, top), amber)
+    p.add('port flex', fb.zbox(-.0192, -.0050, .0552, .0598, top - .00012, top), amber)
+    p.add('port assembly', moved(chamfered_slab(.0160, .0100, .0010, .0010, .0002, per_corner=1, centre_z=zb - .0005), 0.0, .0595, 0), black)
+    # (no speaker, Taptic engine or board screws: the board with its chips, the battery and its label, the coil, the
+    # camera module and the two ribbons are what say "a phone's inside"; the rest was clutter at 50 cm)
     return p
+
+
+# the logic board's small parts (x, y, lengthwise along Y), Blender metres in the phone's frame: in rows beside the chips
+_BOARD_PARTS = [(-.0305, -.0130, True), (-.0305, -.0105, True), (-.0305, -.0080, True), (-.0305, .0010, True),
+                (-.0170, -.0120, True), (-.0170, -.0095, True), (-.0170, -.0010, True), (-.0170, .0020, True),
+                (-.0215, .0025, False), (-.0250, .0025, False), (-.0300, .0150, False), (-.0265, .0150, False),
+                (-.0175, .0150, False), (-.0175, .0175, False), (-.0300, .0290, True), (-.0300, .0315, True),
+                (-.0205, .0290, False), (-.0170, .0300, True), (-.0280, .0385, False), (-.0195, .0385, False),
+                (-.0300, -.0270, True), (-.0300, -.0240, True), (-.0175, -.0260, True), (-.0175, -.0235, True)]
+
+
+def _flat_spiral(r0, r1, turns, width, z0, z1, per_turn=48):
+    """A flat spiral strip (a wireless charging coil): from radius r0 to r1 over `turns`, `width` wide, from z0 to z1,
+    centred on the origin; a closed solid (top, bottom, both walls and the two ends)."""
+    bm = bmesh.new()
+    n = int(turns * per_turn)
+    pitch = (r1 - r0) / turns
+    rows = []
+    for i in range(n + 1):
+        a = 2 * math.pi * i / per_turn
+        r = r0 + pitch * i / per_turn
+        ca, sa = math.cos(a), math.sin(a)
+        ri, ro = r - width / 2, r + width / 2
+        rows.append([bm.verts.new((ri * ca, ri * sa, z0)), bm.verts.new((ro * ca, ro * sa, z0)),
+                     bm.verts.new((ro * ca, ro * sa, z1)), bm.verts.new((ri * ca, ri * sa, z1))])
+    for a_, b_ in zip(rows, rows[1:]):
+        for k in range(4):
+            m = (k + 1) % 4
+            bm.faces.new([a_[k], b_[k], b_[m], a_[m]])
+    bm.faces.new(list(reversed(rows[0])))
+    bm.faces.new(rows[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return bm
 
 
 def screen():

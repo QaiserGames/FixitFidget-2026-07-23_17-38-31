@@ -30,6 +30,10 @@ using UnityEngine.UI;
 //   * STUCK: no progress for 12 s, the glow pulses once (BenchGlow) and the help hint with it; on the first repair "what's
 //     left" fires once by itself then if nothing showed it yet (T17; the bench raises the 3 s scrub case itself).
 //
+// A THRIFT FIND (24 Oct 2026; Designer P's side project, SideProject) has nobody to speak for it: its line is "Your thrift
+// watch: grime on the glass." (the same 8 words and 46 characters), its tape a thrift-shop tan, and fixed it folds into
+// "Fixed. It sells tonight." (it goes back on its shelf and sells at closing, never handed to anyone).
+//
 // Everything times itself on UiClock (real seconds that stand still while the phone pauses), so it is the same at his Mac's
 // 15 fps as at 60. The card re-reads the steps every 0.1 s and on the frame a target finishes (BenchWork.TargetDone).
 // PLACEHOLDER COPY throughout: his sister writes the words (the Content role).
@@ -525,7 +529,9 @@ public sealed class BenchCards : MonoBehaviour
         if (finished)
         {
             PlayerCarry carry = PlayerCarry.Current;
-            string words = FinishedWords(job.Owner != null ? DayOneGuideUI.Called(job.Owner) : "", carry != null && !carry.HasSpace);
+            // 24 Oct 2026 (Days): a thrift find isn't handed to anyone: it goes back on its shelf and sells at closing.
+            string words = SideProject.IsSideProject(job) ? SideProject.FinishedWords
+                : FinishedWords(job.Owner != null ? DayOneGuideUI.Called(job.Owner) : "", carry != null && !carry.HasSpace);
             if (words != finishedWords) { finishedWords = words; layoutDirty = true; }
         }
 
@@ -670,6 +676,13 @@ public sealed class BenchCards : MonoBehaviour
         string name = job.Owner != null ? job.Owner.CustomerName : "";
         string fault = job.Record != null ? job.Record.faultDescription : job.JobCard;
         plainLine = CardLine(name, fault);
+        // 24 Oct 2026 (Days, the side project): a find has nobody to say what's wrong: "Your thrift watch: grime on the glass."
+        SideProject find = SideProject.Of(job);
+        if (find != null)
+        {
+            name = find.YourThing;
+            plainLine = SideProject.CardLine(job);
+        }
         string rich = plainLine;
         if (!string.IsNullOrEmpty(name) && rich.StartsWith(name.Trim() + ":"))
             rich = "<b>" + name.Trim() + ":</b>" + rich.Substring(name.Trim().Length + 1);

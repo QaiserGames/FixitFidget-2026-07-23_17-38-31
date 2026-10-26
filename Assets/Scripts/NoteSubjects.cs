@@ -508,6 +508,9 @@ public static class NoteSubjects
             yield return ("OfficerStory.Asked (" + word.id + ")", OfficerStory.Asked(word, OfficerStory.DefaultName));
             yield return ("OfficerStory.Flinched (" + word.id + ")", OfficerStory.Flinched(word, OfficerStory.DefaultName));
         }
+        // 24 Oct 2026 (Days): a seated guest's gossip (GuestGossip), filed under who it's about.
+        foreach (NotebookEntries.Gossip g in NotebookEntries.GossipTable)
+            yield return ("NotebookEntries.Overheard (" + g.id + ": a guest's gossip)", NotebookEntries.Overheard(g));
     }
 
     /// <summary>A short report of the entries: "now barnaby 'Barnaby': Grace's gnome. Bring it to him. (2 facts)"; checks and logs.</summary>

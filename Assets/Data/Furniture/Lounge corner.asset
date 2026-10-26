@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0694821abf8fe463d83f3f81e22ec172, type: 3}
+  m_Name: Lounge corner
+  m_EditorClassIdentifier: Assembly-CSharp::FurnitureDefinition
+  displayName: Lounge corner
+  prefab: {fileID: 2286323078369893136, guid: 83b69ca27ee314dcc8a425dcc9e846a8, type: 3}
+  variants: []
+  variantNames: []
+  price: 160
+  seats: 2
+  forSaleFromDay: 3
+  againstAWall: 0
+  zone: lounge

@@ -7,6 +7,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: HD_Board
+    second: {fileID: 2100000, guid: ff0661175c79c429195299993078f610, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: HD_Crack
     second: {fileID: 2100000, guid: 6953fab2f40264eb18cf1f0db6395d66, type: 2}
   - first:
@@ -24,6 +29,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: HD_Flex
     second: {fileID: 2100000, guid: 3264ff507076d4eaa943b9eec02bcad2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HD_FlexAmber
+    second: {fileID: 2100000, guid: 58b9fffd894334baa9914e272d81eaf2, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

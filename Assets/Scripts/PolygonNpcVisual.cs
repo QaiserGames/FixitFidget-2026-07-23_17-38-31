@@ -271,20 +271,85 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         visualScale = Mathf.Max(0f, scale);
     }
 
+    // 26 Oct 2026 (Art fixes) a01, "a second person inside each customer" (the art audit, 23 Oct: "a blonde woman in a red coat is
+    // drawn inside every customer you serve"; his answer: "if it is a problem, then fix it"). The cause: the actor's own CC0
+    // walk-in outfits (NpcVisualVariants) switch one outfit's renderers on in their Start. The notes below assumed that Start
+    // runs before this one; Unity doesn't promise the order of two scripts' Start on one object, and when it ran after, the
+    // outfit came back on over the city look: two bodies on one skeleton, moving together (the city look is scaled to the
+    // rig's hips, so its hair and sleeves stick out round the smaller CC0 body). Now the outfits are quietened once this
+    // body has been dealt (a city look on, or the CC0 share's outfit picked), whichever Start runs first, and LateUpdate
+    // keeps the hidden body hidden while a look is on. The same game code runs in the labs and in play: a game bug,
+    // seen mostly up close (first person at the till and the repair bar), so he rarely met it from the overhead.
+    private void QuietOutfits()
+    {
+        NpcVisualVariants outfits = GetComponent<NpcVisualVariants>();
+        if (outfits != null) outfits.enabled = false;   // its Start (if it hasn't run) never runs; the renderers stay as dealt
+    }
+
+    // 26 Oct 2026 (Art fixes) a04, "seated customers lose their heads" (the art audit: "from the side the hard-hat man has no head;
+    // from the front he has it"; his answer: "if that is an issue that you notice, definitely fix it"). It is real: each body part
+    // (head, hat, torso, legs) is its own skinned mesh, culled by a box fitted to that part in the standing pose and carried by
+    // its root bone. Seated, the head drops about half a metre below its standing box, so a camera close enough to frame only
+    // the head and shoulders (the walking first person, about 2 m) can have the box off screen while the head is on it: Unity
+    // skips the head. Each part's box now covers the whole body plus a margin (computed once, from the parts' own boxes, so it
+    // costs nothing per frame), instead of ticking Update When Offscreen (which would skin every hidden body every frame).
+    internal static void WidenBounds(IList<SkinnedMeshRenderer> parts, float margin)
+    {
+        if (parts == null) return;
+        bool any = false;
+        Bounds all = default;
+        var corner = new Vector3[8];
+        foreach (SkinnedMeshRenderer part in parts)
+        {
+            if (part == null || part.sharedMesh == null) continue;
+            Transform space = part.rootBone != null ? part.rootBone : part.transform;
+            Corners(part.localBounds, corner);
+            for (int c = 0; c < 8; c++)
+            {
+                Vector3 world = space.TransformPoint(corner[c]);
+                if (!any) { all = new Bounds(world, Vector3.zero); any = true; }
+                else all.Encapsulate(world);
+            }
+        }
+        if (!any) return;
+        all.Expand(margin * 2f);
+        Corners(all, corner);
+        foreach (SkinnedMeshRenderer part in parts)
+        {
+            if (part == null || part.sharedMesh == null) continue;
+            Transform space = part.rootBone != null ? part.rootBone : part.transform;
+            var local = new Bounds(space.InverseTransformPoint(corner[0]), Vector3.zero);
+            for (int c = 1; c < 8; c++) local.Encapsulate(space.InverseTransformPoint(corner[c]));
+            part.localBounds = local;
+        }
+    }
+
+    private static void Corners(Bounds b, Vector3[] into)
+    {
+        Vector3 min = b.min, max = b.max;
+        for (int c = 0; c < 8; c++)
+            into[c] = new Vector3((c & 1) == 0 ? min.x : max.x, (c & 2) == 0 ? min.y : max.y, (c & 4) == 0 ? min.z : max.z);
+    }
+
+    // How far beyond the whole body each part's culling box reaches (metres, world): a seated lean and a reach to the table.
+    private const float CullMargin = .35f;
+
     private void Start()
     {
+        // 26 Oct 2026 (Art fixes) a04: the actor's own body parts (the CC0 outfits), before any look is dealt.
+        WidenBounds(GetComponentsInChildren<SkinnedMeshRenderer>(true), CullMargin);
         // Spawners assign identity immediately after Instantiate, before Start.
         CustomerIdentity identity = GetComponent<CustomerIdentity>();
         if (identity != null && identity.IsRegular)
         {
             // A regular wears only the stand-in look their profile names, if it names one.
             int own = OwnLook(identity);
-            if (own >= 0) ApplyAppearance(own);
+            if (own >= 0 && ApplyAppearance(own)) QuietOutfits();   // 26 Oct 2026 (Art fixes) a01
             return;
         }
         if (fixedAppearance >= 0)
         {
-            ApplyAppearance(SkipStandIns(fixedAppearance));   // street neighbours: their own look, as before
+            if (ApplyAppearance(SkipStandIns(fixedAppearance))) QuietOutfits();   // street neighbours: their own look, as before (a01: quietened)
             return;
         }
         if (appearancePrefabs.Length == 0) return;
@@ -296,11 +361,13 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         if (DealtFor != NameSex.Woman && UnityEngine.Random.value < keepOriginalShare)
         {
             DealOwnOutfit();
+            QuietOutfits();   // 26 Oct 2026 (Art fixes) a01: its own Start would re-pick by name hash over the dealt outfit
             return;
         }
         int index = DealLook(DealtFor);
-        if (index < 0) { DealOwnOutfit(); return; }   // no city look to wear (the purchased art missing): an outfit, dealt
+        if (index < 0) { DealOwnOutfit(); QuietOutfits(); return; }   // no city look to wear (the purchased art missing): an outfit, dealt
         if (!ApplyAppearance(index)) return;
+        QuietOutfits();   // 26 Oct 2026 (Art fixes) a01
         DealPalette();
     }
 
@@ -358,7 +425,8 @@ public sealed class PolygonNpcVisual : MonoBehaviour
     }
 
     // The CC0 share: the actor keeps its own body, in the outfit fewest people who kept theirs wear (NpcVisualVariants
-    // already showed one by its own rule in its Start, which runs first: this deals over it).
+    // may already have shown one by its own rule in its Start: this deals over it, and Start then quietens it so a Start
+    // that runs later can't deal over this; 26 Oct 2026, Art fixes a01).
     private void DealOwnOutfit()
     {
         NpcVisualVariants outfits = GetComponent<NpcVisualVariants>();
@@ -495,6 +563,7 @@ public sealed class PolygonNpcVisual : MonoBehaviour
         activeLookName = appearancePrefabs[index].name;   // worn from this moment (the dealing counts it)
         activePalette = -1;
         Follow();
+        WidenBounds(visibleParts, CullMargin);   // 26 Oct 2026 (Art fixes) a04: posed once, so the box is the body's as worn
         return true;
     }
 
@@ -520,6 +589,10 @@ public sealed class PolygonNpcVisual : MonoBehaviour
 
     private void LateUpdate()
     {
+        // 26 Oct 2026 (Art fixes) a01: while a look is on, the actor's own body stays hidden, whatever switched a part back on.
+        if (instance != null && hiddenRenderers != null)
+            for (int i = 0; i < hiddenRenderers.Length; i++)
+                if (hiddenRenderers[i] != null && hiddenRenderers[i].enabled) hiddenRenderers[i].enabled = false;
         if (!EveryFrame && instance != null && Application.isPlaying)
         {
             bool seen = false;

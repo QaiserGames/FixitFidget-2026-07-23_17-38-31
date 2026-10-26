@@ -40,8 +40,9 @@ public class RecapUI : MonoBehaviour
     private GameObject scenePanel;
     private static RecapUI current;
 
-    /// <summary>True while the end-of-day recap is on screen: the phone, or the three-column panel.</summary>
-    public static bool Showing => current != null && current.panel != null && current.panel.activeInHierarchy;
+    /// <summary>True while the end-of-day recap is on screen: the phone, or the three-column panel. Arranging the café counts
+    /// (24 Oct 2026 (Furniture)): the phone is only put away for it, so nothing that hides at closing comes back meanwhile.</summary>
+    public static bool Showing => current != null && (current.arranging || current.panel != null && current.panel.activeInHierarchy);
 
     /// <summary>The recap phone, while Use Phone is on (null before Start, and with it off).</summary>
     public RecapPhone Phone => phone;
@@ -51,6 +52,46 @@ public class RecapUI : MonoBehaviour
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics() => current = null;
+
+    // 24 Oct 2026 (Furniture): Arrange the café (ArrangeMode), from the phone's Shop at closing. The phone drops away while the
+    // player arranges (RecapPhone.PutAway) and comes back up on the Shop app; the recap stays "showing" all the while, and its
+    // camera and selection set-up (Show) isn't run a second time: it never closed.
+    private bool arranging;
+
+    /// <summary>The phone is put away for Arrange the café (24 Oct 2026 (Furniture)).</summary>
+    public static bool Arranging => current != null && current.arranging;
+
+    /// <summary>Puts the recap's phone away for Arrange the café (it drops away). False when no recap is up.</summary>
+    public static bool HideForArrange()
+    {
+        RecapUI r = current;
+        if (r == null || r.panel == null || !r.panel.activeInHierarchy) return false;
+        r.arranging = true;
+        if (r.phone != null) r.phone.PutAway();
+        else r.panel.SetActive(false);
+        return true;
+    }
+
+    /// <summary>Brings the phone back up from Arrange the café, on the Shop app (it rises, the app built again).</summary>
+    public static void ReturnFromArrange()
+    {
+        RecapUI r = current;
+        if (r == null || !r.arranging) return;
+        r.arranging = false;
+        if (r.panel == null) return;
+        // 26 Oct 2026 (review fix): the evening moved on while arranging (a lab's ContinueAfterNight: tomorrow is open, time
+        // runs): Arrange closes itself next frame (ArrangeMode.Update), and the phone must not come back up over the new day.
+        if (DayClock.Instance == null || !DayClock.Instance.DayOver) return;
+        // Still dropping away (back within its 0.14 s): off and on again, so it rises rather than finishing the drop.
+        if (r.phone != null && r.phone.Closing && r.panel.activeSelf) r.panel.SetActive(false);
+        r.panel.SetActive(true);
+        if (r.phone != null)
+        {
+            r.phone.Open(RecapPhone.App.Shop);
+            r.phone.Refresh();
+        }
+        else r.RefreshText();
+    }
 
     // The Night 1 slice: the recap's button leads into the night first (NightCycle), then
     // tomorrow. Once this recap's night has been walked it goes straight to tomorrow.

@@ -38,6 +38,12 @@ using Object = UnityEngine.Object;
 //   Wave 2 6a/6b - Palette survey and line-up (read-only), then allow the alternates (prefabs): only if a look's body is
 //              drawn with a POLYGON City atlas that has alternates in Synty/PolygonCity/Materials/Alts.
 //   Life 4 - Stools, settled guests, looks (Play mode, in Life 4's own lab session): the spec's §6 lab.
+//
+// 24 Oct 2026 (Furniture; his answer c12): the window counter's three stools sit too since Furniture 1 (Snap To Seat on, Max
+// Lift 0.32, Approach Side 0.60; they face the window, so no turn: FurnitureSteps.cs). Life 4's stools are still the repair
+// bar's three; a window-counter stool is a seat like any other (Sit 4 watches who sits on one). The settled guests' seats
+// above are today's café's: in a new game's half-finished café the reading corner, the banquette and the communal table are
+// still under their dust sheets, and PatronSpawner seats the guests by their seat tags instead (the furniture spec's §4.4).
 // ---------------------------------------------------------------------------
 
 /// <summary>The repair-bar stools' sitting data (NPC wave 2): Wave 2 1 sets it in the scene, Seats 1 lays it on a rerun.</summary>
@@ -301,6 +307,18 @@ public static class NpcWave2Steps
         SerializedProperty list = so.FindProperty("openingGuests");
         SerializedProperty jitter = so.FindProperty("spawnJitter");
         if (list == null || jitter == null) throw new InvalidOperationException("PatronSpawner has no Opening Guests or Spawn Jitter (the wave 2 code hasn't compiled?): nothing was changed.");
+        // 24 Oct 2026 (Days): Fixit Fidget > Days > H moved these three to Days 2-3 and put Day 1's two in (his answer r3). Running
+        // this again would put the 14 Oct list back over it, so it stops: H's list stands (H itself re-checks it).
+        for (int i = 0; i < list.arraySize; i++)
+        {
+            string label = list.GetArrayElementAtIndex(i).FindPropertyRelative("label").stringValue;
+            if (label == PacingSteps.ReaderLabel || label == PacingSteps.BistroLabel)
+            {
+                run.Line("Day 1's two settled guests are in (Fixit Fidget > Days > H, 24 Oct): this 14 Oct list is superseded, so nothing changed. " +
+                         "Run Fixit Fidget > Days > H to check them.");
+                return false;
+            }
+        }
         if (GuestsMatch(list, resolved) && Mathf.Abs(jitter.floatValue - SpawnJitter) < 1e-4f)
         {
             run.Line("Already done: three settled guests (Days 1-3) and Spawn Jitter 0.6. Nothing changed.");
@@ -605,7 +623,9 @@ public static class NpcWave2Steps
     // ================================================================== Life 4: the lab (Play mode, a lab session)
     //
     // A. The stools: four bench jobs one after another (customers sent in and heard at the counter; others turned away):
-    //    the first three take the middle, east and west stools and sit (hips within 5 cm, the root on the floor until Sit
+    //    the first three take three different stools (24 Oct 2026: chosen like any seat, by personal space and their own dice,
+    //    so the second never sits beside the first while a stool with nobody beside it is free; it was the middle, east and
+    //    west, in that order) and sit (hips within 5 cm, the root on the floor until Sit
     //    Down, the hips never below where they settle, the head never below its seated height by more than 3 cm: the clip's
     //    own lean is 1.9; 2 cm until 15 Oct), Ace behind the bench reaches each over the counter,
     //    and they stand and walk out with no stall over 3 s; the fourth, with the three taken, gets a floor seat. Photos:
@@ -803,7 +823,10 @@ public static class NpcWave2Steps
         Check(stools.Count == 3 && stools.All(s => s.SnapToSeat && Mathf.Abs(s.MaxLift - RepairBarSeats.MaxLift) < 1e-3f && s.FacingPoint != s.CupSpot.position),
             $"the three repair-bar stools are set up to sit ({stools.Count} flagged; Wave 2 1)");
         if (stools.Count != 3 || bench == null) { Check(bench != null, "the repair bench's stand point is found"); yield break; }
-        string[] order = { RepairBarSeats.SeatName("middle"), RepairBarSeats.SeatName("east"), RepairBarSeats.SeatName("west") };
+        // 24 Oct 2026 (Days): no fixed order any more (the 23 Oct run: "the middle stool every time"): three different stools,
+        // the second beside the first only when the first took the middle (then both free stools are beside it).
+        string middleName = RepairBarSeats.SeatName("middle");
+        var taken = new List<TableSeat>();
         var watches = new List<SitWatch>();
         for (int k = 0; k < 4; k++)
         {
@@ -821,7 +844,13 @@ public static class NpcWave2Steps
             WaitingSpot spot = SpotOf(who);
             if (k < 3)
             {
-                Check(spot != null && spot.name == order[k], $"bench job {k + 1} ({who.CustomerName}) takes the {order[k]} (got: {(spot != null ? spot.name : "nothing")})");
+                TableSeat got = spot as TableSeat;
+                bool fresh = got != null && got.RepairBar && !taken.Contains(got);
+                bool spaced = k != 1 || taken.Count == 0 || got == null || taken[0].name == middleName
+                              || Flat(got.SeatPose.position - taken[0].SeatPose.position).magnitude >= SeatChoice.NextToWithin;
+                Check(fresh && spaced, $"bench job {k + 1} ({who.CustomerName}) takes a free repair-bar stool{(k == 1 ? ", not beside the first while one with nobody beside it is free" : "")} " +
+                                       $"(got: {(spot != null ? spot.name : "nothing")}; taken before: {(taken.Count > 0 ? string.Join(", ", taken.Select(t => t.name)) : "none")})");
+                if (got != null) taken.Add(got);
                 if (spot is TableSeat stool && stool.RepairBar) watches.Add(Watch(who, stool));
                 if (k == 0 && watches.Count == 1) yield return SitStrip(watches[0]);
                 else yield return UntilSeated(watches.LastOrDefault());
@@ -1040,13 +1069,19 @@ public static class NpcWave2Steps
     {
         PatronSpawner.OpeningGuest[] authored = patronSpawner.OpeningGuests;
         if (authored == null || authored.Length == 0) { Check(false, "the settled guests are in the scene (Wave 2 2)"); yield break; }
-        Check(authored.All(g => g != null && g.firstDay == 1 && g.lastDay == 3), "the settled guests are Days 1-3 (the Producer's call 13)");
-        // This lab day (Day 5) let in for the check: Play-mode data only, put back below (and gone when Play stops).
+        // 24 Oct 2026 (Days, his answer r3 "two settled guests" on Day 1; Fixit Fidget > Days > H): two people on Day 1 only,
+        // in the half-finished café's open seats; wave 2's four (the reader, the pair, the laptop worker) from Day 2 to Day 3.
+        int dayOnePeople = PacingSteps.PeopleOn(authored, 1), dayTwoPeople = PacingSteps.PeopleOn(authored, 2), dayThreePeople = PacingSteps.PeopleOn(authored, 3);
+        Check(dayOnePeople == PacingSteps.DayOnePeople && dayTwoPeople == PacingSteps.FromDayTwoPeople && dayThreePeople == PacingSteps.FromDayTwoPeople
+              && PacingSteps.PeopleOn(authored, 4) == 0,
+            $"the settled guests: {dayOnePeople} on Day 1, {dayTwoPeople} on Day 2, {dayThreePeople} on Day 3, none after (2, 4, 4: his r3 and P's §8.1; Days 1-3 only, the Producer's call 13)");
+        // This lab day (Day 5) let in for the check: wave 2's four (the entries from Day 2), Play-mode data only, put back below
+        // (and gone when Play stops). Day 1's two are Day 1's alone and stay out of it.
         // Both arms named (the integration, 14 Oct): with "(0, 0)" unnamed, C# 9 drops the names from the conditional's type
         // and days[i].firstDay below doesn't compile.
         var days = authored.Select(g => g != null ? (firstDay: g.firstDay, lastDay: g.lastDay) : (firstDay: 0, lastDay: 0)).ToArray();
         foreach (PatronSpawner.OpeningGuest g in authored)
-            if (g != null) { g.firstDay = Mathf.Min(g.firstDay, clock.Day); g.lastDay = Mathf.Max(g.lastDay, clock.Day); }
+            if (g != null && g.lastDay >= 2) { g.firstDay = Mathf.Min(g.firstDay, clock.Day); g.lastDay = Mathf.Max(g.lastDay, clock.Day); }
         TopUpTheDay(clock, .05f);
         int incomeBefore = clock.PatronIncome;
         PatronSpawner.ForceOpeningGuests = true;

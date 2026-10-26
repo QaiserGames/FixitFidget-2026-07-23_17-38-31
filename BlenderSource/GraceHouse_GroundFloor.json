@@ -317,21 +317,20 @@
   },
   {
    "room": "Hall",
-   "what": "coat stand with her coat",
-   "tris": 600,
+   "what": "coat stand with her hat",
+   "tris": 456,
    "size": [
-    0.531,
-    0.438,
+    0.47,
+    0.412,
     1.89
    ],
    "materials": [
     "CC_Wood_Espresso",
     "T2_Brass",
-    "GH_Wool_Camel",
-    "GH_Scarf_Red",
-    "GH_Pillow_Sage"
+    "GH_Pillow_Sage",
+    "GH_Scarf_Red"
    ],
-   "islands": 19,
+   "islands": 15,
    "name": "GH_CoatStand",
    "floating": []
   },
@@ -390,7 +389,7 @@
   {
    "room": "Hall",
    "what": "door",
-   "tris": 404,
+   "tris": 564,
    "size": [
     0.804,
     0.164,
@@ -401,14 +400,14 @@
     "T2_Brass",
     "DC_SteelDark"
    ],
-   "islands": 17,
+   "islands": 9,
    "name": "GH_InteriorDoor_Leaf",
    "floating": []
   },
   {
    "room": "Kitchen",
    "what": "the reunion cups: a box of three sleeves (the stash)",
-   "tris": 528,
+   "tris": 816,
    "size": [
     0.644,
     0.587,
@@ -427,7 +426,7 @@
   {
    "room": "Kitchen",
    "what": "one sleeve of twelve cups",
-   "tris": 164,
+   "tris": 260,
    "size": [
     0.382,
     0.096,

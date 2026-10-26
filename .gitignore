@@ -150,3 +150,6 @@ InitTestScene*.unity*
 # The studio's roster lives in Docs/Studio/agents/ (the copy every session edits, from anywhere); each machine
 # installs it into .claude/agents/ with one copy (Docs/Studio/BIBLE.md §10). Not committed twice.
 /.claude/agents/
+
+# Python caches from the Tools scripts (26 Oct 2026)
+__pycache__/

@@ -199,7 +199,8 @@ public sealed class LodgerDay : MonoBehaviour
         CupsLaid = cups.Count;
         tables.AddRange(MessTable.Group(cups));
         foreach (MessTable table in tables) table.ShowBadge();
-        if (CupsLaid > 0) NightCycle.NoteThen(LodgerStory.MessNote, NoteAfter, hisNoteFollows ? 5f : 7f);
+        // 26 Oct 2026 (Icons on notes): his "Clear the tables" wears the table chip (one line of 1100 px: room to spare).
+        if (CupsLaid > 0) NightCycle.NoteThen(NoteIcons.Lead(NoteIcons.ForNote(LodgerStory.MessNote)) + LodgerStory.MessNote, NoteAfter, hisNoteFollows ? 5f : 7f);
     }
 
     void PutTheCupsAway()

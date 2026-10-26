@@ -66,6 +66,12 @@ using Object = UnityEngine.Object;
 //
 // Placeholder copy (the apps' names, HQ's requests, the day's lines) is Mansoor's to rewrite.
 //
+// 24 OCT 2026 (Days; Designer P's spec §2.2, §6.3 and §6.7, his answers p1 and p2). The side project's thrift find sells by
+// itself at closing (ThriftShelf): Tonight's takings count it in, its split adds "· $55 from your finds", and two lines come
+// under the split: "Sold your thrift watch: +$55" and the next day's "Tomorrow: Grace again, and a customer's pocket watch."
+// (DayDefinition.previewLine). RecapPhoneCheck's budget rises by exactly their words, on evenings with them. The Shop offers
+// tomorrow's find, one at a time ("Thrift find for tomorrow"), once the shelf is empty.
+//
 // 19 OCT 2026 (playtest 7; her: "your text needs to be bolder"; the reviewers: "the phone's secondary lines ... are 12-14 px
 // tall at 1080p in mid-grey on cream"). Nothing a player reads on the phone is under 18 px now (the small all-caps kickers,
 // the tab labels and the badges' digits 16), and no grey on a light card is lighter than InkSoft (5.8:1 on white; the old
@@ -231,6 +237,8 @@ public sealed class RecapPhone : MonoBehaviour
     // What the phone showed when it was last built (for the checks and reports).
     public bool FranchiseDot { get; private set; }
     public bool ShopAlert { get; private set; }
+    /// <summary>24 Oct 2026 (Furniture): Day 1's evening, nothing bought yet: the Shop's "!" for the first table.</summary>
+    public bool ShopFirstTable { get; private set; }
     public int NotesNew { get; private set; }
     public int ReviewCardsShown { get; private set; }
     public int Builds { get; private set; }
@@ -242,6 +250,12 @@ public sealed class RecapPhone : MonoBehaviour
     /// guests paid nothing), and the words it added to TonightWords.</summary>
     public string TonightSplit { get; private set; } = "";
     public int TonightSplitWords { get; private set; }
+    /// <summary>24 Oct 2026 (Days): Tonight's thrift lines as last built ("Sold your thrift watch: +$55", "Tomorrow: ..."; "" when
+    /// none), and the words each added to TonightWords (RecapPhoneCheck's budget rises by exactly those).</summary>
+    public string TonightSold { get; private set; } = "";
+    public string TonightTomorrow { get; private set; } = "";
+    public int TonightSoldWords { get; private set; }
+    public int TonightTomorrowWords { get; private set; }
     /// <summary>Tonight's split is on screen in full (it lands as the count-up does).</summary>
     public bool TonightSplitShown => tonightSplit != null && tonightSplit.gameObject.activeInHierarchy && tonightSplit.alpha >= .99f;
     /// <summary>Today's takings are still counting up (or about to, a quarter of a second after the evening's phone opens).</summary>
@@ -737,7 +751,7 @@ public sealed class RecapPhone : MonoBehaviour
     public bool FocusRingShowing => focusRing != null && focusRing.gameObject.activeSelf;
     public string HintText => hintText != null ? hintText.text : "";
 
-    /// <summary>A button in the current app by its key: "details", "restock", "upgrade:&lt;asset name&gt;", "more", "notebook",
+    /// <summary>A button in the current app by its key: "details", "restock", "upgrade:&lt;asset name&gt;", "arrange" (24 Oct 2026, Furniture), "more", "notebook",
     /// "stock", "person:&lt;who&gt;"; in Settings "invert", "aimhelp:&lt;Light|Strong|Off&gt;", "movehelp", "swapsticks", "morning:&lt;Full|Short|Off&gt;",
     /// "quality:&lt;Low|Medium|High&gt;", "quit". Null if it isn't there.</summary>
     public Button ContentButton(string key)
@@ -1631,7 +1645,9 @@ public sealed class RecapPhone : MonoBehaviour
         Badge(App.Tonight, false, null);
         Badge(App.Reviews, false, null);
         Badge(App.Franchise, FranchiseDot, null);
-        Badge(App.Shop, ShopAlert, "!");
+        // 24 Oct 2026 (Furniture): on Day 1's evening the Shop's "!" also says a first table waits to be placed (YOUR CAFÉ).
+        ShopFirstTable = FirstTableWaiting();
+        Badge(App.Shop, ShopAlert || ShopFirstTable, "!");
         Badge(App.Notes, NotesNew > 0, NotesNew > 9 ? "9+" : NotesNew.ToString());
         Badge(App.Settings, false, null);
     }
@@ -1685,13 +1701,14 @@ public sealed class RecapPhone : MonoBehaviour
             style: FontStyles.Bold, rich: false, spacing: 4f));
         float top = Bottom(kicker.rectTransform) + 6f;
 
-        // The takings, large, counting up into their own space from the left.
-        TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned : 0), 0f, 0f, 0f, 40f, DarkText, wrap: false,
+        // The takings, large, counting up into their own space from the left (24 Oct 2026: the thrift find's sale counted in).
+        int finds = FindsTonight(clock);
+        TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned + finds : 0), 0f, 0f, 0f, 40f, DarkText, wrap: false,
             style: FontStyles.Bold, rich: false);
         Vector2 moneySize = money.rectTransform.sizeDelta;
         money.horizontalAlignment = HorizontalAlignmentOptions.Left;
         todayMoney = money;
-        todayEarned = clock != null ? clock.Earned : 0;
+        todayEarned = clock != null ? clock.Earned + finds : 0;
         if (countDue)
         {
             countDue = false;
@@ -1731,7 +1748,7 @@ public sealed class RecapPhone : MonoBehaviour
         // Reviews and Today cards. Nothing on an evening the guests paid nothing. Out of sight while the takings count up, it
         // lands with them (LandSplit). Its words count against the budget (8, always: two figures, six words).
         float cy = Mathf.Max(Bottom(earned.rectTransform), underStars);
-        TonightSplit = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome) : "";
+        TonightSplit = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome, finds) : "";
         TonightSplitWords = 0;
         if (TonightSplit.Length > 0)
         {
@@ -1743,6 +1760,9 @@ public sealed class RecapPhone : MonoBehaviour
             tonightSplit = split;
             cy = Bottom(split.rectTransform);
         }
+
+        // 24 Oct 2026 (Days): the thrift find that sold tonight, and what tomorrow brings (the next day's previewLine).
+        cy = ThriftLines(card, clock, cy);
 
         // The reviews, and what they did to the reputation.
         cy += 12f;
@@ -1900,13 +1920,14 @@ public sealed class RecapPhone : MonoBehaviour
             style: FontStyles.Bold, rich: false, spacing: 4f);
         TMP_Text earned = Words(card, "Earned today", CardPadX, Bottom(kicker.rectTransform) + 1f, 230f, 20f, DarkText,
             style: FontStyles.Bold, rich: false);
-        TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned : 0), 0f, 0f, 0f, 24f, DarkText, wrap: false,
+        int finds = FindsTonight(clock);   // 24 Oct 2026 (Days): the thrift find's sale at closing
+        TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned + finds : 0), 0f, 0f, 0f, 24f, DarkText, wrap: false,
             style: FontStyles.Bold, rich: false);
         Vector2 moneySize = money.rectTransform.sizeDelta;
         // Sized for the whole figure; it counts up into that space from the right.
         money.horizontalAlignment = HorizontalAlignmentOptions.Right;
         todayMoney = money;
-        todayEarned = clock != null ? clock.Earned : 0;
+        todayEarned = clock != null ? clock.Earned + finds : 0;
         if (countDue)
         {
             countDue = false;
@@ -1919,7 +1940,7 @@ public sealed class RecapPhone : MonoBehaviour
             DarkLine, DarkText, "details", ToggleDetails, true);
         float bottom = Mathf.Max(Bottom(earned.rectTransform), Bottom((RectTransform)details.transform));
         // What the player's own work earned, apart from the café's guests (they pay at the tables without a pop now).
-        string split = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome) : "";
+        string split = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome, finds) : "";
         if (split.Length > 0)
             bottom = Bottom(Words(card, split, CardPadX, bottom + 6f, ContentWidth - 2f * CardPadX, 18f, DarkFaint, rich: false).rectTransform);
         if (DetailsOpen && clock != null) bottom = DetailsList(card, clock, bottom + 11f);
@@ -2067,8 +2088,60 @@ public sealed class RecapPhone : MonoBehaviour
     }
 
     /// <summary>"$132 from your work · $10 from café guests" when the café's guests paid today; "" when they didn't.</summary>
-    public static string TakingsSplit(int earned, int patronIncome) =>
-        patronIncome <= 0 ? "" : $"${Mathf.Max(0, earned - patronIncome)} from your work · ${patronIncome} from café guests";
+    public static string TakingsSplit(int earned, int patronIncome) => TakingsSplit(earned, patronIncome, 0);
+
+    /// <summary>
+    /// 24 Oct 2026 (Days): with the thrift find's sale at closing, "$132 from your work · $10 from café guests · $55 from your
+    /// finds" (the guests' part only when they paid); "" when neither the guests nor a find added anything.
+    /// <paramref name="earned"/> is DayClock.Earned (the work and the guests), the finds apart from it.
+    /// </summary>
+    public static string TakingsSplit(int earned, int patronIncome, int finds)
+    {
+        if (patronIncome <= 0 && finds <= 0) return "";
+        string split = $"${Mathf.Max(0, earned - Mathf.Max(0, patronIncome))} from your work";
+        if (patronIncome > 0) split += $" · ${patronIncome} from café guests";
+        if (finds > 0) split += $" · ${finds} from your finds";
+        return split;
+    }
+
+    /// <summary>What the thrift find sold for at this closing (0 by day, or when none sold): ThriftShelf's record.</summary>
+    static int FindsTonight(DayClock clock) => clock != null && clock.DayOver ? ThriftShelf.SoldFor(clock.Day) : 0;
+
+    // 24 Oct 2026 (Days): Tonight's two thrift lines, under the takings' split: what sold (in the card's own colour, it is
+    // money) and tomorrow's line (the quiet colour). Their words count against the budget like the split's.
+    float ThriftLines(RectTransform card, DayClock clock, float cy)
+    {
+        TonightSold = clock != null && clock.DayOver ? ThriftShelf.SoldLine(clock.Day) : "";
+        TonightTomorrow = clock != null ? TomorrowLine(clock.Day) : "";
+        TonightSoldWords = TonightTomorrowWords = 0;
+        float width = ContentWidth - 2f * CardPadX;
+        if (TonightSold.Length > 0)
+        {
+            int before = TonightWords;
+            TMP_Text sold = Counted(Words(card, TonightSold, CardPadX, cy + 6f, width, 18f, DarkText, style: FontStyles.Bold, rich: false));
+            sold.name = "Thrift find sold";
+            TonightSoldWords = TonightWords - before;
+            cy = Bottom(sold.rectTransform);
+        }
+        if (TonightTomorrow.Length > 0)
+        {
+            int before = TonightWords;
+            TMP_Text next = Counted(Words(card, TonightTomorrow, CardPadX, cy + 6f, width, 18f, DarkFaint, rich: false));
+            next.name = "Tomorrow";
+            TonightTomorrowWords = TonightWords - before;
+            cy = Bottom(next.rectTransform);
+        }
+        return cy;
+    }
+
+    /// <summary>"Tomorrow: a full house, and a cracked screen." (the next day's DayDefinition.previewLine), or "" when it has none.</summary>
+    public static string TomorrowLine(int today)
+    {
+        CustomerSpawner spawner = Downtime.Spawner;
+        DayDefinition next = spawner != null ? spawner.AuthoredDay(today + 1) : null;
+        string line = next != null ? (next.previewLine ?? "").Trim() : "";
+        return line.Length == 0 ? "" : "Tomorrow: " + line;
+    }
 
     // ------------------------------------------------------------------ Franchise
 
@@ -2190,6 +2263,28 @@ public sealed class RecapPhone : MonoBehaviour
         ShopEconomy till = ShopEconomy.Instance;
         UpgradeManager upgrades = UpgradeManager.Instance;
         y = AppHeader(y, bag, Hex(0xe5efe7), Green, "Shop", till != null ? "In the till: $" + till.Money : "");
+        y = BuildYourCafe(y);   // 24 Oct 2026 (Furniture): the café's furniture first (Close up's "up" still lands on the stock's last button)
+
+        // 26 Oct 2026 (integration): the thrift card sits before the stock card, so the restock (and the upgrades after it) stay
+        // the last buttons the pad reaches going up from Close up (RecapPhoneCheck's pad walk); a free find is always pressable.
+        // 24 Oct 2026 (Days): tomorrow's thrift find, one at a time (his p2: bought at closing, fixed the next day, sold at
+        // closing). Once the shelf is empty: the next day's find and what it sells for; bought, it says so.
+        ThriftShelf shelf = ThriftShelf.Instance;
+        if (shelf != null && DayClock.Instance != null && DayClock.Instance.DayOver)
+        {
+            if (shelf.TomorrowsOffer(out ThriftShelf.Offer find))
+            {
+                y = Section(y, "THRIFT FIND FOR TOMORROW");
+                RectTransform card = CardBox("Thrift find", y);
+                bool afford = till != null && till.Money >= find.buy;
+                float cy = BuyRow(card, 12f, "A thrift " + find.thing, $"{Capital(find.words)}. Sells for about ${find.sale}.", find.bought ? "Bought" : null,
+                    find.bought ? "Bought" : find.buy > 0 ? "$" + find.buy : "Free", "thrift", BuyThriftFind, afford && !find.bought);
+                y = FinishCard(card, cy + 2f, y);
+            }
+            else if (shelf.Find != null)
+                y = HintBox(y, $"Your thrift {shelf.Thing} waits on the shelf for tomorrow.");
+        }
+
 
         if (stock != null)
         {
@@ -2200,7 +2295,8 @@ public sealed class RecapPhone : MonoBehaviour
             cy = StockRow(card, cy, bean, beanCrease, Hex(0x6b3f1f), Hex(0xc9a27a), "Coffee beans", "For the coffee", stock.Beans, stock.BeansLow, true);
             cy = Rule(card, cy);
             bool afford = till != null && till.Money >= stock.RestockCost;
-            cy = BuyRow(card, cy, "Restock cups & beans", $"+{stock.RestockAdds} each, ready for tomorrow", null,
+            // 24 Oct 2026 (Days): a restock goes onto the back shelf (restock by hand, Designer P's §2.5).
+            cy = BuyRow(card, cy, "Restock cups & beans", $"+{stock.RestockAdds} each, on the back shelf", null,
                 "$" + stock.RestockCost, "restock", BuyRestock, afford);
             y = FinishCard(card, cy + 2f, y);
             if (stock.CupsLow || stock.BeansLow)
@@ -2242,6 +2338,92 @@ public sealed class RecapPhone : MonoBehaviour
             y = FinishCard(card, cy + 2f, y);
         }
         return y;
+    }
+
+    // 24 Oct 2026 (Furniture): YOUR CAFÉ, the Shop's first card at closing (furniture-spec.md §1.2; his choice of 23 Oct, "Grow the
+    // café"): a chair, the seats the café has, a line, and one big button, Arrange the café (ArrangeMode: buy, place, move and
+    // sell furniture, only while the café is closed: his answer of 24 Oct, f1). Day 1's line says "Place your first table" until a
+    // piece has been bought. Not on the pause phone, and not in a scene without a café layout (CafeLayout).
+    // 26 Oct 2026 (Icons 2; his note: "i wanted icons for the furniture you can also purchase too"): under the line, what Arrange
+    // sells as pictures, one a kind in the strip's order (the icon sheet's furn_*, NoteIcons.Furniture), the kinds on sale tonight
+    // at full and the rest dimmed as the strip dims them: the card says what's behind its button before it is pressed. No words
+    // added. YourCafeIcons says what was drawn (the Furniture lab reads it). Without the sheet the card is as it was.
+    Sprite chair;
+    const float FurnitureIcon = 44f, FurnitureGap = 8f;
+
+    /// <summary>26 Oct 2026 (Icons 2): the furniture pictures on the YOUR CAFÉ card as last built: "furn_bistro on sale; furn_lounge Day 3; ..." ("" for none).</summary>
+    public string YourCafeIcons { get; private set; } = "";
+
+    float BuildYourCafe(float y)
+    {
+        CafeLayout layout = CafeLayout.Instance;
+        ArrangeMode arrange = ArrangeMode.Instance;
+        YourCafeIcons = "";
+        if (Kind != Mode.Recap || layout == null || arrange == null) return y;
+        if (chair == null) chair = MakeSprite(Drawn("Chair", 64, Rectangle(6f, 3f, 9.5f, 21f), Rectangle(6f, 11.5f, 18f, 14.5f), Rectangle(14.5f, 14.5f, 18f, 21f)), 0f);
+        y = Section(y, "YOUR CAFÉ");
+        RectTransform card = CardBox("Your café", y);
+        float cy = 14f;
+        RectTransform box = Box("Icon", card, CardPadX, cy, 40f, 40f);
+        Paint(box, IconBox, 11f);
+        Picture(box, chair, Green, 9f, 9f, 22f, 22f);
+        float x = CardPadX + 52f, width = ContentWidth - x - CardPadX;
+        int seats = layout.Seats;
+        TMP_Text name = Words(card, $"{seats} seat{(seats == 1 ? "" : "s")}", x, cy + 1f, width, 18f, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text line = Words(card, FirstTableWaiting() ? "Place your first table" : "Tables and plants: moving is free", x, Bottom(name.rectTransform), width, 18f, Soft, rich: false);
+        cy = Mathf.Max(cy + 40f, Bottom(line.rectTransform)) + 12f;
+        cy = FurnitureRow(card, cy, layout);   // 26 Oct 2026 (Icons 2)
+        Button button = Pill(card, "Arrange the café", ContentWidth - CardPadX, cy, 20f, Green, Color.white, "arrange", OpenArrange, arrange.CanOpen);
+        // One big button: the card's whole width.
+        var rect = (RectTransform)button.transform;
+        float height = rect.sizeDelta.y, wide = ContentWidth - 2f * CardPadX;
+        Place(rect, CardPadX, cy, wide, height);
+        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+        if (label != null) Place(label.rectTransform, 0f, 0f, wide, height);
+        return FinishCard(card, cy + height + 14f, y);
+    }
+
+    // 26 Oct 2026 (Icons 2): the kinds' pictures in a row, the ones on sale at full and the rest dimmed; y after the row (unchanged
+    // when the sheet has none of them).
+    float FurnitureRow(RectTransform card, float y, CafeLayout layout)
+    {
+        FurnitureDefinition[] kinds = layout != null && layout.Catalogue != null ? layout.Catalogue.kinds : null;
+        if (kinds == null) return y;
+        var drawn = new StringBuilder();
+        float x = CardPadX;
+        foreach (FurnitureDefinition k in kinds)
+        {
+            if (k == null) continue;
+            string icon = NoteIcons.Furniture(k.name);
+            Sprite sprite = NoteIcons.SpriteOf(icon);
+            if (sprite == null) continue;
+            if (x + FurnitureIcon > ContentWidth - CardPadX) break;   // the row keeps to the card (seven fit with room to spare)
+            bool forSale = layout.ForSale(k);
+            Image picture = Picture(card, sprite, forSale ? Color.white : new Color(1f, 1f, 1f, .4f), x, y, FurnitureIcon, FurnitureIcon);
+            picture.preserveAspect = true;
+            picture.name = "Furniture - " + icon;
+            if (drawn.Length > 0) drawn.Append("; ");
+            drawn.Append(icon).Append(forSale ? " on sale" : " Day " + Mathf.Max(1, k.forSaleFromDay));
+            x += FurnitureIcon + FurnitureGap;
+        }
+        YourCafeIcons = drawn.ToString();
+        return drawn.Length > 0 ? y + FurnitureIcon + 12f : y;
+    }
+
+    void OpenArrange()
+    {
+        ArrangeMode arrange = ArrangeMode.Instance;
+        if (arrange != null) arrange.TryOpen();
+    }
+
+    // Day 1's evening and nothing bought yet (the badge and the card's line).
+    static bool FirstTableWaiting()
+    {
+        CafeLayout layout = CafeLayout.Instance;
+        DayClock clock = DayClock.Instance;
+        if (layout == null || clock == null || clock.Day > 1 || ArrangeMode.Instance == null) return false;
+        foreach (PlacedPiece p in layout.Pieces) if (p != null && !p.FromScene) return false;
+        return true;
     }
 
     // A stock row: its icon, what it is, and how many (red when low).
@@ -2290,6 +2472,16 @@ public sealed class RecapPhone : MonoBehaviour
         if (UpgradeShopUI.TryRestock()) Sfx.Play2D("phone.tap");
         RebuildNow();
     }
+
+    // 24 Oct 2026 (Days): tomorrow's thrift find (ThriftShelf), saved with the next checkpoint (Open Tomorrow).
+    void BuyThriftFind()
+    {
+        ThriftShelf shelf = ThriftShelf.Instance;
+        if (shelf != null && shelf.TryBuyTomorrow()) Sfx.Play2D("phone.tap");
+        RebuildNow();
+    }
+
+    static string Capital(string words) => string.IsNullOrEmpty(words) ? "" : char.ToUpperInvariant(words[0]) + words.Substring(1);
 
     void BuyUpgrade(UpgradeDefinition def)
     {

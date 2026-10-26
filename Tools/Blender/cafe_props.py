@@ -577,9 +577,9 @@ def olive_tree():
     Olea europaea as a potted standard, 1.70 m, in a 0.40 terracotta pot on a saucer (NC State: leaves up to 3 in,
     elliptical to lanceolate, opposite, grayish-green above and silver beneath; the bark gnarled, furrowed and
     twisted). A fluted, twisting trunk to 1.0 m, four branches and their side shoots, and an airy crown of 16 small
-    faceted leaf masses with gaps between them, each fringed with ten narrow leaves 7-8 cm long: the grey-green tops
-    and silver undersides are two materials, so the crown flickers silver from below and reads grey-green from above.
-    The pair by the door is one mesh placed twice.
+    faceted leaf masses with gaps between them, trimmed round like a clipped standard (their fringe of narrow leaves came
+    off on 24 Oct 2026: it read as spikes, art audit a53): the grey-green tops and silver undersides are two materials,
+    so the crown shows silver from below and grey-green from above. The pair by the door is one mesh placed twice.
     """
     p = Piece('CK_OliveTree')
     rnd = random.Random(37)
@@ -617,22 +617,12 @@ def olive_tree():
         for v in lump.verts:
             v.co = c0 + (v.co - c0) * rnd.uniform(0.85, 1.12)
         p.add_by_normal('leaf mass', lump, top, under)
-        away = c0 - crown_c
-        away = away.normalized() if away.length > 1e-6 else Vector((0, 0, 1))
-        for j in range(10):
-            # a point on the mass, all round it but more on its outer side
-            a = 2 * math.pi * (j + rnd.uniform(-0.3, 0.3)) / 10
-            el = math.radians(rnd.uniform(-60, 65))
-            dirn = Vector((math.cos(a) * math.cos(el), math.sin(a) * math.cos(el), math.sin(el)))
-            dirn = (dirn + away * 0.5).normalized()
-            base = c0 + dirn * (r * 0.60)            # rooted inside the mass (its facets sit at about 0.7 r)
-            # the leaf lies along the surface, pointing downhill and round, its tip lifted 18 degrees off it
-            downhill = Vector((0, 0, -1)) - dirn * (-dirn.z)
-            downhill = downhill.normalized() if downhill.length > 1e-6 else dirn.orthogonal().normalized()
-            tang = (Matrix.Rotation(math.radians(rnd.uniform(-75, 75)), 3, dirn) @ downhill).normalized()
-            ld = (tang * math.cos(math.radians(18)) + dirn * math.sin(math.radians(18))).normalized()
-            L = rnd.uniform(0.070, 0.085) + 0.012
-            p.add_by_normal('leaf', kite_leaf(base, ld, dirn, L, L * 0.18, fold=0.12), top, under)
+        # The fringe of narrow leaves is gone (24 Oct 2026, art audit a53: "The tree tops are blocky balls bristling with
+        # leaf shards like spikes. At eye level they read as a cactus or thorny pods, not soft olive leaves"; the fix:
+        # "delete the spiky leaf cards so the soft balls read as a trimmed tree"). Their ten leaves' four random draws
+        # each are still taken, so every mass after this one comes out exactly as it was.
+        for _ in range(10 * 4):
+            rnd.random()
     p.masses = len(lumps)
     return p
 

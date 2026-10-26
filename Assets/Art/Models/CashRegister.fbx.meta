@@ -12,6 +12,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: CF_TillKeys
+    second: {fileID: 2100000, guid: 96e914e1dadd74bc7839abe3bb7d9194, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: CF_TillScreen
+    second: {fileID: 2100000, guid: 12d47bb3e4f194b38b51613e1bc98c00, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: DC_Ceramic
     second: {fileID: 2100000, guid: 047bc5e4595292b43b31188f9ba23a7c, type: 2}
   - first:

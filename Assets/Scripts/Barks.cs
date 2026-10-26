@@ -91,6 +91,7 @@ public sealed class Barks : MonoBehaviour
         public bool active, self, scene, answered, clamped, slotted, tailShown;
         public Transform speaker;
         public string speakerId = "", line = "";
+        public string icon = "";   // 26 Oct 2026 (Icons on notes): the note chip drawn before line (NoteIcons), or ""
         public float shownAt, holdUntil, alpha;
         public Vector2 size, anchor;
         public Rect placed;
@@ -342,7 +343,7 @@ public sealed class Barks : MonoBehaviour
             float s = Instance.canvas != null && Instance.canvas.scaleFactor > 0f ? Instance.canvas.scaleFactor : 1f;
             shown = new Shown
             {
-                text = v.line, alpha = v.group.alpha, clamped = v.clamped, slotted = v.slotted, tail = v.tailShown,
+                text = v.line, icon = v.text != null && v.icon.Length > 0 && v.text.text != v.line ? v.icon : "", alpha = v.group.alpha, clamped = v.clamped, slotted = v.slotted, tail = v.tailShown,
                 arrow = v.arrowRect.gameObject.activeSelf,
                 anchor = v.anchor * s,
                 band = new Rect(v.placed.x * s, v.placed.y * s, v.placed.width * s, v.placed.height * s),
@@ -356,6 +357,8 @@ public sealed class Barks : MonoBehaviour
     public struct Shown
     {
         public string text;
+        /// <summary>26 Oct 2026 (Icons on notes): the note chip drawn before text (a NoteIcons name), or "".</summary>
+        public string icon;
         public float alpha;
         public bool clamped, slotted, tail, arrow;
         /// <summary>The speaker's head point projected (screen pixels), or the slot for Ace in first person.</summary>
@@ -426,7 +429,7 @@ public sealed class Barks : MonoBehaviour
         return d.sqrMagnitude <= hearing * hearing;
     }
 
-    bool Show(Transform speaker, string speakerId, string text, float seconds, bool scene, bool self, bool needHearing)
+    bool Show(Transform speaker, string speakerId, string text, float seconds, bool scene, bool self, bool needHearing, string icon = "")
     {
         if (string.IsNullOrWhiteSpace(text) || speaker == null && !self) return false;
         if (needHearing && !Heard(speaker)) return false;
@@ -448,6 +451,7 @@ public sealed class Barks : MonoBehaviour
         v.speaker = speaker;
         v.speakerId = speakerId ?? "";
         v.line = text;
+        v.icon = icon ?? "";   // 26 Oct 2026 (Icons on notes)
         v.shownAt = clock;
         v.holdUntil = clock + (seconds > 0f ? seconds : Rules.ReadingSeconds(text));
         if (v.alpha <= .01f) v.alpha = 0f;
@@ -689,7 +693,8 @@ public sealed class Barks : MonoBehaviour
         foreach (View v in views) if (v.active && v.scene) v.answered = true;
         float reading = Rules.ReadingSeconds(text);
         bool self = speakerId == AceId;
-        Show(speaker, speakerId, text, reading + sceneBeat + 2f, scene: true, self: self, needHearing: false);
+        // 26 Oct 2026 (Icons on notes): his ask (the line that names the errand) wears its chip; every other line is words.
+        Show(speaker, speakerId, text, reading + sceneBeat + 2f, scene: true, self: self, needHearing: false, icon: NoteIcons.ForLineId(play.ids[play.index]));
         play.lineStarted = clock;
         play.lineEnds = clock + reading + sceneBeat;
         string id = play.ids[play.index];
@@ -1105,12 +1110,15 @@ public sealed class Barks : MonoBehaviour
         Color colour = ColourOf(v.speakerId);
         v.accent.color = colour;
         v.arrow.color = colour;
-        v.text.text = v.line;
         float textMax = maxWidth - PadLeft - PadRight;
-        Vector2 preferred = v.text.GetPreferredValues(v.line, textMax, 0f);
+        // 26 Oct 2026 (Icons on notes): the chip before the words when it costs no line (v.line stays the words, for the labs).
+        string chip = NoteIcons.Chip(v.text, v.icon, v.line, textMax), shown = chip + v.line;
+        v.text.text = shown;
+        Vector2 preferred = v.text.GetPreferredValues(shown, textMax, 0f);
         float lineHeight = fontSize * 1.32f;
         float width = Mathf.Min(textMax, Mathf.Ceil(preferred.x) + 2f);
-        float height = Mathf.Min(lineHeight * 2f, Mathf.Max(lineHeight, Mathf.Ceil(preferred.y)));
+        // (The chip is a little taller than a line of words: the plate's two-line cap gives it that room.)
+        float height = Mathf.Min(lineHeight * 2f + (chip.Length > 0 ? fontSize * .6f : 0f), Mathf.Max(lineHeight, Mathf.Ceil(preferred.y)));
         v.size = new Vector2(width + PadLeft + PadRight, height + 2f * PadY);
         v.bandRect.sizeDelta = v.size;
         v.bandRect.anchoredPosition = Vector2.zero;

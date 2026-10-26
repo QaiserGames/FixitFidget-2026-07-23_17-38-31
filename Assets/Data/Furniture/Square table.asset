@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0694821abf8fe463d83f3f81e22ec172, type: 3}
+  m_Name: Square table
+  m_EditorClassIdentifier: Assembly-CSharp::FurnitureDefinition
+  displayName: Square table
+  prefab: {fileID: 6020737925209105688, guid: a56db7eb914c64932a16ff635d5ce4ae, type: 3}
+  variants: []
+  variantNames: []
+  price: 90
+  seats: 2
+  forSaleFromDay: 1
+  againstAWall: 0
+  zone: square table

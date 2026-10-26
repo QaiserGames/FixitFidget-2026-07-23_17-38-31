@@ -106,6 +106,10 @@ public sealed class Juice : MonoBehaviour
     /// </summary>
     public static event System.Action<JobBase> OnFixed;
 
+    // 26 Oct 2026 (HUD 3): the pay pop is where a payment is earned; the HUD's jar (HudMoney) flies the bill from it. Raised
+    // by Money() with the payer, the amounts and the pop's delay (it appears that long after the call).
+    public static event System.Action<Transform, int, int, float> Paid;
+
     sealed class Pop
     {
         public RectTransform root;
@@ -236,9 +240,12 @@ public sealed class Juice : MonoBehaviour
         Vector2 words = pop.text.GetPreferredValues(pop.text.text, 999f, 999f);
         pop.root.sizeDelta = new Vector2(Mathf.Ceil(words.x) + 30f, more.Length > 0 ? Mathf.Ceil(words.y) + 16f : 46f);
         pop.chip.enabled = true;
-        pop.chip.color = UiSkin.Brand;
+        // 26 Oct 2026 (HUD 3): the deep green, not the brand green: M2 measured "+$3 tip" in gold on the brand green at 4.28:1
+        // (a fail under 26 px); on the deep green it is 6.9:1, and "+$12" goes from 4.53 to 7.3:1.
+        pop.chip.color = UiSkin.BrandDeep;
         j.Show(pop, who, Vector3.zero, new Vector2(84f, 34f), more.Length > 0 ? MoneyToldLife : MoneyLife);
         pop.born += Mathf.Max(0f, delay);
+        Paid?.Invoke(who, amount, tip, Mathf.Max(0f, delay));   // 26 Oct 2026 (HUD 3): the HUD's jar flies the bill from here
     }
 
     /// <summary>

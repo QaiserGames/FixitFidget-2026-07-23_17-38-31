@@ -21,18 +21,18 @@ MonoBehaviour:
     spawnInterval: 37.3
   - phaseName: Morning rush
     startsAt: 0.15
-    spawnInterval: 16.3
+    spawnInterval: 18
   - phaseName: Lull
     startsAt: 0.38
-    spawnInterval: 60.7
+    spawnInterval: 50
   - phaseName: Lunch rush
     startsAt: 0.58
-    spawnInterval: 14
+    spawnInterval: 16
   - phaseName: Last orders
     startsAt: 0.82
-    spawnInterval: 35
-  patienceMultiplier: 1
-  maxCustomers: 6
+    spawnInterval: 32
+  patienceMultiplier: 1.3
+  maxCustomers: 3
   drinkOnlyChance: 0.25
   guidedOpening: 0
   openingDrink: {fileID: 0}
@@ -54,3 +54,11 @@ MonoBehaviour:
     storyEpisodeId: 
   storyVisits: []
   walkInRepairs: []
+  thriftFind:
+    devicePrefab: {fileID: 0}
+    faultIndex: 0
+    storyEpisodeId: 
+  thriftBuy: 0
+  thriftSale: 0
+  gossip: []
+  previewLine: 

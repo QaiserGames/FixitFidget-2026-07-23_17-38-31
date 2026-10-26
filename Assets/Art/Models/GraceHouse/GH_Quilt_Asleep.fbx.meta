@@ -7,6 +7,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: GH_Hair
+    second: {fileID: 2100000, guid: e9366dc1f544d48b786e07237d590c63, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: GH_Lace
     second: {fileID: 2100000, guid: 0291533387c5738478e45ea3487158b1, type: 2}
   - first:

@@ -7,14 +7,14 @@
    "name": "LI_PickupRow",
    "group": "Repair side",
    "what": "R1: seven finished repairs waiting for pickup, bagged and tagged; the cherry-red radio the accent",
-   "tris": 1840,
+   "tris": 4516,
    "size": [
     2.83,
     0.325,
-    0.247
+    0.248
    ],
    "bottom": 0.0,
-   "back": 0.09,
+   "back": 0.091,
    "materials": [
     "LI_RadioRed",
     "DC_SteelDark",
@@ -30,7 +30,7 @@
     "DC_Sticker_Green",
     "LI_Tape"
    ],
-   "islands": 40,
+   "islands": 49,
    "origin": "bottom centre",
    "placement": {
     "position": [
@@ -54,7 +54,7 @@
    "name": "LI_DeskCorner",
    "group": "Repair side",
    "what": "R2: Ace's desk corner: parts cabinet, spool rack, multimeter, ticket pad, post-its, tape, steel rule, his green mug",
-   "tris": 2988,
+   "tris": 5184,
    "size": [
     1.22,
     0.222,
@@ -78,7 +78,7 @@
     "LI_Tape",
     "DC_Sticker_Green"
    ],
-   "islands": 47,
+   "islands": 129,
    "origin": "bottom centre (the bench top)",
    "placement": {
     "position": [

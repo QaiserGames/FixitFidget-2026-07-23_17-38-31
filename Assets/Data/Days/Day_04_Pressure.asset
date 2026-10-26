@@ -18,18 +18,18 @@ MonoBehaviour:
   phases:
   - phaseName: Calm
     startsAt: 0
-    spawnInterval: 42
+    spawnInterval: 36
   - phaseName: Build
     startsAt: 0.2
-    spawnInterval: 28
+    spawnInterval: 20
   - phaseName: Rush
     startsAt: 0.42
-    spawnInterval: 16.3
+    spawnInterval: 15
   - phaseName: Recover
     startsAt: 0.75
-    spawnInterval: 37.3
-  patienceMultiplier: 1
-  maxCustomers: 6
+    spawnInterval: 26
+  patienceMultiplier: 1.45
+  maxCustomers: 3
   drinkOnlyChance: 0.28
   guidedOpening: 0
   openingDrink: {fileID: 0}
@@ -50,4 +50,24 @@ MonoBehaviour:
     faultIndex: 0
     storyEpisodeId: 
   storyVisits: []
-  walkInRepairs: []
+  walkInRepairs:
+  - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+    faultIndex: 2
+    storyEpisodeId: 
+  - devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+    faultIndex: 1
+    storyEpisodeId: 
+  - devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+    faultIndex: 0
+    storyEpisodeId: 
+  - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+    faultIndex: 3
+    storyEpisodeId: 
+  thriftFind:
+    devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+    faultIndex: 1
+    storyEpisodeId: 
+  thriftBuy: 35
+  thriftSale: 110
+  gossip: []
+  previewLine: a frozen phone, and three at once.

@@ -95,6 +95,13 @@ Shader "Fixit Fidget/Bench outline"
                 float distanceToEye = max(length(toEye), 1e-4);
                 OUT.rim = 1.0 - abs(dot(normalWS, toEye / distanceToEye));
                 positionWS += normalWS * _Width * max(distanceToEye, 0.05);
+                // 26 Oct 2026 (Art fixes) a25: "the amber help line breaks into dashes along the frame's edge and floats in pieces
+                // over the middle" (the art audit, 23 Oct; "two surfaces fight at the same depth"). The hidden pass took any surface a
+                // hair in front of the hull as "covering" it, so a part lying flush in the phone's frame drew dashes along the frame
+                // and over the coil. Now it is tested a little nearer the eye (1.5 mm plus 1 % of the distance, about 5.5 mm at the
+                // bench's 0.4 m): only something really in front of the part counts as covering it (the camera body, a tool: centimetres;
+                // parts under a cover get no glow at all, GrimeSpot.CoveredBy), and a flush neighbour doesn't.
+                positionWS += (toEye / distanceToEye) * (0.0015 + 0.01 * distanceToEye);
                 OUT.positionHCS = TransformWorldToHClip(positionWS);
                 return OUT;
             }

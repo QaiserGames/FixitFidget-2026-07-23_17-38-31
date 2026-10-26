@@ -18,9 +18,11 @@ public class CupStack : Interactable
             PlayerCarry carry = PlayerCarry.Current;
             if (carry == null) return false;
 
+            // 24 Oct 2026 (Days): a crate from the back shelf fills the machine (restock by hand).
+            if (StockCrate.InHand(carry) != null) return true;
             if (carry.IsCarrying) return HeldCup(carry) != null;
 
-            return ShopInventory.Instance != null && ShopInventory.Instance.Cups > 0;
+            return ShopInventory.Instance != null && ShopInventory.Instance.MachineCups > 0;
         }
     }
 
@@ -47,6 +49,7 @@ public class CupStack : Interactable
         {
             PlayerCarry carry = PlayerCarry.Current;
 
+            if (StockCrate.InHand(carry) != null) return BeverageCupSupply.RefillWords;
             if (carry != null && carry.IsCarrying)
             {
                 DrinkJob cup = HeldCup(carry);
@@ -57,8 +60,8 @@ public class CupStack : Interactable
                     : $"Pour away the {cup.Drink.drinkName}";
             }
 
-            if (ShopInventory.Instance != null && ShopInventory.Instance.Cups <= 0)
-                return "Out of cups";
+            if (ShopInventory.Instance != null && ShopInventory.Instance.MachineCups <= 0)
+                return BeverageCupSupply.NoCupsWords(ShopInventory.Instance);
 
             return "Take a cup";
         }
@@ -73,6 +76,16 @@ public class CupStack : Interactable
     {
         PlayerCarry carry = player.GetComponent<PlayerCarry>();
         if (carry == null) return;
+
+        // 24 Oct 2026 (Days): the crate from the back shelf fills the machine back to 12 of each.
+        StockCrate crate = StockCrate.InHand(carry);
+        if (crate != null)
+        {
+            if (ShopInventory.Instance != null) ShopInventory.Instance.Refill();
+            Destroy(crate.gameObject);
+            Sfx.Play("cup.return", transform.position);
+            return;
+        }
 
         // Putting an unwanted one back, or pouring one away. Either way the cup
         // itself returns to stock — it's the beans that are gone.

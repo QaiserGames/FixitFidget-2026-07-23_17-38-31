@@ -38,7 +38,7 @@
   {
    "room": "Landing",
    "what": "one of the bedroom's pair of doors (0.70 m)",
-   "tris": 416,
+   "tris": 576,
    "size": [
     0.699,
     0.164,
@@ -49,7 +49,7 @@
     "T2_Brass",
     "DC_SteelDark"
    ],
-   "islands": 18,
+   "islands": 10,
    "name": "GH_BedroomDoor_Leaf",
    "floating": []
   },
@@ -90,17 +90,18 @@
   {
    "room": "Bedroom",
    "what": "the quilt with her asleep under it",
-   "tris": 408,
+   "tris": 940,
    "size": [
-    1.41,
-    1.52,
-    0.395
+    1.462,
+    1.708,
+    0.515
    ],
    "materials": [
     "GH_Quilt",
-    "GH_Lace"
+    "GH_Lace",
+    "GH_Hair"
    ],
-   "islands": 6,
+   "islands": 9,
    "name": "GH_Quilt_Asleep",
    "floating": []
   },
@@ -235,6 +236,7 @@
   "GH_Tape": "#CDB57E",
   "GH_Glass_Dark": "#2A3438",
   "GH_Quilt": "#8A9DC0",
-  "GH_Mirror": "#C9D6DE"
+  "GH_Mirror": "#C9D6DE",
+  "GH_Hair": "#C9A15A"
  }
 }

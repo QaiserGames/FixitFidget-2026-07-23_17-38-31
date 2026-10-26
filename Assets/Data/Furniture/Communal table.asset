@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0694821abf8fe463d83f3f81e22ec172, type: 3}
+  m_Name: Communal table
+  m_EditorClassIdentifier: Assembly-CSharp::FurnitureDefinition
+  displayName: Communal table
+  prefab: {fileID: 7349701112773306726, guid: 8263eb7430e804839b21d6cf16fd8517, type: 3}
+  variants: []
+  variantNames: []
+  price: 360
+  seats: 8
+  forSaleFromDay: 3
+  againstAWall: 0
+  zone: communal table

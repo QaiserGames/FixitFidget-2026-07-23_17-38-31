@@ -3,50 +3,102 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 
+// ---------------------------------------------------------------------------
+// A TICKET ON THE RAIL (26 Oct 2026 (HUD 3); first skinned 7 Oct 2026 for playtest 3, session 3; remade 19 Oct after her
+// playtest 7)
+//
+// His note (26 Oct, on round 2's folding dockets): "i like the way the tickets patience bar is set up, its a circle that
+// circles around their name which is honestly very smart but i still would like everyones ticket to be visibly seen and have
+// nice big bold icons for each item, like a coffee, tea, etc, clock". And 24 Oct: a fourth ticket must never start a second
+// row ("No, find another way").
+//
+// So a ticket is a paper docket (cream, a torn foot, the customer's colour as tape over its top-left corner) that says WHO,
+// WHAT and HOW URGENT without a sentence:
+//   WHO         the face (or the initial) inside the PATIENCE RING: the ring empties clockwise from the top as patience goes,
+//               green, then gold, then red; under a quarter the ring and the face's rim turn red and the docket pulses once a
+//               second; the name beside it (24 px bold) or under it (22 px);
+//   WHAT        BIG BOLD ICONS of each item, 36 px: the device (a phone, a watch, a camera: NoteIcons.ForDevice, the icon
+//               sheet's item_*), then each drink (the cup: JobTicket.DrinkIconName, drink_*), and A CLOCK (item_clock) once
+//               patience is under half, red and pulsing under a quarter: "they've waited long enough". Without the sheet an
+//               icon is a dark chip with the item's initial;
+//   THE WORDS   the fault as a sentence ("Dirty lens and film path", 22 px, two lines at most) only on the wide docket; the
+//               hover details carry the whole job in words on any form.
+// Three forms, chosen by the rail (TicketRailUI): WIDE (236 x 144, up to three tickets), NARROW (96 x 144: the face and ring
+// over the name over the icons; from four tickets, every ticket the same, all visible, one row) and the CHIP at the bench
+// (160 x 44: the face in its ring, the icons, the tape, no words; a ringing support call keeps its icon and seconds). The
+// prefab's own parts (the background, SlotText, JobText, PatienceFill) are reused; everything else is made in code.
+// ---------------------------------------------------------------------------
 public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
+    public enum Form { Wide, Narrow, Chip }
+
     [SerializeField] private TMP_Text slotText;
     [SerializeField] private TMP_Text jobText;
     [SerializeField] private Image patienceFill;
     [SerializeField] private Image background;
-    private Image portrait, portraitFrame;
-    private TMP_Text portraitInitial, moodText, drinkText;
-    private RectTransform callLine, detailPanel;
+
+    // Sizes (reference pixels).
+    public const float WideWidth = 236f, NarrowWidth = 96f, Height = 144f, FootHeight = 10f;
+    public const float RingSize = 52f, RingStroke = 4.5f, FaceSize = 40f, ChipRingSize = 36f, ChipFaceSize = 28f;
+    public const float IconSize = 36f, IconGap = 6f, ChipIconSize = 28f, NameSize = 24f, NarrowNameSize = 22f, FaultSize = 22f;
+    private static readonly Color Ink = UiSkin.Ink;
+    private static readonly Color UrgentInk = UiSkin.Red;
+
+    private Image portrait, portraitFrame, ringTrack, tape, foot;
+    private TMP_Text portraitInitial;
+    private RectTransform ring, callLine, detailPanel, iconsRow;
     private SupportCallIcon callIcon;
     private TMP_Text callState, callSeconds, detailText;
-    private bool wasSupport, pointerOver;
-    private float cardWidth = 220, cardHeight = 118;
-    // The UI skin (playtest 3, session 3): the phone's cream paper and dark ink, the customer's colour as a strip of tape
-    // across the top corner (the spec's tab, claude/hud-spec.md §3), one chunky patience meter on a track.
-    // 19 OCT 2026 (playtest 7; her: "your text needs to be bolder"; the reviewers: the tabs' lines are 11-12 px at 1080p, the
-    // smallest type on screen): the name 20 px bold, the mood 16, the device and fault 18 semibold (the fault in sentence
-    // case, "Dirty lens and film path", not the ticket's Title Case id), the drink line 20 semibold with the drink's icon;
-    // the details panel has no "Patience: X%" (the bar already shows it) and no number anywhere.
-    private static readonly Color Ink = UiSkin.Ink;
-    private static readonly Color MutedInk = UiSkin.InkSoft;
-    private static readonly Color UrgentInk = UiSkin.Red;
-    private Image tape, patienceTrack;
-    private bool skinned;
-    // At the bench (checklist v2, 14 Oct 2026): a chip of 160 x 44 with the face, the tape and the bar, no words (TicketRailUI
-    // says why). A ringing support call keeps its icon and its seconds.
-    private bool compact;
+    private CanvasGroup wordsGroup;
+    private readonly Image[] itemIcons = new Image[3];
+    private readonly TMP_Text[] itemInitials = new TMP_Text[3];
+    private readonly string[] itemNames = new string[3];
+    private Image clockIcon;
+    private TMP_Text clockInitial;
+    private bool wasSupport, pointerOver, built, compactRinging;
+    private float cardWidth = WideWidth, cardHeight = Height, wordsShownAt = -10f;
+    private Form form = Form.Wide, laidOut = (Form)(-1);
+    private float laidOutWidth = -1f;
 
     public CustomerBrain Target { get; private set; }
 
-    /// <summary>The tab is a chip (at the bench): the face, the tape and the bar; no name, mood, fault or drink.</summary>
-    public bool Compact => compact;
+    /// <summary>The form the rail gave this ticket.</summary>
+    public Form Shape => form;
+    /// <summary>The tab is a chip (at the bench): the face in its ring, the icons and the tape; no words.</summary>
+    public bool Compact => form == Form.Chip;
+    /// <summary>The icons the ticket shows now, in order ("item_camera, drink_latte, item_clock"); a chip with an initial counts by its name.</summary>
+    public string Items
+    {
+        get
+        {
+            var b = new System.Text.StringBuilder();
+            for (int i = 0; i < itemIcons.Length; i++)
+                if (itemIcons[i] != null && itemIcons[i].gameObject.activeSelf && !string.IsNullOrEmpty(itemNames[i])) { if (b.Length > 0) b.Append(", "); b.Append(itemNames[i]); }
+            if (clockIcon != null && clockIcon.gameObject.activeSelf) { if (b.Length > 0) b.Append(", "); b.Append(NoteIcons.ItemClock); }
+            return b.ToString();
+        }
+    }
+    /// <summary>The ring's fill (the patience) as drawn.</summary>
+    public float RingFill => patienceFill != null ? patienceFill.fillAmount : 0f;
+    /// <summary>True while the clock icon is up (patience under half).</summary>
+    public bool ClockShowing => clockIcon != null && clockIcon.gameObject.activeSelf;
 
     /// <summary>
-    /// The chip's pulse at the bench under a quarter of patience left: 1.0 to 1.06 and back once a second (the rail multiplies
-    /// the tab's scale by it); 1 otherwise.
+    /// The pulse under a quarter of patience left: 1.0 to 1.03 and back once a second (the rail multiplies the ticket's scale
+    /// by it); 1 otherwise.
     /// </summary>
-    public float PulseScale => compact && Target != null && Target.PatienceFraction <= .25f
-        ? 1f + .03f * (1f - Mathf.Cos(UiClock.Now * Mathf.PI * 2f)) : 1f;
+    public float PulseScale => Target != null && Target.PatienceFraction <= .25f
+        ? 1f + .015f * (1f - Mathf.Cos(UiClock.Now * Mathf.PI * 2f)) : 1f;
 
-    public void SetCompact(bool on)
+    /// <summary>The chip at the bench, or back to the rail's form (kept for the older callers; the rail uses SetForm).</summary>
+    public void SetCompact(bool on) => SetForm(on ? Form.Chip : form == Form.Chip ? Form.Wide : form);
+
+    public void SetForm(Form wanted)
     {
-        if (compact == on) return;
-        compact = on;
+        if (form == wanted) return;
+        bool wordsBack = wanted == Form.Wide && form != Form.Wide;
+        form = wanted;
+        if (wordsBack) wordsShownAt = UiClock.Now + .12f;   // the words fade in 120 ms after the docket has opened, so text never squashes
         ConfigureLayout();
         Refresh();
     }
@@ -57,16 +109,17 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         wasSupport = false;
         pointerOver = false;
         if (detailPanel != null) detailPanel.gameObject.SetActive(false);
-        EnsureIdentity();
+        EnsureBuilt();
         ConfigureLayout();
         if (Target == null) return;
         if (slotText != null) slotText.text = brain.CustomerName;
         if (background != null)
         {
-            // Only the small card takes pointer hits; the room shows through its paper a little.
-            background.color = new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .93f);
+            // Only the card takes pointer hits; the room shows through its paper a little.
+            background.color = new Color(UiSkin.Paper.r, UiSkin.Paper.g, UiSkin.Paper.b, .94f);
             background.raycastTarget = true;
         }
+        if (foot != null) foot.color = background != null ? background.color : UiSkin.Paper;
         if (tape != null)
         {
             Color c = brain.JobColor;
@@ -83,33 +136,15 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         float patience = Target.PatienceFraction;
         RefreshIdentity(patience);
         var call = Target.ActiveJob as HoldCallJob;
+        bool ringing = false;
         if (call != null)
         {
             wasSupport = true;
             var phase = call.CurrentPhase;
-            bool ringing = phase == HoldCallRun.State.Ringing;
-            if (callLine == null)
-            {
-                BuildCallLine();
-                if (compact) ConfigureLayout();
-            }
-            // A chip at the bench shows the call only while it rings (its icon and its seconds).
-            if (compact && ringing != compactRinging)
-            {
-                compactRinging = ringing;
-                ConfigureLayout();
-            }
-            callLine.gameObject.SetActive(!compact || ringing);
-            if (jobText != null && !compact)
-            {
-                // With a call on the card there is no room for the mood line at these sizes: the call's own state ("Answer
-                // now") and the portrait's frame carry the urgency while it lasts.
-                if (moodText != null && moodText.gameObject.activeSelf) moodText.gameObject.SetActive(false);
-                Place(jobText.rectTransform, new Vector2(8, -28), new Vector2(cardWidth - 16, 22));
-                jobText.textWrappingMode = TextWrappingModes.NoWrap;
-                jobText.text = Target.Record != null ? Target.Record.deviceName : "Support phone";
-            }
-            SetDrinkLine(Target.HasDrinkOrder && Target.WantedDrink != null ? DrinkLine(Target.WantedDrink) : "", 50);
+            ringing = phase == HoldCallRun.State.Ringing;
+            if (callLine == null) BuildCallLine();
+            if (form == Form.Chip && ringing != compactRinging) { compactRinging = ringing; ConfigureLayout(); }
+            callLine.gameObject.SetActive(form != Form.Chip || ringing);
             callIcon.Show(phase, Time.time);
             callState.text = phase switch
             {
@@ -128,28 +163,18 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         else
         {
             if (callLine != null) callLine.gameObject.SetActive(false);
-            if (compactRinging)
-            {
-                compactRinging = false;
-                ConfigureLayout();
-            }
-            // A long fault must never push a voiced secondary drink off the card.
-            bool secondaryDrink = Target.Record != null && Target.Record.kind == JobKind.Repair
-                && Target.HasDrinkOrder && Target.WantedDrink != null;
-            SetDrinkLine(secondaryDrink ? DrinkLine(Target.WantedDrink) : "", cardHeight - 34);
-            if (jobText != null && !compact)
-            {
-                if (moodText != null && !moodText.gameObject.activeSelf) moodText.gameObject.SetActive(true);
-                // The device and its fault, two lines at 18 px (one of them wrapped when the fault is long); with a drink the
-                // box stops over the drink's row, else a little over the bar.
-                Place(jobText.rectTransform, new Vector2(8, -41),
-                    new Vector2(cardWidth - 16, cardHeight - (secondaryDrink ? 77 : 55)));
-                jobText.textWrappingMode = TextWrappingModes.Normal;
-                // Delivery removes the repair obligation, even if a drink remains.
-                jobText.text = Target.Record != null && Target.Record.kind == JobKind.Repair && Target.ActiveJob == null
-                    ? "" : wasSupport && Target.ActiveJob == null ? "" : Lines();
-            }
+            if (compactRinging) { compactRinging = false; ConfigureLayout(); }
         }
+        // The words (the wide docket only): the fault as a sentence; nothing once the repair has been handed back.
+        if (jobText != null)
+        {
+            bool delivered = Target.Record != null && Target.Record.kind == JobKind.Repair && Target.ActiveJob == null;
+            string words = form == Form.Wide && call == null ? (delivered || (wasSupport && Target.ActiveJob == null) ? "" : Lines()) : "";
+            if (jobText.text != words) jobText.text = words;
+            if (wordsGroup != null) wordsGroup.alpha = form == Form.Wide ? Mathf.Clamp01((UiClock.Now - wordsShownAt) / .12f) : 0f;
+        }
+        RefreshItems(patience, call != null);
+        // The ring: it empties clockwise from the top; green, then gold, then red.
         if (patienceFill != null)
         {
             patienceFill.fillAmount = patience;
@@ -158,70 +183,100 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         }
         // Details use the pointer only when existing game controls have released it; never from a chip at the bench (the
         // bench's cursor passes over the tabs, and the details are words).
-        bool showDetails = !compact && pointerOver && Cursor.lockState != CursorLockMode.Locked;
+        bool showDetails = form != Form.Chip && pointerOver && Cursor.lockState != CursorLockMode.Locked;
         if (showDetails) RefreshDetails(call);
         else if (detailPanel != null) detailPanel.gameObject.SetActive(false);
     }
 
-    private void EnsureIdentity()
-    {
-        if (portrait != null) return;
-        Skin();
-        portraitFrame = RepairOverlayUI.Panel("Customer portrait frame", transform,
-            new Vector2(6, -3), new Vector2(34, 34), MutedInk);
-        UiSkin.Round(portraitFrame, 9f);
-        portrait = RepairOverlayUI.Panel("Customer portrait", portraitFrame.transform,
-            new Vector2(1, -1), new Vector2(32, 32), Color.white);
-        portrait.preserveAspect = true;
-        portraitInitial = RepairOverlayUI.Text("Customer initial", portraitFrame.transform,
-            Vector2.zero, new Vector2(34, 34), 22, Ink);
-        portraitInitial.alignment = TextAlignmentOptions.Center;
-        portraitInitial.fontStyle = FontStyles.Bold;
-        moodText = RepairOverlayUI.Text("Customer mood", transform,
-            new Vector2(46, -24), new Vector2(cardWidth - 54, 18), 16, MutedInk);
-        moodText.textWrappingMode = TextWrappingModes.NoWrap;
-        drinkText = RepairOverlayUI.Text("Drink obligation", transform,
-            new Vector2(8, -86), new Vector2(cardWidth - 16, 24), 20, Ink);
-        drinkText.textWrappingMode = TextWrappingModes.NoWrap;
-        drinkText.fontStyle = UiSkin.SemiBold;
-        drinkText.richText = true;   // the drink's icon is a sprite tag
-        // 20 Oct: a long drink name on the narrowest card steps down to 17 px rather than run off it (20 px otherwise).
-        drinkText.enableAutoSizing = true; drinkText.fontSizeMin = 17f; drinkText.fontSizeMax = 20f;
-        foreach (TMP_Text t in new[] { portraitInitial, moodText, drinkText }) UiSkin.UseFont(t);
-    }
+    // ---------- the pieces, made once ----------
 
-    // The card in the skin, once: rounded paper with a soft shadow, the tape, the meter's track, the skin's lettering.
-    private void Skin()
+    private void EnsureBuilt()
     {
-        if (skinned) return;
-        skinned = true;
+        if (built) return;
+        built = true;
         if (background != null)
         {
-            UiSkin.Round(background, 10f);
+            UiSkin.Round(background, 6f);
             var shadow = background.GetComponent<Shadow>();
             if (shadow == null) shadow = background.gameObject.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0f, 0f, 0f, .3f);
-            shadow.effectDistance = new Vector2(0f, -3f);
+            shadow.effectColor = new Color(0f, 0f, 0f, .32f);
+            shadow.effectDistance = new Vector2(2f, -5f);
         }
-        // Stuck over the card's top edge, as tape is.
-        tape = RepairOverlayUI.Panel("Tape (the customer's colour)", transform, new Vector2(cardWidth - 52, 9), new Vector2(40, 13), Color.white);
+        // The torn foot under the paper (tiled teeth), then the tape over the top-left corner.
+        foot = RepairOverlayUI.Panel("Torn foot", transform, new Vector2(0f, -(Height - FootHeight)), new Vector2(WideWidth, FootHeight), UiSkin.Paper);
+        foot.sprite = HudArt.TornFoot();
+        foot.type = Image.Type.Tiled;
+        tape = RepairOverlayUI.Panel("Tape (the customer's colour)", transform, new Vector2(10f, 7f), new Vector2(40f, 13f), Color.white);
         UiSkin.Round(tape, 2f);
         tape.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -7f);
+        // The ring: the prefab's fill image, radial now, over a faint track; the face in a circle inside it.
+        ring = RepairOverlayUI.Rect("Ring", transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(10f, -10f), new Vector2(RingSize, RingSize));
+        ringTrack = RepairOverlayUI.Panel("Patience track", ring, Vector2.zero, new Vector2(RingSize, RingSize), UiSkin.Track);
+        ringTrack.sprite = HudArt.Ring((int)RingSize, RingStroke);
         if (patienceFill != null)
         {
-            // The fill is a plain bar on a rounded track drawn just behind it.
-            patienceFill.sprite = null;
-            patienceTrack = RepairOverlayUI.Panel("Patience track", patienceFill.transform.parent, Vector2.zero, Vector2.one, UiSkin.Track);
-            patienceTrack.transform.SetSiblingIndex(patienceFill.transform.GetSiblingIndex());
-            UiSkin.Round(patienceTrack, 4f);
+            patienceFill.transform.SetParent(ring, false);
+            patienceFill.sprite = HudArt.Ring((int)RingSize, RingStroke);
+            patienceFill.type = Image.Type.Filled;
+            patienceFill.fillMethod = Image.FillMethod.Radial360;
+            patienceFill.fillOrigin = (int)Image.Origin360.Top;
+            patienceFill.fillClockwise = true;
+            patienceFill.raycastTarget = false;
+            Fill(patienceFill.rectTransform);
         }
-        foreach (TMP_Text t in new[] { slotText, jobText }) UiSkin.UseFont(t);
-        if (slotText != null) slotText.fontStyle = FontStyles.Bold;
+        portraitFrame = RepairOverlayUI.Panel("Customer portrait frame", ring, new Vector2((RingSize - FaceSize) * .5f, -(RingSize - FaceSize) * .5f), new Vector2(FaceSize, FaceSize), UiSkin.Paper);
+        portraitFrame.sprite = UiSkin.Circle;
+        var mask = portraitFrame.gameObject.AddComponent<Mask>();
+        mask.showMaskGraphic = true;
+        portrait = RepairOverlayUI.Panel("Customer portrait", portraitFrame.transform, Vector2.zero, new Vector2(FaceSize, FaceSize), Color.white);
+        portrait.preserveAspect = true;
+        portraitInitial = RepairOverlayUI.Text("Customer initial", portraitFrame.transform, Vector2.zero, new Vector2(FaceSize, FaceSize), 22, Ink);
+        portraitInitial.alignment = TextAlignmentOptions.Center;
+        portraitInitial.fontStyle = FontStyles.Bold;
+        // The icons row: three big bold pictures (the device, the drink, a second drink) and the clock.
+        iconsRow = RepairOverlayUI.Rect("Items", transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(70f, -36f), new Vector2(156f, IconSize));
+        for (int i = 0; i < itemIcons.Length; i++)
+        {
+            itemIcons[i] = RepairOverlayUI.Panel("Item " + (i + 1), iconsRow, new Vector2(i * (IconSize + IconGap), 0f), new Vector2(IconSize, IconSize), Color.white);
+            itemIcons[i].preserveAspect = true;
+            itemInitials[i] = RepairOverlayUI.Text("Initial", itemIcons[i].transform, Vector2.zero, new Vector2(IconSize, IconSize), 20, UiSkin.Paper);
+            itemInitials[i].alignment = TextAlignmentOptions.Center;
+            itemInitials[i].fontStyle = FontStyles.Bold;
+            itemInitials[i].gameObject.SetActive(false);
+            itemIcons[i].gameObject.SetActive(false);
+        }
+        clockIcon = RepairOverlayUI.Panel("Clock", iconsRow, Vector2.zero, new Vector2(IconSize, IconSize), Color.white);
+        clockIcon.preserveAspect = true;
+        clockInitial = RepairOverlayUI.Text("Initial", clockIcon.transform, Vector2.zero, new Vector2(IconSize, IconSize), 20, UiSkin.Paper);
+        clockInitial.alignment = TextAlignmentOptions.Center;
+        clockInitial.fontStyle = FontStyles.Bold;
+        clockInitial.gameObject.SetActive(false);
+        clockIcon.gameObject.SetActive(false);
+        // The words: the name, and the fault in a group that fades in.
+        foreach (TMP_Text t in new[] { slotText, jobText, portraitInitial }) UiSkin.UseFont(t);
+        if (slotText != null) { slotText.fontStyle = FontStyles.Bold; slotText.richText = false; }
+        if (jobText != null)
+        {
+            wordsGroup = jobText.gameObject.GetComponent<CanvasGroup>();
+            if (wordsGroup == null) wordsGroup = jobText.gameObject.AddComponent<CanvasGroup>();
+            wordsGroup.blocksRaycasts = false; wordsGroup.interactable = false;
+        }
+        // Drawn in this order: the foot and the tape under the paper's parts? No: the tape over the paper's corner, the foot under.
+        foot.transform.SetAsFirstSibling();
+        if (background != null) background.transform.SetAsFirstSibling();
+        tape.transform.SetAsLastSibling();
+    }
+
+    private static void Fill(RectTransform r)
+    {
+        r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.pivot = new Vector2(.5f, .5f);
+        r.offsetMin = r.offsetMax = Vector2.zero;
+        r.localScale = Vector3.one;
     }
 
     private void RefreshIdentity(float patience)
     {
-        EnsureIdentity();
+        EnsureBuilt();
         var identity = Target.Identity;
         Sprite face = identity != null ? identity.PortraitAt(patience) : null;
         portrait.sprite = face;
@@ -229,30 +284,79 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         portraitInitial.gameObject.SetActive(face == null);
         string name = Target.CustomerName;
         portraitInitial.text = string.IsNullOrWhiteSpace(name) ? "?" : name.Trim().Substring(0, 1).ToUpperInvariant();
-        var expression = identity != null ? identity.ExpressionAt(patience) : PortraitExpression.Neutral;
-        // Urgency stays readable with a neutral-only set or no portrait art.
-        moodText.text = patience <= .25f ? "Losing patience" : expression switch
+        // The disc behind the face (seen round a portrait's edges, and under the initial): the customer's colour, pale; red-rimmed under a quarter.
+        Color theme = identity != null && identity.ThemeColor != Color.white ? identity.ThemeColor : Target.JobColor;   // a walk-in with no mood colour wears the job's
+        portraitFrame.color = patience <= .25f ? Color.Lerp(new Color(.98f, .86f, .84f), theme, .25f) : Color.Lerp(new Color(.93f, .95f, .93f), theme, .25f);   // 26 Oct 2026 (his Mac): a paler face, so the dark initial reads (a lilac face read 3.4:1)
+        portraitInitial.color = patience <= .25f ? UrgentInk : Ink;
+        if (ringTrack != null) ringTrack.color = patience <= .25f ? new Color(UiSkin.Red.r, UiSkin.Red.g, UiSkin.Red.b, .35f) : UiSkin.Track;
+    }
+
+    // The items as icons: the device, then each drink; the clock once patience is under half (red and pulsing under a quarter).
+    private void RefreshItems(float patience, bool onCall)
+    {
+        Job record = Target.Record;
+        int n = 0;
+        string device = record != null && record.kind == JobKind.Repair ? NoteIcons.ForDevice(record.deviceName) : "";
+        if (record != null && record.kind == JobKind.Repair && Target.ActiveJob != null && !string.IsNullOrEmpty(record.deviceName)) Item(n++, device.Length > 0 ? device : "item_" + record.deviceName, record.deviceName);
+        if (Target.HasDrinkOrder && Target.WantedDrink != null) Item(n++, DrinkIconName(Target.WantedDrink), Target.WantedDrink.drinkName);
+        for (int i = n; i < itemIcons.Length; i++) { itemIcons[i].gameObject.SetActive(false); itemNames[i] = ""; }
+        bool clock = patience < .5f && !(form == Form.Narrow && onCall);
+        if (clockIcon.gameObject.activeSelf != clock) clockIcon.gameObject.SetActive(clock);
+        if (clock)
         {
-            PortraitExpression.Happy => "Pleased",
-            PortraitExpression.Worried => "Worried",
-            PortraitExpression.Impatient => "Impatient",
-            PortraitExpression.Surprised => "Reassured",
-            _ => "Waiting"
-        };
-        moodText.color = patience <= .25f ? UrgentInk : MutedInk;
-        Color theme = identity != null ? identity.ThemeColor : Target.JobColor;
-        portraitFrame.color = patience <= .25f ? new Color(.94f, .47f, .32f)
-            : Color.Lerp(new Color(.90f, .93f, .90f), theme, .4f);
+            float size = form == Form.Chip ? ChipIconSize : IconSize;
+            clockIcon.rectTransform.anchoredPosition = new Vector2(n * (size + IconGap), 0f);
+            Sprite s = NoteIcons.SpriteOf(NoteIcons.ItemClock);
+            clockIcon.sprite = s;
+            bool urgent = patience <= .25f;
+            float pulse = urgent ? .5f + .5f * (1f - Mathf.Cos(UiClock.Now * Mathf.PI * 2f)) * .5f : 1f;
+            clockIcon.color = s != null ? (urgent ? Color.Lerp(Color.white, new Color(1f, .45f, .4f), .6f + .4f * pulse) : Color.white)
+                                        : (urgent ? Color.Lerp(UiSkin.Red, UrgentInk, pulse) : UiSkin.InkSoft);
+            clockInitial.gameObject.SetActive(s == null);
+            clockInitial.text = "!";
+        }
+        float rowWidth = (n + (clock ? 1 : 0)) * ((form == Form.Chip ? ChipIconSize : IconSize) + IconGap) - IconGap;
+        // Narrow: the row is centred under the name.
+        if (form == Form.Narrow) iconsRow.anchoredPosition = new Vector2((cardWidth - Mathf.Max(0f, rowWidth)) * .5f, -90f);
+    }
+
+    private void Item(int i, string icon, string label)
+    {
+        Image image = itemIcons[i];
+        float size = form == Form.Chip ? ChipIconSize : IconSize;
+        image.rectTransform.anchoredPosition = new Vector2(i * (size + IconGap), 0f);
+        image.rectTransform.sizeDelta = new Vector2(size, size);
+        itemInitials[i].rectTransform.sizeDelta = new Vector2(size, size);
+        if (!image.gameObject.activeSelf) image.gameObject.SetActive(true);
+        if (itemNames[i] == icon && image.sprite != null) return;
+        itemNames[i] = icon;
+        Sprite s = NoteIcons.SpriteOf(icon);
+        image.sprite = s;
+        if (s != null)
+        {
+            image.color = Color.white;
+            UiSkin.Paint(image.rectTransform, Color.white, 0f);
+            image.sprite = s;
+            itemInitials[i].gameObject.SetActive(false);
+        }
+        else
+        {
+            // Without the sheet: a dark chip with the item's initial.
+            UiSkin.Round(image, 8f);
+            image.color = new Color(Ink.r, Ink.g, Ink.b, .85f);
+            itemInitials[i].text = string.IsNullOrEmpty(label) ? "?" : label.Trim().Substring(0, 1).ToUpperInvariant();
+            itemInitials[i].gameObject.SetActive(true);
+        }
     }
 
     // The tab's lines: the device and the fault as a sentence ("Dirty lens and film path"); a drink job's subject and detail
-    // (CustomerBrain.TabLines); the drink itself has its own row (DrinkLine).
+    // (CustomerBrain.TabLines).
     private string Lines()
     {
         Job record = Target.Record;
         if (record == null) return "";
         if (record.kind == JobKind.Drink) return Target.TabLines;
-        return record.deviceName + "\n" + SentenceCase(record.faultDescription);
+        return SentenceCase(record.faultDescription);
     }
 
     /// <summary>A Title Case label as a sentence: "Dirty Lens and Film Path" is "Dirty lens and film path" (the words a person
@@ -265,8 +369,7 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     }
 
     /// <summary>The drink's icon + its name (19 Oct 2026, her: "it needs to be bigger, huh? With images?"); the plain
-    /// "+ Latte" where the icon sheet isn't there. (20 Oct: the "+ " goes when the picture is there: the cup already says
-    /// "and a drink", and the 2 characters were what pushed "Hot Chocolate" off a 220 px card.)</summary>
+    /// "+ Latte" where the icon sheet isn't there. (The drinks machine's line and the details still use it.)</summary>
     public static string DrinkLine(DrinkDefinition drink)
     {
         if (drink == null) return "";
@@ -289,96 +392,101 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         return "";
     }
 
-    private void SetDrinkLine(string value, float offset)
-    {
-        drinkText.text = value;
-        drinkText.gameObject.SetActive(!compact && !string.IsNullOrEmpty(value));
-        Place(drinkText.rectTransform, new Vector2(8, -offset), new Vector2(cardWidth - 16, 22));
-    }
-
-    // The chip at the bench: the face on the left (where it always is), the tape on the top right, the bar beside the face (lower
-    // while a ringing call shows its icon and seconds over it); no words.
-    private bool compactRinging;
-
-    private void ConfigureCompact()
-    {
-        foreach (TMP_Text t in new[] { slotText, jobText, moodText, drinkText })
-            if (t != null && t.gameObject.activeSelf) t.gameObject.SetActive(false);
-        if (patienceFill != null)
-        {
-            patienceFill.raycastTarget = false;
-            RectTransform track = patienceFill.transform.parent as RectTransform;
-            RectTransform bar = track != null && track != transform ? track : patienceFill.rectTransform;
-            Place(bar, new Vector2(46, compactRinging ? -30 : -18), new Vector2(cardWidth - 56, 8));
-            if (patienceTrack != null) Place(patienceTrack.rectTransform, bar.anchoredPosition + new Vector2(-1, 1), bar.sizeDelta + new Vector2(2, 2));
-        }
-        if (tape != null) Place(tape.rectTransform, new Vector2(cardWidth - 52, 9), new Vector2(40, 13));
-        if (callLine != null)
-        {
-            Place(callLine, new Vector2(44, -3), new Vector2(cardWidth - 50, 24));
-            if (callIcon != null) { callIcon.rectTransform.anchoredPosition = new Vector2(12, -12); callIcon.rectTransform.sizeDelta = new Vector2(20, 20); }
-            if (callState != null) callState.gameObject.SetActive(false);
-            if (callSeconds != null) Place(callSeconds.rectTransform, new Vector2(26, -4), new Vector2(cardWidth - 80, 16));
-        }
-    }
+    // ---------- the three forms ----------
 
     private void ConfigureLayout()
     {
-        if (compact)
-        {
-            ConfigureCompact();
-            return;
-        }
-        foreach (TMP_Text t in new[] { slotText, jobText, moodText })
-            if (t != null && !t.gameObject.activeSelf) t.gameObject.SetActive(true);
-        if (callState != null && !callState.gameObject.activeSelf) callState.gameObject.SetActive(true);
-        if (callIcon != null) { callIcon.rectTransform.anchoredPosition = new Vector2(15, -16); callIcon.rectTransform.sizeDelta = new Vector2(28, 28); }
+        EnsureBuilt();
+        if (form == laidOut && Mathf.Approximately(cardWidth, laidOutWidth)) return;
+        laidOut = form;
+        laidOutWidth = cardWidth;
+        bool chip = form == Form.Chip, wide = form == Form.Wide;
+        float ringSize = chip ? ChipRingSize : RingSize, faceSize = chip ? ChipFaceSize : FaceSize;
+        // The ring and the face.
+        Vector2 ringAt = chip ? new Vector2(4f, -4f) : wide ? new Vector2(10f, -10f) : new Vector2((cardWidth - ringSize) * .5f, -8f);
+        Place(ring, ringAt, new Vector2(ringSize, ringSize));
+        Place(ringTrack.rectTransform, Vector2.zero, new Vector2(ringSize, ringSize));
+        Place(portraitFrame.rectTransform, new Vector2((ringSize - faceSize) * .5f, -(ringSize - faceSize) * .5f), new Vector2(faceSize, faceSize));
+        Place(portrait.rectTransform, Vector2.zero, new Vector2(faceSize, faceSize));
+        Place(portraitInitial.rectTransform, Vector2.zero, new Vector2(faceSize, faceSize));
+        portraitInitial.fontSize = chip ? 17f : 24f;   // 26 Oct 2026 (his Mac): 24 on the dockets
+        // The foot, the tape.
+        Place(foot.rectTransform, new Vector2(0f, -(cardHeight - FootHeight)), new Vector2(cardWidth, FootHeight));
+        foot.gameObject.SetActive(!chip);
+        Place(tape.rectTransform, chip ? new Vector2(cardWidth - 52f, 9f) : new Vector2(8f, 7f), new Vector2(40f, 13f));
+        tape.rectTransform.localRotation = Quaternion.Euler(0f, 0f, chip ? -7f : -7f);
+        // The name.
         if (slotText != null)
         {
-            Place(slotText.rectTransform, new Vector2(46, -2), new Vector2(cardWidth - 54, 24));
-            slotText.enableAutoSizing = false; slotText.fontSize = 20; slotText.color = Ink;
+            slotText.gameObject.SetActive(!chip);
+            slotText.enableAutoSizing = false;
+            slotText.fontSize = wide ? NameSize : NarrowNameSize;
+            slotText.color = Ink;
             slotText.overflowMode = TextOverflowModes.Ellipsis;
             slotText.textWrappingMode = TextWrappingModes.NoWrap;
-            slotText.alignment = TextAlignmentOptions.TopLeft;
+            slotText.alignment = wide ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.Center;
             slotText.raycastTarget = false;
+            Place(slotText.rectTransform, wide ? new Vector2(70f, -6f) : new Vector2(4f, -62f), wide ? new Vector2(cardWidth - 80f, 30f) : new Vector2(cardWidth - 8f, 28f));
         }
+        // The fault's words (wide only).
         if (jobText != null)
         {
-            jobText.enableAutoSizing = false; jobText.fontSize = 18; jobText.color = Ink;
+            jobText.gameObject.SetActive(wide);
+            jobText.enableAutoSizing = false;
+            jobText.fontSize = FaultSize;
+            jobText.color = Ink;
             jobText.fontStyle = UiSkin.SemiBold;
-            jobText.lineSpacing = -8f;   // two lines at 18 px in the room two lines at 14 had
+            jobText.lineSpacing = -6f;
             jobText.overflowMode = TextOverflowModes.Ellipsis;
+            jobText.textWrappingMode = TextWrappingModes.Normal;
             jobText.alignment = TextAlignmentOptions.TopLeft;
             jobText.raycastTarget = false;
+            Place(jobText.rectTransform, new Vector2(12f, -80f), new Vector2(cardWidth - 24f, 54f));
         }
-        if (moodText != null)
-            Place(moodText.rectTransform, new Vector2(46, -24), new Vector2(cardWidth - 54, 18));
-        if (patienceFill != null)
+        // The icons row.
+        float iconSize = chip ? ChipIconSize : IconSize;
+        Place(iconsRow, chip ? new Vector2(ringSize + 10f, -(cardHeight - iconSize) * .5f) : wide ? new Vector2(70f, -36f) : new Vector2(4f, -90f), new Vector2(3f * (iconSize + IconGap), iconSize));
+        for (int i = 0; i < itemIcons.Length; i++)
         {
-            patienceFill.raycastTarget = false;
-            RectTransform track = patienceFill.transform.parent as RectTransform;
-            Place(track != null && track != transform ? track : patienceFill.rectTransform,
-                new Vector2(8, -cardHeight + 10), new Vector2(cardWidth - 16, 7));
-            if (patienceTrack != null)
-            {
-                // Round the bar: a pixel of track shows on every side.
-                RectTransform bar = track != null && track != transform ? track : patienceFill.rectTransform;
-                Place(patienceTrack.rectTransform, bar.anchoredPosition + new Vector2(-1, 1), bar.sizeDelta + new Vector2(2, 2));
-            }
+            Place(itemIcons[i].rectTransform, new Vector2(i * (iconSize + IconGap), 0f), new Vector2(iconSize, iconSize));
+            Place(itemInitials[i].rectTransform, Vector2.zero, new Vector2(iconSize, iconSize));
+            itemInitials[i].fontSize = chip ? 16f : 20f;
         }
-        if (tape != null) Place(tape.rectTransform, new Vector2(cardWidth - 52, 9), new Vector2(40, 13));
+        Place(clockIcon.rectTransform, Vector2.zero, new Vector2(iconSize, iconSize));
+        Place(clockInitial.rectTransform, Vector2.zero, new Vector2(iconSize, iconSize));
+        // The support call's band.
         if (callLine != null)
         {
-            Place(callLine, new Vector2(8, -72), new Vector2(cardWidth - 16, 32));
-            Place(callState.rectTransform, new Vector2(32, 0), new Vector2(cardWidth - 52, 16));
-            Place(callSeconds.rectTransform, new Vector2(32, -16), new Vector2(cardWidth - 52, 16));
+            if (chip)
+            {
+                Place(callLine, new Vector2(ringSize + 8f, -3f), new Vector2(cardWidth - ringSize - 14f, 24f));
+                callIcon.rectTransform.anchoredPosition = new Vector2(12f, -12f); callIcon.rectTransform.sizeDelta = new Vector2(20f, 20f);
+                callState.gameObject.SetActive(false);
+                Place(callSeconds.rectTransform, new Vector2(26f, -2f), new Vector2(cardWidth - ringSize - 44f, 20f));
+            }
+            else if (wide)
+            {
+                Place(callLine, new Vector2(12f, -82f), new Vector2(cardWidth - 24f, 36f));
+                callIcon.rectTransform.anchoredPosition = new Vector2(18f, -18f); callIcon.rectTransform.sizeDelta = new Vector2(28f, 28f);
+                callState.gameObject.SetActive(true);
+                Place(callState.rectTransform, new Vector2(38f, -2f), new Vector2(cardWidth - 150f, 32f));
+                Place(callSeconds.rectTransform, new Vector2(cardWidth - 110f, -2f), new Vector2(86f, 32f));
+                callSeconds.alignment = TextAlignmentOptions.MidlineRight;
+            }
+            else
+            {
+                Place(callLine, new Vector2(4f, -90f), new Vector2(cardWidth - 8f, 36f));
+                callIcon.rectTransform.anchoredPosition = new Vector2(18f, -18f); callIcon.rectTransform.sizeDelta = new Vector2(28f, 28f);
+                callState.gameObject.SetActive(false);
+                Place(callSeconds.rectTransform, new Vector2(36f, -2f), new Vector2(cardWidth - 44f, 32f));
+                callSeconds.alignment = TextAlignmentOptions.MidlineLeft;
+            }
         }
     }
 
     public void SetCardSize(float width, float height)
     {
-        // A tab is at least 140 x 118; a chip at the bench is its own size (TicketRailUI.CompactWidth x CompactHeight).
-        float nextWidth = compact ? width : Mathf.Max(140, width), nextHeight = compact ? height : Mathf.Max(118, height);
+        float nextWidth = form == Form.Chip ? width : Mathf.Max(NarrowWidth, width), nextHeight = form == Form.Chip ? height : Mathf.Max(Height, height);
         if (Mathf.Approximately(cardWidth, nextWidth) && Mathf.Approximately(cardHeight, nextHeight)) return;
         cardWidth = nextWidth; cardHeight = nextHeight;
         ConfigureLayout();
@@ -387,34 +495,31 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     private void BuildCallLine()
     {
-        Image callBand = RepairOverlayUI.Panel("Support call obligation", transform, new Vector2(8, -72),
-            new Vector2(cardWidth - 16, 32), UiSkin.Band);
+        Image callBand = RepairOverlayUI.Panel("Support call obligation", transform, new Vector2(12f, -82f), new Vector2(cardWidth - 24f, 36f), UiSkin.Band);
         UiSkin.Round(callBand, 8f);
         callLine = callBand.rectTransform;
-        var rect = RepairOverlayUI.Rect("Phone", callLine, new Vector2(0, 1), new Vector2(.5f, .5f),
-            new Vector2(15, -16), new Vector2(28, 28));
+        var rect = RepairOverlayUI.Rect("Phone", callLine, new Vector2(0, 1), new Vector2(.5f, .5f), new Vector2(18f, -18f), new Vector2(28f, 28f));
         callIcon = rect.gameObject.AddComponent<SupportCallIcon>(); callIcon.raycastTarget = false;
-        callState = RepairOverlayUI.Text("Call state", callLine, new Vector2(32, 0), new Vector2(cardWidth - 52, 16), 16, Color.white);
+        callState = RepairOverlayUI.Text("Call state", callLine, new Vector2(38f, -2f), new Vector2(cardWidth - 150f, 32f), 22, Color.white);
         callState.fontStyle = FontStyles.Bold;
-        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(32, -16), new Vector2(cardWidth - 52, 16), 16, UiSkin.BandFaint);
+        callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(cardWidth - 110f, -2f), new Vector2(86f, 32f), 22, UiSkin.BandFaint);
+        callSeconds.fontStyle = FontStyles.Bold;
         callState.textWrappingMode = callSeconds.textWrappingMode = TextWrappingModes.NoWrap;
-        // 20 Oct: two 16 px rows don't fit the 32 px band (Baloo 2's line is ~18 px), and the band can't grow without
-        // covering the patience bar under it: the two rows take the largest size that fits, up to 16 (about 14).
-        foreach (TMP_Text t in new[] { callState, callSeconds }) { t.enableAutoSizing = true; t.fontSizeMin = 12f; t.fontSizeMax = 16f; }
+        foreach (TMP_Text t in new[] { callState, callSeconds }) { t.enableAutoSizing = true; t.fontSizeMin = 16f; t.fontSizeMax = 22f; }
         UiSkin.UseFont(callState);
         UiSkin.UseFont(callSeconds);
+        laidOut = (Form)(-1);
+        ConfigureLayout();
     }
 
     private void RefreshDetails(HoldCallJob call)
     {
         if (detailPanel == null)
         {
-            Image detailBand = RepairOverlayUI.Panel("Full ticket details", transform, Vector2.zero,
-                new Vector2(320, 80), UiSkin.Band);
+            Image detailBand = RepairOverlayUI.Panel("Full ticket details", transform, Vector2.zero, new Vector2(320, 80), UiSkin.Band);
             UiSkin.Round(detailBand, UiSkin.Radius);
             detailPanel = detailBand.rectTransform;
-            detailText = RepairOverlayUI.Text("Full task text", detailPanel, new Vector2(12, -10),
-                new Vector2(296, 60), 18, UiSkin.BandText);
+            detailText = RepairOverlayUI.Text("Full task text", detailPanel, new Vector2(12, -10), new Vector2(296, 60), 22, UiSkin.BandText);
             detailText.textWrappingMode = TextWrappingModes.Normal;
             detailText.richText = true;
             detailText.alignment = TextAlignmentOptions.TopLeft;
@@ -426,10 +531,9 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             layer.sortingOrder = parentCanvas != null ? parentCanvas.sortingOrder + 1 : 1;
         }
         detailPanel.gameObject.SetActive(true);
-        // The whole job in words: the name, the device and the fault (as a sentence) and the drink; a call's state. No
-        // "Patience: X%": the bar shows it (19 Oct).
+        // The whole job in words: the name, the device and the fault (as a sentence) and the drink; a call's state.
         bool delivered = Target.Record != null && Target.Record.kind == JobKind.Repair && Target.ActiveJob == null;
-        string obligations = delivered ? "" : Lines();
+        string obligations = delivered ? "" : FullLines();
         if (Target.HasDrinkOrder && Target.WantedDrink != null && (delivered || Target.Record == null || Target.Record.kind == JobKind.Repair))
             obligations += (obligations.Length > 0 ? "\n" : "") + "+ " + Target.WantedDrink.drinkName;
         detailText.text = Target.CustomerName + "\n" + obligations
@@ -438,6 +542,15 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         Place(detailPanel, new Vector2((cardWidth - 320) * .5f, -cardHeight - 5), new Vector2(320, height));
         Place(detailText.rectTransform, new Vector2(12, -10), new Vector2(296, height - 20));
         KeepDetailsOnCanvas();
+    }
+
+    // The details' words: the device and its fault; a drink job's subject and detail.
+    private string FullLines()
+    {
+        Job record = Target.Record;
+        if (record == null) return "";
+        if (record.kind == JobKind.Drink) return Target.TabLines;
+        return record.deviceName + "\n" + SentenceCase(record.faultDescription);
     }
 
     private void KeepDetailsOnCanvas()

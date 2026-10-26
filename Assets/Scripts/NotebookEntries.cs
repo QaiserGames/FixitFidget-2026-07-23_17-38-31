@@ -131,6 +131,93 @@ public static class NotebookEntries
         }
     }
 
+    // ---------- gossip: what a seated guest says, and what Ace writes down (24 Oct 2026; Designer P's spec §2.4, approved by
+    // him for building on 24 Oct) ----------
+    //
+    // One of the four things to do while waiting he chose on 22 Oct: "chatting with seated guests". A seated guest (a patron
+    // or a settled guest, never a customer waiting on Ace) with a "…" over the head says one line when Ace presses E, and the
+    // notebook learns a fact about someone the night cares about: Grace, the Officer, the man at the bins. Walk-ins never
+    // get entries, so the fact is filed under the person it is ABOUT, overheard and only likely. The ids start "gossip." so
+    // nothing that asks whether the notebook knows a thing of the night (NightThings, by the thing's own id) mistakes a
+    // guest's word for the owner's or his. Each day's data names its ids (DayDefinition.gossip; Day 1 none).
+    //
+    // The guest's line is at most GossipLineWords (10; the bark's budget); the fact at most WordBudget.Page (12) and, so it
+    // reads whole as its subject's line on the night's page with "(likely)" after it, at most GossipFactWords (7). The checks:
+    // Fixit Fidget > Checks > Night notebook rules, and Downtime rules. EVERY WORD IS PLACEHOLDER COPY, for his sister.
+
+    /// <summary>One line of gossip: its id (the notebook fact's), who it's about, what the guest says and what Ace notes.</summary>
+    public sealed class Gossip
+    {
+        public string id = "";
+        /// <summary>Whose subject the fact goes under: a profile id ("grace", "officer"), or "lodger.pages" (the man at the bins).</summary>
+        public string who = "";
+        /// <summary>What Ace calls them.</summary>
+        public string name = "";
+        public string kind = Notebook.Kinds.Claim;
+        /// <summary>What the guest says (Barks.Say), at most GossipLineWords.</summary>
+        public string line = "";
+        /// <summary>What the notebook gets, at most GossipFactWords.</summary>
+        public string fact = "";
+    }
+
+    public const string GossipGraceCups = "gossip.grace.cups", GossipGraceFilm = "gossip.grace.film",
+                        GossipOfficerAsking = "gossip.officer.asking", GossipLodgerBefore = "gossip.lodger.before";
+
+    /// <summary>A guest's line: at most this many words (the bark's budget, P's §2.4).</summary>
+    public const int GossipLineWords = 10;
+    /// <summary>A gossip fact: at most this many words, so "(likely)" still fits the night page's 8-word line (NoteSubjects.LineWords).</summary>
+    public const int GossipFactWords = 7;
+
+    // Who the man at the bins is in the notebook (LodgerStory.PagesWho) and the Officer's profile (OfficerStory.ProfileId):
+    // written out, so this file still compiles on its own (Tests/NotebookRules); the Night notebook rules check they match.
+    public const string GossipOfficerWho = "officer", GossipLodgerWho = "lodger.pages";
+
+    static readonly Gossip[] gossip =
+    {
+        // Day 2: Night 2's ask (the reunion cups, on her worktop) and when to go in ("once she's asleep": GraceAtHome's night,
+        // the TV from 11 PM, up to bed at 1:20).
+        new Gossip { id = GossipGraceCups, who = GraceId, name = GraceName, kind = Notebook.Kinds.Possession,
+                     line = "Grace bought fancy cups for the reunion.",   // 26 Oct 2026 (review): "tonight's" contradicted her Day 1 line (the reunion is tomorrow)
+                     fact = "Reunion cups: a box on her worktop." },
+        new Gossip { id = GossipGraceFilm, who = GraceId, name = GraceName, kind = Notebook.Kinds.Schedule,
+                     line = "Grace never misses her late film. Bed by half one.",
+                     fact = "TV from 11, in bed about 1:20." },
+        // Day 3: the Officer's question the same day, and the man's story (Night 3 has no errand to feed).
+        new Gossip { id = GossipOfficerAsking, who = GossipOfficerWho, name = "Officer", kind = Notebook.Kinds.Claim,
+                     line = "The Officer's been asking about a man. Everyone.",
+                     fact = "Asking the whole street about a man." },
+        new Gossip { id = GossipLodgerBefore, who = GossipLodgerWho, name = "The man at the bins", kind = Notebook.Kinds.Claim,
+                     line = "That man by your bins? Here before the last owner.",
+                     fact = "Was here before the last owner." },
+    };
+
+    /// <summary>Every line of gossip, in the days' order (the checks, the rules).</summary>
+    public static IReadOnlyList<Gossip> GossipTable => gossip;
+
+    /// <summary>The gossip with this id, or null.</summary>
+    public static Gossip GossipFor(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        foreach (Gossip g in gossip) if (g.id == id) return g;
+        return null;
+    }
+
+    /// <summary>What Ace notes from <paramref name="g"/>: filed under who it's about, overheard, likely. Null for none.</summary>
+    public static NotebookFactData Overheard(Gossip g)
+    {
+        if (g == null || string.IsNullOrEmpty(g.id)) return null;
+        return new NotebookFactData
+        {
+            id = g.id,
+            who = g.who,
+            name = g.name,
+            kind = g.kind,
+            text = g.fact,
+            source = Notebook.Sources.Overheard,
+            sure = Notebook.Sureness.Likely
+        };
+    }
+
     private static NotebookFactData Told(string id, string who, string name, string kind, string text) => new()
     {
         id = id,

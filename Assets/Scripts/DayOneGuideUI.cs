@@ -54,6 +54,19 @@ using UnityEngine.UI;
 //     it turned to "DAY 1 · GRACE" (her latte was on order too).
 //   - The impatience card goes when their phone needs Ace (support rang): it said "walk over and reassure" while the fix was
 //     "[E] Answer support".
+//
+// 24 OCT 2026 (Days; Designer P's spec §2.1 and §6.4, approved by him with his answers of 24 Oct). His note: "what i mean about
+// dead air is really the things you could be doing when waiting for a customer to approach the counter." So a QUIET MOMENT
+// (the step is a wait: someone walking in, nobody here, a support call on hold, a visit over) with nobody needing Ace
+// (Downtime.NobodyNeedsAce) offers one of the four things to do while waiting instead, in P's order: a refill when the machine
+// is low ("Low on cups. Fetch more from the back shelf."), a dirty table ("Clear the window table."), a guest with gossip
+// ("{E} Chat with the guest in the lounge."), the thrift find ("Your thrift watch: clean it while you wait." on Day 1). It
+// names whoever is on the way first when the line has room ("Nina's on the way. Clear the window table.": it stands where
+// "Wait for Nina to reach the counter." stood). The first of each in a session is the full card, "WHILE YOU WAIT", then the
+// line; its pin is over the shelf, the table, the guest or the find. A customer always wins: the frame anyone needs Ace, the
+// line is read again and their step is back (ShowingWaitingJob is what Downtime samples: never a waiting job while somebody
+// needs Ace). A visit-over note gives way to them; nothing pending ever does. With the machine out of cups or beans and the
+// back shelf not, a drink's step says to fetch them ("No cups left. Fetch more from the back shelf."), never to apologise.
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public class DayOneGuideUI : MonoBehaviour
@@ -75,6 +88,14 @@ public class DayOneGuideUI : MonoBehaviour
     private float nextRefresh, panelY = float.NaN;
     private int hintDay = -1, heldCount = -1;
     private readonly DayOneHintTimer toast = new();
+
+    // ---- the four things to do while waiting (24 Oct 2026, Days; P's §2.1 and §6.4: see the header) ----
+    private Downtime.Job quietJob = Downtime.Job.None;   // the waiting job on the line now (set with the words)
+    private bool replaceable;                            // the step worked out is a wait a waiting job may stand in for
+    private CustomerBrain walker;                        // ...whose wait it is: named first when the line has room
+    private string waitLead = "";                        // ...or "On hold." (a support call on hold)
+    private float quietFullUntil = -10f;
+    private static readonly HashSet<Downtime.Job> quietSeen = new();
 
     // ---- what the card says now, and where its pin points (set as the step's words are worked out) ----
     private bool guiding, fallback;
@@ -121,6 +142,11 @@ public class DayOneGuideUI : MonoBehaviour
     /// back).
     /// </summary>
     public static JobBase CarryingToBench { get; private set; }
+    /// <summary>
+    /// The waiting job the Now line offers right now, None when it says anything else (24 Oct 2026): DowntimeMeter samples it
+    /// for the Day labs' bar (never while somebody needs Ace, P's §6.8), and the labs read it.
+    /// </summary>
+    public static Downtime.Job ShowingWaitingJob { get; private set; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -128,6 +154,8 @@ public class DayOneGuideUI : MonoBehaviour
         MovementHintWanted = false;
         ReassuredOnce = false;
         CarryingToBench = null;
+        ShowingWaitingJob = Downtime.Job.None;   // 24 Oct 2026 (Days)
+        quietSeen.Clear();
     }
 
     /// <summary>The sweat drop's line (NpcBeats: Mood.Frustrated under this much patience).</summary>
@@ -143,6 +171,18 @@ public class DayOneGuideUI : MonoBehaviour
     public const string ClosingWords = "Closing time: serve who's inside.";
     /// <summary>The soft tick as the line changes (a SoundBank UI cue: "a soft tick").</summary>
     public const string ChangeCue = "bark.choose";
+
+    // 24 Oct 2026 (Days): the quiet moments' words (P's §2.1-§2.5; PLACEHOLDER COPY, each within WordBudget.NowLine).
+    /// <summary>The full card's title, the first time each waiting job shows in a session.</summary>
+    public const string QuietTitle = "WHILE YOU WAIT";
+    /// <summary>The pins' names over the back shelf, a dirty table and a guest with gossip.</summary>
+    public const string BackShelfName = "Back shelf", TableName = "Dirty table", GuestName = "Guest";
+    /// <summary>With the crate from the back shelf in hand: where it goes.</summary>
+    public const string CarryCrateWords = "Take the cups and beans to the drinks machine.";
+    /// <summary>A drink's step with the machine out and the back shelf not.</summary>
+    public const string NoCupsLeftWords = "No cups left. Fetch more from the back shelf.", NoBeansLeftWords = "No beans left. Fetch more from the back shelf.";
+    /// <summary>A support call on hold, said first when the line has room.</summary>
+    public const string OnHoldLead = "On hold.";
 
     public void Initialize(TMP_Text source, PlayerInteractor player,
         ItemInspector itemInspector, ConversationController dialogue, GameObject recapPanel)
@@ -166,6 +206,8 @@ public class DayOneGuideUI : MonoBehaviour
     public bool CardCompact => CardShowing && shownLook == DayOneHintTimer.Look.Compact;
     /// <summary>The one line as drawn (the step; the compact words where the first card has shorter ones), or "".</summary>
     public string NowText => CardShowing ? shownLine : "";
+    /// <summary>26 Oct 2026 (Icons on notes): the chip drawn before the step (a NoteIcons name), or "". NowText stays the words.</summary>
+    public string NowChip => CardShowing ? shownIcon : "";
     /// <summary>The line is the fallback (no featured visit guided: the most urgent customer's step, or closing time).</summary>
     public bool Fallback => CardShowing && fallback;
     /// <summary>The line is the night's (NightCycle.NowLine).</summary>
@@ -175,7 +217,7 @@ public class DayOneGuideUI : MonoBehaviour
     /// <summary>The card sits over the bottom prompt, at the bench.</summary>
     public bool CardAtBench => CardShowing && shownAtBench;
     /// <summary>The step has been stuck long enough for the card to come back in full (with its one pulse).</summary>
-    public bool CardReminding => CardShowing && impatient == null && !fallback && toast.Reminding(UiClock.Now);
+    public bool CardReminding => CardShowing && impatient == null && !fallback && quietJob == Downtime.Job.None && toast.Reminding(UiClock.Now);
     /// <summary>The line changed within the last quarter second: it is mid-pulse.</summary>
     public bool Pulsing => CardShowing && UiClock.Now - changedAt < ChangePulseSeconds;
     /// <summary>The card on the screen, in screen pixels from the bottom left.</summary>
@@ -209,6 +251,7 @@ public class DayOneGuideUI : MonoBehaviour
 
     private void LateUpdate()
     {
+        ShowingWaitingJob = Downtime.Job.None;   // 24 Oct 2026 (Days): set again below while the line offers one (Present)
         // The day intro (13 Oct 2026, Cinematics): the cards wait while it plays; the hints' clock (UiClock) is held with it.
         if (UiPins.DayIntroPlaying) { Show(false); return; }
         DayClock clock = DayClock.Instance;
@@ -257,6 +300,9 @@ public class DayOneGuideUI : MonoBehaviour
             heldCount = held;
             nextRefresh = 0f;
         }
+        // 24 Oct 2026 (Days): a customer always wins. While the line offers a waiting job it is read again the frame somebody
+        // needs Ace (DowntimeMeter samples after this, late in the frame: the bar is no waiting job on the line meanwhile).
+        if (quietJob != Downtime.Job.None && !Downtime.NobodyNeedsAce) nextRefresh = 0f;
         // Hints need no per-frame scene searches or string/layout rebuilding.
         if (now >= nextRefresh)
         {
@@ -277,6 +323,8 @@ public class DayOneGuideUI : MonoBehaviour
             present.AddRange(FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude));
         }
         WatchReassurance();
+        Downtime.Job wasQuiet = quietJob;   // 24 Oct 2026 (Days)
+        quietJob = Downtime.Job.None;
         bool wasImpatient = impatient != null;
         if (WatchImpatience(clock, now)) return;
         // The guide's step comes back after the impatience card (compact: it was seen).
@@ -285,6 +333,8 @@ public class DayOneGuideUI : MonoBehaviour
         guiding = GuideStep(clock, now);
         // Nothing guided, or the guide's last word said (a visit-over note shown and gone): the fallback line.
         if (!guiding || toast.LookAt(now) == DayOneHintTimer.Look.Hidden) guiding = FallbackStep(clock);
+        // 24 Oct 2026 (Days): a quiet moment offers something to do while waiting (see the header).
+        QuietStep(clock, now, wasQuiet);
     }
 
     // The guide's card for this moment: false for none. Sets the card's words, its kind and the pin.
@@ -292,6 +342,7 @@ public class DayOneGuideUI : MonoBehaviour
     {
         CarryingToBench = null;   // set again below while the card says to carry a device to the bench
         cardNow = stepAlso = "";
+        replaceable = false; walker = null; waitLead = "";   // 24 Oct 2026 (Days): set by the waits below
         if (spawner == null) spawner = FindAnyObjectByType<CustomerSpawner>();
         CustomerProfile featured = spawner != null ? spawner.FeaturedHintProfile : null;
         if (spawner == null || (!spawner.IsGuidedOpening && featured == null)
@@ -340,6 +391,7 @@ public class DayOneGuideUI : MonoBehaviour
     {
         CarryingToBench = null;
         cardNow = stepAlso = "";
+        replaceable = false; walker = null; waitLead = "";   // 24 Oct 2026 (Days): set by the waits below
         ClearPin();   // (the guide's timer is left alone: a visit-over note it has shown must not come back)
         string line = "";
         if (!clock.IsOpen)
@@ -353,6 +405,8 @@ public class DayOneGuideUI : MonoBehaviour
             primary = customer;
             if (customer != null) line = customer.WasAccepted ? VisitAction(customer) : NextAction(customer, false);
         }
+        // 24 Oct 2026 (Days): open, and nobody to say anything about: a quiet moment (QuietStep may offer a waiting job).
+        if (clock.IsOpen && string.IsNullOrEmpty(line)) replaceable = true;
         if (string.IsNullOrEmpty(line)) { ClearPin(); return false; }
         fallback = true;
         cardTitle = "";
@@ -462,11 +516,15 @@ public class DayOneGuideUI : MonoBehaviour
     {
         string name = profile != null ? profile.characterName : customer != null ? Called(customer) : "Your guest";
         if (customer == null || customer.IsLeaving)
+        {
+            // 24 Oct 2026 (Days): the visit over gives way to a waiting job, never while anything is pending (QuietStep).
+            replaceable = spawner != null && spawner.FeaturedVisitStarted;
             return spawner != null && spawner.FeaturedVisitStarted
                 ? Noting(VisitOver(name, OpenOrders(customer)))
                 : hintDay == 1
                     ? Waiting(First(name))
                     : Waiting($"{name} is visiting again. Talk at the counter.");
+        }
         // On their way in on Day 1: who you are and who's coming, with the pin over them.
         if (hintDay == 1 && !customer.WasAccepted && !customer.CanHearIntake && !customer.CanDecide)
             return Waiting(Over(customer, First(name)));
@@ -500,7 +558,10 @@ public class DayOneGuideUI : MonoBehaviour
     private string NextAction(CustomerBrain customer, bool drinkLesson)
     {
         if (customer == null || customer.IsLeaving)
+        {
+            replaceable = true;   // 24 Oct 2026 (Days): a quiet moment (QuietStep)
             return Waiting("A customer is on the way.");
+        }
         if (!customer.WasAccepted)
         {
             string name = Called(customer);
@@ -512,6 +573,9 @@ public class DayOneGuideUI : MonoBehaviour
                 return OverPoint(TrayPoint(), FocusNameUI.TrayName, "The intake tray is full. Move an item to the bench.");
             if (customer.CanHearIntake || customer.CanDecide)
                 return Over(customer, TalkWords(name, FirstPerson, IsDrinkVisit(customer)));
+            // 24 Oct 2026 (Days): the wait in words: a waiting job may stand in, naming them first (QuietStep).
+            replaceable = true;
+            walker = customer;
             return Waiting(Over(customer, $"Wait for {name} to reach the counter."));
         }
         return drinkLesson ? DrinkAction(customer) : RepairAction(customer);
@@ -540,6 +604,9 @@ public class DayOneGuideUI : MonoBehaviour
                 return OverPoint(top, FocusNameUI.DrinksName, "That drink is cold. Put it in the discard tray.");
             if (held != null && held.CanHandBack && held.Drink == wanted)
                 return Over(customer, TakeDrinkWords(drink, name));
+            // 24 Oct 2026 (Days; restock by hand): the machine out of what this drink takes, the back shelf not.
+            string fetch = FetchWords(wanted, held);
+            if (fetch != null) return fetch;
             // From above the machine's controls work in its close-up (E at it); in first person, looking at it.
             bool inView = FirstPerson ? AtDrinks : interactor != null && interactor.IsAtBeverageStation;
             // "You're at it" only when E is the close-up (15 Oct, Day 1 by hand: half a metre short of the machine the card
@@ -594,14 +661,17 @@ public class DayOneGuideUI : MonoBehaviour
             return "Machine occupied. Clear its cup before making another drink.";
 
         ShopInventory stock = ShopInventory.Instance;
+        // 24 Oct 2026 (Days; restock by hand): the machine's own count (MachineCups); the back shelf's comes by FetchWords.
         if (customer.CanApologiseForDrink &&
-            (stock == null || !stock.CanBrew(wanted) || (held == null && stock.Cups <= 0)))
+            (stock == null || !stock.CanBrew(wanted) || (held == null && stock.MachineCups <= 0)))
             return Over(customer, $"No stock. {E} Talk to {name} and apologise.");
+        string fetchHere = FetchWords(wanted, held);
+        if (fetchHere != null) return fetchHere;
         if (stock != null && !stock.CanBrew(wanted))
             return "Not enough beans. Restock after closing.";
         if (held != null && held.IsEmpty)
             return $"Empty cup ready. {E} Use the espresso machine.";
-        if (stock != null && stock.Cups <= 0)
+        if (stock != null && stock.MachineCups <= 0)
             return "No cups. Collect a spare or restock after closing.";
         return $"{E} Take an empty cup from the stack.";
     }
@@ -620,9 +690,13 @@ public class DayOneGuideUI : MonoBehaviour
                 ? "Sound restored. The phone goes back by itself."
                 : $"At the counter, {(Pad ? E : Use)} Flip the orange mute switch.");
         if (job is HoldCallJob call && !call.IsComplete)
+        {
+            // 24 Oct 2026 (Days): on hold there's nothing to do until it rings: a waiting job may stand in, "On hold." first.
+            if (call.CurrentPhase == HoldCallRun.State.OnHold) { replaceable = true; waitLead = OnHoldLead; }
             return OverJob(job, "Phone", call.CurrentPhase == HoldCallRun.State.Ringing ? $"Support answered! {E} Pick up the ringing phone."
                 : call.CurrentPhase == HoldCallRun.State.OnHold ? "On hold. Work on another job until the phone rings."
                 : $"{E} Call support on the phone.");
+        }
         if (job.IsComplete || (job.CanHandBack && job.Grade != JobGrade.Rejected && carrying))
         {
             if (inspecting)
@@ -719,6 +793,131 @@ public class DayOneGuideUI : MonoBehaviour
     /// </summary>
     public static string BenchReassureWords(string name) =>
         $"{name} is getting impatient. {ControlHints.Cancel} Step back, then {ControlHints.Interact}.";
+
+    // ---- 24 Oct 2026 (Days): the quiet moments' words (P's §2.1-§2.5; PLACEHOLDER COPY, within WordBudget.NowLine) ----
+
+    /// <summary>The machine low (3 or fewer) with stock on the back shelf: "Low on cups. Fetch more from the back shelf."</summary>
+    public static string RefillWords(bool cups, bool beans) => cups && beans ? "Cups and beans low. Fetch more from the back shelf."
+        : beans ? "Low on beans. Fetch more from the back shelf." : "Low on cups. Fetch more from the back shelf.";
+
+    /// <summary>A guest's used cup on a table, by where it is (S's seat tags): "Clear the window table."</summary>
+    public static string TableWords(SeatTag tags)
+    {
+        if ((tags & SeatTag.Window) != 0) return "Clear the window table.";
+        if ((tags & SeatTag.Lounge) != 0) return "Clear the table in the lounge.";
+        if ((tags & SeatTag.Bar) != 0) return "Clear the cups at the bar.";
+        if ((tags & SeatTag.Communal) != 0) return "Clear the long table.";
+        if ((tags & SeatTag.Quiet) != 0) return "Clear the table in the quiet corner.";
+        if ((tags & SeatTag.NearDoor) != 0) return "Clear the table by the door.";
+        return "Clear the dirty table.";
+    }
+
+    /// <summary>A seated guest with gossip, by where they sit: "{E} Chat with the guest in the lounge."</summary>
+    public static string GossipWords(SeatTag tags)
+    {
+        string place = SeatChoice.PlaceWords(tags);
+        return place.Length > 0 ? $"{E} Chat with the guest {place}." : $"{E} Chat with the guest.";
+    }
+
+    /// <summary>The thrift find: Day 1's clean (his p1), then "Your thrift phone: fix it between customers."</summary>
+    public static string FindWords(int day, string thing)
+    {
+        thing = string.IsNullOrWhiteSpace(thing) ? "find" : thing;
+        return day <= 1 ? $"Your thrift {thing}: clean it while you wait." : $"Your thrift {thing}: fix it between customers.";
+    }
+
+    /// <summary>Whoever is on the way, said first when the line has room: "Nina's on the way."</summary>
+    public static string OnTheWayWords(string name) => $"{Cap(string.IsNullOrWhiteSpace(name) ? "someone" : name)}'s on the way.";
+
+    // A quiet moment (see the header): the step worked out is a wait and nobody needs Ace, so the line offers the first thing to
+    // do while waiting in P's order, with its own pin, naming whoever is on the way first when the line has room.
+    private void QuietStep(DayClock clock, float now, Downtime.Job was)
+    {
+        quietJob = Downtime.Job.None;
+        if (!replaceable || impatient != null || clock == null || clock.DayOver || !Downtime.NobodyNeedsAce) return;
+        Transform keepWho = pinWho;
+        Vector3 keepPoint = pinPoint;
+        string keepLabel = pinLabel;
+        Vector3 ace = interactor != null ? interactor.transform.position : Vector3.zero;
+        string words = QuietWords(clock, ace, out Downtime.Job job);
+        if (job == Downtime.Job.None || string.IsNullOrEmpty(words))
+        {
+            pinWho = keepWho;
+            pinPoint = keepPoint;
+            pinLabel = keepLabel;
+            return;
+        }
+        string lead = walker != null && Here(walker) ? OnTheWayWords(Called(walker)) : waitLead;
+        if (lead.Length > 0 && !WordBudget.Over(lead + " " + words, WordBudget.NowLine)) words = lead + " " + words;
+        // The first time each shows in a session: in full for the day's opening hint time, then the line.
+        if (job != was) quietFullUntil = quietSeen.Add(job) ? now + Mathf.Clamp(spawner != null ? spawner.OpeningHintDuration : 6f, 3f, 10f) : now;
+        quietJob = job;
+        guiding = true;
+        fallback = false;
+        CarryingToBench = null;
+        cardTitle = QuietTitle;
+        cardStep = words;
+        cardAlso = "";
+        cardNow = "";
+    }
+
+    private string QuietWords(DayClock clock, Vector3 ace, out Downtime.Job job)
+    {
+        job = Downtime.Job.None;
+        // The crate in hand: the refill under way, to the machine's cup stack.
+        if (Downtime.CarryingCrate)
+        {
+            job = Downtime.Job.Refill;
+            return OverPoint(DrinksPoint(), FocusNameUI.DrinksName, CarryCrateWords);
+        }
+        Downtime.Job next = Downtime.Next(ace, out Component target);
+        if (next == Downtime.Job.None || target == null) return "";
+        job = next;
+        switch (next)
+        {
+            case Downtime.Job.Refill:
+            {
+                ShopInventory stock = ShopInventory.Instance;
+                bool cups = stock != null && stock.MachineCups <= Downtime.RefillAt && stock.ShelfCups > 0;
+                bool beans = stock != null && stock.MachineBeans <= Downtime.RefillAt && stock.ShelfBeans > 0;
+                return OverPoint(FocusNameUI.TopOf(target.gameObject) + Vector3.up * .25f, BackShelfName, RefillWords(cups || !beans, beans));
+            }
+            case Downtime.Job.Table:
+            {
+                DirtyCup cup = target as DirtyCup;
+                SeatTag tags = cup != null && cup.seat != null ? SeatTags.Of(cup.seat) : SeatTag.None;
+                return OverPoint(FocusNameUI.TopOf(target.gameObject) + Vector3.up * .2f, TableName, TableWords(tags));
+            }
+            case Downtime.Job.Gossip:
+            {
+                PatronBrain guest = target as PatronBrain;
+                TableSeat seat = guest != null ? guest.Seat as TableSeat : null;
+                return OverPoint(FocusNameUI.TopOf(target.gameObject) + Vector3.up * .3f, GuestName, GossipWords(seat != null ? SeatTags.Of(seat) : SeatTag.None));
+            }
+            case Downtime.Job.Find:
+            {
+                JobBase find = target as JobBase;
+                SideProject marker = SideProject.Of(find);
+                return OverJob(find, marker != null ? marker.PinWords : "Thrift find", FindWords(clock.Day, marker != null ? marker.thing : "find"));
+            }
+        }
+        job = Downtime.Job.None;
+        return "";
+    }
+
+    // A drink's step with the machine out of cups (none in hand) or of this drink's beans, and the back shelf not: fetch them
+    // (never "apologise": that's only once the shelf is empty too, P's §2.5). A crate in hand: where it goes. Null otherwise.
+    private string FetchWords(DrinkDefinition wanted, DrinkJob held)
+    {
+        ShopInventory stock = ShopInventory.Instance;
+        if (stock == null) return null;
+        if (Downtime.CarryingCrate) return OverPoint(DrinksPoint(), FocusNameUI.DrinksName, CarryCrateWords);
+        bool noCup = held == null && stock.MachineCups <= 0 && stock.ShelfCups > 0;
+        bool noBeans = wanted != null && !stock.CanBrew(wanted) && stock.ShelfBeans > 0;
+        if (!noCup && !noBeans) return null;
+        Vector3 shelf = BackShelf.Instance != null ? FocusNameUI.TopOf(BackShelf.Instance.gameObject) + Vector3.up * .25f : Vector3.zero;
+        return OverPoint(shelf, BackShelfName, noCup ? NoCupsLeftWords : NoBeansLeftWords);
+    }
 
     /// <summary>A customer as a sentence says them: "Grace", "the Officer" (his name is his job).</summary>
     public static string Called(CustomerBrain customer)
@@ -978,7 +1177,7 @@ public class DayOneGuideUI : MonoBehaviour
         }
         UiPins pins = on ? UiPins.Ensure() : UiPins.Instance;
         if (pins == null) return;
-        if (on) pins.ShowGuide(label, who, point);
+        if (on) pins.ShowGuide(label, who, point, impatient == null ? shownIcon : "");   // 26 Oct 2026 (Icons on notes): the line's chip on its pin
         else pins.HideGuide();
     }
 
@@ -997,7 +1196,9 @@ public class DayOneGuideUI : MonoBehaviour
     private static readonly string TitleColour = UiSkin.HexOf(UiSkin.Gold);
     private static readonly string AlsoColour = UiSkin.HexOf(UiSkin.BandFaint);
     private const float Below = 16f;
-    private const float CardWidth = 560f, BenchCardWidth = 580f, CompactWidth = 800f;
+    // 26 Oct 2026 (HUD 3): the line's widest is 740, not 800, so it stops 16 px short of the window top centre (its left
+    // edge is 780 px in; the Now line starts 24 in). A longer line wraps to two, as before.
+    private const float CardWidth = 560f, BenchCardWidth = 580f, CompactWidth = 740f;
     // 20 Oct (Bench 6 on his Mac): at the bench the one-line card is the impatience alert, and it lives in the stage's zone U6
     // (580 px across the top middle, BenchStageContract); in Baloo 2 at 26 px the line ran 658 px, so there it wraps instead
     // (the full card at the bench is 580 too, and doesn't grow when it pulses).
@@ -1022,6 +1223,15 @@ public class DayOneGuideUI : MonoBehaviour
             title = bench ? "" : ImpatientTitle;
             step = bench ? BenchReassureWords(impatient.CustomerName) : impatientText;
             also = "";
+        }
+        else if (quietJob != Downtime.Job.None && guiding && !bench)
+        {
+            // 24 Oct 2026 (Days): a quiet moment's waiting job: in full the first time each shows in a session, then the line.
+            look = now < quietFullUntil ? DayOneHintTimer.Look.Full : DayOneHintTimer.Look.Compact;
+            title = QuietTitle;
+            step = cardStep;
+            also = "";
+            ShowingWaitingJob = quietJob;
         }
         else if (guiding && !bench)
         {
@@ -1056,6 +1266,8 @@ public class DayOneGuideUI : MonoBehaviour
     }
 
     private bool shownNight;
+    // 26 Oct 2026 (Icons on notes): the chip the line asks for, and the one drawn ("" when it would have cost a line).
+    private string shownWanted = "", shownIcon = "";
 
     private void Draw(DayOneHintTimer.Look look, string title, string step, string also, string line, bool bench, bool night, float now)
     {
@@ -1068,12 +1280,22 @@ public class DayOneGuideUI : MonoBehaviour
         if (panel == null && !CreatePanel()) return;
 
         // Built only when a word, the look or the place changes (nothing is allocated on the frames between).
-        if (shownText == null || look != shownLook || bench != shownAtBench || step != shownStep || title != shownTitle || also != shownAlso || line != shownLine)
+        // 26 Oct 2026 (Icons on notes): the line's chip (NoteIcons: by night the Now line's state, by day the marked lines).
+        string icon = bench ? "" : night ? NightCycle.NowIcon : NoteIcons.ForDayLine(look == DayOneHintTimer.Look.Compact ? line : step);
+        if (shownText == null || look != shownLook || bench != shownAtBench || step != shownStep || title != shownTitle || also != shownAlso || line != shownLine
+            || icon != shownWanted)
         {
+            // 26 Oct 2026 (Icons on notes): the chip before the step, only if the words keep their line count beside it.
+            bool compactLook = look == DayOneHintTimer.Look.Compact;
+            hint.fontSize = compactLook ? CompactSize : FullSize;
+            string chip = NoteIcons.Chip(hint, icon, $"<b>{(compactLook ? line : step)}</b>",
+                (compactLook ? CompactWidth : CardWidth) - PadLeft - PadRight);
             // The step bold (it instructs: "your text needs to be bolder"); the title bold in amber; the second line plain.
-            string text = look == DayOneHintTimer.Look.Compact ? $"<b>{line}</b>"
-                : (title.Length > 0 ? $"<size={TitleSize}><color={TitleColour}><b>{title}</b></color></size>\n" : "") + $"<b>{step}</b>"
+            string text = look == DayOneHintTimer.Look.Compact ? $"{chip}<b>{line}</b>"
+                : (title.Length > 0 ? $"<size={TitleSize}><color={TitleColour}><b>{title}</b></color></size>\n" : "") + $"{chip}<b>{step}</b>"
                   + (also.Length > 0 ? $"\n<size={AlsoSize}><color={AlsoColour}>{also}</color></size>" : "");
+            shownWanted = icon;
+            shownIcon = chip.Length > 0 ? icon : "";
             Layout(text, look, bench);
             // The line changed: one pulse and a soft tick (not for the same words drawn again in another look).
             if (line != shownLine && !string.IsNullOrEmpty(shownLine) || shownText == null)
@@ -1093,7 +1315,7 @@ public class DayOneGuideUI : MonoBehaviour
         Show(true);
         Follow();
         // Stuck: back in full with one pulse (no sound). Changed: one pulse with the tick.
-        float stuck = impatient == null && !fallback && !night ? toast.PulseAt(now) : 0f;
+        float stuck = impatient == null && !fallback && !night && quietJob == Downtime.Job.None ? toast.PulseAt(now) : 0f;
         float change = Mathf.Clamp01(1f - (now - changedAt) / ChangePulseSeconds);
         float pulse = Mathf.Max(stuck, change);
         // At the bench the card is the impatience alert in the stage's zone U6 (580 px wide): it pulses by its edge's colour
@@ -1212,6 +1434,7 @@ public class DayOneGuideUI : MonoBehaviour
     private void OnDisable()
     {
         toast.Dismiss();
+        ShowingWaitingJob = Downtime.Job.None;   // 24 Oct 2026 (Days)
         Show(false);
         GuidePin(false);
         SelfPin(false);

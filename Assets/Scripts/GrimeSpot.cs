@@ -632,11 +632,16 @@ public class GrimeSpot : MonoBehaviour
 
     // Grease smeared: the speck whitens toward a haze (30 % over the whole smear), and its alpha is drawn out along the stroke
     // with the speck behind it (moved, not lost: the grade counts what came off, never what was spread).
+    const float HazeR = 158f, HazeG = 148f, HazeB = 132f;   // 26 Oct 2026 (Art fixes) a26: the smeared grease's colour
+
     void Smear(int i, int bx, int by, float amount)
     {
         float k = Mathf.Clamp01(.3f * BenchRules.SmearGain * amount);
         Color32 p = pixels[i];
-        pixels[i] = new Color32((byte)Mathf.Lerp(p.r, 242f, k), (byte)Mathf.Lerp(p.g, 245f, k), (byte)Mathf.Lerp(p.b, 247f, k), 255);
+        // 26 Oct 2026 (Art fixes) a26: the haze is a see-through grey-brown, not near-white (242, 245, 247). The art audit, 23 Oct:
+        // "one leftover smudge is a flat white cloud with a fuzzy edge. It looks like a sticker, while the rest of the dirt looks
+        // real." White at the same opacity reads as paint on the dark glass; a warm grey-brown at it reads as grease you see through.
+        pixels[i] = new Color32((byte)Mathf.Lerp(p.r, HazeR, k), (byte)Mathf.Lerp(p.g, HazeG, k), (byte)Mathf.Lerp(p.b, HazeB, k), 255);
         if (bx < 0 || bx >= Texels || by < 0 || by >= Texels) return;
         int j = by * Texels + bx;
         if (start[j] <= 0f) return;

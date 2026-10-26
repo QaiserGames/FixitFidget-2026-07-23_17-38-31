@@ -250,7 +250,7 @@ public sealed class BeverageStation : MonoBehaviour
         JobBase usual = carry != null ? carry.Carried : null;
         DrinkJob carriedCup = usual as DrinkJob;
         bool takeACup = show && carry != null && carry.HasSpace && carriedCup == null
-                        && ShopInventory.Instance != null && ShopInventory.Instance.Cups > 0;
+                        && ShopInventory.Instance != null && ShopInventory.Instance.MachineCups > 0;   // 24 Oct 2026 (Days): the machine's
         SetStackGlow(takeACup);
         // One line at a time: lingering, this line gives way the moment the café's prompt line has words of its own.
         bool up = show && (!lingering || shop == null || string.IsNullOrEmpty(shop.PromptLine));
@@ -291,6 +291,8 @@ public sealed class BeverageStation : MonoBehaviour
         None, Pouring, TakeTo, Unwanted, Cold, PutBack, PourAway, ReturnHere, OutOfCups, HandsFull, TakeACup, TakeAnother,
         ToPaddle, TakeDrink, TakeColdDrink, PlaceCup, CupFirst, ReadyUnder, ColdUnder, OutOfBeans, NoCupUnder, Pour, ToNozzle,
         ToStack, NoDrink,
+        // 24 Oct 2026 (Days; restock by hand, Designer P's §2.5): a crate from the back shelf in hand.
+        Refill, ToStackRefill,
     }
 
     // What the line says, as values: which words, the drink and the person they name, its icon, the hands, Step back, and the
@@ -361,6 +363,7 @@ public sealed class BeverageStation : MonoBehaviour
 
         // Nothing of the machine's under the crosshair (in the close-up, its crosshair on the housing): the next step.
         if (carriedCup != null) w.kind = Kind.ToNozzle;            // the cup in hand is empty here (a filled one is above)
+        else if (StockCrate.InHand(carry) != null) w.kind = Kind.ToStackRefill;   // 24 Oct 2026 (Days): the crate goes to the stack
         else if (HandsFor(Fit.Free) == 0) w.kind = Kind.HandsFull;
         else if (!CupsInStock) w.kind = Kind.OutOfCups;
         else w.kind = Kind.ToStack;
@@ -399,6 +402,14 @@ public sealed class BeverageStation : MonoBehaviour
     // is still one press away for two orders at once.
     private Wording AtStack(Wording w)
     {
+        // 24 Oct 2026 (Days): a crate from the back shelf in either hand: E fills the machine back to 12 of each
+        // (BeverageCupSupply.Interact), whatever the other hand holds.
+        if (StockCrate.InHand(carry) != null)
+        {
+            w.kind = Kind.Refill;
+            w.button = InteractButton;
+            return w;
+        }
         int free = HandsFor(Fit.Free);
         if (free == 0) w.kind = Kind.HandsFull;
         else if (!CupsInStock) w.kind = Kind.OutOfCups;
@@ -472,7 +483,8 @@ public sealed class BeverageStation : MonoBehaviour
         return w;
     }
 
-    private static bool CupsInStock => ShopInventory.Instance != null && ShopInventory.Instance.Cups > 0;
+    // 24 Oct 2026 (Days): the machine's own cups (restock by hand: the rest wait on the back shelf).
+    private static bool CupsInStock => ShopInventory.Instance != null && ShopInventory.Instance.MachineCups > 0;
     private static bool CanBrew(DrinkDefinition drink) => ShopInventory.Instance != null && ShopInventory.Instance.CanBrew(drink);
 
     // What a hand must hold to do it: nothing (to take), a cup that isn't locked in the machine (to return), an empty one (to
@@ -554,6 +566,10 @@ public sealed class BeverageStation : MonoBehaviour
         }
     }
 
+    // 24 Oct 2026 (Days): the back shelf has cups (or beans) a refill would bring.
+    private static bool OnTheShelf(bool cups) => ShopInventory.Instance != null
+        && (cups ? ShopInventory.Instance.ShelfCups : ShopInventory.Instance.ShelfBeans) > 0;
+
     // The words, in the café's plain voice: what the button does here, or the next step. Each drink is named as the game writes
     // it everywhere (its paddle, the ticket, the Day 1 card): "Pour Latte", "Take the Coffee to Beatriz". Kept short: Ace's
     // held cups are drawn at 28 % and 72 % of the screen's width, at the line's height (PlayerCarry.HandCentre), about 700 px
@@ -574,7 +590,8 @@ public sealed class BeverageStation : MonoBehaviour
             case Kind.PutBack: return "Put the cup back";
             case Kind.PourAway: return $"Pour away the {drink}";
             case Kind.ReturnHere: return "Spare cups go back here";
-            case Kind.OutOfCups: return "Out of cups: restock at closing";
+            // 24 Oct 2026 (Days): with stock on the back shelf, the machine is only empty until a refill.
+            case Kind.OutOfCups: return OnTheShelf(true) ? "No cups: refill from the back shelf" : "Out of cups: restock at closing";
             case Kind.HandsFull: return "Both hands are full";           // short: both cups are drawn either side of it
             case Kind.TakeACup: return "Take a cup";
             case Kind.TakeAnother: return "Take another cup";
@@ -585,7 +602,9 @@ public sealed class BeverageStation : MonoBehaviour
             case Kind.CupFirst: return "Take a cup from the stack first";
             case Kind.ReadyUnder: return $"{drink} is ready: take the cup";
             case Kind.ColdUnder: return $"This {drink} is cold: take the cup";
-            case Kind.OutOfBeans: return "Out of beans: restock at closing";
+            case Kind.OutOfBeans: return OnTheShelf(false) ? "No beans: refill from the back shelf" : "Out of beans: restock at closing";
+            case Kind.Refill: return BeverageCupSupply.RefillWords;                       // 24 Oct 2026 (Days)
+            case Kind.ToStackRefill: return $"{look} at the cup stack to refill it";
             // E on this paddle still pours, onto the tray, and takes the beans (BeverageSlot.TryPour debits at the press, cup or
             // none), so the line says so, as the old "ingredients will be wasted" did. No icon: a warning, not an invitation.
             // Worded to fit between the held cups at the longest name ("Hot Chocolate", 703 px).

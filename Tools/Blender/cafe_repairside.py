@@ -124,12 +124,116 @@ def handle_arc(cx, cy, z0, z1, reach, axis='y', sign=-1, r=0.0055, n=7):
     return cp.sweep_var(pts, [r] * len(pts), sides=6 if n > 5 else 5)
 
 
-def paper_bag(w, d, h, fold=0.03):
-    """A paper bag standing, its top folded over once toward the front (-Y): a box and a folded flap."""
-    bm = rb(-w / 2, w / 2, -d / 2, d / 2, 0.0, h - fold, c=0.003)
-    flap = rb(-w / 2 + 0.002, w / 2 - 0.002, -d / 2 - 0.004, d / 2 - 0.002, h - fold - 0.002, h, c=0.002)
-    fb.merge(bm, flap)
-    return bm
+def _bag_ring(w, d, z, rc=0.008, per_long=6, per_short=3, per_corner=2):
+    """The points of a paper bag's section: a rounded rectangle w x d, the same count and order at every height."""
+    hx, hy = w / 2 - rc, d / 2 - rc
+    pts = []
+    for (ox, oy, a0) in ((hx, -hy, -90.0), (hx, hy, 0.0), (-hx, hy, 90.0), (-hx, -hy, 180.0)):
+        for k in range(per_corner + 1):
+            a = math.radians(a0 + 90.0 * k / per_corner)
+            pts.append([ox + rc * math.cos(a), oy + rc * math.sin(a), z])
+        # the straight side after this corner, without its ends (the next corner gives them)
+        nxt = {-90.0: (hx, hy), 0.0: (-hx, hy), 90.0: (-hx, -hy), 180.0: (hx, -hy)}[a0]
+        a_end = math.radians(a0 + 90.0)
+        p0 = (ox + rc * math.cos(a_end), oy + rc * math.sin(a_end))
+        p1 = (nxt[0] + rc * math.cos(a_end), nxt[1] + rc * math.sin(a_end))
+        n = per_short if a0 in (-90.0, 90.0) else per_long
+        for m in range(1, n + 1):
+            f = m / (n + 1)
+            pts.append([p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, z])
+    return pts
+
+
+def paper_bag(w, d, h, seed, t=0.0015, creases=(-0.22, 0.18)):
+    """
+    A paper bag standing open, its walls paper-thin, its top crumpled (24 Oct 2026, art audit a41: the old bag was "a box
+    and a folded flap", a crisp carton; R2: "crumple and roll the bag tops, taper the sides, add two or three creases").
+    The walls bulge a little and narrow toward a ragged, crumpled mouth; the two side gussets fold in toward the top, as a
+    filled paper bag's do; two creases run down the front; the rim wanders up and down by about a centimetre. One closed
+    solid: the outside up to the rim, over it, and the inside down to the floor, so looking into the bag shows its
+    inside, never through it. Whatever it holds stands in it (the fan's guard, the headband), poking out of the mouth.
+    """
+    import random
+    rng = random.Random(seed)
+    base = _bag_ring(w, d, 0.0)
+    n = len(base)
+    rim_wobble = [rng.uniform(-1.0, 1.0) for _ in range(n)]
+    rim_wobble = [(rim_wobble[i - 1] + 2 * rim_wobble[i] + rim_wobble[(i + 1) % n]) / 4 for i in range(n)]   # soften it
+    crumple = [rng.uniform(-1.0, 1.0) for _ in range(n)]
+    # (height fraction, width scale, depth scale, crumple amount in metres)
+    levels = [(0.0, 1.00, 1.00, 0.0), (0.03, 1.01, 1.02, 0.0), (0.30, 1.03, 1.06, 0.001), (0.60, 1.02, 1.05, 0.002),
+              (0.82, 0.97, 0.94, 0.005), (0.94, 0.93, 0.86, 0.008), (1.00, 0.92, 0.82, 0.010)]
+    outer, inner = [], []
+    for (f, sw, sd, cr) in levels:
+        ring = _bag_ring(w * sw, d * sd, 0.0)
+        out_ring, in_ring = [], []
+        side_x = w * sw / 2 - 0.008                       # where the short sides' straight part starts (_bag_ring's rc)
+        fold = max(0.0, min(1.0, (f - 0.45) / 0.55)) ** 1.5
+        for i, (x, y, _) in enumerate(ring):
+            if abs(x) >= side_x and fold > 0.0:           # the side gusset folding in: deepest at the side's middle
+                x -= math.copysign(0.13 * d * fold * max(0.0, 1.0 - abs(y) / (0.5 * d * sd)), x)
+            r = math.hypot(x, y) or 1.0
+            ux, uy = x / r, y / r
+            k = cr * crumple[i]
+            # the creases: dents across the front face (-Y), a third of the way in, from a quarter of the way up
+            for cx_ in creases:
+                if y < 0 and f > 0.2:
+                    k -= 0.004 * max(0.0, 1.0 - abs(x - cx_ * w) / (0.05 * w)) * min(1.0, (f - 0.2) * 4)
+            z = f * h + (rim_wobble[i] * 0.011 if f >= 1.0 else 0.0)
+            xo, yo = x + ux * k, y + uy * k
+            out_ring.append((xo, yo, z))
+            in_ring.append((xo - ux * t, yo - uy * t, z if f >= 1.0 else max(t, z)))
+        outer.append(out_ring)
+        inner.append(in_ring)
+    loops = outer + [inner[-1]] + list(reversed(inner[1:-1])) + [[(x, y, t) for (x, y, _) in inner[0]]]
+    return hl.tube(loops, cap_bottom=True, cap_top=True)
+
+
+def wrapped_lamp(x0, x1, axis_z, seed=11, band=(0.33, 0.39)):
+    """
+    A desk lamp wrapped in paper, lying down along X (24 Oct 2026, art audit a41: it read as "a giant crayon or a
+    baguette"; the fix: "twist the lamp's paper shut with its shade and base showing"). The paper wraps the arm from x0 to
+    x1, crumpled, and is twisted shut round the lamp's steel at both ends, like a sweet's wrapper; the round base and the
+    shade stand out beyond it (added by the caller). Returns (paper, tape): two closed solids along X, the tape a band of
+    masking tape lying on the crumpled paper between band[0] and band[1] of the bundle's length (it follows the paper's
+    own radius there, 1.5 mm out).
+    """
+    import random
+    rng = random.Random(seed)
+    sides = 12
+    L = x1 - x0
+    crumple = [rng.uniform(-1.0, 1.0) for _ in range(sides)]
+    # (position along the bundle 0..1, radius, crumple fraction, twist turns of the lobes)
+    prof = [(0.000, 0.010, 0.00, 0.00), (0.035, 0.013, 0.10, 0.08), (0.070, 0.019, 0.15, 0.16), (0.110, 0.032, 0.12, 0.22),
+            (0.160, 0.043, 0.10, 0.25), (0.300, 0.046, 0.12, 0.25), (0.500, 0.044, 0.14, 0.25), (0.700, 0.046, 0.12, 0.25),
+            (0.840, 0.043, 0.10, 0.25), (0.890, 0.032, 0.12, 0.30), (0.930, 0.019, 0.15, 0.38), (0.965, 0.013, 0.10, 0.46),
+            (1.000, 0.010, 0.00, 0.50)]
+
+    def radii(u, r, cf, tw):
+        out = []
+        for i in range(sides):
+            a = 2 * math.pi * i / sides
+            lobe = 0.18 * math.cos(6 * (a + tw * 2 * math.pi)) if 0.0 < u < 0.14 or 0.86 < u < 1.0 else 0.0   # the twisted gathers
+            out.append(r * (1.0 + cf * crumple[(i + int(u * 7)) % sides] + lobe))
+        return out
+
+    table = [(u, radii(u, r, cf, tw)) for (u, r, cf, tw) in prof]
+
+    def ring_at(u, scale=1.0):
+        """The paper's surface at u, as the loft draws it (each point between its two rings)."""
+        for (ua, ra), (ub, rb_) in zip(table, table[1:]):
+            if ua <= u <= ub:
+                f = (u - ua) / (ub - ua)
+                return [(x0 + u * L, (ra[i] + (rb_[i] - ra[i]) * f) * scale * math.cos(2 * math.pi * i / sides),
+                         axis_z + (ra[i] + (rb_[i] - ra[i]) * f) * scale * math.sin(2 * math.pi * i / sides)) for i in range(sides)]
+        raise ValueError(u)
+
+    paper = hl.tube([ring_at(u) for (u, _r) in table], cap_bottom=True, cap_top=True)
+    tape = hl.tube([[(x, y_ * 1.035, z_) for (x, y_, z_) in ring_at(band[0])],
+                    [(x, y_ * 1.035, z_) for (x, y_, z_) in ring_at(band[1])]], cap_bottom=True, cap_top=True)
+    for v in tape.verts:                                  # 1.5 mm out from the paper all round (the z about the bundle's axis)
+        v.co.z = axis_z + (v.co.z - axis_z) * 1.035
+    return paper, tape
 
 
 def tag_on(p, x, y, z, k, rot=0.0):
@@ -170,26 +274,51 @@ def pickup_row():
         p.add('radio knob', hl.moved(fb.turn(hl.revolve([(0.0, 0.011), (0.012, 0.011), (0.015, 0.009)], sides=10), 90, 'X'), kx, -0.068, 0.06), black)
     p.add('radio handle', hl.sweep([(x - 0.10, 0.0, 0.175), (x - 0.08, 0.0, 0.215), (x + 0.08, 0.0, 0.215), (x + 0.10, 0.0, 0.175)], 0.006, sides=6), black)
     tag_on(p, x + 0.05, tag_y, 0.0, 0, rot=-8)
-    # 2. a desk fan in a kraft bag, its guard showing over the fold
+    # 2. a desk fan in a kraft bag, its guard showing over the crumpled mouth (24 Oct 2026, a41: the bags were crisp boxes
+    # with one flat flap; now paper_bag's open, slumped bag)
     x = xs[1]
-    p.add('fan bag', hl.moved(paper_bag(0.28, 0.18, 0.20), x, 0.0, 0.0), kraft)
+    p.add('fan bag', hl.moved(paper_bag(0.28, 0.17, 0.20, seed=21), x, 0.0, 0.0), kraft)   # 0.17: its bulge keeps the row's 0.09 back
     p.add('fan guard', hl.moved(fb.turn(hl.revolve([(0.0, 0.11), (0.012, 0.115), (0.03, 0.10), (0.04, 0.05), (0.042, 0.0001)], sides=16), 90, 'X'), x, 0.01, 0.21), steel)
     tag_on(p, x - 0.05, tag_y, 0.0, 1, rot=6)
-    # 3. headphones in a white paper bag, the headband over the fold
+    # 3. headphones in a white paper bag, the headband over the crumpled mouth
     x = xs[2]
-    p.add('headphone bag', hl.moved(paper_bag(0.22, 0.12, 0.19, fold=0.025), x, 0.0, 0.0), white)
+    p.add('headphone bag', hl.moved(paper_bag(0.22, 0.12, 0.19, seed=33, creases=(-0.20, 0.24)), x, 0.0, 0.0), white)
     arc = [(x + 0.07 * math.cos(a), 0.0, 0.17 + 0.075 * math.sin(a)) for a in (math.radians(d) for d in range(0, 181, 20))]
     p.add('headband', hl.sweep(arc, 0.008, sides=6), black)
     tag_on(p, x + 0.03, tag_y, 0.0, 2, rot=-4)
-    # 4. a game controller in a zip bag: the flat bag, its blue zip, the controller lying in it
+    # 4. a game controller in a zip bag: the flat bag, its blue zip, the controller lying in it. 24 Oct 2026, a42: "so
+    # small it looks like a tiny dark gun on a card". Now at a real pad's size (16 x 10.5 cm, 4.75 cm over its sticks, as
+    # the common ones are), with the two sticks, a cross pad and four face buttons (cream: no maker's colours) that say
+    # "controller" from the counter; the bag grew to hold it (26 x 17 cm).
     x = xs[3]
-    p.add('zip bag', rb(x - 0.11, x + 0.11, -0.08, 0.08, 0.0, 0.006, c=0.002), zipbag)
-    p.add('zip', rb(x - 0.11, x + 0.11, 0.065, 0.078, 0.004, 0.009, c=0.001), M('LI_RecycleBlue'))
-    ctrl = rb(-0.065, 0.065, -0.035, 0.03, 0.005, 0.035, c=0.012)
-    fb.merge(ctrl, rb(-0.075, -0.035, -0.06, -0.01, 0.0058, 0.0292, c=0.010))
-    fb.merge(ctrl, rb(0.035, 0.075, -0.06, -0.01, 0.0058, 0.0292, c=0.010))
-    p.add('controller', moved(ctrl, x, 0.01, 0.0, rot=10), plastic)
-    tag_on(p, x + 0.07, tag_y - 0.02, 0.0, 3, rot=12)
+    p.add('zip bag', rb(x - 0.13, x + 0.13, -0.085, 0.088, 0.0, 0.006, c=0.002), zipbag)
+    p.add('zip', rb(x - 0.13, x + 0.13, 0.073, 0.086, 0.004, 0.009, c=0.001), M('LI_RecycleBlue'))
+    ctrl = rb(-0.072, 0.072, -0.022, 0.040, 0.005, 0.036, c=0.014)
+    for side in (1, -1):
+        grip = rb(0.030, 0.080, -0.078, 0.000, 0.0058, 0.0330, c=0.016)
+        fb.turn(grip, 14.0, 'Z', pivot=(0.055, -0.010, 0.0))      # the grip's far end swings out, as a pad's horns do
+        if side < 0:                                              # the left grip: the right one mirrored across x = 0
+            bmesh.ops.scale(grip, vec=(-1.0, 1.0, 1.0), verts=grip.verts[:])
+            bmesh.ops.reverse_faces(grip, faces=grip.faces[:])
+        fb.merge(ctrl, grip)
+    p.add('controller', moved(ctrl, x, 0.008, 0.0, rot=10), plastic)
+    rot10 = math.radians(10.0)
+
+    def on_pad(px, py):                                   # a point on the controller's face, turned with it
+        return (x + px * math.cos(rot10) - py * math.sin(rot10), 0.008 + px * math.sin(rot10) + py * math.cos(rot10))
+    for (px, py) in ((-0.040, 0.016), (0.020, -0.006)):
+        sx_, sy_ = on_pad(px, py)
+        p.add('thumbstick', hl.moved(hl.revolve([(0.034, 0.008), (0.042, 0.008), (0.044, 0.0115), (0.047, 0.0115), (0.0475, 0.009)], sides=12), sx_, sy_, 0.0), black)
+    dx_, dy_ = on_pad(-0.018, -0.008)
+    for rot in (0.0, 90.0):
+        lift = 0.0002 if rot else 0.0                     # the two arms' faces never in one plane
+        arm = rb(-0.0095, 0.0095, -0.0032, 0.0032, 0.033 + lift, 0.039 + lift, c=0.0008)
+        fb.turn(arm, rot + 10.0, 'Z')
+        p.add('cross pad', hl.moved(arm, dx_, dy_, 0.0), dark)
+    for (px, py) in ((0.046, 0.004), (0.056, 0.014), (0.036, 0.014), (0.046, 0.024)):
+        bx_, by_ = on_pad(px, py)
+        p.add('face button', cyl(bx_, by_, 0.033, 0.0395, 0.0046, sides=10), M('DC_Chalk'))
+    tag_on(p, x + 0.09, tag_y - 0.02, 0.0, 3, rot=12)
     # 5. a kettle: a tapered steel body, a lid and knob, a handle, a spout
     x = xs[4]
     p.add('kettle body', hl.moved(hl.revolve([(0.0, 0.075), (0.005, 0.080), (0.16, 0.068), (0.175, 0.05), (0.18, 0.03)], sides=16), x, 0.0, 0.0), steel)
@@ -197,12 +326,25 @@ def pickup_row():
     p.add('kettle handle', hl.sweep([(x - 0.065, 0.0, 0.15), (x - 0.06, 0.0, 0.235), (x + 0.05, 0.0, 0.235), (x + 0.06, 0.0, 0.17)], 0.010, sides=6), black)
     p.add('kettle spout', hl.sweep([(x + 0.07, 0.0, 0.05), (x + 0.10, 0.0, 0.10), (x + 0.115, 0.0, 0.14)], 0.012, sides=8), steel)
     tag_on(p, x - 0.03, tag_y, 0.0, 4, rot=-10)
-    # 6. a desk lamp wrapped in paper, lying down: a long wrapped bundle, the shade's rim showing at one end
+    # 6. a desk lamp wrapped in paper, lying down (24 Oct 2026, a41: it was a smooth cream log with a green cone at one
+    # end, "a giant crayon or a baguette"). Now the paper is crumpled round the arm and twisted shut at both ends, and
+    # what it can't wrap shows: the lamp's round black base standing on its edge at one end, its green shade at the other,
+    # each on a short steel stem out of a twist; a band of masking tape holds the paper. The lamp's axis is at the base's
+    # centre, 52 mm up: the base and the shade's rim stand on the bar and the paper clears it by a few millimetres.
     x = xs[5]
-    wrap = [(x - 0.22 + 0.44 * t, 0.0, 0.055 + 0.004 * math.sin(9 * t)) for t in (k / 8.0 for k in range(9))]
-    p.add('wrapped lamp', hl.sweep(wrap, 0.05, sides=10), white)
-    p.add('lamp shade', hl.moved(fb.turn(hl.revolve([(0.0, 0.03), (0.07, 0.065), (0.074, 0.065)], sides=14), -90, 'Y'), x + 0.288, 0.0, 0.065), M('DC_Sticker_Green'))
-    p.add('tape band', hl.moved(fb.turn(hl.revolve([(-0.012, 0.052), (0.012, 0.052)], sides=10), 90, 'Y'), x - 0.08, 0.0, 0.055), M('LI_Tape'))
+    az = 0.052
+    paper, tape = wrapped_lamp(x - 0.205, x + 0.175, az)
+    p.add('wrapped lamp', paper, white)
+    base = hl.revolve([(0.0, 0.046), (0.004, 0.052), (0.022, 0.052), (0.026, 0.046)], sides=20)
+    p.add('lamp base', hl.moved(fb.turn(base, 90, 'Y'), x - 0.262, 0.0, az), black)
+    for (s0, s1) in ((-0.238, -0.190), (0.160, 0.196)):
+        stem = hl.revolve([(0.0, 0.0075), (s1 - s0, 0.0075)], sides=10)
+        p.add('lamp stem', hl.moved(fb.turn(stem, 90, 'Y'), x + s0, 0.0, az), steel)
+    shade = hl.revolve([(0.0, 0.015), (0.010, 0.022), (0.030, 0.037), (0.050, 0.046), (0.068, 0.0505), (0.074, 0.052),
+                        (0.074, 0.0492), (0.068, 0.0478), (0.050, 0.0432), (0.030, 0.0342), (0.012, 0.0195), (0.003, 0.0125)],
+                       sides=18)                          # a bell, as a desk lamp's shade is
+    p.add('lamp shade', hl.moved(fb.turn(shade, 90, 'Y'), x + 0.190, 0.0, az), M('DC_Sticker_Green'))
+    p.add('tape band', tape, M('LI_Tape'))
     tag_on(p, x - 0.02, tag_y, 0.0, 5, rot=4)
     # 7. a small speaker: a cloth-fronted box on its end
     x = xs[6]
@@ -264,6 +406,42 @@ def desk_corner():
     mug = hl.revolve([(0.0, 0.040), (0.004, 0.042), (0.090, 0.042), (0.095, 0.044), (0.095, 0.036), (0.012, 0.034)], sides=14, cap_top=False)
     p.add('mug', hl.moved(mug, 0.02, -0.17, Z), M('DC_Sticker_Green'))
     p.add('mug handle', handle_arc(0.058, -0.17, Z + 0.025, Z + 0.075, 0.020, axis='x', sign=1), M('DC_Sticker_Green'))
+    # ---- 24 Oct 2026 (the art audit; his answer "Yes, do that"). Added after everything else, so the material slots keep
+    # their order: these use only materials the corner already had.
+    # a29, the steel rule ("a bare light-grey bar with no marks. It reads as a stray strip"): black marks 0.5 mm proud
+    # (less fights the steel's face in the depth buffer from the overhead camera), a tick every 5 mm along its far edge (centimetres longer, every 5 cm longest) and 5 10 15 20 25 under them,
+    # read by Ace: his up is -Y and his right -X, so 0 is at his left, the +X end
+    rz = Z + 0.0012
+    for k in range(1, 60):
+        x = -0.25 - k * 0.005
+        length = 0.0080 if k % 10 == 0 else (0.0050 if k % 2 == 0 else 0.0030)
+        p.add('rule tick', fb.zbox(x - 0.00035, x + 0.00035, 0.2358, 0.2358 + length, rz - 0.0001, rz + 0.0005), black)
+    for k in range(1, 6):
+        num = hl.text_mesh(str(5 * k), 0.0085, 0.0006)
+        if num is None:
+            continue
+        bmesh.ops.triangulate(num, faces=num.faces[:])   # convex faces, so the coplanar audit judges the glyphs truly
+        fb.turn(num, 180.0, 'Z')
+        p.add('rule number', hl.moved(num, -0.25 - 0.05 * k, 0.2560, rz - 0.0001), black)
+    # a44, the cabinet's back, which is what the repair bar's stools see ("a plain grey box sits at a seated guest's eye
+    # level"): a moulded rim round its edge, two ribs across the panel, the two keyhole slots it hangs by, and Ace's label
+    by = cy - 0.11                                       # the back face, toward the room (-Y)
+    x0, x1, z0, z1 = cx - 0.1395, cx + 0.1395, Z + 0.0005, Z + 0.2195     # half a millimetre inside the cabinet's edges
+    rim, proud = 0.012, 0.004
+    for (a0, a1, b0, b1) in ((x0, x1, z1 - rim, z1), (x0, x1, z0, z0 + rim), (x0, x0 + rim, z0 + rim, z1 - rim),
+                             (x1 - rim, x1, z0 + rim, z1 - rim)):
+        p.add('cabinet rim', rb(a0, a1, by - proud, by, b0, b1, c=0.0015), M('LI_Plastic'))
+    for zr in (Z + 0.077, Z + 0.152):
+        p.add('cabinet rib', rb(x0 + rim, x1 - rim, by - 0.002, by + 0.001, zr - 0.004, zr + 0.004, c=0.001), M('LI_Plastic'))
+    for kx in (x0 + 0.040, x1 - 0.040):
+        p.add('keyhole slot', rb(kx - 0.003, kx + 0.003, by - 0.0006, by + 0.0005, Z + 0.180, Z + 0.196, c=0.0008), black)
+    p.add('cabinet label', rb(cx - 0.065, cx + 0.065, by - 0.0015, by + 0.0005, Z + 0.163, Z + 0.203, c=0.0006), M('LI_PaperWhite'))
+    word = hl.text_mesh('PARTS', 0.024, 0.0007)
+    if word is not None:
+        bmesh.ops.triangulate(word, faces=word.faces[:])
+        fb.turn(word, 90.0, 'X')                         # face the room (-Y), its up +Z, reading +X from the stools
+        zs_ = [v.co.z for v in word.verts]
+        p.add('label word', hl.moved(word, cx, by - 0.0015, Z + 0.183 - (min(zs_) + max(zs_)) / 2), black)
     return p
 
 

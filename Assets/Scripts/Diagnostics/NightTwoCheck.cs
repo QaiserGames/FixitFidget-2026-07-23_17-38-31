@@ -37,6 +37,8 @@ using UnityEngine.UI;
 //     for his word, a harder question. The cups are still what he wants.
 // A photo at each step and report.txt go to Logs/Night/night-two-check-<mode>-<time>/. Nothing is saved in the scene;
 // the lab save is the only file written (by the game).
+// 26 Oct 2026 (Icons 2), Cups: after his ask the real notebook page is opened: tonight's entry wears the Now line's chip,
+// the cups, first in its line (photo 04c-notebook-the-cups); then closed. Two checks more.
 // ---------------------------------------------------------------------------
 public sealed class NightTwoCheck : MonoBehaviour
 {
@@ -210,12 +212,13 @@ public sealed class NightTwoCheck : MonoBehaviour
         LodgerStory.Tonight expected = mode == Mode.Note ? LodgerStory.Tonight.AskAgain : LodgerStory.Tonight.Ask;
         Check(zero.Tonight == expected && zero.Verdict == LodgerStory.VerdictHeld, $"tonight: {zero.Tonight} (expected {expected}); his verdict {zero.Verdict} (Grace's morning, held)");
         var said = new List<string>();
+        var chips = new List<string>();   // 26 Oct 2026 (Icons on notes): the chip each of his lines wore ("" for none)
         int answered = 0, warmth = ledger.Warmth;
         bool photographed = false;
         float sceneStart = Time.realtimeSinceStartup;
         while (Barks.ScenePlaying && Time.realtimeSinceStartup - sceneStart < 60f)
         {
-            if (Barks.TryGetShown(man.Speaker, out Barks.Shown up) && (said.Count == 0 || said[said.Count - 1] != up.text)) said.Add(up.text);
+            if (Barks.TryGetShown(man.Speaker, out Barks.Shown up) && (said.Count == 0 || said[said.Count - 1] != up.text)) { said.Add(up.text); chips.Add(up.icon ?? ""); }
             if (Barks.Choosing)
             {
                 yield return Until(() => Barks.ChipsUp, 3f, "Ace's replies come up");
@@ -227,10 +230,19 @@ public sealed class NightTwoCheck : MonoBehaviour
                 continue;
             }
             yield return Seconds(.85f);
-            if (Barks.TryGetShown(man.Speaker, out Barks.Shown again) && (said.Count == 0 || said[said.Count - 1] != again.text)) said.Add(again.text);
+            if (Barks.TryGetShown(man.Speaker, out Barks.Shown again) && (said.Count == 0 || said[said.Count - 1] != again.text)) { said.Add(again.text); chips.Add(again.icon ?? ""); }
             if (!Barks.Choosing) Barks.Advance();
         }
         Note("he said: " + string.Join(" / ", said.Select(s => "\"" + s + "\"")));
+        // 26 Oct 2026 (Icons on notes): his ask, and only his ask, wears the cups chip; his verdict, the cold lines and the
+        // reminder are words (story and reminders, the README's rule 2).
+        if (PadInput.IconsAvailable)
+        {
+            string ask = lines.FindLine(favour.firstLine)?.text;
+            var wrong = said.Select((s, i) => (s, chip: chips[i])).Where(x => x.chip != (x.s == ask ? NoteIcons.Cups : "")).ToList();
+            Check(wrong.Count == 0 && (mode == Mode.Note || chips.Contains(NoteIcons.Cups)),
+                $"his ask wears the cups chip, his other lines none ({(wrong.Count == 0 ? "all right" : string.Join("; ", wrong.Select(w => $"\"{Short(w.s)}\": \"{w.chip}\"")))})");
+        }
         Check(said.Count > 0 && lines.Pool(LodgerStory.SpeakerId, LodgerStory.VerdictHeld).Any(l => l.text == said[0]), "his first line is his verdict on the morning");
         if (mode == Mode.Note)
         {
@@ -252,8 +264,10 @@ public sealed class NightTwoCheck : MonoBehaviour
         yield return Seconds(1f);
         Check(NoteShowing().Contains("kitchen"), $"the note says where the cups are (\"{Short(NoteShowing())}\")");
         if (mode == Mode.Cups)
-            yield return NowLine("The reunion cups: Grace's kitchen. Go in once she's asleep.", "the Now line says where the cups are, and when to go in");
+            yield return NowLine("The reunion cups: Grace's kitchen. Go in once she's asleep.", "the Now line says where the cups are, and when to go in", NoteIcons.Cups);
         yield return Photo("04-after-his-ask");
+        // 26 Oct 2026 (Icons 2): the real page, opened: tonight's entry wears the Now line's chip (the cups), then closed.
+        if (mode == Mode.Cups) yield return PageMatches(NoteIcons.Cups, "04c-notebook-the-cups");
 
         if (mode != Mode.Cups)
         {
@@ -351,7 +365,7 @@ public sealed class NightTwoCheck : MonoBehaviour
         Check(NightCarry.Current != null && NightCarry.Current.HeldId == cups.id && shelf.Showing == 0, "in Ace's hand, for him, not on the shelf");
         Check(saves.Notebook.Find(cups.id + ".taken")?.text == cups.notebookTakenFor, "the notebook says who they were for");
         Check(NoteShowing().Contains("back to the man at the bins"), $"the note says where to take them (\"{Short(NoteShowing())}\")");
-        yield return NowLine("Bring the reunion cups to the man at the bins", "the Now line says to bring them to the man");
+        yield return NowLine("Bring the reunion cups to the man at the bins", "the Now line says to bring them to the man", NoteIcons.Bins);
         string aceLine = lines.FindLine(favour.aceLine)?.text ?? "?";
         Check(Barks.TryGetShown(movement.transform, out Barks.Shown mine) && mine.text == aceLine, $"Ace mutters \"{aceLine}\"");
         yield return Seconds(.6f);
@@ -592,6 +606,10 @@ public sealed class NightTwoCheck : MonoBehaviour
             int badges = day.Tables.Count(t => Juice.MarkShowing(t.Badge, out _));
             Check(badges == tables && Juice.MarksUp == tables, $"a badge over each table ({badges} of {tables} showing; {Juice.MarksUp} up)");
             yield return Until(() => NoteShowing().Contains(LodgerStory.MessNote), 6f, "the note says so, and whose mess it is");
+            // 26 Oct 2026 (Icons on notes): "Clear the tables" wears the table chip, first.
+            if (PadInput.IconsAvailable)
+                Check(NoteIcons.Tag(NoteIcons.Table).Length > 0 && NoteShowing() == NoteIcons.Lead(NoteIcons.Table) + LodgerStory.MessNote,
+                    $"...with the table chip before it (\"{NoteShowing()}\")");
             Note($"the note: \"{NoteShowing()}\"");
             yield return Photo("05-his-mess");
             yield return Until(() => day.NoteShown, 14f, "then his note on the counter");
@@ -789,8 +807,30 @@ public sealed class NightTwoCheck : MonoBehaviour
         yield return null;
     }
 
+    // 26 Oct 2026 (Icons 2): the night's real notebook page (NightWalk's), opened: tonight's entry wears the chip the Now line
+    // wears right now (NightCycle.NowIcon), first in its line; a photo; closed again. Words only without the icon sheet.
+    IEnumerator PageMatches(string icon, string photo)
+    {
+        NightNotebook page = NightWalk.Instance != null ? NightWalk.Instance.NotebookPage : null;
+        if (page == null) { Check(false, "the night has its notebook page (NightWalk.NotebookPage)"); yield break; }
+        page.Show(true);
+        yield return null;
+        yield return null;
+        NightNotebook.Shown top = page.Visible.Count > 0 ? page.Visible[0] : null;
+        if (PadInput.IconsAvailable)
+            Check(page.Open && top != null && top.entry.now && top.chip == icon && page.TonightChip == NightCycle.NowIcon && NightCycle.NowIcon == icon
+                  && top.line.text.StartsWith(NoteIcons.Tag(icon) + " ", StringComparison.Ordinal),
+                $"the notebook page, opened: tonight's entry ({top?.entry.key}) wears the Now line's chip, {icon} (the page: \"{page.TonightChip}\", the line: \"{NightCycle.NowIcon}\")");
+        else
+            Check(page.Open && top != null && top.entry.now && top.chip == "", "the notebook page, opened: no icon sheet, so tonight's entry is words alone");
+        yield return Photo(photo);
+        page.Show(false);
+        yield return null;
+        Check(!page.Open, "...and closed again");
+    }
+
     // The Now line (DayOneGuideUI, top left) says this, within its budget, at the line's size.
-    IEnumerator NowLine(string words, string what)
+    IEnumerator NowLine(string words, string what, string icon = null)   // 26 Oct 2026 (Icons on notes): icon, the chip expected
     {
         if (guide == null) { Check(false, what + " (no guide in the scene)"); yield break; }
         yield return Until(() => guide.CardShowing && guide.NightLine && guide.NowText.StartsWith(words, StringComparison.Ordinal), 4f, $"{what}: \"{words}\"");
@@ -799,6 +839,11 @@ public sealed class NightTwoCheck : MonoBehaviour
         string stepWords = guide.NowText.Split(new[] { " · " }, StringSplitOptions.None)[0];
         Check(!WordBudget.Over(stepWords, WordBudget.NowLine) && Mathf.Abs(guide.LineSize - DayOneGuideUI.CompactSize) < .01f,
             $"...within the Now line's budget, at {guide.LineSize:0} px ({WordBudget.Report(stepWords, WordBudget.NowLine)})");
+        // 26 Oct 2026 (Icons on notes): the state's chip before the words (NoteIcons), and the words measured without it.
+        if (icon != null && PadInput.IconsAvailable)
+            Check(guide.NowChip == icon && NightCycle.NowIcon == icon && guide.CardText.StartsWith(NoteIcons.Tag(icon), StringComparison.Ordinal)
+                  && NoteIcons.Tag(icon).Length > 0 && !NoteIcons.HasIcon(guide.NowText.Split(new[] { " · " }, StringSplitOptions.None)[0]),
+                $"...with its chip first: {icon} (drawn: \"{guide.NowChip}\"; the night's: \"{NightCycle.NowIcon}\")");
     }
 
     static List<Vector3> Plan(GraceHouse house, params (float X, float Y)[] stops) => stops.Select(s => house.World(s.X, s.Y)).ToList();

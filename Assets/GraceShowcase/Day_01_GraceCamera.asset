@@ -30,7 +30,7 @@ MonoBehaviour:
     spawnInterval: 30
   patienceMultiplier: 2
   maxCustomers: 2
-  drinkOnlyChance: 0.7
+  drinkOnlyChance: 0.55
   guidedOpening: 0
   openingDrink: {fileID: 11400000, guid: f8f4c1a2bc2829d4ba3142360184b7a1, type: 2}
   openingHintDuration: 6
@@ -56,3 +56,11 @@ MonoBehaviour:
   - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
     faultIndex: 1
     storyEpisodeId: 
+  thriftFind:
+    devicePrefab: {fileID: 5697064364087998895, guid: fe7fc27bf00b446eb9931f41dc3225c6, type: 3}
+    faultIndex: 0
+    storyEpisodeId: 
+  thriftBuy: 0
+  thriftSale: 55
+  gossip: []
+  previewLine: 

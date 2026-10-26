@@ -10,7 +10,9 @@ using UnityEngine;
 /// Presentation only. Nothing here changes queue order, patience, orders,
 /// prices or what a customer wants - a Hurried customer is not served faster
 /// and a Relaxed one does not wait longer; they only walk, stand, glance and
-/// gesture differently.
+/// gesture differently. One exception since 24 Oct 2026: leavesCup, how
+/// likely they are to leave their cup on the table (a seat out of play until
+/// Ace clears it: Designer P's clearing tables).
 /// </summary>
 [CreateAssetMenu(menuName = "Fixit Fidget/NPC movement profile", fileName = "NpcProfile_")]
 public sealed class NpcMovementProfile : ScriptableObject
@@ -63,6 +65,15 @@ public sealed class NpcMovementProfile : ScriptableObject
     [Range(0f, 1f)] public float shyness = 0f;
     [Tooltip("Seconds before they react to something (a door opening, someone looking at them).")]
     [Range(0f, 1.5f)] public float reactionDelay = .2f;
+
+    // 24 Oct 2026 (Days): Designer P's spec §2.3, clearing tables (one of the four things to do while waiting he chose). The one
+    // number here that isn't only presentation: a cup left on a table puts its seat out of play until Ace clears it
+    // (TableSeat.IsAvailable). Fixit Fidget > Days > G writes the five archetypes': Hurried .6, Distracted .6, Social .25,
+    // Relaxed .2, Shy .15 (about a third of guests); an asset the step hasn't reached keeps .3.
+    [Header("Leaving (24 Oct 2026)")]
+    [Tooltip("Chance a seated guest of this sort leaves the cup on the table when they go, instead of binning it at the door " +
+             "(rolled once a visit). The table's seats are out of play until Ace clears it.")]
+    [Range(0f, 1f)] public float leavesCup = .3f;
 
     public string Name => string.IsNullOrEmpty(displayName) ? name : displayName;
 }

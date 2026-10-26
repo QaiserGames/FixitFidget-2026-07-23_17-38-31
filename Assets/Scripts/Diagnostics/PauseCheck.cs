@@ -109,13 +109,13 @@ public sealed class PauseCheck : PlayLab
 
         // ---------- the HUD's column, by day ----------
         yield return Seconds(1.5f);
-        Check(corners.Showing && corners.BottomShowing, "the HUD is up by day: the column top right (the sign, the day, the takings, the stars) and the chips' corner");
+        Check(corners.Showing && corners.BottomShowing, "the HUD is up by day: the window top centre, the column top right (the sign, the jar, the stars) and the chips' corner");
         Check(corners.SignWord == "OPEN" && corners.FaceShowing == "OPEN" && !corners.LastOrders && !corners.SignClosed, $"the sign reads {corners.SignWord}");
-        Check(corners.ClockLine.Contains(Weekdays.Label(clock.Day)), $"under it, beside the dial, the day and the time: \"{corners.ClockLine}\"");
+        Check(corners.ClockLine.Contains(Weekdays.Label(clock.Day)), $"on the window's sill top centre, the time and the day: \"{corners.ClockLine}\"");   // 26 Oct 2026 (HUD 3)
         Check(corners.ClockLineSize >= 20f, $"...the day line at {corners.ClockLineSize:0.#} px (22, or 20 for a long weekday, never less: her \"way too small\")");
         // Playtest 4 (the first hour: "Wednesday · Day 3 9:09 AM" ran together): the day line and the time each have room,
         // measured with the time at its widest, on today's line and on every weekday's (a long day number too).
-        Check(corners.ClockGap >= 10f, $"...with room to spare beside the dial and across the shelf ({corners.ClockGap:0} px with the time at its widest)");
+        Check(corners.ClockGap >= 10f, $"...with room to spare between them on the sill ({corners.ClockGap:0} px with the time at its widest)");
         float least = float.MaxValue;
         string tightest = "";
         foreach (int d in new[] { 1, 2, 3, 4, 5, 6, 7, 10, 100 })
@@ -126,14 +126,18 @@ public sealed class PauseCheck : PlayLab
         Check(least >= 10f, $"...and on every weekday's line (the tightest, \"{tightest}   12:00 PM\", keeps {least:0} px)");
         // The sun dial: the sun where the day's clock is, up (not set), no moon yet.
         Check(Mathf.Abs(corners.SunProgress - clock.NormalizedDay) < .03f && !corners.SunSet && !corners.MoonShowing,
-            $"the sun is {corners.SunProgress:0.00} of the way along the dial's arc (the day is {clock.NormalizedDay:0.00} through); no moon");
-        Check(corners.DialWarmth < .05f, "...and the dial is still paper (it warms in the last hour)");
+            $"the sun is {corners.SunProgress:0.00} of the way through its day in the window (the day is {clock.NormalizedDay:0.00} through); no moon");   // 26 Oct 2026 (HUD 3): the window, not the dial
+        Check(corners.DialWarmth < .05f, "...and the sky is still the day's (it warms toward golden hour in the last hour)");
         Check(corners.TakingsShown == "$" + clock.Earned, $"today's takings read {corners.TakingsShown} (today ${clock.Earned})");
         // The café's stars, and the goal under them (her: "You have no idea, right? No.").
         ReputationLedger ledger = SaveManager.Instance != null ? SaveManager.Instance.Reputation : null;
         int starsHeld = ledger != null ? Mathf.Clamp(ledger.StarsEarned, 0, ReputationRules.MaxStars) : 0;
-        Check(corners.StarsShown == starsHeld && corners.FranchiseLine.Contains("Franchise"),
-            $"the café's stars: {corners.StarsShown} of {ReputationRules.MaxStars} gold (the ledger holds {starsHeld}), and \"{corners.FranchiseLine}\" under them");
+        // 26 Oct 2026 (HUD 3): "Franchise at 5 stars" is gone (his answer, 24 Oct); the goal is the tiny café front at the
+        // end of the stars' road, and on Day 1 a 6 s hint, "Five stars to franchise", under the column.
+        Check(corners.StarsShown == starsHeld && corners.CafeFrontShowing,
+            $"the café's stars: {corners.StarsShown} of {ReputationRules.MaxStars} gold (the ledger holds {starsHeld}), and the little café front at the road's end");
+        Check(clock.Day != 1 || corners.FranchiseLine.ToLowerInvariant().Contains("franchise"),
+            $"...on Day 1 the goal is said once under the column: \"{corners.FranchiseLine}\"");
         ShopUI hud = FindAnyObjectByType<ShopUI>();
         Check(!HudText(hud, "moneyText") && !HudText(hud, "clockText") && !HudText(hud, "stockText"),
             "the old money, clock and stock lines are put away by day (the column carries them)");
@@ -143,7 +147,8 @@ public sealed class PauseCheck : PlayLab
               && signOn.yMin >= cashOn.yMax - 1f,
             $"the sign sits top right ({signOn.xMin:0}-{signOn.xMax:0} x {signOn.yMin:0}-{signOn.yMax:0}) with the takings under it " +
             $"({cashOn.xMin:0}-{cashOn.xMax:0} x {cashOn.yMin:0}-{cashOn.yMax:0}) of {Screen.width} x {Screen.height}");
-        Check(corners.TopRightBottom > HudCorners.ColumnTop + 300f && corners.TopRightBottom < 420f && !corners.BenchStrip,
+        // 26 Oct 2026 (HUD 3): the column is one hung piece about 266 px tall now (the sign, the jar's board, the stars), not 358.
+        Check(corners.TopRightBottom > HudCorners.ColumnTop + 230f && corners.TopRightBottom < 320f && !corners.BenchStrip,
             $"the column's bottom edge, for whatever sits under it, is {corners.TopRightBottom:0} px down (reference pixels; not folded for the bench)");
         yield return Shot("01-the-corners-by-day");
 
@@ -156,7 +161,7 @@ public sealed class PauseCheck : PlayLab
         yield return Shot("02-paid");
         yield return Seconds(1f);
         Check(corners.TakingsShown == "$" + clock.Earned && corners.BillShowing && corners.EdgesShown == Mathf.Min(10, clock.Earned / 24),
-            $"...and lands on today's ${clock.Earned}, a bill on the stack and {corners.EdgesShown} edge(s) under it");
+            $"...and lands on today's ${clock.Earned}, money in the jar, filled {corners.EdgesShown} step(s) of ten (one for every $24)");   // 26 Oct 2026 (HUD 3): the jar
 
         // Low stock: a chip, bottom right.
         ShopInventory stock = ShopInventory.Instance;
@@ -202,7 +207,7 @@ public sealed class PauseCheck : PlayLab
         Check(corners.SignWord == "LAST ORDERS" && corners.FaceShowing == "LAST ORDERS", $"...it reads \"{corners.SignWord}\" (the face showing: \"{corners.FaceShowing}\")");
         Check(Sfx.Requested("hud.lastorders") > chimesBefore, "...with the soft chime (hud.lastorders asked for)");
         // 19 Oct: no screen tint any more (his: the orange tint "doesnt fit the overall cozy aesthetic"); the dial warms instead.
-        Check(corners.DialWarmth > .2f, $"...and the dial has warmed toward honey ({corners.DialWarmth:0.00}; no screen tint)");
+        Check(corners.DialWarmth > .2f, $"...and the window's sky has warmed toward golden hour ({corners.DialWarmth:0.00}; no screen tint)");
         yield return Shot("20-last-orders");
         yield return Moment("last orders", pressEsc: false, closeWith: "pad");
 
@@ -226,7 +231,7 @@ public sealed class PauseCheck : PlayLab
         yield return Seconds(.4f);
         Check(corners.SignWord == "CLOSED" && corners.FaceShowing == "CLOSED", $"...it reads \"{corners.SignWord}\" once it has turned");
         Check(Sfx.Requested("intro.sign") > flapsBefore, "...with the sign's own wooden flap (intro.sign asked for; the day's bell is DayClock's)");
-        Check(corners.SunSet && corners.MoonShowing, "...the sun has set below the dial's right end and the moon is up");
+        Check(corners.SunSet && corners.MoonShowing, "...the sun has gone down behind the city and the moon is up in the window");
         yield return Shot("31-closed");
         bool up = pause.Open();
         Check(up, "the phone still comes up while the café finishes up (it isn't the recap yet)");
@@ -304,7 +309,7 @@ public sealed class PauseCheck : PlayLab
         Check(UiClock.Now - ui < .3f, $"{when}: the screen's own clock stood still ({UiClock.Now - ui:0.00} s of it passed)");
         Check(NoteUp() && Juice.PopsUp >= Mathf.Min(1, pops), $"{when}: the two-second note and the badge are still up");
         Check(Mathf.Abs(Mathf.DeltaAngle(SwayOf(), sway)) < .01f && Mathf.Abs(corners.SunProgress - sun) < .001f,
-            $"{when}: the sign's sway and the sun on the dial held too ({Mathf.DeltaAngle(sway, SwayOf()):0.000}°, {corners.SunProgress - sun:0.0000})");
+            $"{when}: the sign's sway and the sun in the window held too ({Mathf.DeltaAngle(sway, SwayOf()):0.000}°, {corners.SunProgress - sun:0.0000})");
         View later = ViewNow();
         Check(Same(before, held) && Same(held, later),
             $"{when}: the view behind the phone holds still (before {before}; up {held}; three seconds on {later})");

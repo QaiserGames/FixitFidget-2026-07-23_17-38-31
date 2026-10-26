@@ -28,9 +28,12 @@ using UnityEngine.SceneManagement;
 //   3. regulars: Grace takes her favourite (a soft seat by the window) when one is free, and otherwise scores like anyone
 //      else; the Officer (Distracted, as the game rolls him) has a stool at the window counter for his favourite, asleep
 //      while those stools are waited at standing (he sits elsewhere, and never on a repair-bar stool), his once they sit;
-//   4. the repair bar: a bench job stays at it unless their character wants comfort more (StaysAtTheBar); Day 1's short
-//      cleans keep every walk-in there, and over Days 2-3's people about one in three sit elsewhere; the stools are kept
-//      for repairs;
+//   4. the repair bar: a bench job's own leaning is to stay at it unless their character wants comfort more (StaysAtTheBar);
+//      Day 1's short cleans keep every walk-in there, and over Days 2-3's people about one in three lean elsewhere; the
+//      stools are kept for repairs. 24 Oct 2026 (Days; his c11, "From Day 2, about 2 in 5 repair customers sit away from the
+//      bar; never on Day 1"): the day's roll (SeatChoice.AwayChance, on each visit's own dice): none on Day 1, none for a
+//      regular; over many simulated visits of Days 2 and 3's walk-ins (their sorts, ways of moving and repairs) about 40 %
+//      away (33-47 %); biased by character (the watchers less, the comfort-seekers more); the dice the same all visit;
 //   5. in a scene (a preview scene, through WaitingArea.Claim itself): a dirty seat is never chosen, not even as the only
 //      seat; once cleared it is; the second of two people doesn't sit beside the first; a seat's tags come from its
 //      SeatTags, else its shape, plus the room's areas;
@@ -290,6 +293,9 @@ public static class SeatChoiceRules
         float share = elsewhere / (float)all;
         Check(share >= .2f && share <= .5f, $"Days 2-3: {elsewhere} of {all} sorts of walk-in repair sit elsewhere ({share:P0}; about one in three wanted: 20-50 %)");
 
+        // 24 Oct 2026 (Days): c11, the day's roll.
+        TheDaysRoll();
+
         // The stools are kept for repairs.
         var stool = new SeatChoice.Seat(new Vector3(3f, .75f, 0f), SeatTag.Bar, repairBar: true);
         var plain = Plain(3f, 2f);
@@ -298,6 +304,66 @@ public static class SeatChoiceRules
         SeatChoice.Person benchElsewhere = SeatChoice.Make("Sentimental", benchJob: true);
         Check(Mathf.Approximately(SeatChoice.Reasons(benchElsewhere, stool), SeatChoice.Reasons(benchElsewhere, plain) + benchElsewhere.Pull(SeatTag.Bar)),
             "...never against a repair customer, wherever they choose to sit");
+    }
+
+    // c11 (24 Oct 2026): from Day 2 about two in five walk-in bench jobs sit away from the bar, never on Day 1; regulars stay.
+    // Simulated visits: Days 2 and 3's walk-ins as the day assets allow them (Day 2 Cheerful, Chatty, Sentimental; Day 3 and
+    // the Impatient), the five ways of moving by NpcProfileLibrary's weights, Day 2's one repair short (the watch's grit) and
+    // three of Day 3's four long (the screen, the seized watch, the call), each visit's dice from a fixed seed.
+    static readonly (string manner, float weight)[] MannerWeights = { ("Relaxed", 1.2f), ("Hurried", 1f), ("Shy", 1f), ("Social", 1.1f), ("Distracted", .9f) };
+
+    static float AwayShare(int day, string[] sorts, float longShare, int visits, int seed)
+    {
+        var rng = new System.Random(seed);
+        float total = MannerWeights.Sum(m => m.weight);
+        int away = 0;
+        for (int v = 0; v < visits; v++)
+        {
+            string sort = sorts[rng.Next(sorts.Length)];
+            double pick = rng.NextDouble() * total;
+            string manner = MannerWeights[MannerWeights.Length - 1].manner;
+            foreach (var m in MannerWeights) { if (pick < m.weight) { manner = m.manner; break; } pick -= m.weight; }
+            bool longJob = rng.NextDouble() < longShare;
+            SeatChoice.Person who = SeatChoice.Make(sort, manner, benchJob: true, longJob: longJob);
+            if (!SeatChoice.StaysAtTheBar(who, day, (float)rng.NextDouble())) away++;
+        }
+        return away / (float)visits;
+    }
+
+    static void TheDaysRoll()
+    {
+        Line();
+        Line("4b. c11: from Day 2 about two in five walk-in bench jobs sit away from the bar; never on Day 1 (24 Oct 2026)");
+        string[] dayOne = { "Cheerful", "Chatty" }, dayTwo = { "Cheerful", "Chatty", "Sentimental" }, dayThree = { "Cheerful", "Chatty", "Sentimental", "Impatient" };
+        const int Visits = 4000;
+        float one = AwayShare(1, dayTwo.Concat(new[] { "Impatient" }).ToArray(), .75f, Visits, 11);
+        Check(one == 0f, $"Day 1: {one:P0} of {Visits} simulated bench jobs sit away from the bar (none wanted: c11), whoever they are");
+        bool dayOneNever = dayOne.All(a => Manners.All(m => SeatChoice.AwayChance(SeatChoice.Make(a, m, benchJob: true, longJob: true), 1) == 0f));
+        Check(dayOneNever, "Day 1: the chance is 0 for every sort, every way of moving, long repair or short");
+        float two = AwayShare(2, dayTwo, 0f, Visits, 12), three = AwayShare(3, dayThree, .75f, Visits, 13);
+        Check(two >= .33f && two <= .47f, $"Day 2: {two:P0} of {Visits} simulated walk-in bench jobs sit away from the bar (about 40 % wanted: 33-47 %)");
+        Check(three >= .33f && three <= .47f, $"Day 3: {three:P0} of {Visits} simulated walk-in bench jobs sit away from the bar (about 40 % wanted: 33-47 %)");
+        float both = (two + three * 4f) / 5f;   // Day 2 has one walk-in repair, Day 3 four
+        Line($"  Days 2-3 together (one walk-in repair on Day 2, four on Day 3): {both:P0} away; the 23 Oct runs saw 1 of 11 (9 %).");
+        Check(SeatChoice.AwayChance(SeatChoice.Make("", "Relaxed", GraceCameraEpisode.ProfileId, benchJob: true, longJob: true), 3) == 0f
+              && SeatChoice.StaysAtTheBar(SeatChoice.Make("", "Relaxed", GraceCameraEpisode.ProfileId, benchJob: true, longJob: true), 3, 0f),
+            "a regular never sits away from the bar (Grace with her camera on the bench, even on her worst dice)");
+        Check(!SeatChoice.StaysAtTheBar(SeatChoice.Make("Cheerful"), 3, .99f), "a drink customer never asks for the repair bar, whatever the dice");
+        float impatient = SeatChoice.AwayChance(SeatChoice.Make("Impatient", "Hurried", benchJob: true), 3);
+        float cheerful = SeatChoice.AwayChance(SeatChoice.Make("Cheerful", "Hurried", benchJob: true), 3);
+        float sentimental = SeatChoice.AwayChance(SeatChoice.Make("Sentimental", "Relaxed", benchJob: true, longJob: true), 3);
+        Check(impatient < cheerful && cheerful < sentimental,
+            $"biased by character: the Impatient (they watch) {impatient:0.00}, the Cheerful {cheerful:0.00}, a Sentimental, Relaxed one with a long repair {sentimental:0.00}");
+        Check(SeatChoice.AwayChance(SeatChoice.Make("Chatty", "Relaxed", benchJob: true, longJob: true), 2) > SeatChoice.AwayChance(SeatChoice.Make("Chatty", "Relaxed", benchJob: true), 2),
+            "a long repair (a part to swap, a call on hold) makes sitting away likelier: they settle in");
+        var somebody = new object();
+        var people = Enumerable.Range(0, 2000).Select(_ => new object()).ToList();
+        float mean = people.Average(o => SeatChoice.Dice(o, 0xC11));
+        Check(SeatChoice.Dice(somebody, 0xC11) == SeatChoice.Dice(somebody, 0xC11) && mean > .45f && mean < .55f,
+            $"the dice: the same for one person all visit, and spread over people (2000 people's mean {mean:0.000}; 0.45-0.55)");
+        int[] hits = new int[3];
+        foreach (object o in people) hits[SeatChoice.DiceIndex(o, 0x5700, 3)]++;
+        Check(hits.All(h => h > 500), $"one of three near-equal stools, on each person's dice: {string.Join(", ", hits)} of 2000 (each over 500)");
     }
 
     // ---------------------------------------------------------------- 5. in a scene, through WaitingArea.Claim
@@ -468,9 +534,10 @@ public static class SeatChoiceRules
         new Fixture("bistro south east", "bistro", 3.59f, 4.6f, 4.34f, 4.6f, D),
         new Fixture("bistro north west", "bistro", 2.41f, 7.8f, 1.66f, 7.8f, SeatTag.None),
         new Fixture("bistro north east", "bistro", 3.59f, 7.8f, 4.34f, 7.8f, SeatTag.None),
-        new Fixture("window counter south", "window counter", 6.507f, 6.0f, 5.837f, 6.0f, B | W, standing: true),
-        new Fixture("window counter middle", "window counter", 6.507f, 7.2f, 5.837f, 7.2f, B | W, standing: true),
-        new Fixture("window counter north", "window counter", 6.507f, 8.4f, 5.837f, 8.4f, B | W, standing: true),
+        // 26 Oct 2026 (review fix, F-report §4): they sit since Furniture 1 (c12).
+        new Fixture("window counter south", "window counter", 6.507f, 6.0f, 5.837f, 6.0f, B | W, standing: false),
+        new Fixture("window counter middle", "window counter", 6.507f, 7.2f, 5.837f, 7.2f, B | W, standing: false),
+        new Fixture("window counter north", "window counter", 6.507f, 8.4f, 5.837f, 8.4f, B | W, standing: false),
         new Fixture("reading corner south", "reading corner", -6.0f, .65f, -5.08f, .52f, L | W | Q),
         new Fixture("reading corner north", "reading corner", -6.0f, 2.15f, -5.05f, 1.95f, L | W | Q),
         new Fixture("lounge west", "lounge", 3.85f, 10.5f, 3.85f, 9.6f, L),

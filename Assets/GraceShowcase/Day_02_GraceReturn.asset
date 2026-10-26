@@ -19,17 +19,17 @@ MonoBehaviour:
     startsAt: 0
     spawnInterval: 60
   - phaseName: Build
-    startsAt: 0.25
-    spawnInterval: 24
+    startsAt: 0.22
+    spawnInterval: 26
   - phaseName: Rush
-    startsAt: 0.5
-    spawnInterval: 18
+    startsAt: 0.45
+    spawnInterval: 20
   - phaseName: Recover
     startsAt: 0.8
-    spawnInterval: 26
-  patienceMultiplier: 1.4
+    spawnInterval: 28
+  patienceMultiplier: 1.8
   maxCustomers: 2
-  drinkOnlyChance: 0.7
+  drinkOnlyChance: 0.45
   guidedOpening: 0
   openingDrink: {fileID: 0}
   openingHintDuration: 6
@@ -50,6 +50,16 @@ MonoBehaviour:
     storyEpisodeId: grace_reunion_camera_v1
   storyVisits: []
   walkInRepairs:
-  - devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
-    faultIndex: 1
+  - devicePrefab: {fileID: 8950338144923805853, guid: 3080e70a6a8242e46bd46e0ac6efd97e, type: 3}
+    faultIndex: 0
     storyEpisodeId: 
+  thriftFind:
+    devicePrefab: {fileID: 6096278884181677530, guid: 9ad0d272477dc8b4580b68233136960b, type: 3}
+    faultIndex: 0
+    storyEpisodeId: 
+  thriftBuy: 25
+  thriftSale: 75
+  gossip:
+  - gossip.grace.cups
+  - gossip.grace.film
+  previewLine: Grace again, and a customer's pocket watch.

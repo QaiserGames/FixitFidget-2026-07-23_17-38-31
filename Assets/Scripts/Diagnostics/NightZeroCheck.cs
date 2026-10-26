@@ -49,6 +49,10 @@ using UnityEngine.UI;
 // person while its seconds run (it had bobbed at the screen's edge), and is there again back in the view from above (photo
 // 02b in first person): four checks more (the two V waits, and those two), 122 where it was 118. And settled in first
 // person (after the 0.75 s blend) it isn't drawn at all, the photo taken then: one more, 123 (23 Oct 2026, its first run).
+//
+// 26 Oct 2026 (Icons 2): with Barnaby in hand the real notebook page is opened (after the Now line's "notes" nudge was seen):
+// tonight's entry wears the Now line's chip, the bins, first in its line (photo 09b-notebook-barnaby-in-hand); then closed.
+// Two checks more.
 // ---------------------------------------------------------------------------
 public sealed class NightZeroCheck : MonoBehaviour
 {
@@ -186,7 +190,7 @@ public sealed class NightZeroCheck : MonoBehaviour
         Check(NoteShowing().Contains("the bins"), $"the note says what to do (\"{NoteShowing()}\")");
         Check(!gnome.IsAvailable && !NightCycle.Instance.CanCallItANight, "nothing else is offered yet: not Grace's gnome, not calling it a night");
         yield return Until(() => interactor.CurrentPrompt == "Take the bins out", 4f, "the prompt reads \"Take the bins out\"");
-        yield return NowLine("Take the rubbish out the back door", "at the back door the Now line says to take the bag out");
+        yield return NowLine("Take the rubbish out the back door", "at the back door the Now line says to take the bag out", NoteIcons.Door);
         Check(UiPins.Instance != null && UiPins.Instance.SelfShowing && UiPins.Instance.SelfText == DayOneGuideUI.SelfWords,
             "\"You\" is pinned over Ace for the night's first seconds");
         yield return Photo("02-night-0-at-the-back-door");
@@ -242,7 +246,7 @@ public sealed class NightZeroCheck : MonoBehaviour
             "E took Ace out through the back door (a blink) onto Back Street");
         yield return Until(() => man.InBinsView, 2f, "round the back, the camera looks at the bins from the street");
         yield return Seconds(1.2f);   // the camera's turn
-        yield return NowLine("Put the bag in the bins", "outside with the bag the Now line says to bin it");
+        yield return NowLine("Put the bag in the bins", "outside with the bag the Now line says to bin it", NoteIcons.Bins);
         Check(!NoteShowing().Contains(NightCycle.LastJobNote), $"\"{NightCycle.LastJobNote}\" came down with the back door used (the note: \"{Short(NoteShowing())}\")");
         yield return Photo("03-out-on-back-street");
         yield return Walk(new List<Vector3> { new Vector3(6.25f, 0f, 20.2f), set.binSpot.position }, new List<float> { .35f, .25f }, "to the dumpster's near half");
@@ -351,7 +355,7 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return Until(() => NoteShowing().Contains("Grace's step"), 14f, "the note says where the gnome is: Grace's step");
         Check(NoteShowing().Contains("12 West Street") && NoteShowing().Contains("porch light") && !WordBudget.Over(NoteShowing(), WordBudget.Note),
             $"...with her number, her street and her porch light, within the budget (\"{Short(NoteShowing())}\": {WordBudget.Report(NoteShowing(), WordBudget.Note)})");
-        yield return NowLine("Barnaby: Grace's step, 12 West Street", "the Now line says where Barnaby is");
+        yield return NowLine("Barnaby: Grace's step, 12 West Street", "the Now line says where Barnaby is", NoteIcons.Gnome);
         Check(guide != null && guide.NowText.Contains("notes"), $"...and, the notebook never opened, ends with the notebook's icon and \"notes\" (\"{Short(guide != null ? guide.NowText : "")}\")");
         Check(man.Hidden && set.LidOpen(set.farLid) < .01f, $"his say done, he ducked back into the dumpster and the lid dropped ({man.Describe()})");
         Check(interactor.CurrentPrompt != "Call it a night",
@@ -385,9 +389,12 @@ public sealed class NightZeroCheck : MonoBehaviour
         // 20 Oct: notes queue now (each gets a slow reader's time), so this one may wait behind the keys' note; the Now line
         // says it at once ("Bring Barnaby to the man at the bins").
         yield return Until(() => NoteShowing().Contains("back to the man at the bins"), 10f, "the note says where to take him (after the note before it)");
-        yield return NowLine("Bring Barnaby to the man at the bins", "the Now line says to bring him to the man");
+        yield return NowLine("Bring Barnaby to the man at the bins", "the Now line says to bring him to the man", NoteIcons.Bins);
         yield return Seconds(.6f);
         yield return Photo("09-barnaby-in-hand");
+        // 26 Oct 2026 (Icons 2): the real page, opened now (after the nudge was seen above): tonight's entry wears the Now
+        // line's chip, the bins, so the page and the line match by picture; then closed again.
+        yield return PageMatches(NoteIcons.Bins, "09b-notebook-barnaby-in-hand");
 
         // ...and in first person, as Mansoor held him (6 Oct 2026: "when picking it up in first person, you can see inside the
         // head"): low on the right of the view, looking back at Ace, his hat the right way out (Barnaby.fbx rebuilt).
@@ -471,7 +478,7 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return Seconds(.5f);
         yield return Photo("12-his-corner");
         yield return Until(() => man.Hidden, 4f, "a moment after the return he's back in the bin, the lid shut");
-        yield return NowLine("Call it a night at a café door", "the errand done, the Now line says to call it a night");
+        yield return NowLine("Call it a night at a café door", "the errand done, the Now line says to call it a night", NoteIcons.Door);
 
         // ---------- calling it a night at the back door ----------
         yield return Walk(new List<Vector3> { new Vector3(6.25f, 0f, 20.2f), set.outsideDoor.position }, new List<float> { .35f, .3f },
@@ -585,14 +592,41 @@ public sealed class NightZeroCheck : MonoBehaviour
         yield return null;
     }
 
+    // 26 Oct 2026 (Icons 2): the night's real notebook page (NightWalk's), opened: tonight's entry wears the chip the Now line
+    // wears right now (NightCycle.NowIcon), first in its line; a photo; closed again. Words only without the icon sheet.
+    IEnumerator PageMatches(string icon, string photo)
+    {
+        NightNotebook page = NightWalk.Instance != null ? NightWalk.Instance.NotebookPage : null;
+        if (page == null) { Check(false, "the night has its notebook page (NightWalk.NotebookPage)"); yield break; }
+        page.Show(true);
+        yield return null;
+        yield return null;
+        NightNotebook.Shown top = page.Visible.Count > 0 ? page.Visible[0] : null;
+        if (PadInput.IconsAvailable)
+            Check(page.Open && top != null && top.entry.now && top.chip == icon && page.TonightChip == NightCycle.NowIcon && NightCycle.NowIcon == icon
+                  && top.line.text.StartsWith(NoteIcons.Tag(icon) + " ", StringComparison.Ordinal),
+                $"the notebook page, opened: tonight's entry ({top?.entry.key}) wears the Now line's chip, {icon} (the page: \"{page.TonightChip}\", the line: \"{NightCycle.NowIcon}\")");
+        else
+            Check(page.Open && top != null && top.entry.now && top.chip == "", "the notebook page, opened: no icon sheet, so tonight's entry is words alone");
+        yield return Photo(photo);
+        page.Show(false);
+        yield return null;
+        Check(!page.Open, "...and closed again");
+    }
+
     // The Now line (DayOneGuideUI, top left) says this, within its budget, at the line's size.
-    IEnumerator NowLine(string words, string what)
+    IEnumerator NowLine(string words, string what, string icon = null)   // 26 Oct 2026 (Icons on notes): icon, the chip expected
     {
         if (guide == null) { Check(false, what + " (no guide in the scene)"); yield break; }
         yield return Until(() => guide.CardShowing && guide.NightLine && guide.NowText.StartsWith(words, StringComparison.Ordinal), 4f, $"{what}: \"{words}\"");
         if (!lastWait) { Note($"the Now line reads \"{Short(guide.NowText)}\""); yield break; }
         Check(!WordBudget.Over(guide.NowText, WordBudget.NowLine) && Mathf.Abs(guide.LineSize - DayOneGuideUI.CompactSize) < .01f,
             $"...within the Now line's budget, at {guide.LineSize:0} px ({WordBudget.Report(guide.NowText, WordBudget.NowLine)})");
+        // 26 Oct 2026 (Icons on notes): the state's chip before the words (NoteIcons), and the words measured without it.
+        if (icon != null && PadInput.IconsAvailable)
+            Check(guide.NowChip == icon && NightCycle.NowIcon == icon && guide.CardText.StartsWith(NoteIcons.Tag(icon), StringComparison.Ordinal)
+                  && NoteIcons.Tag(icon).Length > 0 && !NoteIcons.HasIcon(guide.NowText.Split(new[] { " · " }, StringSplitOptions.None)[0]),
+                $"...with its chip first: {icon} (drawn: \"{guide.NowChip}\"; the night's: \"{NightCycle.NowIcon}\")");
     }
 
     IEnumerator Walk(List<Vector3> points, List<float> radii, string what)

@@ -4096,6 +4096,10 @@ MonoBehaviour:
   seatedShoulderSettle: 0.9
   copyFingers: 1
   handsToFace: 1
+  paletteBase: PolygonCity_01_A
+  paletteAlternates:
+  - {fileID: 2100000, guid: a8e32d2cd442e564aa46c99f0ae7c0c8, type: 2}
+  - {fileID: 2100000, guid: c01b7c8cb1175b54aab24b670c2d58dd, type: 2}
   maxFollowRate: 120
 --- !u!114 &5979114650565750167
 MonoBehaviour:
@@ -4238,6 +4242,8 @@ MonoBehaviour:
   idleFade: 0.45
   reactionFade: 0.25
   interruptFade: 0.15
+  upperBody: 1
+  holdingShowsPhone: 1
 --- !u!4 &793446380249059059 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8241147589211340993, guid: 30a6b266c06b3224bb6bb9915b5b560e, type: 3}

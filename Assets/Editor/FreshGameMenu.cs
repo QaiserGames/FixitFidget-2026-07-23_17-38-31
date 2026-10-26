@@ -156,7 +156,12 @@ internal static class FreshGameMenu
         try
         {
             // A new game's first morning, written the way the game writes every checkpoint (atomic; <file>.bak kept beside it).
-            SaveCheckpointStorage.Write(save.path, new SaveData());
+            // 26 Oct 2026 (review fix): a file on disk makes SaveManager.HasSave true, and a format 0 save is today's 28-seat café;
+            // a new game opens half-finished (his r1), so the first morning carries that layout (when the café scene is open).
+            var fresh = new SaveData();
+            CafeLayoutData halfFinished = CafeLab.HalfFinishedLayout(UnityEngine.Object.FindAnyObjectByType<CafeLayout>());
+            if (halfFinished != null) fresh.cafe = halfFinished;
+            SaveCheckpointStorage.Write(save.path, fresh);
         }
         catch (Exception e)
         {
@@ -172,6 +177,9 @@ internal static class FreshGameMenu
             PlayerPrefs.Save();
             Debug.Log(Tag + "A stale lab request was cleared: this is the real game.");
         }
+        // 26 Oct 2026 (Start screen): this menu plays Day 1 at once, as it always has; the start screen waits for the next Play.
+        PlayerPrefs.SetInt(TitleScreen.SkipOnceKey, 1);
+        PlayerPrefs.Save();
         Debug.Log(Tag + $"A new game from Day 1 on your real save ({save.path}); the day logs are the real ones. " +
                   (kept != null ? $"Your old game is at {kept}: Fresh game 2 brings it back. " : "") + "Press Play again to stop.");
         EditorApplication.EnterPlaymode();

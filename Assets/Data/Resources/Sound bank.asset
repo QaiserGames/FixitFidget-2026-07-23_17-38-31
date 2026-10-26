@@ -1925,3 +1925,86 @@ MonoBehaviour:
     minGap: 0.1
     maxAtOnce: 3
     bus: 0
+  - name: hud.money.land
+    when: 'His bill drops into the HUD''s jar: a soft paper-and-coins settle, a small
+      bright note (no cha-ching).'
+    clips: []
+    volume: 0.3
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.15
+    maxAtOnce: 2
+    bus: 2
+  - name: hud.money.tick
+    when: 'The figure counting up, one tick a step: short, each a semitone above
+      the last (Peggle''s climb) if the files allow.'
+    clips: []
+    volume: 0.12
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.04
+    maxAtOnce: 1
+    bus: 2
+  - name: hud.money.print
+    when: 'The receipt printing from the money board''s foot: a small three-step
+      "zzt".'
+    clips: []
+    volume: 0.2
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.1
+    maxAtOnce: 1
+    bus: 2
+  - name: hud.money.tear
+    when: 'The receipt tearing off: very soft paper.'
+    clips: []
+    volume: 0.15
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 2
+  - name: hud.money.spend
+    when: 'Spending: a bill slides out of the jar, a falling fourth (never the landing''s
+      note).'
+    clips: []
+    volume: 0.25
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 0.3
+    maxAtOnce: 1
+    bus: 2
+  - name: hud.star.land
+    when: "A star lands in its pip and the little caf\xE9 front lights up: a warm
+      rising chime."
+    clips: []
+    volume: 0.35
+    volumeWobble: 0.08
+    pitch: 1
+    pitchWobble: 0.04
+    threeD: 0
+    near: 1.5
+    far: 12
+    minGap: 1
+    maxAtOnce: 1
+    bus: 2

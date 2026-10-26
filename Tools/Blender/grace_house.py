@@ -216,9 +216,51 @@ def sideboard():
     return p
 
 
+class PhotoProp(fb.Prop):
+    """
+    A photo frame's Prop (24 Oct 2026, art audit a72: "Every photo is the same flat sepia colour, so every frame looks
+    empty. Her story is a reunion, yet there are no faces on her walls"). The house's box UVs are in metres, which would
+    show a different slice of a picture in every frame size; so once the mesh is made, the photo's face (the GH_Photo
+    faces looking out of the frame) is mapped 0..1 across the picture, u to the viewer's right and v up the face (up the
+    lean, for a standing frame), and the photo's edges take the print's border texel. GH_Photo then carries
+    GH_Photo.png (cafe_art_fix_textures.py), one snapshot for every frame; a picture per frame can come later as 2D art.
+    """
+
+    def finish(self, collection=None):
+        ob = super().finish(collection)
+        photo_uvs(ob)
+        return ob
+
+
+def photo_uvs(ob):
+    me = ob.data
+    idx = next((i for i, m in enumerate(me.materials) if m is not None and m.name.split('.')[0] == 'GH_Photo'), None)
+    if idx is None or not me.uv_layers:
+        return 0
+    uv = me.uv_layers.active.data
+    u_ax = Vector((1.0, 0.0, 0.0))
+    mapped = 0
+    for poly in me.polygons:
+        if poly.material_index != idx:
+            continue
+        n = poly.normal
+        if n.y > -0.5:                                      # an edge or the back: the print's border
+            for li in poly.loop_indices:
+                uv[li].uv = (0.02, 0.02)
+            continue
+        v_ax = n.cross(u_ax)                                # up the face: +Z on a wall, up the lean on a stand
+        pts = [me.vertices[me.loops[li].vertex_index].co for li in poly.loop_indices]
+        us, vs = [q.dot(u_ax) for q in pts], [q.dot(v_ax) for q in pts]
+        for li, uu, vv in zip(poly.loop_indices, us, vs):
+            uv[li].uv = ((uu - min(us)) / (max(us) - min(us)), (vv - min(vs)) / (max(vs) - min(vs)))
+        mapped += 1
+    ob['photo_faces_mapped'] = mapped
+    return mapped
+
+
 def frame_standing(name, photo_w, photo_h, border, mat):
     """A photo frame that stands on a sideboard, leaning back on its strut."""
-    p = fb.Prop(name)
+    p = PhotoProp(name)
     w, h, d = photo_w + 2 * border, photo_h + 2 * border, .014
     lean = 12
     parts = [
@@ -236,7 +278,7 @@ def frame_standing(name, photo_w, photo_h, border, mat):
 
 def frame_wall(name, photo_w, photo_h, border, mat):
     """A photo frame for a wall: the origin at the bottom centre of its back (the back at y = 0)."""
-    p = fb.Prop(name)
+    p = PhotoProp(name)
     w, h, d = photo_w + 2 * border, photo_h + 2 * border, .022
     p.add('frame', fb.rbox(-w / 2, w / 2, -d, 0, 0, h, bevel=.004), M(mat))
     p.add('mount', fb.zbox(-photo_w / 2 - .012, photo_w / 2 + .012, -d - .001, -d + .004, border - .012, border + photo_h + .012), M('GH_Lace'))
@@ -418,7 +460,16 @@ def teapot():
 
 
 def coat_stand():
-    """A coat stand by the front door: three feet, brass hooks, her coat, a scarf and a hat."""
+    """
+    A coat stand by the front door: three feet, brass hooks and her hat on the finial.
+
+    Her coat and scarf came off (24 Oct 2026, art audit a20: "The coat is one long capsule with no shoulders, collar or
+    sleeves, and the scarf is two stiff red bars. It's the café coats' 'squares and rectangles' again"; the fix, which
+    he said yes to: "delete the coat and the two scarf bars, keep the hat and stand"). The empty hooks are fine for a
+    stand by a door. GH_Wool_Camel goes with the coat, so the stand's materials are now the wood, the brass, the hat's
+    sage and its band's red: Grace's house in the café scene copied the old five onto the stand when it was built, so
+    ArtFixBlenderSteps lists them again from the model.
+    """
     p = fb.Prop('GH_CoatStand')
     wood, brass = M('CC_Wood_Espresso'), M('T2_Brass')
     p.add('pole', fb.cylinder((0, 0, .90), .022, 1.72, sides=8, radius_top=.018), wood)
@@ -426,28 +477,11 @@ def coat_stand():
     for i in range(3):
         a = math.radians(90 + i * 120)
         p.add('foot', fb.strut((math.cos(a) * .015, math.sin(a) * .015, .30), (math.cos(a) * .26, math.sin(a) * .26, 0), .018, .013, sides=6), wood)
-    hooks = []
     for i in range(4):
         a = math.radians(45 + i * 90)
         tip = (math.cos(a) * .15, math.sin(a) * .15, 1.66)
-        hooks.append(tip)
         p.add('hook', fb.strut(tip, (math.cos(a) * .012, math.sin(a) * .012, 1.60), .007, .009, sides=5), brass)
         p.add('hook ball', fb.ellipsoid(tip, (.012, .012, .012), u=5, v=3), brass)
-    # her coat, hung on the front-left hook: a long wool coat, shoulders and a collar
-    hx, hy, hz = hooks[1]   # 135 degrees: front-left
-    coat = fb.loft([
-        (0, 0, .78, .19, .11), (0, 0, 1.05, .17, .10), (0, 0, 1.36, .18, .10),
-        (0, 0, 1.50, .20, .10), (0, 0, 1.58, .13, .07), (0, 0, 1.62, .05, .04),
-    ], sides=8, phase=22.5)
-    # its width across the hook's direction (the hook points 135 degrees round; the coat's broad side faces out)
-    coat = fb.turn(coat, 45, 'Z', (0, 0, 0))
-    p.add('coat', fb.move(coat, (hx * 1.3, hy * 1.3, -.01)), M('GH_Wool_Camel'))
-    collar = fb.turn(fb.loft([(0, 0, 1.53, .11, .075), (0, 0, 1.60, .08, .06)], sides=8), 45, 'Z', (0, 0, 0))
-    p.add('collar', fb.move(collar, (hx * 1.3, hy * 1.3, -.01)), M('GH_Wool_Camel'))
-    # a scarf over the back-right hook, hanging both sides
-    sx, sy, sz = hooks[3]
-    for side in (-1, 1):
-        p.add('scarf', fb.strut((sx + side * .03, sy, sz + .015), (sx + side * .05, sy + .01, sz - .42), .022, .02, sides=4), M('GH_Scarf_Red'))
     # a hat on the finial
     p.add('hat', fb.lathe([(.13, 1.78), (.13, 1.79), (.075, 1.80), (.07, 1.87), (.05, 1.89)], sides=12), M('GH_Pillow_Sage'))
     p.add('hat band', fb.lathe([(.073, 1.80), (.0735, 1.825)], sides=12), M('GH_Scarf_Red'))
@@ -569,23 +603,111 @@ def interior_door_frame():
     return p
 
 
+def panelled_slab(w, h, t, cols, rows, sink=.008, run=.012, bevel=.004):
+    """
+    A door leaf with its panels sunk into both faces (24 Oct 2026, art audit a74: "Face-on, the four panels vanish and
+    each door reads as a flat slab with a knob. The panels show only as hairlines at an angle"; the fix: "sink the
+    panels about 8 mm, or add a darker inner line"). Both, in one: each panel (every column (x0, x1) of cols with every
+    row (z0, z1) of rows) is sunk `sink` into each face behind a sloped edge `run` wide. Face-on, the four slopes take
+    the light differently from the flat faces (the top one darker under a lamp above, the bottom one lighter, the
+    sides by where the lamp is), which is the darker inner line, drawn by the light and not by a texture; at an angle
+    the panel shows its depth. The old panels stood 6 mm proud with square sides, which only show when nearly edge-on.
+
+    The leaf runs x 0..w (the hinge at x = 0), y -t/2..t/2, z 0..h, its outer edges bevelled `bevel` as the house's
+    rbox does. One closed mesh of quads (no booleans): the faces are cut on a grid through the panels' edges, and the
+    edges and sides are cut where the faces are, so every edge belongs to exactly two faces.
+    """
+    b = bevel
+    y0, y1 = -t / 2, t / 2
+
+    def key(v):
+        return round(v, 6)
+    xs = sorted({key(v) for v in [b, w - b] + [c for col in cols for c in col]})
+    zs = sorted({key(v) for v in [b, h - b] + [r for row in rows for r in row]})
+    sunk = {(xs.index(key(c0)), zs.index(key(r0))) for c0, _ in cols for r0, _ in rows}
+    bm = fb.bmesh.new()
+    verts = {}
+
+    def V(x, y, z):
+        k = (key(x), key(y), key(z))
+        if k not in verts:
+            verts[k] = bm.verts.new(k)
+        return verts[k]
+
+    def face(*vs):
+        bm.faces.new(vs)
+
+    for yf, into in ((y0, 1), (y1, -1)):                       # the two faces, each sunk toward the middle
+        for i in range(len(xs) - 1):
+            for j in range(len(zs) - 1):
+                a, c, d, e = xs[i], xs[i + 1], zs[j], zs[j + 1]
+                rim = [V(a, yf, d), V(c, yf, d), V(c, yf, e), V(a, yf, e)]
+                if (i, j) not in sunk:
+                    face(*rim)
+                    continue
+                ys = yf + into * sink
+                low = [V(a + run, ys, d + run), V(c - run, ys, d + run), V(c - run, ys, e - run), V(a + run, ys, e - run)]
+                for k in range(4):
+                    face(rim[k], rim[(k + 1) % 4], low[(k + 1) % 4], low[k])     # the sloped edge
+                face(*low)                                                     # the panel
+    for yf, ys in ((y0, y0 + b), (y1, y1 - b)):                # the bevels round each face, cut where the face is
+        for i in range(len(xs) - 1):
+            a, c = xs[i], xs[i + 1]
+            face(V(a, yf, b), V(c, yf, b), V(c, ys, 0), V(a, ys, 0))
+            face(V(a, yf, h - b), V(c, yf, h - b), V(c, ys, h), V(a, ys, h))
+        for j in range(len(zs) - 1):
+            d, e = zs[j], zs[j + 1]
+            face(V(b, yf, d), V(b, yf, e), V(0, ys, e), V(0, ys, d))
+            face(V(w - b, yf, d), V(w - b, yf, e), V(w, ys, e), V(w, ys, d))
+    for i in range(len(xs) - 1):                               # the bottom and the top
+        a, c = xs[i], xs[i + 1]
+        for z in (0, h):
+            face(V(a, y0 + b, z), V(c, y0 + b, z), V(c, y1 - b, z), V(a, y1 - b, z))
+    for j in range(len(zs) - 1):                               # the hinge edge and the free edge
+        d, e = zs[j], zs[j + 1]
+        for x in (0, w):
+            face(V(x, y0 + b, d), V(x, y1 - b, d), V(x, y1 - b, e), V(x, y0 + b, e))
+    for x, xi in ((0, b), (w, w - b)):                         # the four bevels across the leaf's thickness...
+        for z, zi in ((0, b), (h, h - b)):
+            face(V(xi, y0 + b, z), V(xi, y1 - b, z), V(x, y1 - b, zi), V(x, y0 + b, zi))
+            for yf, ys in ((y0, y0 + b), (y1, y1 - b)):        # ...and the eight corners
+                face(V(xi, yf, zi), V(xi, ys, z), V(x, ys, zi))
+    fb.bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return bm
+
+
+def panelled_door(p, w, h, t, stile, knob_in, hinge_zs):
+    """
+    A four-panel door leaf into p: the sunk-panel slab (panelled_slab), a brass knob, neck and rose on each face
+    `knob_in` from the free edge at 0.98 m, and steel hinges on the hinge edge. Shared by the landing door
+    (interior_door_leaf) and the bedroom's pair (grace_house_v2.door_leaf), in the order their materials were first
+    used (the paint, the brass, the dark steel), so the models' material slots are as they were.
+
+    The stiles are `stile` wide, at least the knob's distance in plus its rose, so the rose sits on the stile and not
+    over a sunk panel; the lock rail runs 0.82 to 1.02 m round the knob (it was 0.82 to 1.00, with the rose 1 cm over
+    the upper panels). The hinges are mortised into the edge: only their knuckle stands 4 mm out of it, where the old
+    ones were as deep as the leaf and their faces lay in the leaf's faces (two faces in one plane).
+    """
+    white, brass = M('GH_Paint_White'), M('T2_Brass')
+    cols = ((stile, w / 2 - .03), (w / 2 + .03, w - stile))
+    rows = ((.12, .82), (1.02, h - .12))
+    p.add('leaf', panelled_slab(w, h, t, cols, rows), white)
+    kx = w - knob_in
+    for side in (-1, 1):
+        p.add('knob', fb.ellipsoid((kx, side * (t / 2 + .045), .98), (.026, .018, .026), u=8, v=5), brass)
+        p.add('knob neck', fb.cylinder((kx, side * (t / 2 + .02), .98), .012, .05, sides=6, rot=(90, 0, 0)), brass)
+        p.add('rose', fb.cylinder((kx, side * (t / 2 + .002), .98), .03, .006, sides=10, rot=(90, 0, 0)), brass)
+    for z in hinge_zs:
+        p.add('hinge', fb.zbox(-.004, .012, -t / 2 + .003, t / 2 - .003, z - .05, z + .05), M('DC_SteelDark'))
+    return p
+
+
 def interior_door_leaf():
-    """A four-panel door: origin on its hinge line at the floor, the leaf running +X from it."""
+    """A four-panel door: origin on its hinge line at the floor, the leaf running +X from it. Its panels sunk 8 mm
+    with sloped edges (24 Oct 2026, art audit a74: see panelled_slab); its stiles 0.10 m (they were 0.08)."""
     p = fb.Prop('GH_InteriorDoor_Leaf')
     w, h, t = .80, 2.01, .04
-    white = M('GH_Paint_White')
-    p.add('leaf', fb.rbox(0, w, -t / 2, t / 2, 0, h, bevel=.004), white)
-    for side in (-1, 1):
-        y0, y1 = sorted((side * t / 2, side * (t / 2 + .006)))
-        for x0, x1 in ((.08, w / 2 - .03), (w / 2 + .03, w - .08)):
-            for z0, z1 in ((.12, .82), (1.0, h - .12)):
-                p.add('panel', fb.zbox(x0, x1, y0, y1, z0, z1), white)
-        p.add('knob', fb.ellipsoid((w - .07, side * (t / 2 + .045), .98), (.026, .018, .026), u=8, v=5), M('T2_Brass'))
-        p.add('knob neck', fb.cylinder((w - .07, side * (t / 2 + .02), .98), .012, .05, sides=6, rot=(90, 0, 0)), M('T2_Brass'))
-        p.add('rose', fb.cylinder((w - .07, side * (t / 2 + .002), .98), .03, .006, sides=10, rot=(90, 0, 0)), M('T2_Brass'))
-    for z in (.25, h - .25):
-        p.add('hinge', fb.zbox(-.004, .012, -.02, .02, z - .05, z + .05), M('DC_SteelDark'))
-    return p
+    return panelled_door(p, w, h, t, stile=.10, knob_in=.07, hinge_zs=(.25, h - .25))
 
 
 # ============================================================================= the stash
@@ -595,13 +717,25 @@ SLEEVE_R, SLEEVE_L = .046, .38
 
 
 def sleeve_geom(cx, cy, cz, length=SLEEVE_L, r=SLEEVE_R):
-    """A sleeve of twelve paper cups lying along X: rims every few centimetres, the open mouth at +X."""
+    """
+    A sleeve of twelve paper cups lying along X: rims every few centimetres, the open mouth at +X.
+
+    13 rings, the narrow ones at 0.85 of the rim (24 Oct 2026, art audit a73: "The sleeve of twelve paper cups reads as
+    a smooth rolled tube or a scroll. The cup rims barely show"; the fix: "13 rings and a 0.85 narrow radius (not 7 and
+    0.94)"). Seven rims, and after each one the next cup's side stepping in just behind it and widening again toward
+    its own rim, the way stacked cups show: a saw-tooth, not a concertina (each narrow ring sits a fifth of the way
+    from one rim to the next), so the rims stand out as rims. The ends stay at the full radius (the tape band and the
+    mouth fit them as before) and the sleeve's length and girth are unchanged, so it lies on the box as before.
+    """
     rings = []
-    n = 7
+    n = 13
+    pitch = length / ((n - 1) // 2)                       # rim to rim
     for i in range(n):
-        x = -length / 2 + i * length / (n - 1)
-        rr = r if i % 2 == 0 else r * .94
-        rings.append((x, rr))
+        k = i // 2
+        if i % 2 == 0:
+            rings.append((-length / 2 + k * pitch, r))
+        else:
+            rings.append((-length / 2 + (k + .2) * pitch, r * .85))
     bm = fb.bmesh.new()
     loops = []
     sides = 8
@@ -671,7 +805,7 @@ PIECES = [
     (fridge, 'Kitchen', "fridge"),
     (kettle, 'Kitchen', "kettle (on the hob)"),
     (teapot, 'Kitchen', "teapot"),
-    (coat_stand, 'Hall', "coat stand with her coat"),
+    (coat_stand, 'Hall', "coat stand with her hat"),            # her coat and scarf off (24 Oct 2026, art audit a20)
     (stairs, 'Hall', "the stairs, with the cupboard under them"),
     (under_stairs_door, 'Hall', "the cupboard door under the stairs"),
     (interior_door_frame, 'Hall', "doorway (the landing door)"),

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9102cd3df6ab44374b44952185aac5cb, type: 3}
+  m_Name: Furniture catalogue
+  m_EditorClassIdentifier: Assembly-CSharp::FurnitureCatalogue
+  kinds:
+  - {fileID: 11400000, guid: b4b79ff6465c946859a15fceb8327567, type: 2}
+  - {fileID: 11400000, guid: c4232cbc035f348bb96ad14d6eb9c027, type: 2}
+  - {fileID: 11400000, guid: de184ed4cff1a4234baed2b893abe8df, type: 2}
+  - {fileID: 11400000, guid: 2cfcc8cef55964f80ba80a4d0a173976, type: 2}
+  - {fileID: 11400000, guid: 412b2f3b8cc804b82b5473c52b0516e2, type: 2}
+  - {fileID: 11400000, guid: ffc81d86fecc542fc9a8fece3119a374, type: 2}
+  - {fileID: 11400000, guid: e9156e3b72d7f4b4093e6cd5ae774ec3, type: 2}
+  ghostMaterial: {fileID: 2100000, guid: e4e7da2dd844c4e4e8e40a4b5331b3d1, type: 2}

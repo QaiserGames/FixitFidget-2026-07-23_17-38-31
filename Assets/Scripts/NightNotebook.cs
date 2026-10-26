@@ -26,7 +26,7 @@ using UnityEngine.UI;
 // behind them, such as tonight's back door), each one whole (a guess still says "(hunch)"; his pages have his square
 // bullet, not italics, which are harder for a dyslexic reader; an open entry moves up to the top of the screen if that's
 // what it takes, and only if more are written than a whole screen holds does its last line say how many more the phone's
-// Notes has), and after the last entry closes them. The press plays the notebook's sound, quieter (at full volume it says
+// Notes has; since 26 Oct 2026 each note's bullet is its kind's chip, below), and after the last entry closes them. The press plays the notebook's sound, quieter (at full volume it says
 // "a new line in the notebook"). Four entries fit the first screen, five at most; the rest scrolls as the press walks down
 // the list (dots say there is more).
 // While his scene plays (the Now line hides then), nothing is "tonight's" on the page either.
@@ -37,6 +37,18 @@ using UnityEngine.UI;
 // ends with the notebook's icon and "notes" until the page has been opened once this Play session (EverOpened). And while
 // Ace is choosing a reply at night (Barks.Choosing: up and down move the highlight), the D-pad moves the highlight and
 // neither opens the page over the chips nor turns its notes.
+//
+// 26 Oct 2026 (Icons 2; his note: "the icons on both the notebook and notes"). Two chips on the page, from the note icons'
+// sheet (NoteIcons), and nothing else changes:
+//   * tonight's entry (the first one, the one that says what to do) wears the Now line's chip before its line, the same
+//     picture the HUD's line and the day's pins wear (NoteIcons.ForStage: the Now line's table read from the page's stage),
+//     so "Tonight" on the page and the line on the HUD match by picture. The second tonight entry (where it is) has its
+//     polaroid and its map: no chip;
+//   * behind the press, each fact starts with its kind's chip (NoteIcons.ForFact) in place of the old bullet: a pin for
+//     where someone is, a case for what they own, a clock for when they do something, a bubble for what was said, two
+//     people for who they are to someone, a padlock for a secret of Ace's; a page of his (inherited) is the same mark on his
+//     paper with his rim, which was his square bullet's job. Without the icon sheet the bullets come back as they were.
+// A chip is a sprite tag in the line's text: no word (WordBudget skips tags), and the labs read the words with Words().
 // ---------------------------------------------------------------------------
 [DisallowMultipleComponent]
 public sealed class NightNotebook : MonoBehaviour
@@ -82,6 +94,7 @@ public sealed class NightNotebook : MonoBehaviour
     List<NoteEntry> entries = new List<NoteEntry>();
     int open = -1;   // the entry whose notes are shown, or -1
     int first;       // the first entry on the screen
+    string tonightIcon = "";   // 26 Oct 2026 (Icons 2): the Now line's chip for the page's stage (NoteIcons.ForStage), or ""
 
     bool testing;
     Notebook testBook;
@@ -100,6 +113,13 @@ public sealed class NightNotebook : MonoBehaviour
         public readonly List<TMP_Text> notes = new List<TMP_Text>();
         /// <summary>How many of its facts didn't fit on the screen (the "+N more" line's N); 0 when every one shows.</summary>
         public int cut;
+        /// <summary>26 Oct 2026 (Icons 2): the Now line's chip drawn before its line (a NoteIcons name): tonight's first entry only, else "".</summary>
+        public string chip = "";
+        /// <summary>26 Oct 2026 (Icons 2): the kind chip drawn before each note, one per entry of notes ("" for none: the "+N more" line, or no sheet).</summary>
+        public readonly List<string> noteChips = new List<string>();
+
+        /// <summary>26 Oct 2026 (Icons 2): a text's words alone, its chip (a sprite tag) and the space after it dropped, for the labs.</summary>
+        public static string Words(TMP_Text text) => text != null ? NoteSubjects.Plain(text.text).TrimStart() : "";
     }
 
     readonly List<Shown> shown = new List<Shown>();
@@ -120,6 +140,15 @@ public sealed class NightNotebook : MonoBehaviour
     public TMP_Text Footer => footer;
     /// <summary>The key of the entry whose notes are shown, or "".</summary>
     public string OpenKey => open >= 0 && open < entries.Count ? entries[open].key : "";
+    /// <summary>26 Oct 2026 (Icons 2): the chip tonight's entry wears on the screen now (a NoteIcons name; the Now line's), or "".</summary>
+    public string TonightChip
+    {
+        get
+        {
+            foreach (Shown s in shown) if (s.chip.Length > 0) return s.chip;
+            return "";
+        }
+    }
     /// <summary>There are entries above (scrolled past) or below (not on the screen yet).</summary>
     public bool MoreAbove => moreAbove != null && moreAbove.gameObject.activeSelf;
     public bool MoreBelow => moreBelow != null && moreBelow.gameObject.activeSelf;
@@ -239,6 +268,7 @@ public sealed class NightNotebook : MonoBehaviour
         if (!force && state == drawnFor) return;
         drawnFor = state;
         string keep = OpenKey;
+        tonightIcon = NoteIcons.ForStage(stage, errand);   // 26 Oct 2026 (Icons 2): the Now line's chip, by the page's stage
         entries = NoteSubjects.Entries(notebook, ledger, stage, errand);
         open = keep.Length > 0 ? entries.FindIndex(e => e.key == keep) : -1;
         if (first >= entries.Count) first = 0;
@@ -333,7 +363,9 @@ public sealed class NightNotebook : MonoBehaviour
             // An open entry's notes are laid out for the room it would have at the top of the screen. If that doesn't fit
             // where it sits, it goes (below) and Layout moves it to the top: its notes are cut only when there are more
             // than a whole screen holds (the man at the bins' pages, third on Night 0, show whole).
-            Shown s = Row(e, i == open, top, ViewHeight - HeadingHeight, out float height);
+            // 26 Oct 2026 (Icons 2): the first entry of the page (tonight's, the one that says what to do) wears the Now
+            // line's chip; the second tonight entry (where it is) and everything after are without.
+            Shown s = Row(e, i == open, top, ViewHeight - HeadingHeight, i == 0 && e.now ? tonightIcon : "", out float height);
             if (top + height > ViewHeight && shown.Count > 0)
             {
                 s.row.gameObject.SetActive(false);
@@ -373,7 +405,7 @@ public sealed class NightNotebook : MonoBehaviour
     // One entry: an amber bar if it's tonight's; the polaroid (a place: its street map pinned over the photo's lower corner);
     // the name and the line; and, pressed open, every note about it on a lighter panel (as many as there is room for in
     // <room>, then a line saying how many more the phone has).
-    Shown Row(NoteEntry e, bool isOpen, float top, float room, out float height)
+    Shown Row(NoteEntry e, bool isOpen, float top, float room, string chip, out float height)
     {
         RectTransform row = Box("Entry - " + e.key, rows, Pad, top, RowWidth, RowMin);
         var s = new Shown { entry = e, row = row, open = isOpen };
@@ -385,7 +417,10 @@ public sealed class NightNotebook : MonoBehaviour
 
         s.title = Words("Name", row, "<noparse>" + e.title + "</noparse>", TitleSize, Ink, FontStyles.Bold, TextX, 8f, RowWidth - TextX, true);
         float lineTop = 8f + s.title.rectTransform.sizeDelta.y + 2f;
-        s.line = Words("Line", row, e.line, LineSize, Ink, UiSkin.SemiBold, TextX, lineTop, RowWidth - TextX, true);
+        // 26 Oct 2026 (Icons 2): tonight's chip (the Now line's) before the line; "" when the sheet has none, and then no chip.
+        string lead = NoteIcons.Lead(chip);
+        s.chip = lead.Length > 0 ? chip : "";
+        s.line = Words("Line", row, lead + e.line, LineSize, Ink, UiSkin.SemiBold, TextX, lineTop, RowWidth - TextX, true);
         height = Mathf.Max(RowMin, lineTop + s.line.rectTransform.sizeDelta.y + 12f);
 
         if (isOpen && e.facts.Count > 0)
@@ -395,16 +430,21 @@ public sealed class NightNotebook : MonoBehaviour
             RectTransform panel = Box("Notes", row, 4f, panelTop, RowWidth - 4f, 10f);
             UiSkin.Paint(panel, Panel, 10f);
             float y = 10f;
-            float width = RowWidth - 4f - NoteIndent - 12f;
+            // 26 Oct 2026 (Icons 2): each note starts with its kind's chip, so the words begin after it and the bullet's
+            // room isn't needed; without the sheet the bullets are back where they were.
+            bool chips = NoteIcons.Tag(NoteIcons.KindSaid).Length > 0;
+            float indent = chips ? 12f : NoteIndent;
+            float width = RowWidth - 4f - indent - 12f;
             // The "+N more" line, measured first and put away: under every note with others after it, room is kept for it,
             // so the row never runs past <room> (and so past the screen, once Layout has put it at the top).
-            TMP_Text more = Words("More", panel, MoreLine(e.facts.Count), NoteSize, Faint, UiSkin.SemiBold, NoteIndent, y, width, true);
+            TMP_Text more = Words("More", panel, MoreLine(e.facts.Count), NoteSize, Faint, UiSkin.SemiBold, indent, y, width, true);
             float moreHeight = more.rectTransform.sizeDelta.y;
             more.gameObject.SetActive(false);
             for (int i = 0; i < e.facts.Count; i++)
             {
                 NotebookFactData fact = e.facts[i];
-                TMP_Text note = Words("Note", panel, NoteSubjects.FactLine(fact), NoteSize, Ink, UiSkin.SemiBold, NoteIndent, y, width, true);
+                string kind = chips ? NoteIcons.ForFact(fact) : "";
+                TMP_Text note = Words("Note", panel, NoteIcons.Lead(kind) + NoteSubjects.FactLine(fact), NoteSize, Ink, UiSkin.SemiBold, indent, y, width, true);
                 float bottom = y + note.rectTransform.sizeDelta.y;
                 bool last = i == e.facts.Count - 1;
                 // No room for it and the line after it: it goes, and that line says how many more the phone has.
@@ -414,15 +454,17 @@ public sealed class NightNotebook : MonoBehaviour
                     Destroy(note.gameObject);
                     s.cut = e.facts.Count - i;
                     more.text = MoreLine(s.cut);
-                    Place(more.rectTransform, NoteIndent, y, width, moreHeight);
+                    Place(more.rectTransform, indent, y, width, moreHeight);
                     more.gameObject.SetActive(true);
                     s.notes.Add(more);
+                    s.noteChips.Add("");
                     more = null;
                     y += moreHeight + Gap;
                     break;
                 }
-                Bullet(panel, fact.source == Notebook.Sources.Inherited, y + NoteSize * .55f);
+                if (!chips) Bullet(panel, fact.source == Notebook.Sources.Inherited, y + NoteSize * .55f);
                 s.notes.Add(note);
+                s.noteChips.Add(kind);
                 y = bottom + Gap;
             }
             if (more != null) Destroy(more.gameObject);   // every note fitted
@@ -517,5 +559,6 @@ public sealed class NightNotebook : MonoBehaviour
 
     public string Describe() => page == null ? "Notebook page: not set up." :
         $"Notebook page: {(Open ? "open" : "closed")}, opened {Opened} times; {FactsShown} facts in {entries.Count} entries, " +
-        $"{shown.Count} on the screen{(OpenKey.Length > 0 ? ", " + OpenKey + " pressed open" : "")}.";
+        $"{shown.Count} on the screen{(OpenKey.Length > 0 ? ", " + OpenKey + " pressed open" : "")}" +
+        $"{(TonightChip.Length > 0 ? ", tonight's chip " + TonightChip : "")}.";   // 26 Oct 2026 (Icons 2)
 }

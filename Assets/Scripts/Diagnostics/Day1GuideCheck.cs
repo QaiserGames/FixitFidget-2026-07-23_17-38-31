@@ -103,6 +103,7 @@ public sealed class Day1GuideCheck : PlayLab
         Check(guide != null && shop != null && pins != null, "the HUD has its guide, its controls strip and the pins over the café");
         if (movement == null || interactor == null || view == null || carry == null || inspector == null || conversation == null
             || guide == null || shop == null || pins == null) yield break;
+        StartCoroutine(WatchTheQuietLine());   // 24 Oct 2026 (Days): the quiet moments' line, all through (judged at the end)
 
         // The keyboard's words for the check (a pad touched in an earlier lab leaves its flag up), put back at the end.
         setPad = typeof(PadInput).GetProperty("UsingPad", BindingFlags.Static | BindingFlags.Public)?.GetSetMethod(true);
@@ -261,6 +262,8 @@ public sealed class Day1GuideCheck : PlayLab
         yield return Until(() => guide.CardText.Contains("from the intake tray"), 6f, "the card: pick it up from the intake tray");
         Check(guide.CardText.Contains($"{ControlHints.Interact} Pick up Grace's") && !guide.CardText.Contains("shelf") && !guide.CardText.Contains("Press "),
             $"...in those words, the button as its icon: \"{Plain(guide.CardText)}\"");
+        // 26 Oct 2026 (Icons on notes): a guided step with its button's icon wears no note chip (never two icons in one line).
+        Check(guide.NowChip == "", $"...and no note chip (\"{guide.NowChip}\")");
         Check(guide.PinLabel == FocusNameUI.TrayName && guide.PinWho == null
               && (guide.PinPoint - FocusNameUI.TopOf(camera.gameObject)).magnitude < .6f, "Day 1's pin says \"Intake tray\", over the camera on it");
         PutAce(bench.StandPoint.position, bench.StandPoint.eulerAngles.y);   // a step away: nothing in reach, so the pin shows alone
@@ -345,6 +348,40 @@ public sealed class Day1GuideCheck : PlayLab
 
         // ---------- 10. the Officer's coffee, if he comes in within the check's time ----------
         yield return TheOfficer(grace, till);
+
+        // ---------- 11. the quiet moments' line (24 Oct 2026; Designer P's §2.1 and §6.7), watched all through ----------
+        Check(waitingWhileNeeded == 0, $"no waiting job on the Now line while anyone needed Ace ({waitingWhileNeeded} of {quietSamples} samples)");
+        Check(findEarly == 0, $"the thrift find's line never came before Grace's visit was over ({findEarly} samples)");
+        Check(quietBadWords == 0, $"every waiting job's line kept to {WordBudget.NowLine} words, the buttons as icons ({quietBadWords} over)");
+        Note(quietSamples > 0 ? $"a waiting job was on the line in {quietSamples} samples (the last: \"{Plain(quietLast)}\")"
+                              : "no waiting job came up while the check watched (Day 1's come once Grace's visit is over)");
+    }
+
+    // 24 Oct 2026 (Days): the Now line's waiting jobs, ten times a second while the check runs: never while anyone needs Ace,
+    // never the find before the featured visit is over, every line within the budget with no button words.
+    int quietSamples, waitingWhileNeeded, findEarly, quietBadWords;
+    string quietLast = "";
+
+    IEnumerator WatchTheQuietLine()
+    {
+        CustomerSpawner spawner = FindAnyObjectByType<CustomerSpawner>();
+        while (this != null && isActiveAndEnabled)
+        {
+            Downtime.Job showing = DayOneGuideUI.ShowingWaitingJob;
+            if (showing != Downtime.Job.None)
+            {
+                quietSamples++;
+                if (!Downtime.NobodyNeedsAce) waitingWhileNeeded++;
+                if (showing == Downtime.Job.Find && spawner != null && !spawner.FeaturedVisitOver) findEarly++;
+                string line = guide != null ? guide.NowText : "";
+                if (line.Length > 0)
+                {
+                    if (WordBudget.Over(line, WordBudget.NowLine) || line.Contains("[") || line.Contains("Press ")) quietBadWords++;
+                    quietLast = line;
+                }
+            }
+            yield return new WaitForSecondsRealtime(.1f);
+        }
     }
 
     // Grace's patience set low (the lab's hand): the impatience card, once; reassured, it goes.

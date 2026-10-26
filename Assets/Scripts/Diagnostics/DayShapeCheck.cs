@@ -56,6 +56,23 @@ using UnityEngine;
 // Each run adds a line to Logs/CafeLife/days-1-3-runs.csv; the report gives that day's medians over every run so far (the
 // spec asks for 20 runs a day: one Play session each).
 //
+// DEAD AIR (24 Oct 2026; Designer P's spec §3.2 and §6.8, with the autopilot at human speed doing the four things to do while
+// waiting, CafeLabDirector.WaitingJobs). Downtime's counters for the day (DowntimeMeter) and P's bars:
+//                                                    Day 1    Day 2    Day 3
+//   nothing to do after the first 15 s, median of 3   <= 50    <= 25    <= 30   (s)
+//   the longest stretch of it, this run               <= 25    <= 20    <= 20   (s)
+//   a waiting job on the Now line while needed        0        0        0      (samples)
+//   the find offered before Grace's visit is over     never    -        -
+//   bench jobs done (customers' and the find), med.   >= 3     >= 3     >= 3
+//   a walk-in held back by the cap > 2 s, Ace <= 1    0        0        0
+// And two of the 23 Oct run's misses, judged on the median of the day's last 3 runs as the seat medians are (each run's own
+// number is still noted): THE DAY ENDS by its time (3 of 9 runs missed 7:30, each time a walk-in repair set off just before
+// last orders: walk-in repairs' last orders now come a repair's length earlier, CustomerSpawner.RepairLastOrdersLead), and
+// THE FIRST CUSTOMER AT THE TILL within 15 s (13.7-15.5 s). Its cause is only the random sequence: the opener's movement
+// profile is rolled by weight from Unity's Random (NpcProfileLibrary.Roll), and the five profiles walk at 0.86-1.18x, so the
+// same walk from the street takes 13.5-15.5 s; the seat dice of 23 Oct drew more numbers first, which changed the profile she
+// drew. The bar stays 15 s. These go in Logs/CafeLife/days-1-3-downtime.csv (one row a run), beside the runs file.
+//
 // SEAT VARIETY (23 Oct 2026; his note: drink customers "only sit to the left of the couch", repair customers "only sit on
 // the right next to the bar stool": "I want that to be more spread out and diverse"). People choose seats by their reasons
 // now (SeatChoice, in SeatTags.cs). The check records every seat a customer claims (CustomerBrain.ClaimedSpot; a patron's
@@ -84,6 +101,13 @@ using UnityEngine;
 // Checks > Seat choice rules, section 7, on the open café's own seats and walks.
 // Also reported: the bench jobs who sat away from the repair bar (none expected on Day 1: its walk-ins' short cleans keep
 // them there) and where the patrons sat. On Day 5's shape everything is reported, not judged.
+//
+// THE HALF-FINISHED CAFÉ (24 Oct 2026, Furniture; furniture-spec.md §5.5 with his answers r1 and r3): Fixit Fidget > Days >
+// Lab - Day N at the counter (half-finished café) (FurnitureLabMenus) runs the same check on the café a new game opens (10
+// seats, the dust sheets lying; Days 2 and 3 with the week's bought pieces: 12 and 14 seats). Its runs file is its own
+// (Logs/CafeLife/HalfFinished/), so its medians never mix with today's 28-seat café's. At the closing FurnitureCheck.AtClosing
+// adds its lines: on Day 1 the Shop's badge and YOUR CAFÉ card and the first table placed from Arrange; on Days 2 and 3
+// what goes on sale. The day's own bars are P2's, unchanged.
 // ---------------------------------------------------------------------------
 public sealed class DayShapeCheck : PlayLab
 {
@@ -105,9 +129,13 @@ public sealed class DayShapeCheck : PlayLab
     /// <summary>0: Day 5's shape (the rushes and the lull); 1-3: that day's own bars (specs/days-1-3.md §10).</summary>
     public int dayNumber;
 
+    /// <summary>24 Oct 2026 (Furniture): the day runs on the half-finished café (FurnitureLabMenus' Days labs; FurnitureCheck.AtClosing at its closing).</summary>
+    public bool halfFinished;
+
     protected override string Title => "The day's shape at the counter - play check" +
                                        (dayNumber > 0 ? $", Day {dayNumber} by the Days 1-3 bars" : "") +
                                        (dayLength > 0f ? $", a {dayLength:0} s day" : "") +
+                                       (halfFinished ? ", on the half-finished café" : "") +   // 24 Oct 2026 (Furniture)
                                        (CafeLabDirector.Instance != null && CafeLabDirector.Instance.HumanSpeed ? ", the autopilot at human speed" : "");
     protected override string Tag => "[Day shape check]";
 
@@ -119,9 +147,11 @@ public sealed class DayShapeCheck : PlayLab
         if (PlayerPrefs.GetInt(PendingKey, 0) == 0) return;
         bool ship = PlayerPrefs.GetInt(ShipLengthKey, 0) == 1;
         int number = PlayerPrefs.GetInt(DayKey, 0);
+        bool half = PlayerPrefs.GetInt(FurnitureCheck.HalfFinishedKey, 0) == 1;   // 24 Oct 2026 (Furniture)
         PlayerPrefs.DeleteKey(PendingKey);
         PlayerPrefs.DeleteKey(ShipLengthKey);
         PlayerPrefs.DeleteKey(DayKey);
+        PlayerPrefs.DeleteKey(FurnitureCheck.HalfFinishedKey);   // 24 Oct 2026 (Furniture)
         PlayerPrefs.Save();
         if (!CafeLab.Active)
         {
@@ -132,7 +162,8 @@ public sealed class DayShapeCheck : PlayLab
         var check = go.AddComponent<DayShapeCheck>();
         check.dayLength = ship ? ShipDayLength : 0f;
         check.dayNumber = Mathf.Clamp(number, 0, 3);
-        check.folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "CafeLife",
+        check.halfFinished = half;   // 24 Oct 2026 (Furniture): its folder, and so its runs file, under HalfFinished
+        check.folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "CafeLife", half ? "HalfFinished" : "",
             (check.dayNumber > 0 ? $"days-1-3-day{check.dayNumber}-" : "day-shape-") + $"{DateTime.Now:yyyy-MM-dd_HHmmss}"));
     }
 #endif
@@ -150,6 +181,8 @@ public sealed class DayShapeCheck : PlayLab
         // Days 1-3 (14 Oct): who it is, what they came with, and when their repair came back and when they were served.
         public bool grace;
         public string job = "";
+        // 24 Oct 2026 (Days): a support call or a counter repair: not a bench job (P's "bench jobs done" bar).
+        public bool call, counter;
         public float returnedAt = -1f, servedAt = -1f;
     }
 
@@ -236,6 +269,10 @@ public sealed class DayShapeCheck : PlayLab
              $"(the longest walk to the till; {day - spawner.LastOrdersLead:0} s into this day).");
         Check(spawner.LastOrdersLead > 0f && spawner.LastOrdersLead < day,
             $"the walk-ins' last orders fall inside the day ({spawner.LastOrdersLead:0} s before closing of a {day:0} s day)");
+        // 24 Oct 2026 (Days): a walk-in repair's last orders come a repair's length earlier than a drink's (the 23 Oct misses).
+        Check(spawner.RepairLastOrdersLead > spawner.LastOrdersLead && spawner.RepairLastOrdersLead < day,
+            $"walk-in repairs' last orders come earlier: none sets off with less than {spawner.RepairLastOrdersLead:0} s left " +
+            $"({day - spawner.RepairLastOrdersLead:0} s into the day; drinks until {day - spawner.LastOrdersLead:0} s)");
 
         // Photos: the first customer at the till, and the middle of each phase.
         var photoAt = new List<(float at, string name)>();
@@ -299,6 +336,8 @@ public sealed class DayShapeCheck : PlayLab
         Check(doubledNames == 0, $"one name per person: no look of the day had the same name pinned twice, Day 1's green pin and " +
                                  $"the name of what E acts on ({doubledNames} of {pinLooks} looks{(doubledNames > 0 ? ", the first " + firstDoubled : "")})");
         Report(today, day, spawner);
+        // 24 Oct 2026 (Furniture): the half-finished café's evening (furniture-spec.md §5.5).
+        if (halfFinished) yield return FurnitureCheck.AtClosing(dayNumber, Check, Note, Photo);
     }
 
     // One look at everyone in the café (and on the street with a café brain): who has reached the counter, and how each
@@ -330,6 +369,8 @@ public sealed class DayShapeCheck : PlayLab
                 if (a.returnedAt < 0f && RepairReturnedField != null && RepairReturnedField.GetValue(c) is bool returned && returned) a.returnedAt = now;
                 if (a.job.Length == 0 && c.Record != null)
                     a.job = c.Record.kind == JobKind.Repair ? $"{c.Record.deviceName}: {c.Record.faultDescription}" : "a drink";
+                if (c.ActiveJob is HoldCallJob) a.call = true;          // 24 Oct 2026 (Days)
+                if (c.IsCounterRepair) a.counter = true;
                 NoteSeat(c, c.ClaimedSpot, now);   // seat variety (23 Oct)
             }
             if (!a.counted && c.ReachedCounterAt >= 0f)
@@ -394,8 +435,12 @@ public sealed class DayShapeCheck : PlayLab
 
         // The first at the till.
         float first = arrivals.Count > 0 ? arrivals.Min(a => a.atCounter) : -1f;
-        Check(first >= 0f && first <= FirstAtTheTillWithin,
-            $"the first customer reached the till {(first >= 0f ? $"{first:0.0} s" : "never")} after opening (within {FirstAtTheTillWithin:0} s; was 39-41 s)");
+        firstAtTill = first;
+        // 24 Oct 2026 (Days): on Days 1-3 this run's time is noted and the median of the day's last 3 runs is judged (DaysBars;
+        // the header: the spread is only the opener's rolled walking pace). Other days judge each run, as before.
+        string firstLine = $"the first customer reached the till {(first >= 0f ? $"{first:0.0} s" : "never")} after opening (within {FirstAtTheTillWithin:0} s; was 39-41 s)";
+        if (dayNumber >= 1 && dayNumber <= 3) Note(firstLine + "; judged on the median of the day's last 3 runs");
+        else Check(first >= 0f && first <= FirstAtTheTillWithin, firstLine);
 
         // Last orders (12 Oct).
         LastOrders(day, spawner);
@@ -607,7 +652,9 @@ public sealed class DayShapeCheck : PlayLab
 
         int stormOuts = Mathf.Max(0, lostAtEnd);
         Check(lostAtEnd >= 0 && stormOuts <= StormOutsAtMost[d], $"{stormOuts} storm-out(s) (at most {StormOutsAtMost[d]}{(d == 3 ? " in the median run" : "")})");
-        Check(endedAt >= 0f && endedAt <= DayEndsBy[d], $"the day ended at {Clock(endedAt)} (by {Clock(DayEndsBy[d])})");
+        // 24 Oct 2026 (Days): noted here; the median of the day's last 3 runs is judged (DeadAir), as the seat medians are.
+        Note($"the day ended at {Clock(endedAt)} (by {Clock(DayEndsBy[d])}: judged on the median of the day's last 3 runs)");
+        Check(endedAt >= 0f, "the day ended");
 
         // The walk-ins' repairs: the day's list, in order (a prefix of it: not every entry need come).
         var listed = new List<string>();
@@ -647,6 +694,80 @@ public sealed class DayShapeCheck : PlayLab
             SeatMedians(d, runs, file);
         }
         catch (Exception e) { Note("couldn't keep the runs file: " + e.Message); }
+
+        DeadAir(d, walkIns, spawner);   // 24 Oct 2026 (Days)
+    }
+
+    // ---------- dead air (24 Oct 2026; P's spec §3.2 and §6.8; the header) ----------
+
+    static readonly float[] NothingAfterOpeningAtMost = { 0f, 50f, 25f, 30f };
+    static readonly float[] LongestNothingAtMost = { 0f, 25f, 20f, 20f };
+    static readonly int[] BenchJobsAtLeast = { 0, 3, 3, 3 };
+    public const int DeadAirRunsForMedian = 3;
+    const string DeadAirFile = "days-1-3-downtime.csv";
+    const string DeadAirHeader = "when,day,first at till,nothing after 15 s,longest after 15 s,nothing first 15 s,nothing after last orders," +
+                                 "nothing rest,nobody needs Ace,with someone walking in,bench jobs,finds finished,tables cleared,chats,refills," +
+                                 "waiting line while needed,cap waits over 2 s,day ended,result";
+    float firstAtTill = -1f;
+
+    void DeadAir(int d, List<Arrival> walkIns, CustomerSpawner spawner)
+    {
+        DowntimeDay t = Downtime.Today;
+        report.AppendLine();
+        report.AppendLine($"Day {d}: dead air (P's §3.2, §6.8), sampled 10 times a second: {t}.");
+        CafeLabDirector lab = CafeLabDirector.Instance;
+        if (lab != null)
+            Note($"The autopilot's waiting jobs (at human speed only: {(lab.HumanSpeed ? "on" : "OFF, so these bars mean little")}): " +
+                 $"{lab.TablesCleared} table(s) cleared, {lab.Chats} chat(s), {lab.Refills} refill(s), {lab.FindsWorked} time(s) at the find.");
+
+        Check(t.longestNothingAfter15 <= LongestNothingAtMost[d] + .05f,
+            $"the longest stretch of nothing to do after the first 15 s: {t.longestNothingAfter15:0.0} s (at most {LongestNothingAtMost[d]:0})");
+        Check(t.waitingLineWhileNeeded == 0,
+            $"no waiting job on the Now line while somebody needed Ace ({t.waitingLineWhileNeeded} sample(s))");
+        if (d == 1) Check(!t.findBeforeVisitOver, "the find was never offered before the featured visit was over");
+        int capWaits = spawner != null ? spawner.CapWaitsOver2s : 0;
+        Check(capWaits == 0, $"no walk-in held back by the cap more than 2 s once a place freed with Ace on one job or none " +
+                             $"({capWaits}; the longest {(spawner != null ? spawner.LongestCapWait : 0f):0.0} s)");
+
+        // Bench jobs: the customers' repairs handed back at the bench (not a support call or a counter repair) and the finds.
+        int customersBench = people.Values.Count(a => a.job.Length > 0 && a.job != "a drink" && !a.call && !a.counter
+                                                      && (a.served || a.returnedAt >= 0f));
+        int benchJobs = customersBench + t.findsFinished;
+        Note($"Bench jobs done: {benchJobs} ({customersBench} customers', {t.findsFinished} find(s)); judged on the median of the day's last {DeadAirRunsForMedian} runs (at least {BenchJobsAtLeast[d]}).");
+        Note($"Nothing to do after the first 15 s: {t.NothingAfterOpening:0} s (at most {NothingAfterOpeningAtMost[d]:0}: judged on the median of the day's last {DeadAirRunsForMedian} runs).");
+
+        // c11 (his, kept on 23 Oct): from Day 2 about 2 in 5 walk-in bench jobs sit away from the repair bar; never on Day 1.
+        var benchSat = sittings.Where(x => x.benchJob && !x.regular).ToList();
+        Note($"c11: {benchSat.Count(x => x.awayFromTheBar)} of {benchSat.Count} walk-in bench job(s) sat away from the repair bar this run " +
+             $"({(d == 1 ? "never on Day 1" : "about 2 in 5 from Day 2")}; Fixit Fidget > Checks > Seat choice rules proves the share over 4000 visits).");
+
+        string row = string.Join(",", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), d, Num(firstAtTill), Num(t.NothingAfterOpening),
+            Num(t.longestNothingAfter15), Num(t.nothingFirst15), Num(t.nothingAfterLastOrders), Num(t.nothingRest), Num(t.nobodyNeedsAce),
+            Num(t.nobodyNeedsAceWalkingIn), benchJobs, t.findsFinished, t.tablesCleared, t.chats, t.refills, t.waitingLineWhileNeeded,
+            capWaits, Num(endedAt), failures == 0 ? "pass" : "fail");
+        string file = Path.Combine(Path.GetDirectoryName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? folder, DeadAirFile);
+        try
+        {
+            if (!File.Exists(file)) File.WriteAllText(file, DeadAirHeader + "\n");
+            File.AppendAllText(file, row + "\n");
+            var runs = File.ReadAllLines(file).Skip(1).Select(l => l.Split(',')).Where(c => c.Length >= 19 && c[1] == d.ToString()).ToList();
+            if (runs.Count < DeadAirRunsForMedian)
+            {
+                Note($"Dead air: {runs.Count} of the {DeadAirRunsForMedian} runs of Day {d} its medians need are in {file}; the first customer, " +
+                     $"the dead air, the bench jobs and the day's end are judged from run {DeadAirRunsForMedian} on (this run's are above).");
+                return;
+            }
+            List<string[]> last = runs.Skip(runs.Count - DeadAirRunsForMedian).ToList();
+            string over = $"the median of Day {d}'s last {DeadAirRunsForMedian} runs";
+            float firstMedian = Median(last, 2), nothingMedian = Median(last, 3), benchMedian = Median(last, 10), endedMedian = Median(last, 17);
+            Check(firstMedian >= 0f && firstMedian <= FirstAtTheTillWithin,
+                $"the first customer at the till, {over}: {firstMedian:0.0} s (within {FirstAtTheTillWithin:0} s)");
+            Check(nothingMedian >= 0f && nothingMedian <= NothingAfterOpeningAtMost[d],
+                $"nothing to do after the first 15 s, {over}: {nothingMedian:0} s (at most {NothingAfterOpeningAtMost[d]:0})");
+            Check(benchMedian >= BenchJobsAtLeast[d], $"bench jobs done, {over}: {benchMedian:0} (at least {BenchJobsAtLeast[d]})");
+            Check(endedMedian >= 0f && endedMedian <= DayEndsBy[d], $"the day ended, {over}: {Clock(endedMedian)} (by {Clock(DayEndsBy[d])})");
+        }
+        catch (Exception e) { Note("couldn't keep the dead-air file: " + e.Message); }
     }
 
     // SEAT VARIETY, JUDGED OVER RUNS (23 Oct 2026; the header). The medians of the day's last Seat Runs For Median runs that

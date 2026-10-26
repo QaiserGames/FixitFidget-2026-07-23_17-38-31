@@ -33,11 +33,17 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
         visualRoot.localScale = new Vector3(1 / Mathf.Max(.001f, Mathf.Abs(scale.x)),
             1 / Mathf.Max(.001f, Mathf.Abs(scale.y)), 1 / Mathf.Max(.001f, Mathf.Abs(scale.z)));
         shellMaterial = MakeMaterial("Warm ivory paper", PaperColour, .08f);
-        liquidMaterial = MakeMaterial("Drink surface", SurfaceColour, .68f);
+        liquidMaterial = MakeMaterial("Drink surface", SurfaceColour, LiquidSmoothness);
         shellMesh = BuildShell();
         MeshObject("Tapered open shell and rolled rim", visualRoot, shellMesh, shellMaterial);
         liquidMesh = BuildDisc();
         liquid = MeshObject("Rising liquid", visualRoot, liquidMesh, liquidMaterial).transform;
+        // 26 Oct 2026 (Art fixes) a08: the crema. The disc above is the ring's colour; a smaller disc just over it carries the
+        // drink's own, so a lighter ring shows round the edge (only on black coffee: see RingColor).
+        middleMaterial = MakeMaterial("Drink surface (middle)", SurfaceColour, LiquidSmoothness);
+        middle = MeshObject("Drink middle (inside the crema ring)", liquid, liquidMesh, middleMaterial).transform;
+        middle.localPosition = new Vector3(0f, .0006f, 0f);
+        middle.localScale = new Vector3(.8f, 1f, .8f);
         // Renderer.enabled stays true, even while the empty surface is inactive.
         // PlayerCarry can snapshot it before pickup without freezing fill visibility.
         var rippleObject = new GameObject("Small pour ripples"); rippleObject.transform.SetParent(liquid, false);
@@ -53,7 +59,12 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
     public void SetFill(float fraction, DrinkDefinition recipe, bool isPouring)
     {
         Initialize(); amount = Mathf.Clamp01(fraction); agitated = isPouring;
-        if (recipe != null) liquidMaterial.color = LiquidColor(recipe);
+        if (recipe != null)
+        {
+            // 26 Oct 2026 (Art fixes) a08: the edge in the ring's colour, the middle in the drink's.
+            liquidMaterial.color = RingColor(recipe);
+            middleMaterial.color = LiquidColor(recipe);
+        }
         liquid.localPosition = new Vector3(0, SurfaceHeight, 0);
         float radius = Mathf.Lerp(.028f, .036f, amount);
         liquid.localScale = new Vector3(radius, 1, radius);
@@ -73,14 +84,31 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
         }
     }
 
+    // 26 Oct 2026 (Art fixes) a08, "the coffee in the cup" (the art audit, 23 Oct: "a finished coffee is a flat near-white disc, like
+    // milk; another came out grey-beige, like dishwater"). The colours were dark already; the disc was drawn at smoothness 0.68,
+    // a mirror-flat surface seen at a glancing angle from Ace's eye, so it showed the bright ceiling and windows instead of the
+    // drink, near-white under one light and grey-beige under another: that is why two coffees differed. A drink's surface is
+    // matt enough now (0.3) to show its own colour from any angle, and the colours follow the finding: coffee, espresso and
+    // americano a dark roast brown with a lighter crema ring, latte tan, cocoa brown, tea amber.
+    public const float LiquidSmoothness = .3f;
+    private Material middleMaterial;
+    private Transform middle;
+
     public static Color LiquidColor(DrinkDefinition recipe)
     {
         string label = recipe != null ? recipe.drinkName.ToLowerInvariant() : "";
-        if (label.Contains("latte")) return new Color(.65f, .40f, .18f);
-        if (label.Contains("tea")) return new Color(.47f, .19f, .035f);
-        if (label.Contains("chocolate")) return new Color(.23f, .085f, .032f);
-        if (label.Contains("espresso")) return new Color(.27f, .105f, .025f);
-        return new Color(.12f, .045f, .012f);
+        if (label.Contains("latte")) return new Color(.76f, .60f, .42f);        // tan
+        if (label.Contains("tea")) return new Color(.66f, .38f, .12f);          // amber
+        if (label.Contains("chocolate")) return new Color(.35f, .21f, .13f);    // cocoa brown
+        return new Color(.23f, .13f, .075f);                                    // coffee, espresso, americano: dark roast
+    }
+
+    /// <summary>The colour round the surface's edge: a lighter crema on black coffee, the drink's own colour otherwise.</summary>
+    public static Color RingColor(DrinkDefinition recipe)
+    {
+        string label = recipe != null ? recipe.drinkName.ToLowerInvariant() : "";
+        if (label.Contains("latte") || label.Contains("tea") || label.Contains("chocolate")) return LiquidColor(recipe);
+        return new Color(.54f, .35f, .20f);                                     // crema
     }
 
     public static Material MakeMaterial(string label, Color color, float smoothness)
@@ -147,5 +175,6 @@ public sealed class DrinkLiquidVisual : MonoBehaviour
     private void OnDestroy()
     {
         Release(shellMaterial); Release(liquidMaterial); Release(rippleMaterial); Release(shellMesh); Release(liquidMesh);
+        Release(middleMaterial);   // 26 Oct 2026 (review fix): the a08 crema's middle material leaked one per drink made
     }
 }

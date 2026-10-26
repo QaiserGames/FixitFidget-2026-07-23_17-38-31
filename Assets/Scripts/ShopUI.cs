@@ -213,7 +213,10 @@ public class ShopUI : MonoBehaviour
             }
         }
         if (moneyText != null) moneyText.gameObject.SetActive(!recapOpen && night == null && !cornersByDay);
-        if (clockText != null) clockText.gameObject.SetActive(!recapOpen && !cornersByDay);
+        // 26 Oct 2026 (HUD 3): by night the HUD's window carries the night's hour top centre (his answer, 24 Oct), so the
+        // old top-right clock line stays put away while the corners show it.
+        bool cornersByNight = corners != null && night != null && corners.ShowsNight;
+        if (clockText != null) clockText.gameObject.SetActive(!recapOpen && !cornersByDay && !cornersByNight);
         if (stockText != null) stockText.gameObject.SetActive(!recapOpen && night == null && !cornersByDay);
         if (promptText != null) promptText.gameObject.SetActive(!recapOpen);
         if (recapOpen)

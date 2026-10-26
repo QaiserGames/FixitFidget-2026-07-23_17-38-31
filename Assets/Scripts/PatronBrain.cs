@@ -515,6 +515,9 @@ public class PatronBrain : MonoBehaviour
         NpcCup held = NpcCup.Of(gameObject);
         binStop = false;
         walkOutAt = -1f;
+        // 24 Oct 2026 (Days): about one guest in three leaves the cup on the table (Designer P's §2.3, clearing tables; their
+        // movement profile's chance, Day 1's settled guests always): a used cup there, the seat out of play until Ace clears it.
+        if (held != null && held.OnTable && NpcCup.LeavesItBehind(gameObject, SettledGuest) && held.LeaveOnTable()) held = null;
         if (held != null && held.Held)
         {
             held.TakeInHand();

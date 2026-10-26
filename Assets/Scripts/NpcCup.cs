@@ -187,6 +187,50 @@ public sealed class NpcCup : MonoBehaviour
         if (!Sfx.Play("cup.bin", mouth)) Sfx.Play("cup.set", mouth, .6f);
     }
 
+    // ---------- left on the table (24 Oct 2026; Designer P's spec §2.3, clearing tables) ----------
+
+    /// <summary>
+    /// Getting up to go, a guest whose cup stands on their table may leave it there (<see cref="LeavesItBehind"/>): the cup
+    /// becomes a used cup on that table (DirtyCup.Place, a guest's: the seat out of play until Ace clears the table) and this
+    /// one goes. True when it was left; false when it isn't on a table (it comes along to the bins as before).
+    /// </summary>
+    public bool LeaveOnTable()
+    {
+        if (cup == null || where != Where.OnTable || table == null) return false;
+        DirtyCup left = DirtyCup.Place(table, true);
+        if (left == null) return false;
+        Vanish();
+        return true;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="who"/> leaves their cup on the table this visit: their movement profile's chance (the Hurried
+    /// and the Distracted most; about a third of guests), rolled on dice of their own so the game's random sequence is left
+    /// alone (PlacementJitter's way). Day 1's settled guests always do: the first table to clear comes early in the morning,
+    /// so Day 1's lesson ("Clear the table") never waits on the dice.
+    /// </summary>
+    public static bool LeavesItBehind(GameObject who, bool settledGuest)
+    {
+        if (who == null) return false;
+        int day = DayClock.Instance != null ? DayClock.Instance.Day : 0;
+        if (settledGuest && day == 1) return true;
+        NpcSocial social = who.GetComponent<NpcSocial>();
+        float chance = social != null && social.Profile != null ? social.Profile.leavesCup : .3f;
+        return Dice(who, day) < chance;
+    }
+
+    // 0..1 from the person and the day: the same answer however often it is asked during the visit.
+    static float Dice(GameObject who, int day)
+    {
+        unchecked
+        {
+            uint h = (uint)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(who) * 2654435761u;
+            h ^= (uint)day * 2246822519u + 0x9E3779B9u;
+            h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; h *= 3266489917u; h ^= h >> 16;
+            return (h & 0xFFFFFF) / (float)0x1000000;
+        }
+    }
+
     /// <summary>The cup goes without ceremony (a guest removed, a day reset).</summary>
     public void Vanish()
     {

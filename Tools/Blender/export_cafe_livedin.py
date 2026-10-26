@@ -41,7 +41,8 @@ fbx_dir = args[0] if args else (os.path.join(REPO, 'Assets', 'Art', 'Models', 'C
 blend_path = args[1] if len(args) > 1 else (os.path.join(REPO, 'BlenderSource', 'CafeLivedIn_v1.blend') if IN_REPO
                                             else os.path.join(HERE, 'CafeLivedIn_v1.blend'))
 LABEL_SIZES = {'LI_RugCorner': li.RUG, 'LI_CoirMat': li.COIR, 'LI_RubberMat': li.RUBBER,
-               'LI_BinLabels': li.BIN_LABEL[:2], 'LI_KidsDrawing': li.DRAWING}
+               'LI_BinLabels': li.BIN_LABEL[:2], 'LI_KidsDrawing': li.DRAWING,
+               'LI_Screen': (0.296, li.LAP['D'] - 0.029)}      # 24 Oct 2026, art audit a50: the laptop's screen picture
 LABEL_UV = {
     'LI_RugCorner': "0..1 over the top, u along the rug's length (x), v across it, as seen from above with the front at "
                     "the bottom; the chamfers take the picture's outer 4 mm (the hems), the sides and the bottom one hem texel",
@@ -53,6 +54,8 @@ LABEL_UV = {
                     "middle, LANDFILL the right (columns round(k*1024/3)..round((k+1)*1024/3), inset 3 px); u to the "
                     "reader's right, v up, on each plate's front; its edges one border texel of its own third",
     'LI_KidsDrawing': "0..1 on the front of the quad (u to the reader's right, v up); a single quad facing -Y",
+    'LI_Screen': "0..1 over the glass's face, u to the reader's right, v up the open lid (the title bar at the top); the "
+                 "glass's edges one dark texel of the bar (24 Oct 2026, art audit a50)",
 }
 
 

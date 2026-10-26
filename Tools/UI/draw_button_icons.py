@@ -26,6 +26,16 @@ THE LOOK. The game's cozy, chunky, flat style (UiSkin's palette: Ink #1f1b17, Pa
                  Shift, Enter, the four arrows.
   Mouse          a simple body; the left, right or middle button, or the wheel, in Gold; "drag" with motion lines.
   Drinks         a cup each in its own colour and mark, readable at 32 px.
+  Note chips     26 Oct 2026 (Icons on notes): ten 208 px paper chips with a gold rim (note_back_shelf, note_table,
+                 note_thrift, note_gnome, note_cups_sleeve, note_cones, note_door, note_bins, note_house, note_machine):
+                 the picture before a note's line and on the world pin over the place to go (NoteIcons.cs).
+  Furniture      26 Oct 2026 (Icons 2): the seven kinds the Shop sells, plain 128 px pictures (furn_bistro, furn_square,
+                 furn_plant, furn_banquette, furn_counter, furn_lounge, furn_communal): the Arrange strip's cards and the
+                 phone's YOUR CAFÉ card (NoteIcons.Furniture).
+  Items          26 Oct 2026 (Icons 2): the tickets' repair devices and a clock, plain 128 px beside the drinks (item_phone,
+                 item_watch, item_camera, item_clock; NoteIcons.ForDevice).
+  Kind chips     26 Oct 2026 (Icons 2): a fact's kind on the night's notebook page, 144 px chips (kind_where, kind_owns,
+                 kind_when, kind_said, kind_who, kind_secret), and each again on his paper with his rim (kind_*_his).
 Letters are set in Baloo 2 Bold (Assets/Fonts/Baloo2, the UI font) when it is there, else Inter Bold (Tools/Blender/fonts).
 
 Every icon is drawn at 4x and shrunk (Lanczos) so the edges are smooth at any size. Requires Pillow.
@@ -404,6 +414,490 @@ def steam(draw, cx, top, small=False):
         draw.line(pts, fill=INK, width=s(4), joint="curve")
 
 
+# ---------------------------------------------------------------- the note chips (26 Oct 2026 (Icons on notes))
+# His note (24 Oct): "the notes that are given to you from that guy, or any notes, should have icons so that its easier for
+# the player to understand what to do ... only on times when we must." Designer I's ten pictures (review24/designs/I/
+# note_icons.py), copied here as drawn, each on its chip: a round paper disc with a gold rim (never an ink disc or a keycap,
+# so it can't be read as a button to press). He picked A on 26 Oct: the chip before the line, and the same chip on the
+# world pin. NoteIcons.cs says which line wears which. The chip is drawn NOTE_CHIP px on the sheet (1.625 x a disc), so
+# with ButtonIconSteps' metrics it draws ~42 px beside the Now line's 26 px words and ~48 px beside his 30 px speech,
+# centred on the cap band like every icon. (The designer's torch is left out: every torch line already has the F key.)
+NOTE_CHIP = 208
+NOTE_INNER = round(NOTE_CHIP * 92 / 128)   # the picture inside the rim, as the design drew it (92 of 128)
+BRAND = (0x2e, 0x7d, 0x5b, 255)
+BRAND_DEEP = (0x1f, 0x5a, 0x41, 255)
+GOLD_SOFT = (0xfd, 0xeb, 0xd0, 255)
+WOOD = (0xb0, 0x7a, 0x45, 255)
+WOOD_DARK = (0x7a, 0x50, 0x2a, 255)
+COFFEE = (0x6b, 0x3f, 0x1f, 255)
+SKIN = (0xf2, 0xc7, 0xa3, 255)
+HAT_RED = (0xc7, 0x45, 0x2e, 255)
+GNOME_BLUE = (0x3b, 0x5f, 0xa0, 255)
+YELLOW_HOUSE = (0xf2, 0xc9, 0x4c, 255)
+CONE = (0xee, 0x7a, 0x2a, 255)
+O = dict(outline=INK, width=s(5))
+
+
+def note_finish(img):
+    """The pictures are drawn on the design's 128 grid at 4x (512 px) and shrunk straight to the chip's inner size, so
+    they stay as sharp as the design's 128 px ones."""
+    return img.resize((NOTE_INNER, NOTE_INNER), Image.LANCZOS)
+
+
+def poly(d, pts, fill):
+    d.polygon([(s(x), s(y)) for x, y in pts], fill=fill)
+    d.line([(s(x), s(y)) for x, y in pts + [pts[0], pts[1]]], fill=INK, width=s(5), joint="curve")
+
+
+def box(d, x0, y0, x1, y1, fill, r=6):
+    d.rounded_rectangle([s(x0), s(y0), s(x1), s(y1)], radius=s(r), fill=fill, **O)
+
+
+def paper_cup(d, x0, x1, top, bottom, band=COFFEE):
+    inset = (x1 - x0) * .14
+    poly(d, [(x0, top), (x1, top), (x1 - inset, bottom), (x0 + inset, bottom)], PAPER)
+    mid = top + (bottom - top) * .45
+    d.polygon([(s(x0 + inset * .45 + 2), s(mid)), (s(x1 - inset * .45 - 2), s(mid)),
+               (s(x1 - inset * .7 - 2), s(mid + 9)), (s(x0 + inset * .7 + 2), s(mid + 9))], fill=band)
+    d.rounded_rectangle([s(x0 - 3), s(top - 6), s(x1 + 3), s(top + 2)], radius=s(3), fill=PAPER_EDGE, **O)
+
+
+def icon_back_shelf():
+    img, d = canvas(128, 128)
+    box(d, 14, 10, 24, 120, WOOD_DARK, 3)
+    box(d, 104, 10, 114, 120, WOOD_DARK, 3)
+    box(d, 10, 56, 118, 66, WOOD, 3)
+    box(d, 10, 108, 118, 118, WOOD, 3)
+    for x in (30, 54, 78):
+        paper_cup(d, x, x + 20, 28, 56)
+    # A bag of beans on the lower shelf.
+    d.rounded_rectangle([s(34), s(70), s(94), s(108)], radius=s(12), fill=COFFEE, **O)
+    d.ellipse([s(54), s(78), s(74), s(100)], fill=(0xc9, 0x9d, 0x6a, 255), **O)
+    d.line([(s(64), s(80)), (s(64), s(98))], fill=INK, width=s(4))
+    return note_finish(img)
+
+
+def icon_table():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(57), s(78), s(71), s(116)], radius=s(3), fill=WOOD_DARK, **O)
+    d.ellipse([s(36), s(108), s(92), s(122)], fill=WOOD_DARK, **O)
+    d.ellipse([s(6), s(56), s(122), s(90)], fill=WOOD, **O)
+    # Left behind: a used cup, two coffee rings, crumbs.
+    d.ellipse([s(20), s(66), s(46), s(78)], outline=COFFEE, width=s(4))
+    d.ellipse([s(40), s(72), s(60), s(82)], outline=COFFEE, width=s(4))
+    for cx, cy in ((92, 80), (100, 74), (84, 84)):
+        d.ellipse([s(cx - 3), s(cy - 2), s(cx + 3), s(cy + 2)], fill=WOOD_DARK)
+    paper_cup(d, 64, 90, 26, 70)
+    return note_finish(img)
+
+
+def icon_thrift():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(46), s(20), s(62), s(32)], radius=s(3), fill=GOLD, **O)
+    d.ellipse([s(14), s(28), s(94), s(108)], fill=GOLD, **O)
+    d.ellipse([s(24), s(38), s(84), s(98)], fill=PAPER, **O)
+    d.line([(s(54), s(68)), (s(54), s(46))], fill=INK, width=s(6))
+    d.line([(s(54), s(68)), (s(70), s(76))], fill=INK, width=s(6))
+    # The thrift tag on its string.
+    d.line([(s(86), s(44)), (s(98), s(30))], fill=INK, width=s(4))
+    d.polygon([(s(96), s(10)), (s(122), s(18)), (s(116), s(44)), (s(90), s(36))], fill=GOLD_SOFT)
+    d.line([(s(96), s(10)), (s(122), s(18)), (s(116), s(44)), (s(90), s(36)), (s(96), s(10))], fill=INK, width=s(4), joint="curve")
+    d.ellipse([s(99), s(18), s(107), s(26)], fill=INK)
+    return note_finish(img)
+
+
+def icon_gnome():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(36), s(76), s(92), s(120)], radius=s(14), fill=GNOME_BLUE, **O)
+    poly(d, [(40, 66), (88, 66), (64, 108)], PAPER)                       # beard
+    d.ellipse([s(50), s(50), s(78), s(76)], fill=SKIN, **O)              # face
+    d.ellipse([s(59), s(62), s(69), s(72)], fill=(0xe8, 0x9a, 0x86, 255), outline=INK, width=s(3))   # nose
+    poly(d, [(36, 58), (92, 58), (66, 6)], HAT_RED)                       # hat
+    return note_finish(img)
+
+
+def icon_reunion_cups():
+    img, d = canvas(128, 128)
+    band = (0xe0, 0x8a, 0x3a, 255)
+    for i, top in enumerate((14, 32, 50)):
+        paper_cup(d, 30 - i, 98 + i, top, top + 64, band)
+    return note_finish(img)
+
+
+def icon_cone():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(14), s(104), s(114), s(120)], radius=s(4), fill=(0x9a, 0x4a, 0x1a, 255), **O)
+    poly(d, [(48, 106), (80, 106), (64, 10)], CONE)
+    d.polygon([(s(55), s(64)), (s(73), s(64)), (s(76.5), s(78)), (s(51.5), s(78))], fill=PAPER)
+    d.polygon([(s(60), s(34)), (s(68), s(34)), (s(70.5), s(46)), (s(57.5), s(46))], fill=PAPER)
+    return note_finish(img)
+
+
+def icon_door():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(24), s(8), s(104), s(122)], radius=s(6), fill=WOOD_DARK, **O)
+    d.rounded_rectangle([s(34), s(18), s(94), s(122)], radius=s(4), fill=WOOD, **O)
+    d.rounded_rectangle([s(44), s(28), s(84), s(62)], radius=s(3), outline=WOOD_DARK, width=s(4))
+    d.rounded_rectangle([s(44), s(72), s(84), s(110)], radius=s(3), outline=WOOD_DARK, width=s(4))
+    d.ellipse([s(78), s(62), s(90), s(74)], fill=GOLD, **O)
+    return note_finish(img)
+
+
+def icon_bins():
+    img, d = canvas(128, 128)
+    for cx in (34, 94):
+        d.ellipse([s(cx - 9), s(104), s(cx + 9), s(122)], fill=INK)
+    poly(d, [(12, 50), (116, 50), (108, 110), (20, 110)], BRAND)
+    d.line([(s(24), s(70)), (s(104), s(70))], fill=BRAND_DEEP, width=s(4))
+    # The lid lifted, two eyes in the gap: the man at the bins (he kept the eyes, 26 Oct).
+    d.polygon([(s(16), s(50)), (s(112), s(50)), (s(112), s(40)), (s(16), s(26))], fill=INK)
+    d.ellipse([s(48), s(38), s(60), s(48)], fill=PAPER)
+    d.ellipse([s(68), s(40), s(80), s(50)], fill=PAPER)
+    d.ellipse([s(52), s(41), s(58), s(47)], fill=INK)
+    d.ellipse([s(72), s(43), s(78), s(49)], fill=INK)
+    poly(d, [(8, 30), (112, 16), (118, 26), (14, 40)], BRAND_DEEP)
+    return note_finish(img)
+
+
+def icon_house():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(22), s(54), s(106), s(120)], radius=s(4), fill=YELLOW_HOUSE, **O)
+    poly(d, [(10, 60), (118, 60), (64, 12)], (0xb8, 0x55, 0x3a, 255))
+    d.rounded_rectangle([s(54), s(80), s(76), s(120)], radius=s(3), fill=WOOD, **O)
+    d.rounded_rectangle([s(30), s(70), s(48), s(88)], radius=s(3), fill=(0x9c, 0xc3, 0xd8, 255), **O)
+    d.rounded_rectangle([s(82), s(70), s(100), s(88)], radius=s(3), fill=(0x9c, 0xc3, 0xd8, 255), **O)
+    d.ellipse([s(80), s(94), s(92), s(106)], fill=GOLD, **O)          # her porch light
+    return note_finish(img)
+
+
+def icon_machine():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(14), s(10), s(114), s(44)], radius=s(8), fill=(0xd9, 0xd4, 0xcc, 255), **O)
+    d.rounded_rectangle([s(14), s(40), s(34), s(120)], radius=s(5), fill=(0xd9, 0xd4, 0xcc, 255), **O)
+    d.rounded_rectangle([s(14), s(108), s(114), s(122)], radius=s(4), fill=(0x6b, 0x64, 0x5c, 255), **O)
+    d.rounded_rectangle([s(56), s(42), s(84), s(56)], radius=s(3), fill=(0x6b, 0x64, 0x5c, 255), **O)
+    d.ellipse([s(84), s(18), s(100), s(34)], fill=BRAND, **O)
+    paper_cup(d, 56, 84, 74, 108)
+    d.line([(s(70), s(58)), (s(70), s(70))], fill=COFFEE, width=s(5))
+    return note_finish(img)
+
+
+NOTE_ICONS = (
+    ("note_back_shelf", icon_back_shelf), ("note_table", icon_table), ("note_thrift", icon_thrift), ("note_gnome", icon_gnome),
+    ("note_cups_sleeve", icon_reunion_cups), ("note_cones", icon_cone), ("note_door", icon_door), ("note_bins", icon_bins),
+    ("note_house", icon_house), ("note_machine", icon_machine),
+)
+
+
+def note_chip(picture_fn):
+    """The design's chip (note_icons.chip): a paper disc, a gold rim, the picture inside; at NOTE_CHIP px."""
+    k = NOTE_CHIP / 128
+    img, d = canvas(NOTE_CHIP, NOTE_CHIP)
+    d.ellipse([0, 0, s(NOTE_CHIP), s(NOTE_CHIP)], fill=PAPER)
+    d.ellipse([s(4 * k), s(4 * k), s(NOTE_CHIP - 4 * k), s(NOTE_CHIP - 4 * k)], outline=GOLD, width=round(s(8 * k)))
+    out = finish(img, NOTE_CHIP, NOTE_CHIP)
+    inner = picture_fn()
+    at = (NOTE_CHIP - NOTE_INNER) // 2
+    out.alpha_composite(inner, (at, at))
+    return out, NOTE_CHIP, NOTE_CHIP
+
+
+# ---------------------------------------------------------------- 26 Oct 2026 (Icons 2): the furniture, the tickets' items, the facts' kinds
+# His note (26 Oct): "the icons on both the notebook and notes, i wanted icons for the furniture you can also purchase too";
+# and for the tickets, "nice big bold icons for each item, like a coffee, tea, etc, clock". Three more sets, in the drinks'
+# and the note chips' style (ink outline, flat fills, chunky):
+#   furn_*   the seven kinds the Shop sells (FurnitureDefinition's asset names, the save identity: NoteIcons.Furniture maps
+#            them), plain 128 px pictures like the drinks, for the Arrange strip's cards (~60 px) and the phone's YOUR CAFÉ
+#            card (~40 px). Each is its piece from the front with its seats showing, so a glance tells them apart: the bistro
+#            round on a pedestal with two chairs, the square table on four legs, the plant, the bay's green booth back, the
+#            window counter's pane and stools, the lounge's sofa and low table, the communal table's long row of chairs.
+#   item_*   the tickets' repair devices (the phone, the pocket watch, Grace's film camera) and a clock, plain 128 px like
+#            the six drink_* cups they sit beside, for the HUD round that comes next (NoteIcons.ForDevice).
+#   kind_*   a fact's kind on the night's notebook page (Notebook.Kinds: where someone is, what they own, when they do
+#            something, what was said, who they are to someone, a secret of Ace's): a smaller chip (KIND_CHIP px: ~31 px
+#            beside the page's 26 px notes, in the line) before each fact, in place of the old bullet. Six more, kind_*_his,
+#            are the same pictures on his paper with his rim (the man at the bins' pages, which had his square bullet).
+# Every picture is drawn on the 128 grid at 4x like the rest; the kind marks use a heavier outline, since they show smallest.
+KIND_CHIP = 144
+KIND_INNER = round(KIND_CHIP * 92 / 128)
+HIS_RIM = (0x9e, 0x52, 0x4d, 255)          # NightNotebook.HisInk: the man's suit
+HIS_PAPER = (0xf3, 0xe4, 0xe0, 255)        # a page in his hand: warmer paper
+UPHOLSTERY = (0xc9, 0x70, 0x2d, 255)       # UiSkin.Accent: the lounge's sofa
+TERRACOTTA = (0xc2, 0x6a, 0x3c, 255)
+GLASS = (0x9c, 0xc3, 0xd8, 255)            # the window pane (icon_house's windows)
+SCREEN = (0xb9, 0xc7, 0xe0, 255)           # the phone's screen (the bench icon's pale blue)
+CAMERA = (0x4a, 0x44, 0x3e, 255)
+UI_RED = (0xb8, 0x48, 0x3c, 255)           # UiSkin.Red: the map pin
+OB = dict(outline=INK, width=s(7))         # the bold outline for the small kind marks
+
+
+def chair(d, x, top, w=22, h=70, fill=WOOD, back=WOOD_DARK):
+    """A café chair from the front: its back (an open frame), its seat and two legs; x is its left, top its back's top."""
+    d.rounded_rectangle([s(x), s(top), s(x + w), s(top + h * .45)], radius=s(4), fill=back, **O)
+    d.rounded_rectangle([s(x + 4), s(top + 5), s(x + w - 4), s(top + h * .45 - 10)], radius=s(2), fill=PAPER)
+    d.rounded_rectangle([s(x - 2), s(top + h * .45 - 2), s(x + w + 2), s(top + h * .45 + 9)], radius=s(3), fill=fill, **O)
+    for lx in (x + 1, x + w - 6):
+        d.rounded_rectangle([s(lx), s(top + h * .45 + 7), s(lx + 5), s(top + h)], radius=s(2), fill=back, **O)
+
+
+def stool(d, cx, top):
+    """A bar stool: a round seat on one leg with a foot."""
+    d.rounded_rectangle([s(cx - 3), s(top + 8), s(cx + 3), s(top + 36)], radius=s(2), fill=WOOD_DARK, **O)
+    d.rounded_rectangle([s(cx - 12), s(top + 32), s(cx + 12), s(top + 38)], radius=s(3), fill=WOOD_DARK, **O)
+    d.ellipse([s(cx - 15), s(top), s(cx + 15), s(top + 14)], fill=WOOD, **O)
+
+
+def icon_furn_bistro():
+    img, d = canvas(128, 128)
+    chair(d, 4, 40)
+    chair(d, 102, 40)
+    # A round top on a pedestal, as the café's bistros are (note_table's table, standing).
+    d.rounded_rectangle([s(60), s(66), s(68), s(104)], radius=s(3), fill=WOOD_DARK, **O)
+    d.ellipse([s(40), s(98), s(88), s(112)], fill=WOOD_DARK, **O)
+    d.ellipse([s(30), s(50), s(98), s(72)], fill=WOOD, **O)
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_furn_square():
+    img, d = canvas(128, 128)
+    chair(d, 4, 40)
+    chair(d, 102, 40)
+    # A square top seen a little from above (a lighter face, a dark front edge) on four legs.
+    for lx in (36, 86):
+        d.rounded_rectangle([s(lx), s(64), s(lx + 6), s(110)], radius=s(2), fill=WOOD_DARK, **O)
+    poly(d, [(38, 46), (90, 46), (98, 60), (30, 60)], WOOD)
+    d.rounded_rectangle([s(30), s(58), s(98), s(68)], radius=s(3), fill=WOOD_DARK, **O)
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_furn_plant():
+    img, d = canvas(128, 128)
+    poly(d, [(36, 78), (92, 78), (84, 120), (44, 120)], TERRACOTTA)
+    d.rounded_rectangle([s(30), s(72), s(98), s(84)], radius=s(4), fill=TERRACOTTA, **O)
+    # Three big leaves on their stems, each with its vein.
+    for (lx, ly) in ((36, 30), (92, 26), (64, 12)):
+        d.line([(s(64), s(76)), (s(lx), s(ly + 14))], fill=BRAND_DEEP, width=s(5))
+    for (cx, cy, rx, ry, vein) in ((36, 30, 24, 18, ((54, 42), (20, 20))), (92, 26, 24, 18, ((74, 38), (108, 16))), (64, 14, 20, 16, ((64, 28), (64, 2)))):
+        d.ellipse([s(cx - rx), s(cy - ry), s(cx + rx), s(cy + ry)], fill=BRAND, **O)
+        d.line([(s(vein[0][0]), s(vein[0][1])), (s(vein[1][0]), s(vein[1][1]))], fill=BRAND_DEEP, width=s(4))
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_furn_banquette():
+    img, d = canvas(128, 128)
+    # A booth: the high padded back in the café's green (its seams), the bench, the wooden end caps, a small table in front.
+    d.rounded_rectangle([s(10), s(18), s(118), s(76)], radius=s(8), fill=BRAND, **O)
+    for sx in (46, 82):
+        d.line([(s(sx), s(24)), (s(sx), s(70))], fill=BRAND_DEEP, width=s(4))
+    d.rounded_rectangle([s(6), s(70), s(122), s(86)], radius=s(5), fill=BRAND_DEEP, **O)
+    for cx in (6, 114):
+        d.rounded_rectangle([s(cx), s(60), s(cx + 8), s(112)], radius=s(3), fill=WOOD_DARK, **O)
+    d.rounded_rectangle([s(60), s(92), s(68), s(118)], radius=s(3), fill=WOOD_DARK, **O)
+    d.ellipse([s(34), s(82), s(94), s(100)], fill=WOOD, **O)
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_furn_counter():
+    img, d = canvas(128, 128)
+    # The window: a pane with its cross, the counter's top along it, three stools in front.
+    d.rounded_rectangle([s(14), s(6), s(114), s(66)], radius=s(4), fill=GLASS, **O)
+    d.line([(s(64), s(10)), (s(64), s(62))], fill=PAPER, width=s(5))
+    d.line([(s(18), s(36)), (s(110), s(36))], fill=PAPER, width=s(5))
+    d.rounded_rectangle([s(4), s(62), s(124), s(76)], radius=s(4), fill=WOOD, **O)
+    for cx in (24, 64, 104):
+        stool(d, cx, 82)
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_furn_lounge():
+    img, d = canvas(128, 128)
+    # A two-seat sofa with rolled arms and a low round table in front of it.
+    d.rounded_rectangle([s(14), s(30), s(106), s(70)], radius=s(10), fill=UPHOLSTERY, **O)
+    d.rounded_rectangle([s(8), s(62), s(112), s(92)], radius=s(8), fill=UPHOLSTERY, **O)
+    d.line([(s(60), s(36)), (s(60), s(64))], fill=INK, width=s(4))
+    for ax in (2, 104):
+        d.rounded_rectangle([s(ax), s(54), s(ax + 22), s(94)], radius=s(10), fill=UPHOLSTERY, **O)
+    for lx in (14, 100):
+        d.rounded_rectangle([s(lx), s(92), s(lx + 7), s(104)], radius=s(2), fill=WOOD_DARK, **O)
+    d.rounded_rectangle([s(96), s(100), s(104), s(122)], radius=s(3), fill=WOOD_DARK, **O)
+    d.ellipse([s(76), s(92), s(124), s(108)], fill=WOOD, **O)
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_furn_communal():
+    img, d = canvas(128, 128)
+    # A long table with a row of chairs behind it (four backs showing) and its legs: many seats at a glance.
+    for cx in (8, 36, 64, 92):
+        d.rounded_rectangle([s(cx), s(28), s(cx + 26), s(58)], radius=s(4), fill=WOOD_DARK, **O)
+        d.rounded_rectangle([s(cx + 5), s(33), s(cx + 21), s(50)], radius=s(2), fill=PAPER)
+    for lx in (12, 110):
+        d.rounded_rectangle([s(lx), s(68), s(lx + 7), s(116)], radius=s(2), fill=WOOD_DARK, **O)
+    poly(d, [(14, 54), (114, 54), (124, 66), (4, 66)], WOOD)
+    d.rounded_rectangle([s(4), s(64), s(124), s(74)], radius=s(3), fill=WOOD_DARK, **O)
+    # A chair in front, turned to the table (its back to us), so the near side has seats too.
+    d.rounded_rectangle([s(50), s(78), s(78), s(96)], radius=s(4), fill=WOOD, **O)
+    for lx in (52, 71):
+        d.rounded_rectangle([s(lx), s(94), s(lx + 5), s(118)], radius=s(2), fill=WOOD_DARK, **O)
+    return finish(img, 128, 128), 128, 128
+
+
+FURNITURE_ICONS = (
+    ("furn_bistro", icon_furn_bistro), ("furn_square", icon_furn_square), ("furn_plant", icon_furn_plant),
+    ("furn_banquette", icon_furn_banquette), ("furn_counter", icon_furn_counter), ("furn_lounge", icon_furn_lounge),
+    ("furn_communal", icon_furn_communal),
+)
+
+
+def icon_item_phone():
+    img, d = canvas(128, 128)
+    d.rounded_rectangle([s(34), s(6), s(94), s(122)], radius=s(12), fill=INK, **O)
+    d.rounded_rectangle([s(40), s(16), s(88), s(110)], radius=s(5), fill=SCREEN)
+    d.polygon([(s(40), s(16)), (s(62), s(16)), (s(40), s(50))], fill=(0xd6, 0xdf, 0xef, 255))   # a glint
+    d.ellipse([s(60), s(8), s(68), s(14)], fill=INK_SHADE)                                        # the camera
+    d.rounded_rectangle([s(52), s(112), s(76), s(116)], radius=s(2), fill=INK_SHADE)             # the home bar
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_item_watch():
+    img, d = canvas(128, 128)
+    # A pocket watch: the bow and crown, the gold case, a paper dial with its quarters and two hands.
+    d.ellipse([s(52), s(4), s(76), s(28)], outline=INK, width=s(7))
+    d.rounded_rectangle([s(56), s(22), s(72), s(36)], radius=s(3), fill=GOLD, **O)
+    d.ellipse([s(14), s(30), s(114), s(126)], fill=GOLD, **O)
+    d.ellipse([s(26), s(42), s(102), s(114)], fill=PAPER, **O)
+    for (x0, y0, x1, y1) in ((62, 46, 66, 54), (62, 102, 66, 110), (30, 76, 38, 80), (90, 76, 98, 80)):
+        d.rectangle([s(x0), s(y0), s(x1), s(y1)], fill=INK)
+    d.line([(s(64), s(78)), (s(64), s(56))], fill=INK, width=s(6))
+    d.line([(s(64), s(78)), (s(84), s(90))], fill=INK, width=s(6))
+    d.ellipse([s(60), s(74), s(68), s(82)], fill=INK)
+    return finish(img, 128, 128), 128, 128
+
+
+def icon_item_camera():
+    img, d = canvas(128, 128)
+    # Grace's film camera: a boxy body with its leather band, the prism hump, the shutter button, a big lens.
+    d.rounded_rectangle([s(44), s(22), s(84), s(44)], radius=s(5), fill=CAMERA, **O)
+    d.rounded_rectangle([s(94), s(26), s(108), s(40)], radius=s(4), fill=GOLD, **O)
+    d.rounded_rectangle([s(8), s(38), s(120), s(106)], radius=s(8), fill=CAMERA, **O)
+    d.rectangle([s(12), s(54), s(116), s(92)], fill=COFFEE)
+    d.ellipse([s(36), s(44), s(92), s(100)], fill=INK, **O)
+    d.ellipse([s(46), s(54), s(82), s(90)], fill=(0x2d, 0x4d, 0x6e, 255), **O)
+    d.ellipse([s(52), s(60), s(64), s(72)], fill=(0x8f, 0xb4, 0xd6, 255))
+    return finish(img, 128, 128), 128, 128
+
+
+def clock_face(d, cx, cy, r, rim=INK, bold=False):
+    """A clock: a paper face in an ink rim, its quarters marked, the hands at ten past ten."""
+    w = s(9) if bold else s(7)
+    d.ellipse([s(cx - r), s(cy - r), s(cx + r), s(cy + r)], fill=PAPER, outline=rim, width=w)
+    tick = r * .16
+    for (dx, dy) in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+        x0, y0 = cx + dx * (r - tick * 2.2), cy + dy * (r - tick * 2.2)
+        x1, y1 = cx + dx * (r - tick * .9), cy + dy * (r - tick * .9)
+        d.line([(s(x0), s(y0)), (s(x1), s(y1))], fill=INK, width=s(7 if bold else 5))
+    d.line([(s(cx), s(cy)), (s(cx - r * .42), s(cy - r * .28))], fill=INK, width=s(8 if bold else 6))
+    d.line([(s(cx), s(cy)), (s(cx + r * .3), s(cy - r * .58))], fill=INK, width=s(8 if bold else 6))
+    d.ellipse([s(cx - 5), s(cy - 5), s(cx + 5), s(cy + 5)], fill=GOLD, outline=INK, width=s(3))
+
+
+def icon_item_clock():
+    img, d = canvas(128, 128)
+    clock_face(d, 64, 64, 56)
+    return finish(img, 128, 128), 128, 128
+
+
+ITEM_ICONS = (
+    ("item_phone", icon_item_phone), ("item_watch", icon_item_watch), ("item_camera", icon_item_camera), ("item_clock", icon_item_clock),
+)
+
+
+# The kind marks: bold, few shapes, drawn to read at ~22 px inside their chip.
+
+def kind_where():
+    img, d = canvas(128, 128)
+    # A map pin in the game's red.
+    d.polygon([(s(26), s(58)), (s(102), s(58)), (s(64), s(118))], fill=UI_RED)
+    d.line([(s(28), s(60)), (s(64), s(118)), (s(100), s(60))], fill=INK, width=s(7), joint="curve")
+    d.ellipse([s(20), s(8), s(108), s(96)], fill=UI_RED, **OB)
+    d.ellipse([s(48), s(36), s(80), s(68)], fill=PAPER, **OB)
+    return note_finish_kind(img)
+
+
+def kind_owns():
+    img, d = canvas(128, 128)
+    # A suitcase: their belongings.
+    d.rounded_rectangle([s(44), s(14), s(84), s(44)], radius=s(8), outline=INK, width=s(8))
+    d.rounded_rectangle([s(10), s(36), s(118), s(112)], radius=s(10), fill=WOOD, **OB)
+    d.rectangle([s(10), s(66), s(118), s(78)], fill=WOOD_DARK)
+    d.rounded_rectangle([s(54), s(62), s(74), s(82)], radius=s(3), fill=GOLD, **O)
+    return note_finish_kind(img)
+
+
+def kind_when():
+    img, d = canvas(128, 128)
+    clock_face(d, 64, 64, 54, bold=True)
+    return note_finish_kind(img)
+
+
+def kind_said():
+    img, d = canvas(128, 128)
+    # A speech bubble, its tail to the left: what was said.
+    d.polygon([(s(26), s(78)), (s(18), s(112)), (s(58), s(86))], fill=INK)
+    d.rounded_rectangle([s(8), s(14), s(120), s(92)], radius=s(18), fill=PAPER, **OB)
+    d.polygon([(s(32), s(84)), (s(26), s(104)), (s(52), s(86))], fill=PAPER)
+    for cx in (40, 64, 88):
+        d.ellipse([s(cx - 7), s(46), s(cx + 7), s(60)], fill=INK)
+    return note_finish_kind(img)
+
+
+def kind_who():
+    img, d = canvas(128, 128)
+    # Two people, one a little behind the other: who they are to someone.
+    d.ellipse([s(62), s(22), s(104), s(64)], fill=SKIN, **OB)
+    d.rounded_rectangle([s(50), s(62), s(120), s(118)], radius=s(22), fill=GNOME_BLUE, **OB)
+    d.rectangle([s(50), s(96), s(120), s(118)], fill=GNOME_BLUE)
+    d.ellipse([s(18), s(30), s(66), s(78)], fill=SKIN, **OB)
+    d.rounded_rectangle([s(4), s(76), s(82), s(124)], radius=s(24), fill=HAT_RED, **OB)
+    d.rectangle([s(4), s(104), s(82), s(124)], fill=HAT_RED)
+    d.line([(s(4), s(118)), (s(82), s(118))], fill=INK, width=s(7))
+    d.line([(s(50), s(112)), (s(120), s(112))], fill=INK, width=s(7))
+    return note_finish_kind(img)
+
+
+def kind_secret():
+    img, d = canvas(128, 128)
+    # A padlock: Ace's own secrets (what he took, and for whom).
+    d.rounded_rectangle([s(34), s(10), s(94), s(70)], radius=s(26), outline=INK, width=s(10))
+    d.rounded_rectangle([s(16), s(52), s(112), s(118)], radius=s(10), fill=GOLD, **OB)
+    d.ellipse([s(54), s(70), s(74), s(90)], fill=INK)
+    d.rounded_rectangle([s(60), s(84), s(68), s(104)], radius=s(3), fill=INK)
+    return note_finish_kind(img)
+
+
+def note_finish_kind(img):
+    """A kind mark's picture at its chip's inner size (the kind chips are smaller than the note chips)."""
+    return img.resize((KIND_INNER, KIND_INNER), Image.LANCZOS)
+
+
+KIND_ICONS = (
+    ("kind_where", kind_where), ("kind_owns", kind_owns), ("kind_when", kind_when), ("kind_said", kind_said),
+    ("kind_who", kind_who), ("kind_secret", kind_secret),
+)
+
+
+def kind_chip(picture_fn, his):
+    """A kind mark on its chip: paper with the gold rim; his pages' on his warmer paper with his rim. KIND_CHIP px."""
+    k = KIND_CHIP / 128
+    img, d = canvas(KIND_CHIP, KIND_CHIP)
+    d.ellipse([0, 0, s(KIND_CHIP), s(KIND_CHIP)], fill=HIS_PAPER if his else PAPER)
+    d.ellipse([s(4 * k), s(4 * k), s(KIND_CHIP - 4 * k), s(KIND_CHIP - 4 * k)], outline=HIS_RIM if his else GOLD, width=round(s(9 * k)))
+    out = finish(img, KIND_CHIP, KIND_CHIP)
+    inner = picture_fn()
+    at = (KIND_CHIP - KIND_INNER) // 2
+    out.alpha_composite(inner, (at, at))
+    return out, KIND_CHIP, KIND_CHIP
+
+
 # ---------------------------------------------------------------- the list
 
 def all_icons():
@@ -467,6 +961,18 @@ def all_icons():
 
     for kind in ("latte", "coffee", "tea", "espresso", "hotchocolate", "americano"):
         add("drink_" + kind, drink(kind))
+    # 26 Oct 2026 (Icons on notes): the ten note chips, last, so every older icon keeps its place on the sheet.
+    for name, picture in NOTE_ICONS:
+        add(name, note_chip(picture))
+    # 26 Oct 2026 (Icons 2): the furniture, the tickets' items and the facts' kinds, after them for the same reason.
+    for name, picture in FURNITURE_ICONS:
+        add(name, picture())
+    for name, picture in ITEM_ICONS:
+        add(name, picture())
+    for name, picture in KIND_ICONS:
+        add(name, kind_chip(picture, his=False))
+    for name, picture in KIND_ICONS:
+        add(name + "_his", kind_chip(picture, his=True))
     return icons
 
 

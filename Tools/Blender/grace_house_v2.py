@@ -32,6 +32,9 @@ import plan_v2 as P  # noqa: E402
 V2_MATERIALS = {
     'GH_Quilt': ('#8A9DC0', 0.10),     # a faded cornflower quilt
     'GH_Mirror': ('#C9D6DE', 0.95),
+    # her hair, for her head on the pillow while she sleeps (24 Oct 2026, art audit a22): the golden blonde of her
+    # stand-in look (POLYGON City's Character_BusinessWoman) as it shows under her lamps in the lab photos
+    'GH_Hair': ('#C9A15A', 0.25),
 }
 gh.GH_MATERIALS.update(V2_MATERIALS)
 M = gh.M
@@ -208,20 +211,9 @@ def door_leaf(name, w, h, t=.04):
     """A four-panel door leaf, knobs on both faces near its free edge. Origin on its hinge line at the floor,
     the leaf running +X from it."""
     p = fb.Prop(name)
-    white = M('GH_Paint_White')
-    p.add('leaf', fb.rbox(0, w, -t / 2, t / 2, 0, h, bevel=.004), white)
-    rail = .08 if w < .75 else .09
-    for side in (-1, 1):
-        y0, y1 = sorted((side * t / 2, side * (t / 2 + .006)))
-        for x0, x1 in ((rail, w / 2 - .03), (w / 2 + .03, w - rail)):
-            for z0, z1 in ((.12, .82), (1.0, h - .12)):
-                p.add('panel', fb.zbox(x0, x1, y0, y1, z0, z1), white)
-        p.add('knob', fb.ellipsoid((w - .06, side * (t / 2 + .045), .98), (.026, .018, .026), u=8, v=5), M('T2_Brass'))
-        p.add('knob neck', fb.cylinder((w - .06, side * (t / 2 + .02), .98), .012, .05, sides=6, rot=(90, 0, 0)), M('T2_Brass'))
-        p.add('rose', fb.cylinder((w - .06, side * (t / 2 + .002), .98), .03, .006, sides=10, rot=(90, 0, 0)), M('T2_Brass'))
-    for z in (.25, h / 2 + .1, h - .25):
-        p.add('hinge', fb.zbox(-.004, .012, -.02, .02, z - .05, z + .05), M('DC_SteelDark'))
-    return p
+    # its panels sunk 8 mm behind sloped edges, as the landing door's (24 Oct 2026, art audit a74: grace_house.
+    # panelled_slab); the stiles 0.09 m (0.08 on a leaf under 0.75 m before), so the knob's rose sits on the stile
+    return gh.panelled_door(p, w, h, t, stile=.09, knob_in=.06, hinge_zs=(.25, h / 2 + .1, h - .25))
 
 
 BEDROOM_OPENING = (1.40, 2.20)
@@ -284,19 +276,59 @@ def quilt_made():
     return p
 
 
+def loft_y(stations):
+    """A solid lofted along y through `stations`, [(y, [(x, z), ...])], every outline with the same number of points
+    in the same order (a drape's cross-section at each y); the two ends capped."""
+    bm = fb.bmesh.new()
+    rings = [[bm.verts.new((x, y, z)) for x, z in outline] for y, outline in stations]
+    n = len(rings[0])
+    for a, b in zip(rings, rings[1:]):
+        for k in range(n):
+            j = (k + 1) % n
+            bm.faces.new([a[k], a[j], b[j], b[k]])
+    bm.faces.new(rings[0])
+    bm.faces.new(list(reversed(rings[-1])))
+    fb.bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return bm
+
+
 def quilt_asleep():
     """The quilt with her asleep under it: pulled up to her shoulders on the left half of the bed (seen from the
-    foot), the shape of someone lying on their side, the other half flat. Her head goes on the left pillow
-    (the stand-in body's head, or nothing until she has a sleeping pose). Origin as the bed's."""
+    foot), the shape of someone lying on their side, the other half flat. Origin as the bed's.
+
+    24 Oct 2026, art audit a22 ("Asleep, Grace is only this quilt: a stiff tray with a long mound and nothing on the
+    pillow. It reads as an empty bed with a bump"; the fix: "the back of a head in her hair colour on the left pillow;
+    soften the quilt's sides"):
+      * her head on the left pillow, turned on its side toward the middle of the bed, so from the bed's left side and
+        its foot you see the back of it: her hair (GH_Hair, the golden blonde of her stand-in look,
+        Character_BusinessWoman, under her lamp) with a bun at the back; no face, as it was asked;
+      * the sides drape instead of standing as slabs: a soft rolled edge over the mattress, falling to a hem that
+        swings in and out a little along the bed (shallow folds), the foot tucked in behind the footboard. The hem is
+        still at 0.30 m, so the quilt's bottom is where the furniture step expects it.
+    The materials are the quilt, the sheet and then the hair, added last, so the first two slots are as they were (the
+    café scene's copy of the quilt gets the third from ArtFixBlenderSteps)."""
     p = fb.Prop('GH_Quilt_Asleep')
     q, sheet = M('GH_Quilt'), M('GH_Lace')
     hw, hl = BED_W / 2, BED_L / 2
     top = MATTRESS_TOP + .03
     p.add('quilt', fb.rbox(-hw + .005, hw - .005, -hl + .02, hl - .40, MATTRESS_TOP - .004, top, bevel=.012), q)
+    # the sides: one outline, from inside the quilt's top over the mattress's edge to the hem and back up the inside
+    # (out: how far out from the bed's side; dz: below the quilt's top, or a height for the hem), the lower points
+    # swinging out and in along the bed by up to 8 mm, more toward the hem
+    side = [(-.040, top - .004, 0), (-.015, top + .003, 0), (.012, top - .006, 0), (.032, top - .035, .15), (.042, top - .090, .5),
+            (.052, .30, 1), (.026, .30, 1), (.016, top - .090, .5), (.004, top - .040, .15), (-.012, top - .022, 0), (-.040, top - .022, 0)]
+    y0, y1, n = -hl + .020, hl - .40, 9           # the ends 3 mm inside the foot's drape (not in its plane)
     for sx in (-1, 1):
-        x0, x1 = sorted((sx * (hw - .012), sx * (hw + .03)))
-        p.add('overhang', fb.rbox(x0, x1, -hl + .02, hl - .40, .30, top, bevel=.01), q)
-    p.add('overhang (foot)', fb.rbox(-hw + .005, hw - .005, -hl, -hl + .03, .36, top, bevel=.01), q)
+        stations = []
+        for i in range(n):
+            y = y0 + (y1 - y0) * i / (n - 1)
+            fold = .008 * math.sin(2 * math.pi * (y - y0) / .37 + (0 if sx < 0 else 1.3))
+            stations.append((y, [(sx * (hw + out + fold * w), z) for out, z, w in side]))
+        p.add('drape', loft_y(stations), q)
+    # the foot: rolled over the mattress's end and tucked down behind the footboard (its rail is at 0.42-0.46)
+    foot = [(-.065, top - .004), (-.040, top + .003), (-.024, top - .008), (-.017, top - .040), (-.017, .45),
+            (-.029, .45), (-.029, top - .040), (-.040, top - .020), (-.065, top - .020)]
+    p.add('drape (foot)', gh.prism_x(-hw - .005, hw + .005, [(-hl - d, z) for d, z in foot]), q)
     # the sleeper's shape under the quilt: one long mound from the feet to the shoulders, lofted along the
     # body (feet, shins, knees, hips, waist, chest, shoulders) and laid down along the bed
     sx = -.34
@@ -309,6 +341,14 @@ def quilt_asleep():
     mound = fb.move(mound, (sx, hl - .45 - length, top - .015))      # shoulders under the turn-back, feet in the bed
     p.add('shape', mound, q)
     p.add('turn-back', fb.rbox(-hw + .005, hw - .005, hl - .47, hl - .38, top - .006, top + .02, bevel=.008), sheet)
+    # the quilt pulled up over her shoulder to her neck (the sheet's turn-back shows on the empty half), and her head on
+    # the left pillow (GH_Bed's pillow: (-0.34, hl - 0.26, 0.61), 0.30 x 0.17 x 0.075), sunk 3 cm into it, lying on its
+    # side: crown toward the headboard, the back of the head and its bun toward the bed's left edge
+    p.add('quilt over her shoulder', fb.ellipsoid((sx, hl - .405, top + .048), (.18, .11, .075), u=10, v=5), q)
+    hair = M('GH_Hair')
+    head = (sx, hl - .28, MATTRESS_TOP + .185)
+    p.add('head', fb.ellipsoid(head, (.095, .105, .08), u=10, v=6), hair)
+    p.add('bun', fb.ellipsoid((head[0] - .088, head[1] + .03, head[2] + .015), (.035, .045, .042), u=8, v=5), hair)
     return p
 
 

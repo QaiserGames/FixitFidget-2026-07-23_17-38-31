@@ -167,19 +167,27 @@ public sealed class NightCycle : MonoBehaviour
                 && ReferenceEquals(name, nowName) && nudge == nowNudge && pad == nowPad && nowLine != null) return nowLine;
             nowStep = step; nowScene = scene; nowErrand = errand; nowHeld = held; nowOnShelf = onShelf; nowName = name; nowNudge = nudge; nowPad = pad;
             string line;
-            if (step == NightZero.Step.AtTheDoor && held == NightZero.BagId) line = "Take the rubbish out the back door";
-            else if (step == NightZero.Step.Outside && held == NightZero.BagId) line = "Put the bag in the bins";
+            // 26 Oct 2026 (Icons on notes): each state's chip (NoteIcons, the README's rule 4): the thing while it is still to
+            // take or on the shelf, where it goes once in hand, the door for the bag and for calling it a night. DayOneGuideUI
+            // draws it before the words; the words themselves (this line) stay chip-free for the labs and the notebook.
+            string icon = "";
+            if (step == NightZero.Step.AtTheDoor && held == NightZero.BagId) { line = "Take the rubbish out the back door"; icon = NoteIcons.Door; }
+            else if (step == NightZero.Step.Outside && held == NightZero.BagId) { line = "Put the bag in the bins"; icon = NoteIcons.Bins; }
             else if (step != NightZero.Step.Done || scene) line = "";   // the bag going in, the reveal, his lines: nothing to read but him
-            else if (thing != null && held == errand) line = $"Bring {name} to the man at the bins";
-            else if (thing != null && onShelf) line = $"{Capital(name)} is on your shelf, behind the counter";
-            else if (thing != null) line = LodgerStory.Now(LodgerStory.FindFavour(errand), name);
-            else line = "Call it a night at a café door";
+            else if (thing != null && held == errand) { line = $"Bring {name} to the man at the bins"; icon = NoteIcons.Bins; }
+            else if (thing != null && onShelf) { line = $"{Capital(name)} is on your shelf, behind the counter"; icon = NoteIcons.ForThing(errand); }
+            else if (thing != null) { line = LodgerStory.Now(LodgerStory.FindFavour(errand), name); icon = NoteIcons.ForThing(errand); }
+            else { line = "Call it a night at a café door"; icon = NoteIcons.Door; }
+            nowIcon = line.Length > 0 ? icon : "";   // 26 Oct 2026 (Icons on notes)
             // "you should give me a tip to do that" (the notebook): the notebook's icon on every night line until it has been opened.
             if (line.Length > 0 && nudge) line += " · " + ControlHints.NotebookPage + " notes";
             nowLine = line;
             return nowLine;
         }
     }
+    /// <summary>26 Oct 2026 (Icons on notes): the chip (NoteIcons name) for the Now line as it reads now, or "" with no line.</summary>
+    public static string NowIcon => NowLine.Length > 0 ? nowIcon : "";
+    static string nowIcon = "";   // 26 Oct 2026 (Icons on notes): set with nowLine
     static NightZero.Step nowStep = NightZero.Step.Done;
     static bool nowScene, nowOnShelf, nowNudge, nowPad;
     static string nowErrand = "", nowHeld = "", nowName, nowLine;

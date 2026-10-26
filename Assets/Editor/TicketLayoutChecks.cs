@@ -10,6 +10,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // Real prefab + TMP geometry checks, isolated from the open scene and player saves.
+// 26 Oct 2026 (HUD 3): the dockets (JobTicket, TicketRailUI): one row at any count, narrow from four, the face in its
+// patience ring, the items as icons, the fault's words only on the wide docket; the old rows, mood words and drink line are gone.
 public static class TicketLayoutChecks
 {
     [MenuItem("Fixit Fidget/Checks/Compact portrait tickets")]
@@ -72,23 +74,29 @@ public static class TicketLayoutChecks
                 owners.Add(brain);
             }
             Invoke(manager, "LateUpdate");
-            CheckRail(tickets, railRect, 1);
-            Require(Mathf.Approximately(railRect.rect.height, 118), "Six tickets occupy only 118 pixels of height at 1920.");
-            // The tabs sit in the top left corner (the HUD spec's), running right, and stop short of today's takings.
+            // Six tickets: one row of narrow dockets, 8 px apart, ending short of the window top centre.
+            CheckRail(tickets, railRect, 1920, JobTicket.NarrowWidth, true);
+            Require(manager.FormNow == JobTicket.Form.Narrow, "Six tickets are narrow dockets (from four, every ticket is).");
+            Require(Mathf.Approximately(railRect.rect.height, TicketRailUI.TicketHeight), $"Six tickets occupy only {TicketRailUI.TicketHeight} pixels of height at 1920.");
+            // The tabs sit in the top left corner (the HUD spec's), running right, and stop short of the window.
             Require(railRect.anchorMin == new Vector2(0, 1) && railRect.pivot == new Vector2(0, 1)
                 && Mathf.Approximately(railRect.anchoredPosition.x, UiSkin.Margin), "The tabs start at the top left corner.");
-            Require(UiSkin.Margin + railRect.rect.width <= 1920 - TicketRailUI.RightReserve + .01f,
-                "Six tabs stop short of the top right corner (today's takings).");
-            Require(Mathf.Approximately(TicketRailUI.BottomEdge, 20 + 118), "The guide under the tabs knows where they end.");
+            Require(UiSkin.Margin + railRect.rect.width <= TicketRailUI.RailEnd(1920) + .01f,
+                "Six tabs stop short of the window top centre (16 px before its frame).");
+            Require(Mathf.Approximately(TicketRailUI.BottomEdge, 20 + TicketRailUI.TicketHeight), "The guide under the tabs knows where they end.");
             foreach (var ticket in tickets)
             {
                 Require(Get<Image>(ticket, "background").color.a < .95f, "Card paper is translucent.");
                 Require(Get<RectTransform>(ticket, "detailPanel") == null, "Full details are absent until requested.");
-                Rect face = LocalRect(Get<Image>(ticket, "portraitFrame").rectTransform);
+                Rect ringRect = LocalRect(Get<RectTransform>(ticket, "ring"));
                 Rect title = LocalRect(Get<TMP_Text>(ticket, "slotText").rectTransform);
-                Rect body = LocalRect(Get<TMP_Text>(ticket, "jobText").rectTransform);
-                Require(!face.Overlaps(title) && !face.Overlaps(body), "Portrait does not cover name or task.");
-                Require(!body.Overlaps(LocalRect(Get<Image>(ticket, "patienceFill").rectTransform)), "Task does not cover patience.");
+                Rect icons = LocalRect(Get<RectTransform>(ticket, "iconsRow"));
+                Require(!ringRect.Overlaps(title) && !ringRect.Overlaps(icons), "The face in its ring does not cover the name or the items.");
+                Require(!title.Overlaps(icons), "The name does not cover the items.");
+                Require(!Get<TMP_Text>(ticket, "jobText").gameObject.activeSelf, "A narrow docket carries no sentence (the details do).");
+                var fill = Get<Image>(ticket, "patienceFill");
+                Require(fill.type == Image.Type.Filled && fill.fillMethod == Image.FillMethod.Radial360, "Patience is the ring round the face.");
+                Require(ticket.Items.Contains("item_"), $"The device shows as an icon ({ticket.Items}).");
             }
             var first = tickets[0];
             Require(Get<Image>(first, "portrait").sprite == neutral, "Missing happy artwork falls back to neutral.");
@@ -96,18 +104,15 @@ public static class TicketLayoutChecks
             Set(owners[0], "patienceLeft", 20f);
             Invoke(first, "Update");
             Require(Get<Image>(first, "portrait").sprite == impatient, "Accepted customer portrait follows live impatience.");
-            Require(Get<TMP_Text>(first, "moodText").text == "Losing patience", "Urgency is readable without relying on face or colour.");
-            Require(Mathf.Approximately(Get<Image>(first, "patienceFill").fillAmount, .2f), "Patience remains live.");
+            Require(first.ClockShowing, "Urgency is readable without relying on face or colour: the clock icon is up under half patience.");
+            Require(Mathf.Approximately(first.RingFill, .2f), "Patience remains live (the ring).");
 
             var drink = AssetDatabase.LoadAssetAtPath<DrinkDefinition>("Assets/AssetsPrefabs/Drinks/Drink_HotChocolate.asset");
             Require(drink != null, "Long drink-name fixture exists.");
             Set(owners[0], "drinkOrdered", true);
             Set(owners[0], "drinkWish", drink);
             Invoke(first, "Update");
-            var drinkLine = Get<TMP_Text>(first, "drinkText");
-            Require(drinkLine.gameObject.activeSelf && drinkLine.text == JobTicket.DrinkLine(drink), "Long repair cannot hide the secondary drink.");   // 20 Oct: "+ <drink icon> Hot Chocolate" once the icon sheet is in
-            Require(!LocalRect(drinkLine.rectTransform).Overlaps(LocalRect(Get<TMP_Text>(first, "jobText").rectTransform)), "Drink has a separate readable row.");
-            CheckFits(drinkLine, "Longest current drink fits at six-card width.");
+            Require(first.Items.Contains(JobTicket.DrinkIconName(drink)), $"The drink shows as its own icon beside the device ({first.Items}).");
             Invoke(first, "RefreshDetails", (object)null);
             var detail = Get<TMP_Text>(first, "detailText");
             // 20 Oct: the fault is written as a sentence now (JobTicket.SentenceCase), so its casing may differ from the record's.
@@ -126,22 +131,35 @@ public static class TicketLayoutChecks
             Invoke(first, "Update");
             Require(Get<TMP_Text>(first, "callState").text == "Answer now"
                 && Get<TMP_Text>(first, "callSeconds").text == "15s", "Urgent answer instruction and seconds remain explicit.");
-            CheckFits(Get<TMP_Text>(first, "callState"), "Urgent call label fits.");
             CheckFits(Get<TMP_Text>(first, "callSeconds"), "Call countdown fits.");
-            Require(!LocalRect(Get<RectTransform>(first, "callLine")).Overlaps(LocalRect(drinkLine.rectTransform)),
-                "Support countdown does not cover the drink.");
-            Require(!LocalRect(Get<RectTransform>(first, "callLine")).Overlaps(LocalRect(Get<Image>(first, "patienceFill").rectTransform)),
-                "Support countdown does not cover patience.");
+            Require(!LocalRect(Get<RectTransform>(first, "callLine")).Overlaps(LocalRect(Get<RectTransform>(first, "ring"))),
+                "Support countdown does not cover the face and its ring.");
             Set(owners[0], "activeJob", null);
             Invoke(first, "Update");
             Require(!Get<RectTransform>(first, "callLine").gameObject.activeSelf
-                && Get<TMP_Text>(first, "jobText").text == "" && drinkLine.gameObject.activeSelf,
+                && Get<TMP_Text>(first, "jobText").text == "" && first.Items.Contains(JobTicket.DrinkIconName(drink)) && !first.Items.Contains("item_camera"),
                 "Returning the phone clears its obligation and keeps the remaining drink.");
 
+            // Three tickets: wide dockets, with the sentence.
+            for (int i = tickets.Count - 1; i >= 3; i--) { UnityEngine.Object.DestroyImmediate(tickets[i].gameObject); tickets.RemoveAt(i); }
+            Invoke(manager, "LateUpdate");
+            CheckRail(tickets, railRect, 1920, JobTicket.WideWidth, true);
+            Require(manager.FormNow == JobTicket.Form.Wide, "Three tickets are wide dockets.");
+            Require(Get<TMP_Text>(tickets[1], "jobText").gameObject.activeSelf && Get<TMP_Text>(tickets[1], "jobText").text.Length > 0,
+                "A wide docket carries the fault as a sentence.");
+            CheckFits(Get<TMP_Text>(tickets[1], "slotText"), "The name fits a wide docket.");
+
+            // A narrow viewport: still one row; the dockets close up and overlap, the newest on top.
+            for (int i = 0; i < 3; i++)
+            {
+                var ticket = UnityEngine.Object.Instantiate(prefab, railRect);
+                ticket.Bind(owners[3 + i]);
+                tickets.Add(ticket);
+            }
             canvasRect.sizeDelta = new Vector2(1280, 720);
             Invoke(manager, "LateUpdate");
-            CheckRail(tickets, railRect, 2);
-            Debug.Log("[Ticket layout] PASS: real prefab, six same-width tabs in the top left corner clear of today's takings, narrow wrapping, live portrait/fallback, patience, separate drinks, full constraints, support countdown and handback. No scenes or saves changed.");
+            CheckRail(tickets, railRect, 1280, JobTicket.NarrowWidth, false);
+            Debug.Log("[Ticket layout] PASS: real prefab, six narrow dockets in one row in the top left corner clear of the window, three wide dockets with their sentence, a narrow viewport closing the row up without a second row, live portrait/fallback, the patience ring, the items as icons, full constraints, support countdown and handback. No scenes or saves changed.");
         }
         finally
         {
@@ -153,21 +171,24 @@ public static class TicketLayoutChecks
         }
     }
 
-    private static void CheckRail(List<JobTicket> tickets, RectTransform rail, int expectedRows)
+    private static void CheckRail(List<JobTicket> tickets, RectTransform rail, float canvasWidth, float width, bool noOverlap)
     {
         var rows = new HashSet<float>();
         for (int i = 0; i < tickets.Count; i++)
         {
             var rect = (RectTransform)tickets[i].transform;
             rows.Add(rect.anchoredPosition.y);
-            Require(Mathf.Approximately(rect.rect.height, 118) && rect.rect.width >= 150, "Cards retain the compact readable minimum.");
-            Require(Mathf.Approximately(rect.rect.width, TicketRailUI.CardWidth), "Every tab is the same width, whatever the count.");
+            Require(Mathf.Approximately(rect.rect.height, TicketRailUI.TicketHeight - JobTicket.FootHeight) && Mathf.Approximately(rect.rect.width, width),
+                $"Every docket is the same size at this count ({width} wide).");
             Rect bounds = LocalRect(rect);
-            Require(bounds.xMin >= -.01f && bounds.xMax <= rail.rect.width + .01f,
-                "Every ticket stays inside the available rail width.");
-            for (int j = 0; j < i; j++) Require(!bounds.Overlaps(LocalRect((RectTransform)tickets[j].transform)), "Ticket cards do not overlap.");
+            Require(bounds.xMin >= -.01f && bounds.xMax <= rail.rect.width + .01f, "Every ticket stays inside the available rail width.");
+            if (noOverlap)
+                for (int j = 0; j < i; j++) Require(!bounds.Overlaps(LocalRect((RectTransform)tickets[j].transform)), "Ticket cards do not overlap while the row fits.");
+            else if (i > 0)
+                Require(bounds.xMin > LocalRect((RectTransform)tickets[i - 1].transform).xMin, "Past the room, the dockets close up in order (the newest on top).");
         }
-        Require(rows.Count == expectedRows, "Rail wraps only when the viewport needs it.");
+        Require(rows.Count == 1, "The rail is one row at any count (his answer, 24 Oct: never a second row).");
+        Require(UiSkin.Margin + rail.rect.width <= TicketRailUI.RailEnd(canvasWidth) + .01f, "The rail ends before the window top centre on this canvas.");
     }
     private static void CheckFits(TMP_Text text, string message)
     {

@@ -54,15 +54,17 @@ EXTRA = {   # what each new piece is for, where it goes, and how it rests (the m
     'BT_ClothHeld': {
         'place': "a second model under Tool_Cloth (the ToolPickup), shown while the cloth is in the hand: the folded BT_Cloth is "
                  "hidden and BT_ClothHeld shown at the cursor's contact point (the swap is hidden by the pick-up motion)",
-        'rests': "its pad's face on the glass (origin, y 0); the tail rises +Y and leans toward Unity -Z (the player)",
+        # 26 Oct 2026 (art audit a02): the folded cloth grabbed, no longer the cone with a tail
+        'rests': "its underside on the glass (origin, y 0): the folded cloth, pinched up toward Unity -Z (the player) into a "
+                 "peak 25 mm high, the near corner lifted",
         'stroke_axis_unity': [1, 0, 0],
-        'blend_shapes': {'Press': "0..1 from the press: the pad 40 x 45 -> 50 x 52 mm, the tail 5 mm lower",
-                         'Bunch': "0..1 from the stroke's speed (Audio's reference px/s): the leading edge (+X) rolls up 4 mm "
-                                  "in three folds, the trailing edge (-X) drags 9 mm, the tail leans 12 degrees toward -X"}},
+        'blend_shapes': {'Press': "0..1 from the press: the cloth spreads 8 %, its peak sinks 15 %, the corner lies lower",
+                         'Bunch': "0..1 from the stroke's speed (Audio's reference px/s): the leading side (+X) rolls up 3.5 mm "
+                                  "off the glass, the trailing side (-X) drags 8 mm, the peak leans 6 mm toward -X"}},
     'BT_Brush': {
         'stroke_axis_unity': [1, 0, 0],
-        'blend_shapes': {'Bend': "0..1 from the stroke's speed and the press: the clumps bend from the ferrule's mouth, their "
-                                 "ends 25 degrees off and 7.4 mm toward -X (they trail a stroke along +X); the tips stay "
+        'blend_shapes': {'Bend': "0..1 from the stroke's speed and the press: the bristle block bends from the ferrule's mouth, "
+                                 "its end 25 degrees off and 7.4 mm toward -X (it trails a stroke along +X); the tips stay "
                                  "on y 0 (the origin contract holds bent) and splay 2 mm"}},
     'BT_ToolRest': {
         'place': "under the InspectRig's stage, local rotation 0 (built in the rig's frame: +X the player's right, +Z away), "

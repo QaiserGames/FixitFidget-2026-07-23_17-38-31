@@ -124,6 +124,29 @@ public class QuestionData
     public QuestionData Copy() => (QuestionData)MemberwiseClone();
 }
 
+// 24 Oct 2026 (Days): the side project's thrift find (Designer P's spec §2.2 and §6.3; his answer p2: "one at a time: bought at
+// closing, fixed the next day, sold at closing"). Additive, no version bump: an older save has none (known false), so the shelf
+// holds the day's authored find, or none. Which find, and whether it was fixed: never its screws (a find left unfinished comes
+// back whole, with its fault, after a quit and Continue). Owned at runtime by ThriftShelf.
+[Serializable]
+public class ThriftSaveData
+{
+    public bool known;              // false: a save from before the finds (or a lab's): the day's own find goes on the shelf
+    public string prefab = "";      // the find's device prefab, by its asset name (as upgrades are: never rename it)
+    public int fault = -1;          // its fault index; -1: no find on the shelf
+    public int forDay;              // the day it is on the shelf for (bought at the closing before; Day 1's at the open)
+    public int sale;                // what it sells for at that day's closing when Perfect (Good x0.8)
+    public bool fixedIt;            // it was fixed (it sells at closing)
+    public string lastPrefab = "";  // the last find, so the Shop's rotation never offers the same two nights running
+    public int lastFault = -1;
+    public int soldDay = -1;        // the day a find last sold at closing (the recap's "Sold your thrift watch: +$55")
+    public int soldFor;             // ...for how much
+    public string soldThing = "";   // ...and what it was ("watch")
+    public string soldGrade = "";   // ...and how well it was done (JobGrade, as text)
+
+    public ThriftSaveData Copy() => (ThriftSaveData)MemberwiseClone();
+}
+
 // A completed day's figures are a snapshot, not a replay of payouts/events.
 [Serializable]
 public class RecapSaveData
@@ -166,6 +189,29 @@ public class RecapSaveData
     public int[] reviewCardVerdicts = new int[0];
     public int[] reviewCardReasons = new int[0];
     public bool[] reviewCardRegulars = new bool[0];
+}
+
+// 24 Oct 2026 (Furniture): the café's furniture (Docs/Studio/sessions/2026-10-23/designs/furniture-spec.md §4.5; owned at
+// runtime by CafeLayout). Additive, the house way: older builds skip a field they do not know.
+[Serializable]
+public class CafeLayoutData
+{
+    public const int CurrentFormat = 1;
+    public int format;                                          // 0: absent (a save from before 24 Oct 2026, or a lab save); 1: this format
+    public PlacedPieceData[] pieces = new PlacedPieceData[0];   // every piece that is ON, the café's own included
+    public string[] sheetsLeft = new string[0];                 // the dust sheets still lying (their ids)
+    public int nextId = 1;                                      // the next bought piece's number
+}
+
+// 24 Oct 2026 (Furniture): one placed piece.
+[Serializable]
+public class PlacedPieceData
+{
+    public string id = "";        // "scene:<the piece root's name>" for the café's own; "p<n>" for a bought one
+    public string kind = "";      // its FurnitureDefinition asset's name: SAVE IDENTITY, never rename
+    public float x, z, yaw;       // its pivot on the floor (world metres) and its turn (degrees)
+    public int tier = 1;          // 1 Workshop; 2 Marble & Brass (not sold in v1, saved from day one)
+    public string variant = "";   // a plant's kind ("Monstera"); "" otherwise
 }
 
 // The complete contents of a save file. If it's not in here, it isn't saved.
@@ -214,6 +260,19 @@ public class SaveData
     // version bump. Written by the morning's checkpoint; nothing is saved during a night.
     public NightSaveData night = new NightSaveData();
 
+    // 24 Oct 2026 (Days): the thrift find on the shelf by the bench (ThriftShelf). Additive, no version bump: absent in older
+    // saves (known false), which then get the day's own find.
+    public ThriftSaveData thrift = new ThriftSaveData();
+
+    // 24 Oct 2026 (Days): restock by hand (Designer P's spec §2.5). cups and beans above stay the café's WHOLE stock; this much
+    // of it is in the drinks machine, the rest on the back shelf. -1: a save from before (the machine fills from the stock).
+    public int machineCups = -1;
+    public int machineBeans = -1;
+
+    // 24 Oct 2026 (Furniture): the café's furniture, the same way: no version bump. Absent (format 0) means the café as the
+    // scene has it, today's 28 seats; a new game (no save file) is told apart by SaveManager.HasSave (CafeLayout.Apply).
+    public CafeLayoutData cafe = new CafeLayoutData();
+
     public void ValidateAndMigrate()
     {
         if (version > CurrentVersion)
@@ -240,6 +299,29 @@ public class SaveData
         night.dropped = night.dropped == null ? new string[0] : Array.FindAll(night.dropped, favour => !string.IsNullOrEmpty(favour));
         night.questions = night.questions == null ? new QuestionData[0]
             : Array.FindAll(night.questions, q => q != null && !string.IsNullOrEmpty(q.id));
+        // 24 Oct 2026 (Days): the thrift find and the machine's share of the stock (both additive).
+        thrift ??= new ThriftSaveData();
+        thrift.prefab ??= "";
+        thrift.lastPrefab ??= "";
+        thrift.soldThing ??= "";
+        thrift.soldGrade ??= "";
+        if (thrift.fault < 0 || string.IsNullOrEmpty(thrift.prefab)) { thrift.fault = -1; thrift.prefab = ""; }
+        machineCups = machineCups < 0 ? -1 : Math.Min(machineCups, Math.Max(0, cups));
+        machineBeans = machineBeans < 0 ? -1 : Math.Min(machineBeans, Math.Max(0, beans));
+
+        // 24 Oct 2026 (Furniture): null guards only (the old-save rule needs the scene: CafeLayout.Apply).
+        cafe ??= new CafeLayoutData();
+        cafe.format = Math.Max(0, cafe.format);
+        cafe.pieces = cafe.pieces == null ? new PlacedPieceData[0]
+            : Array.FindAll(cafe.pieces, piece => piece != null && !string.IsNullOrEmpty(piece.id));
+        foreach (PlacedPieceData piece in cafe.pieces)
+        {
+            piece.kind ??= "";
+            piece.variant ??= "";
+            piece.tier = Math.Max(1, piece.tier);
+        }
+        cafe.sheetsLeft = cafe.sheetsLeft == null ? new string[0] : Array.FindAll(cafe.sheetsLeft, sheet => !string.IsNullOrEmpty(sheet));
+        cafe.nextId = Math.Max(1, cafe.nextId);
         reputation = Math.Max(0, reputation);
         starsEarned = Math.Max(0, Math.Min(5, starsEarned));
         if (recap != null)
@@ -275,6 +357,7 @@ public class SaveData
         // All financial, inventory, upgrade, and memory values carry forward.
         // Neither checkpoint is used to award earnings a second time.
         next = (SaveData)MemberwiseClone();
+        next.thrift = thrift != null ? thrift.Copy() : new ThriftSaveData();   // 24 Oct 2026 (Days): its own copy, not shared
         next.day = checked(day + 1);
         next.dayCompleted = false;
         next.recap = null;

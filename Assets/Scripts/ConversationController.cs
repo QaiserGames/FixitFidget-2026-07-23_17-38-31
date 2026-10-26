@@ -95,7 +95,11 @@ public class ConversationController : MonoBehaviour
     [SerializeField, Range(-.3f, .3f)] private float faceAboveMiddle = .07f;
     [Tooltip("From the overhead view: where the view sits from Ace's eyes, metres, as he faces them: x to his right, y up, " +
              "z forward (negative: behind him). His head and shoulder stay at the left edge of the picture.")]
-    [SerializeField] private Vector3 shoulderOffset = new Vector3(.5f, .06f, -.45f);
+    // 26 Oct 2026 (Art fixes) a36: "Ace's head fills the talk camera" (the art audit, 23 Oct: "Ace's blocky hair and flat ear fill the
+    // left fifth of the screen"). About 20 cm further from his eyes (0.68 m to 0.87 m), mostly back and a little out, so his head
+    // keeps the left edge but at about three quarters of the size. Fixit Fidget > Art fixes > 3 sets the same on the scene's copy.
+    public static readonly Vector3 ShoulderOffsetDefault = new Vector3(.6f, .06f, -.62f);
+    [SerializeField] private Vector3 shoulderOffset = ShoulderOffsetDefault;
     [Tooltip("The least room behind Ace the shot over his shoulder needs, metres from his eyes. With less (a wall, a shelf), " +
              "the conversation is seen from his eyes instead.")]
     [SerializeField, Range(.1f, .8f)] private float shoulderRoom = .35f;

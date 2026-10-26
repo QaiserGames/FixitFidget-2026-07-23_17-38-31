@@ -23,7 +23,10 @@ using UnityEngine.InputSystem.LowLevel;
 //   * the press (D-pad down through a virtual pad, Tab's twin) opens the next entry's notes, whole: the man at the bins'
 //     pages too, though he sits third (the page moves an open entry up rather than cut its notes); it passes over an
 //     entry with nothing behind it (the bag's back door) and walks down the list;
-//   * each photo's word check (ReviewScreen) finds no S1 or S2 among the page's own words.
+//   * each photo's word check (ReviewScreen) finds no S1 or S2 among the page's own words;
+//   * 26 Oct 2026 (Icons 2): tonight's first entry wears the Now line's chip for the page's stage (the gnome to take, the
+//     bins in hand, the cups, the door for the bag), the second none; behind the press every note starts with its kind's
+//     chip (his pages on his paper), the chip never a word; the words read the same with it (Shown.Words).
 // By day, in the café lab (the page draws over the café the same as over the street: it is its own dark card).
 // Photos and the report: Logs/Night/notebook-page-<time>/.
 // ---------------------------------------------------------------------------
@@ -106,7 +109,7 @@ public sealed class NotebookPageCheck : PlayLab
         Check(page.Open, "the page is open");
         string now = LodgerStory.Now(LodgerStory.FindFavour(errand), NightThings.GnomeOfGrace.name);
         Note("the Now line for this moment reads: \"" + now + "\"");
-        CheckTop(NoteSubjects.Barnaby, NightThings.GnomeOfGrace.name, NoteSubjects.GraceHouse, "12 " + west, now);
+        CheckTop(NoteSubjects.Barnaby, NightThings.GnomeOfGrace.name, NoteSubjects.GraceHouse, "12 " + west, now, NoteIcons.Gnome);
         CheckScreen("the gnome to take");
         yield return PagePhoto("01-tonight-the-gnome");
 
@@ -115,9 +118,10 @@ public sealed class NotebookPageCheck : PlayLab
         yield return Frames(2);
         Shown(0, out NightNotebook.Shown a);
         Shown(1, out NightNotebook.Shown b);
-        Check(a != null && a.entry.key == NoteSubjects.Barnaby && a.entry.now && Plain(a.line.text) == NoteSubjects.BringLine
+        Check(a != null && a.entry.key == NoteSubjects.Barnaby && a.entry.now && Words(a.line) == NoteSubjects.BringLine
               && b != null && b.entry.key == NoteSubjects.Lodger && b.entry.now,
-            $"in hand: Barnaby (\"{Plain(a?.line.text)}\"), then the man at the bins, both tonight's (the Now line: \"Bring Barnaby to the man at the bins\")");
+            $"in hand: Barnaby (\"{Words(a?.line)}\"), then the man at the bins, both tonight's (the Now line: \"Bring Barnaby to the man at the bins\")");
+        CheckChip(a, b, NoteIcons.Bins, "in hand");   // 26 Oct 2026 (Icons 2): where he goes, as the Now line's chip
         CheckScreen("the gnome in hand");
         yield return PagePhoto("02-the-gnome-in-hand");
 
@@ -135,6 +139,7 @@ public sealed class NotebookPageCheck : PlayLab
                 $"...all {written} of them, whole, at {NightNotebook.NoteSize:0} px ({first.notes.Count} shown, {first.cut} left for the phone)");
             Check(first.notes.All(t => !WordBudget.Over(Plain(t.text), WordBudget.Page)),
                 $"...each within the notebook's own budget ({WordBudget.Page} words)");
+            CheckKinds(first, "Barnaby's notes");   // 26 Oct 2026 (Icons 2)
         }
         yield return PagePhoto("03-pressed-for-everything");
         PlugInPad("Notebook page check pad");
@@ -151,6 +156,8 @@ public sealed class NotebookPageCheck : PlayLab
         NightNotebook.Shown him = page.Visible.FirstOrDefault(v => v.open);
         Check(him != null && him.entry.key == NoteSubjects.Lodger && him.cut == 0 && him.notes.Count == him.entry.facts.Count,
             $"...the man at the bins' pages, whole wherever he sits ({him?.notes.Count} of {him?.entry.facts.Count}, {him?.cut} left for the phone)");
+        if (him != null) CheckKinds(him, "the man at the bins' pages");   // 26 Oct 2026 (Icons 2): his pages on his paper
+        yield return PagePhoto("03b-his-pages");
         for (int i = 0; i < page.Entries.Count && page.OpenKey.Length > 0; i++) page.More();
         yield return Frames(2);
         Check(page.OpenKey.Length == 0 && !page.MoreAbove, "past the last entry the press closes them all, back to the first screen");
@@ -168,7 +175,7 @@ public sealed class NotebookPageCheck : PlayLab
         yield return Frames(2);
         now = LodgerStory.Now(LodgerStory.FindFavour(errand), NightThings.CupsOfGrace.name);
         Note("the Now line for this moment reads: \"" + now + "\"");
-        CheckTop(NoteSubjects.Cups, Capital(NightThings.CupsOfGrace.name), NoteSubjects.GraceHouse, "12 " + west, now);
+        CheckTop(NoteSubjects.Cups, Capital(NightThings.CupsOfGrace.name), NoteSubjects.GraceHouse, "12 " + west, now, NoteIcons.Cups);
         NoteEntry barnaby = page.Entries.FirstOrDefault(e => e.key == NoteSubjects.Barnaby);
         Check(barnaby != null && barnaby.group == NoteGroup.PlacesAndThings && barnaby.line == NoteSubjects.GivenLine,
             $"Barnaby, given, is with the man at the bins now (\"{Plain(barnaby?.line)}\")");
@@ -181,8 +188,9 @@ public sealed class NotebookPageCheck : PlayLab
         page.UseForChecks(fresh, new NightLedger(), NoteStage.BagToDoor, "");
         yield return Frames(2);
         Shown(0, out NightNotebook.Shown bag);
-        Check(bag != null && bag.entry.key == NoteSubjects.BackDoor && bag.entry.now && Plain(bag.line.text).StartsWith("Take the rubbish out the back door", StringComparison.Ordinal),
-            $"the bag: the back door on top, in the Now line's words (\"{Plain(bag?.line.text)}\")");
+        Check(bag != null && bag.entry.key == NoteSubjects.BackDoor && bag.entry.now && Words(bag.line).StartsWith("Take the rubbish out the back door", StringComparison.Ordinal),
+            $"the bag: the back door on top, in the Now line's words (\"{Words(bag?.line)}\")");
+        CheckChip(bag, page.Visible.Count > 1 ? page.Visible[1] : null, NoteIcons.Door, "the bag");   // 26 Oct 2026 (Icons 2)
         Check(page.Entries.All(e => e.key != NoteSubjects.Lodger), "before the deal the man at the bins isn't on the page (it would give the reveal away)");
         CheckScreen("the bag");
         yield return PagePhoto("05-the-bag");
@@ -238,7 +246,7 @@ public sealed class NotebookPageCheck : PlayLab
     // ---------- checks ----------
 
     // Tonight's two on top, in amber: the thing (named as the Now line names it) and where it is (the address).
-    void CheckTop(string thingKey, string thingTitle, string placeKey, string placeTitle, string nowLine)
+    void CheckTop(string thingKey, string thingTitle, string placeKey, string placeTitle, string nowLine, string chip)
     {
         Shown(0, out NightNotebook.Shown a);
         Shown(1, out NightNotebook.Shown b);
@@ -255,6 +263,66 @@ public sealed class NotebookPageCheck : PlayLab
         bool mapped = NotePhotos.Map(placeKey, true) != null;   // a spot to pin (or a map drawn by hand)
         Check(b != null && (b.row.Find("Map - " + placeKey) != null) == mapped,
             mapped ? "...and the place has its street map card" : "...the place has no spot yet (Notebook pictures 1 measures it): no map card, no harm");
+        CheckChip(a, b, chip, "tonight");
+    }
+
+    // 26 Oct 2026 (Icons 2): tonight's first entry wears the Now line's chip for the page's stage, first in its line, and the
+    // chip is no word; the second entry (where it is, or him) wears none. Without the icon sheet: words only, and said so.
+    void CheckChip(NightNotebook.Shown first, NightNotebook.Shown second, string chip, string when)
+    {
+        if (!PadInput.IconsAvailable)
+        {
+            Note($"{when}: no icon sheet in this project (Fixit Fidget › UI › Button icons), so the page shows words only; the chips weren't checked");
+            Check(first != null && first.chip == "" && !NoteIcons.HasIcon(first.line.text), $"{when}: without the sheet the line is words alone");
+            return;
+        }
+        string tag = NoteIcons.Tag(chip);
+        Check(first != null && first.chip == chip && tag.Length > 0 && first.line.text.StartsWith(tag + " ", StringComparison.Ordinal)
+              && page.TonightChip == chip,
+            $"{when}: tonight's entry wears the Now line's chip first in its line: {chip} (drawn \"{first?.chip}\"; the page says \"{page.TonightChip}\")");
+        Check(first != null && WordBudget.Words(first.line.text) == WordBudget.Words(Words(first.line)) && Count(first.line.text, "<sprite") == 1,
+            $"{when}: ...the chip is no word, and the one icon in the line ({WordBudget.Words(first.line.text)} words)");
+        Check(second == null || second.chip == "" && !NoteIcons.HasIcon(second.line.text),
+            $"{when}: ...the second tonight entry ({second?.entry.key}) has its picture already: no chip");
+    }
+
+    // 26 Oct 2026 (Icons 2): behind the press each note starts with its kind's chip (his pages with his), the chip no word.
+    void CheckKinds(NightNotebook.Shown open, string what)
+    {
+        if (!PadInput.IconsAvailable)
+        {
+            Check(open.notes.All(t => !NoteIcons.HasIcon(t.text)), $"{what}: no icon sheet, so the notes are words alone (the bullets)");
+            return;
+        }
+        var wrong = new List<string>();
+        int his = 0, shown = 0;
+        for (int i = 0; i < open.notes.Count && i < open.entry.facts.Count; i++)
+        {
+            if (open.cut > 0 && i == open.notes.Count - 1) break;   // the "+N more" line
+            NotebookFactData fact = open.entry.facts[i];
+            string want = NoteIcons.ForFact(fact), tag = NoteIcons.Tag(want), text = open.notes[i].text;
+            bool inherited = fact.source == Notebook.Sources.Inherited;
+            if (inherited) his++;
+            shown++;
+            bool ok = tag.Length > 0 && text.StartsWith(tag + " ", StringComparison.Ordinal) && Count(text, "<sprite") == 1
+                      && (i < open.noteChips.Count && open.noteChips[i] == want)
+                      && want.EndsWith(NoteIcons.HisSuffix, StringComparison.Ordinal) == inherited
+                      && WordBudget.Words(text) == WordBudget.Words(NoteSubjects.FactLine(fact))
+                      && Words(open.notes[i]) == Plain(NoteSubjects.FactLine(fact));
+            if (!ok) wrong.Add($"{fact.id} ({fact.kind}, {fact.source}) \"{Short(Plain(text))}\": wanted {want}, drawn \"{(i < open.noteChips.Count ? open.noteChips[i] : "?")}\"");
+        }
+        Check(shown > 0 && wrong.Count == 0,
+            $"{what}: each of the {shown} notes starts with its kind's chip ({his} of his, on his paper), the chip no word, the words unchanged" +
+            (wrong.Count > 0 ? ": " + string.Join("; ", wrong) : ""));
+    }
+
+    static string Words(TMP_Text text) => NightNotebook.Shown.Words(text);
+
+    static int Count(string text, string part)
+    {
+        int n = 0;
+        for (int i = text.IndexOf(part, StringComparison.Ordinal); i >= 0; i = text.IndexOf(part, i + part.Length, StringComparison.Ordinal)) n++;
+        return n;
     }
 
     // What's on the screen: at most six entries; each line at most 8 words; every word 26 px or more.

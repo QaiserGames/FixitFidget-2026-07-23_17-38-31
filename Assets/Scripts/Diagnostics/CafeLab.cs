@@ -78,6 +78,34 @@ public static class CafeLab
         }
 #endif
     }
+
+    // 24 Oct 2026 (Furniture): the café a new game opens (his answer of 24 Oct, r1: the half-finished café, 10 open seats,
+    // the five dust sheets lying), as a layout a lab save can hold, so a lab session can start there on Day 1 with a save on
+    // disk (with no save file the session would be a real first run). Format 1: the café's open pieces at the scene's own
+    // poses, every sheet lying, nothing bought; the Days labs on it add the week's bought pieces for Days 2 and 3
+    // (FurnitureLabMenus). Null without a CafeLayout (Furniture 1 not run).
+    public static CafeLayoutData HalfFinishedLayout(CafeLayout layout)
+    {
+        if (layout == null) return null;
+        var pieces = new List<PlacedPieceData>();
+        foreach (PlacedPiece p in layout.Opening)
+        {
+            if (p == null || p.Kind == null || string.IsNullOrEmpty(p.Id)) continue;
+            pieces.Add(new PlacedPieceData
+            {
+                id = p.Id,
+                kind = p.Kind.name,
+                x = Mathf.Round(p.Pivot.x * 1000f) / 1000f,
+                z = Mathf.Round(p.Pivot.z * 1000f) / 1000f,
+                yaw = Mathf.Round(p.Yaw * 100f) / 100f,
+                tier = p.Tier,
+                variant = p.Variant,
+            });
+        }
+        var sheets = new List<string>();
+        foreach (DustSheet s in layout.Sheets) if (s != null && !string.IsNullOrEmpty(s.Id)) sheets.Add(s.Id);
+        return new CafeLayoutData { format = CafeLayoutData.CurrentFormat, pieces = pieces.ToArray(), sheetsLeft = sheets.ToArray(), nextId = 1 };
+    }
 }
 
 /// <summary>
@@ -127,6 +155,23 @@ public sealed class CafeLabDirector : MonoBehaviour
     private readonly Dictionary<CustomerBrain, float> answerAt = new();
     // At human speed: when the one pair of hands is free again.
     private float handsFreeAt;
+
+    // 24 Oct 2026 (Days; Designer P's §6.7): at human speed the autopilot also does the four things to do while waiting, when
+    // nobody needs Ace and its hands are free, in the Now line's order (Downtime.Next), so the Day labs measure the dead air
+    // that is left. A table and a chat are one press through the game's own Interact; a refill is ShopInventory.Refill; the
+    // find is a bench job's time at the bench, then the labs' hand (FinishByHand). A customer always wins: the find's work
+    // stops the moment somebody needs Ace and goes on later where it was (his p6).
+    [Header("Waiting jobs at human speed (seconds)")]
+    public float humanTable = 6f;
+    public float humanChat = 6f;
+    public float humanRefill = 8f;
+    public Vector2 humanFind = new Vector2(35f, 70f);
+    private float findWorkUntil = -1f, findLeft = -1f;
+    /// <summary>What the autopilot did while waiting this session (the Day labs' notes).</summary>
+    public int TablesCleared { get; private set; }
+    public int Chats { get; private set; }
+    public int Refills { get; private set; }
+    public int FindsWorked { get; private set; }
     private float nextConversationAllowed;
     private float nextTick;
 
@@ -201,6 +246,7 @@ public sealed class CafeLabDirector : MonoBehaviour
     {
         CustomerBrain[] customers = FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude);
         float now = Time.time;
+        if (HumanSpeed) GiveWayForCustomers(now);   // 24 Oct 2026 (Days)
 
         // Forget anyone who has gone.
         Prune(hearAt);
@@ -273,6 +319,99 @@ public sealed class CafeLabDirector : MonoBehaviour
                 Note($"{c.CustomerName} is done and leaving");
             }
         }
+
+        // 24 Oct 2026 (Days): what's left of the hands' time goes to the waiting jobs (see the fields).
+        if (HumanSpeed) WaitingJobs(now);
+    }
+
+    // A customer always wins (his p6): the find's work stops the moment somebody needs Ace, to go on later where it was.
+    private void GiveWayForCustomers(float now)
+    {
+        if (findWorkUntil < 0f || Downtime.NobodyNeedsAce) return;
+        findLeft = Mathf.Max(1f, findWorkUntil - now);
+        findWorkUntil = -1f;
+        handsFreeAt = Mathf.Min(handsFreeAt, now);
+        Note($"left the thrift find for a customer ({findLeft:0} s of it to go)");
+    }
+
+    // The four things to do while waiting, one at a time in the Now line's order, while nobody needs Ace and the hands are free.
+    private void WaitingJobs(float now)
+    {
+        if (DayClock.Instance == null || DayClock.Instance.DayOver) return;
+        if (findWorkUntil >= 0f)
+        {
+            if (now < findWorkUntil) return;
+            findWorkUntil = -1f;
+            findLeft = -1f;
+            JobBase find = ThriftShelf.Instance != null ? ThriftShelf.Instance.Find : null;
+            bool whole = find != null && FinishByHand(find);
+            FindsWorked++;
+            Note(whole ? "finished the thrift find (the labs' hand)" : "worked on the thrift find; the labs' hand couldn't finish it");
+            return;
+        }
+        if (now < handsFreeAt || !Downtime.NobodyNeedsAce) return;
+        PlayerCarry hands = PlayerCarry.Current;
+        PlayerInteractor ace = hands != null ? hands.GetComponent<PlayerInteractor>() : null;
+        Vector3 from = hands != null ? hands.transform.position : Vector3.zero;
+        switch (Downtime.Next(from, out Component target))
+        {
+            case Downtime.Job.Refill:
+                if (ShopInventory.Instance != null && ShopInventory.Instance.Refill())
+                {
+                    Refills++;
+                    Downtime.Today.onRefill += humanRefill;   // the trip's seconds (the autopilot carries no crate)
+                    Note("refilled the drinks machine from the back shelf");
+                }
+                handsFreeAt = now + humanRefill;
+                break;
+            case Downtime.Job.Table:
+                if (target is DirtyCup cup && ace != null && cup.IsAvailable)
+                {
+                    cup.Interact(ace);
+                    TablesCleared++;
+                    Note("cleared a table");
+                }
+                handsFreeAt = now + humanTable;
+                break;
+            case Downtime.Job.Gossip:
+                GossipChat chat = target != null ? target.GetComponentInChildren<GossipChat>() : null;
+                if (chat != null && ace != null && chat.IsAvailable)
+                {
+                    chat.Interact(ace);
+                    Chats++;
+                    Note("chatted with a seated guest");
+                }
+                handsFreeAt = now + humanChat;
+                break;
+            case Downtime.Job.Find:
+                float work = findLeft > 0f ? findLeft : Range(humanFind);
+                findWorkUntil = handsFreeAt = now + work;
+                Note($"works on the thrift find ({work:0} s at the bench)");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// The labs' hand on a find (24 Oct 2026): every grime spot scrubbed, every part swapped, every circuit put right and run,
+    /// through the game's own lab calls (GrimeSpot.Scrub, ReplaceablePart.Activate, CircuitRun.Turn and Tick). True when it's
+    /// in one piece after (its grime goes at the end of the frame: ThriftShelf sees it finished on the next).
+    /// </summary>
+    public static bool FinishByHand(JobBase job)
+    {
+        if (job == null) return false;
+        foreach (GrimeSpot g in job.GetComponentsInChildren<GrimeSpot>()) if (g != null) g.Scrub(1e6f);
+        foreach (ReplaceablePart p in job.GetComponentsInChildren<ReplaceablePart>())
+            for (int k = 0; k < 3 && p != null && !p.IsReplaced; k++) p.Activate();
+        foreach (CircuitPuzzle c in job.GetComponentsInChildren<CircuitPuzzle>())
+        {
+            if (c == null) continue;
+            CircuitRun run = c.Run;
+            for (int i = 0; i < run.Count; i++)
+                for (int t = 0; t < 4 && !run.IsAligned(i); t++) run.Turn(i);
+            run.Retry();   // only acts on a halted run (one already stopped at a wrong tile)
+            for (int k = 0; k < 4 * run.Count + 8 && !run.Finished; k++) run.Tick(1f, true, 8f);
+        }
+        return job.CanHandBack;
     }
 
     // When a job of this long, accepted now, is done: at once in parallel (the instant, tireless server), or at human

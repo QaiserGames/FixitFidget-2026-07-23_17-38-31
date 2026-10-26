@@ -33,10 +33,13 @@ using UnityEngine.SceneManagement;
 // THE REPAIR BAR FIRST (14 Oct 2026, NPC wave 2; his girlfriend: "people wouldn't sit down on the bar stools that are
 // infront of the repair station"). The stools are found by TableSeat.RepairBar now (they sit, so Snap To Seat no longer
 // tells them apart), and three more rules are checked: the three are flagged; from every counter place, three bench jobs in
-// turn take the middle, east and west stools (WaitingArea.ClaimRepairBar), and a fourth gets nothing from the bar (the
-// best seat for them then, WaitingArea.Claim); a drink claim from place 0 gets one of the best seats for someone with no
-// leanings (23 Oct 2026: the walk alone, the stools kept for repairs, a seat nobody sits on waited at standing), never a
-// repair-bar stool nor a standing wait.
+// turn take three different stools (WaitingArea.ClaimRepairBar), and a fourth gets nothing from the bar (the best seat for
+// them then, WaitingArea.Claim); a drink claim from place 0 gets one of the best seats for someone with no leanings (23 Oct
+// 2026: the walk alone, the stools kept for repairs, a seat nobody sits on waited at standing), never a repair-bar stool nor
+// a standing wait. 24 Oct 2026 (Days; the 23 Oct run: "a bench job takes the repair bar's middle stool every time"): the
+// stool is chosen like any seat (personal space, near-equals on the person's own dice), so the order is no longer fixed:
+// the second of three never sits beside the first while a stool with nobody beside it is free, and over 60 stand-ins from
+// each counter place the first takes each of the three stools.
 public static class WaitingSpaceChecks
 {
     const float SeatDrain = .6f;
@@ -279,8 +282,9 @@ public static class WaitingSpaceChecks
     }
 
     // THE REPAIR BAR FIRST (14 Oct 2026). From every counter place, three bench jobs in turn (three stand-in bodies there)
-    // take the middle stool, then the east, then the west (the seat nearest the bench first; the east and west tie and go to
-    // the one nearer the customer); a fourth gets nothing from the bar. Then a drink claim from place 0 by a stand-in with no
+    // take three different stools, the second never beside the first while a stool with nobody beside it is free (24 Oct
+    // 2026: personal space; it was the middle, east and west, in that order, every time); a fourth gets nothing from the bar;
+    // and over 60 stand-ins, the first one's stool is each of the three (the spread his 22 Oct note asked for). Then a drink claim from place 0 by a stand-in with no
     // leanings: one of the seats SeatChoice scores best for them (23 Oct 2026: the walk alone, by the area's own walking
     // distance, the stools kept for repairs and a seat nobody sits on waited at standing; within its Nearly As Near, in
     // points), never a repair-bar stool nor a standing wait. Registered and released as TheSecondStool does.
@@ -290,12 +294,10 @@ public static class WaitingSpaceChecks
         CounterQueue queue = UnityEngine.Object.FindAnyObjectByType<CounterQueue>(FindObjectsInactive.Exclude);
         expect(area != null && queue != null && queue.SlotCount > 0 && bench != null && bench.StandPoint != null, "the café has a WaitingArea, a CounterQueue and the bench for the bar's order");
         if (area == null || queue == null || queue.SlotCount == 0 || bench == null || bench.StandPoint == null) return;
-        string[] order =
-        {
-            barStools.First(s => s.name.Contains("middle")).name,
-            barStools.First(s => s.name.Contains("east")).name,
-            barStools.First(s => s.name.Contains("west")).name,
-        };
+        TableSeat middleStool = barStools.First(s => s.name.Contains("middle"));
+        // Beside: the next stool along (1.0 m; SeatChoice's Next To Within, 1.15 m).
+        bool Beside(WaitingSpot a, WaitingSpot b) => a is TableSeat x && b is TableSeat y && x != y
+            && Flat(x.SeatPose.position - y.SeatPose.position).magnitude < SeatChoice.NextToWithin;
         Vector3 benchPoint = bench.StandPoint.position;
         var registered = new List<WaitingSpot>();
         var people = new List<GameObject>();
@@ -323,20 +325,38 @@ public static class WaitingSpaceChecks
                 if (slot == null) continue;
                 var claimed = new List<(WaitingSpot spot, Transform who)>();
                 var given = new List<string>();
+                var spots = new List<WaitingSpot>();
                 for (int k = 0; k < 3; k++)
                 {
                     Transform who = Person($"bench job {k + 1} at place {i}", slot.position).transform;
                     WaitingSpot spot = area.ClaimRepairBar(who, benchPoint);
                     given.Add(spot != null ? spot.name : "nothing");
+                    spots.Add(spot);
                     if (spot != null) claimed.Add((spot, who));
                 }
-                expect(given.SequenceEqual(order), $"from the counter's place {i} at ({slot.position.x:0.0}, {slot.position.z:0.0}), three bench jobs in turn take: " +
-                                                   $"{string.Join(", then ", given)} (the middle, east and west stools wanted)");
+                bool three = spots.All(x => x != null) && spots.Distinct().Count() == 3;
+                // The second beside the first only when the first took the middle (then both free stools are beside it).
+                bool spaced = three && (!Beside(spots[0], spots[1]) || spots[0] == middleStool);
+                expect(three && spaced, $"from the counter's place {i} at ({slot.position.x:0.0}, {slot.position.z:0.0}), three bench jobs in turn take: " +
+                                        $"{string.Join(", then ", given)} (three different stools, the second never beside the first while one with nobody beside it is free)");
                 Transform fourth = Person($"a fourth bench job at place {i}", slot.position).transform;
                 WaitingSpot none = area.ClaimRepairBar(fourth, benchPoint);
                 expect(none == null, $"from place {i}, with the three taken the bar gives a fourth bench job {(none != null ? none.name : "nothing")} (nothing wanted: the best seat for them then)");
                 if (none != null) none.Release(fourth);
                 foreach (var c in claimed) c.spot.Release(c.who);
+
+                // The spread (24 Oct 2026): 60 people from this place, each alone at an empty bar, on their own dice.
+                var firsts = new Dictionary<string, int>();
+                for (int k = 0; k < 60; k++)
+                {
+                    Transform who = Person($"a bench job alone, {k + 1} of 60, at place {i}", slot.position).transform;
+                    WaitingSpot spot = area.ClaimRepairBar(who, benchPoint);
+                    string name = spot != null ? spot.name : "nothing";
+                    firsts[name] = firsts.TryGetValue(name, out int n) ? n + 1 : 1;
+                    if (spot != null) spot.Release(who);
+                }
+                expect(barStools.All(st => firsts.ContainsKey(st.name)) && !firsts.ContainsKey("nothing"),
+                    $"from place {i}, 60 bench jobs alone at an empty bar take: {string.Join(", ", firsts.Select(f => $"{f.Key} {f.Value}"))} (each of the three stools wanted: not the middle every time)");
             }
 
             // A drink customer at place 0 (anyone alone at the counter), a stand-in with no leanings: the seats SeatChoice scores

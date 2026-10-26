@@ -301,6 +301,9 @@ public class DayClock : MonoBehaviour
         IsOpen = false;
         DayOver = true;
         TimeRemaining = 0f;
+        // 26 Oct 2026 (review fix): the thrift find sells first (once a day; SaveManager's call is then a no-op), so the recap's
+        // "Closing till" includes its sale, as the till and the takings do.
+        ThriftShelf.SettleAtClosing(Day);
         closingTill = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
         Time.timeScale = 0f;
         Sfx.Play2D("day.closed");

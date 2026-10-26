@@ -81,7 +81,10 @@ public class DropInteractable : Interactable
     /// <summary>Whether <paramref name="spot"/> takes <paramref name="carried"/> now: never the counter's tray for the device Day 1's card is sending to the bench.</summary>
     public static bool Takes(DropSpot spot, JobBase carried) =>
         spot != null && carried != null
-        && !(spot.Kind == DropSpot.SpotKind.Counter && carried == DayOneGuideUI.CarryingToBench);
+        && !(spot.Kind == DropSpot.SpotKind.Counter && carried == DayOneGuideUI.CarryingToBench)
+        // 24 Oct 2026 (Days, restock by hand): a crate of cups and beans goes to the machine or back to its shelf, never on a
+        // counter or the bench (StockCrate).
+        && !(carried is StockCrate);
 
     /// <summary>What E says at <paramref name="spot"/> with <paramref name="carried"/> in hand ("" when it doesn't take it).</summary>
     public static string TrayWords(DropSpot spot, JobBase carried)

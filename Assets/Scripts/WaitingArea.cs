@@ -127,34 +127,59 @@ public class WaitingArea : MonoBehaviour
     // customer stands at, and from the place everyone alone uses (x +1.6) the bistro's chair was as near as the east stool
     // and the middle and west stools never won: two of the three were never used. The repair bar exists for the person
     // whose thing is on the mat (since playtest 4 Ace reassures and hands back over the counter without a step), so a
-    // customer whose repair goes to the bench takes the free stool whose seat is nearest the bench, the middle one first;
-    // two within 0.1 m of each other go to the one nearer the customer (east, from the counter). Null when all three are
-    // taken: the caller then uses Claim, the best seat for them. Drinks, the Human fault and patrons never ask, and since
-    // 23 Oct nor does a bench job whose character wants comfort more than the bar (CustomerBrain.StaysAtTheBar).
+    // customer whose repair goes to the bench takes one of its free stools. Null when all three are taken: the caller then
+    // uses Claim, the best seat for them. Drinks, the Human fault and patrons never ask, and since 23 Oct nor does a bench
+    // job who sits away from the bar (CustomerBrain.StaysAtTheBar; from Day 2, about two in five: c11).
+    //
+    // WHICH STOOL (24 Oct 2026; the 23 Oct run: "a bench job takes the repair bar's middle stool every time"). It took the free
+    // stool nearest the bench, which on an empty bar is always the middle one. Now a stool is chosen the way any seat is
+    // (SeatChoice): strangers on the stools beside it cost personal space (Crowding: the next stool is 1.0 m off, "next to"),
+    // the walk from where they stand costs a little (WalkCost), and stools within Nearly As Near of the best are near-equals,
+    // one taken on the person's own dice (SeatChoice.DiceIndex, so the game's random sequence is left alone). On an empty bar
+    // any of the three; with one taken, the one with nobody beside it when there is one. Ace reaches all three over the
+    // counter from the bench (Builder S's rule, checked by Waiting space reservations), so none is worse for him.
+    // benchPoint is kept for the callers and the checks: the bench no longer picks the stool.
     public const float RepairBarTie = .1f;
 
     public WaitingSpot ClaimRepairBar(Component occupant, Vector3 benchPoint)
     {
         scratch.Clear();
-        float nearest = float.PositiveInfinity;
         for (int i = 0; i < registry.Count; i++)
         {
             if (!(registry[i] is TableSeat stool) || !stool.RepairBar || !stool.IsAvailable || !HasClaimClearance(stool, occupant)) continue;
             scratch.Add(stool);
-            nearest = Mathf.Min(nearest, Flat(stool.SeatPose.position - benchPoint).magnitude);
         }
         if (scratch.Count == 0) return null;
         Vector3 from = occupant != null ? occupant.transform.position : transform.position;
-        WaitingSpot pick = null;
-        float pickToOccupant = float.PositiveInfinity;
-        foreach (WaitingSpot s in scratch)
+        SeatChoice.Person who = SeatChoice.PersonOf(occupant);
+        others.Clear();
+        for (int i = 0; i < registry.Count; i++)
         {
-            if (Flat(((TableSeat)s).SeatPose.position - benchPoint).magnitude > nearest + RepairBarTie) continue;
-            float toOccupant = Flat(s.StandPoint.position - from).magnitude;
-            if (toOccupant < pickToOccupant) { pickToOccupant = toOccupant; pick = s; }
+            WaitingSpot s = registry[i];
+            if (s == null || !s.IsOccupied || s.Occupant == occupant) continue;
+            others.Add(PlaceOf(s));
         }
-        return pick != null && pick.Claim(occupant) ? pick : null;
+        scores.Clear();
+        for (int i = 0; i < scratch.Count; i++)
+        {
+            TableSeat stool = (TableSeat)scratch[i];
+            float walk = Flat(stool.StandPoint.position - from).magnitude;
+            scores.Add(-SeatChoice.Crowding(who, stool.SeatPose.position, others) - SeatChoice.WalkCost(who, walk));
+        }
+        // The stools stand 1 m apart, 0.3 points of walk each, so from the till the far one is 0.6 behind the near one: exactly
+        // Nearly As Near. A hair more keeps all three near-equals on an empty bar, whichever counter place they come from.
+        SeatChoice.NearlyBest(scores, Mathf.Max(0f, nearlyAsNear) + StoolTieSlack, nearlyBest);
+        // The near-equals in a fixed order (east to west), so the person's dice mean the same stool whatever order the
+        // registry holds them in.
+        nearlyBest.Sort(ByEast);
+        WaitingSpot pick = nearlyBest.Count > 0 ? scratch[nearlyBest[SeatChoice.DiceIndex(occupant, StoolSalt, nearlyBest.Count)]] : scratch[0];
+        return pick.Claim(occupant) ? pick : null;
     }
+
+    // The stool's dice salt (any constant: the person's own hash does the work), and the hair added to Nearly As Near.
+    private const int StoolSalt = 0x5700;
+    public const float StoolTieSlack = .01f;
+    private static readonly System.Comparison<int> ByEast = (a, b) => scratch[b].StandPoint.position.x.CompareTo(scratch[a].StandPoint.position.x);
 
     // THE BEST SPOT FOR THIS PERSON (23 Oct 2026; SeatChoice, in SeatTags.cs). His note: drink customers "only sit to the
     // left of the couch", repair customers "only... next to the bar stool": "I want that to be more spread out and diverse...

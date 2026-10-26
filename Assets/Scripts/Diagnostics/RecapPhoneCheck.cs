@@ -246,8 +246,9 @@ public sealed class RecapPhoneCheck : MonoBehaviour
             $"an evening the café's guests paid nothing (${none.earned}, all of it Ace's own work): no split line");
         Check(own.patronIncome <= 0 || CardHeight("Tonight") < cardOwn - 10f,
             $"...and no gap where it would be (the card {CardHeight("Tonight"):0} px tall, {cardOwn:0} with the line)");
-        Check(phone.TonightWords <= WordBudget.ClosingScreen && (own.patronIncome <= 0 || phone.TonightWords == wordsOwn - SplitWords),
-            $"...{phone.TonightWords} words: within the rule's {WordBudget.ClosingScreen}, no room added" +
+        // 24 Oct 2026 (Days): the thrift lines ("Sold ...", "Tomorrow: ...") bring exactly their own words of room (ThriftRoom).
+        Check(phone.TonightWords <= WordBudget.ClosingScreen + ThriftRoom && (own.patronIncome <= 0 || phone.TonightWords == wordsOwn - SplitWords),
+            $"...{phone.TonightWords} words: within the rule's {WordBudget.ClosingScreen}{(ThriftRoom > 0 ? $" and the thrift lines' {ThriftRoom}" : "")}, no room added" +
             (own.patronIncome > 0 ? $" (exactly {SplitWords} fewer than with the split)" : ""));
         Looking("the made-up evening's scroll range");
         Check(phone.ScrollRange <= .5f && Fits(), "...still one screen, every line fitting");
@@ -909,11 +910,16 @@ public sealed class RecapPhoneCheck : MonoBehaviour
     bool WithinBudget(out string what)
     {
         bool split = phone.TonightSplit.Length > 0;
-        int room = WordBudget.ClosingScreen + (split ? SplitWords : 0);
+        int room = WordBudget.ClosingScreen + (split ? SplitWords : 0) + ThriftRoom;   // 24 Oct 2026 (Days): + the thrift lines' own words
         what = $"{phone.TonightWords} words before the review lines (the rule is {WordBudget.ClosingScreen}" +
-               (split ? $", and {SplitWords} more for the takings split: {room}" : "") + ")";
+               (split ? $", and {SplitWords} more for the takings split" : "") +
+               (ThriftRoom > 0 ? $", and {ThriftRoom} for the thrift lines (\"{phone.TonightSold}\" \"{phone.TonightTomorrow}\")" : "") + $": {room})";
         return phone.TonightWords <= room;
     }
+
+    // 24 Oct 2026 (Days; Designer P's §6.7): Tonight's budget rises by exactly the "Sold your thrift watch" and "Tomorrow:" lines'
+    // words, on evenings with them (as it does for the guests' split).
+    int ThriftRoom => phone.TonightSoldWords + phone.TonightTomorrowWords;
 
     // Tonight's split where it belongs: under "earned today" (their left edges together), above the card's rule, in the card's
     // quiet colour ("earned today"'s), no bigger than "earned today". The reason goes in what, either way.

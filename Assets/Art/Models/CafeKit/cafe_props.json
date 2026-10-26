@@ -65,14 +65,14 @@
    "group": "Plants",
    "what": "olive tree, 1.70 m, in a 0.40 terracotta pot on a saucer (placed twice)",
    "stretch": false,
-   "tris": 2334,
+   "tris": 1374,
    "size": [
-    0.764,
+    0.733,
     1.636,
-    0.691
+    0.639
    ],
    "bottom": 0.0,
-   "back": 0.285,
+   "back": 0.26,
    "materials": [
     "DC_Terracotta",
     "CF_Soil",
@@ -80,7 +80,7 @@
     "CF_LeafSilver",
     "CF_LeafOlive"
    ],
-   "islands": 188,
+   "islands": 28,
    "origin": "bottom centre of the saucer",
    "place": "either side of the door inside, about (-1.6, 0, 0.5) and (+1.6, 0, 0.5); turn the second about 140 degrees so the pair is not twins",
    "collider": "a capsule round the pot (r 0.22, h 0.37)",

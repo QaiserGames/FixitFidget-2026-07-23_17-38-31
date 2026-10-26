@@ -28,6 +28,8 @@ public static class ControlHints
         Interact, Station, Refuse, Back, SwitchHand, View, Boost, LeftHand, RightHand, Use, Cancel, Tools, Zoom, Flip, Orbit,
         Torch, NotebookPage, Sneak, AimStep, Pause, TakeFromBench, BenchUse, BenchZoom, BenchHelp, BenchHandStick, BenchTurnStick,
         Walk, Choose, Confirm, StopNeedle,
+        // 24 Oct 2026 (Furniture): Arrange the café's four (added at the end: the verbs above keep their numbers).
+        Place, Turn, SellHold, Browse,
     }
 
     // ---------- the icons (what the screens show) ----------
@@ -88,6 +90,16 @@ public static class ControlHints
     /// <summary>The straight-face meter's stop: Square (X, Y) on a pad, Space on a keyboard (MorningFace).</summary>
     public static string StopNeedle => Icon(Verb.StopNeedle);
 
+    // 24 Oct 2026 (Furniture): Arrange the café (ArrangeMode), at closing.
+    /// <summary>Arrange: place a piece, pick one up, put it down. Cross (A, B) on a pad, the left mouse button.</summary>
+    public static string Place => Icon(Verb.Place);
+    /// <summary>Arrange: a quarter turn (a plant: the next plant). Triangle (Y, X) on a pad, R: the same buttons as Flip.</summary>
+    public static string Turn => Icon(Verb.Turn);
+    /// <summary>Arrange: hold to sell a piece back for half. Square (X, Y) on a pad, F; the words say "Hold".</summary>
+    public static string SellHold => Icon(Verb.SellHold);
+    /// <summary>Arrange: along the strip of pieces. L1 and R1 (LB RB, L R) on a pad, Q and E.</summary>
+    public static string Browse => Icon(Verb.Browse);
+
     /// <summary>The icon for <paramref name="verb"/> on the device in hand (a sprite tag; the word where there is no icon).</summary>
     public static string Icon(Verb verb)
     {
@@ -123,6 +135,11 @@ public static class ControlHints
             case Verb.Choose: return Pad ? PadInput.Icon("dpad_updown", "D-pad") : Key("W/S");
             case Verb.Confirm: return Pad ? PadInput.Label(PadButton.South) : Key("Enter");
             case Verb.StopNeedle: return Pad ? PadInput.Label(PadButton.West) : Key("Space");
+            // 24 Oct 2026 (Furniture): Arrange the café.
+            case Verb.Place: return Pad ? PadInput.Label(PadButton.South) : Key("Click");
+            case Verb.Turn: return Pad ? PadInput.Label(PadButton.North) : Key("R");
+            case Verb.SellHold: return Pad ? PadInput.Label(PadButton.West) : Key("F");
+            case Verb.Browse: return Pad ? PadInput.Label(PadButton.LeftShoulder) + " " + PadInput.Label(PadButton.RightShoulder) : Key("Q") + " " + Key("E");
             default: return "";
         }
     }
@@ -164,6 +181,11 @@ public static class ControlHints
             case Verb.Choose: return Pad ? "D-pad" : "W/S";
             case Verb.Confirm: return Pad ? PadInput.Word(PadButton.South) : "Enter";
             case Verb.StopNeedle: return Pad ? PadInput.Word(PadButton.West) : "Space";
+            // 24 Oct 2026 (Furniture): Arrange the café.
+            case Verb.Place: return Pad ? PadInput.Word(PadButton.South) : "Click";
+            case Verb.Turn: return Pad ? PadInput.Word(PadButton.North) : "R";
+            case Verb.SellHold: return Pad ? "Hold " + PadInput.Word(PadButton.West) : "Hold F";
+            case Verb.Browse: return Pad ? PadInput.Word(PadButton.LeftShoulder) + " / " + PadInput.Word(PadButton.RightShoulder) : "Q / E";
             default: return "";
         }
     }
@@ -201,6 +223,11 @@ public static class ControlHints
         public static string Choose => Word(Verb.Choose);
         public static string Confirm => Word(Verb.Confirm);
         public static string StopNeedle => Word(Verb.StopNeedle);
+        // 24 Oct 2026 (Furniture): Arrange the café.
+        public static string Place => Word(Verb.Place);
+        public static string Turn => Word(Verb.Turn);
+        public static string SellHold => Word(Verb.SellHold);
+        public static string Browse => Word(Verb.Browse);
     }
 
     // ---------- keyboard and mouse ----------

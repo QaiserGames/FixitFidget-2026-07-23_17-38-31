@@ -44,7 +44,7 @@ public enum ToolType { Hand, Brush, Screwdriver, Pry, Tweezers, Cloth }
 // blob tapering to the cursor"). Two of its keys made it rounder than it need be: in the air Press sat at 0.4 (a plump
 // wad), and on a quick stroke Bunch ran to 1.0 (the whole wad gathered to its leading edge). Now Press is 0.55 in the air and
 // Bunch never passes 0.45 while rubbing (BunchMost): flatter and more spread on the glass. What is left is the model's: the
-// held wad (BT_ClothHeld) is a smooth dome with no fold or loose corner, which is Blender work, not this file's.
+// held cloth was rebuilt on 26 Oct (art audit a02): the folded cloth, pinched where the fingers hold it.
 // ---------------------------------------------------------------------------
 public class ToolPickup : MonoBehaviour
 {

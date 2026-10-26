@@ -1733,12 +1733,17 @@ public class CustomerBrain : MonoBehaviour
 
     /// <summary>
     /// A bench job who waits at the repair bar (23 Oct 2026). Most do (her playtest 5 note; Ace reassures and hands back over
-    /// the counter from the bench); someone whose character wants comfort more than the bar (a Sentimental person, a Relaxed
-    /// one with a part to swap or a call on hold who isn't the watching sort) takes a seat elsewhere, and Ace carries the
-    /// device to them. Regulars stay.
-    /// The same all visit: who they are and what they brought (SeatChoice.StaysAtTheBar). False for anyone else.
+    /// the counter from the bench); the others take a seat elsewhere, and Ace carries the device to them. Regulars stay.
+    /// 24 Oct 2026 (Days; his c11, kept: "From Day 2, about 2 in 5 repair customers sit away from the bar; never on Day 1"):
+    /// from Day 2 a roll once a visit, biased by character (the watchers stay more, the comfort-seekers less: SeatChoice.
+    /// AwayChance), on their own dice so the game's random sequence is left alone. On the 23 Oct runs only 1 of 11 did.
+    /// The same all visit: who they are, what they brought, and their dice (SeatChoice.StaysAtTheBar). False for anyone else.
     /// </summary>
-    public bool StaysAtTheBar => GoesToTheBench && SeatChoice.StaysAtTheBar(SeatChoice.PersonOf(this));
+    public bool StaysAtTheBar => GoesToTheBench && SeatChoice.StaysAtTheBar(SeatChoice.PersonOf(this), DayClock.Instance != null ? DayClock.Instance.Day : 1, AwayDice);
+
+    /// <summary>This visit's roll for sitting away from the bar (0..1; SeatChoice.Dice on the customer: the same all visit).</summary>
+    public float AwayDice => SeatChoice.Dice(this, AwaySalt);
+    private const int AwaySalt = 0xC11;
 
     /// <summary>Where they went to wait once their job was taken (a seat, a standing spot), or null: read by the Day labs and
     /// by Day 1's guide (the impatience card says "at the counter" only to someone on a repair-bar stool).</summary>
@@ -2438,6 +2443,9 @@ public class CustomerBrain : MonoBehaviour
         binStop = false;
         walkOutAt = -1f;
         NpcCup cup = NpcCup.Of(gameObject);
+        // 24 Oct 2026 (Days): customers leave cups too, not only patrons (Designer P's §2.3; the 23 Oct run's seat note): a cup
+        // left on the table puts the seat out of play until Ace clears it, so the next drink customer sits somewhere else.
+        if (cup != null && cup.OnTable && NpcCup.LeavesItBehind(gameObject, false) && cup.LeaveOnTable()) cup = null;
         if (cup != null && cup.Held)
         {
             cup.TakeInHand();

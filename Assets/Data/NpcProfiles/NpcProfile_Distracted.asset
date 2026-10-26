@@ -30,3 +30,4 @@ MonoBehaviour:
   sociability: 0.45
   shyness: 0
   reactionDelay: 0.7
+  leavesCup: 0.6

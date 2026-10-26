@@ -679,7 +679,12 @@ public static class NpcLifeSteps
         bool bins = NpcLifeProps.TryGetBin(out Vector3 drop, out Vector3 mouth);
         if (!bins) Note("No bin station they can reach (LI_BinStation): cups go home with people; the bin beat is not tested.");
         else Note($"Bin station: drop point {drop}, mouth {mouth}.");
-        NpcSeating cupSeat = Seated().FirstOrDefault(s => s.GetComponent<PatronBrain>() != null && keepSeated.Contains(s.GetComponent<PatronBrain>()));
+        // 24 Oct 2026 (Days, clearing tables): about one guest in three leaves the cup on the table (NpcCup.LeavesItBehind, their
+        // own dice for the visit). The bin beat is tested on one who bins it; one who leaves it is tested in 7b.
+        NpcSeating cupSeat = Seated().FirstOrDefault(s => s.GetComponent<PatronBrain>() != null && keepSeated.Contains(s.GetComponent<PatronBrain>())
+                                                         && !NpcCup.LeavesItBehind(s.gameObject, s.GetComponent<PatronBrain>().SettledGuest));
+        NpcSeating leaverSeat = Seated().FirstOrDefault(s => s.GetComponent<PatronBrain>() != null && keepSeated.Contains(s.GetComponent<PatronBrain>())
+                                                         && s != cupSeat && NpcCup.LeavesItBehind(s.gameObject, s.GetComponent<PatronBrain>().SettledGuest));
         if (cupSeat != null)
         {
             PatronBrain cupPatron = cupSeat.GetComponent<PatronBrain>();
@@ -707,7 +712,29 @@ public static class NpcLifeSteps
             }
             else Check(cupPatron == null || cup == null || cup.Held || cup.State == NpcCup.Where.Gone, "Without bins the cup went with them");
         }
-        else Note("No seated patron left for the cup test.");
+        else Note("No seated patron left for the cup test (or all of them leave their cups today).");
+
+        // ---------- 7b. a guest who leaves the cup on the table (24 Oct 2026, clearing tables) ----------
+        if (leaverSeat != null)
+        {
+            PatronBrain leaver = leaverSeat.GetComponent<PatronBrain>();
+            TableSeat at = leaver.Seat as TableSeat;
+            NpcCup cup = NpcCup.Of(leaver.gameObject);
+            deadline = Time.time + 12f;
+            while (Time.time < deadline && (cup == null || !cup.OnTable)) { cup = NpcCup.Of(leaver.gameObject); yield return null; }
+            keepSeated = keepSeated.Where(p => p != leaver).ToArray();
+            if (cup != null && cup.OnTable && at != null)
+            {
+                PatronLeaveMethod.Invoke(leaver, null);
+                yield return null;
+                DirtyCup left = DirtyCup.Live.FirstOrDefault(c => c != null && c.FromAGuest && c.seat == at && c.OnTheTable);
+                Check(left != null && at.IsDirty && !at.IsAvailable && left.table != null && left.table.Badge != 0,
+                    $"A guest who leaves the cup left it on {at.name}'s table: a used cup there, the seat out of play, the table's badge up");
+                if (left != null) Photograph(left.transform, folder, "a guest's cup left on the table");
+            }
+            else Note("The leaver's cup never stood on their table within 12 s: 7b not tested.");
+        }
+        else Note("Nobody seated today leaves their cup (about one in three do): 7b not tested this run.");
 
         // ---------- 8. a laptop patron ----------
         if (NpcLifeProps.LaptopCount == 0) Note("No laptops in the scene (LI_Laptop_Open): laptop patrons are ordinary patrons; not tested.");

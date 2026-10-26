@@ -203,7 +203,7 @@ internal static class CafeRoomSteps
         ["CK_Beam"] = (new Vector3(14.8f, .325f, .328f), -.325f),
         ["CK_SkylightWell"] = (new Vector3(1.34f, .47f, 1.34f), -.018f),
         ["CK_FiddleLeafFig"] = (new Vector3(.646f, 1.815f, .633f), 0f),
-        ["CK_OliveTree"] = (new Vector3(.764f, 1.636f, .691f), 0f),
+        ["CK_OliveTree"] = (new Vector3(.733f, 1.636f, .639f), 0f),   // 24 Oct 2026: its leaf cards off (art audit a53)
         ["CK_RubberPlant"] = (new Vector3(.675f, 1.279f, .646f), 0f),
         ["CK_Monstera"] = (new Vector3(1.064f, .943f, .934f), 0f),
         ["CK_NoticeBoard"] = (new Vector3(.96f, .66f, .025f), 0f),
