@@ -28,6 +28,16 @@ using UnityEngine.UI;
 // the world always on a plate. Inks: #4F4943 on the white cards (8.9:1), #8C4F0A on the gold pill (5.6:1), white on the
 // green and red price pills (5.1:1 and 4.6:1, bold 24 px).
 //
+// 26 Oct 2026 (Days and first table). DAY 1'S FIRST TABLE IS FREE (FurnitureRules.PriceToday, the one price function): its card
+// shows what it would have cost struck through over its pill ("<s>$80</s>") and the pill, widened, reads "Free today"; the
+// card's seats move up beside the struck price so nothing overlaps. Every other card is priced by the same function.
+// THE WORDS (the 26 Oct gather, text-2026-10-26_112735, ArrangeUI's rows): a card not on sale yet was dimmed whole (alpha .62),
+// which took its words to 2.5-2.7:1 ("2 seats", "Day 2", the names at 4.0); now only its card goes a muted cream and its
+// picture fades, and every word keeps its full ink (#4F4943 on the muted card 7.4:1; #8C4F0A on the gold pill 5.6:1). The
+// seats and "Looks only" are bold (22 px, a secondary label), the Day pill 24 px bold, the price pills 26 px bold. The
+// "+2" that pops by the seats stood over the world in the brand's green (2.1:1): it pops on its own dark plate now, in a
+// light green (or a light red for a seat lost), over 7:1.
+//
 // 26 Oct 2026 (Icons 2; his note: "i wanted icons for the furniture you can also purchase too"). Each card wears its kind's
 // picture (NoteIcons.Furniture, by the asset name; the icon sheet's furn_*, cut as a sprite by NoteIcons.SpriteOf) at the
 // top left, 60 px, with the name under it and the seats and the price where they were: the card is taller for it (CardTallH).
@@ -54,6 +64,11 @@ public sealed class ArrangeUI : MonoBehaviour
     static readonly Color CardInk = new Color32(0x4F, 0x49, 0x43, 255);
     static readonly Color DayInk = new Color32(0x8C, 0x4F, 0x0A, 255);
     static readonly Color PuffColour = new Color(.93f, .89f, .82f, .62f);
+    // 26 Oct 2026 (Days and first table): a card not on sale yet (its words keep their ink), and the seats pop's inks on its plate.
+    static readonly Color CardMuted = new Color32(0xE6, 0xE0, 0xD7, 255);
+    static readonly Color PopGain = new Color32(0x8F, 0xE0, 0xB0, 255);
+    static readonly Color PopLoss = new Color32(0xF4, 0xA4, 0x97, 255);
+    const float PillW = 84f, FreePillW = 140f, PillH = 36f, CardPriceSize = 26f, DayPillSize = 24f, WasSize = 22f;
 
     Canvas canvas;
     RectTransform root;
@@ -62,6 +77,7 @@ public sealed class ArrangeUI : MonoBehaviour
     TextMeshProUGUI nowText;
     RectTransform till;
     TextMeshProUGUI tillLabel, tillSeats, popSeats;
+    RectTransform popPlate;   // 26 Oct 2026 (Days and first table): the "+2" on its own plate
     HudMoney jar;                      // 26 Oct 2026 (HUD 3): the money object, the HUD's own
     RectTransform flights;
     Vector2 lastPuff;                  // where the last puff was (screen pixels): where a bill leaves for, or comes from
@@ -87,6 +103,10 @@ public sealed class ArrangeUI : MonoBehaviour
         public RectTransform rect, ring;
         public Image back, pill;
         public TextMeshProUGUI name, seats, price;
+        public TextMeshProUGUI was;      // 26 Oct 2026 (Days and first table): the struck price over a free table's pill
+        public RectTransform pillRect;
+        public Image picture;            // 26 Oct 2026: faded on a card not on sale yet (its words keep their ink)
+        public bool free;
         public CanvasGroup group;
         public bool chosen;
         public string icon = "";   // 26 Oct 2026 (Icons 2): the picture it wears (a NoteIcons furn_* name), or ""
@@ -117,7 +137,9 @@ public sealed class ArrangeUI : MonoBehaviour
             {
                 if (c.kind == null) continue;
                 if (b.Length > 0) b.Append("; ");
-                b.Append(c.kind.displayName).Append(' ').Append(Plain(c.price.text));
+                b.Append(c.kind.displayName).Append(' ');
+                if (c.free && c.was != null) b.Append(Plain(c.was.text)).Append(' ');   // 26 Oct 2026: "Bistro table $80 Free today"
+                b.Append(Plain(c.price.text));
                 if (c.chosen) b.Append(" chosen");
             }
             return b.ToString();
@@ -192,10 +214,13 @@ public sealed class ArrangeUI : MonoBehaviour
         tillLabel.text = "YOUR CAFÉ";
         tillSeats = UiSkin.Text("Seats", seatsBand, SeatsSize, UiSkin.BandText, TextAlignmentOptions.MidlineRight, FontStyles.Bold);
         Place(tillSeats.rectTransform, new Vector2(HudMoney.BoardW - 16f - 120f, -4f), new Vector2(120f, 36f));
-        popSeats = UiSkin.Text("Seats pop", till, SeatsSize, UiSkin.Brand, TextAlignmentOptions.TopRight, FontStyles.Bold);
-        UiSkin.Shadowed(popSeats);   // 26 Oct 2026 (his Mac): the green "+2" over the band read 3.9:1
-        Place(popSeats.rectTransform, new Vector2(TillWidth - 110f, -(12f + HudMoney.BoardH + 14f + 46f)), new Vector2(90f, 38f));
-        popSeats.gameObject.AddComponent<CanvasGroup>().alpha = 0f;
+        // 26 Oct 2026 (Days and first table): the "+2" pops on its own dark plate where it stood (over the world it read 2.1:1).
+        popPlate = Box("Seats pop", till, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+        Place(popPlate, new Vector2(TillWidth - 110f, -(12f + HudMoney.BoardH + 14f + 46f)), new Vector2(90f, 38f));
+        UiSkin.Paint(popPlate, UiSkin.Band, UiSkin.Radius);
+        popSeats = UiSkin.Text("Words", popPlate, SeatsSize, PopGain, TextAlignmentOptions.Center, FontStyles.Bold);
+        Stretch(popSeats.rectTransform, Vector2.zero, Vector2.zero);
+        popPlate.gameObject.AddComponent<CanvasGroup>().alpha = 0f;
         flights.SetAsLastSibling();
 
         // The strip and the controls.
@@ -267,22 +292,28 @@ public sealed class ArrangeUI : MonoBehaviour
             FurnitureDefinition k = c.kind;
             if (k == null) continue;
             bool forSale = layout != null && layout.ForSale(k);
-            bool afford = money >= k.price;
-            c.group.alpha = forSale ? 1f : .62f;
+            // 26 Oct 2026 (Days and first table): today's price (Day 1's first table is free), and no whole-card dimming.
+            int price = FurnitureRules.PriceToday(k);
+            bool free = forSale && FurnitureRules.FreeToday(k);
+            bool afford = money >= price;
+            c.group.alpha = 1f;
+            if (c.back != null) c.back.color = forSale ? UiSkin.Card : CardMuted;
+            if (c.picture != null) c.picture.color = new Color(1f, 1f, 1f, forSale ? 1f : .5f);
             if (forSale)
             {
                 c.pill.color = afford ? UiSkin.Brand : UiSkin.Red;
                 c.price.color = Color.white;
-                c.price.fontSize = PriceSize;
-                c.price.text = "$" + k.price;
+                c.price.fontSize = CardPriceSize;
+                c.price.text = free ? FurnitureRules.FreeWords : "$" + price;
             }
             else
             {
                 c.pill.color = UiSkin.GoldSoft;
                 c.price.color = DayInk;
-                c.price.fontSize = SmallSize;
+                c.price.fontSize = DayPillSize;
                 c.price.text = "Day " + Mathf.Max(1, k.forSaleFromDay);
             }
+            if (free != c.free) FreeLayout(c, free);
             bool isChosen = k == chosen;
             if (isChosen != c.chosen)
             {
@@ -336,22 +367,44 @@ public sealed class ArrangeUI : MonoBehaviour
                     image.preserveAspect = true;
                     image.raycastTarget = false;
                     c.icon = icon;
+                    c.picture = image;   // 26 Oct 2026 (Days and first table)
                 }
                 nameTop = 10f + IconSize + 6f;
             }
             c.name = UiSkin.Text("Name", c.rect, NameSize, UiSkin.Ink, TextAlignmentOptions.TopLeft, FontStyles.Bold, true);
             Place(c.name.rectTransform, new Vector2(14f, -nameTop), new Vector2(CardW - 28f, 60f));
             c.name.text = k != null ? k.displayName : "";
-            c.seats = UiSkin.Text("Seats", c.rect, SmallSize, CardInk, TextAlignmentOptions.BottomLeft, UiSkin.SemiBold);
-            Place(c.seats.rectTransform, new Vector2(14f, -(cardH - 40f)), new Vector2(96f, 28f));
+            // 26 Oct 2026 (Days and first table): bold (the gather read the semibold 20-22 px as thin), 110 px for "Looks only".
+            c.seats = UiSkin.Text("Seats", c.rect, SmallSize, CardInk, TextAlignmentOptions.BottomLeft, FontStyles.Bold);
+            Place(c.seats.rectTransform, new Vector2(14f, -(cardH - 40f)), new Vector2(110f, 28f));
             c.seats.text = k == null ? "" : k.seats > 0 ? $"{k.seats} seat{(k.seats == 1 ? "" : "s")}" : "Looks only";
-            RectTransform pill = Box("Price", c.rect, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-10f, 10f), new Vector2(84f, 36f));
+            RectTransform pill = Box("Price", c.rect, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-10f, 10f), new Vector2(PillW, PillH));
             pill.pivot = new Vector2(1f, 0f);
+            c.pillRect = pill;
             c.pill = UiSkin.Paint(pill, UiSkin.Brand, 18f);
-            c.price = UiSkin.Text("Words", pill, PriceSize, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            c.price = UiSkin.Text("Words", pill, CardPriceSize, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Stretch(c.price.rectTransform, Vector2.zero, Vector2.zero);
+            // 26 Oct 2026 (Days and first table): what a free table would have cost, struck through, over its pill (hidden till then).
+            c.was = UiSkin.Text("Was", c.rect, WasSize, CardInk, TextAlignmentOptions.BottomRight, FontStyles.Bold);
+            RectTransform was = c.was.rectTransform;
+            was.anchorMin = was.anchorMax = new Vector2(1f, 0f);
+            was.pivot = new Vector2(1f, 0f);
+            was.anchoredPosition = new Vector2(-14f, 10f + PillH + 6f);
+            was.sizeDelta = new Vector2(80f, 28f);
+            c.was.text = k != null ? $"<s>${Mathf.Max(0, k.price)}</s>" : "";
+            c.was.gameObject.SetActive(false);
             cards.Add(c);
         }
+    }
+
+    // 26 Oct 2026 (Days and first table): a free table's card: the pill widens for "Free today", the struck price stands over
+    // it on the right, and the seats go up to that row on the left, so nothing overlaps; back as it was once it has a price.
+    void FreeLayout(Card c, bool free)
+    {
+        c.free = free;
+        if (c.pillRect != null) c.pillRect.sizeDelta = new Vector2(free ? FreePillW : PillW, PillH);
+        if (c.was != null) c.was.gameObject.SetActive(free);
+        if (c.seats != null) Place(c.seats.rectTransform, new Vector2(14f, -(cardH - 40f - (free ? PillH + 6f : 0f))), new Vector2(110f, 28f));
     }
 
     /// <summary>The kind whose card is under a screen point (a click on the strip), or null.</summary>
@@ -390,7 +443,7 @@ public sealed class ArrangeUI : MonoBehaviour
         if (seatsShown < 0) { seatsShown = seats; WriteSeats(); }
         else if (seats != seatsShown)
         {
-            Pop(popSeats, (seats > seatsShown ? "+" : "") + (seats - seatsShown), seats > seatsShown ? UiSkin.Brand : UiSkin.Red);
+            Pop(popSeats, (seats > seatsShown ? "+" : "") + (seats - seatsShown), seats > seatsShown ? PopGain : PopLoss);
             seatsShown = seats;
             WriteSeats();
         }
@@ -401,9 +454,10 @@ public sealed class ArrangeUI : MonoBehaviour
         float now = Time.unscaledTime;
         text.text = words;
         text.color = colour;
-        // Held for a moment, then gone: the alpha's motion shows its start (1) until it begins.
-        motions.Alpha(text.GetComponent<CanvasGroup>(), 1f, 0f, now + .35f, PopSeconds - .35f, UiTween.Ease.InQuad);
-        motions.Scale(text.rectTransform, 1.25f, 1f, now, .3f, UiTween.Ease.OutBack);
+        // Held for a moment, then gone: the alpha's motion shows its start (1) until it begins. 26 Oct 2026: the plate goes with it.
+        RectTransform holder = text == popSeats && popPlate != null ? popPlate : text.rectTransform;
+        motions.Alpha(holder.GetComponent<CanvasGroup>(), 1f, 0f, now + .35f, PopSeconds - .35f, UiTween.Ease.InQuad);
+        motions.Scale(holder, 1.25f, 1f, now, .3f, UiTween.Ease.OutBack);
     }
 
     void WriteSeats() { if (tillSeats != null) tillSeats.text = $"{seatsShown} seat{(seatsShown == 1 ? "" : "s")}"; }

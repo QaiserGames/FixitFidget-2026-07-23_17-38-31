@@ -21,6 +21,9 @@ using Debug = UnityEngine.Debug;
 //   Fixit Fidget > Lab queue > Write the full run into Logs/LabQueue/queue.txt   (the default list below)
 //   Fixit Fidget > Lab queue > Stop after the current entry
 //   Fixit Fidget > Lab queue > Status (what's running)
+//   Or, with no menu at all: a file Logs/LabQueue/run-request.txt (26 Oct 2026: his Mac's screen locks while he's away, and
+//   then nothing can press a menu, but the editor keeps ticking). While idle the queue looks for it every 5 s, takes it
+//   (renamed run-request-taken-<time>.txt, kept as the record) and runs queue.txt exactly as the menu does.
 //
 // The queue file: one entry per line, "#" starts a comment, blank lines are skipped, fields split by " | ":
 //   reimport
@@ -212,6 +215,36 @@ internal static class LabQueue
 
     // ---------- the menus ----------
 
+    // ---------- 26 Oct 2026 (his Mac, screen locked): a run asked for by a file ----------
+    // With his screen locked nothing can press a menu, but the editor keeps ticking. While the queue is idle it looks every
+    // 5 s for Logs/LabQueue/run-request.txt; when there is one, it takes it (renamed, kept as the record of who asked when)
+    // and runs queue.txt exactly as the menu does. Nothing else reads the file; it starts only what queue.txt lists.
+    const string RequestName = "run-request.txt";
+    static double nextRequestLook;
+
+    static void LookForARequest()
+    {
+        if (EditorApplication.timeSinceStartup < nextRequestLook) return;
+        nextRequestLook = EditorApplication.timeSinceStartup + 5.0;
+        if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
+        string request = Path.Combine(Folder, RequestName);
+        if (!File.Exists(request)) return;
+        string stamp = DateTime.Now.ToString("yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture);
+        // A request older than half an hour is stale (asked for while this code wasn't compiled yet, say): it never starts a run
+        // under him when he comes back to his Mac.
+        if ((DateTime.Now - File.GetLastWriteTime(request)).TotalMinutes > 30.0)
+        {
+            try { File.Move(request, Path.Combine(Folder, "run-request-stale-" + stamp + ".txt")); } catch (Exception) { }
+            Debug.LogWarning(Tag + "A run request older than 30 minutes was put aside, not run (" + RequestName + ").");
+            return;
+        }
+        string taken = Path.Combine(Folder, "run-request-taken-" + stamp + ".txt");
+        try { File.Move(request, taken); }
+        catch (Exception ex) { Debug.LogWarning(Tag + "A run request was found but couldn't be taken: " + ex.Message); return; }
+        Debug.Log(Tag + "A run was asked for by " + RequestName + " (taken as " + Path.GetFileName(taken) + "): running queue.txt.");
+        Run();
+    }
+
     [MenuItem(Menu + "Run the queue (Logs › LabQueue › queue.txt)")]
     static void Run()
     {
@@ -339,7 +372,7 @@ internal static class LabQueue
     static void Tick()
     {
         Phase phase = State;
-        if (phase == Phase.Idle) return;
+        if (phase == Phase.Idle) { LookForARequest(); return; }   // 26 Oct 2026: a run asked for by a file (see the header)
         Entry e = Current;
         if (e == null) { Finish(); return; }
 

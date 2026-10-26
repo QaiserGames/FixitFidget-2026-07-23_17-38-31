@@ -39,7 +39,9 @@ public class HoverTooltipUI : MonoBehaviour
     [SerializeField] private float appearDelay = 0.12f;
     [SerializeField] private float fadeSpeed = 12f;
 
-    const float NameSize = 26f, ActionSize = 22f, PadX = 14f, PadY = 8f, LineGap = 2f, EdgeKeep = 8f;
+    // 26 Oct 2026 (Readability; the gather: "Under the back cover" 22 px at 2.5:1 in all three of its photos): the action 24 px,
+    // and both lines carry the skin's shadow as well as the band, so they read wherever the plate's see-through band lands.
+    const float NameSize = 26f, ActionSize = 24f, PadX = 14f, PadY = 8f, LineGap = 2f, EdgeKeep = 8f;
     const float CupRadius = .011f;   // a cup's rim, metres (9 mm cup + a little), for "never over a screw cup"
 
     private string lastTitle = "";
@@ -74,6 +76,7 @@ public class HoverTooltipUI : MonoBehaviour
             nameText.fontStyle = FontStyles.Bold;
             nameText.fontSize = NameSize;
             Dress(nameText);
+            UiSkin.Shadowed(nameText);   // 26 Oct 2026 (Readability)
         }
         if (actionText != null)
         {
@@ -82,6 +85,7 @@ public class HoverTooltipUI : MonoBehaviour
             actionText.fontStyle = FontStyles.Bold;
             actionText.fontSize = ActionSize;
             Dress(actionText);
+            UiSkin.Shadowed(actionText);   // 26 Oct 2026 (Readability)
         }
         // Hidden from the first frame: the scene keeps the card's template words ("Name" / "Action") and a visible alpha,
         // and the fade below took a second to clear them off the floor of the first screen (13 Oct, the First Hour).

@@ -1,0 +1,377 @@
+{
+ "version": 1,
+ "kit": "drink_buttons",
+ "note": "Unity (x, y, z) = Blender (-x, z, -y). Each cap is built in its paddle's frame: parent DB_Cap_<Name> under \"<Name> ceramic paddle\" of BeverageDispenserV2 with no offset and no turn; its front faces the player as the paddle's does. place is the paddle's origin in the machine's Blender frame (x, y, z), for reference only.",
+ "press_travel": 0.009,
+ "cap": {
+  "across": 0.092,
+  "up": 0.098,
+  "front": -0.017,
+  "back": 0.02,
+  "label": 0.072,
+  "pixel": 0.00054,
+  "picture_px": 128
+ },
+ "buttons": [
+  {
+   "name": "Coffee",
+   "icon": "coffee",
+   "index": 0,
+   "place": [
+    -0.395,
+    -0.149,
+    0.469
+   ],
+   "pieces": {
+    "DB_Cap_Coffee": {
+     "tris": 292,
+     "size": [
+      0.092,
+      0.098,
+      0.039
+     ],
+     "front": -0.02,
+     "back": 0.02,
+     "materials": [
+      "BF_Coffee",
+      "DB_Ink",
+      "DB_Paper"
+     ],
+     "islands": 3,
+     "turned": 0
+    },
+    "DB_Picture_Coffee": {
+     "tris": 704,
+     "size": [
+      0.048,
+      0.055,
+      0.007
+     ],
+     "front": -0.026,
+     "back": -0.019,
+     "materials": [
+      "DB_Ink",
+      "DB_Brown",
+      "DB_Dark"
+     ],
+     "islands": 7,
+     "turned": 0
+    }
+   }
+  },
+  {
+   "name": "Tea",
+   "icon": "tea",
+   "index": 1,
+   "place": [
+    -0.237,
+    -0.149,
+    0.469
+   ],
+   "pieces": {
+    "DB_Cap_Tea": {
+     "tris": 292,
+     "size": [
+      0.092,
+      0.098,
+      0.039
+     ],
+     "front": -0.02,
+     "back": 0.02,
+     "materials": [
+      "BF_Tea",
+      "DB_Ink",
+      "DB_Paper"
+     ],
+     "islands": 3,
+     "turned": 0
+    },
+    "DB_Picture_Tea": {
+     "tris": 756,
+     "size": [
+      0.06,
+      0.064,
+      0.006
+     ],
+     "front": -0.026,
+     "back": -0.019,
+     "materials": [
+      "DB_Ink",
+      "DB_Paper",
+      "DB_Amber"
+     ],
+     "islands": 8,
+     "turned": 0
+    }
+   }
+  },
+  {
+   "name": "Cocoa",
+   "icon": "hotchocolate",
+   "index": 2,
+   "place": [
+    -0.079,
+    -0.149,
+    0.469
+   ],
+   "pieces": {
+    "DB_Cap_Cocoa": {
+     "tris": 292,
+     "size": [
+      0.092,
+      0.098,
+      0.039
+     ],
+     "front": -0.02,
+     "back": 0.02,
+     "materials": [
+      "BF_Cocoa",
+      "DB_Ink",
+      "DB_Paper"
+     ],
+     "islands": 3,
+     "turned": 0
+    },
+    "DB_Picture_Cocoa": {
+     "tris": 1024,
+     "size": [
+      0.048,
+      0.064,
+      0.007
+     ],
+     "front": -0.026,
+     "back": -0.019,
+     "materials": [
+      "DB_Ink",
+      "DB_Cocoa",
+      "DB_Paper"
+     ],
+     "islands": 9,
+     "turned": 0
+    }
+   }
+  },
+  {
+   "name": "Espresso",
+   "icon": "espresso",
+   "index": 3,
+   "place": [
+    0.079,
+    -0.149,
+    0.469
+   ],
+   "pieces": {
+    "DB_Cap_Espresso": {
+     "tris": 292,
+     "size": [
+      0.092,
+      0.098,
+      0.039
+     ],
+     "front": -0.02,
+     "back": 0.02,
+     "materials": [
+      "BF_Espresso",
+      "DB_Ink",
+      "DB_Paper"
+     ],
+     "islands": 3,
+     "turned": 0
+    },
+    "DB_Picture_Espresso": {
+     "tris": 828,
+     "size": [
+      0.049,
+      0.046,
+      0.007
+     ],
+     "front": -0.026,
+     "back": -0.019,
+     "materials": [
+      "DB_Ink",
+      "DB_Paper",
+      "DB_Dark",
+      "DB_Crema"
+     ],
+     "islands": 8,
+     "turned": 0
+    }
+   }
+  },
+  {
+   "name": "Americano",
+   "icon": "americano",
+   "index": 4,
+   "place": [
+    0.237,
+    -0.149,
+    0.469
+   ],
+   "pieces": {
+    "DB_Cap_Americano": {
+     "tris": 292,
+     "size": [
+      0.092,
+      0.098,
+      0.039
+     ],
+     "front": -0.02,
+     "back": 0.02,
+     "materials": [
+      "BF_Americano",
+      "DB_Ink",
+      "DB_Paper"
+     ],
+     "islands": 3,
+     "turned": 0
+    },
+    "DB_Picture_Americano": {
+     "tris": 340,
+     "size": [
+      0.044,
+      0.062,
+      0.007
+     ],
+     "front": -0.026,
+     "back": -0.019,
+     "materials": [
+      "DB_Ink",
+      "DB_Paper",
+      "DB_Brown",
+      "DB_PaperEdge"
+     ],
+     "islands": 7,
+     "turned": 0
+    }
+   }
+  },
+  {
+   "name": "Latte",
+   "icon": "latte",
+   "index": 5,
+   "place": [
+    0.395,
+    -0.149,
+    0.469
+   ],
+   "pieces": {
+    "DB_Cap_Latte": {
+     "tris": 292,
+     "size": [
+      0.092,
+      0.098,
+      0.039
+     ],
+     "front": -0.02,
+     "back": 0.02,
+     "materials": [
+      "BF_Latte",
+      "DB_Ink",
+      "DB_Paper"
+     ],
+     "islands": 3,
+     "turned": 0
+    },
+    "DB_Picture_Latte": {
+     "tris": 460,
+     "size": [
+      0.036,
+      0.059,
+      0.007
+     ],
+     "front": -0.026,
+     "back": -0.019,
+     "materials": [
+      "DB_Ink",
+      "DB_Latte",
+      "DB_Paper"
+     ],
+     "islands": 7,
+     "turned": 0
+    }
+   }
+  }
+ ],
+ "materials": {
+  "DB_Ink": {
+   "hex": "1f1b17",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "the icons' INK: outlines, handles, steam, the label's rim"
+  },
+  "DB_Paper": {
+   "hex": "f7f3ee",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "PAPER: the label, saucers, foam, the cream, the paper cup, the tea tag"
+  },
+  "DB_PaperEdge": {
+   "hex": "d6cfc5",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "PAPER_EDGE: the americano's lid"
+  },
+  "DB_Brown": {
+   "hex": "6b3f1f",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "the coffee mug, the americano's band"
+  },
+  "DB_Dark": {
+   "hex": "3b2314",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "the coffee's surface, the espresso cup"
+  },
+  "DB_Amber": {
+   "hex": "e0a83e",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "the teacup"
+  },
+  "DB_Cocoa": {
+   "hex": "8a5230",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "the hot chocolate mug"
+  },
+  "DB_Crema": {
+   "hex": "a86a3a",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "the espresso's crema"
+  },
+  "DB_Latte": {
+   "hex": "c99d6a",
+   "smoothness": 0.45,
+   "metallic": 0.0,
+   "why": "the latte glass"
+  }
+ },
+ "existing_materials": {
+  "BF_Coffee": {
+   "hex": "5c331a",
+   "use": "the machine's own; the cap of that drink"
+  },
+  "BF_Tea": {
+   "hex": "699445",
+   "use": "the machine's own; the cap of that drink"
+  },
+  "BF_Cocoa": {
+   "hex": "994a2b",
+   "use": "the machine's own; the cap of that drink"
+  },
+  "BF_Espresso": {
+   "hex": "384545",
+   "use": "the machine's own; the cap of that drink"
+  },
+  "BF_Americano": {
+   "hex": "4d7d8f",
+   "use": "the machine's own; the cap of that drink"
+  },
+  "BF_Latte": {
+   "hex": "cf994a",
+   "use": "the machine's own; the cap of that drink"
+  }
+ }
+}

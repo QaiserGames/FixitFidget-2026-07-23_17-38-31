@@ -19,6 +19,7 @@ using UnityEngine.UI;
 public sealed class NoticeMark : MonoBehaviour
 {
     const float Size = 54f;
+    const float GlyphTop = .75f;   // the "?"'s top, as a share of the disc's height from the bottom (26 Oct 2026, Readability)
     // Beside the head (reference pixels), so a bark over the head never covers it.
     static readonly Vector2 Beside = new Vector2(-58f, -14f);
     static readonly Color Amber = new Color(.96f, .7f, .24f, 1f), Red = new Color(.86f, .2f, .16f, 1f);
@@ -180,7 +181,10 @@ public sealed class NoticeMark : MonoBehaviour
         group.alpha = shown;
         fill.fillAmount = Mathf.Lerp(.1f, 1f, amount);
         fill.color = Color.Lerp(Amber, Red, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GraceNight.Third, 1f, amount)));
-        glyph.color = amount >= GraceNight.Third ? Paper : Ink;
+        // 26 Oct 2026 (Readability; the gather: the "?" at 1.7:1). The paper "?" came in at a third, while the fill was still under
+        // its top half: paper on the white disc. Now the "?" stays ink until the fill has passed it (three quarters up the disc;
+        // ink on the amber-to-red is 4.5:1 or more), then turns paper on the red.
+        glyph.color = amount >= GraceNight.Third && fill.fillAmount >= GlyphTop ? Paper : Ink;
     }
 
     // ---------------------------------------------------------------- the badge, drawn in code (as Juice draws its own)

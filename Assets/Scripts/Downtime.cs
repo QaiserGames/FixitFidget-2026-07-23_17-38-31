@@ -19,6 +19,14 @@ using UnityEngine;
 //     shelf has stock (it saves a stall later); a dirty table (seats are money); a seated guest with gossip; the thrift find
 //     (offered once the day's first customer has been heard; on Day 1, once Grace's visit is over). A customer always wins:
 //     these are offered only while nobody needs Ace.
+//     26 Oct 2026 (Days and first table): A FIND ALREADY BEGUN COMES BEFORE A TABLE (and a chat): the refill, then the find
+//     once it's on the bench's corner or in the close-up (ThriftShelf.Begun), then the tables, the gossip, a find not begun.
+//     His Mac's Day 2 and 3 runs never finished a find: guests leave a cup about every half minute, every cup came before the
+//     find, and a find left for a customer came back only once no cup was left, so 8-9 tables (6 s each) and 2 chats took
+//     60-66 of the 60-105 s nobody needed Ace and left 0-45 s for a 35-70 s find. For the player: start the find and the Now
+//     line keeps you on it until it's done (a customer still always wins); the cups wait, as cups do. A find not begun still
+//     comes after the tables and the gossip, as before, until it has been on offer for half a minute (integration, the same
+//     afternoon: FindsTurn): then it gets its turn before the cups too, or a busy day of cups would never point at it.
 //   * NOTHING TO DO: while the café is open or anyone is still inside, nobody needs Ace, there is nothing to do, and Ace isn't
 //     in the middle of a waiting job (the find in the close-up, a crate in hand, a chat just said).
 // CustomerSpawner asks it for the cap's retry and the quiet nudge (§3.1); the Now line for its quiet line (§6.4); DowntimeMeter
@@ -259,6 +267,27 @@ public static class Downtime
     /// <summary>The thrift find may be offered now: one on the shelf, unfinished, and the day has begun its teaching (§2.2).</summary>
     public static bool FindWanted => ThriftShelf.Instance != null && ThriftShelf.Instance.Offered;
 
+    // 26 Oct 2026 (integration, his Mac's afternoon run): THE FIND GETS ITS TURN. Guests leave a cup about every half minute, and
+    // a find nobody has begun waited behind every one of them: on his Mac's Day 2 and 3 runs it was begun only on days with a
+    // quiet start, so a player following the Now line might never be pointed at it. So once the find has been on offer for
+    // FindTurnSeconds of the day, it comes before the tables and the gossip (a cup waits; a customer still always wins).
+    /// <summary>How long the find is on offer before the Now line puts it ahead of the tables, seconds of the day.</summary>
+    public const float FindTurnSeconds = 30f;
+    static int findOfferedDay = -1;
+    static float findOfferedAt;
+
+    /// <summary>The find has been on offer today for at least Find Turn Seconds (false with no day clock: Edit mode).</summary>
+    public static bool FindsTurn
+    {
+        get
+        {
+            DayClock clock = DayClock.Instance;
+            if (!FindWanted || clock == null) return false;
+            if (findOfferedDay != clock.Day) { findOfferedDay = clock.Day; findOfferedAt = clock.SecondsIntoDay; }
+            return clock.SecondsIntoDay - findOfferedAt >= FindTurnSeconds;
+        }
+    }
+
     /// <summary>
     /// The first thing to do while waiting, in the Now line's order: a refill, a dirty table, a guest with gossip, the find.
     /// <paramref name="target"/> is what it's about (the back shelf, a cup, the guest, the find), for the pin. None (and null)
@@ -271,6 +300,13 @@ public static class Downtime
         {
             target = BackShelf.Instance;
             return Job.Refill;
+        }
+        // 26 Oct 2026 (Days and first table): a find already begun is finished before a cup (see the header); and (integration)
+        // one on offer for half a minute gets its turn before the cups too (FindsTurn).
+        if (FindWanted && (ThriftShelf.Instance.Begun || FindsTurn))
+        {
+            target = ThriftShelf.Instance.Find;
+            return Job.Find;
         }
         DirtyCup cup = NearestDirtyCup(from);
         if (cup != null)

@@ -129,6 +129,14 @@ public sealed class Day1GuideCheck : PlayLab
         Check(Mathf.Abs(guide.LineSize - DayOneGuideUI.FullSize) < .01f && DayOneGuideUI.FullSize >= 24f && DayOneGuideUI.TitleSize >= 20f,
             $"the step is drawn at {guide.LineSize:0} px (the rule: at least 24; the title {DayOneGuideUI.TitleSize:0}, at least 20)");
         Check(pins.SelfShowing && pins.SelfText == DayOneGuideUI.SelfWords, "\"You\" is pinned over Ace");
+        // 26 Oct 2026 (integration): why not, when it isn't (his Mac's afternoon run missed it once; the morning's passed).
+        if (!(pins.SelfShowing && pins.SelfText == DayOneGuideUI.SelfWords))
+        {
+            CafeViewMode overheadView = interactor != null ? interactor.GetComponent<CafeViewMode>() : null;
+            bool overhead = overheadView != null && overheadView.OverheadShown;
+            Note($"...why not: its words \"{pins.SelfText}\", its alpha {pins.SelfAlpha:0.00}, the intro playing {UiPins.DayIntroPlaying}, " +
+                 $"the overhead shown {overhead}, Ace at {(interactor != null ? interactor.transform.position : Vector3.zero)}");
+        }
         // 20 Oct (builder T's strip): the walk key is an icon now, so the check compares against the same helper the strip uses.
         Check(DayOneGuideUI.MovementHintWanted && shop.ViewHint.Contains(ControlHints.Walk) && shop.ViewHint.Contains("Move") && shop.ViewHint.Contains("Use"),
             $"Day 1's controls strip says how to walk and use: \"{Plain(shop.ViewHint)}\"");

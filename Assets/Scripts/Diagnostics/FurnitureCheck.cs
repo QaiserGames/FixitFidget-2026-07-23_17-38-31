@@ -49,6 +49,11 @@ using UnityEngine.UI;
 // AtClosing (below) is the half-finished café's evening for DayShapeCheck (§5.5): Fixit Fidget > Days > Lab - Day N at the
 // counter (half-finished café) runs the day on the café a new game opens (his answer r1: 10 seats), and at Day 1's
 // closing the Shop's badge and card, Arrange from its button, and the bistro placed where the ghost first waits.
+// 26 Oct 2026 (Days and first table): Day 1's first table is free (FurnitureRules.PriceToday; on his Mac a $70 Day 1 couldn't
+// buy the $80 bistro). AtClosing now proves the money moved right both ways: the card and the plate show "$80" struck and
+// "Free today", it is placed for $0 (the seats 10 -> 12, the sheets folded as before), the next table is full price again
+// (the square $90, the bistro $80; the plant $35 throughout), the free table sells back for $0 (never $40), and placed again
+// it is still $0 (a sale that gave nothing back makes a rebuy a move).
 // ---------------------------------------------------------------------------
 public sealed class FurnitureCheck : PlayLab
 {
@@ -447,14 +452,49 @@ public sealed class FurnitureCheck : PlayLab
         // 26 Oct 2026 (Mac run fix): how many sheets this first table folds is the rules' own answer for where the ghost waits
         // (on his Mac, (-4.75, 10.00) turned folds the west banquette's two sheets: 5 -> 3), not a fixed one.
         int folds = template != null ? layout.Sheets.Count(s => s != null && s.Lying && FurnitureRules.FoldsSheet(template.ShapeAt(at, arrange.GhostYaw), s.Area)) : 0;
+        // 26 Oct 2026 (Days and first table): the first table is free today, and its card and plate say so with the price struck.
+        FurnitureDefinition bistroKind = Kind(BistroKind), squareKind = Kind(SquareKind), plantKind = Kind("Plant");
+        string cardsBefore = arrange.Screen != null ? arrange.Screen.CardsLine : "";
+        string plateBefore = arrange.Screen != null ? arrange.Screen.PlateLine : "";
+        string freeCard = bistroKind != null ? $"{bistroKind.displayName} ${bistroKind.price} {FurnitureRules.FreeWords}" : "?";
+        check(bistroKind != null && squareKind != null && FurnitureRules.PriceToday(bistroKind) == 0 && FurnitureRules.PriceToday(squareKind) == 0
+              && (plantKind == null || FurnitureRules.PriceToday(plantKind) == plantKind.price)
+              && cardsBefore.Contains(freeCard) && plateBefore.Contains($"<s>${bistroKind.price}</s> {FurnitureRules.FreeWords}"),
+              $"...Day 1's first table is free: the bistro ${FurnitureRules.PriceToday(bistroKind)} and the square ${FurnitureRules.PriceToday(squareKind)} today " +
+              $"(the plant ${(plantKind != null ? FurnitureRules.PriceToday(plantKind) : -1)}); the strip {(cardsBefore.Contains(freeCard) ? "shows" : "does NOT show")} \"{freeCard}\" " +
+              $"and the plate {(plateBefore.Contains(FurnitureRules.FreeWords) ? "says" : "does NOT say")} it, the price struck (\"{plateBefore}\")");
+        if (bistroKind == null || squareKind == null) yield break;
         bool placed = first.Fits && arrange.PlaceNow();
         until = Time.realtimeSinceStartup + .5f;
         while (Time.realtimeSinceStartup < until) yield return null;   // the sheet folds in real time
         int lyingAfter = layout.Sheets.Count(s => s != null && s.Lying);
-        check(placed && till.Money == money - 80 && layout.Seats == 12 && folds >= 1 && lyingAfter == lying - folds,
-              $"...placed there: the till ${money} -> ${till.Money} (-$80), seats 10 -> {layout.Seats} (12), the sheets under it folded ({lying} -> {lyingAfter} lying; the rules say {folds})");
+        check(placed && till.Money == money && layout.Seats == 12 && folds >= 1 && lyingAfter == lying - folds,
+              $"...placed there for $0: the till ${money} -> ${till.Money} (${money}), seats 10 -> {layout.Seats} (12), the sheets under it folded ({lying} -> {lyingAfter} lying; the rules say {folds})");
+        PlacedPiece free = layout.Pieces.LastOrDefault(p => p != null && !p.FromScene && p.Kind == bistroKind);
+        yield return null;
+        string cardsAfter = arrange.Screen != null ? arrange.Screen.CardsLine : "";
+        check(free != null && layout.WasFree(free) && layout.SellBackOf(free) == 0 && layout.TableBought
+              && FurnitureRules.PriceToday(bistroKind) == bistroKind.price && FurnitureRules.PriceToday(squareKind) == squareKind.price
+              && !cardsAfter.Contains(FurnitureRules.FreeWords) && cardsAfter.Contains($"{bistroKind.displayName} ${bistroKind.price}"),
+              $"...then the next table is full price: the bistro ${FurnitureRules.PriceToday(bistroKind)} ({bistroKind.price}), the square ${FurnitureRules.PriceToday(squareKind)} ({squareKind.price}), " +
+              $"no \"{FurnitureRules.FreeWords}\" on the strip; the free one sells back for ${(free != null ? layout.SellBackOf(free) : -1)} ($0, never ${bistroKind.SellBack})");
         if (arrange.Screen != null) note("Day 1's first table, the Now card: " + arrange.Screen.NowTitle + " / " + arrange.Screen.NowLine);
         yield return photo("92-day1-first-table");
+        // 26 Oct 2026 (Days and first table): sold back, the free table gives $0; placed again where it was, it is still $0.
+        if (free != null)
+        {
+            Vector3 freeAt = free.Pivot;
+            float freeYaw = free.Yaw;
+            int before = till.Money;
+            bool sold = layout.Sell(free);
+            yield return null;
+            int afterSale = till.Money;
+            PlacedPiece again = sold ? layout.Buy(bistroKind, freeAt, freeYaw) : null;
+            yield return null;
+            check(sold && afterSale == before && again != null && till.Money == before && layout.Seats == 12 && layout.WasFree(again),
+                  $"...sold back it gives $0 (the till ${before} -> ${afterSale}), and placed again where it was it is still free " +
+                  $"(the till ${till.Money}, seats {layout.Seats} (12); {(again != null ? "placed" : layout.LastResult.ToString())})");
+        }
         arrange.BackNow();
         until = Time.realtimeSinceStartup + 3f;
         while (Time.realtimeSinceStartup < until && ArrangeMode.Active) yield return null;

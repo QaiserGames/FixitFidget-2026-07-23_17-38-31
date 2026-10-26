@@ -112,7 +112,7 @@ public sealed class PauseCheck : PlayLab
         Check(corners.Showing && corners.BottomShowing, "the HUD is up by day: the window top centre, the column top right (the sign, the jar, the stars) and the chips' corner");
         Check(corners.SignWord == "OPEN" && corners.FaceShowing == "OPEN" && !corners.LastOrders && !corners.SignClosed, $"the sign reads {corners.SignWord}");
         Check(corners.ClockLine.Contains(Weekdays.Label(clock.Day)), $"on the window's sill top centre, the time and the day: \"{corners.ClockLine}\"");   // 26 Oct 2026 (HUD 3)
-        Check(corners.ClockLineSize >= 20f, $"...the day line at {corners.ClockLineSize:0.#} px (22, or 20 for a long weekday, never less: her \"way too small\")");
+        Check(corners.ClockLineSize >= 21.9f, $"...the day line at {corners.ClockLineSize:0.#} px (24, or 22 before a long weekday goes short, never less: her \"way too small\"; 26 Oct 2026, Readability)");
         // Playtest 4 (the first hour: "Wednesday · Day 3 9:09 AM" ran together): the day line and the time each have room,
         // measured with the time at its widest, on today's line and on every weekday's (a long day number too).
         Check(corners.ClockGap >= 10f, $"...with room to spare between them on the sill ({corners.ClockGap:0} px with the time at its widest)");

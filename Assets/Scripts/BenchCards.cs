@@ -42,7 +42,7 @@ using UnityEngine.UI;
 // Flip it over?... It's just so tiny." and "your text needs to be bolder"; "Instead of writing out square, just put the icon."
 //   * READABLE: the verb under the current icon is 28 px bold (it was 17), the customer's line 22 (19), the controls card and
 //     the help hint 22 (18, 17), the finished line 24. The card keeps to UI/UX's zone U3 (480 x 168): the icons' disc is 58
-//     (64), the paddings 10 (12). A step with several pieces says "2 left" after its verb (22 px) instead of 6 px pips that
+//     (64), the paddings 10 (12). A step with several pieces says "2 left" after its verb (24 px since 26 Oct) instead of 6 px pips that
 //     nobody could read.
 //   * HONEST TICKS: a step is ticked only when it was done in this job (RepairChecklist: "Cover on" no longer ticks before
 //     the cover was ever off), and only the current step wears the soft disc: one icon lit at a time, the one to do.
@@ -58,16 +58,18 @@ public sealed class BenchCards : MonoBehaviour
     // ---- the paper card (reference pixels, 1920 x 1080; §5.2; the sizes of 19 Oct, the header) ----
     const float CardRight = UiSkin.Margin, CardTop = 132f;   // under the takings (18 + 92) with room for the "+$" pop
     const float CardMinWidth = 360f, CardMaxWidth = 480f;
-    const float PadX = 14f, PadY = 10f, LineSize = 22f, LineHeight = 28f, LineGap = 4f;
+    // 26 Oct 2026 (Readability; her ask: "your text needs to be bolder"; the gather found 21 of the bench's texts at 22 px): the
+    // customer's line, how many are left, the controls card and the hint 22 to 24, the line semibold.
+    const float PadX = 14f, PadY = 10f, LineSize = 24f, LineHeight = 30f, LineGap = 4f;
     const float Disc = 58f, BigIcon = 50f, SmallIcon = 32f, IconGap = 10f, VerbSize = 28f, VerbHeight = 30f;
-    const float LeftSize = 22f, BadgeSize = 20f, FinishedCheck = 40f, FinishedSize = 24f;
+    const float LeftSize = 24f, BadgeSize = 20f, FinishedCheck = 40f, FinishedSize = 24f;
     const float TapeWidth = 44f, TapeHeight = 14f;
     const int MostIcons = 8;
 
     // ---- the controls card and the hint (§5.5) ----
-    const float ControlsWidth = 400f, ControlsSize = 22f, ControlsPadX = 14f, ControlsPadY = 11f, Bottom = 26f;
-    const float HintSize = 22f, HintHeight = 40f;
-    const float ChipRow = 70f, LabNudge = 92f;   // HudCorners' stock chips (two lines each since 20 Oct: 62 px at a 70 px pitch) and the café lab's banner
+    const float ControlsWidth = 430f, ControlsSize = 24f, ControlsPadX = 14f, ControlsPadY = 11f, Bottom = 26f;
+    const float HintSize = 24f, HintHeight = 42f;
+    const float ChipRow = 74f, LabNudge = 92f;   // HudCorners' stock chips (two lines each since 20 Oct: 66 px at a 74 px pitch since 26 Oct) and the café lab's banner
 
     // ---- timing (UiClock seconds) ----
     const float RefreshEvery = .1f, HoldForControls = .35f, FlashSeconds = 1.5f;
@@ -863,8 +865,8 @@ public sealed class BenchCards : MonoBehaviour
         tape.localRotation = Quaternion.Euler(0f, 0f, -7f);
         UiSkin.Paint(tape, UiSkin.Brand, 2f);
 
-        // The customer's line at 22 px (19 Oct: "your text needs to be bolder"; the name in bold, SetLine).
-        lineText = UiSkin.Text("The customer's words", card, LineSize, UiSkin.Ink, TextAlignmentOptions.TopLeft, FontStyles.Normal, true);
+        // The customer's line at 24 px, semibold (19 Oct: "your text needs to be bolder"; the name in bold, SetLine; 26 Oct: 22 to 24).
+        lineText = UiSkin.Text("The customer's words", card, LineSize, UiSkin.Ink, TextAlignmentOptions.TopLeft, UiSkin.SemiBold, true);
 
         row = new GameObject("The steps", typeof(RectTransform)).GetComponent<RectTransform>();
         row.SetParent(card, false);
@@ -880,7 +882,7 @@ public sealed class BenchCards : MonoBehaviour
         finishedCheckImage.gameObject.SetActive(false);
         finishedText.gameObject.SetActive(false);
 
-        // The controls card and the hint, bottom right (22 px, semibold: they instruct).
+        // The controls card and the hint, bottom right (24 px since 26 Oct, semibold: they instruct).
         controls = BandCard("The controls", root, ControlsWidth, out controlsShadow, out controlsEdge, out _);
         controlsText = UiSkin.Text("Words", controls, ControlsSize, UiSkin.BandText, TextAlignmentOptions.TopLeft, FontStyles.Bold, true);
         controlsText.lineSpacing = 4f;

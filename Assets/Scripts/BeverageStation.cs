@@ -595,7 +595,7 @@ public sealed class BeverageStation : MonoBehaviour
             case Kind.HandsFull: return "Both hands are full";           // short: both cups are drawn either side of it
             case Kind.TakeACup: return "Take a cup";
             case Kind.TakeAnother: return "Take another cup";
-            case Kind.ToPaddle: return $"{look} at the {drink} paddle to pour";
+            case Kind.ToPaddle: return $"{look} at the {drink} button to pour";   // 26 Oct 2026 (Drink buttons): picture buttons now, no names on them
             case Kind.TakeDrink: return $"Take the {drink}";
             case Kind.TakeColdDrink: return $"Take the cold {drink}";
             case Kind.PlaceCup: return $"Place the cup under {drink}";

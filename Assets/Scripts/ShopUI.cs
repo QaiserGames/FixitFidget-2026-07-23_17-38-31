@@ -108,7 +108,7 @@ public class ShopUI : MonoBehaviour
             if (t != null) { UiSkin.UseFont(t); UiSkin.Shadowed(t); }
         if (viewHintText != null)
         {
-            // The strip: 22 px semibold on a dark rounded plate (19 Oct; see StripWords). The plate is a sibling drawn just
+            // The strip: 26 px semibold on a dark rounded plate (19 Oct; see StripWords). The plate is a sibling drawn just
             // under the text, sized to its words each time they change (Strip).
             UiSkin.UseFont(viewHintText);
             RectTransform r = viewHintText.rectTransform;
@@ -136,8 +136,9 @@ public class ShopUI : MonoBehaviour
         }
     }
 
-    // The strip's size and place (reference pixels): 22 px, 16 px of plate either side of the words, 8 above and below.
-    const float StripSize = 22f, StripHeight = 30f, StripBottom = 20f, StripPadX = 18f, StripPadY = 7f;
+    // The strip's size and place (reference pixels): 26 px (26 Oct 2026, Readability: 22 to 26, the gather's most-seen line,
+    // in 118 photos; three hints have the room), 18 px of plate either side of the words, 7 above and below.
+    const float StripSize = 26f, StripHeight = 34f, StripBottom = 20f, StripPadX = 18f, StripPadY = 7f;
     private RectTransform stripPlate;
 
     // Lays the plate under the strip's words (after the words changed).

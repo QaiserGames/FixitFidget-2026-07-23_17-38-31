@@ -80,10 +80,14 @@ public sealed class UiPins : MonoBehaviour
     public const float BarWidth = (int)(BaseBarWidth * BarScale), BarHeight = (int)(BaseBarHeight * BarScale);
     /// <summary>The job colour's dot beside the bar, its paper rim included.</summary>
     public const float TagDot = BaseTagDot + Grown;
+    // 26 Oct 2026 (Readability; her ask: "your text needs to be bolder"; the gather: "Drinks", "Dirty table", "Repair bench" at
+    // 21 px, a name over a head at 22). The words no longer keep with the bar's family: the name and Day 1's pins are 24, the
+    // house's floor for words a player reads, still the same as each other so the hand-over doesn't jump. The bar and dot keep
+    // the family above.
     /// <summary>The name over whoever or whatever E acts on.</summary>
-    public const float NameSize = BaseNameSize + Grown;
+    public const float NameSize = 24f;
     /// <summary>Day 1's green pin and "You".</summary>
-    public const float PinTextSize = BasePinTextSize + Grown;
+    public const float PinTextSize = 24f;
     const float BarGap = (int)(BaseGap * BarScale);   // from the head point down to the bar's top
     const float DotGap = (int)(BaseGap * BarScale);   // from the dot's right edge to the bar's left end
     const float TrackEdge = 1f;      // the dark track showing round the fill
@@ -293,7 +297,8 @@ public sealed class UiPins : MonoBehaviour
         all.interactable = false;
         // The bars first, so the names and pins draw over them.
         focus = MakePin("Name (what E acts on)", UiSkin.Band, UiSkin.BandText, NameSize, false);
-        guide = MakePin("Day 1's pin", UiSkin.Brand, UiSkin.Paper, PinTextSize, true);
+        // 26 Oct 2026 (Readability): the deep green (paper on it 7.6:1; on the brand green it was 4.5, the gather's typical "Drinks").
+        guide = MakePin("Day 1's pin", UiSkin.BrandDeep, UiSkin.Paper, PinTextSize, true);
         self = MakePin("You", UiSkin.Gold, UiSkin.Ink, PinTextSize, true);
         guide.bob = self.bob = true;
     }
@@ -511,9 +516,15 @@ public sealed class UiPins : MonoBehaviour
     // The thing the name is about counts, not only where it is drawn: when the name hangs below a customer at the till to
     // keep clear of Ace's head, it is still her name (20 Oct, the Day 1 lab's photo: "Valerie" in green over her head and
     // "Valerie" again under it, the commonest moment of the day, talking to whoever is at the till).
+    // 26 Oct 2026 (integration, his Mac's Day 3 lab: "Thrift phone" pinned twice): the same words over the same thing told two
+    // ways also count. The Now line points at the thrift find itself while E acts on its shelf or on its item, so the two pins
+    // name one thing from objects a parent apart or a hand apart: the name is enough there too.
     bool SameAsFocus()
     {
         if (focus == null || guide == null || !focus.wanted || !guide.wanted || !focus.placed) return false;
+        if (guide.who != null && focus.who != null && guide.text == focus.text
+            && (guide.who.IsChildOf(focus.who) || focus.who.IsChildOf(guide.who) || (guide.who.position - focus.who.position).sqrMagnitude < 2.25f))
+            return true;
         if (guide.who != null) return guide.who == focus.who || guide.who == focus.aboutWho;
         if (focus.who != null || focus.aboutWho != null) return false;
         return (focus.point - guide.point).sqrMagnitude < .36f || (focus.aboutPoint - guide.point).sqrMagnitude < .36f;

@@ -56,7 +56,7 @@ public static class DowntimeRules
     {
         Check((int)Downtime.Job.None == 0 && (int)Downtime.Job.Refill < (int)Downtime.Job.Table
               && (int)Downtime.Job.Table < (int)Downtime.Job.Gossip && (int)Downtime.Job.Gossip < (int)Downtime.Job.Find,
-            "the waiting jobs' order is P's: a refill, a dirty table, a guest with gossip, the find");
+            "the waiting jobs' order is P's: a refill, a dirty table, a guest with gossip, the find (26 Oct 2026: a find already begun comes right after the refill, Downtime.Next)");
 
         var words = new List<(string what, string line)>
         {

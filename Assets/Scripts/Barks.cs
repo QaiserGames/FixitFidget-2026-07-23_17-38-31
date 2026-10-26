@@ -729,6 +729,7 @@ public sealed class Barks : MonoBehaviour
     // ================================================================== where a line sits
 
     const float TailHeight = 10f, TailGap = 6f, PadLeft = 25f, PadRight = 18f, PadY = 7f, ChipGap = 14f;
+    const float AskMaxWidth = 820f;   // the widest plate an ask may take to keep its chip (26 Oct 2026, Readability; see Dress)
 
     // Runs just before the canvases are drawn, after every camera has moved this frame.
     void Place()
@@ -966,7 +967,7 @@ public sealed class Barks : MonoBehaviour
         chipStack.root.gameObject.SetActive(false);
     }
 
-    const float FooterSize = 22f, FooterGap = 8f, ChipGapBetween = 6f;
+    const float FooterSize = 24f, FooterGap = 8f, ChipGapBetween = 6f;   // 26 Oct 2026 (Readability): the replies' key line 22 to 24
 
     // Sized to their words once, when they come up (never per frame); drawn again only when the highlight moves.
     void ShowChips(NightLines.Choice choice)
@@ -1111,8 +1112,26 @@ public sealed class Barks : MonoBehaviour
         v.accent.color = colour;
         v.arrow.color = colour;
         float textMax = maxWidth - PadLeft - PadRight;
+        // 26 Oct 2026 (Night 2's lab, the real cause, found on his Mac's afternoon run): the plate draws its words plain (rich
+        // text off, since 19 Oct), so a chip's <sprite> tag was measured as its letters, some 300 px, and "a chip never costs a
+        // line" always said no: his ask never wore its chip, on any plate. Rich text is on while a line that may wear a chip is
+        // measured, and stays on only when it does wear one; every other line is drawn plain, as before.
+        v.text.richText = !string.IsNullOrEmpty(v.icon);
         // 26 Oct 2026 (Icons on notes): the chip before the words when it costs no line (v.line stays the words, for the labs).
-        string chip = NoteIcons.Chip(v.text, v.icon, v.line, textMax), shown = chip + v.line;
+        string chip = NoteIcons.Chip(v.text, v.icon, v.line, textMax);
+        // 26 Oct 2026 (Readability; Night 2's lab: "his ask wears the cups chip ... ('Grace has a box of cups. Get me a sleeve.': '')").
+        // A fallback for a long ask: when the chip would cost a line on the 560 px plate ("a chip never costs a line", NoteIcons),
+        // a line that wears a chip may take a wider plate, AskMaxWidth, if that is what lets the chip on: the ask keeps its
+        // picture, the rule keeps its line, and every other line keeps the 560 px plate. (The lab's miss itself was the plain
+        // text above, not the width.)
+        if (chip.Length == 0 && !string.IsNullOrEmpty(v.icon) && AskMaxWidth > maxWidth)
+        {
+            float wider = AskMaxWidth - PadLeft - PadRight;
+            string roomier = NoteIcons.Chip(v.text, v.icon, v.line, wider);
+            if (roomier.Length > 0) { chip = roomier; textMax = wider; }
+        }
+        v.text.richText = chip.Length > 0;   // 26 Oct 2026: plain words unless the chip is drawn (see above)
+        string shown = chip + v.line;
         v.text.text = shown;
         Vector2 preferred = v.text.GetPreferredValues(shown, textMax, 0f);
         float lineHeight = fontSize * 1.32f;

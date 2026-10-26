@@ -161,12 +161,28 @@ public sealed class CafeLabDirector : MonoBehaviour
     // that is left. A table and a chat are one press through the game's own Interact; a refill is ShopInventory.Refill; the
     // find is a bench job's time at the bench, then the labs' hand (FinishByHand). A customer always wins: the find's work
     // stops the moment somebody needs Ace and goes on later where it was (his p6).
+    // 26 Oct 2026 (Days and first table): THE FIND IS WORKED AT THE BENCH, AS A PLAYER WORKS IT. On his Mac's Day 2 and Day 3
+    // runs the autopilot never finished a find ("0 time(s) at the find" on every run), for two reasons:
+    //   * the time: every dirty table came before the find on the Now line, and a find left for a customer came back only once
+    //     no cup was left; guests leave a cup about every half minute, so of the 60-105 s nobody needed Ace, 8-9 tables (6 s
+    //     each) and 2 chats took 60-66, leaving 0-45 s for a 35-70 s find. Downtime.Next now puts a find that's been begun
+    //     before the tables (a player's own unfinished work is finished before a cup: the cup waits, a customer never does);
+    //   * the hand: Day 2's cracked screen is under the phone's back cover and its two screws (PhoneRepair.prefab), and the old
+    //     hand (FinishByHand) pressed the part in one frame: ReplaceablePart.Activate does nothing while it is covered, and is a
+    //     self-timed swap anyway, so CanHandBack read the same frame was false. The find now goes to the bench's corner and into
+    //     the close-up the player's way (ThriftShelf.Interact, or PlayerInteractor.WorkOn from its corner); its work time is spent
+    //     there (Downtime counts it as time on the find), then the labs' hand does its steps in the order the work goes, waiting
+    //     for each piece to land (StationsCheck's LabHand: the screws out, the cover off, the part, then the cover on and the
+    //     screws in; the grime and the circuit as before). A customer still always wins: the close-up closes and the hand stops,
+    //     to go on later where the device is.
     [Header("Waiting jobs at human speed (seconds)")]
     public float humanTable = 6f;
     public float humanChat = 6f;
     public float humanRefill = 8f;
     public Vector2 humanFind = new Vector2(35f, 70f);
     private float findWorkUntil = -1f, findLeft = -1f;
+    private bool findHand;                    // 26 Oct 2026: the labs' hand is at the find in the close-up
+    private Coroutine findHandRoutine;
     /// <summary>What the autopilot did while waiting this session (the Day labs' notes).</summary>
     public int TablesCleared { get; private set; }
     public int Chats { get; private set; }
@@ -236,7 +252,12 @@ public sealed class CafeLabDirector : MonoBehaviour
         if (blocker != null && Time.time >= blockerUntil) ClearBlocker();
         if (!Autopilot || Time.time < nextTick) return;
         nextTick = Time.time + .25f;
-        if (DayClock.Instance != null && DayClock.Instance.DayOver) return;
+        if (DayClock.Instance != null && DayClock.Instance.DayOver)
+        {
+            // 26 Oct 2026 (Days and first table): the day ended with the find in the close-up: out of it, as it is.
+            if (findWorkUntil >= 0f || findHand) { findWorkUntil = -1f; findLeft = -1f; StopTheHand(); LeaveTheFind(); }
+            return;
+        }
         RunAutopilot();
     }
 
@@ -327,9 +348,12 @@ public sealed class CafeLabDirector : MonoBehaviour
     // A customer always wins (his p6): the find's work stops the moment somebody needs Ace, to go on later where it was.
     private void GiveWayForCustomers(float now)
     {
-        if (findWorkUntil < 0f || Downtime.NobodyNeedsAce) return;
-        findLeft = Mathf.Max(1f, findWorkUntil - now);
+        if (findWorkUntil < 0f && !findHand || Downtime.NobodyNeedsAce) return;
+        // 26 Oct 2026 (Days and first table): the hand stops too, and the close-up closes (the device stays as it is).
+        findLeft = findWorkUntil >= 0f ? Mathf.Max(1f, findWorkUntil - now) : 1f;
         findWorkUntil = -1f;
+        StopTheHand();
+        LeaveTheFind();
         handsFreeAt = Mathf.Min(handsFreeAt, now);
         Note($"left the thrift find for a customer ({findLeft:0} s of it to go)");
     }
@@ -338,15 +362,15 @@ public sealed class CafeLabDirector : MonoBehaviour
     private void WaitingJobs(float now)
     {
         if (DayClock.Instance == null || DayClock.Instance.DayOver) return;
+        if (findHand) return;   // 26 Oct 2026: the labs' hand is at the find (TheLabsHand)
         if (findWorkUntil >= 0f)
         {
             if (now < findWorkUntil) return;
             findWorkUntil = -1f;
             findLeft = -1f;
-            JobBase find = ThriftShelf.Instance != null ? ThriftShelf.Instance.Find : null;
-            bool whole = find != null && FinishByHand(find);
-            FindsWorked++;
-            Note(whole ? "finished the thrift find (the labs' hand)" : "worked on the thrift find; the labs' hand couldn't finish it");
+            // 26 Oct 2026 (Days and first table): the steps in the close-up, each piece landing before the next (TheLabsHand).
+            findHand = true;
+            findHandRoutine = StartCoroutine(TheLabsHand());
             return;
         }
         if (now < handsFreeAt || !Downtime.NobodyNeedsAce) return;
@@ -385,10 +409,161 @@ public sealed class CafeLabDirector : MonoBehaviour
                 break;
             case Downtime.Job.Find:
                 float work = findLeft > 0f ? findLeft : Range(humanFind);
+                bool atBench = OpenTheFind(ace);   // 26 Oct 2026: on the bench's corner, in the close-up, as a player works it
                 findWorkUntil = handsFreeAt = now + work;
-                Note($"works on the thrift find ({work:0} s at the bench)");
+                Note($"works on the thrift find ({work:0} s at the bench{(atBench ? ", in the close-up" : "; the close-up didn't open")})");
                 break;
         }
+    }
+
+    // ---------- 26 Oct 2026 (Days and first table): the find at the bench, the player's way ----------
+
+    // The find to the bench's corner and into the close-up (ThriftShelf.Interact from its shelf: it flies, then the close-up
+    // opens; PlayerInteractor.WorkOn from its corner), with Ace standing at the bench as the find-gives-way lab stands him.
+    private bool OpenTheFind(PlayerInteractor ace)
+    {
+        ThriftShelf shelf = ThriftShelf.Instance;
+        if (shelf == null || shelf.Find == null || ace == null) return false;
+        if (shelf.InTheCloseUp) return true;
+        ItemSlotArea bench = null;
+        foreach (ItemSlotArea area in FindObjectsByType<ItemSlotArea>(FindObjectsInactive.Exclude))
+            if (area != null && area.SideSlot != null) { bench = area; break; }
+        if (bench != null) MoveAce(bench.transform.position + bench.transform.forward * .9f, bench.transform.eulerAngles.y + 180f);
+        if (shelf.OnTheShelf && shelf.IsAvailable) { shelf.Interact(ace); return true; }
+        if (shelf.OnTheCorner)
+        {
+            ItemInteractable item = shelf.Find.GetComponentInChildren<ItemInteractable>();
+            return item != null && ace.WorkOn(item);
+        }
+        return false;
+    }
+
+    // The close-up closed on the find, if it's open (a customer, the day's end): the device stays on its corner as it is.
+    private static void LeaveTheFind()
+    {
+        ThriftShelf shelf = ThriftShelf.Instance;
+        if (shelf != null && shelf.InTheCloseUp && ItemInspector.Instance != null) ItemInspector.Instance.CancelInspection();
+    }
+
+    private void StopTheHand()
+    {
+        if (findHandRoutine != null) StopCoroutine(findHandRoutine);
+        findHandRoutine = null;
+        findHand = false;
+    }
+
+    // The steps in the order the work goes (StationsCheck.LabHand's order, Activate being what a tool's click calls), each
+    // piece landing before the next; then out of the close-up. Stopped by GiveWayForCustomers the moment somebody needs Ace.
+    private System.Collections.IEnumerator TheLabsHand()
+    {
+        ThriftShelf shelf = ThriftShelf.Instance;
+        JobBase find = shelf != null ? shelf.Find : null;
+        PlayerCarry hands = PlayerCarry.Current;
+        PlayerInteractor ace = hands != null ? hands.GetComponent<PlayerInteractor>() : null;
+        if (find != null && !shelf.InTheCloseUp) OpenTheFind(ace);
+        float openBy = Time.time + 3f;
+        while (find != null && shelf != null && !shelf.InTheCloseUp && Time.time < openBy) yield return null;
+        bool inCloseUp = find != null && shelf != null && shelf.InTheCloseUp;
+        int steps = 0;
+        if (inCloseUp)
+        {
+            for (int step = 0; step < 60 && find != null && !find.IsFinished; step++)
+            {
+                if (DayClock.Instance == null || DayClock.Instance.DayOver || !shelf.InTheCloseUp) break;
+                Component did = NextStep(find);
+                if (did == null)
+                {
+                    float wait = Time.time + .3f;   // something on its way (a screw, the cover): wait for it
+                    while (Time.time < wait) yield return null;
+                    continue;
+                }
+                steps++;
+                float landBy = Time.time + 4f;
+                while (Time.time < landBy && !Settled(did)) yield return null;
+                float beat = Time.time + .15f;
+                while (Time.time < beat) yield return null;
+            }
+            yield return null;   // the last grime goes at the end of its frame
+        }
+        else if (find != null) FinishByHand(find);   // the close-up wouldn't open (its corner taken): the one-frame hand
+        yield return null;
+        bool whole = find != null && find.IsFinished;
+        // Closed by itself mid-way (ThriftShelf.GiveWay: someone reached the counter): a moment's work is left, to go on later
+        // where the device is. Still open with work left: the hand ran out of steps (the note says what was left).
+        bool gaveWay = !whole && inCloseUp && !shelf.InTheCloseUp;
+        FindsWorked++;
+        LeaveTheFind();
+        findLeft = gaveWay ? 1f : -1f;
+        Note(whole ? $"finished the thrift find (the labs' hand, {steps} step(s), in the close-up)"
+                   : $"worked on the thrift find; the labs' hand couldn't finish it ({steps} step(s); {(find is RepairJob r ? "left: " + r.MissedWords() : "?")})");
+        findHandRoutine = null;
+        findHand = false;
+    }
+
+    // The next step on a device, in the order the work goes: what needs no opening first (the grime, the circuit, a part in
+    // reach), then the screws out and the cover off only while a part is still covered; once it's whole, the cover home and
+    // the screws in. Null when every piece is on its way somewhere.
+    private static Component NextStep(JobBase job)
+    {
+        var parts = new List<Component>(job.GetComponentsInChildren<Component>());
+        foreach (GameObject loose in job.DetachedParts)
+            if (loose != null) parts.AddRange(loose.GetComponentsInChildren<Component>());
+        if (job.Quality < .999f)
+        {
+            foreach (Component c in parts)
+                if (c is GrimeSpot g && g != null && !g.IsClean) { g.Scrub(1e6f); return g; }
+            foreach (Component c in parts)
+                if (c is CircuitPuzzle puzzle && puzzle != null && !puzzle.Finished) { SolveCircuit(puzzle); return puzzle; }
+            foreach (Component c in parts)
+                if (c is ReplaceablePart inReach && inReach.CanInteract) { inReach.Activate(); return inReach; }
+            bool covered = false;
+            foreach (Component c in parts)
+                if (c is ReplaceablePart unfitted && !unfitted.IsReplaced) covered = true;
+            if (!covered) return null;
+            foreach (Component c in parts)
+                if (c is ScrewTarget seated && seated.GetComponent<Screw>() != null && !seated.GetComponent<Screw>().IsOut && seated.CanInteract) { seated.Activate(); return seated; }
+            foreach (Component c in parts)
+                if (c is RemovablePart onIt && !onIt.IsRemoved && onIt.CanInteract) { onIt.Activate(); return onIt; }
+            return null;
+        }
+        foreach (Component c in parts)
+            if (c is RemovablePart off && off.IsRemoved && off.CanInteract) { off.Activate(); return off; }
+        foreach (Component c in parts)
+            if (c is ScrewTarget loose && loose.GetComponent<Screw>() != null && loose.GetComponent<Screw>().IsOut && loose.CanInteract) { loose.Activate(); return loose; }
+        return null;
+    }
+
+    // A step's piece has landed: no longer busy or flying, in its place or back on the device (StationsCheck.Settled's rule).
+    private static bool Settled(Component did)
+    {
+        if (did == null) return true;
+        BenchStage stage = BenchStage.Instance;
+        switch (did)
+        {
+            case ScrewTarget target:
+            {
+                Screw screw = target.GetComponent<Screw>();
+                return screw == null || !screw.IsBusy && !screw.Flying && (!screw.IsOut || screw.InCup && (stage == null || stage.InPlace(screw)));
+            }
+            case RemovablePart cover:
+                return !cover.Flying && !cover.Popping && (cover.State == RemovablePart.CoverState.Seated || cover.InWell && (stage == null || stage.InPlace(cover)));
+            case ReplaceablePart part:
+                return part.IsReplaced && (stage == null || !stage.IsFlying(part));
+            case CircuitPuzzle puzzle:
+                return puzzle.Finished;
+            default:
+                return true;
+        }
+    }
+
+    // The circuit put right and run (24 Oct's hand): every tile turned to its opening, a halted run retried, then ticked through.
+    private static void SolveCircuit(CircuitPuzzle c)
+    {
+        CircuitRun run = c.Run;
+        for (int i = 0; i < run.Count; i++)
+            for (int t = 0; t < 4 && !run.IsAligned(i); t++) run.Turn(i);
+        run.Retry();   // only acts on a halted run (one already stopped at a wrong tile)
+        for (int k = 0; k < 4 * run.Count + 8 && !run.Finished; k++) run.Tick(1f, true, 8f);
     }
 
     /// <summary>

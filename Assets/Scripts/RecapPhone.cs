@@ -79,6 +79,14 @@ using Object = UnityEngine.Object;
 // app the tab calls Shop is headed "Shop" (it said "Supplies"), and Notes says "Press a name for everything" (nothing is
 // tapped on a PC or a pad). The hint under the phone is 22 px with the buttons as icons.
 //
+// 26 OCT 2026 (Readability; her ask again: "your text needs to be bolder"; the day's word gather found 168 of the phone's texts
+// under the floor, most at 16-18 px). One type table (TypeBody and the rest, by the sizes) in place of a size at every line:
+// every line a player reads 24 px, the kickers, chips and verdicts 22, the tab names and badges' digits 20 (secondary labels),
+// Close up 26, an app's title 32. So the words wrap where they did, the phone is drawn wider (620, was 470) and a little taller
+// (990, was 960; it rests 28 up, so the hint under it keeps clear); Tonight is still one screen. The open tab's name is in the
+// accent's ink, the badges on the price's deeper orange, a greyed price in OffInk (each 4.5:1 or more), and the hint under the
+// phone 24 px with the skin's shadow (it sits over the café).
+//
 // THE PHONE BY DAY (playtest 3, session 3, 7 Oct 2026; claude/playtest-3-sessions-2-6-plan.md §3.4). A second phone, made
 // by PausePhone, is the pause: Esc (or Start) when nothing else is open brings it up and holds the game still. It is
 // this phone in another mode, so it looks, scrolls and steers the same, with fewer apps:
@@ -165,7 +173,8 @@ public sealed class RecapPhone : MonoBehaviour
     // orange 3.6. The chips and boxes keep their colours; only the words on them are deeper, each 4.5:1 or more (WCAG AA
     // for small text): TextOn maps the brand's colour to its ink, and a price's pill is a deeper orange (4.6:1 under white).
     static readonly Color AccentText = Hex(0x944915), GreenText = Hex(0x256a4c), RedText = Hex(0x9e3a30),
-        GoldText = Hex(0x86560a), PriceOrange = Hex(0xb35f22), LikedInk = Hex(0x5a7d2c), LikedText = Hex(0x4a6a22);
+        GoldText = Hex(0x86560a), PriceOrange = Hex(0xb35f22), LikedInk = Hex(0x5a7d2c), LikedText = Hex(0x4a6a22),
+        OffInk = Hex(0x5c554e);   // 26 Oct 2026 (Readability): a greyed button's words, 5.5:1 on ButtonOff (TabOff was 3.9)
 
     /// <summary>The colour words take on a pale chip of the given colour: deeper, so they read (see above).</summary>
     static Color TextOn(Color ink)
@@ -185,12 +194,28 @@ public sealed class RecapPhone : MonoBehaviour
 
     // ------------------------------------------------------------------ sizes, in the canvas's 1080-high units
 
-    const float PhoneWidth = 470f, PhoneHeight = 960f, BezelWidth = 14f;
+    // 26 Oct 2026 (Readability; her ask: "your text needs to be bolder"; the word gather found the phone's lines at 16-18 px).
+    // The phone is drawn wider (470 to 620) and a little taller (960 to 990), so its words could grow by a third (the type
+    // table below) and still wrap where they did: a review line holds about as many words a line at 24 px in the wider phone as
+    // it held at 18 in the old one, so Tonight stays one screen. 620 x 990 is still a phone's shape (about 1:1.6).
+    const float PhoneWidth = 620f, PhoneHeight = 990f, BezelWidth = 14f;
     const float DisplayWidth = PhoneWidth - 2f * BezelWidth, DisplayHeight = PhoneHeight - 2f * BezelWidth;
     const float StatusHeight = 54f, TabsHeight = 76f, CloseHeight = 56f, CloseGap = 10f;
     const float Pad = 18f;                                     // the apps' side margin
     const float ContentWidth = DisplayWidth - 2f * Pad;        // a card's width
     const float CardPadX = 16f, CardGap = 10f;
+
+    // 26 Oct 2026 (Readability): the phone's type, one table instead of a size at every line. Every line a player reads is
+    // TypeBody (it was 18 px); the small all-caps kickers, chips and verdicts TypeLabel (16); the tab names and the badges'
+    // digits are secondary labels, at the house's 20 px floor (16 and 14). Builders-common: "at least 24 px at 1080p (20 px
+    // only for a secondary label), the most important line 28-34 px".
+    const float TypeBody = 24f;     // a review line, a fact, a row's name and its line, the day's lines
+    const float TypeLabel = 22f;    // WEDNESDAY · DAY 3, "Loved it", "New star!", "regular", a section's heading
+    const float TypeTab = 20f;      // the tab bar's names (each under its icon)
+    const float TypeBadge = 20f;    // a badge's "2" or "!"
+    const float TypeButton = 26f;   // Close up for the night / Back to work
+    const float TypeLead = 28f;     // the café's level under its stars
+    const float TypeTitle = 32f;    // an app's title
     const float ScrollSpeed = 1100f;                           // keys and the right stick, per second
     const float Unbounded = 100000f;
     // TextMesh Pro's bold is the regular letters thickened, which spreads them out; this pulls them back
@@ -207,7 +232,7 @@ public sealed class RecapPhone : MonoBehaviour
     // target 0.12-0.18), an arrival eases out (quint for what must land precisely, a gentle back for what may settle), an exit
     // eases in, and the whole of an app switch is over within 0.25 s (RecapPhoneCheck holds it to that). Each is one number here.
 
-    const float PhoneY = 14f;                                   // the phone's rest, a little above the screen's middle
+    const float PhoneY = 28f;                                   // the phone's rest, a little above the screen's middle (26 Oct: 14 to 28, so the taller phone keeps clear of the hint under it)
     const float RiseSeconds = .18f, RiseDistance = 240f, RiseFade = .09f;      // out of the pocket: from below, a slight overshoot
     const float DropSeconds = .14f, DropDistance = 200f;                       // put away: down and out, faster as it goes
     const float SlideSeconds = .16f, SlideShare = 1f / 3f;                     // another app: in from a third of the width
@@ -428,8 +453,10 @@ public sealed class RecapPhone : MonoBehaviour
         RectTransform hint = Anchored("Controls", screen, new Vector2(.5f, 0f), new Vector2(0f, 12f), new Vector2(1600f, 30f));
         hint.pivot = new Vector2(.5f, 0f);
         hintText = hint.gameObject.AddComponent<TextMeshProUGUI>();
-        // 22 px, rich text on: the buttons are icons (19 Oct 2026, ControlHints).
-        Style(hintText, 22f, Cream, TextAlignmentOptions.Center, false, UiSkin.SemiBold, true);
+        // 22 px, rich text on: the buttons are icons (19 Oct 2026, ControlHints). 26 Oct 2026 (Readability): 24 px, and the skin's
+        // shadow under it: it is words over the (dimmed) café, which the gather caught at 1.3:1 where the café was bright.
+        Style(hintText, TypeBody, Cream, TextAlignmentOptions.Center, false, UiSkin.SemiBold, true);
+        UiSkin.Shadowed(hintText);
 
         UpdateTabs();
         Root.SetActive(false);
@@ -443,8 +470,8 @@ public sealed class RecapPhone : MonoBehaviour
     void BuildStatusBar(RectTransform display)
     {
         Paint(Box("Notch", display, (DisplayWidth - 128f) / 2f, 12f, 128f, 32f), Bezel, 16f);
-        clockText = Words(display, "", 34f, 20f, 120f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
-        Place(clockText.rectTransform, 34f, 18f, 130f, 26f);
+        clockText = Words(display, "", 34f, 20f, 120f, TypeBody, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        Place(clockText.rectTransform, 34f, 16f, 150f, 30f);
         clockText.alignment = TextAlignmentOptions.MidlineLeft;
         // A battery, for the look: an outline, a charge and a nub. (No number: nothing to report.)
         RectTransform battery = Box("Battery", display, DisplayWidth - 34f - 30f, 24f, 28f, 14f);
@@ -479,7 +506,7 @@ public sealed class RecapPhone : MonoBehaviour
         closeRect = rect;
         Image back = Paint(rect, Ink, 16f);
         CloseButton = Pressable(rect, back, null, null, dark: true);
-        CloseLabel = Words(rect, Kind == Mode.Recap ? RecapUI.NightLabel : "Back to work", 0f, 0f, ContentWidth, 20f, Color.white,
+        CloseLabel = Words(rect, Kind == Mode.Recap ? RecapUI.NightLabel : "Back to work", 0f, 0f, ContentWidth, TypeButton, Color.white,
             TextAlignmentOptions.Center, wrap: false, style: FontStyles.Bold, rich: false);
         Place(CloseLabel.rectTransform, 0f, 0f, ContentWidth, CloseHeight);
     }
@@ -498,7 +525,8 @@ public sealed class RecapPhone : MonoBehaviour
         CentrePivot(tabPill);
         float cell = DisplayWidth / Visible.Length;
         Sprite[] icons = { moon, star, house, bag, note, gear };
-        Color[] badgeColours = { Accent, Accent, Gold, Red, Accent, Accent };
+        // 26 Oct 2026 (Readability): white on the accent was 3.6:1 (the gather's "2" and "6"); the price's deeper orange is 4.6.
+        Color[] badgeColours = { PriceOrange, PriceOrange, Gold, Red, PriceOrange, PriceOrange };
         for (int i = 0; i < Apps; i++)
         {
             RectTransform tab = Box(AppNames[i], bar, i * cell, 1f, cell, TabsHeight - 9f);
@@ -511,11 +539,11 @@ public sealed class RecapPhone : MonoBehaviour
             tabs[i] = button;
             tabIcons[i] = Picture(tab, icons[i], TabOff, cell / 2f - 13f, 10f, 26f, 26f);
             CentrePivot(tabIcons[i].rectTransform);   // it pops about its middle (Place keeps its corner where it was)
-            tabLabels[i] = Words(tab, AppNames[i], 0f, 40f, cell, 16f, Soft, TextAlignmentOptions.Top, style: FontStyles.Bold, rich: false);
+            tabLabels[i] = Words(tab, AppNames[i], 0f, 40f, cell, TypeTab, Soft, TextAlignmentOptions.Top, style: FontStyles.Bold, rich: false);
 
-            RectTransform badge = Box("Badge", tab, cell / 2f + 7f, 3f, 22f, 22f);
-            Paint(badge, badgeColours[i], 11f);
-            TMP_Text count = Words(badge, "", 0f, 0f, 22f, 14f, Color.white, TextAlignmentOptions.Center, wrap: false,
+            RectTransform badge = Box("Badge", tab, cell / 2f + 7f, 1f, 26f, 26f);   // 26 Oct 2026 (Readability): 22 to 26, for 20 px digits
+            Paint(badge, badgeColours[i], 13f);
+            TMP_Text count = Words(badge, "", 0f, 0f, 26f, TypeBadge, Color.white, TextAlignmentOptions.Center, wrap: false,
                 style: FontStyles.Bold, rich: false);
             RectTransform countRect = count.rectTransform;
             countRect.anchorMin = Vector2.zero;
@@ -1239,9 +1267,9 @@ public sealed class RecapPhone : MonoBehaviour
         motions.MoveX(tabPill, pillWas, tabPill.anchoredPosition.x, t0, PillSeconds, UiTween.Ease.OutBack);
         int a = (int)was, b = (int)now;
         motions.Colour(tabIcons[a], Accent, TabOff, t0, TabColourSeconds, UiTween.Ease.OutCubic);
-        motions.Colour(tabLabels[a], Accent, TabOff, t0, TabColourSeconds, UiTween.Ease.OutCubic);
+        motions.Colour(tabLabels[a], AccentText, TabOff, t0, TabColourSeconds, UiTween.Ease.OutCubic);
         motions.Colour(tabIcons[b], TabOff, Accent, t0, TabColourSeconds, UiTween.Ease.OutCubic);
-        motions.Colour(tabLabels[b], TabOff, Accent, t0, TabColourSeconds, UiTween.Ease.OutCubic);
+        motions.Colour(tabLabels[b], TabOff, AccentText, t0, TabColourSeconds, UiTween.Ease.OutCubic);
     }
 
     // A tab's icon pops (1 to PopScale and back, about its middle).
@@ -1626,7 +1654,8 @@ public sealed class RecapPhone : MonoBehaviour
         {
             Color colour = i == (int)Current ? Accent : TabOff;
             if (tabIcons[i] != null) tabIcons[i].color = colour;
-            if (tabLabels[i] != null) tabLabels[i].color = colour;
+            // 26 Oct 2026 (Readability): the open tab's name in the accent's ink (the accent itself was 3.6:1 on white).
+            if (tabLabels[i] != null) tabLabels[i].color = i == (int)Current ? AccentText : TabOff;
         }
         if (tabPill == null) return;
         int at = Order(Current);
@@ -1660,8 +1689,8 @@ public sealed class RecapPhone : MonoBehaviour
         badges[i].SetActive(show);
         if (!show) return;
         bool dot = string.IsNullOrEmpty(text);
-        float size = dot ? 12f : 20f;
-        ((RectTransform)badges[i].transform).sizeDelta = new Vector2(dot ? size : Mathf.Max(size, 11f + 7.5f * text.Length), size);
+        float size = dot ? 12f : 26f;   // 26 Oct 2026 (Readability): 20 to 26, the digits 14 to 20 px
+        ((RectTransform)badges[i].transform).sizeDelta = new Vector2(dot ? size : Mathf.Max(size, 14f + 10.5f * text.Length), size);
         badgeTexts[i].gameObject.SetActive(!dot);
         badgeTexts[i].text = dot ? "" : text;
     }
@@ -1697,7 +1726,7 @@ public sealed class RecapPhone : MonoBehaviour
         RectTransform card = Box("Tonight", content, Pad, y, ContentWidth, 10f);
         Paint(card, Ink, 18f);
         float right = ContentWidth - CardPadX;
-        TMP_Text kicker = Counted(Words(card, clock != null ? Kicker(clock.Day) : "CLOSED", CardPadX, 14f, 230f, 16f, DarkFaint,
+        TMP_Text kicker = Counted(Words(card, clock != null ? Kicker(clock.Day) : "CLOSED", CardPadX, 14f, ContentWidth - 2f * CardPadX, TypeLabel, DarkFaint,
             style: FontStyles.Bold, rich: false, spacing: 4f));
         float top = Bottom(kicker.rectTransform) + 6f;
 
@@ -1718,7 +1747,7 @@ public sealed class RecapPhone : MonoBehaviour
         if (countSince >= 0f) money.text = "$" + todayShown;
         Place(money.rectTransform, CardPadX, top, Mathf.Max(moneySize.x, 150f), moneySize.y);
         TonightWords += 1;
-        TMP_Text earned = Counted(Words(card, "earned today", CardPadX, Bottom(money.rectTransform) - 2f, 200f, 18f, DarkFaint, rich: false));
+        TMP_Text earned = Counted(Words(card, "earned today", CardPadX, Bottom(money.rectTransform) - 2f, 260f, TypeBody, DarkFaint, rich: false));
 
         // The café's stars, top right, and under them a new star or how many.
         const float starSize = 20f, starGap = 3f;
@@ -1728,7 +1757,7 @@ public sealed class RecapPhone : MonoBehaviour
         float underStars = top + 8f + starSize + 7f;
         if (rep != null && rep.EarnedStarToday)
         {
-            RectTransform pill = Tag(card, "New star!", 0f, 0f, GoldSoft, GoldInk, 16f);
+            RectTransform pill = Tag(card, "New star!", 0f, 0f, GoldSoft, GoldInk, TypeLabel);
             Place(pill, right - pill.sizeDelta.x, underStars, pill.sizeDelta.x, pill.sizeDelta.y);
             TonightWords += 2;
             underStars += pill.sizeDelta.y;
@@ -1736,7 +1765,7 @@ public sealed class RecapPhone : MonoBehaviour
         else
         {
             // Before the first star, how much reputation it still needs (playtest 4: "no stars yet" said nothing about it).
-            TMP_Text count = Counted(Words(card, StarsLine(stars, rep != null ? rep.Reputation : 0), 0f, 0f, 0f, 18f, DarkFaint,
+            TMP_Text count = Counted(Words(card, StarsLine(stars, rep != null ? rep.Reputation : 0), 0f, 0f, 0f, TypeBody, DarkFaint,
                 wrap: false, rich: false));
             Place(count.rectTransform, right - count.rectTransform.sizeDelta.x, underStars, count.rectTransform.sizeDelta.x, count.rectTransform.sizeDelta.y);
             underStars = Bottom(count.rectTransform);
@@ -1753,7 +1782,7 @@ public sealed class RecapPhone : MonoBehaviour
         if (TonightSplit.Length > 0)
         {
             int before = TonightWords;
-            TMP_Text split = Counted(Words(card, TonightSplit, CardPadX, cy + 6f, ContentWidth - 2f * CardPadX, 18f, DarkFaint, rich: false));
+            TMP_Text split = Counted(Words(card, TonightSplit, CardPadX, cy + 6f, ContentWidth - 2f * CardPadX, TypeBody, DarkFaint, rich: false));
             TonightSplitWords = TonightWords - before;
             split.name = "Takings split";
             split.alpha = countSince >= 0f ? 0f : 1f;
@@ -1770,11 +1799,11 @@ public sealed class RecapPhone : MonoBehaviour
         cy += 10f;
         int n = rep != null ? rep.ReviewCount : 0;
         string reviews = n == 0 ? "No reviews today." : $"{n} review{(n == 1 ? "" : "s")} today  ·  {ReputationRecap.Signed(rep.TodayChange)} reputation";
-        cy = Bottom(Counted(Words(card, reviews, CardPadX, cy, ContentWidth - 2f * CardPadX, 18f, DarkText, rich: false)).rectTransform);
+        cy = Bottom(Counted(Words(card, reviews, CardPadX, cy, ContentWidth - 2f * CardPadX, TypeBody, DarkText, rich: false)).rectTransform);
 
         string error = SaveManager.Instance != null ? SaveManager.Instance.LastSaveError : "";
         if (!string.IsNullOrEmpty(error))
-            cy = Bottom(Words(card, "<b>Save failed:</b> <noparse>" + error + "</noparse>", CardPadX, cy + 9f, ContentWidth - 2f * CardPadX, 18f, SaveFailed).rectTransform);
+            cy = Bottom(Words(card, "<b>Save failed:</b> <noparse>" + error + "</noparse>", CardPadX, cy + 9f, ContentWidth - 2f * CardPadX, TypeBody, SaveFailed).rectTransform);
         card.sizeDelta = new Vector2(ContentWidth, cy + 14f);
         return y + card.sizeDelta.y + CardGap;
     }
@@ -1785,16 +1814,16 @@ public sealed class RecapPhone : MonoBehaviour
         RectTransform card = CardBox("Review line", y);
         Avatar(card, CardPadX, 12f, 32f, review.name);
         float x = CardPadX + 44f, width = ContentWidth - x - CardPadX;
-        TMP_Text name = Words(card, review.name, x, 10f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, review.name, x, 10f, 0f, TypeBody, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         float nameWidth = name.rectTransform.sizeDelta.x;
         if (nameWidth > width - VerdictRoom - 10f)
         {
             Object.Destroy(name.gameObject);
-            name = Words(card, review.name, x, 10f, width - VerdictRoom - 10f, 18f, Ink, style: FontStyles.Bold, rich: false);
+            name = Words(card, review.name, x, 10f, width - VerdictRoom - 10f, TypeBody, Ink, style: FontStyles.Bold, rich: false);
             nameWidth = name.rectTransform.sizeDelta.x;
         }
-        Verdict(card, review.review, x + nameWidth + 8f, 10f + name.rectTransform.sizeDelta.y / 2f, 16f);
-        TMP_Text line = Words(card, review.line, x, Bottom(name.rectTransform) + 2f, width, 18f, Soft, rich: false);
+        Verdict(card, review.review, x + nameWidth + 8f, 10f + name.rectTransform.sizeDelta.y / 2f, TypeLabel);
+        TMP_Text line = Words(card, review.line, x, Bottom(name.rectTransform) + 2f, width, TypeBody, Soft, rich: false);
         return FinishCard(card, Mathf.Max(12f + 32f, Bottom(line.rectTransform)) + 11f, y);
     }
 
@@ -1809,8 +1838,8 @@ public sealed class RecapPhone : MonoBehaviour
         float x = CardPadX + 44f, width = ContentWidth - x - CardPadX;
         bool his = fact.source == Notebook.Sources.Inherited;
         string whose = string.IsNullOrWhiteSpace(fact.name) ? fact.who ?? "" : fact.name;
-        TMP_Text name = Counted(Words(card, whose, x, 10f, width, 18f, Ink, style: FontStyles.Bold, rich: false));
-        TMP_Text words = Counted(Words(card, NotebookRecap.Sentence(fact.text), x, Bottom(name.rectTransform) + 2f, width, 18f, Soft,
+        TMP_Text name = Counted(Words(card, whose, x, 10f, width, TypeBody, Ink, style: FontStyles.Bold, rich: false));
+        TMP_Text words = Counted(Words(card, NotebookRecap.Sentence(fact.text), x, Bottom(name.rectTransform) + 2f, width, TypeBody, Soft,
             style: his ? FontStyles.Italic : FontStyles.Normal, rich: false));
         string who = fact.who ?? "";
         Pressable(card, card.GetComponent<Image>(), "notebook", () => OpenPersonIn(who), dark: false);
@@ -1823,25 +1852,27 @@ public sealed class RecapPhone : MonoBehaviour
         string what = stock.CupsLow && stock.BeansLow ? "cups and beans" : stock.CupsLow ? "cups" : "beans";
         RectTransform box = Box("Low stock", content, Pad, y, ContentWidth, 10f);
         Image face = Paint(box, AccentSoft, 12f);
-        TMP_Text words = Counted(Words(box, $"Low on {what}. Restock in Shop.", 12f, 9f, ContentWidth - 24f, 18f, AccentText, rich: false));
+        TMP_Text words = Counted(Words(box, $"Low on {what}. Restock in Shop.", 12f, 9f, ContentWidth - 24f, TypeBody, AccentText, rich: false));
         box.sizeDelta = new Vector2(ContentWidth, Bottom(words.rectTransform) + 9f);
         Pressable(box, face, "stock", () => Open(App.Shop), dark: false);   // its press taps and rumbles (Pressed), so not Tap
         return y + box.sizeDelta.y + CardGap;
     }
 
     // The way to the apps, and what's waiting there (the low stock has its own line above, so it isn't said twice).
+    const float MoreHeight = 50f;   // 26 Oct 2026 (Readability): 44 to 50, for its 24 px words
+
     float MoreRow(float y)
     {
         string label = "More";
         if (NotesNew > 0) label += $"  ·  {NotesNew} new note{(NotesNew == 1 ? "" : "s")}";
         label += "  ›";
-        RectTransform rect = Box("Button: more", content, Pad, y + 2f, ContentWidth, 44f);
+        RectTransform rect = Box("Button: more", content, Pad, y + 2f, ContentWidth, MoreHeight);
         Image face = Paint(rect, ButtonOff, 16f);
-        TMP_Text words = Counted(Words(rect, label, 0f, 0f, ContentWidth, 18f, Soft, TextAlignmentOptions.Center, wrap: false,
+        TMP_Text words = Counted(Words(rect, label, 0f, 0f, ContentWidth, TypeBody, Soft, TextAlignmentOptions.Center, wrap: false,
             style: FontStyles.Bold, rich: false));
-        Place(words.rectTransform, 0f, 0f, ContentWidth, 44f);
+        Place(words.rectTransform, 0f, 0f, ContentWidth, MoreHeight);
         Pressable(rect, face, "more", () => Open(App.Reviews), dark: false);   // its press taps and rumbles (Pressed), so not Tap
-        return y + 2f + 44f + CardGap;
+        return y + 2f + MoreHeight + CardGap;
     }
 
     // Words on the closing screen count against the budget (the review lines don't: they're the day's own words).
@@ -1916,9 +1947,9 @@ public sealed class RecapPhone : MonoBehaviour
         RectTransform card = Box("Today", content, Pad, y, ContentWidth, 10f);
         Paint(card, Ink, 18f);
         float right = ContentWidth - CardPadX;
-        TMP_Text kicker = Words(card, clock != null ? Kicker(clock.Day) : "CLOSED", CardPadX, 13f, 230f, 16f, DarkFaint,
+        TMP_Text kicker = Words(card, clock != null ? Kicker(clock.Day) : "CLOSED", CardPadX, 13f, ContentWidth - 2f * CardPadX, TypeLabel, DarkFaint,
             style: FontStyles.Bold, rich: false, spacing: 4f);
-        TMP_Text earned = Words(card, "Earned today", CardPadX, Bottom(kicker.rectTransform) + 1f, 230f, 20f, DarkText,
+        TMP_Text earned = Words(card, "Earned today", CardPadX, Bottom(kicker.rectTransform) + 1f, 260f, TypeBody, DarkText,
             style: FontStyles.Bold, rich: false);
         int finds = FindsTonight(clock);   // 24 Oct 2026 (Days): the thrift find's sale at closing
         TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned + finds : 0), 0f, 0f, 0f, 24f, DarkText, wrap: false,
@@ -1936,18 +1967,18 @@ public sealed class RecapPhone : MonoBehaviour
         }
         if (countSince >= 0f) money.text = "$" + todayShown;
         Place(money.rectTransform, right - moneySize.x, 10f, moneySize.x, moneySize.y);
-        Button details = Pill(card, DetailsOpen ? "Hide details" : "Details", right, Bottom(money.rectTransform) + 3f, 16f,
+        Button details = Pill(card, DetailsOpen ? "Hide details" : "Details", right, Bottom(money.rectTransform) + 3f, TypeLabel,
             DarkLine, DarkText, "details", ToggleDetails, true);
         float bottom = Mathf.Max(Bottom(earned.rectTransform), Bottom((RectTransform)details.transform));
         // What the player's own work earned, apart from the café's guests (they pay at the tables without a pop now).
         string split = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome, finds) : "";
         if (split.Length > 0)
-            bottom = Bottom(Words(card, split, CardPadX, bottom + 6f, ContentWidth - 2f * CardPadX, 18f, DarkFaint, rich: false).rectTransform);
+            bottom = Bottom(Words(card, split, CardPadX, bottom + 6f, ContentWidth - 2f * CardPadX, TypeBody, DarkFaint, rich: false).rectTransform);
         if (DetailsOpen && clock != null) bottom = DetailsList(card, clock, bottom + 11f);
         string error = SaveManager.Instance != null ? SaveManager.Instance.LastSaveError : "";
         if (!string.IsNullOrEmpty(error))
             bottom = Bottom(Words(card, "<b>Save failed:</b> <noparse>" + error + "</noparse>", CardPadX, bottom + 9f,
-                ContentWidth - 2f * CardPadX, 15f, SaveFailed).rectTransform);
+                ContentWidth - 2f * CardPadX, TypeBody, SaveFailed).rectTransform);
         card.sizeDelta = new Vector2(ContentWidth, bottom + 13f);
         return y + card.sizeDelta.y + CardGap;
     }
@@ -1978,8 +2009,8 @@ public sealed class RecapPhone : MonoBehaviour
         Row("Earned today", "$" + c.Earned);
         Row("Closing till", "$" + c.CaptureRecap().closingTill);
         float width = ContentWidth - 2f * CardPadX;
-        TMP_Text left = Words(card, labels.ToString(), CardPadX, y, width, 18f, DarkFaint, rich: false);
-        TMP_Text right = Words(card, values.ToString(), CardPadX, y, width, 18f, DarkText, TextAlignmentOptions.TopRight, rich: false);
+        TMP_Text left = Words(card, labels.ToString(), CardPadX, y, width, TypeBody, DarkFaint, rich: false);
+        TMP_Text right = Words(card, values.ToString(), CardPadX, y, width, TypeBody, DarkText, TextAlignmentOptions.TopRight, rich: false);
         return Mathf.Max(Bottom(left.rectTransform), Bottom(right.rectTransform));
     }
 
@@ -1989,23 +2020,23 @@ public sealed class RecapPhone : MonoBehaviour
         RectTransform card = CardBox("Summary", y);
         int total = rep != null ? rep.ReviewCount : 0;
         TMP_Text heading = Words(card, total == 0 ? "Today: no new reviews" : $"Today: {total} new review{(total == 1 ? "" : "s")}",
-            CardPadX, 13f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+            CardPadX, 13f, 0f, TypeBody, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         if (total > 0)
             Tag(card, ReputationRecap.Signed(rep.TodayChange) + " reputation", CardPadX + heading.rectTransform.sizeDelta.x + 8f,
                 13f + heading.rectTransform.sizeDelta.y / 2f, AccentSoft, Accent);
         float cy = Bottom(heading.rectTransform) + 8f;
-        const float labelWidth = 110f;   // "Never again" at 18 px
+        const float labelWidth = 150f;   // "Never again" at 24 px (26 Oct 2026, Readability: was 110 at 18)
         float trackX = CardPadX + labelWidth + 6f, trackWidth = ContentWidth - 2f * CardPadX - labelWidth - 6f - 36f;
         foreach (Review verdict in VerdictOrder)
         {
             int count = rep != null ? rep.Count(verdict) : 0;
             VerdictColours(verdict, out _, out Color strong);
-            TMP_Text label = Words(card, VerdictWord(verdict), CardPadX, cy, labelWidth, 18f, Soft, wrap: false, rich: false);
+            TMP_Text label = Words(card, VerdictWord(verdict), CardPadX, cy, labelWidth, TypeBody, Soft, wrap: false, rich: false);
             float row = label.rectTransform.sizeDelta.y, barTop = cy + row / 2f - 5f;
             Paint(Box("Bar", card, trackX, barTop, trackWidth, 10f), Track, 5f);
             if (count > 0 && total > 0)
                 Paint(Box("Share", card, trackX, barTop, Mathf.Max(10f, trackWidth * count / total), 10f), strong, 5f);
-            Words(card, count.ToString(), trackX + trackWidth, cy, 36f, 18f, Soft, TextAlignmentOptions.TopRight, rich: false);
+            Words(card, count.ToString(), trackX + trackWidth, cy, 36f, TypeBody, Soft, TextAlignmentOptions.TopRight, rich: false);
             cy += row + 3f;
         }
         return FinishCard(card, cy + 10f, y);
@@ -2017,15 +2048,15 @@ public sealed class RecapPhone : MonoBehaviour
         RectTransform card = CardBox("Review", y);
         Avatar(card, CardPadX, 14f, 40f, review.name);
         float x = CardPadX + 52f, width = ContentWidth - x - CardPadX;
-        TMP_Text name = Words(card, review.name, x, 12f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, review.name, x, 12f, 0f, TypeBody, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         if (review.regular)
             Tag(card, "regular", x + name.rectTransform.sizeDelta.x + 8f, 12f + name.rectTransform.sizeDelta.y / 2f, AccentSoft, Accent);
         float verdictTop = Bottom(name.rectTransform) + 3f;
-        RectTransform pill = Verdict(card, review.review, x, verdictTop + 12f, 16f);
-        TMP_Text when = Words(card, "today", 0f, 0f, 0f, 18f, Soft, wrap: false, rich: false);
+        RectTransform pill = Verdict(card, review.review, x, verdictTop + 16f, TypeLabel);
+        TMP_Text when = Words(card, "today", 0f, 0f, 0f, TypeBody, Soft, wrap: false, rich: false);
         Vector2 whenSize = when.rectTransform.sizeDelta;
-        Place(when.rectTransform, x + pill.sizeDelta.x + 8f, verdictTop + 12f - whenSize.y / 2f, whenSize.x, whenSize.y);
-        TMP_Text line = Words(card, review.line, x, verdictTop + 25f + 6f, width, 18f, Ink, rich: false);
+        Place(when.rectTransform, x + pill.sizeDelta.x + 8f, verdictTop + 16f - whenSize.y / 2f, whenSize.x, whenSize.y);
+        TMP_Text line = Words(card, review.line, x, verdictTop + 32f + 6f, width, TypeBody, Ink, rich: false);
         return FinishCard(card, Mathf.Max(14f + 40f, Bottom(line.rectTransform)) + 14f, y);
     }
 
@@ -2039,7 +2070,7 @@ public sealed class RecapPhone : MonoBehaviour
     public static string VerdictWord(Review review) => ReputationRules.Label(review);
 
     // A verdict's pill: wide enough for the widest word ("Never again") at the line's size.
-    const float VerdictRoom = 112f;   // "Never again" as a 16 px pill
+    const float VerdictRoom = 150f;   // "Never again" as a 22 px pill (26 Oct 2026, Readability: was 112 at 16 px)
 
     // Each verdict in its own colour (the reputation spec §12: "Verdicts are words for now, each in its own colour"): its
     // soft colour behind, its strong colour for the word and for its bar.
@@ -2118,7 +2149,7 @@ public sealed class RecapPhone : MonoBehaviour
         if (TonightSold.Length > 0)
         {
             int before = TonightWords;
-            TMP_Text sold = Counted(Words(card, TonightSold, CardPadX, cy + 6f, width, 18f, DarkText, style: FontStyles.Bold, rich: false));
+            TMP_Text sold = Counted(Words(card, TonightSold, CardPadX, cy + 6f, width, TypeBody, DarkText, style: FontStyles.Bold, rich: false));
             sold.name = "Thrift find sold";
             TonightSoldWords = TonightWords - before;
             cy = Bottom(sold.rectTransform);
@@ -2126,7 +2157,7 @@ public sealed class RecapPhone : MonoBehaviour
         if (TonightTomorrow.Length > 0)
         {
             int before = TonightWords;
-            TMP_Text next = Counted(Words(card, TonightTomorrow, CardPadX, cy + 6f, width, 18f, DarkFaint, rich: false));
+            TMP_Text next = Counted(Words(card, TonightTomorrow, CardPadX, cy + 6f, width, TypeBody, DarkFaint, rich: false));
             next.name = "Tomorrow";
             TonightTomorrowWords = TonightWords - before;
             cy = Bottom(next.rectTransform);
@@ -2167,11 +2198,11 @@ public sealed class RecapPhone : MonoBehaviour
         float cy = 16f + size + 8f;
         if (rep.EarnedStarToday)
         {
-            RectTransform pill = Tag(card, "New star!", 0f, 0f, GoldSoft, GoldInk, 16f);
+            RectTransform pill = Tag(card, "New star!", 0f, 0f, GoldSoft, GoldInk, TypeLabel);
             Place(pill, (ContentWidth - pill.sizeDelta.x) / 2f, cy, pill.sizeDelta.x, pill.sizeDelta.y);
             cy += pill.sizeDelta.y + 6f;
         }
-        TMP_Text level = Words(card, ReputationRules.NameOf(stars), CardPadX, cy, ContentWidth - 2f * CardPadX, 23f, Ink,
+        TMP_Text level = Words(card, ReputationRules.NameOf(stars), CardPadX, cy, ContentWidth - 2f * CardPadX, TypeLead, Ink,
             TextAlignmentOptions.Top, style: FontStyles.Bold, rich: false);
         cy = Bottom(level.rectTransform) + 10f;
 
@@ -2182,8 +2213,8 @@ public sealed class RecapPhone : MonoBehaviour
         if (share > 0f) Paint(Box("Done", card, CardPadX, cy, Mathf.Max(12f, barWidth * share), 12f), Accent, 6f);
         cy += 12f + 7f;
         TMP_Text left = Words(card, next < 0 ? $"Reputation {rep.Reputation}" : $"{rep.Reputation} / {next} reputation",
-            CardPadX, cy, 0f, 15f, Soft, wrap: false, rich: false);
-        TMP_Text right = Words(card, next < 0 ? "Five stars" : "Next: " + ReputationRules.NameOf(stars + 1), 0f, cy, 0f, 18f, Soft,
+            CardPadX, cy, 0f, TypeBody, Soft, wrap: false, rich: false);
+        TMP_Text right = Words(card, next < 0 ? "Five stars" : "Next: " + ReputationRules.NameOf(stars + 1), 0f, cy, 0f, TypeBody, Soft,
             wrap: false, rich: false);
         Vector2 rightSize = right.rectTransform.sizeDelta;
         if (left.rectTransform.sizeDelta.x + 16f + rightSize.x <= barWidth)
@@ -2218,22 +2249,22 @@ public sealed class RecapPhone : MonoBehaviour
     float Request(RectTransform card, float y, string number, Color back, Color ink, string text, string under, bool ruleAbove)
     {
         if (ruleAbove) y = Rule(card, y);
-        RectTransform mark = Box("Mark", card, CardPadX, y + 1f, 26f, 26f);
+        RectTransform mark = Box("Mark", card, CardPadX, y + 1f, 30f, 30f);   // 26 Oct 2026 (Readability): 26 to 30, for 22 px digits
         var disc = mark.gameObject.AddComponent<Image>();
         disc.sprite = circle;
         disc.color = back;
         disc.raycastTarget = false;
         if (number != null)
         {
-            TMP_Text digits = Words(mark, number, 0f, 0f, 26f, 16f, TextOn(ink), TextAlignmentOptions.Center, wrap: false,
+            TMP_Text digits = Words(mark, number, 0f, 0f, 30f, TypeLabel, TextOn(ink), TextAlignmentOptions.Center, wrap: false,
                 style: FontStyles.Bold, rich: false);
-            Place(digits.rectTransform, 0f, 0f, 26f, 26f);
+            Place(digits.rectTransform, 0f, 0f, 30f, 30f);
         }
-        else Picture(mark, tick, ink, 6f, 6f, 14f, 14f);
-        float x = CardPadX + 38f, width = ContentWidth - x - CardPadX;
-        float bottom = Bottom(Words(card, text, x, y, width, 18f, Ink).rectTransform);
-        if (!string.IsNullOrEmpty(under)) bottom = Bottom(Words(card, under, x, bottom + 1f, width, 18f, Soft, rich: false).rectTransform);
-        return Mathf.Max(bottom, y + 28f) + 10f;
+        else Picture(mark, tick, ink, 7f, 7f, 16f, 16f);
+        float x = CardPadX + 42f, width = ContentWidth - x - CardPadX;
+        float bottom = Bottom(Words(card, text, x, y, width, TypeBody, Ink).rectTransform);
+        if (!string.IsNullOrEmpty(under)) bottom = Bottom(Words(card, under, x, bottom + 1f, width, TypeBody, Soft, rich: false).rectTransform);
+        return Mathf.Max(bottom, y + 32f) + 10f;
     }
 
     // The reviews and the reputation they made, a new star, and one line about the day's worst kind of review.
@@ -2244,12 +2275,12 @@ public sealed class RecapPhone : MonoBehaviour
         int n = rep.ReviewCount;
         float cy = Bottom(Words(card, n == 0 ? "No reviews today."
             : $"{n} review{(n == 1 ? "" : "s")}: <b>{ReputationRecap.Signed(rep.TodayChange)}</b> reputation",
-            CardPadX, 13f, width, 17.5f, Ink).rectTransform);
+            CardPadX, 13f, width, TypeBody, Ink).rectTransform);
         if (rep.EarnedStarToday)
-            cy = Bottom(Words(card, $"New star: <b>{ReputationRules.NameOf(rep.StarsEarned)}</b>", CardPadX, cy + 3f, width, 18f, Ink).rectTransform);
+            cy = Bottom(Words(card, $"New star: <b>{ReputationRules.NameOf(rep.StarsEarned)}</b>", CardPadX, cy + 3f, width, TypeBody, Ink).rectTransform);
         // Only from real cards: a recap saved before them doesn't know why each review said what it said.
         string lesson = rep.Cards.Count > 0 ? ReputationRecap.Lesson(rep.Cards) : "";
-        if (!string.IsNullOrEmpty(lesson)) cy = Bottom(Words(card, lesson, CardPadX, cy + 3f, width, 18f, Soft, rich: false).rectTransform);
+        if (!string.IsNullOrEmpty(lesson)) cy = Bottom(Words(card, lesson, CardPadX, cy + 3f, width, TypeBody, Soft, rich: false).rectTransform);
         return FinishCard(card, cy + 13f, y);
     }
 
@@ -2369,11 +2400,11 @@ public sealed class RecapPhone : MonoBehaviour
         Picture(box, chair, Green, 9f, 9f, 22f, 22f);
         float x = CardPadX + 52f, width = ContentWidth - x - CardPadX;
         int seats = layout.Seats;
-        TMP_Text name = Words(card, $"{seats} seat{(seats == 1 ? "" : "s")}", x, cy + 1f, width, 18f, Ink, style: FontStyles.Bold, rich: false);
-        TMP_Text line = Words(card, FirstTableWaiting() ? "Place your first table" : "Tables and plants: moving is free", x, Bottom(name.rectTransform), width, 18f, Soft, rich: false);
+        TMP_Text name = Words(card, $"{seats} seat{(seats == 1 ? "" : "s")}", x, cy + 1f, width, TypeBody, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text line = Words(card, FirstTableWaiting() ? "Place your first table: free today" : "Tables and plants: moving is free", x, Bottom(name.rectTransform), width, TypeBody, Soft, rich: false);
         cy = Mathf.Max(cy + 40f, Bottom(line.rectTransform)) + 12f;
         cy = FurnitureRow(card, cy, layout);   // 26 Oct 2026 (Icons 2)
-        Button button = Pill(card, "Arrange the café", ContentWidth - CardPadX, cy, 20f, Green, Color.white, "arrange", OpenArrange, arrange.CanOpen);
+        Button button = Pill(card, "Arrange the café", ContentWidth - CardPadX, cy, TypeBody, Green, Color.white, "arrange", OpenArrange, arrange.CanOpen);
         // One big button: the card's whole width.
         var rect = (RectTransform)button.transform;
         float height = rect.sizeDelta.y, wide = ContentWidth - 2f * CardPadX;
@@ -2436,10 +2467,10 @@ public sealed class RecapPhone : MonoBehaviour
         Picture(box, icon, iconColour, 9f, 9f, 22f, 22f);
         if (overlay != null) Picture(box, overlay, overlayColour, 9f, 9f, 22f, 22f);
         float x = CardPadX + 52f, width = ContentWidth - x - CardPadX - 56f;
-        TMP_Text name = Words(card, title, x, y + 1f, width, 18f, Ink, style: FontStyles.Bold, rich: false);
-        TMP_Text sub = Words(card, what, x, Bottom(name.rectTransform), width, 18f, Soft, rich: false);
+        TMP_Text name = Words(card, title, x, y + 1f, width, TypeBody, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text sub = Words(card, what, x, Bottom(name.rectTransform), width, TypeBody, Soft, rich: false);
         float bottom = Mathf.Max(y + 40f, Bottom(sub.rectTransform));
-        TMP_Text number = Words(card, count.ToString(), 0f, 0f, 0f, 18f, low ? Red : Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        TMP_Text number = Words(card, count.ToString(), 0f, 0f, 0f, TypeBody, low ? Red : Ink, wrap: false, style: FontStyles.Bold, rich: false);
         Vector2 size = number.rectTransform.sizeDelta;
         Place(number.rectTransform, ContentWidth - CardPadX - size.x, (y + bottom) / 2f - size.y / 2f, size.x, size.y);
         return bottom + 10f;
@@ -2449,19 +2480,19 @@ public sealed class RecapPhone : MonoBehaviour
     // can't be bought: too dear, or maxed).
     float BuyRow(RectTransform card, float y, string title, string what, string tag, string price, string key, UnityAction buy, bool canBuy)
     {
-        Button button = Pill(card, price, ContentWidth - CardPadX, y, 18f, PriceOrange, Color.white, key, buy, canBuy);
+        Button button = Pill(card, price, ContentWidth - CardPadX, y, TypeBody, PriceOrange, Color.white, key, buy, canBuy);
         var buttonRect = (RectTransform)button.transform;
         float width = ContentWidth - 2f * CardPadX - buttonRect.sizeDelta.x - 12f;
-        TMP_Text name = Words(card, title, CardPadX, y, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, title, CardPadX, y, 0f, TypeBody, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         if (name.rectTransform.sizeDelta.x > width)
         {
             Object.Destroy(name.gameObject);
-            name = Words(card, title, CardPadX, y, width, 18f, Ink, style: FontStyles.Bold, rich: false);
+            name = Words(card, title, CardPadX, y, width, TypeBody, Ink, style: FontStyles.Bold, rich: false);
         }
         else if (!string.IsNullOrEmpty(tag))
             Tag(card, tag, CardPadX + name.rectTransform.sizeDelta.x + 8f, y + name.rectTransform.sizeDelta.y / 2f, AccentSoft, Accent);
         float bottom = Bottom(name.rectTransform);
-        if (!string.IsNullOrEmpty(what)) bottom = Bottom(Words(card, what, CardPadX, bottom, width, 18f, Soft, rich: false).rectTransform);
+        if (!string.IsNullOrEmpty(what)) bottom = Bottom(Words(card, what, CardPadX, bottom, width, TypeBody, Soft, rich: false).rectTransform);
         float middle = (y + bottom) / 2f, height = buttonRect.sizeDelta.y;
         buttonRect.anchoredPosition = new Vector2(buttonRect.anchoredPosition.x, -(middle - height / 2f));
         return Mathf.Max(bottom, middle + height / 2f) + 10f;
@@ -2520,7 +2551,7 @@ public sealed class RecapPhone : MonoBehaviour
         if (pictureKey != NoteSubjects.Someone) NotePhotos.Thumb(card, pictureKey, CardPadX, 12f, 36f);
         else Avatar(card, CardPadX, 12f, 36f, person.name);
         float x = CardPadX + 48f, width = ContentWidth - x - CardPadX - 18f;
-        TMP_Text name = Words(card, person.name, x, 11f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, person.name, x, 11f, 0f, TypeBody, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         int fresh = person.LearnedOn(day);
         if (fresh > 0) Tag(card, fresh + " new", x + name.rectTransform.sizeDelta.x + 8f, 11f + name.rectTransform.sizeDelta.y / 2f, AccentSoft, Accent);
         float bottom = Bottom(name.rectTransform);
@@ -2528,7 +2559,7 @@ public sealed class RecapPhone : MonoBehaviour
         if (fact != null)
         {
             bool his = fact.source == Notebook.Sources.Inherited;
-            bottom = Bottom(Words(card, "<noparse>" + NotebookRecap.Sentence(fact.text) + "</noparse>", x, bottom + 1f, width, 18f, Soft,
+            bottom = Bottom(Words(card, "<noparse>" + NotebookRecap.Sentence(fact.text) + "</noparse>", x, bottom + 1f, width, TypeBody, Soft,
                 style: his ? FontStyles.Italic : FontStyles.Normal).rectTransform);
         }
         float height = Mathf.Max(12f + 36f, bottom) + 12f;
@@ -2549,7 +2580,7 @@ public sealed class RecapPhone : MonoBehaviour
         if (pictureKey != NoteSubjects.Someone) NotePhotos.Thumb(card, pictureKey, CardPadX, 14f, 40f);
         else Avatar(card, CardPadX, 14f, 40f, person.name);
         float x = CardPadX + 52f;
-        TMP_Text name = Words(card, person.name, x, 0f, 0f, 18f, Ink, wrap: false, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, person.name, x, 0f, 0f, TypeBody, Ink, wrap: false, style: FontStyles.Bold, rich: false);
         Vector2 nameSize = name.rectTransform.sizeDelta;
         Place(name.rectTransform, x, 34f - nameSize.y / 2f, nameSize.x, nameSize.y);
         int fresh = person.LearnedOn(day);
@@ -2569,8 +2600,8 @@ public sealed class RecapPhone : MonoBehaviour
             string text = "<noparse>" + NotebookRecap.Sentence(fact.text) + "</noparse>";
             string sure = NotebookRecap.Sureness(fact, day);
             if (sure.Length > 0) text += $" <color={FaintHex}>({sure})</color>";
-            if (fact.day == day) text += $"  <color={AccentHex}><size=78%><b>NEW</b></size></color>";
-            TMP_Text line = Words(card, text, textX, cy, width, 18f, Ink,
+            if (fact.day == day) text += $"  <color={AccentHex}><size=85%><b>NEW</b></size></color>";
+            TMP_Text line = Words(card, text, textX, cy, width, TypeBody, Ink,
                 style: fact.source == Notebook.Sources.Inherited ? FontStyles.Italic : FontStyles.Normal);
             string about = NoteSubjects.KeyOf(fact);
             if (about != pictureKey && about != NoteSubjects.Someone) NotePhotos.Thumb(card, about, CardPadX, cy, factPicture);
@@ -2612,34 +2643,34 @@ public sealed class RecapPhone : MonoBehaviour
         Paint(card, Ink, 18f);
         float right = ContentWidth - CardPadX, width = ContentWidth - 2f * CardPadX;
         string when = clock != null ? Kicker(clock.Day) : "TODAY";   // the time is the status bar's, just above
-        TMP_Text kicker = Words(card, when, CardPadX, 14f, width, 16f, DarkFaint, style: FontStyles.Bold, rich: false, spacing: 4f);
+        TMP_Text kicker = Words(card, when, CardPadX, 14f, width, TypeLabel, DarkFaint, style: FontStyles.Bold, rich: false, spacing: 4f);
         float top = Bottom(kicker.rectTransform) + 6f;
         TMP_Text money = Words(card, "$" + (clock != null ? clock.Earned : 0), CardPadX, top, 0f, 40f, DarkText, wrap: false,
             style: FontStyles.Bold, rich: false);
-        TMP_Text label = Words(card, "earned so far today", CardPadX, Bottom(money.rectTransform) - 2f, 240f, 18f, DarkFaint, rich: false);
+        TMP_Text label = Words(card, "earned so far today", CardPadX, Bottom(money.rectTransform) - 2f, 300f, TypeBody, DarkFaint, rich: false);
 
         const float starSize = 20f, starGap = 3f;
         float starsWidth = 5f * starSize + 4f * starGap;
         int stars = rep != null ? Mathf.Clamp(rep.StarsEarned, 0, ReputationRules.MaxStars) : 0;
         Stars(card, right - starsWidth, top + 8f, starSize, starGap, stars, dark: true);
-        TMP_Text count = Words(card, LiveStarsLine(rep), 0f, 0f, 0f, 18f, DarkFaint, wrap: false, rich: false);
+        TMP_Text count = Words(card, LiveStarsLine(rep), 0f, 0f, 0f, TypeBody, DarkFaint, wrap: false, rich: false);
         Vector2 countSize = count.rectTransform.sizeDelta;
         Place(count.rectTransform, right - countSize.x, top + 8f + starSize + 7f, countSize.x, countSize.y);
 
         float cy = Mathf.Max(Bottom(label.rectTransform), Bottom(count.rectTransform)) + 12f;
         // What the player's own work earned, apart from the café's guests (they pay at the tables without a pop now).
         string split = clock != null ? TakingsSplit(clock.Earned, clock.PatronIncome) : "";
-        if (split.Length > 0) cy = Bottom(Words(card, split, CardPadX, cy - 6f, width, 18f, DarkFaint, rich: false).rectTransform) + 12f;
+        if (split.Length > 0) cy = Bottom(Words(card, split, CardPadX, cy - 6f, width, TypeBody, DarkFaint, rich: false).rectTransform) + 12f;
         Paint(Box("Rule", card, CardPadX, cy, width, 1f), DarkLine, 0f);
         cy += 10f;
         int till = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
-        TMP_Text tillLabel = Words(card, "In the till", CardPadX, cy, width, 18f, DarkText, rich: false);
-        Words(card, "$" + till, CardPadX, cy, width, 18f, DarkText, TextAlignmentOptions.TopRight, style: FontStyles.Bold, rich: false);
+        TMP_Text tillLabel = Words(card, "In the till", CardPadX, cy, width, TypeBody, DarkText, rich: false);
+        Words(card, "$" + till, CardPadX, cy, width, TypeBody, DarkText, TextAlignmentOptions.TopRight, style: FontStyles.Bold, rich: false);
         cy = Bottom(tillLabel.rectTransform) + 4f;
         int n = rep != null ? rep.ReviewCount : 0;
         string reviews = n == 0 ? "No reviews yet: they come in as people leave."
             : $"{n} review{(n == 1 ? "" : "s")} so far  ·  {ReputationRecap.Signed(rep.TodayChange)} reputation";
-        cy = Bottom(Words(card, reviews, CardPadX, cy, width, 18f, DarkFaint, rich: false).rectTransform);
+        cy = Bottom(Words(card, reviews, CardPadX, cy, width, TypeBody, DarkFaint, rich: false).rectTransform);
         card.sizeDelta = new Vector2(ContentWidth, cy + 14f);
         return y + card.sizeDelta.y + CardGap;
     }
@@ -2745,8 +2776,8 @@ public sealed class RecapPhone : MonoBehaviour
                     Action<float> set, string key)
     {
         float width = ContentWidth - 2f * CardPadX;
-        TMP_Text name = Words(card, label, CardPadX, cy, width * .7f, 18f, Ink, style: FontStyles.Bold, rich: false);
-        TMP_Text shown = Words(card, format(value), CardPadX, cy, width, 18f, Soft, TextAlignmentOptions.TopRight, rich: false);
+        TMP_Text name = Words(card, label, CardPadX, cy, width * .7f, TypeBody, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text shown = Words(card, format(value), CardPadX, cy, width, TypeBody, Soft, TextAlignmentOptions.TopRight, rich: false);
         float top = Bottom(name.rectTransform) + 6f;
 
         const float height = 30f, knob = 26f, trackHeight = 8f;
@@ -2817,10 +2848,10 @@ public sealed class RecapPhone : MonoBehaviour
     float SwitchRow(RectTransform card, float cy, string label, string detail, bool on, UnityAction flip, string key)
     {
         float width = ContentWidth - 2f * CardPadX, textWidth = width - 70f;
-        TMP_Text name = Words(card, label, CardPadX, cy, textWidth, 18f, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, label, CardPadX, cy, textWidth, TypeBody, Ink, style: FontStyles.Bold, rich: false);
         float bottom = Bottom(name.rectTransform);
         if (!string.IsNullOrEmpty(detail))
-            bottom = Bottom(Words(card, detail, CardPadX, bottom + 1f, textWidth, 18f, Soft, rich: false).rectTransform);
+            bottom = Bottom(Words(card, detail, CardPadX, bottom + 1f, textWidth, TypeBody, Soft, rich: false).rectTransform);
         const float w = 52f, h = 30f;
         float mid = (cy + bottom) / 2f;
         RectTransform toggle = Box("Button: " + key, card, CardPadX + width - w, mid - h / 2f, w, h);
@@ -2855,10 +2886,10 @@ public sealed class RecapPhone : MonoBehaviour
                     Action<string> choose)
     {
         float width = ContentWidth - 2f * CardPadX;
-        TMP_Text name = Words(card, label, CardPadX, cy, width, 18f, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text name = Words(card, label, CardPadX, cy, width, TypeBody, Ink, style: FontStyles.Bold, rich: false);
         float top = Bottom(name.rectTransform) + 2f;
-        top = Bottom(Words(card, detail, CardPadX, top, width, 18f, Soft, rich: false).rectTransform) + 9f;
-        const float gap = 8f, height = 38f;
+        top = Bottom(Words(card, detail, CardPadX, top, width, TypeBody, Soft, rich: false).rectTransform) + 9f;
+        const float gap = 8f, height = 46f;   // 26 Oct 2026 (Readability): 38 to 46, for its 24 px words
         float each = (width - (choices.Length - 1) * gap) / choices.Length;
         for (int i = 0; i < choices.Length; i++)
         {
@@ -2866,7 +2897,7 @@ public sealed class RecapPhone : MonoBehaviour
             bool on = current == choice;
             RectTransform pill = Box("Button: " + key + ":" + choice, card, CardPadX + i * (each + gap), top, each, height);
             Image face = Paint(pill, on ? Green : ButtonOff, height / 2f);
-            TMP_Text words = Words(pill, choice, 0f, 0f, each, 18f, on ? Color.white : Soft, TextAlignmentOptions.Center, wrap: false,
+            TMP_Text words = Words(pill, choice, 0f, 0f, each, TypeBody, on ? Color.white : Soft, TextAlignmentOptions.Center, wrap: false,
                 style: FontStyles.Bold, rich: false);
             Place(words.rectTransform, 0f, 0f, each, height);
             sameRow = i > 0;
@@ -2881,19 +2912,19 @@ public sealed class RecapPhone : MonoBehaviour
     {
         RectTransform card = CardBox("Quit", y);
         float width = ContentWidth - 2f * CardPadX;
-        TMP_Text title = Words(card, "Quit the game", CardPadX, 14f, width, 18f, Ink, style: FontStyles.Bold, rich: false);
+        TMP_Text title = Words(card, "Quit the game", CardPadX, 14f, width, TypeBody, Ink, style: FontStyles.Bold, rich: false);
         string note = Kind == Mode.NightPause
             ? "Today and tonight aren't kept: the game saves when you open tomorrow."
             : "The day so far isn't kept: the game saves when you open tomorrow.";
-        TMP_Text words = Words(card, note, CardPadX, Bottom(title.rectTransform) + 2f, width, 18f, quitArmed ? Red : Soft, rich: false);
+        TMP_Text words = Words(card, note, CardPadX, Bottom(title.rectTransform) + 2f, width, TypeBody, quitArmed ? Red : Soft, rich: false);
         float top = Bottom(words.rectTransform) + 12f;
-        RectTransform rect = Box("Button: quit", card, CardPadX, top, width, 44f);
+        RectTransform rect = Box("Button: quit", card, CardPadX, top, width, 52f);   // 26 Oct 2026 (Readability): 44 to 52
         Image face = Paint(rect, quitArmed ? Red : UiSkin.RedSoft, 16f);
-        TMP_Text label = Words(rect, quitArmed ? "Press again to quit" : "Quit", 0f, 0f, width, 18f, quitArmed ? Color.white : Red,
+        TMP_Text label = Words(rect, quitArmed ? "Press again to quit" : "Quit", 0f, 0f, width, TypeBody, quitArmed ? Color.white : Red,
             TextAlignmentOptions.Center, wrap: false, style: FontStyles.Bold, rich: false);
-        Place(label.rectTransform, 0f, 0f, width, 44f);
+        Place(label.rectTransform, 0f, 0f, width, 52f);
         Pressable(rect, face, "quit", PressQuit, dark: quitArmed);
-        return FinishCard(card, top + 44f + 14f, y);
+        return FinishCard(card, top + 52f + 14f, y);
     }
 
     void PressQuit()
@@ -2919,21 +2950,21 @@ public sealed class RecapPhone : MonoBehaviour
         Paint(square, box, 11f);
         Picture(square, icon, tint, 9f, 9f, 24f, 24f);
         float x = Pad + 2f + 42f + 12f, width = ContentWidth - (x - Pad);
-        float bottom = Bottom(Words(content, title, x, y - 3f, width, 26f, Ink, style: FontStyles.Bold, rich: false).rectTransform);
-        if (!string.IsNullOrEmpty(subtitle)) bottom = Bottom(Words(content, subtitle, x, bottom - 3f, width, 18f, Soft, rich: false).rectTransform);
+        float bottom = Bottom(Words(content, title, x, y - 3f, width, TypeTitle, Ink, style: FontStyles.Bold, rich: false).rectTransform);
+        if (!string.IsNullOrEmpty(subtitle)) bottom = Bottom(Words(content, subtitle, x, bottom - 3f, width, TypeBody, Soft, rich: false).rectTransform);
         return Mathf.Max(bottom, y + 46f) + 12f;
     }
 
     float Section(float y, string title)
     {
-        TMP_Text words = Words(content, title, Pad + 4f, y + 6f, ContentWidth - 8f, 18f, Soft, style: FontStyles.Bold, rich: false, spacing: 5f);
+        TMP_Text words = Words(content, title, Pad + 4f, y + 6f, ContentWidth - 8f, TypeLabel, Soft, style: FontStyles.Bold, rich: false, spacing: 5f);
         return Bottom(words.rectTransform) + 8f;
     }
 
     float MessageCard(float y, string text)
     {
         RectTransform card = CardBox("Message", y);
-        TMP_Text words = Words(card, text, CardPadX, 15f, ContentWidth - 2f * CardPadX, 18f, Soft, rich: false);
+        TMP_Text words = Words(card, text, CardPadX, 15f, ContentWidth - 2f * CardPadX, TypeBody, Soft, rich: false);
         return FinishCard(card, Bottom(words.rectTransform) + 15f, y);
     }
 
@@ -2941,7 +2972,7 @@ public sealed class RecapPhone : MonoBehaviour
     {
         RectTransform box = Box("Low stock", content, Pad, y, ContentWidth, 10f);
         Paint(box, AccentSoft, 12f);
-        TMP_Text words = Words(box, text, 12f, 9f, ContentWidth - 24f, 18f, AccentText, rich: false);
+        TMP_Text words = Words(box, text, 12f, 9f, ContentWidth - 24f, TypeBody, AccentText, rich: false);
         box.sizeDelta = new Vector2(ContentWidth, Bottom(words.rectTransform) + 9f);
         return y + box.sizeDelta.y + CardGap;
     }
@@ -2980,7 +3011,7 @@ public sealed class RecapPhone : MonoBehaviour
     void Avatar(RectTransform parent, float x, float y, float size, string name)
     {
         Image disc = Picture(parent, circle, AvatarColour(name), x, y, size, size);
-        TMP_Text letter = Words((RectTransform)disc.transform, Initial(name), 0f, 0f, size, size * .46f, Color.white,
+        TMP_Text letter = Words((RectTransform)disc.transform, Initial(name), 0f, 0f, size, Mathf.Max(TypeTab, size * .5f), Color.white,
             TextAlignmentOptions.Center, wrap: false, style: FontStyles.Bold, rich: false);
         Place(letter.rectTransform, 0f, 0f, size, size);
     }
@@ -3002,7 +3033,7 @@ public sealed class RecapPhone : MonoBehaviour
     }
 
     // A small rounded label ("regular", "Lv.1", "+2 reputation"), centred on centreY.
-    RectTransform Tag(RectTransform parent, string text, float x, float centreY, Color back, Color ink, float size = 16f)
+    RectTransform Tag(RectTransform parent, string text, float x, float centreY, Color back, Color ink, float size = TypeLabel)
     {
         float height = Mathf.Round(size + 9f);
         RectTransform pill = Box("Tag", parent, x, centreY - height / 2f, 10f, height);
@@ -3021,7 +3052,8 @@ public sealed class RecapPhone : MonoBehaviour
         float height = Mathf.Round(size * 1.9f + 4f);
         RectTransform rect = Box("Button: " + key, parent, 0f, top, 10f, height);
         Image face = Paint(rect, enabled ? back : ButtonOff, height / 2f);
-        TMP_Text words = Words(rect, label, 0f, 0f, 0f, size, enabled ? ink : TabOff, TextAlignmentOptions.Center, wrap: false,
+        // 26 Oct 2026 (Readability; the gather: a price out of reach, "$125", at 3.9:1): a greyed price in OffInk (5.5:1 on its grey).
+        TMP_Text words = Words(rect, label, 0f, 0f, 0f, size, enabled ? ink : OffInk, TextAlignmentOptions.Center, wrap: false,
             style: FontStyles.Bold, rich: false);
         float width = Mathf.Ceil(words.rectTransform.sizeDelta.x) + Mathf.Round(size * 1.6f);
         Place(rect, right - width, top, width, height);

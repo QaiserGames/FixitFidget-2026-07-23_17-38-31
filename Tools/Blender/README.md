@@ -32,6 +32,7 @@ floating more than 2 mm from the rest.
 | `review_cafe_wave1.py` | The overhead review from the real CmShopCam (43 degrees, 34 m, 44 degree lens) before and after, a 10-pixel check, a turntable | `Tools/Blender/out/cafe-wave1/` |
 | `cafe_aframe.py` (24 Oct 2026, art audit a14) | The patio A-frame rebuilt as a true A (two leaves from one hinge, both feet down, a chalkboard each side, the iron in the old DC_Chalk slot); the old names (`Decor_MenuBoard.001`, mesh `Cube.002`), slots and Z-up export kept, drawn at 1/4.2 | `Assets/Art/Models/MenuBoard.fbx`, `BlenderSource/CafeAFrame_v2.blend` |
 | `cafe_till.py` (24 Oct 2026, art audit a34) | The till's labels: opens `CashRegister.fbx` as it is, puts its twenty key tops on `CF_TillKeys` and its two displays on `CF_TillScreen`, mapped; not a vertex moves, the old slots and export kept | `Assets/Art/Models/CashRegister.fbx`, `BlenderSource/CafeTill_v5.blend` |
+| `drink_buttons.py`, `export_drink_buttons.py`, `review_drink_buttons.py` (26 Oct 2026, Drink buttons) | The drinks machine's six buttons as pieces, after his "just words on a square in different colors": one cap a drink (`DB_Cap_<Name>`, 92 x 98 mm, 30 mm proud, the drink's own BF_ colour) with a cream label and the drink's PICTURE in relief as its child (`DB_Picture_<Name>`: the ticket's icon, `Tools/UI/draw_button_icons.py` `drink()`, rebuilt in 3D from its own pixel coordinates at 0.54 mm a pixel, ink plates for its outlines); built in the paddle's own frame so Unity parents it under `<Name> ceramic paddle` with no offset. No words (the prompt line says "Pour Latte"). The review renders it on the real machine from the game's close-up pose at 1920 x 1080 | `Assets/Art/Models/DrinkButtons/DB_Cap_*.fbx` (+ `DB_DrinkButtons.json`), `BlenderSource/DrinkButtons_v1.blend`; renders in `Tools/Blender/out/drink-buttons/` (not kept) |
 | `cafe_art_fix_textures.py` (24 Oct 2026) | The art audit's pictures, Pillow only, Baloo 2 only: `LI_Screen.png` (a50), `GH_Photo.png` (a72), `CF_TillKeys.png` and `CF_TillScreen.png` (a34), `CF_AFrame.png` re-chalked near-white (a62) | `Assets/Art/Textures/Cafe/`, `Assets/Art/Textures/GraceHouse/` |
 
 `fixit_blender.py` holds the shared helpers (materials, boxes, lofts, struts, the audit, FBX export),
@@ -89,6 +90,10 @@ were first run (29 Sept 2026, overnight). The `.blend` files are Blender 5.2 fil
 - The repair mat (14 Oct): a step to come (Bench stage 1): the FBX, its BM_ materials with their two pictures and tiling.
 - Grace's cover: `Fixit Fidget > Night > Grace's cover 1 - Import and check the pieces (the models only)`.
 - Barnaby: `Fixit Fidget > Night > Night 1 - Barnaby: use the Blender model (the prefab only)`.
+- The drinks machine's buttons (26 Oct): `Fixit Fidget > Drinks > Buttons 1 - The machine's new buttons (scene and prefab, with Undo)`
+  imports the six caps, maps their materials by name (the machine's BF_ six, nine DB_ ones it makes), parents each under its
+  paddle, retires the old tile and its printed word, photographs the machine; `Fixit Fidget > Drinks > Lab - The machine's
+  buttons (drives itself)` plays every button and measures the pictures and the words.
 - Grace's furniture: `Fixit Fidget > Night > Break-ins - Grace's furniture: import and check (the models only)`.
 
 Both set the import settings, map the materials by name, check what came in, and photograph it. Neither

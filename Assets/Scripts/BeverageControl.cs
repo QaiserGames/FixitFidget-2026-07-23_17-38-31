@@ -17,7 +17,7 @@ public sealed class BeverageControl : Interactable
             if (slot.IsPouring) return $"Pouring {slot.drink.drinkName}";
             var carry = PlayerCarry.Current;
             if (slot.Cup != null)
-                return slot.Cup.IsEmpty ? "Take empty cup · aim at the named paddle to pour"
+                return slot.Cup.IsEmpty ? "Take empty cup · aim at the drink's button to pour"   // 26 Oct 2026 (Drink buttons): the buttons carry pictures, not names
                     : carry == null || !carry.HasSpace ? "Both hands full · set down or deliver an item"
                     : $"Take {slot.drink.drinkName} ({slot.Cup.FreshnessStage.ToString().ToLowerInvariant()})";
             bool hasEmpty = carry != null && ((carry.GetHandItem(0) is DrinkJob left && left.IsEmpty)

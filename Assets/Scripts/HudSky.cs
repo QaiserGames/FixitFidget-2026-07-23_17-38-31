@@ -128,7 +128,9 @@ public sealed class HudWindow
 {
     // The design, in reference pixels at full size (the piece's origin is its top-left corner; y is down in these numbers).
     public const float Width = 360f, Height = 170f, GlassX = 22f, GlassY = 32f, GlassW = 316f, GlassH = 100f, SillY = 128f, SillH = 42f;
-    public const float Pad = 14f, TimeSize = 32f, DaySize = 22f, DaySizeMin = 20f;
+    // 26 Oct 2026 (Readability; the gather: "Wednesday · Day 3" at 20 px): the day line 24, never under 22 (the HUD lab's floor is
+    // 21.5); a weekday that won't fit at 22 goes short ("Wed · Day 3") at 24 instead of squeezing, as Day 10's did.
+    public const float Pad = 14f, TimeSize = 32f, DaySize = 24f, DaySizeMin = 22f;
     const float ArcRadius = 578f;   // the arch's circle: 22 px of rise across the glass
     const float SunTop = 18f, SunHorizon = 70f;   // the sun's path inside the glass: its noon height, and the roofline it rises from
 
@@ -212,7 +214,7 @@ public sealed class HudWindow
         TimeText = UiSkin.Text("Time", Rect, TimeSize, Gilt, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
         Place(TimeText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(Pad, -SillY), new Vector2(Width - 2f * Pad, SillH));
         UiSkin.Shadowed(TimeText);
-        DayText = UiSkin.Text("Day", Rect, DaySize, Mint, TextAlignmentOptions.MidlineRight, FontStyles.Normal);
+        DayText = UiSkin.Text("Day", Rect, DaySize, Mint, TextAlignmentOptions.MidlineRight, UiSkin.SemiBold);   // 26 Oct 2026 (Readability): semibold
         Place(DayText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(Pad, -SillY), new Vector2(Width - 2f * Pad, SillH));
         if (!fine)
         {
@@ -318,7 +320,7 @@ public sealed class HudWindow
         if (TimeText.text != words) TimeText.text = words;
     }
 
-    // The day line: 22 px, or the largest half-pixel step down to 20 that leaves the sill's gap (the time at its widest).
+    // The day line: 24 px, or the largest half-pixel step down to 22 that leaves the sill's gap (the time at its widest).
     static readonly string[] WidestTimes = { "12:00 PM", "10:00 AM", "10:00 PM" };
     const float LineGap = 10f;
 

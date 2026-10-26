@@ -114,6 +114,15 @@ public sealed class WaitingJobsCheck : PlayLab
         Check(shelf.IsAvailable && shelf.Prompt == "Work on your thrift " + shelf.Thing, $"E on the shelf: \"{shelf.Prompt}\"");
         shelf.Interact(player);
         yield return Until(() => shelf.InTheCloseUp, 3f, "the find flies to the bench's corner and the close-up opens");
+        // 26 Oct 2026 (integration): why not, when it doesn't (his Mac's afternoon run missed it once; the morning's passed).
+        if (!lastWait)
+        {
+            ItemInspector whyInspector = ItemInspector.Instance;   // (named apart from the method's own "item" below: CS0136)
+            ItemInteractable whyItem = find != null ? find.GetComponentInChildren<ItemInteractable>() : null;
+            Note($"...why not: on the bench's corner {shelf.OnTheCorner}; its item on the bench {(whyItem != null && whyItem.OnBench)}; " +
+                 $"the close-up holds {(whyInspector == null ? "(no inspector)" : whyInspector.FocusedItem != null ? whyInspector.FocusedItem.name : "nothing")}; " +
+                 $"time scale {Time.timeScale:0.##}; the day over {(DayClock.Instance != null && DayClock.Instance.DayOver)}");
+        }
         if (!lastWait) yield break;
         Check(bench.Holds(find) && shelf.OnTheCorner, "it sits on the bench's own corner, outside the customers' places");
 

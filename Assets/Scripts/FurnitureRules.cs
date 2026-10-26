@@ -568,8 +568,64 @@ public static class FurnitureRules
             return Say(Verdict.OffTheFloor, "Only against a side wall", default);
         Shape candidate = template.ShapeAt(pivot, yaw);
         candidate.againstAWall = kind.againstAWall;
-        return Check(map, ShapesOf(layout, moving), candidate, moving != null ? 0 : kind.price, money);
+        return Check(map, ShapesOf(layout, moving), candidate, moving != null ? 0 : PriceToday(kind), money);   // 26 Oct 2026 (Days and first table)
     }
+
+    // ================================================================== the price today (26 Oct 2026 (Days and first table))
+
+    // DAY 1'S FIRST TABLE IS FREE (26 Oct 2026; the studio's call, his to overrule). On his Mac the half-finished café's Day 1
+    // closed with $145 in one run and $70 in the other (the second skipped the $55 thrift watch), and with $70 the $80 bistro
+    // couldn't be bought: the YOUR CAFÉ badge asked for something he couldn't afford, so the "Build your café" teach failed on
+    // luck. A teach must never fail on luck, and the best-selling cozy games give the first build away (Stardew's first seeds,
+    // Animal Crossing's first tent). So the first TABLE bought on Day 1 (a kind with seats on sale on Day 1: the bistro or the
+    // square table) costs nothing; the plant stays $35. The card and the plate still show what it would have cost, "$80"
+    // struck through, then "Free today", so he still learns what tables cost. Prices are back to normal from Day 2, or after
+    // that one table, whichever comes first. A free table sells back for $0, never half of a price nobody paid (CafeLayout
+    // keeps which pieces were free, in the save: PlacedPieceData.free). One function for every place that asks a price: the
+    // placing check (above), the charge (CafeLayout.Buy), the strip's cards and the plate (ArrangeUI, ArrangeMode).
+
+    /// <summary>The day the first table is free (Day 1, the half-finished café's teach).</summary>
+    public const int FreeTableDay = 1;
+
+    /// <summary>A table for the free-table rule: a kind with seats, on sale from the free day (the bistro, the square table).</summary>
+    public static bool IsFirstDayTable(FurnitureDefinition kind) => kind != null && kind.seats > 0 && kind.forSaleFromDay <= FreeTableDay;
+
+    /// <summary>
+    /// What <paramref name="kind"/> costs on <paramref name="day"/> with <paramref name="tableBought"/> (a table already bought
+    /// this game): $0 for the first table on Day 1, else its price. Pure, for the Edit-mode check (FurnitureRulesCheck).
+    /// </summary>
+    public static int PriceOn(FurnitureDefinition kind, int day, bool tableBought)
+    {
+        if (kind == null) return 0;
+        int price = Mathf.Max(0, kind.price);
+        return day <= FreeTableDay && !tableBought && IsFirstDayTable(kind) ? 0 : price;
+    }
+
+    /// <summary>
+    /// What <paramref name="kind"/> costs now (the clock's day; CafeLayout's bought pieces). With no clock (Edit mode, the steps)
+    /// it is the full price: the free table is a rule of a day being played.
+    /// </summary>
+    public static int PriceToday(FurnitureDefinition kind)
+    {
+        if (kind == null) return 0;
+        DayClock clock = DayClock.Instance;
+        if (clock == null) return Mathf.Max(0, kind.price);
+        CafeLayout layout = CafeLayout.Instance;
+        return PriceOn(kind, clock.Day, layout != null && layout.TableBought);
+    }
+
+    /// <summary>Free today though it has a price (Day 1's first table).</summary>
+    public static bool FreeToday(FurnitureDefinition kind) => kind != null && kind.price > 0 && PriceToday(kind) == 0;
+
+    /// <summary>The price in words, rich text: "$80", or "&lt;s&gt;$80&lt;/s&gt; Free today" for Day 1's first table.</summary>
+    public static string PriceWords(FurnitureDefinition kind)
+    {
+        if (kind == null) return "";
+        return FreeToday(kind) ? $"<s>${Mathf.Max(0, kind.price)}</s> {FreeWords}" : "$" + PriceToday(kind);
+    }
+
+    /// <summary>The free table's words after its struck price.</summary>
+    public const string FreeWords = "Free today";
 
     /// <summary>Both guards on the pieces in <paramref name="layout"/> that are on.</summary>
     public static Result CheckWholeLayout(FloorMap map, IReadOnlyList<PlacedPiece> layout) =>

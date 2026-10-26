@@ -67,7 +67,9 @@ using UnityEngine;
 //   a walk-in held back by the cap > 2 s, Ace <= 1    0        0        0
 // And two of the 23 Oct run's misses, judged on the median of the day's last 3 runs as the seat medians are (each run's own
 // number is still noted): THE DAY ENDS by its time (3 of 9 runs missed 7:30, each time a walk-in repair set off just before
-// last orders: walk-in repairs' last orders now come a repair's length earlier, CustomerSpawner.RepairLastOrdersLead), and
+// last orders: walk-in repairs' last orders now come a repair's length earlier, CustomerSpawner.RepairLastOrdersLead; 26 Oct
+// 2026: then 2 of his Mac's 3 Day 2 runs ended 7:42 and 7:44 with a DRINK walk-in who set off just before drinks' last
+// orders, so those count a drink's service too, CustomerSpawner.DrinkServiceSeconds), and
 // THE FIRST CUSTOMER AT THE TILL within 15 s (13.7-15.5 s). Its cause is only the random sequence: the opener's movement
 // profile is rolled by weight from Unity's Random (NpcProfileLibrary.Roll), and the five profiles walk at 0.86-1.18x, so the
 // same walk from the street takes 13.5-15.5 s; the seat dice of 23 Oct drew more numbers first, which changed the profile she
@@ -265,8 +267,12 @@ public sealed class DayShapeCheck : PlayLab
         Note($"Today is {today.name}: {string.Join(" / ", today.phases.Select(p => $"{p.phaseName} from {p.startsAt:0.00} every {p.spawnInterval:0} s"))}.");
         Note($"The spawner looks {spawner.LeadSeconds:0.0} s ahead (the walk from the street to the counter; " +
              $"{(spawner.LeadSamples > 0 ? $"learned from {spawner.LeadSamples} walk(s) this session" : "its starting value, nobody measured yet")}).");
+        // 26 Oct 2026 (Days and first table): drinks' last orders count a drink's service too, and the first walk-in after the
+        // opener is planned on the shortest walk (CustomerSpawner's fields).
         Note($"Last orders for walk-ins: none sets off with less than {spawner.LastOrdersLead:0} s left on the clock " +
-             $"(the longest walk to the till; {day - spawner.LastOrdersLead:0} s into this day).");
+             $"(the longest walk to the till, {spawner.WalkLastOrdersLead:0} s, and a drink's service, {spawner.DrinkServiceSeconds:0} s more; {day - spawner.LastOrdersLead:0} s into this day).");
+        Note($"The first walk-in after the opener sets off {spawner.FirstWalkInCushion:0.0} s after its gap (the planned walk {spawner.LeadSeconds:0} s " +
+             $"less the shortest, {spawner.ShortestWalk:0} s, at most 6 s: 26 Oct 2026, integration), so a short walk doesn't bring them to the till early.");
         Check(spawner.LastOrdersLead > 0f && spawner.LastOrdersLead < day,
             $"the walk-ins' last orders fall inside the day ({spawner.LastOrdersLead:0} s before closing of a {day:0} s day)");
         // 24 Oct 2026 (Days): a walk-in repair's last orders come a repair's length earlier than a drink's (the 23 Oct misses).
@@ -331,6 +337,13 @@ public sealed class DayShapeCheck : PlayLab
         int stillInside = FindObjectsByType<CustomerBrain>(FindObjectsInactive.Exclude).Count(c => c != null && c.isActiveAndEnabled && !c.IsLeaving);
         Check(clock.DayOver, $"the day ended within {ServiceAfterClosingAtMost:0} s of closing (service ran {endedAt - closedAt:0.0} s past it)");
         Check(stillInside == 0, $"the day ended only once everyone inside had been seen to ({stillInside} still waiting when it ended)");
+        // 26 Oct 2026 (Readability, builder R's note): the closing photo waits (up to 2 s, real time) for the recap phone to
+        // settle, so its lines are measured where the player reads them, not mid-rise (the gather's 1.1-1.8:1 "earned today").
+        RecapPhone settling = FindAnyObjectByType<RecapPhone>();
+        float settleFrom = Time.realtimeSinceStartup;
+        while (settling != null && settling.Root != null && settling.Root.activeInHierarchy && !settling.Settled
+               && Time.realtimeSinceStartup - settleFrom < 2f)
+            yield return null;
         yield return Photo($"{today.phases.Length + 3:00}-the-day-ends");
 
         Check(doubledNames == 0, $"one name per person: no look of the day had the same name pinned twice, Day 1's green pin and " +
@@ -487,7 +500,7 @@ public sealed class DayShapeCheck : PlayLab
         float lead = spawner != null ? spawner.LastOrdersLead : 0f;
         Check(called >= 0f && called < day,
             $"the spawner called last orders for walk-ins {(called >= 0f ? $"{called:0.0} s into the day, {day - called:0.0} s before closing" : "never")} " +
-            $"(the longest walk to the till: {lead:0} s" + (spawner != null && spawner.LongestWalkMeasured > 0f ? $"; the longest measured this session {spawner.LongestWalkMeasured:0.0} s" : "") + ")");
+            $"(the walk and a drink's service: {lead:0} s" + (spawner != null && spawner.LongestWalkMeasured > 0f ? $"; the longest measured this session {spawner.LongestWalkMeasured:0.0} s" : "") + ")");
 
         // Walk-ins seen for the first time after last orders: the spawner sent them (a regular's visit keeps its own rule).
         var lateWalkIns = people.Values.Where(a => !a.regular && called >= 0f && a.seen > called + .5f).ToList();
@@ -719,6 +732,12 @@ public sealed class DayShapeCheck : PlayLab
         if (lab != null)
             Note($"The autopilot's waiting jobs (at human speed only: {(lab.HumanSpeed ? "on" : "OFF, so these bars mean little")}): " +
                  $"{lab.TablesCleared} table(s) cleared, {lab.Chats} chat(s), {lab.Refills} refill(s), {lab.FindsWorked} time(s) at the find.");
+        // 26 Oct 2026 (Days and first table): where today's find is at the end (the 26 Oct runs never finished one: see CafeLab).
+        ThriftShelf shelf = ThriftShelf.Instance;
+        Note(shelf == null ? "No thrift shelf in the café (Fixit Fidget > Days > Props 1)."
+             : shelf.Find == null ? (t.findsFinished > 0 ? "Today's thrift find was finished (and has gone, or sold)." : "No thrift find on the shelf today.")
+             : $"Today's thrift find ({shelf.Find.name}): {(shelf.Finished ? "finished" : shelf.Begun ? "begun, not finished" : "untouched")}" +
+               $"{(shelf.Find is RepairJob r && !shelf.Finished ? "; left: " + r.MissedWords() : "")}; {t.onFind:0} s in its close-up.");
 
         Check(t.longestNothingAfter15 <= LongestNothingAtMost[d] + .05f,
             $"the longest stretch of nothing to do after the first 15 s: {t.longestNothingAfter15:0.0} s (at most {LongestNothingAtMost[d]:0})");

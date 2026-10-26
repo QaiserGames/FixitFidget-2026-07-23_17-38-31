@@ -21,7 +21,12 @@ using TMPro;
 // of the reviewers' photos ("the player's own character vanishes under a label at the spot they use most"). When the
 // chip over the thing would cover Ace's head, it hangs under the thing instead (its anchor pushed toward the camera until
 // the chip's top is at the thing's point): a name badge on a customer's chest, a label on the counter's front under a
-// device. The words (22 px, UiPins.NameSize) don't change.
+// device. The words (UiPins.NameSize) don't change.
+//
+// 26 Oct 2026 (Readability; her ask: "your text needs to be bolder"). The pinned name is 24 px now (UiPins.NameSize). The
+// first-person label under the crosshair (the scene's text, white, 28 px, regular) is drawn bold in the skin's font with the
+// skin's shadow, since it sits straight over the café (the gather caught a name at 1.6:1 over a bright wall), and never
+// under 28.
 // ---------------------------------------------------------------------------
 public class FocusNameUI : MonoBehaviour
 {
@@ -55,6 +60,16 @@ public class FocusNameUI : MonoBehaviour
     {
         drops = null;
         stationTops.Clear();
+    }
+
+    private void Start()
+    {
+        // 26 Oct 2026 (Readability): see the header.
+        if (label == null) return;
+        UiSkin.UseFont(label);
+        label.fontStyle = UiSkin.SemiBold;
+        if (label.fontSize < 28f) label.fontSize = 28f;
+        UiSkin.Shadowed(label);
     }
 
     private void Update()

@@ -21,7 +21,7 @@ using TMPro;
 //               sheet's item_*), then each drink (the cup: JobTicket.DrinkIconName, drink_*), and A CLOCK (item_clock) once
 //               patience is under half, red and pulsing under a quarter: "they've waited long enough". Without the sheet an
 //               icon is a dark chip with the item's initial;
-//   THE WORDS   the fault as a sentence ("Dirty lens and film path", 22 px, two lines at most) only on the wide docket; the
+//   THE WORDS   the fault as a sentence ("Dirty lens and film path", 24 px since 26 Oct (Readability), two lines at most) only on the wide docket; the
 //               hover details carry the whole job in words on any form.
 // Three forms, chosen by the rail (TicketRailUI): WIDE (236 x 144, up to three tickets), NARROW (96 x 144: the face and ring
 // over the name over the icons; from four tickets, every ticket the same, all visible, one row) and the CHIP at the bench
@@ -40,9 +40,10 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     // Sizes (reference pixels).
     public const float WideWidth = 236f, NarrowWidth = 96f, Height = 144f, FootHeight = 10f;
     public const float RingSize = 52f, RingStroke = 4.5f, FaceSize = 40f, ChipRingSize = 36f, ChipFaceSize = 28f;
-    public const float IconSize = 36f, IconGap = 6f, ChipIconSize = 28f, NameSize = 24f, NarrowNameSize = 22f, FaultSize = 22f;
+    public const float IconSize = 36f, IconGap = 6f, ChipIconSize = 28f, NameSize = 24f, NarrowNameSize = 22f, FaultSize = 24f;   // 26 Oct 2026 (Readability): the fault 22 to 24
     private static readonly Color Ink = UiSkin.Ink;
     private static readonly Color UrgentInk = UiSkin.Red;
+    private static readonly Color UrgentInitial = new Color(.557f, .165f, .125f);   // #8E2A20: 6.3:1 on UiSkin.RedSoft (26 Oct 2026, Readability)
 
     private Image portrait, portraitFrame, ringTrack, tape, foot;
     private TMP_Text portraitInitial;
@@ -239,7 +240,7 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         {
             itemIcons[i] = RepairOverlayUI.Panel("Item " + (i + 1), iconsRow, new Vector2(i * (IconSize + IconGap), 0f), new Vector2(IconSize, IconSize), Color.white);
             itemIcons[i].preserveAspect = true;
-            itemInitials[i] = RepairOverlayUI.Text("Initial", itemIcons[i].transform, Vector2.zero, new Vector2(IconSize, IconSize), 20, UiSkin.Paper);
+            itemInitials[i] = RepairOverlayUI.Text("Initial", itemIcons[i].transform, Vector2.zero, new Vector2(IconSize, IconSize), 22, UiSkin.Paper);
             itemInitials[i].alignment = TextAlignmentOptions.Center;
             itemInitials[i].fontStyle = FontStyles.Bold;
             itemInitials[i].gameObject.SetActive(false);
@@ -247,7 +248,7 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         }
         clockIcon = RepairOverlayUI.Panel("Clock", iconsRow, Vector2.zero, new Vector2(IconSize, IconSize), Color.white);
         clockIcon.preserveAspect = true;
-        clockInitial = RepairOverlayUI.Text("Initial", clockIcon.transform, Vector2.zero, new Vector2(IconSize, IconSize), 20, UiSkin.Paper);
+        clockInitial = RepairOverlayUI.Text("Initial", clockIcon.transform, Vector2.zero, new Vector2(IconSize, IconSize), 22, UiSkin.Paper);
         clockInitial.alignment = TextAlignmentOptions.Center;
         clockInitial.fontStyle = FontStyles.Bold;
         clockInitial.gameObject.SetActive(false);
@@ -287,7 +288,11 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         // The disc behind the face (seen round a portrait's edges, and under the initial): the customer's colour, pale; red-rimmed under a quarter.
         Color theme = identity != null && identity.ThemeColor != Color.white ? identity.ThemeColor : Target.JobColor;   // a walk-in with no mood colour wears the job's
         portraitFrame.color = patience <= .25f ? Color.Lerp(new Color(.98f, .86f, .84f), theme, .25f) : Color.Lerp(new Color(.93f, .95f, .93f), theme, .25f);   // 26 Oct 2026 (his Mac): a paler face, so the dark initial reads (a lilac face read 3.4:1)
-        portraitInitial.color = patience <= .25f ? UrgentInk : Ink;
+        // 26 Oct 2026 (Readability; the HUD lab: "'V' 24.3 px, 3.4:1" on Valerie's ticket). With no portrait the initial IS the face,
+        // so it sits on a solid disc, not a tint of the customer's colour (the tape still carries it): the paper (Ink on it 15.5:1),
+        // or under a quarter the pale red with a deep red letter (6.3:1; the skin's red on it was 3.9). The ring says the rest.
+        if (face == null) portraitFrame.color = patience <= .25f ? UiSkin.RedSoft : UiSkin.Paper;
+        portraitInitial.color = patience <= .25f ? UrgentInitial : Ink;
         if (ringTrack != null) ringTrack.color = patience <= .25f ? new Color(UiSkin.Red.r, UiSkin.Red.g, UiSkin.Red.b, .35f) : UiSkin.Track;
     }
 
@@ -409,7 +414,7 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         Place(portraitFrame.rectTransform, new Vector2((ringSize - faceSize) * .5f, -(ringSize - faceSize) * .5f), new Vector2(faceSize, faceSize));
         Place(portrait.rectTransform, Vector2.zero, new Vector2(faceSize, faceSize));
         Place(portraitInitial.rectTransform, Vector2.zero, new Vector2(faceSize, faceSize));
-        portraitInitial.fontSize = chip ? 17f : 24f;   // 26 Oct 2026 (his Mac): 24 on the dockets
+        portraitInitial.fontSize = chip ? 22f : 24f;   // 26 Oct 2026 (his Mac): 24 on the dockets; (Readability) 22 on the bench's chip, was 17
         // The foot, the tape.
         Place(foot.rectTransform, new Vector2(0f, -(cardHeight - FootHeight)), new Vector2(cardWidth, FootHeight));
         foot.gameObject.SetActive(!chip);
@@ -450,7 +455,7 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         {
             Place(itemIcons[i].rectTransform, new Vector2(i * (iconSize + IconGap), 0f), new Vector2(iconSize, iconSize));
             Place(itemInitials[i].rectTransform, Vector2.zero, new Vector2(iconSize, iconSize));
-            itemInitials[i].fontSize = chip ? 16f : 20f;
+            itemInitials[i].fontSize = 22f;   // 26 Oct 2026 (Readability): was 16 on a chip, 20 on a docket (the HUD lab's floor is 21.5)
         }
         Place(clockIcon.rectTransform, Vector2.zero, new Vector2(iconSize, iconSize));
         Place(clockInitial.rectTransform, Vector2.zero, new Vector2(iconSize, iconSize));
@@ -505,7 +510,7 @@ public class JobTicket : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         callSeconds = RepairOverlayUI.Text("Countdown", callLine, new Vector2(cardWidth - 110f, -2f), new Vector2(86f, 32f), 22, UiSkin.BandFaint);
         callSeconds.fontStyle = FontStyles.Bold;
         callState.textWrappingMode = callSeconds.textWrappingMode = TextWrappingModes.NoWrap;
-        foreach (TMP_Text t in new[] { callState, callSeconds }) { t.enableAutoSizing = true; t.fontSizeMin = 16f; t.fontSizeMax = 22f; }
+        foreach (TMP_Text t in new[] { callState, callSeconds }) { t.enableAutoSizing = true; t.fontSizeMin = 22f; t.fontSizeMax = 24f; }   // 26 Oct 2026 (Readability): 16-22 to 22-24
         UiSkin.UseFont(callState);
         UiSkin.UseFont(callSeconds);
         laidOut = (Form)(-1);

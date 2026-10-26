@@ -623,8 +623,8 @@ public class DayOneGuideUI : MonoBehaviour
                 if (section.drink != wanted) continue;
                 if (section.IsPouring) return Waiting($"{drink} is pouring. Wait, or start another cup.");
                 if (section.Cup != null && section.Cup.IsEmpty)
-                    return Pad ? $"Aim at the {drink} paddle. {E} Pour."
-                        : $"Look at the {drink} paddle. {Use} Pour.";
+                    return Pad ? $"Aim at the {drink} button. {E} Pour."   // 26 Oct 2026 (Drink buttons): picture buttons now
+                        : $"Look at the {drink} button. {Use} Pour.";
                 if (section.Cup != null && section.Cup.CanHandBack)
                     return Pad ? $"{drink} is ready. Aim at the cup. {E} Take it."
                         : $"{drink} is ready. Look at the cup. {Use} Take it.";

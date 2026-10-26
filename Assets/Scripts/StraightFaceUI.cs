@@ -148,12 +148,12 @@ public sealed class StraightFaceUI : MonoBehaviour
         lift.effectDistance = new Vector2(0f, -3f);
         panel = box.gameObject;
 
-        RectTransform titleRect = Rect("Title", box, new Vector2(.5f, 1f), new Vector2(0f, -21f), new Vector2(560f, 34f));
+        RectTransform titleRect = Rect("Title", box, new Vector2(.5f, 1f), new Vector2(0f, -21f), new Vector2(560f, 36f));
         title = titleRect.gameObject.AddComponent<TextMeshProUGUI>();
         TMP_FontAsset font = UiSkin.Font;
         if (font != null) title.font = font;
         title.fontStyle = FontStyles.Bold;
-        title.fontSize = 25f;
+        title.fontSize = 28f;   // 26 Oct 2026 (Readability; her ask: "your text needs to be bolder"): 25 to 28, its most important line
         title.alignment = TextAlignmentOptions.Center;
         title.color = Ink;
         title.raycastTarget = false;

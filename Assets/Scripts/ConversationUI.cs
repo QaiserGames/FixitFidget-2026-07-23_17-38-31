@@ -373,7 +373,7 @@ public class ConversationUI : MonoBehaviour
     private const float LineWidth = 1100f;
     private const float LineSize = 32f;
     private const float LinePadX = 22f, LinePadY = 10f;   // the plate round their line
-    private const float NameSize = 24f;
+    private const float NameSize = 26f;   // 26 Oct 2026 (Readability; her ask: "your text needs to be bolder"): 24 to 26, semibold
     private const float PortraitSize = 88f;
     /// <summary>The replies' left edge, right of the screen's middle (their face), reference pixels. The straight-face meter
     /// takes the same place (StraightFaceUI).</summary>
@@ -382,7 +382,7 @@ public class ConversationUI : MonoBehaviour
     public const float ColumnAboveFace = 34f;
     private const float ReplySize = 32f;   // the spec of 19 Oct said 30: kept at 32 (bigger is the direction, and the view probe asserts 32)
     private const float PlatePadX = 20f, PlatePadY = 10f, PlateGap = 8f, PlateMin = 320f, PlateMax = 640f;
-    private const float FooterSize = 22f;
+    private const float FooterSize = 24f;   // 26 Oct 2026 (Readability): the keys' hint 22 to 24
 
     /// <summary>Where the conversation's camera holds their face: above the screen's middle, as a share of its height.</summary>
     public float FaceAboveMiddle { get; set; } = .07f;
@@ -465,7 +465,7 @@ public class ConversationUI : MonoBehaviour
             name.sizeDelta = new Vector2(LineWidth, NameSize * 1.5f);
             nameText.alignment = TextAlignmentOptions.Bottom;
             nameText.fontSize = NameSize;
-            nameText.fontStyle = FontStyles.Normal;
+            nameText.fontStyle = UiSkin.SemiBold;
             nameText.textWrappingMode = TextWrappingModes.NoWrap;
             nameText.richText = true;
             nameText.raycastTarget = false;

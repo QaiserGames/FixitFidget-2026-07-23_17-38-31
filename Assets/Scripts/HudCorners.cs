@@ -68,12 +68,15 @@ public sealed class HudCorners : MonoBehaviour
     const float WindowTop = 4f;
     // The strip at the bench (zone U2: 18-110 px down, 324 wide from the right edge).
     const float StripHeight = 86f, StripPad = 8f, StripTimeSize = 30f, MiniWindowScale = .36f;
-    const float ChipWordSize = 22f, ChipPadX = 12f, ChipRow = 34f;
+    const float ChipWordSize = 24f, ChipPadX = 12f, ChipRow = 34f;
     // The stock chips.
-    const float StockHeight = 62f, StockPitch = 70f, StockTitleSize = 22f, StockLineSize = 20f;
+    // 26 Oct 2026 (Readability; the gather: "Refill from the back shelf" 20 px at 3.3:1, paper on the accent): the chip's words 24
+    // and 22, bold, on Ember (paper on it 5.6:1); the chip a little taller for them. The state chip's word 22 to 24.
+    const float StockHeight = 66f, StockPitch = 74f, StockTitleSize = 24f, StockLineSize = 22f;
+    static readonly Color Ember = new Color(.604f, .298f, .090f);       // #9A4C17: the stock chip's face (paper on it 5.6:1)
     const float LabNudge = 92f;   // the café lab's banner sits in the bottom right corner (labs only)
     // The toast under the column.
-    const float ToastTitleSize = 24f, ToastLineSize = 22f, ToastWidth = 300f, ToastSeconds = 4f, HintSeconds = 6f;
+    const float ToastTitleSize = 26f, ToastLineSize = 24f, ToastWidth = 300f, ToastSeconds = 4f, HintSeconds = 6f;   // 26 Oct 2026 (Readability): the toast 24/22 to 26/24
 
     // ---- the sign's faces (never red: his words, 19 Oct) ----
     static readonly Color Honey = new Color(.941f, .710f, .298f);       // #F0B54C: the LAST ORDERS face
@@ -356,8 +359,9 @@ public sealed class HudCorners : MonoBehaviour
         f.word = UiSkin.Text("Word", f.rect, 40f, UiSkin.Brand, TextAlignmentOptions.Center, FontStyles.Bold);
         Place(f.word.rectTransform, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(0f, 1f), new Vector2(SignWidth - 16f, 46f));
         // The line under the word, 22 px in sentence case (her: "your text needs to be bolder"; 26 Oct: up from 20, the HUD's floor).
-        f.sub = UiSkin.Text("Under", f.rect, 22f, UiSkin.Brand, TextAlignmentOptions.Center, FontStyles.Normal);
-        Place(f.sub.rectTransform, new Vector2(.5f, 0f), new Vector2(.5f, 0f), new Vector2(0f, 8f), new Vector2(SignWidth - 16f, 26f));
+        // 26 Oct 2026 (Readability): 24 px and semibold ("Come in" was the gather's most-seen small line, in 165 photos).
+        f.sub = UiSkin.Text("Under", f.rect, 24f, UiSkin.Brand, TextAlignmentOptions.Center, UiSkin.SemiBold);
+        Place(f.sub.rectTransform, new Vector2(.5f, 0f), new Vector2(.5f, 0f), new Vector2(0f, 6f), new Vector2(SignWidth - 16f, 28f));
         return f;
     }
 
@@ -480,20 +484,20 @@ public sealed class HudCorners : MonoBehaviour
         beansChip = MakeChip("Beans", 1);
     }
 
-    // A stock chip: what's low (22 px bold) over when to buy (20 px), on the accent (or the sign's plum once it's out).
+    // A stock chip: what's low (24 px bold) over when to buy (22 px), on Ember (or the sign's plum once it's out).
     Chip MakeChip(string name, int row)
     {
         var chip = new Chip();
         chip.rect = Box(name, chips, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0f, row * StockPitch), new Vector2(300f, StockHeight));
-        chip.face = UiSkin.Paint(chip.rect, UiSkin.Accent, 16f);
+        chip.face = UiSkin.Paint(chip.rect, Ember, 16f);
         chip.glow = UiSkin.DropShadow(chip.rect, 12f, 3f, .3f);
         chip.glowRect = chip.glow.rectTransform;
         chip.title = UiSkin.Text("Words", chip.rect, StockTitleSize, UiSkin.Paper, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-        Place(chip.title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -7f), new Vector2(268f, 26f));
-        // Bold as well: paper on the accent reads at 3.6:1, enough for bold text at this size, not for a light line.
+        Place(chip.title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -6f), new Vector2(268f, 28f));
+        // Bold as well (paper on the old accent read 3.6:1; on Ember it is 5.6).
         chip.line = UiSkin.Text("When", chip.rect, StockLineSize, UiSkin.Paper, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
         chip.line.text = "Restock at closing";
-        Place(chip.line.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -33f), new Vector2(268f, 24f));
+        Place(chip.line.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -34f), new Vector2(268f, 26f));
         chip.rect.gameObject.SetActive(false);
         chip.glowRect.gameObject.SetActive(false);
         return chip;
@@ -1012,12 +1016,12 @@ public sealed class HudCorners : MonoBehaviour
             chip.shownCount = shownNow;
             chip.title.text = atMachine ? $"Low at the machine · {count} {what}" : count <= 0 ? $"Out of {what}" : $"Low on {what} · {count} left";
             chip.line.text = atMachine ? "Refill from the back shelf" : "Restock at closing";
-            chip.face.color = !atMachine && count <= 0 ? Plum : UiSkin.Accent;
-            float width = Mathf.Max(Mathf.Ceil(chip.title.GetPreferredValues(chip.title.text, 999f, 26f).x),
-                                    Mathf.Ceil(chip.line.GetPreferredValues(chip.line.text, 999f, 24f).x)) + 32f;
+            chip.face.color = !atMachine && count <= 0 ? Plum : Ember;
+            float width = Mathf.Max(Mathf.Ceil(chip.title.GetPreferredValues(chip.title.text, 999f, 28f).x),
+                                    Mathf.Ceil(chip.line.GetPreferredValues(chip.line.text, 999f, 26f).x)) + 32f;
             chip.rect.sizeDelta = new Vector2(width, StockHeight);
-            chip.title.rectTransform.sizeDelta = new Vector2(width - 32f, 26f);
-            chip.line.rectTransform.sizeDelta = new Vector2(width - 32f, 24f);
+            chip.title.rectTransform.sizeDelta = new Vector2(width - 32f, 28f);
+            chip.line.rectTransform.sizeDelta = new Vector2(width - 32f, 26f);
         }
         // In from the right with a spring, then a slow glow.
         float t = Mathf.Clamp01((now - chip.since) / ChipInSeconds);

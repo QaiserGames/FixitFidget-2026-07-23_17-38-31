@@ -85,7 +85,7 @@ public sealed class HudLabCheck : PlayLab
             $"the window sits top centre ({win.xMin:0}-{win.xMax:0} x {win.yMin:0}-{win.yMax:0} of {Screen.width} x {Screen.height})");
         Check(corners.CityShown == HudCity.SanFrancisco, $"its city is {corners.CityShown} (San Francisco: the Golden Gate, the Pyramid, the fog, the Ladies, a cable car)");
         Check(corners.ClockLine.Contains(Weekdays.Label(clock.Day)), $"the time and the day on its sill: \"{corners.ClockLine}\"");
-        Check(corners.ClockLineSize >= 20f && corners.ClockGap >= 10f, $"...the day at {corners.ClockLineSize:0.#} px, {corners.ClockGap:0} px to spare with the time at its widest");
+        Check(corners.ClockLineSize >= 21.9f && corners.ClockGap >= 10f, $"...the day at {corners.ClockLineSize:0.#} px, {corners.ClockGap:0} px to spare with the time at its widest");
         Rect cash = OnScreen(corners.CashRect), sign = OnScreen(corners.SignRect);
         Check(cash.xMax > Screen.width * .8f && sign.xMax > Screen.width * .8f && sign.yMin >= cash.yMax - 1f,
             $"the column top right: the sign ({sign.yMin:0}-{sign.yMax:0} up) over the jar's board ({cash.yMin:0}-{cash.yMax:0})");

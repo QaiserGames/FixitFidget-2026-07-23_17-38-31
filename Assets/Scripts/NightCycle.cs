@@ -772,7 +772,9 @@ public sealed class NightCycle : MonoBehaviour
         var lift = noteBox.gameObject.AddComponent<Shadow>();
         lift.effectColor = new Color(0f, 0f, 0f, .35f);
         lift.effectDistance = new Vector2(0f, -3f);
-        note = Label("Text", noteBox, Vector2.zero, new Vector2(NoteTextWidth, 60f), 25f, UiSkin.BandText, font);
+        // 26 Oct 2026 (Readability; her ask: "your text needs to be bolder"; the gather: the night's notes at 25 px): 28, semibold.
+        note = Label("Text", noteBox, Vector2.zero, new Vector2(NoteTextWidth, 60f), 28f, UiSkin.BandText, font);
+        note.fontStyle = UiSkin.SemiBold;
         noteBox.gameObject.SetActive(false);
     }
 

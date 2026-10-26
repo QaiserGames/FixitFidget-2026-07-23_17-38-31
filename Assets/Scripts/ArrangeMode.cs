@@ -561,14 +561,14 @@ public sealed class ArrangeMode : MonoBehaviour
             case Hand.Moving:
                 Item(ControlHints.Place, "Put down", GhostResult.Fits);
                 Item(ControlHints.Turn, "Turn", kind != null && !kind.againstAWall && !kind.IsPlant);
-                Item(ControlHints.SellHold, $"Hold to sell +${(kind != null ? kind.SellBack : 0)}");
+                Item(ControlHints.SellHold, $"Hold to sell +${(CafeLayout.Instance != null ? CafeLayout.Instance.SellBackOf(moving) : 0)}");   // 26 Oct 2026 (Days and first table): $0 for the free table
                 Item(ControlHints.Back, "Put back");
                 break;
             default:
                 if (hover != null)
                 {
                     Item(ControlHints.Place, "Pick up");
-                    Item(ControlHints.SellHold, $"Hold to sell +${(hover.Kind != null ? hover.Kind.SellBack : 0)}");
+                    Item(ControlHints.SellHold, $"Hold to sell +${(CafeLayout.Instance != null ? CafeLayout.Instance.SellBackOf(hover) : 0)}");
                 }
                 Item(ControlHints.Back, "Done");
                 Item(ControlHints.Browse, "Browse");
@@ -584,18 +584,18 @@ public sealed class ArrangeMode : MonoBehaviour
         {
             if (!GhostResult.Fits) reason = GhostResult.words;
             string what = kind.IsPlant && variant.Length > 0 ? variant : kind.displayName;
-            line = $"{what} · {SeatsWords(kind.seats)} · ${kind.price}";
+            line = $"{what} · {SeatsWords(kind.seats)} · {FurnitureRules.PriceWords(kind)}";   // 26 Oct 2026 (Days and first table): "<s>$80</s> Free today" on Day 1's first table
         }
         else if (hand == Hand.Moving && moving != null)
         {
             if (!GhostResult.Fits) reason = GhostResult.words;
             line = $"{Name(moving)} · {SeatsWords(moving.SeatCount)} · moving is free";
-            sell = $"{ControlHints.SellHold} Hold to sell it back: +${(moving.Kind != null ? moving.Kind.SellBack : 0)}";
+            sell = $"{ControlHints.SellHold} Hold to sell it back: +${(CafeLayout.Instance != null ? CafeLayout.Instance.SellBackOf(moving) : 0)}";
         }
         else if (hover != null)
         {
             line = $"{Name(hover)} · {SeatsWords(hover.SeatCount)}";
-            sell = $"{ControlHints.SellHold} Hold to sell it back: +${(hover.Kind != null ? hover.Kind.SellBack : 0)}";
+            sell = $"{ControlHints.SellHold} Hold to sell it back: +${(CafeLayout.Instance != null ? CafeLayout.Instance.SellBackOf(hover) : 0)}";
         }
         else { ui.HidePlate(); return; }
         ui.Plate(screen, reason, line, sell, SellProgress);

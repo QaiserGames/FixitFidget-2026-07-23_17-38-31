@@ -95,6 +95,51 @@ public class CustomerSpawner : MonoBehaviour
              "speed (90 s). A walk-in who sets off later than that brings a drink order instead. 0: repairs and drinks alike.")]
     [SerializeField, Min(0f)] private float repairLastOrdersExtraSeconds = 90f;
 
+    // 26 Oct 2026 (Days and first table): LAST ORDERS FOR DRINKS COUNT A DRINK'S SERVICE TOO. P2's rule "walk-in repairs stop 90 s
+    // before drinks do, so the day ends by 7:30" held for repairs, but the three late days on his Mac (7:42, 7:44 on Day 2;
+    // 7:44 on Day 3) were each a DRINK walk-in who set off 357-367 s in, just before drinks' last orders (375 s: the 45 s walk
+    // alone), reached the till at 407-411 s and needed 54-57 s more to be heard, served and out of the door (Walter, Mansoor,
+    // Yuki). Last orders for drinks only made sure they reached the till by closing; nothing budgeted the drink. A drink takes
+    // about 40-55 s from the till to the door at human speed, and the day may run half an hour (30 s) past closing, so drinks'
+    // last orders now come this much before the walk's: 45 + 25 = 70 s before closing. Repairs' stay where they were (the walk
+    // + 90 s). New field: the scene has no value for it, so this default is what plays.
+    [Tooltip("Last orders for walk-in DRINKS come this much earlier than the walk to the till alone, seconds: a drink's service " +
+             "from the till to the door at human speed (40-55 s) less the half hour the day may run past closing (30 s). 0: as before.")]
+    [SerializeField, Min(0f)] private float drinkServiceSeconds = 25f;
+
+    // 26 Oct 2026 (Days and first table): THE FIRST WALK-IN IS PLANNED ON THE SHORTEST WALK. With the scene's spawn jitter of 0 the
+    // day's first walk-in sets off one gap after the opener (60.6 s into Day 2 on all three of his Mac's runs), and the gap was
+    // authored with the walk the spawner expects (36 s): a 29.3 s walk reached the till at 89.9 s, against Day 2's "no sooner
+    // than 1:30". So the gap after the opener is lengthened by the planned walk less the shortest walk anyone has made (22 s on
+    // his Mac, 26 Oct; or shorter, once one is measured): however short the walk, the first walk-in reaches the till no sooner
+    // than the opener's gap plus the planned walk (Day 2: 0.5 + 60 + 36 = 96.5 s). Only the first walk-in after the opener moves.
+    [Tooltip("The shortest walk from the street to the till anyone makes, seconds (26 Oct 2026, his Mac: 22 s). The first walk-in " +
+             "after the opener sets off the planned walk less this later, so a short walk never brings them early. A shorter " +
+             "measured walk lowers it.")]
+    [SerializeField, Min(0f)] private float shortestWalkSeconds = 22f;
+    // 26 Oct 2026 (integration, his Mac's afternoon runs): ...BUT NEVER MORE THAN A FEW SECONDS. The whole 14 s moved every
+    // later arrival with it: in 2 of 2 Day 2 runs no walk-in brought the day's watch before repairs' last orders (bench jobs 1
+    // customer's + the find), and one run had 35 s with nothing to do. The miss it answered was 0.1 s (89.9 s against 1:30), and
+    // the shortest walk measured on his Mac's Day 2 runs was 29.3 s, 6.7 s under the planned 36: so the first walk-in waits at
+    // most this long, which keeps every walk measured there at or after its bar without slowing the day.
+    [Tooltip("The most the first walk-in after the opener waits for a short walk, seconds (26 Oct 2026: 6).")]
+    [SerializeField, Min(0f)] private float firstWalkInCushionAtMost = 6f;
+
+    // 26 Oct 2026 (integration, his Mac's afternoon runs): THE LAST CALL. With drinks' last orders 70 s before closing, a gap that
+    // would have ended just after them left the café empty for its last half minute (24-28 s with nothing to do after last
+    // orders, against P's 20). So when the next arrival would set off after last orders, it sets off just before them instead:
+    // the day's last walk-in comes at last orders, as a last-minute customer does, and is still out of the door by half past.
+    [Tooltip("Bring the next arrival forward to just before last orders when its gap would end after them (26 Oct 2026).")]
+    [SerializeField] private bool lastCall = true;
+
+    // 26 Oct 2026 (integration, his Mac's afternoon runs): THE DAY'S TAUGHT REPAIR ALWAYS COMES. A walk-in brings today's next
+    // authored repair only if their dice say "a device" (the day's drink-only chance), so a day with few walk-ins before repairs'
+    // last orders could pass with none: Day 2's watch, the payoff of Day 1's thrift-watch practice, didn't come in 2 runs of 2.
+    // So once repairs' last orders are less than this far off and an authored repair is still to come, the next walk-in (not a
+    // named visit, not a regular) brings it.
+    [Tooltip("Seconds before repairs' last orders from which a walk-in always brings today's next authored repair (26 Oct 2026).")]
+    [SerializeField, Min(0f)] private float authoredRepairDueWithin = 75f;
+
     // 24 Oct 2026 (Days, P's spec §3.1 part 2): THE QUIET NUDGE. When nobody needs Ace, nobody is walking in, and it has been so
     // this long, the next arrival sets off now. Within today's limit and before last orders, and never before today's featured
     // visit is over (Day 1 protects its first repair: the days spec of 14 Oct, call 4). It only acts with nothing left for Ace to
@@ -186,6 +231,7 @@ public class CustomerSpawner : MonoBehaviour
     // Last orders (12 Oct): the longest walk to the till measured this session (0 until one is), and when today's last
     // orders for walk-ins were called (seconds into the day; -1 until they are).
     private float longestLead;
+    private float shortestLead;   // 26 Oct 2026: the shortest walk to the till measured this session (0 until one is)
     private float lastOrdersCalledAt = -1f;
     // The day's first arrival, already on the way (openerMetresOut): spawned a beat into the day, never on the frame the
     // day changes (CafeArrivals clears its walkers when it sees a new day).
@@ -289,11 +335,24 @@ public class CustomerSpawner : MonoBehaviour
 
     /// <summary>
     /// Last orders for walk-ins (12 Oct, #9): how long before closing the last walk-in may set off, seconds: the longest
-    /// walk to the till (Last Orders Lead Seconds, or today's longest measured walk if that is longer).
+    /// walk to the till (Last Orders Lead Seconds, or today's longest measured walk if that is longer), and since 26 Oct 2026
+    /// a drink's service on top (Drink Service Seconds: so the last drink is out of the door by half past).
     /// </summary>
-    public float LastOrdersLead => Mathf.Max(lastOrdersLeadSeconds, longestLead);
+    public float LastOrdersLead => WalkLastOrdersLead + drinkServiceSeconds;   // 26 Oct 2026: and a drink's service
 
-    /// <summary>True once no walk-in may set off any more today: less than the longest walk is left on the clock.</summary>
+    /// <summary>The longest walk to the till (Last Orders Lead Seconds, or today's longest measured walk if longer), seconds.</summary>
+    public float WalkLastOrdersLead => Mathf.Max(lastOrdersLeadSeconds, longestLead);
+
+    /// <summary>26 Oct 2026: how much earlier than the walk drinks' last orders come (a drink's service less the half hour's grace).</summary>
+    public float DrinkServiceSeconds => drinkServiceSeconds;
+
+    /// <summary>26 Oct 2026: the shortest walk to the till the first walk-in is planned on (the field, or a shorter one measured).</summary>
+    public float ShortestWalk => shortestLead > 0f ? Mathf.Min(shortestLead, shortestWalkSeconds) : shortestWalkSeconds;
+
+    /// <summary>26 Oct 2026: how much later than its gap the first walk-in after the opener sets off: the planned walk less the shortest.</summary>
+    public float FirstWalkInCushion => Mathf.Min(firstWalkInCushionAtMost, Mathf.Max(0f, LeadSeconds - ShortestWalk));   // integration: at most 6 s
+
+    /// <summary>True once no walk-in may set off any more today: less than the longest walk and a drink's service is left.</summary>
     public bool LastOrdersForWalkIns => DayClock.Instance != null && DayClock.Instance.TimeRemaining <= LastOrdersLead;
 
     /// <summary>When today's last orders for walk-ins were called, seconds into the day; -1 until they are (reports).</summary>
@@ -303,7 +362,7 @@ public class CustomerSpawner : MonoBehaviour
     /// Last orders for walk-in REPAIRS (24 Oct 2026): how long before closing the last walk-in who brings a device may set off,
     /// seconds: drinks' lead plus a repair's length at human speed.
     /// </summary>
-    public float RepairLastOrdersLead => LastOrdersLead + repairLastOrdersExtraSeconds;
+    public float RepairLastOrdersLead => Mathf.Max(WalkLastOrdersLead + repairLastOrdersExtraSeconds, LastOrdersLead);   // 26 Oct 2026: from the walk, as before
 
     /// <summary>True once no walk-in may set off with a repair any more today (they come for a drink instead).</summary>
     public bool LastOrdersForRepairs => DayClock.Instance != null && DayClock.Instance.TimeRemaining <= RepairLastOrdersLead;
@@ -499,6 +558,12 @@ public class CustomerSpawner : MonoBehaviour
             timer = 0f;
             quietNudges++;
         }
+        // 26 Oct 2026 (integration): the last call (see the field): a gap that would end after last orders ends just before them.
+        if (lastCall && !LastOrdersForWalkIns && DayClock.Instance != null)
+        {
+            float untilLastOrders = DayClock.Instance.TimeRemaining - LastOrdersLead;
+            if (untilLastOrders > 0f && timer > untilLastOrders) timer = Mathf.Max(0f, untilLastOrders - .5f);
+        }
 
         timer -= Time.deltaTime;
         if (opening.VisitInProgress) return;
@@ -544,7 +609,7 @@ public class CustomerSpawner : MonoBehaviour
                 {
                     lastOrdersCalledAt = SecondsNow;
                     Debug.Log($"[Day {lastSeenDay}] last orders for walk-ins: {DayClock.Instance.TimeRemaining:0} s before closing " +
-                              $"(the walk to the till takes up to {LastOrdersLead:0} s" +
+                              $"(the walk to the till takes up to {WalkLastOrdersLead:0} s, a drink {drinkServiceSeconds:0} s more" +   // 26 Oct 2026
                               $"{(longestLead > 0f ? $", the longest measured today {longestLead:0} s" : "")}). " +
                               "Nobody new reaches the till after closing; everyone inside is served.");
                 }
@@ -667,6 +732,8 @@ public class CustomerSpawner : MonoBehaviour
         // The day's first arrival, already on the way (playtest 4): only at the very start of the day.
         bool opener = openerPending && SecondsNow < OpenerWithin;
         openerPending = false;
+        // 26 Oct 2026 (Days and first table): the first walk-in after the opener is planned on the shortest walk (see the field).
+        if (opener) timer += FirstWalkInCushion;
 
         // Who is this? A featured regular takes the next available arrival
         // slot after their authored time. If the counter is full, they wait for
@@ -836,6 +903,7 @@ public class CustomerSpawner : MonoBehaviour
             leadSamples++;
             // The longest walk is what last orders go by (12 Oct): someone CAN take this long to the till.
             longestLead = Mathf.Max(longestLead, took);
+            shortestLead = shortestLead > 0f ? Mathf.Min(shortestLead, took) : took;   // 26 Oct 2026: the first walk-in's plan
         }
     }
 
@@ -1037,6 +1105,9 @@ public class CustomerSpawner : MonoBehaviour
         if (forcedKind.HasValue) wantsDrink = forcedKind.Value == JobKind.Drink;
         // 24 Oct 2026 (Days): last orders for walk-in repairs (Spawn sets this for the one roll): a drink, whatever the day's mix.
         else if (rollDrinksOnly && profile == null && hasDrinks) wantsDrink = true;
+        // 26 Oct 2026 (integration): the day's taught repair always comes (see the field): close to repairs' last orders, a
+        // walk-in brings today's next authored repair whatever their dice said.
+        else if (profile == null && AuthoredRepairDue) wantsDrink = false;
 
         // DAYS 1-3 (14 Oct 2026, specs/days-1-3.md §6; the Producer's call 8). On a day with authored walk-in repairs a
         // walk-in who brings a device brings the next one in order, so nobody walks in with a job the game hasn't taught yet
@@ -1101,6 +1172,21 @@ public class CustomerSpawner : MonoBehaviour
 
     /// <summary>How many of today's authored walk-in repairs have walked in so far (reports and the Days 1-3 checks).</summary>
     public int WalkInRepairsUsed => walkInRepairsUsed;
+
+    /// <summary>
+    /// 26 Oct 2026 (integration): an authored walk-in repair is still to come today and repairs' last orders are less than
+    /// Authored Repair Due Within away, so the next walk-in brings it (RollJob): the day's taught repair always comes.
+    /// </summary>
+    private bool AuthoredRepairDue
+    {
+        get
+        {
+            if (today == null || DayClock.Instance == null || LastOrdersForRepairs) return false;
+            FeaturedRepairRequest[] list = today.WalkInRepairsOn(lastSeenDay);
+            if (list == null || walkInRepairsUsed >= list.Length) return false;
+            return DayClock.Instance.TimeRemaining - RepairLastOrdersLead <= authoredRepairDueWithin;
+        }
+    }
 
     // Today's next authored walk-in repair (DayDefinition.walkInRepairs), or null: none are authored today (authored false),
     // or they are all used. An entry that can't make a job (no prefab, a fault index past the end) is skipped, loudly: the

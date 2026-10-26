@@ -36,10 +36,11 @@ internal static class FurnitureLabMenus
     const string MenuDay3 = DaysMenu + "Lab - Day 3 at the counter (half-finished café)";
 
     // The week's model (furniture-spec.md §3.3: a bistro at Day 1's closing, a square table at Day 2's), where the ghost first waits.
-    static readonly PlacedPieceData DayOneBistro = new PlacedPieceData { id = "p1", kind = "Bistro table", x = -4.75f, z = 10.25f, yaw = 90f };
+    // 26 Oct 2026 (Days and first table): Day 1's bistro was the free first table (FurnitureRules.PriceToday): $0, marked free.
+    static readonly PlacedPieceData DayOneBistro = new PlacedPieceData { id = "p1", kind = "Bistro table", x = -4.75f, z = 10.25f, yaw = 90f, free = true };
     static readonly PlacedPieceData DayTwoSquare = new PlacedPieceData { id = "p2", kind = "Square table", x = -2.25f, z = 9f, yaw = 90f };
     const string DayOneSheet = "sheet-2", DayTwoSheet = "sheet-3";
-    const int BistroPrice = 80, SquarePrice = 90;
+    const int BistroPrice = 0, SquarePrice = 90;   // 26 Oct 2026: Day 1's first table is free (it was $80)
 
     [MenuItem(MenuPlace, false, 40)]
     static void PlaceMoveSell() => Start(ClosingSave(), true, false, FurnitureCheck.PendingKey, null,
@@ -131,7 +132,7 @@ internal static class FurnitureLabMenus
         return new SaveData { day = day, money = money, cups = 40, beans = 40, dayCompleted = false, regularMemories = new[] { grace } };
     }
 
-    static PlacedPieceData Copy(PlacedPieceData d) => new PlacedPieceData { id = d.id, kind = d.kind, x = d.x, z = d.z, yaw = d.yaw, tier = d.tier, variant = d.variant };
+    static PlacedPieceData Copy(PlacedPieceData d) => new PlacedPieceData { id = d.id, kind = d.kind, x = d.x, z = d.z, yaw = d.yaw, tier = d.tier, variant = d.variant, free = d.free };
 
     static bool InTheCafe()
     {

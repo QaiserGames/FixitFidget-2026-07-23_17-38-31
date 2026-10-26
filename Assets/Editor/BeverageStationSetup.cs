@@ -143,6 +143,9 @@ public static class BeverageStationSetup
                 var motion = paddle.gameObject.AddComponent<BeveragePaddleMotion>();
                 motion.slot = slot;
                 motion.pressedOffset = paddle.parent.InverseTransformVector(root.transform.forward * .006f);
+                // 26 Oct 2026 (Drink buttons): this printed word, fitted to its own square (art finding a10: six sizes), is the OLD
+                // look. Fixit Fidget > Drinks > Buttons 1 sets it inactive and fits the picture cap under the paddle; run it
+                // after this installer, every time.
                 var captionObject = new GameObject("Printed " + drinks[i].drinkName);
                 captionObject.transform.SetParent(root.transform, false);
                 captionObject.transform.localPosition = new Vector3(x, .478f, -.164f);
@@ -227,7 +230,8 @@ public static class BeverageStationSetup
             Debug.Log("[Beverage dispenser] Installed compact six-valve model: 1.45m overall footprint, "
                 + "1.08m case, 0.67m height. Previous espresso prop preserved. F enters/leaves; "
                 + "mouse looks around; left/right clicks use the corresponding hand. Place a cup, then press its named paddle. "
-                + "Use the paddle for deliberate dispensing without a cup. Scene changes are undoable.");
+                + "Use the paddle for deliberate dispensing without a cup. Scene changes are undoable. "
+                + "Then run Fixit Fidget > Drinks > Buttons 1 for the picture buttons (26 Oct 2026, Drink buttons).");
         }
         catch
         {

@@ -212,6 +212,9 @@ public class PlacedPieceData
     public float x, z, yaw;       // its pivot on the floor (world metres) and its turn (degrees)
     public int tier = 1;          // 1 Workshop; 2 Marble & Brass (not sold in v1, saved from day one)
     public string variant = "";   // a plant's kind ("Monstera"); "" otherwise
+    // 26 Oct 2026 (Days and first table): Day 1's first table cost nothing (FurnitureRules.PriceToday), so it sells back for $0.
+    // Additive: an older save has no such field and reads false (everything it has sells back for half, as it always did).
+    public bool free;
 }
 
 // The complete contents of a save file. If it's not in here, it isn't saved.
@@ -319,6 +322,7 @@ public class SaveData
             piece.kind ??= "";
             piece.variant ??= "";
             piece.tier = Math.Max(1, piece.tier);
+            if (piece.id.StartsWith("scene:", StringComparison.Ordinal)) piece.free = false;   // 26 Oct 2026: only a bought piece was free
         }
         cafe.sheetsLeft = cafe.sheetsLeft == null ? new string[0] : Array.FindAll(cafe.sheetsLeft, sheet => !string.IsNullOrEmpty(sheet));
         cafe.nextId = Math.Max(1, cafe.nextId);

@@ -19,6 +19,9 @@ using UnityEngine;
 //   3. Saved, then loaded from the lab save on disk (CafeLayout.Apply, as GameBootstrap does at a load; the scene isn't
 //      reloaded): every piece's id, kind, pivot (1 mm), turn (0.1°), tier and variant as before; the lounge and the
 //      communal table off; the money, the seats and the next piece's number as before; no piece twice; both guards pass.
+//   3b. 26 Oct 2026 (Days and first table): Day 1's free first table in the save (PlacedPieceData.free): the bought bistro
+//      marked free and loaded sells back for $0 (never $40), the other pieces for half as before, and the layout's snapshot
+//      (through JSON, as the save file holds it) keeps the mark on it and on nothing else; an older save (no mark) is unchanged.
 //   4. A new game (CafeLayout.Apply with no save, as a first run): the half-finished café, 10 seats (his r1), the café's 9
 //      open pieces, the five dust sheets lying; its guards pass with the sheets' boxes solid. Day 1's two settled guests
 //      are P2's (his r3) and not judged here.
@@ -154,6 +157,36 @@ public sealed class FurnitureSaveCheck : PlayLab
               $"the next piece p{layout.NextId} (p{nextThen}); {ids} pieces, {distinct} ids (no piece twice)");
         whole = FurnitureRules.CheckWholeLayout(layout.Map, On(layout));
         Check(whole.Fits, $"...both guards pass: {whole} ({whole.reached} of {whole.places}, {whole.served} of {whole.servedOf})");
+
+        // ---------- 3b. Day 1's free table in the save (26 Oct 2026, Days and first table) ----------
+        PlacedPiece paidBistro = layout.Pieces.FirstOrDefault(p => p != null && !p.FromScene && p.Kind == bistro);
+        Check(paidBistro != null && !layout.WasFree(paidBistro) && layout.SellBackOf(paidBistro) == bistro.SellBack,
+              $"3b. the bistro bought at full price sells back for ${(paidBistro != null ? layout.SellBackOf(paidBistro) : -1)} (${bistro.SellBack}, half)");
+        SaveData marked = ReadLabSave();
+        PlacedPieceData mark = marked != null && marked.cafe != null && marked.cafe.pieces != null && paidBistro != null
+            ? marked.cafe.pieces.FirstOrDefault(d => d != null && d.id == paidBistro.Id) : null;
+        if (mark != null)
+        {
+            mark.free = true;
+            marked.ValidateAndMigrate();
+            layout.Apply(marked, true);
+            yield return Frames(2);
+            PlacedPiece freeOne = layout.Find(mark.id);
+            CafeLayoutData snap = JsonUtility.FromJson<CafeLayoutData>(JsonUtility.ToJson(layout.Snapshot()));
+            int marks = snap != null && snap.pieces != null ? snap.pieces.Count(d => d != null && d.free) : -1;
+            bool keptMark = snap != null && snap.pieces != null && snap.pieces.Any(d => d != null && d.id == mark.id && d.free);   // (named apart from 5's "kept": CS0136)
+            PlacedPiece otherSquare = layout.Pieces.FirstOrDefault(p => p != null && !p.FromScene && p.Kind == square);
+            Check(freeOne != null && layout.WasFree(freeOne) && layout.SellBackOf(freeOne) == 0 && keptMark && marks == 1
+                  && otherSquare != null && layout.SellBackOf(otherSquare) == square.SellBack,
+                  $"...marked free in the save, it loads free: sells back for ${(freeOne != null ? layout.SellBackOf(freeOne) : -1)} ($0, never ${bistro.SellBack}); " +
+                  $"the square still ${(otherSquare != null ? layout.SellBackOf(otherSquare) : -1)} (${square.SellBack}); the snapshot keeps the mark on it ({(keptMark ? "yes" : "NO")}) and on {marks} piece(s) (1)");
+            layout.Apply(file, true);   // the layout as saved (no mark): what 5 and 6 compare against
+            yield return Frames(2);
+            PlacedPiece back = layout.Find(mark.id);
+            Check(back != null && !layout.WasFree(back) && layout.SellBackOf(back) == bistro.SellBack,
+                  $"...an older save (no mark) is as it was: the same bistro sells back for ${(back != null ? layout.SellBackOf(back) : -1)} (${bistro.SellBack})");
+        }
+        else Check(false, "3b. the lab save lists the bought bistro (to mark it free)");
 
         // ---------- 4. a new game ----------
         layout.Apply(null, false);

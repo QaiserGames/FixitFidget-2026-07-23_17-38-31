@@ -32,6 +32,11 @@ using UnityEngine;
 //   9. Every verdict's words are at most seven words.
 //  10. Day 1's first ghost (Arrange's search: on a sheet first, nearest the counter) at (-4.75, 10.0) turned: it fits and
 //      folds sheets 2 and 3.
+//  11. 26 Oct 2026 (Days and first table): today's price (FurnitureRules.PriceOn, the one price function). Day 1 with no table
+//      bought: the bistro and the square table $0, the plant its $35, a Day 2 kind its price; once a table is bought, and on
+//      Day 2, every price is full again; the words are "<s>$80</s> Free today" only for the free one. With $70 in the till
+//      (his Mac's second Day 1), the first ghost at its free price fits; at the full $80 it says "You need $10 more". With
+//      no clock (Edit mode, the steps) the price is the full one.
 // 26 Oct 2026 (Mac run fix): the data is now the café as his Mac has it: a43's repair-bar stools and stand points 10 cm back,
 // and the counter's box from its MeshCollider's bounds (the customers' foot rail, z 13.16), which BuildMap reads; c12's
 // window-counter stools (Snap To Seat, Max Lift, Approach Side) move no stand point or collider. Items 4 and 10 moved to the
@@ -321,6 +326,44 @@ internal static class FurnitureRulesCheck
         FurnitureRules.Result firstFits = FurnitureRules.Check(half, open, first);
         List<int> folded = Enumerable.Range(0, Sheets.Length).Where(i => FurnitureRules.FoldsSheet(first, Sheets[i].area)).Select(i => i + 1).ToList();
         Check(firstFits.Fits && folded.Count == 2 && folded[0] == 2 && folded[1] == 3, $"10. Day 1's first ghost at (-4.75, 10.00) turned {Say(firstFits)}, folding sheet(s) {string.Join(", ", folded)}");
+
+        // 11. Day 1's first table is free (26 Oct 2026, Days and first table).
+        FurnitureDefinition bistroKind = TempKind("Bistro table", 80, 2, 1), squareKind = TempKind("Square table", 90, 2, 1);
+        FurnitureDefinition plantKind = TempKind("Plant", 35, 0, 1), counterKind = TempKind("Window counter", 120, 3, 2);
+        try
+        {
+            bool freeDay1 = FurnitureRules.PriceOn(bistroKind, 1, false) == 0 && FurnitureRules.PriceOn(squareKind, 1, false) == 0
+                            && FurnitureRules.PriceOn(plantKind, 1, false) == 35 && FurnitureRules.PriceOn(counterKind, 1, false) == 120;
+            bool fullAfter = FurnitureRules.PriceOn(bistroKind, 1, true) == 80 && FurnitureRules.PriceOn(squareKind, 1, true) == 90
+                             && FurnitureRules.PriceOn(bistroKind, 2, false) == 80 && FurnitureRules.PriceOn(squareKind, 3, false) == 90
+                             && FurnitureRules.PriceOn(plantKind, 2, false) == 35;
+            bool noClock = FurnitureRules.PriceToday(bistroKind) == 80 && FurnitureRules.PriceWords(bistroKind) == "$80" && !FurnitureRules.FreeToday(bistroKind);
+            Check(freeDay1, $"11. Day 1, no table bought yet: the bistro ${FurnitureRules.PriceOn(bistroKind, 1, false)}, the square ${FurnitureRules.PriceOn(squareKind, 1, false)} ($0 each), " +
+                            $"the plant ${FurnitureRules.PriceOn(plantKind, 1, false)} ($35), a Day 2 kind ${FurnitureRules.PriceOn(counterKind, 1, false)} ($120)");
+            Check(fullAfter, $"...after one table, and on Days 2 and 3, full price: the bistro ${FurnitureRules.PriceOn(bistroKind, 1, true)} / ${FurnitureRules.PriceOn(bistroKind, 2, false)} ($80), " +
+                             $"the square ${FurnitureRules.PriceOn(squareKind, 1, true)} / ${FurnitureRules.PriceOn(squareKind, 3, false)} ($90)");
+            Check(noClock, $"...with no clock (Edit mode) the full price: ${FurnitureRules.PriceToday(bistroKind)}, \"{FurnitureRules.PriceWords(bistroKind)}\" ($80)");
+            FurnitureRules.Result freeWith70 = FurnitureRules.Check(half, open, first, FurnitureRules.PriceOn(bistroKind, 1, false), 70);
+            FurnitureRules.Result fullWith70 = FurnitureRules.Check(half, open, first, FurnitureRules.PriceOn(bistroKind, 1, true), 70);
+            Check(freeWith70.Fits && fullWith70.verdict == FurnitureRules.Verdict.NotEnoughMoney && fullWith70.words == "You need $10 more",
+                  $"...with $70 in the till (his Mac's Day 1 without the thrift watch): the free first ghost {Say(freeWith70)}; at $80 {Say(fullWith70)}");
+        }
+        finally
+        {
+            foreach (FurnitureDefinition k in new[] { bistroKind, squareKind, plantKind, counterKind }) if (k != null) UnityEngine.Object.DestroyImmediate(k);
+        }
+    }
+
+    static FurnitureDefinition TempKind(string displayName, int price, int seats, int fromDay)
+    {
+        FurnitureDefinition k = ScriptableObject.CreateInstance<FurnitureDefinition>();
+        k.hideFlags = HideFlags.HideAndDontSave;
+        k.name = displayName;
+        k.displayName = displayName;
+        k.price = price;
+        k.seats = seats;
+        k.forSaleFromDay = fromDay;
+        return k;
     }
 }
 #endif

@@ -24,7 +24,8 @@ using UnityEngine;
 // while anyone needs Ace (Downtime), and it has no patience and no review. A customer's job never closes by itself.
 //
 // It is offered (Offered, for the Now line and Downtime) once the day's teaching has begun: on Day 1 once Grace's visit is over,
-// on other days once the day's first customer has been heard, so it never competes with the first card.
+// on other days once the day's first customer has been heard, so it never competes with the first card. 26 Oct 2026 (Days and
+// first table): once begun (Begun: on its corner or in the close-up), the Now line offers it before a dirty table.
 //
 // The save (SaveData.thrift): which find is on the shelf, for which day, and whether it was fixed; never its screws. An older
 // save (or a lab's) has none, and gets the day's own authored find. Placed by Fixit Fidget > Days > Props 1 (the shelf, its
@@ -126,6 +127,13 @@ public sealed class ThriftShelf : Interactable
                    && (NightWalk.Instance == null || !NightWalk.Instance.Active);
         }
     }
+
+    /// <summary>
+    /// 26 Oct 2026 (Days and first table): the find has been begun and isn't finished: on the bench's corner (stepped back from,
+    /// or left for a customer) or in the close-up. The Now line puts it before a dirty table then (Downtime.Next): a player's
+    /// own unfinished work is finished before a cup.
+    /// </summary>
+    public bool Begun => find != null && !find.IsFinished && !flying && (OnTheCorner || InTheCloseUp);
 
     /// <summary>A find sold at this day's closing: for how much and what it was (the recap's Tonight); 0 when none.</summary>
     public int SoldOn(int dayNumber) => record != null && record.soldDay == dayNumber ? record.soldFor : 0;

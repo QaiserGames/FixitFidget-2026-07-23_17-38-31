@@ -20,6 +20,8 @@ using UnityEngine;
 //     every piece of its own on where the scene has it, no sheets, nothing bought. The café his saves were played in, exactly;
 //   * format 1: what's listed is on at its saved pose; the café's own pieces that aren't listed are off (sold); bought pieces
 //     are made from their kind's prefab; the sheets listed lie, the rest are gone. An unknown kind is skipped with a warning.
+//     26 Oct 2026 (Days and first table): a bought piece listed "free" was Day 1's free first table (FurnitureRules.PriceToday):
+//     it sells back for $0, never half of a price nobody paid. Older saves have no such field: everything sells for half.
 // Only HasSave tells a new game from an old save: a new game's SaveData is format 0 too.
 //
 // WHEN (his answers of 24 Oct): arranging only while the café is closed, at every closing, as often as you like (f1); a 25 cm
@@ -57,6 +59,8 @@ public sealed class CafeLayout : MonoBehaviour
     Vector3 homePivot;
     float homeYaw;
     FurnitureRules.FloorMap map;
+    // 26 Oct 2026 (Days and first table): the bought pieces that cost nothing (Day 1's first table), by save id.
+    readonly HashSet<string> freeIds = new HashSet<string>();
 
     // ------------------------------------------------------------------ the contract (furniture-spec.md §4.11)
 
@@ -98,6 +102,30 @@ public sealed class CafeLayout : MonoBehaviour
 
     /// <summary>The floor map for this closing (built once, on the first question; AfterArranging drops it).</summary>
     public FurnitureRules.FloorMap Map => map ??= FurnitureRules.BuildMap();
+
+    /// <summary>
+    /// 26 Oct 2026 (Days and first table): a table has been bought this game (a bought piece with seats, in the café or in hand),
+    /// so Day 1's free table is taken (FurnitureRules.PriceToday). One sold again is gone: its $0 back makes a rebuy a move.
+    /// </summary>
+    public bool TableBought
+    {
+        get
+        {
+            foreach (PlacedPiece p in pieces)
+                if (p != null && !p.FromScene && p.Kind != null && p.Kind.seats > 0) return true;
+            return false;
+        }
+    }
+
+    /// <summary>26 Oct 2026 (Days and first table): this piece cost nothing (Day 1's first table): it sells back for $0.</summary>
+    public bool WasFree(PlacedPiece piece) => piece != null && !piece.FromScene && freeIds.Contains(piece.Id);
+
+    /// <summary>What selling this piece back gives (f3: half its price; $0 for Day 1's free table). 26 Oct 2026.</summary>
+    public int SellBackOf(PlacedPiece piece)
+    {
+        if (piece == null || piece.Kind == null) return 0;
+        return WasFree(piece) ? 0 : piece.Kind.SellBack;
+    }
 
     /// <summary>The café is closed (the day is over) and no night walk is on: the only time furniture moves (f1).</summary>
     public static bool Closed
@@ -165,6 +193,7 @@ public sealed class CafeLayout : MonoBehaviour
         InHand = null;
         map = null;
         nextId = 1;
+        freeIds.Clear();   // 26 Oct 2026 (Days and first table)
 
         CafeLayoutData cafe = data != null ? data.cafe : null;
         if (!hasSave)
@@ -218,6 +247,7 @@ public sealed class CafeLayout : MonoBehaviour
                 }
                 PlacedPiece made = Make(kind, prefab, d.id, d.tier, d.variant, new Vector3(d.x, 0f, d.z), d.yaw);
                 if (made != null) pieces.Add(made);
+                if (made != null && d.free) freeIds.Add(d.id);   // 26 Oct 2026 (Days and first table): Day 1's free table
                 if (d.id.Length > 1 && d.id[0] == 'p' && int.TryParse(d.id.Substring(1), out int n)) highest = Mathf.Max(highest, n);
             }
             var left = new HashSet<string>(cafe.sheetsLeft ?? new string[0]);
@@ -249,6 +279,7 @@ public sealed class CafeLayout : MonoBehaviour
                 yaw = Round(Mathf.Repeat(yaw, 360f), 100f),
                 tier = p.Tier,
                 variant = p.Variant,
+                free = WasFree(p),   // 26 Oct 2026 (Days and first table)
             });
         }
         var left = new List<string>();
@@ -278,10 +309,17 @@ public sealed class CafeLayout : MonoBehaviour
         int money = ShopEconomy.Instance != null ? ShopEconomy.Instance.Money : 0;
         LastResult = FurnitureRules.Check(Map, pieces, kind, template, pivot, yaw, null, money);
         if (!LastResult.Fits || ShopEconomy.Instance == null) return null;
-        ShopEconomy.Instance.AddMoney(-kind.price);
+        // 26 Oct 2026 (Days and first table): today's price (Day 1's first table is free), read before the piece exists.
+        int price = FurnitureRules.PriceToday(kind);
+        if (price > 0) ShopEconomy.Instance.AddMoney(-price);
         PlacedPiece made = Make(kind, prefab, "p" + nextId, 1, plant, Flat(pivot), yaw);
         nextId++;
-        if (made == null) return null;
+        if (made == null)
+        {
+            if (price > 0) ShopEconomy.Instance.AddMoney(price);   // nothing was made: nothing is charged
+            return null;
+        }
+        if (price == 0 && kind.price > 0) freeIds.Add(made.Id);
         pieces.Add(made);
         AfterChange(made);
         return made;
@@ -304,7 +342,8 @@ public sealed class CafeLayout : MonoBehaviour
     public bool Sell(PlacedPiece piece)
     {
         if (!Closed || piece == null || !pieces.Contains(piece)) return false;
-        int refund = piece.Kind != null ? piece.Kind.SellBack : 0;
+        int refund = SellBackOf(piece);   // 26 Oct 2026 (Days and first table): $0 for Day 1's free table
+        freeIds.Remove(piece.Id);
         if (InHand == piece) InHand = null;
         piece.SetOn(false);
         if (!piece.FromScene)
